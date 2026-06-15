@@ -1,0 +1,972 @@
+TÀI LIỆU ĐẶC TẢ KIẾN TRÚC & THIẾT KẾ
+HỆ THỐNG
+Số Hóa Checklist Ca Trực Vận Hành Động Với MongoDB
+
+Đơn vị phát triển:
+Phòng Phát Triển Hệ Thống Lõi Lập Trình & Vận Hành (IT Core)
+Cựu kiến trúc tích hợp:
+NestJS (Backend v10) & NextJS (Frontend v14 App Router)
+Cơ sở dữ liệu (NoSQL):
+MongoDB (Production Grade / Embedded Document Model)
+Phiên bản tài liệu:
+v1.2.0-PROD-MONGO
+Ngày phát hành:
+11 tháng 06, 2026
+Người phê duyệt:
+Technical Team Leader (Anh Tú)
+Tổng Quan Dự Án & Bài Toán Nghiệp Vụ
+
+Hiện nay, công tác trực vận hành tại các phòng ban nghiệp vụ, giám sát thị trường và hạ tầng IT của Sở đang được thực hiện thủ công thông qua biểu mẫu giấy hoặc các file Excel phân tán. Quy trình này bộc lộ nhiều điểm hạn chế lớn: Khó giám sát tiến độ thời gian thực (realtime), dễ xảy ra sai sót hoặc bỏ quên đầu việc quan trọng trong các khung giờ cao điểm (mở phiên, trong phiên, kết thúc phiên), và không có dữ liệu log tập trung để phục vụ công tác hậu kiểm (audit log).
+Hệ thống Shift Checklist Digitalization được thiết kế nhằm mục đích số hóa toàn bộ quy trình vận hành thành một nền tảng Web App realtime. Việc chuyển đổi sang kiến trúc MongoDB giúp tận dụng tối đa sức mạnh của Document Model (Dữ liệu lồng nhau), loại bỏ hoàn toàn các liên kết bảng phức tạp (JOIN), tối ưu hóa tốc độ đọc ghi dữ liệu đồng thời và cho phép cấu hình động danh sách tác vụ của các bộ phận một cách linh hoạt tuyệt đối.
+Thiết Kế Cơ Sở Dữ Liệu Động (MongoDB Collections)
+
+Áp dụng mô hình Embedded Document Pattern (Nhúng trực tiếp mảng việc vào trong lòng một tài liệu), toàn bộ cấu trúc ca trực của một ngày được gom gọn vào trong một bản ghi duy nhất, giúp tối ưu hóa hiệu năng và tốc độ truy vấn.
+ 2.1. Collection: departments (Phòng ban / Bộ phận trực)
+Lưu trữ thông tin các đội trực độc lập trong Sở để phân tách không gian dữ liệu (Data Isolation).
+{  "_id": {"$oid": "66683ce052f1a23163000001"},  "name": "IT Vn Hành Core",  "code": "IT_CORE",  "createdAt": {"$date": "2026-06-11T00:00:00.000Z"}}{  "_id": {"$oid": "66683ce052f1a23163000001"},  "name": "IT Vn Hành Core",  "code": "IT_CORE",  "createdAt": {"$date": "2026-06-11T00:00:00.000Z"}}
+{
+  "_id": {"$oid": "66683ce052f1a23163000001"},
+  "name": "IT V
+n Hành Core",
+  "code": "IT_CORE",
+  "createdAt": {"$date": "2026-06-11T00:00:00.000Z"}
+}
+{
+  "_id": {"$oid": "66683ce052f1a23163000001"},
+  "name": "IT V
+n Hành Core",
+  "code": "IT_CORE",
+  "createdAt": {"$date": "2026-06-11T00:00:00.000Z"}
+}
+Indexes: { "code": 1 } (Unique) để tăng tốc độ định tuyến và tra cứu phòng ban.
+2.2. Collection: users (Tài khoản nhân sự){  "_id": {"$oid": "66683ce052f1a23163000002"},  "username": "sonhh",  "password": "$2b$10$X7r...", // Mt khu đã đc mã hóa bng bcrypt  "departmentId": {"$oid": "66683ce052f1a23163000001"},  "role": "STAFF", // ADMIN, LEADER, STAFF2.2. Collection: users (Tài khoản nhân sự){  "_id": {"$oid": "66683ce052f1a23163000002"},  "username": "sonhh",  "password": "$2b$10$X7r...", // Mt khu đã đc mã hóa bng bcrypt  "departmentId": {"$oid": "66683ce052f1a23163000001"},  "role": "STAFF", // ADMIN, LEADER, STAFF
+2.2
+. Collection: users (Tài kho
+ả
+n nhân s
+ự
+)
+{
+  "_id": {"$oid": "66683ce052f1a23163000002"},
+  "username": "sonhh",
+  "password": "$2b$10$X7r...", // M
+t kh
+u đã đ
+c mã hóa b
+ng bcrypt
+  "departmentId": {"$oid": "66683ce052f1a23163000001"},
+  "role": "STAFF", // ADMIN, LEADER, STAFF
+2.2
+. Collection: users (Tài kho
+ả
+n nhân s
+ự
+)
+{
+  "_id": {"$oid": "66683ce052f1a23163000002"},
+  "username": "sonhh",
+  "password": "$2b$10$X7r...", // M
+t kh
+u đã đ
+c mã hóa b
+ng bcrypt
+  "departmentId": {"$oid": "66683ce052f1a23163000001"},
+  "role": "STAFF", // ADMIN, LEADER, STAFF
+  "fullName": "H Hu Sn"}  "fullName": "H Hu Sn"}
+  "fullName": "H
+ H
+u S
+n"
+}
+  "fullName": "H
+ H
+u S
+n"
+}
+Indexes: { "username": 1 } (Unique) phục vụ tiến trình xác thực đăng nhập.
+ 2.3. Collection: checklist_templates (Mẫu cấu hình việc động) {  "_id": {"$oid": "66683ce052f1a23163000003"},  "title": "Checklist m ca phiên giao dch",  "departmentId": {"$oid": "66683ce052f1a23163000001"},  "sessionType": "OPEN", // OPEN, DURING, CLOSE  "tasks": [    {      "taskId": "task_01",      "taskName": "Kim tra trng thái kt ni cng FIX Gateway sang MSB",      "priority": "CRITICAL", // LOW, MEDIUM, HIGH, CRITICAL      "sortOrder": 1    }  ],  "createdAt": {"$date": "2026-06-11T01:00:00.000Z"}}{  "_id": {"$oid": "66683ce052f1a23163000003"},  "title": "Checklist m ca phiên giao dch",  "departmentId": {"$oid": "66683ce052f1a23163000001"},  "sessionType": "OPEN", // OPEN, DURING, CLOSE  "tasks": [    {      "taskId": "task_01",      "taskName": "Kim tra trng thái kt ni cng FIX Gateway sang MSB",      "priority": "CRITICAL", // LOW, MEDIUM, HIGH, CRITICAL      "sortOrder": 1    }  ],  "createdAt": {"$date": "2026-06-11T01:00:00.000Z"}}2.4. Collection: shift_logs (Nhật ký ca trực chạy thực tế)
+{
+  "_id": {"$oid": "66683ce052f1a23163000003"},
+  "title": "Checklist m
+ c
+a phiên giao d
+ch",
+  "departmentId": {"$oid": "66683ce052f1a23163000001"},
+  "sessionType": "OPEN", // OPEN, DURING, CLOSE
+  "tasks": [
+    {
+      "taskId": "task_01",
+      "taskName": "Ki
+m tra tr
+ng thái k
+t n
+i c
+ng FIX Gateway sang MSB",
+      "priority": "CRITICAL", // LOW, MEDIUM, HIGH, CRITICAL
+      "sortOrder": 1
+    }
+  ],
+  "createdAt": {"$date": "2026-06-11T01:00:00.000Z"}
+}
+{
+  "_id": {"$oid": "66683ce052f1a23163000003"},
+  "title": "Checklist m
+ c
+a phiên giao d
+ch",
+  "departmentId": {"$oid": "66683ce052f1a23163000001"},
+  "sessionType": "OPEN", // OPEN, DURING, CLOSE
+  "tasks": [
+    {
+      "taskId": "task_01",
+      "taskName": "Ki
+m tra tr
+ng thái k
+t n
+i c
+ng FIX Gateway sang MSB",
+      "priority": "CRITICAL", // LOW, MEDIUM, HIGH, CRITICAL
+      "sortOrder": 1
+    }
+  ],
+  "createdAt": {"$date": "2026-06-11T01:00:00.000Z"}
+}
+Mẫu cấu hình chứa danh sách tất cả đầu việc tĩnh của một phiên, phân loại theo sessionType.
+Áp dụng Data Cloner Pattern, khi kỹ sư mở ca trực, hệ thống snapshot nguyên trạng mảng cấu hình sang mảng details của log kèm trạng thái runtime.
+{  "_id": {"$oid": "66683ce052f1a23163000004"},  "templateId": {"$oid": "66683ce052f1a23163000003"},  "userId": {"$oid": "66683ce052f1a23163000002"},   "shiftDate": "2026-06-11",  "status": "PENDING", // PENDING, COMPLETED  "progressPercentage": 50.00,   "details": [    {      "taskId": "task_01",      "taskNameSnapshot": "Kim tra trng thái kt ni cng FIX Gateway sang MSB",      "prioritySnapshot": "CRITICAL",      "isChecked": true,      "checkedAt": {"$date": "2026-06-11T07:15:22.000Z"},      "updatedBy": {"$oid": "66683ce052f1a23163000002"},      "note": "Cng kt ni n đnh, ping 1ms."    }  ]}{  "_id": {"$oid": "66683ce052f1a23163000004"},  "templateId": {"$oid": "66683ce052f1a23163000003"},  "userId": {"$oid": "66683ce052f1a23163000002"},   "shiftDate": "2026-06-11",  "status": "PENDING", // PENDING, COMPLETED  "progressPercentage": 50.00,   "details": [    {      "taskId": "task_01",      "taskNameSnapshot": "Kim tra trng thái kt ni cng FIX Gateway sang MSB",      "prioritySnapshot": "CRITICAL",      "isChecked": true,      "checkedAt": {"$date": "2026-06-11T07:15:22.000Z"},      "updatedBy": {"$oid": "66683ce052f1a23163000002"},      "note": "Cng kt ni n đnh, ping 1ms."    }  ]}
+{
+  "_id": {"$oid": "66683ce052f1a23163000004"},
+  "templateId": {"$oid": "66683ce052f1a23163000003"},
+  "userId": {"$oid": "66683ce052f1a23163000002"}, 
+  "shiftDate": "2026-06-11",
+  "status": "PENDING", // PENDING, COMPLETED
+  "progressPercentage": 50.00, 
+  "details": [
+    {
+      "taskId": "task_01",
+      "taskNameSnapshot": "Ki
+m tra tr
+ng thái k
+t n
+i c
+ng FIX Gateway sang MSB",
+      "prioritySnapshot": "CRITICAL",
+      "isChecked": true,
+      "checkedAt": {"$date": "2026-06-11T07:15:22.000Z"},
+      "updatedBy": {"$oid": "66683ce052f1a23163000002"},
+      "note": "C
+ng k
+t n
+i 
+n đ
+nh, ping 1ms."
+    }
+  ]
+}
+{
+  "_id": {"$oid": "66683ce052f1a23163000004"},
+  "templateId": {"$oid": "66683ce052f1a23163000003"},
+  "userId": {"$oid": "66683ce052f1a23163000002"}, 
+  "shiftDate": "2026-06-11",
+  "status": "PENDING", // PENDING, COMPLETED
+  "progressPercentage": 50.00, 
+  "details": [
+    {
+      "taskId": "task_01",
+      "taskNameSnapshot": "Ki
+m tra tr
+ng thái k
+t n
+i c
+ng FIX Gateway sang MSB",
+      "prioritySnapshot": "CRITICAL",
+      "isChecked": true,
+      "checkedAt": {"$date": "2026-06-11T07:15:22.000Z"},
+      "updatedBy": {"$oid": "66683ce052f1a23163000002"},
+      "note": "C
+ng k
+t n
+i 
+n đ
+nh, ping 1ms."
+    }
+  ]
+}
+Thiết Kế Backend Kiến Trúc Hệ Thống (NestJS & Mongoose)
+3.1. API Endpoints Đặc Tả Production
+Khởi tạo ca trực: POST /api/v1/shifts/initialize
+Cập nhật trạng thái tích chọn (Toggle & Auto-save): PATCH /api/v1/shifts/items/toggle
+3.2. Logic Xử Lý Hàm Cập Nhật Ô Việc Bằng Toán Tử Nguyên Tửasync toggleTask(shiftLogId: string, taskId: string, isChecked: boolean, userId: string, note?: string) {  const updatedLog = await this.shiftLogModel.findOneAndUpdate(    { "_id": shiftLogId, "details.taskId": taskId },    {      "$set": {        "details.$.isChecked": isChecked,        "details.$.checkedAt": isChecked ? new Date() : null,        "details.$.updatedBy": userId,        "details.$.note": note || null,        "updatedAt": new Date()      }    },    { new: true }  );  const total = updatedLog.details.length;  const completed = updatedLog.details.filter(d => d.isChecked).length;  updatedLog.progressPercentage = parseFloat(((completed / total) * 100).toFixed(2));  await updatedLog.save();  return updatedLog;}3.2. Logic Xử Lý Hàm Cập Nhật Ô Việc Bằng Toán Tử Nguyên Tửasync toggleTask(shiftLogId: string, taskId: string, isChecked: boolean, userId: string, note?: string) {  const updatedLog = await this.shiftLogModel.findOneAndUpdate(    { "_id": shiftLogId, "details.taskId": taskId },    {      "$set": {        "details.$.isChecked": isChecked,        "details.$.checkedAt": isChecked ? new Date() : null,        "details.$.updatedBy": userId,        "details.$.note": note || null,        "updatedAt": new Date()      }    },    { new: true }  );  const total = updatedLog.details.length;  const completed = updatedLog.details.filter(d => d.isChecked).length;  updatedLog.progressPercentage = parseFloat(((completed / total) * 100).toFixed(2));  await updatedLog.save();  return updatedLog;}
+3.2
+. Logic X
+ử
+ Lý Hàm C
+ậ
+p Nh
+ậ
+t Ô Vi
+ệ
+c B
+ằ
+ng Toán T
+ử
+ Nguyên T
+ử
+async toggleTask(shiftLogId: string, taskId: string, isChecked: boolean, userId: string, note?: 
+string) {
+  const updatedLog = await this.shiftLogModel.findOneAndUpdate(
+    { "_id": shiftLogId, "details.taskId": taskId },
+    {
+      "$set": {
+        "details.$.isChecked": isChecked,
+        "details.$.checkedAt": isChecked ? new Date() : null,
+        "details.$.updatedBy": userId,
+        "details.$.note": note || null,
+        "updatedAt": new Date()
+      }
+    },
+    { new: true }
+  );
+  const total = updatedLog.details.length;
+  const completed = updatedLog.details.filter(d => d.isChecked).length;
+  updatedLog.progressPercentage = parseFloat(((completed / total) * 100).toFixed(2));
+  await updatedLog.save();
+  return updatedLog;
+}
+3.2
+. Logic X
+ử
+ Lý Hàm C
+ậ
+p Nh
+ậ
+t Ô Vi
+ệ
+c B
+ằ
+ng Toán T
+ử
+ Nguyên T
+ử
+async toggleTask(shiftLogId: string, taskId: string, isChecked: boolean, userId: string, note?: 
+string) {
+  const updatedLog = await this.shiftLogModel.findOneAndUpdate(
+    { "_id": shiftLogId, "details.taskId": taskId },
+    {
+      "$set": {
+        "details.$.isChecked": isChecked,
+        "details.$.checkedAt": isChecked ? new Date() : null,
+        "details.$.updatedBy": userId,
+        "details.$.note": note || null,
+        "updatedAt": new Date()
+      }
+    },
+    { new: true }
+  );
+  const total = updatedLog.details.length;
+  const completed = updatedLog.details.filter(d => d.isChecked).length;
+  updatedLog.progressPercentage = parseFloat(((completed / total) * 100).toFixed(2));
+  await updatedLog.save();
+  return updatedLog;
+}
+Đặc Tả Tập Dữ Liệu Tác Vụ Chi Tiết Nghiệp Vụ (Dùng cho Seed/Import Code)
+
+Dưới đây là toàn bộ danh sách 34 tác vụ nghiệp vụ chuẩn chỉnh của Sở MXV được thiết kế sẵn cấu trúc JSON để nạp thẳng vào cơ sở dữ liệu MongoDB phục vụ quá trình coding backend và giao diện.
+ 4.1. Bộ Phận IT Vận Hành Hệ Thống Lõi (code: "IT_CORE")
+Phiên Mở Cửa (sessionType: "OPEN")
+[   { "taskId": "it_open_01", "taskName": "Kim tra kt ni h tng mng ni b (Intranet) và kt ni VPN sang các đu mi Thành viên kinh doanh", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "it_open_02", "taskName": "Kim tra ping và trng thái kt ni cng FIX Gateway sang h thng bù tr ca ngân hàng liên kt (MSB UAT/Production)", "priority": "CRITICAL", "sortOrder": 2 },   { "taskId": "it_open_03", "taskName": "Khi đng dch v BroadcastServer và kim tra log kt ni lung giá Realtime qua giao thc WebSocket thun (ws)", "priority": "CRITICAL", "sortOrder": 3 },   { "taskId": "it_open_04", "taskName": "Kim tra dung lng  đĩa cng (Disk Storage) và mc đ tiêu th RAM/CPU ca cm máy ch c s d liu MongoDB", "priority": "HIGH", "sortOrder": 4 },   { "taskId": "it_open_05", "taskName": "Xác nhn đng b thành công d liu giá m ca đu ngày (Snapshot Full Refresh) t các sàn quc t liên thông", "priority": "CRITICAL", "sortOrder": 5 }
+]
+Phiên Trong Phiên (sessionType: "DURING")
+[  { "taskId": "it_during_01", "taskName": "Giám sát lung tin nhn cp nht giá bin đng (Incremental Refresh) tránh tình trng nghn/tr hàng tin (Message Queue)", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "it_during_02", "taskName": "Kim tra và bóc tách log tp trung trên Grafana Loki đ phát hin sm các mã li kt ni mng t phía máy Client ca Thành viên", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "it_during_03", "taskName": "Theo dõi trng thái x lý li Buffer.isBuffer(data) khi h thng tip nhn các chui d liu thô nh phân t cng mng", "priority": "HIGH", "sortOrder": 3 }][  { "taskId": "it_during_01", "taskName": "Giám sát lung tin nhn cp nht giá bin đng (Incremental Refresh) tránh tình trng nghn/tr hàng tin (Message Queue)", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "it_during_02", "taskName": "Kim tra và bóc tách log tp trung trên Grafana Loki đ phát hin sm các mã li kt ni mng t phía máy Client ca Thành viên", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "it_during_03", "taskName": "Theo dõi trng thái x lý li Buffer.isBuffer(data) khi h thng tip nhn các chui d liu thô nh phân t cng mng", "priority": "HIGH", "sortOrder": 3 }]
+[
+  { "taskId": "it_during_01", "taskName": "Giám sát lu
+ng tin nh
+n c
+p nh
+t giá bi
+n đ
+ng 
+(
+Incremental Refresh) tránh tình tr
+ng ngh
+n/tr
+ hàng tin (Message Queue)", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "it_during_02", "taskName": "Ki
+m tra và bóc tách log t
+p trung trên Grafana Loki 
+đ
+ phát hi
+n s
+m các mã l
+i k
+t n
+i m
+ng t
+ phía máy Client c
+a Thành viên", "priority": 
+"MEDIUM", "sortOrder": 2 },
+  { "taskId": "it_during_03", "taskName": "Theo dõi tr
+ng thái x
+ lý l
+i Buffer.isBuffer(data) 
+khi h
+ th
+ng ti
+p nh
+n các chu
+i d
+ li
+u thô nh
+ phân t
+ c
+ng m
+ng", "priority": "HIGH", 
+"sortOrder": 3 }
+]
+[
+  { "taskId": "it_during_01", "taskName": "Giám sát lu
+ng tin nh
+n c
+p nh
+t giá bi
+n đ
+ng 
+(
+Incremental Refresh) tránh tình tr
+ng ngh
+n/tr
+ hàng tin (Message Queue)", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "it_during_02", "taskName": "Ki
+m tra và bóc tách log t
+p trung trên Grafana Loki 
+đ
+ phát hi
+n s
+m các mã l
+i k
+t n
+i m
+ng t
+ phía máy Client c
+a Thành viên", "priority": 
+"MEDIUM", "sortOrder": 2 },
+  { "taskId": "it_during_03", "taskName": "Theo dõi tr
+ng thái x
+ lý l
+i Buffer.isBuffer(data) 
+khi h
+ th
+ng ti
+p nh
+n các chu
+i d
+ li
+u thô nh
+ phân t
+ c
+ng m
+ng", "priority": "HIGH", 
+"sortOrder": 3 }
+]
+Phiên Kết Thúc (sessionType: "CLOSE")
+[  { "taskId": "it_close_01", "taskName": "Thc hin tin trình sao lu c s d liu t đng (Auto-backup Database Snapshot) cui ngày ca phân h ca trc", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "it_close_02", "taskName": "Kim tra trng thái đóng cng kt ni API và ngt các phiên kt ni Realtime (Socket Session) ca Client an toàn", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "it_close_03", "taskName": "Xut file báo cáo Log li h thng trong ngày bàn giao cho ca trc tip theo x lý k thut", "priority": "LOW", "sortOrder": 3 }][  { "taskId": "it_close_01", "taskName": "Thc hin tin trình sao lu c s d liu t đng (Auto-backup Database Snapshot) cui ngày ca phân h ca trc", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "it_close_02", "taskName": "Kim tra trng thái đóng cng kt ni API và ngt các phiên kt ni Realtime (Socket Session) ca Client an toàn", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "it_close_03", "taskName": "Xut file báo cáo Log li h thng trong ngày bàn giao cho ca trc tip theo x lý k thut", "priority": "LOW", "sortOrder": 3 }]
+[
+  { "taskId": "it_close_01", "taskName": "Th
+c hi
+n ti
+n trình sao l
+u c
+ s
+ d
+ li
+u t
+ đ
+ng 
+(
+Auto-backup Database Snapshot) cu
+i ngày c
+a phân h
+ ca tr
+c", "priority": "HIGH", "sortOrder": 
+1
+ },
+  { "taskId": "it_close_02", "taskName": "Ki
+m tra tr
+ng thái đóng c
+ng k
+t n
+i API và ng
+t các 
+phiên k
+t n
+i Realtime (Socket Session) c
+a Client an toàn", "priority": "MEDIUM", "sortOrder": 
+2
+ },
+  { "taskId": "it_close_03", "taskName": "Xu
+t file báo cáo Log l
+i h
+ th
+ng trong ngày bàn giao 
+cho ca tr
+c ti
+p theo x
+ lý k
+ thu
+t", "priority": "LOW", "sortOrder": 3 }
+]
+[
+  { "taskId": "it_close_01", "taskName": "Th
+c hi
+n ti
+n trình sao l
+u c
+ s
+ d
+ li
+u t
+ đ
+ng 
+(
+Auto-backup Database Snapshot) cu
+i ngày c
+a phân h
+ ca tr
+c", "priority": "HIGH", "sortOrder": 
+1
+ },
+  { "taskId": "it_close_02", "taskName": "Ki
+m tra tr
+ng thái đóng c
+ng k
+t n
+i API và ng
+t các 
+phiên k
+t n
+i Realtime (Socket Session) c
+a Client an toàn", "priority": "MEDIUM", "sortOrder": 
+2
+ },
+  { "taskId": "it_close_03", "taskName": "Xu
+t file báo cáo Log l
+i h
+ th
+ng trong ngày bàn giao 
+cho ca tr
+c ti
+p theo x
+ lý k
+ thu
+t", "priority": "LOW", "sortOrder": 3 }
+]
+ 4.2. Bộ Phận Phòng Nghiệp Vụ Giao Nhận (code: "RE_OPS")
+Phiên Mở Cửa (sessionType: "OPEN")
+[  { "taskId": "ops_open_01", "taskName": "Kim tra danh sách các mã hp đng hàng hóa đn kỳ hn giao nhn vt cht trong ngày (Xác đnh khung ngày FND và LND)", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "ops_open_02", "taskName": "Cp nht biu phí giao nhn, phí lu kho vt cht mi nht áp dng cho các mt hàng kim loi (Bc, Đng) và năng lng", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "ops_open_03", "taskName": "Đi chiu s d tài khon tin mt (LND - Lc Np Dng) đu ngày ca danh sách Nhà đu t đăng ký nhn hàng", "priority": "CRITICAL", "sortOrder": 3 }][  { "taskId": "ops_open_01", "taskName": "Kim tra danh sách các mã hp đng hàng hóa đn kỳ hn giao nhn vt cht trong ngày (Xác đnh khung ngày FND và LND)", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "ops_open_02", "taskName": "Cp nht biu phí giao nhn, phí lu kho vt cht mi nht áp dng cho các mt hàng kim loi (Bc, Đng) và năng lng", "priority": "MEDIUM", "sortOrder": 2 },  { "taskId": "ops_open_03", "taskName": "Đi chiu s d tài khon tin mt (LND - Lc Np Dng) đu ngày ca danh sách Nhà đu t đăng ký nhn hàng", "priority": "CRITICAL", "sortOrder": 3 }]
+[
+  { "taskId": "ops_open_01", "taskName": "Ki
+m tra danh sách các mã h
+p đ
+ng hàng hóa đ
+n kỳ h
+n 
+giao nh
+n v
+t ch
+t trong ngày (Xác đ
+nh khung ngày FND và LND)", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "ops_open_02", "taskName": "C
+p nh
+t bi
+u phí giao nh
+n, phí l
+u kho v
+t ch
+t m
+i 
+nh
+t áp d
+ng cho các m
+t hàng kim lo
+i (B
+c, Đ
+ng) và năng l
+ng", "priority": "MEDIUM", 
+"sortOrder": 2 },
+  { "taskId": "ops_open_03", "taskName": "Đ
+i chi
+u s
+ d
+ tài kho
+n ti
+n m
+t (LND - L
+c N
+p 
+D
+ng) đ
+u ngày c
+a danh sách Nhà đ
+u t
+ đăng ký nh
+n hàng", "priority": "CRITICAL", "sortOrder": 
+3
+ 
+}
+]
+[
+  { "taskId": "ops_open_01", "taskName": "Ki
+m tra danh sách các mã h
+p đ
+ng hàng hóa đ
+n kỳ h
+n 
+giao nh
+n v
+t ch
+t trong ngày (Xác đ
+nh khung ngày FND và LND)", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "ops_open_02", "taskName": "C
+p nh
+t bi
+u phí giao nh
+n, phí l
+u kho v
+t ch
+t m
+i 
+nh
+t áp d
+ng cho các m
+t hàng kim lo
+i (B
+c, Đ
+ng) và năng l
+ng", "priority": "MEDIUM", 
+"sortOrder": 2 },
+  { "taskId": "ops_open_03", "taskName": "Đ
+i chi
+u s
+ d
+ tài kho
+n ti
+n m
+t (LND - L
+c N
+p 
+D
+ng) đ
+u ngày c
+a danh sách Nhà đ
+u t
+ đăng ký nh
+n hàng", "priority": "CRITICAL", "sortOrder": 
+3
+ 
+}
+]
+Phiên Trong Phiên (sessionType: "DURING")
+[   { "taskId": "ops_during_01", "taskName": "Tip nhn và phê duyt các yêu cu đăng ký lu ký vt cht (DELIVERY_DEPOSIT) ca bên Bán gi lên t UI", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "ops_during_02", "taskName": "X lý phê duyt hoc t chi các yêu cu Hy lu ký (CANCEL_DEPOSIT) da trên điu kin kim tra trng thái ti kho MSB", "priority": "HIGH", 
+"sortOrder": 2 },
+  { "taskId": "ops_during_03", "taskName": "Kim tra tính hp l ca các yêu cu rút ký qu (MARGIN_WITHDRAW), đi chiu sc mua TTM trc khi duyt chuyn tin sang VCB", "priority": 
+"CRITICAL", "sortOrder": 3 },   { "taskId": "ops_during_04", "taskName": "Giám sát lung d liu phn hi MSB_STATUS t phía ngân hàng đ cp nht trng thái 'Ngi bán đã giao Bc' sang mã 'S'", "priority": "HIGH", "sortOrder": 4 },
+  { "taskId": "ops_during_05", "taskName": "Tip nhn yêu cu Đăng ký nhn hàng vt cht (DELIVERY_PHYSICAL_REGIS), kim tra ràng buc v th Mua m (Long Position)", "priority": 
+"CRITICAL", "sortOrder": 5 },
+  { "taskId": "ops_during_06", "taskName": "X lý h s đăng ký nhn hàng ch đnh (RECEIVE_DESIGNATED), đi chiu mã phiu ghép cp (pairingCode) phát hành bi CCP", "priority": "HIGH", "sortOrder": 6 }
+]
+Phiên Kết Thúc (sessionType: "CLOSE")
+[   { "taskId": "ops_close_01", "taskName": "Thc hin x lý EOD vt cht (End-of-Day): Quét tr tin phí giao nhn ca các tài khon (chp nhn tr âm nu thiu tin)", "priority": "CRITICAL", "sortOrder": 1 },   { "taskId": "ops_close_02", "taskName": "Kt xut file đi chiu tng hp d liu giao nhn an toàn sang ngân hàng MSB chi nhánh Đng Đa và TP.HCM", "priority": "HIGH", "sortOrder": 2 },   { "taskId": "ops_close_03", "taskName": "Hy toàn b các yêu cu đăng ký giao nhn vt cht còn tn đng  trng thái PENDING cha đc duyt tính đn cui ngày", "priority": "MEDIUM", 
+4.3. Bộ Phận Phòng Giám Sát Thị Trường (code: "MARKET_SURV")Phiên Mở Cửa (sessionType: "OPEN")"sortOrder": 3 }]4.3. Bộ Phận Phòng Giám Sát Thị Trường (code: "MARKET_SURV")Phiên Mở Cửa (sessionType: "OPEN")"sortOrder": 3 }]
+4.3
+. B
+ộ
+ Ph
+ậ
+n Phòng Giám Sát Th
+ị
+ Tr
+ườ
+ng (code: "MARKET_SURV")
+Phiên M
+ở
+ C
+ử
+a (sessionType: "OPEN")
+"sortOrder": 3 }
+]
+4.3
+. B
+ộ
+ Ph
+ậ
+n Phòng Giám Sát Th
+ị
+ Tr
+ườ
+ng (code: "MARKET_SURV")
+Phiên M
+ở
+ C
+ử
+a (sessionType: "OPEN")
+"sortOrder": 3 }
+]
+[  { "taskId": "surv_open_01", "taskName": "Kim tra biên đ dao đng giá trn/giá sàn (Price Limit) ca toàn b các mt hàng giao dch trc gi m ca", "priority": "CRITICAL", "sortOrder": 1 },  { "taskId": "surv_open_02", "taskName": "Xác nhn trng thái hot đng (Active) ca tài khon các Thành viên kinh doanh ln trên h thng lõi", "priority": "HIGH", "sortOrder": 2 },  { "taskId": "surv_open_03", "taskName": "Kim tra cu hình cnh báo t l ký qu ri ro tđng trên h thng giám sát tp trung", "priority": "HIGH", "sortOrder": 4 }][  { "taskId": "surv_open_01", "taskName": "Kim tra biên đ dao đng giá trn/giá sàn (Price Limit) ca toàn b các mt hàng giao dch trc gi m ca", "priority": "CRITICAL", "sortOrder": 1 },  { "taskId": "surv_open_02", "taskName": "Xác nhn trng thái hot đng (Active) ca tài khon các Thành viên kinh doanh ln trên h thng lõi", "priority": "HIGH", "sortOrder": 2 },  { "taskId": "surv_open_03", "taskName": "Kim tra cu hình cnh báo t l ký qu ri ro tđng trên h thng giám sát tp trung", "priority": "HIGH", "sortOrder": 4 }]
+[
+  { "taskId": "surv_open_01", "taskName": "Ki
+m tra biên đ
+ dao đ
+ng giá tr
+n/giá sàn (Price 
+Limit) c
+a toàn b
+ các m
+t hàng giao d
+ch tr
+c gi
+ m
+ c
+a", "priority": "CRITICAL", 
+"sortOrder": 1 },
+  { "taskId": "surv_open_02", "taskName": "Xác nh
+n tr
+ng thái ho
+t đ
+ng (Active) c
+a tài kho
+n 
+các Thành viên kinh doanh l
+n trên h
+ th
+ng lõi", "priority": "HIGH", "sortOrder": 2 },
+  { "taskId": "surv_open_03", "taskName": "Ki
+m tra c
+u hình c
+nh báo t
+ l
+ ký qu
+ r
+i ro t
+đ
+ng trên h
+ th
+ng giám sát t
+p trung", "priority": "HIGH", "sortOrder": 4 }
+]
+[
+  { "taskId": "surv_open_01", "taskName": "Ki
+m tra biên đ
+ dao đ
+ng giá tr
+n/giá sàn (Price 
+Limit) c
+a toàn b
+ các m
+t hàng giao d
+ch tr
+c gi
+ m
+ c
+a", "priority": "CRITICAL", 
+"sortOrder": 1 },
+  { "taskId": "surv_open_02", "taskName": "Xác nh
+n tr
+ng thái ho
+t đ
+ng (Active) c
+a tài kho
+n 
+các Thành viên kinh doanh l
+n trên h
+ th
+ng lõi", "priority": "HIGH", "sortOrder": 2 },
+  { "taskId": "surv_open_03", "taskName": "Ki
+m tra c
+u hình c
+nh báo t
+ l
+ ký qu
+ r
+i ro t
+đ
+ng trên h
+ th
+ng giám sát t
+p trung", "priority": "HIGH", "sortOrder": 4 }
+]
+Phiên Trong Phiên (sessionType: "DURING")
+[  { "taskId": "surv_during_01", "taskName": "Giám sát các lnh giao dch có khi lng ln bt thng (Big Trades) nhm phát hin hành vi thao túng th trng", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "surv_during_02", "taskName": "Theo dõi tng s lng v th m (Open Interest - OI) ca các kỳ hn lnh, cnh báo nu vt hn mc quy đnh ca S", "priority": "HIGH", "sortOrder": 2 },  { "taskId": "surv_during_03", "taskName": "Phát lnh cnh báo (Margin Call) hoc tm khóa vth đi vi các tài khon NĐT st gim t l ký qu xung mc ri ro", "priority": "CRITICAL", "sortOrder": 3 },  { "taskId": "surv_during_04", "taskName": "X lý tm ngng giao dch đi vi các mã hp đng xy ra hin tng chm giá trn hoc giá sàn liên tc", "priority": "CRITICAL", "sortOrder": 4 }][  { "taskId": "surv_during_01", "taskName": "Giám sát các lnh giao dch có khi lng ln bt thng (Big Trades) nhm phát hin hành vi thao túng th trng", "priority": "HIGH", "sortOrder": 1 },  { "taskId": "surv_during_02", "taskName": "Theo dõi tng s lng v th m (Open Interest - OI) ca các kỳ hn lnh, cnh báo nu vt hn mc quy đnh ca S", "priority": "HIGH", "sortOrder": 2 },  { "taskId": "surv_during_03", "taskName": "Phát lnh cnh báo (Margin Call) hoc tm khóa vth đi vi các tài khon NĐT st gim t l ký qu xung mc ri ro", "priority": "CRITICAL", "sortOrder": 3 },  { "taskId": "surv_during_04", "taskName": "X lý tm ngng giao dch đi vi các mã hp đng xy ra hin tng chm giá trn hoc giá sàn liên tc", "priority": "CRITICAL", "sortOrder": 4 }]
+[
+  { "taskId": "surv_during_01", "taskName": "Giám sát các l
+nh giao d
+ch có kh
+i l
+ng l
+n b
+t 
+th
+ng (Big Trades) nh
+m phát hi
+n hành vi thao túng th
+ tr
+ng", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "surv_during_02", "taskName": "Theo dõi t
+ng s
+ l
+ng v
+ th
+ m
+ (Open Interest - 
+OI) c
+a các kỳ h
+n l
+nh, c
+nh báo n
+u v
+t h
+n m
+c quy đ
+nh c
+a S
+", "priority": "HIGH", 
+"sortOrder": 2 },
+  { "taskId": "surv_during_03", "taskName": "Phát l
+nh c
+nh báo (Margin Call) ho
+c t
+m khóa v
+th
+ đ
+i v
+i các tài kho
+n NĐT s
+t gi
+m t
+ l
+ ký qu
+ xu
+ng m
+c r
+i ro", "priority": "CRITICAL", 
+"sortOrder": 3 },
+  { "taskId": "surv_during_04", "taskName": "X
+ lý t
+m ng
+ng giao d
+ch đ
+i v
+i các mã h
+p đ
+ng 
+x
+y ra hi
+n t
+ng ch
+m giá tr
+n ho
+c giá sàn liên t
+c", "priority": "CRITICAL", "sortOrder": 4 }
+]
+[
+  { "taskId": "surv_during_01", "taskName": "Giám sát các l
+nh giao d
+ch có kh
+i l
+ng l
+n b
+t 
+th
+ng (Big Trades) nh
+m phát hi
+n hành vi thao túng th
+ tr
+ng", "priority": "HIGH", 
+"sortOrder": 1 },
+  { "taskId": "surv_during_02", "taskName": "Theo dõi t
+ng s
+ l
+ng v
+ th
+ m
+ (Open Interest - 
+OI) c
+a các kỳ h
+n l
+nh, c
+nh báo n
+u v
+t h
+n m
+c quy đ
+nh c
+a S
+", "priority": "HIGH", 
+"sortOrder": 2 },
+  { "taskId": "surv_during_03", "taskName": "Phát l
+nh c
+nh báo (Margin Call) ho
+c t
+m khóa v
+th
+ đ
+i v
+i các tài kho
+n NĐT s
+t gi
+m t
+ l
+ ký qu
+ xu
+ng m
+c r
+i ro", "priority": "CRITICAL", 
+"sortOrder": 3 },
+  { "taskId": "surv_during_04", "taskName": "X
+ lý t
+m ng
+ng giao d
+ch đ
+i v
+i các mã h
+p đ
+ng 
+x
+y ra hi
+n t
+ng ch
+m giá tr
+n ho
+c giá sàn liên t
+c", "priority": "CRITICAL", "sortOrder": 4 }
+]
+Phiên Kết Thúc (sessionType: "CLOSE")
+[  { "taskId": "surv_close_01", "taskName": "Cht mc giá quyt toán cui ngày (Settlement Price) cho toàn b các mt hàng đ làm căn c tính toán lãi/l v th", "priority": "CRITICAL", "sortOrder": 1 },  { "taskId": "surv_close_02", "taskName": "Kích hot lung ch đnh giao hàng bt buc t CCP (DELIVERY_DESIGNATED) đi vi các v th Bán m còn gi li đn ngày LTD", "priority": "CRITICAL", "sortOrder": 2 },  { "taskId": "surv_close_03", "taskName": "Tng hp danh sách các tài khon vi phm quy chgiao dch hoc đ trng thái tài khon b âm tin sau phiên EOD", "priority": "HIGH", "sortOrder": 3 },  { "taskId": "surv_close_04", "taskName": "Xut báo cáo tng kt phiên giao dch (Daily Market Report) gi Hi đng ban giám đc S", "priority": "MEDIUM", "sortOrder": 4 }][  { "taskId": "surv_close_01", "taskName": "Cht mc giá quyt toán cui ngày (Settlement Price) cho toàn b các mt hàng đ làm căn c tính toán lãi/l v th", "priority": "CRITICAL", "sortOrder": 1 },  { "taskId": "surv_close_02", "taskName": "Kích hot lung ch đnh giao hàng bt buc t CCP (DELIVERY_DESIGNATED) đi vi các v th Bán m còn gi li đn ngày LTD", "priority": "CRITICAL", "sortOrder": 2 },  { "taskId": "surv_close_03", "taskName": "Tng hp danh sách các tài khon vi phm quy chgiao dch hoc đ trng thái tài khon b âm tin sau phiên EOD", "priority": "HIGH", "sortOrder": 3 },  { "taskId": "surv_close_04", "taskName": "Xut báo cáo tng kt phiên giao dch (Daily Market Report) gi Hi đng ban giám đc S", "priority": "MEDIUM", "sortOrder": 4 }]
+[
+  { "taskId": "surv_close_01", "taskName": "Ch
+t m
+c giá quy
+t toán cu
+i ngày (Settlement Price) 
+cho toàn b
+ các m
+t hàng đ
+ làm căn c
+ tính toán lãi/l
+ v
+ th
+", "priority": "CRITICAL", 
+"sortOrder": 1 },
+  { "taskId": "surv_close_02", "taskName": "Kích ho
+t lu
+ng ch
+ đ
+nh giao hàng b
+t bu
+c t
+ CCP 
+(
+DELIVERY_DESIGNATED) đ
+i v
+i các v
+ th
+ Bán m
+ còn gi
+ l
+i đ
+n ngày LTD", "priority": 
+"CRITICAL", "sortOrder": 2 },
+  { "taskId": "surv_close_03", "taskName": "T
+ng h
+p danh sách các tài kho
+n vi ph
+m quy ch
+giao d
+ch ho
+c đ
+ tr
+ng thái tài kho
+n b
+ âm ti
+n sau phiên EOD", "priority": "HIGH", 
+"sortOrder": 3 },
+  { "taskId": "surv_close_04", "taskName": "Xu
+t báo cáo t
+ng k
+t phiên giao d
+ch (Daily Market 
+Report) g
+i H
+i đ
+ng ban giám đ
+c S
+", "priority": "MEDIUM", "sortOrder": 4 }
+]
+[
+  { "taskId": "surv_close_01", "taskName": "Ch
+t m
+c giá quy
+t toán cu
+i ngày (Settlement Price) 
+cho toàn b
+ các m
+t hàng đ
+ làm căn c
+ tính toán lãi/l
+ v
+ th
+", "priority": "CRITICAL", 
+"sortOrder": 1 },
+  { "taskId": "surv_close_02", "taskName": "Kích ho
+t lu
+ng ch
+ đ
+nh giao hàng b
+t bu
+c t
+ CCP 
+(
+DELIVERY_DESIGNATED) đ
+i v
+i các v
+ th
+ Bán m
+ còn gi
+ l
+i đ
+n ngày LTD", "priority": 
+"CRITICAL", "sortOrder": 2 },
+  { "taskId": "surv_close_03", "taskName": "T
+ng h
+p danh sách các tài kho
+n vi ph
+m quy ch
+giao d
+ch ho
+c đ
+ tr
+ng thái tài kho
+n b
+ âm ti
+n sau phiên EOD", "priority": "HIGH", 
+"sortOrder": 3 },
+  { "taskId": "surv_close_04", "taskName": "Xu
+t báo cáo t
+ng k
+t phiên giao d
+ch (Daily Market 
+Report) g
+i H
+i đ
+ng ban giám đ
+c S
+", "priority": "MEDIUM", "sortOrder": 4 }
+]
+Ưu Thế Nghiệm Thu Kiến Trúc Kỹ Thuật (Production Benefits)
+
+Tốc độ đọc/ghi tối ưu: Toàn bộ dữ liệu phiên trực nằm gọn trong một Document duy nhất. Query theo ID đạt độ phức tạp O(1), loại bỏ hoàn toàn các cấu trúc gộp bảng phức tạp, giảm tải tối đa cho RAM máy chủ Production khi vận hành realtime.
+Linh hoạt về cấu trúc (Schema Flexibility): Khi nghiệp vụ của Sở thay đổi hoặc cần bổ sung các trường thông tin ghi vết mới, hệ thống tự động thích ứng ngay lập tức mà không yêu cầu chạy migration sửa bảng như cơ sở dữ liệu quan hệ truyền thống.

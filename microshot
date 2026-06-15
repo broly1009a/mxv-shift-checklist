@@ -1,0 +1,52 @@
+Đúng vậy, phần đăng nhập Microsoft 365 hiện tại là giả lập (simulated mock) để chạy thử và kiểm thử luồng nghiệp vụ trên môi trường phát triển cục bộ (local dev) mà không cần cấu hình kết nối mạng phức tạp lên Azure.
+
+Trong môi trường thực tế (Production), luồng đăng nhập SSO của Microsoft 365 (sử dụng giao thức OAuth 2.0 / OpenID Connect) sẽ diễn ra hoàn toàn tự động qua các bước sau:
+
+Sơ đồ luồng thực tế (OAuth 2.0 / Microsoft Entra ID)
+mermaid
+sequenceDiagram
+    actor User as Người dùng
+    participant FE as Frontend (Next.js)
+    participant BE as Backend (NestJS)
+    participant MS as Microsoft Entra ID (Azure AD)
+    User->>FE: Click "Đăng nhập bằng Microsoft 365"
+    FE->>User: Chuyển hướng trình duyệt sang Microsoft Login Page
+    Note over User,MS: Giao diện đăng nhập & MFA của Microsoft
+    User->>MS: Nhập Email + Mật khẩu + OTP (MFA)
+    MS->>FE: Redirect về Frontend kèm mã "?code=xxxx"
+    FE->>BE: Gửi mã "code" lên API xác thực
+    BE->>MS: Gửi "code" + "Client Secret" đổi lấy Access Token
+    MS->>BE: Trả về Access Token
+    BE->>MS: Gọi Graph API (/v1.0/me) lấy Email & Họ tên thực
+    MS->>BE: Trả về Email + Họ tên của nhân viên
+    Note over BE: Kiểm tra Email trong DB:<br/>- Chưa có: Tạo mới (chờ active)<br/>- Có rồi: Trả JWT Token hệ thống
+    BE->>FE: Trả về JWT Token nội bộ
+    FE->>User: Đăng nhập thành công, vào Dashboard
+Chi tiết các bước thực tế
+Bước 1: Đăng ký ứng dụng trên Microsoft Azure Portal
+Quản trị viên hệ thống của MXV cần truy cập cổng quản trị Microsoft Entra ID (trước đây là Azure AD) và đăng ký một ứng dụng (App Registration) để nhận được:
+
+Client ID (Mã định danh ứng dụng)
+Tenant ID (Mã định danh tổ chức MXV)
+Client Secret (Khóa bí mật dùng cho backend trao đổi token)
+Thiết lập Redirect URI (Đường dẫn callback sau khi login thành công, ví dụ: http://localhost:3000/auth/callback).
+Bước 2: Người dùng nhấn nút đăng nhập ở Frontend
+Thay vì mở Modal bắt nhập tay, Frontend sẽ chuyển hướng trình duyệt của người dùng đến cổng xác thực của Microsoft:
+
+https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize
+  ?client_id={client_id}
+  &response_type=code
+  &redirect_uri={redirect_uri}
+  &scope=openid profile email
+Người dùng thực hiện đăng nhập và xác thực đa yếu tố (MFA) trên cổng của Microsoft.
+
+Bước 3: Microsoft trả mã xác thực (Authorization Code)
+Sau khi người dùng xác thực thành công, Microsoft chuyển hướng trình duyệt của họ quay lại ứng dụng Next.js theo đường dẫn Redirect URI kèm theo một tham số code trên URL: http://localhost:3000/auth/callback?code=M.R3_xxxx
+
+Bước 4: Backend NestJS xác thực và lấy thông tin người dùng
+Frontend lấy mã code này từ URL và gửi xuống API của Backend NestJS.
+Backend NestJS (thường sử dụng thư viện Passport kết hợp passport-azure-ad hoặc passport-oauth2) sẽ gửi yêu cầu bí mật tới Microsoft để đổi mã code lấy Access Token.
+Khi đã có Access Token, Backend gọi đến Microsoft Graph API (https://graph.microsoft.com/v1.0/me) để lấy thông tin tài khoản thật từ Active Directory bao gồm: Email thực tế và Họ và tên thực tế mà người dùng không thể tự giả mạo được.
+Cuối cùng, Backend kiểm tra trong DB của hệ thống:
+Nếu email đã có sẵn và đang được active $\rightarrow$ Sinh JWT Token của hệ thống gửi về cho Frontend để đăng nhập.
+Nếu chưa có $\rightarrow$ Tạo mới tài khoản với họ tên thật lấy từ Microsoft Graph API và trả về thông báo tài khoản đang chờ phê duyệt từ Admin.

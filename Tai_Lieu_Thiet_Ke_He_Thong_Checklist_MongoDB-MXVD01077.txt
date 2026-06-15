@@ -1,0 +1,84 @@
+TÀI LIỆU ĐẶC TẢ KIẾN TRÚC & THIẾT KẾ
+HỆ THỐNG
+Số Hóa Checklist Ca Trực Vận Hành Động Với MongoDB
+
+Đơn vị phát triển:Phòng Phát Triển Hệ Thống Lõi Lập Trình & Vận Hành (IT Core)Cựu kiến trúc tích hợp:NestJS (Backend v10) & NextJS (Frontend v14 App Router)Cơ sở dữ liệu (NoSQL):MongoDB (Production Grade / Embedded Document Model)Phiên bản tài liệu:v1.2.0-PROD-MONGONgày phát hành:11 tháng 06, 2026Người phê duyệt:Technical Team Leader (Anh Tú)1. Tổng Quan Dự Án & Bài Toán Nghiệp Vụ
+
+Hiện nay, công tác trực vận hành tại các phòng ban nghiệp vụ, giám sát thị trường và hạ tầng IT của Sở đang được thực hiện thủ công thông qua biểu mẫu giấy hoặc các file Excel phân tán. Quy trình này bộc lộ nhiều điểm hạn chế lớn: Khó giám sát tiến độ thời gian thực (realtime), dễ xảy ra sai sót hoặc bỏ quên đầu việc quan trọng trong các khung giờ cao điểm (mở phiên, trong phiên, kết thúc phiên), và không có dữ liệu log tập trung để phục vụ công tác hậu kiểm (audit log).
+Hệ thống Shift Checklist Digitalization được thiết kế nhằm mục đích số hóa toàn bộ quy trình vận hành thành một nền tảng Web App realtime. Việc chuyển đổi sang kiến trúc MongoDB giúp tận dụng tối đa sức mạnh của Document Model (Dữ liệu lồng nhau), loại bỏ hoàn toàn các liên kết bảng phức tạp (JOIN), tối ưu hóa tốc độ đọc ghi dữ liệu đồng thời và cho phép cấu hình động danh sách tác vụ của các bộ phận một cách linh hoạt tuyệt đối.
+2. Thiết Kế Cơ Sở Dữ Liệu Động (MongoDB Collections)
+
+Áp dụng mô hình Embedded Document Pattern (Nhúng trực tiếp mảng việc vào trong lòng một tài liệu), toàn bộ cấu trúc ca trực của một ngày được gom gọn vào trong một bản ghi duy nhất, giúp tối ưu hóa hiệu năng và tốc độ truy vấn.
+ 2.1. Collection: departments (Phòng ban / Bộ phận trực)
+Lưu trữ thông tin các đội trực độc lập trong Sở để phân tách không gian dữ liệu (Data Isolation).
+
+Indexes: { "code": 1 } (Unique) để tăng tốc độ định tuyến và tra cứu phòng ban.
+ 2.2. Collection: users (Người dùng / Tài khoản)
+Lưu trữ thông tin tài khoản đăng nhập của nhân viên và phân quyền hệ thống.
+- Các trường cơ bản: username, passwordHash, fullName, departmentId (liên kết phòng ban), role (ADMIN/STAFF).
+- Cơ chế phân quyền: ADMIN (được tạo checklist, quản lý user), STAFF (chỉ thực hiện check ca trực).
+Indexes: { "username": 1 } (Unique) phục vụ tiến trình xác thực đăng nhập.
+
+ 2.3. Collection: checklist_templates (Mẫu cấu hình việc động)
+Mẫu cấu hình chứa danh sách tất cả đầu việc tĩnh của một phiên, phân loại theo sessionType.
+
+ 2.4. Collection: shift_logs (Nhật ký ca trực chạy thực tế)
+Áp dụng Data Cloner Pattern, khi kỹ sư mở ca trực, hệ thống snapshot nguyên trạng mảng cấu hình sang mảng details của log kèm trạng thái runtime.
+
+3. Thiết Kế Backend Kiến Trúc Hệ Thống (NestJS & Mongoose)
+3.1. API Endpoints Đặc Tả Production
+
+Nhóm API Vận hành ca trực (Dành cho STAFF):
+1. Khởi tạo ca trực (Snapshot template): POST /api/v1/shifts/initialize
+2. Cập nhật trạng thái tích chọn (Toggle & Auto-save): PATCH /api/v1/shifts/items/toggle
+3. Chốt ca/Đóng ca trực: POST /api/v1/shifts/close
+
+Nhóm API Quản trị hệ thống (Dành cho ADMIN):
+4. Quản lý Người dùng (Users): GET/POST/PUT/DELETE /api/v1/users
+5. Quản lý Phòng ban (Departments): GET/POST/PUT/DELETE /api/v1/departments
+6. Quản lý Mẫu Checklist (Checklist Templates): GET/POST/PUT/DELETE /api/v1/templates
+
+Nhóm API Báo cáo & Lịch sử:
+7. Tra cứu nhật ký ca trực (Audit Logs): GET /api/v1/shifts/history
+
+4. Đặc Tả Tập Dữ Liệu Tác Vụ Chi Tiết Nghiệp Vụ (Dùng cho Seed/Import Code)
+
+Dưới đây là toàn bộ danh sách 34 tác vụ nghiệp vụ chuẩn chỉnh của Sở MXV được thiết kế sẵn cấu trúc JSON để nạp thẳng vào cơ sở dữ liệu MongoDB phục vụ quá trình coding backend và giao diện.
+ 4.1. Bộ Phận IT Vận Hành Hệ Thống Lõi (code: "IT_CORE")
+Phiên Mở Cửa (sessionType: "OPEN")
+[   { "taskId": "it_open_01", "taskName": "Kim tra kt ni h tng mng ni b (Intranet) và kt ni VPN sang các đu mi Thành viên kinh doanh", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "it_open_02", "taskName": "Kim tra ping và trng thái kt ni cng FIX Gateway sang h thng bù tr ca ngân hàng liên kt (MSB UAT/Production)", "priority": "CRITICAL", "sortOrder": 2 },   { "taskId": "it_open_03", "taskName": "Khi đng dch v BroadcastServer và kim tra log kt ni lung giá Realtime qua giao thc WebSocket thun (ws)", "priority": "CRITICAL", "sortOrder": 3 },   { "taskId": "it_open_04", "taskName": "Kim tra dung lng  đĩa cng (Disk Storage) và mc đ tiêu th RAM/CPU ca cm máy ch c s d liu MongoDB", "priority": "HIGH", "sortOrder": 4 },   { "taskId": "it_open_05", "taskName": "Xác nhn đng b thành công d liu giá m ca đu ngày (Snapshot Full Refresh) t các sàn quc t liên thông", "priority": "CRITICAL", "sortOrder": 5 }
+]
+Phiên Trong Phiên (sessionType: "DURING")
+
+Phiên Kết Thúc (sessionType: "CLOSE")
+
+ 4.2. Bộ Phận Phòng Nghiệp Vụ Giao Nhận (code: "RE_OPS")
+Phiên Mở Cửa (sessionType: "OPEN")
+
+Phiên Trong Phiên (sessionType: "DURING")
+[   { "taskId": "ops_during_01", "taskName": "Tip nhn và phê duyt các yêu cu đăng ký lu ký vt cht (DELIVERY_DEPOSIT) ca bên Bán gi lên t UI", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "ops_during_02", "taskName": "X lý phê duyt hoc t chi các yêu cu Hy lu ký (CANCEL_DEPOSIT) da trên điu kin kim tra trng thái ti kho MSB", "priority": "HIGH", 
+"sortOrder": 2 },
+  { "taskId": "ops_during_03", "taskName": "Kim tra tính hp l ca các yêu cu rút ký qu (MARGIN_WITHDRAW), đi chiu sc mua TTM trc khi duyt chuyn tin sang VCB", "priority": 
+"CRITICAL", "sortOrder": 3 },   { "taskId": "ops_during_04", "taskName": "Giám sát lung d liu phn hi MSB_STATUS t phía ngân hàng đ cp nht trng thái 'Ngi bán đã giao Bc' sang mã 'S'", "priority": "HIGH", "sortOrder": 4 },
+  { "taskId": "ops_during_05", "taskName": "Tip nhn yêu cu Đăng ký nhn hàng vt cht (DELIVERY_PHYSICAL_REGIS), kim tra ràng buc v th Mua m (Long Position)", "priority": 
+"CRITICAL", "sortOrder": 5 },
+  { "taskId": "ops_during_06", "taskName": "X lý h s đăng ký nhn hàng ch đnh (RECEIVE_DESIGNATED), đi chiu mã phiu ghép cp (pairingCode) phát hành bi CCP", "priority": "HIGH", "sortOrder": 6 }
+]
+Phiên Kết Thúc (sessionType: "CLOSE")
+[   { "taskId": "ops_close_01", "taskName": "Thc hin x lý EOD vt cht (End-of-Day): Quét tr tin phí giao nhn ca các tài khon (chp nhn tr âm nu thiu tin)", "priority": "CRITICAL", "sortOrder": 1 },   { "taskId": "ops_close_02", "taskName": "Kt xut file đi chiu tng hp d liu giao nhn an toàn sang ngân hàng MSB chi nhánh Đng Đa và TP.HCM", "priority": "HIGH", "sortOrder": 2 },   { "taskId": "ops_close_03", "taskName": "Hy toàn b các yêu cu đăng ký giao nhn vt cht còn tn đng  trng thái PENDING cha đc duyt tính đn cui ngày", "priority": "MEDIUM", 
+
+
+Phiên Trong Phiên (sessionType: "DURING")
+
+Phiên Kết Thúc (sessionType: "CLOSE")
+
+5. Ưu Thế Nghiệm Thu Kiến Trúc Kỹ Thuật (Production Benefits)
+
+• Tốc độ đọc/ghi tối ưu: Toàn bộ dữ liệu phiên trực nằm gọn trong một Document duy nhất. Query theo ID đạt độ phức tạp O(1), loại bỏ hoàn toàn các cấu trúc gộp bảng phức tạp, giảm tải tối đa cho RAM máy chủ Production khi vận hành realtime.
+• Linh hoạt về cấu trúc (Schema Flexibility): Khi nghiệp vụ của Sở thay đổi hoặc cần bổ sung các trường thông tin ghi vết mới, hệ thống tự động thích ứng ngay lập tức mà không yêu cầu chạy migration sửa bảng như cơ sở dữ liệu quan hệ truyền thống.
+Sở Giao Dịch Hàng Hóa MXV - Tài Liệu Kỹ Thuật Nội Bộ	1 / 8
+
+Sở Giao Dịch Hàng Hóa MXV - Tài Liệu Kỹ Thuật Nội Bộ	1 / 8
+
+Sở Giao Dịch Hàng Hóa MXV - Tài Liệu Kỹ Thuật Nội Bộ	1 / 8
+
