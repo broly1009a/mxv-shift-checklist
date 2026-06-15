@@ -94,6 +94,8 @@ function ChecklistWorksheet() {
   const [notesState, setNotesState] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  const togglingTaskIds = useRef<Set<string>>(new Set());
+  const focusedTaskIdRef = useRef<string | null>(null);
 
   const loadActiveLogs = useCallback(async () => {
     if (!token) return;
@@ -182,12 +184,16 @@ function ChecklistWorksheet() {
       if (data?.shiftLog) {
         setLog(data.shiftLog);
         
-        // Sync local input values
-        const notes: Record<string, string> = {};
-        data.shiftLog.details.forEach(item => {
-          notes[item.taskId] = item.note || '';
+        // Sync local input values (do not overwrite active editing note)
+        setNotesState(prev => {
+          const notes = { ...prev };
+          data.shiftLog.details.forEach(item => {
+            if (item.taskId !== focusedTaskIdRef.current) {
+              notes[item.taskId] = item.note || '';
+            }
+          });
+          return notes;
         });
-        setNotesState(notes);
       }
 
       if (data?.auditLog) {
@@ -203,12 +209,46 @@ function ChecklistWorksheet() {
 
   const handleToggle = async (taskId: string, currentStatus: boolean) => {
     if (!log || log.status === 'COMPLETED' || !token) return;
-    setSavingTaskId(taskId);
+    if (togglingTaskIds.current.has(taskId)) return;
+
+    togglingTaskIds.current.add(taskId);
     setActionError('');
     setActionSuccess('');
     
     const isChecked = !currentStatus;
     const note = notesState[taskId] || '';
+
+    // Save previous state for rollback
+    const previousLog = log;
+
+    // Optimistically update the UI state
+    const updatedDetails = log.details.map(item => {
+      if (item.taskId === taskId) {
+        return {
+          ...item,
+          isChecked,
+          checkedAt: isChecked ? new Date().toISOString() : undefined,
+          updatedBy: isChecked ? {
+            _id: user?.id || '',
+            fullName: user?.fullName || '',
+            username: user?.username || ''
+          } : undefined
+        };
+      }
+      return item;
+    });
+
+    const total = updatedDetails.length;
+    const completed = updatedDetails.filter(d => d.isChecked).length;
+    const progressPercentage = total > 0 ? parseFloat(((completed / total) * 100).toFixed(2)) : 0.00;
+
+    const optimisticLog: ShiftLog = {
+      ...log,
+      details: updatedDetails,
+      progressPercentage
+    };
+
+    setLog(optimisticLog);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/toggle`, {
@@ -234,9 +274,11 @@ function ChecklistWorksheet() {
       setLog(updated);
       setActionSuccess('Cập nhật trạng thái tác vụ thành công.');
     } catch (err: any) {
+      // Rollback to previous log state on failure
+      setLog(previousLog);
       setActionError(err.message || 'Có lỗi xảy ra');
     } finally {
-      setSavingTaskId(null);
+      togglingTaskIds.current.delete(taskId);
     }
   };
 
@@ -741,6 +783,8 @@ function ChecklistWorksheet() {
                         placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú hoặc kết quả kiểm tra..."}
                         value={notesState[item.taskId] || ''}
                         onChange={(e) => setNotesState({ ...notesState, [item.taskId]: e.target.value })}
+                        onFocus={() => { focusedTaskIdRef.current = item.taskId; }}
+                        onBlur={() => { focusedTaskIdRef.current = null; }}
                         disabled={isCompleted || isSaving}
                         style={{ padding: '8px 12px', fontSize: '0.85rem' }}
                       />
