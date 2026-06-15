@@ -7,8 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/users')
 export class UsersController {
   constructor(
@@ -16,6 +15,8 @@ export class UsersController {
   ) {}
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
   async findAll(
     @Query('page') pageNum?: string,
     @Query('limit') limitNum?: string,
@@ -78,6 +79,8 @@ export class UsersController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
   async create(@Body() body: any) {
     const { username, password, fullName, departmentId, divisionId, role, isActive } = body;
     const isActiveVal = isActive !== undefined ? isActive : true;
@@ -109,6 +112,8 @@ export class UsersController {
   }
 
   @Put(':id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
   async update(@Param('id') id: string, @Body() body: any) {
     const { password, departmentId, divisionId, ...rest } = body;
     const isActiveVal = body.isActive;
@@ -138,6 +143,8 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
   async remove(@Param('id') id: string) {
     return this.userModel.findByIdAndDelete(id).exec();
   }

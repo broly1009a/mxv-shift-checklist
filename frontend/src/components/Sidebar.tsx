@@ -190,7 +190,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <span>Cấu hình cá nhân</span>
         </Link>
 
-        {user.role === 'ADMIN' && (
+        {['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'].includes(user.role) && (
           <>
             <div style={{
               fontSize: '0.7rem',

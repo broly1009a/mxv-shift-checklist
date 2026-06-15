@@ -44,6 +44,7 @@ interface Template {
 export default function AdminTemplatesPage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -68,10 +69,13 @@ export default function AdminTemplatesPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Redirect if not admin
+  // Redirect if not admin or manager
   useEffect(() => {
-    if (user && user.role !== 'ADMIN') {
-      router.push('/dashboard');
+    if (user) {
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      if (!allowedRoles.includes(user.role)) {
+        router.push('/dashboard');
+      }
     }
   }, [user, router]);
 
@@ -368,9 +372,11 @@ export default function AdminTemplatesPage() {
               Điều chỉnh, thêm mới, phân cấp hoặc sắp xếp danh sách các mẫu checklist nghiệp vụ chuẩn của Sở.
             </p>
           </div>
-          <button onClick={openCreateTemplateModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
-            <Plus size={18} /> Thêm mẫu mới
-          </button>
+          {isAdmin && (
+            <button onClick={openCreateTemplateModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
+              <Plus size={18} /> Thêm mẫu mới
+            </button>
+          )}
         </div>
 
         {error && (
@@ -444,86 +450,90 @@ export default function AdminTemplatesPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button 
-                    onClick={() => openEditTemplateModal(selectedTemplate)} 
-                    className="btn btn-secondary" 
-                    style={{ padding: '12px 20px' }}
-                  >
-                    <Edit size={16} /> Sửa thông tin mẫu
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteTemplate(selectedTemplate)} 
-                    className="btn btn-secondary" 
-                    style={{ padding: '12px 20px', color: '#ef4444' }}
-                  >
-                    <Trash2 size={16} /> Xóa mẫu
-                  </button>
-                  <button 
-                    onClick={handleSaveTemplate} 
-                    className="btn btn-primary" 
-                    style={{ padding: '12px 24px' }}
-                  >
-                    <Save size={16} /> Lưu Cấu Hình Tác Vụ
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button 
+                      onClick={() => openEditTemplateModal(selectedTemplate)} 
+                      className="btn btn-secondary" 
+                      style={{ padding: '12px 20px' }}
+                    >
+                      <Edit size={16} /> Sửa thông tin mẫu
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteTemplate(selectedTemplate)} 
+                      className="btn btn-secondary" 
+                      style={{ padding: '12px 20px', color: '#ef4444' }}
+                    >
+                      <Trash2 size={16} /> Xóa mẫu
+                    </button>
+                    <button 
+                      onClick={handleSaveTemplate} 
+                      className="btn btn-primary" 
+                      style={{ padding: '12px 24px' }}
+                    >
+                      <Save size={16} /> Lưu Cấu Hình Tác Vụ
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Add Task Subform */}
-              <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={16} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[120px_1fr_120px_100px_90px] gap-3 items-end">
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="vd: it_open_06"
-                      value={newTaskId}
-                      onChange={(e) => setNewTaskId(e.target.value)}
-                    />
+              {isAdmin && (
+                <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Plus size={16} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[120px_1fr_120px_100px_90px] gap-3 items-end">
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="vd: it_open_06"
+                        value={newTaskId}
+                        onChange={(e) => setNewTaskId(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Nhập nội dung tác vụ..."
+                        value={newTaskName}
+                        onChange={(e) => setNewTaskName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
+                      <select
+                        className="form-input"
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value as any)}
+                        style={{ background: 'var(--bg-app)' }}
+                      >
+                        <option value="LOW">THẤP</option>
+                        <option value="MEDIUM">T.BÌNH</option>
+                        <option value="HIGH">CAO</option>
+                        <option value="CRITICAL">KHẨN CẤP</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="vd: 16:30"
+                        value={newDeadline}
+                        onChange={(e) => setNewDeadline(e.target.value)}
+                      />
+                    </div>
+                    <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ width: '100%', padding: '12px' }}>
+                      <Plus size={16} /> Thêm
+                    </button>
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Nhập nội dung tác vụ..."
-                      value={newTaskName}
-                      onChange={(e) => setNewTaskName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
-                    <select
-                      className="form-input"
-                      value={newPriority}
-                      onChange={(e) => setNewPriority(e.target.value as any)}
-                      style={{ background: 'var(--bg-app)' }}
-                    >
-                      <option value="LOW">THẤP</option>
-                      <option value="MEDIUM">T.BÌNH</option>
-                      <option value="HIGH">CAO</option>
-                      <option value="CRITICAL">KHẨN CẤP</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="vd: 16:30"
-                      value={newDeadline}
-                      onChange={(e) => setNewDeadline(e.target.value)}
-                    />
-                  </div>
-                  <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ width: '100%', padding: '12px' }}>
-                    <Plus size={16} /> Thêm
-                  </button>
                 </div>
-              </div>
+              )}
 
               {/* Tasks List Table */}
               <div>
@@ -569,31 +579,33 @@ export default function AdminTemplatesPage() {
                         </div>
 
                         {/* Reordering and Actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleMoveTask(index, 'up')}
-                            disabled={index === 0}
-                            style={{ padding: '6px', background: 'transparent', border: 'none', color: index === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === 0 ? 'not-allowed' : 'pointer' }}
-                          >
-                            <ArrowUp size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleMoveTask(index, 'down')}
-                            disabled={index === selectedTemplate.tasks.length - 1}
-                            style={{ padding: '6px', background: 'transparent', border: 'none', color: index === selectedTemplate.tasks.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === selectedTemplate.tasks.length - 1 ? 'not-allowed' : 'pointer' }}
-                          >
-                            <ArrowDown size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTask(task.taskId)}
-                            style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        {isAdmin && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveTask(index, 'up')}
+                              disabled={index === 0}
+                              style={{ padding: '6px', background: 'transparent', border: 'none', color: index === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === 0 ? 'not-allowed' : 'pointer' }}
+                            >
+                              <ArrowUp size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveTask(index, 'down')}
+                              disabled={index === selectedTemplate.tasks.length - 1}
+                              style={{ padding: '6px', background: 'transparent', border: 'none', color: index === selectedTemplate.tasks.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === selectedTemplate.tasks.length - 1 ? 'not-allowed' : 'pointer' }}
+                            >
+                              <ArrowDown size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTask(task.taskId)}
+                              style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
@@ -609,7 +621,7 @@ export default function AdminTemplatesPage() {
       </div>
 
       {/* Template Modal */}
-      {templateModalOpen && (
+      {templateModalOpen && isAdmin && (
         <div style={{
           position: 'fixed',
           top: 0,

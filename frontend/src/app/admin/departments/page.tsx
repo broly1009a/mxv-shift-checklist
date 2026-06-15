@@ -44,6 +44,7 @@ function validateForm(name: string, code: string, departments: Department[], edi
 export default function AdminDepartmentsPage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,9 +60,12 @@ export default function AdminDepartmentsPage() {
   const [apiError, setApiError] = useState('');
   const [apiSuccess, setApiSuccess] = useState('');
 
-  // Redirect if not admin
+  // Redirect if not admin or manager
   useEffect(() => {
-    if (user && user.role !== 'ADMIN') router.push('/dashboard');
+    if (user) {
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      if (!allowedRoles.includes(user.role)) router.push('/dashboard');
+    }
   }, [user, router]);
 
   const fetchDepartments = useCallback(async () => {
@@ -204,9 +208,11 @@ export default function AdminDepartmentsPage() {
               Thêm, chỉnh sửa hoặc xóa các phòng ban trong hệ thống MXV Shift Checklist.
             </p>
           </div>
-          <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
-            <Plus size={18} /> Thêm phòng ban mới
-          </button>
+          {isAdmin && (
+            <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
+              <Plus size={18} /> Thêm phòng ban mới
+            </button>
+          )}
         </div>
 
         {/* Global messages */}
@@ -237,7 +243,7 @@ export default function AdminDepartmentsPage() {
                     <th style={{ padding: '12px 16px' }}>#</th>
                     <th style={{ padding: '12px 16px' }}>Tên Phòng Ban</th>
                     <th style={{ padding: '12px 16px' }}>Mã Phòng Ban (Code)</th>
-                    <th style={{ padding: '12px 16px' }}>Hành Động</th>
+                    {isAdmin && <th style={{ padding: '12px 16px' }}>Hành Động</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -269,25 +275,27 @@ export default function AdminDepartmentsPage() {
                           {dept.code}
                         </code>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button
-                            onClick={() => openEditModal(dept)}
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          >
-                            <Edit size={14} /> Sửa
-                          </button>
-                          <button
-                            onClick={() => handleDelete(dept)}
-                            disabled={deletingId === dept._id}
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#ef4444', opacity: deletingId === dept._id ? 0.6 : 1 }}
-                          >
-                            <Trash2 size={14} /> {deletingId === dept._id ? 'Đang xóa...' : 'Xóa'}
-                          </button>
-                        </div>
-                      </td>
+                      {isAdmin && (
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                              onClick={() => openEditModal(dept)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                            >
+                              <Edit size={14} /> Sửa
+                            </button>
+                            <button
+                              onClick={() => handleDelete(dept)}
+                              disabled={deletingId === dept._id}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#ef4444', opacity: deletingId === dept._id ? 0.6 : 1 }}
+                            >
+                              <Trash2 size={14} /> {deletingId === dept._id ? 'Đang xóa...' : 'Xóa'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -298,7 +306,7 @@ export default function AdminDepartmentsPage() {
       </div>
 
       {/* Modal */}
-      {modalOpen && (
+      {modalOpen && isAdmin && (
         <div style={{
           position: 'fixed',
           top: 0,

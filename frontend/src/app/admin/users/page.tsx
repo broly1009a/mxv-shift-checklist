@@ -53,6 +53,7 @@ interface User {
 export default function AdminUsersPage() {
   const { user: currentUser, token } = useAuth();
   const router = useRouter();
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   // Data state
   const [users, setUsers] = useState<User[]>([]);
@@ -103,10 +104,13 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Redirect if not admin
+  // Redirect if not admin or manager
   useEffect(() => {
-    if (currentUser && currentUser.role !== 'ADMIN') {
-      router.push('/dashboard');
+    if (currentUser) {
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      if (!allowedRoles.includes(currentUser.role)) {
+        router.push('/dashboard');
+      }
     }
   }, [currentUser, router]);
 
@@ -341,10 +345,12 @@ export default function AdminUsersPage() {
                   Cấp phát, điều chỉnh phân quyền, kích hoạt tài khoản và gán Khối / Phòng ban làm việc.
                 </p>
               </div>
-              <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <UserPlus size={18} />
-                <span>Thêm tài khoản mới</span>
-              </button>
+              {isAdmin && (
+                <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UserPlus size={18} />
+                  <span>Thêm tài khoản mới</span>
+                </button>
+              )}
             </div>
 
             {/* Notifications */}
@@ -517,7 +523,7 @@ export default function AdminUsersPage() {
                         <th style={{ padding: '12px 16px' }}>Đơn vị quản lý</th>
                         <th style={{ padding: '12px 16px' }}>Trạng thái</th>
                         <th style={{ padding: '12px 16px' }}>Vai trò / Chức vụ</th>
-                        <th style={{ padding: '12px 16px' }}>Hành động</th>
+                        {isAdmin && <th style={{ padding: '12px 16px' }}>Hành động</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -591,26 +597,28 @@ export default function AdminUsersPage() {
                               <span>{getRoleName(u.role)}</span>
                             </span>
                           </td>
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button 
-                                onClick={() => openEditModal(u)}
-                                className="btn btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                              >
-                                <Edit size={14} /> Sửa / Kích hoạt
-                              </button>
-                              {u.username !== 'admin' && (
+                          {isAdmin && (
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', gap: '10px' }}>
                                 <button 
-                                  onClick={() => handleDelete(u._id, u.fullName)}
+                                  onClick={() => openEditModal(u)}
                                   className="btn btn-secondary" 
-                                  style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#ef4444' }}
+                                  style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                                 >
-                                  <Trash2 size={14} /> Xóa
+                                  <Edit size={14} /> Sửa / Kích hoạt
                                 </button>
-                              )}
-                            </div>
-                          </td>
+                                {u.username !== 'admin' && (
+                                  <button 
+                                    onClick={() => handleDelete(u._id, u.fullName)}
+                                    className="btn btn-secondary" 
+                                    style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#ef4444' }}
+                                  >
+                                    <Trash2 size={14} /> Xóa
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -731,7 +739,7 @@ export default function AdminUsersPage() {
           </div>
 
       {/* Modal Window */}
-      {modalOpen && (
+      {modalOpen && isAdmin && (
         <div style={{
           position: 'fixed',
           top: 0,
