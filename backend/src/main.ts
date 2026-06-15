@@ -1,7 +1,6 @@
 import * as dotenv from 'dotenv';
-import * as path from 'path';
 
-dotenv.config({ path: path.join(process.cwd(), '../.env') });
+dotenv.config(); // Loads .env from the current working directory (backend folder)
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
