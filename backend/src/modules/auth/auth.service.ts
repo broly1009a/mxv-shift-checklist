@@ -70,6 +70,58 @@ export class AuthService {
     return created;
   }
 
+  async exchangeMicrosoftCode(code: string) {
+    const tenantId = process.env.MICROSOFT_TENANT_ID || 'common';
+    const clientId = process.env.MICROSOFT_CLIENT_ID;
+    const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+    const redirectUri = process.env.MICROSOFT_CALLBACK_URL;
+
+    // 1. Send POST request to Microsoft to exchange authorization code for access token
+    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId || '',
+        scope: 'openid profile email User.Read',
+        code: code,
+        redirect_uri: redirectUri || '',
+        grant_type: 'authorization_code',
+        client_secret: clientSecret || '',
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errData = await tokenResponse.json();
+      throw new UnauthorizedException(errData.error_description || 'Không thể xác thực mã với Microsoft.');
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // 2. Use access token to retrieve user details from Microsoft Graph API
+    const profileResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!profileResponse.ok) {
+      throw new UnauthorizedException('Không thể lấy thông tin tài khoản từ Microsoft Graph.');
+    }
+
+    const profile = await profileResponse.json();
+    const email = profile.mail || profile.userPrincipalName;
+    const fullName = profile.displayName;
+
+    // 3. Call validateMicrosoftSSO to check/create user in the database
+    const user = await this.validateMicrosoftSSO(email, fullName);
+    
+    // 4. Generate local system JWT and return
+    return this.login(user);
+  }
+
   async validateMicrosoftSSO(email: string, fullName: string): Promise<any> {
     if (!email || !email.endsWith('@mxv.vn')) {
       throw new UnauthorizedException('Email không thuộc tên miền Sở MXV (@mxv.vn)');

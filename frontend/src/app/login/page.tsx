@@ -22,12 +22,38 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, redirect to dashboard, or check URL query parameters from Microsoft callback redirection
   useEffect(() => {
     if (user) {
       router.push('/dashboard');
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenVal = urlParams.get('token');
+    const userJson = urlParams.get('user');
+    const errorParam = urlParams.get('error');
+
+    if (tokenVal && userJson) {
+      try {
+        const userVal = JSON.parse(decodeURIComponent(userJson));
+        
+        // Save auth info to local storage
+        localStorage.setItem('mxv_token', tokenVal);
+        localStorage.setItem('mxv_user', JSON.stringify(userVal));
+        
+        setSuccess('Đăng nhập Microsoft 365 thành công! Đang chuyển hướng...');
+        
+        // Reload to let AuthProvider load values and update state
+        window.location.href = '/dashboard';
+      } catch (e) {
+        setError('Lỗi phân tích thông tin tài khoản.');
+      }
+    } else if (errorParam) {
+      setError(decodeURIComponent(errorParam));
     }
   }, [user, router]);
+
 
   const handleInternalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,7 +241,9 @@ export default function LoginPage() {
           onClick={() => {
             setError('');
             setSuccess('');
-            setShowSSOModal(true);
+            // Redirect browser to NestJS backend Microsoft authentication endpoint
+            const backendBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+            window.location.href = `${backendBaseUrl}/api/v1/auth/microsoft`;
           }}
           className="btn"
           style={{

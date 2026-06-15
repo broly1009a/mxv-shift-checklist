@@ -1,10 +1,44 @@
-import { Controller, Post, Body, Get, Put, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, UseGuards, Request, UnauthorizedException, Res, Query } from '@nestjs/common';
+import * as express from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('api/v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Get('microsoft')
+  async microsoftLogin(@Res() res: express.Response) {
+    const tenantId = process.env.MICROSOFT_TENANT_ID || 'common';
+    const clientId = process.env.MICROSOFT_CLIENT_ID;
+    const redirectUri = encodeURIComponent(process.env.MICROSOFT_CALLBACK_URL || '');
+    const scope = encodeURIComponent('openid profile email User.Read');
+    
+    const authorizationUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${scope}&state=mxv_auth_state`;
+    
+    return res.redirect(authorizationUrl);
+  }
+
+  @Get('microsoft/callback')
+  async microsoftCallback(@Query('code') code: string, @Res() res: express.Response) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    
+    if (!code) {
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Không nhận được mã xác thực từ Microsoft')}`);
+    }
+    
+    try {
+      const result = await this.authService.exchangeMicrosoftCode(code);
+      
+      const token = result.access_token;
+      const userStr = encodeURIComponent(JSON.stringify(result.user));
+      
+      return res.redirect(`${frontendUrl}/login?token=${token}&user=${userStr}`);
+    } catch (error: any) {
+      const errorMsg = error.message || 'Đăng nhập Microsoft thất bại';
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMsg)}`);
+    }
+  }
 
   @Post('login')
   async login(@Body() body: any) {
