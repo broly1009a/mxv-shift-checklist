@@ -26,21 +26,24 @@ export class ShiftsService {
       return true;
     }
 
+    const uDivId = user.divisionId?._id || user.divisionId;
+    const uDeptId = user.departmentId?._id || user.departmentId;
+
     if (user.role === 'DIVISION_DIRECTOR') {
-      if (!user.divisionId || !divisionId) {
+      if (!uDivId || !divisionId) {
         throw new ForbiddenException('Bạn không thuộc Khối nào hoặc tài nguyên không thuộc Khối nào');
       }
-      if (user.divisionId.toString() !== divisionId.toString()) {
+      if (uDivId.toString() !== divisionId.toString()) {
         throw new ForbiddenException('Bạn không có quyền truy cập dữ liệu của Khối khác');
       }
       return true;
     }
 
     if (user.role === 'DEPARTMENT_HEAD' || user.role === 'STAFF') {
-      if (!user.departmentId || !departmentId) {
+      if (!uDeptId || !departmentId) {
         throw new ForbiddenException('Bạn không thuộc Bộ phận nào hoặc tài nguyên không thuộc Bộ phận nào');
       }
-      if (user.departmentId.toString() !== departmentId.toString()) {
+      if (uDeptId.toString() !== departmentId.toString()) {
         throw new ForbiddenException('Bạn không có quyền truy cập dữ liệu của Bộ phận khác');
       }
       return true;
@@ -336,12 +339,14 @@ export class ShiftsService {
         const templates = await this.templateModel.find().populate('departmentId').exec();
         const filteredTemplates = templates.filter(t => {
           const dept = t.departmentId as any;
-          return dept?.divisionId?.toString() === user.divisionId?.toString();
+          const uDivId = user.divisionId?._id || user.divisionId;
+          const targetDivId = dept?.divisionId?._id || dept?.divisionId;
+          return targetDivId?.toString() === uDivId?.toString();
         });
         const templateIds = filteredTemplates.map(t => t._id);
         filter.templateId = { $in: templateIds };
       } else {
-        const deptId = user.departmentId;
+        const deptId = user.departmentId?._id || user.departmentId;
         const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(deptId) }).exec();
         const templateIds = templates.map(t => t._id);
         filter.templateId = { $in: templateIds };
@@ -373,12 +378,14 @@ export class ShiftsService {
         const templates = await this.templateModel.find().populate('departmentId').exec();
         const filteredTemplates = templates.filter(t => {
           const dept = t.departmentId as any;
-          return dept?.divisionId?.toString() === user.divisionId?.toString();
+          const uDivId = user.divisionId?._id || user.divisionId;
+          const targetDivId = dept?.divisionId?._id || dept?.divisionId;
+          return targetDivId?.toString() === uDivId?.toString();
         });
         const templateIds = filteredTemplates.map(t => t._id);
         filter.templateId = { $in: templateIds };
       } else {
-        const deptId = user.departmentId;
+        const deptId = user.departmentId?._id || user.departmentId;
         const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(deptId) }).exec();
         const templateIds = templates.map(t => t._id);
         filter.templateId = { $in: templateIds };
