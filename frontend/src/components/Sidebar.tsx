@@ -15,10 +15,16 @@ import {
   Moon,
   ShieldAlert,
   Building2,
-  UserCheck
+  UserCheck,
+  X
 } from 'lucide-react';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, token, updateUser } = useAuth();
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -93,7 +99,28 @@ export default function Sidebar() {
   if (!user) return null;
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      {/* Mobile Close Button */}
+      <button 
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4px'
+        }}
+        className="md:hidden"
+      >
+        <X size={20} />
+      </button>
+
       {/* Brand Header */}
       <div style={{
         display: 'flex',
@@ -116,7 +143,7 @@ export default function Sidebar() {
           <ShieldAlert size={20} color="#3b82f6" />
         </div>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: 0 }}>MXV CHECKLIST</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>MXV CHECKLIST</h2>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Operations Portal</span>
         </div>
       </div>
@@ -129,7 +156,7 @@ export default function Sidebar() {
         textAlign: 'left',
         border: '1px solid rgba(255, 255, 255, 0.04)'
       }}>
-        <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
+        <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
           {user.fullName}
         </p>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4 }}>
@@ -146,19 +173,19 @@ export default function Sidebar() {
 
       {/* Menu links */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <Link href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>
+        <Link href="/dashboard" onClick={onClose} className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>
           <LayoutDashboard size={18} />
           <span>Bảng điều khiển</span>
         </Link>
-        <Link href="/checklist" className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}>
+        <Link href="/checklist" onClick={onClose} className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}>
           <CheckSquare size={18} />
           <span>Ca trực hiện tại</span>
         </Link>
-        <Link href="/history" className={`nav-link ${pathname === '/history' ? 'active' : ''}`}>
+        <Link href="/history" onClick={onClose} className={`nav-link ${pathname === '/history' ? 'active' : ''}`}>
           <History size={18} />
           <span>Tra cứu lịch sử</span>
         </Link>
-        <Link href="/settings" className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}>
+        <Link href="/settings" onClick={onClose} className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}>
           <Settings size={18} />
           <span>Cấu hình cá nhân</span>
         </Link>
@@ -176,15 +203,15 @@ export default function Sidebar() {
               Quản trị hệ thống
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <Link href="/admin/departments" className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}>
+              <Link href="/admin/departments" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}>
                 <Building2 size={18} />
                 <span>Quản lý phòng ban</span>
               </Link>
-              <Link href="/admin/users" className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}>
+              <Link href="/admin/users" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}>
                 <UserCheck size={18} />
                 <span>Quản lý tài khoản</span>
               </Link>
-              <Link href="/admin/templates" className={`nav-link ${pathname.startsWith('/admin/templates') ? 'active' : ''}`}>
+              <Link href="/admin/templates" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/templates') ? 'active' : ''}`}>
                 <Settings size={18} />
                 <span>Mẫu checklist</span>
               </Link>
@@ -212,7 +239,10 @@ export default function Sidebar() {
         </button>
 
         <button 
-          onClick={logout}
+          onClick={() => {
+            if (onClose) onClose();
+            logout();
+          }}
           className="btn btn-secondary" 
           style={{ width: '100%', justifyContent: 'flex-start', color: '#ef4444', padding: '10px 16px' }}
         >

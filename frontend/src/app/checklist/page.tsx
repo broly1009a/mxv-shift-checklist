@@ -441,7 +441,7 @@ function ChecklistWorksheet() {
       <ProtectedRoute>
         <div className="animate-fade-in no-print" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
               Bảng Vận Hành Ca Trực
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
@@ -450,7 +450,7 @@ function ChecklistWorksheet() {
           </div>
 
           <div className="glass-panel" style={{ padding: '28px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
               <CheckSquare size={20} color="var(--color-accent)" /> Ca trực hôm nay của bạn
             </h3>
 
@@ -462,11 +462,11 @@ function ChecklistWorksheet() {
                 </Link>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
                 {activeLogs.map(item => (
                   <div key={item._id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div>
-                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
                         {item.templateId.title}
                       </h4>
                       <span className="badge badge-medium">{item.templateId.sessionType}</span>
@@ -501,7 +501,7 @@ function ChecklistWorksheet() {
       <ProtectedRoute>
         <div className="glass-panel no-print" style={{ padding: '40px', textAlign: 'center' }}>
           <AlertCircle size={40} color="var(--color-critical)" style={{ marginBottom: '16px' }} />
-          <p style={{ color: '#fff', fontWeight: 700 }}>Lỗi tải ca trực</p>
+          <p style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Lỗi tải ca trực</p>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>{actionError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
           <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '20px' }}>
             Quay lại bảng điều khiển
@@ -599,7 +599,7 @@ function ChecklistWorksheet() {
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
             <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#fff', fontWeight: 600 }}>Chi tiết ca trực</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -615,15 +615,15 @@ function ChecklistWorksheet() {
         {/* Shift log state banner */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
               {log.templateId?.title}
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={16} /> Ngày trực: <strong style={{ color: '#fff' }}>{log.shiftDate}</strong>
+                <Clock size={16} /> Ngày trực: <strong style={{ color: 'var(--text-primary)' }}>{log.shiftDate}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <UserIcon size={16} /> Trực chính: <strong style={{ color: '#fff' }}>{log.userId?.fullName}</strong>
+                <UserIcon size={16} /> Trực chính: <strong style={{ color: 'var(--text-primary)' }}>{log.userId?.fullName}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isCompleted ? <Lock size={16} color="var(--color-primary)" /> : <Unlock size={16} color="var(--color-accent)" />}
@@ -636,19 +636,19 @@ function ChecklistWorksheet() {
               </span>
               {isCompleted && log.closedBy && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <UserCheck size={16} color="var(--color-primary)" /> Người chốt: <strong style={{ color: '#fff' }}>{log.closedBy.fullName}</strong>
+                  <UserCheck size={16} color="var(--color-primary)" /> Người chốt: <strong style={{ color: 'var(--text-primary)' }}>{log.closedBy.fullName}</strong>
                 </span>
               )}
               {isCompleted && log.closedAt && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Clock size={16} color="var(--color-primary)" /> Giờ chốt: <strong style={{ color: '#fff' }}>{new Date(log.closedAt).toLocaleTimeString('vi-VN')} {new Date(log.closedAt).toLocaleDateString('vi-VN')}</strong>
+                  <Clock size={16} color="var(--color-primary)" /> Giờ chốt: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.closedAt).toLocaleTimeString('vi-VN')} {new Date(log.closedAt).toLocaleDateString('vi-VN')}</strong>
                 </span>
               )}
             </div>
             {isCompleted && log.handoverNote && (
               <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)', maxWidth: '700px' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Biên bản bàn giao ca trực:</span>
-                <p style={{ margin: 0, color: '#fff', fontSize: '0.9rem', fontStyle: 'italic', lineHeight: '1.4' }}>"{log.handoverNote}"</p>
+                <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', fontStyle: 'italic', lineHeight: '1.4' }}>"{log.handoverNote}"</p>
               </div>
             )}
           </div>
@@ -660,7 +660,7 @@ function ChecklistWorksheet() {
                 <div style={{ width: '120px', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{ width: `${log.progressPercentage}%`, height: '100%', background: isCompleted ? 'var(--color-primary)' : 'var(--color-accent)' }}></div>
                 </div>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: isCompleted ? 'var(--color-primary)' : '#fff' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: isCompleted ? 'var(--color-primary)' : 'var(--text-primary)' }}>
                   {log.progressPercentage}%
                 </span>
               </div>
@@ -687,11 +687,11 @@ function ChecklistWorksheet() {
         )}
 
         {/* Workspace Layout Grid: Left Checklist, Right Audit Logs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '28px', alignItems: 'start' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
           
           {/* Left Panel: Checklist Tasks */}
           <div className="glass-panel" style={{ padding: '24px', overflow: 'visible' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileText size={20} color="var(--color-accent)" /> Danh sách tác vụ kiểm tra ({log.details?.length || 0} tác vụ)
             </h3>
 
@@ -729,7 +729,7 @@ function ChecklistWorksheet() {
                           <p style={{
                             fontSize: '1rem',
                             fontWeight: 600,
-                            color: '#fff',
+                            color: 'var(--text-primary)',
                             lineHeight: '1.4',
                             textDecoration: item.isChecked ? 'line-through' : 'none',
                             opacity: item.isChecked ? 0.7 : 1
@@ -807,7 +807,7 @@ function ChecklistWorksheet() {
 
           {/* Right Panel: Audit Trail Timeline */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '800px', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
               <Activity size={18} color="var(--color-accent)" /> Nhật ký hoạt động (Audit)
             </h3>
             
@@ -853,7 +853,7 @@ function ChecklistWorksheet() {
                       
                       <div style={{ flex: 1, padding: '12px', borderRadius: '8px', background: badgeColor, border: '1px solid rgba(255,255,255,0.02)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                             {audit.userId?.fullName || 'Nhân sự Sở'}
                           </span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>

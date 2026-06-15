@@ -94,7 +94,7 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-primary)' }}>
         Đang tải thông tin...
       </div>
     );
@@ -104,7 +104,7 @@ export default function SettingsPage() {
     <ProtectedRoute>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>Cấu Hình Cá Nhân</h1>
+        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình Cá Nhân</h1>
         <p style={{ color: 'var(--text-secondary)' }}>Thiết lập thông tin tài khoản, mật khẩu và cấu hình nhận cảnh báo</p>
       </div>
 
@@ -131,160 +131,171 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '800px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
           
-          {/* Section 1: Thông tin tài khoản */}
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <RefreshCw size={20} color="var(--primary-color)" />
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Thông Tin Cơ Bản</h3>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label className="form-label">Tên tài khoản (Read-only)</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={user.username} 
-                  disabled 
-                  style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
-                />
-              </div>
-              <div>
-                <label className="form-label">Họ và tên</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={fullName} 
-                  onChange={(e) => setFullName(e.target.value)} 
-                  required 
-                  placeholder="Nhập đầy đủ họ và tên"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Bảo mật */}
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <Shield size={20} color="#f59e0b" />
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Đổi Mật Khẩu (Để trống nếu không đổi)</h3>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label className="form-label">Mật khẩu mới</label>
-                <input 
-                  type="password" 
-                  className="form-input" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="form-label">Xác nhận mật khẩu mới</label>
-                <input 
-                  type="password" 
-                  className="form-input" 
-                  value={confirmPassword} 
-                  onChange={(e) => setConfirmPassword(e.target.value)} 
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Cấu hình vận hành & Telegram */}
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <Bell size={20} color="#10b981" />
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Cấu Hình Nhận Cảnh Báo & Ứng Dụng</h3>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* Cột trái: Thông tin cơ bản & Đổi mật khẩu */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               
-              {/* Theme preference */}
-              <div>
-                <label className="form-label">Giao diện mặc định</label>
-                <select 
-                  className="form-input" 
-                  value={theme} 
-                  onChange={(e) => setTheme(e.target.value as any)}
-                >
-                  <option value="dark">Chế độ tối (Dark Mode)</option>
-                  <option value="light">Chế độ sáng (Light Mode)</option>
-                </select>
-              </div>
-
-              {/* Auto refresh interval */}
-              <div>
-                <label className="form-label">Tần suất tự động làm mới dữ liệu ca trực</label>
-                <select 
-                  className="form-input" 
-                  value={autoRefreshInterval} 
-                  onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
-                >
-                  <option value={10}>10 giây</option>
-                  <option value={30}>30 giây</option>
-                  <option value={60}>60 giây</option>
-                  <option value={120}>2 phút</option>
-                  <option value={300}>5 phút</option>
-                </select>
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '8px 0' }} />
-
-              {/* Telegram Notifications toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input 
-                  type="checkbox" 
-                  id="telegramNotifications"
-                  checked={telegramNotifications} 
-                  onChange={(e) => setTelegramNotifications(e.target.checked)} 
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                />
-                <label htmlFor="telegramNotifications" style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
-                  Kích hoạt nhận cảnh báo cá nhân qua Telegram
-                </label>
-              </div>
-
-              {/* Telegram Chat ID */}
-              {telegramNotifications && (
-                <>
+              {/* Section 1: Thông tin tài khoản */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                  <RefreshCw size={20} color="var(--primary-color)" />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Thông Tin Cơ Bản</h3>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <label className="form-label">Telegram Chat ID</label>
+                    <label className="form-label">Tên tài khoản (Read-only)</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      value={telegramChatId} 
-                      onChange={(e) => setTelegramChatId(e.target.value)} 
-                      placeholder="e.g. 523192038"
+                      value={user.username} 
+                      disabled 
+                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
                     />
-                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
-                      💡 Hướng dẫn lấy Chat ID: Nhấn tìm kiếm tài khoản bot Telegram của MXV hoặc nhắn tin <code>/start</code> hoặc <code>/my_id</code> với bot <b>@userinfobot</b> hoặc <b>@MXV_Checklist_Bot</b> để lấy ID số của bạn.
-                    </small>
                   </div>
-
-                  {/* Alert threshold */}
                   <div>
-                    <label className="form-label">Thời gian cảnh báo trước hạn chót (phút)</label>
+                    <label className="form-label">Họ và tên</label>
                     <input 
-                      type="number" 
+                      type="text" 
                       className="form-input" 
-                      value={alertThresholdMinutes} 
-                      onChange={(e) => setAlertThresholdMinutes(Number(e.target.value))} 
-                      min={1} 
-                      max={180}
+                      value={fullName} 
+                      onChange={(e) => setFullName(e.target.value)} 
+                      required 
+                      placeholder="Nhập đầy đủ họ và tên"
                     />
-                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
-                      Cảnh báo sẽ tự động gửi qua Telegram khi một tác vụ chưa hoàn thành có deadline cách hiện tại nhỏ hơn hoặc bằng số phút này.
-                    </small>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
 
+              {/* Section 2: Bảo mật */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                  <Shield size={20} color="#f59e0b" />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Đổi Mật Khẩu (Để trống nếu không đổi)</h3>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label className="form-label">Mật khẩu mới</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Xác nhận mật khẩu mới</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      value={confirmPassword} 
+                      onChange={(e) => setConfirmPassword(e.target.value)} 
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Cột phải: Cấu hình nhận cảnh báo & ứng dụng */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              
+              {/* Section 3: Cấu hình vận hành & Telegram */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                  <Bell size={20} color="#10b981" />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cấu Hình Nhận Cảnh Báo & Ứng Dụng</h3>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  {/* Theme preference */}
+                  <div>
+                    <label className="form-label">Giao diện mặc định</label>
+                    <select 
+                      className="form-input" 
+                      value={theme} 
+                      onChange={(e) => setTheme(e.target.value as any)}
+                    >
+                      <option value="dark">Chế độ tối (Dark Mode)</option>
+                      <option value="light">Chế độ sáng (Light Mode)</option>
+                    </select>
+                  </div>
+
+                  {/* Auto refresh interval */}
+                  <div>
+                    <label className="form-label">Tần suất tự động làm mới dữ liệu ca trực</label>
+                    <select 
+                      className="form-input" 
+                      value={autoRefreshInterval} 
+                      onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+                    >
+                      <option value={10}>10 giây</option>
+                      <option value={30}>30 giây</option>
+                      <option value={60}>60 giây</option>
+                      <option value={120}>2 phút</option>
+                      <option value={300}>5 phút</option>
+                    </select>
+                  </div>
+
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '8px 0' }} />
+
+                  {/* Telegram Notifications toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="telegramNotifications"
+                      checked={telegramNotifications} 
+                      onChange={(e) => setTelegramNotifications(e.target.checked)} 
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="telegramNotifications" style={{ color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
+                      Kích hoạt nhận cảnh báo cá nhân qua Telegram
+                    </label>
+                  </div>
+
+                  {/* Telegram Chat ID */}
+                  {telegramNotifications && (
+                    <>
+                      <div>
+                        <label className="form-label">Telegram Chat ID</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={telegramChatId} 
+                          onChange={(e) => setTelegramChatId(e.target.value)} 
+                          placeholder="e.g. 523192038"
+                        />
+                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
+                          💡 Hướng dẫn lấy Chat ID: Nhấn tìm kiếm tài khoản bot Telegram của MXV hoặc nhắn tin <code>/start</code> hoặc <code>/my_id</code> với bot <b>@userinfobot</b> hoặc <b>@MXV_Checklist_Bot</b> để lấy ID số của bạn.
+                        </small>
+                      </div>
+
+                      {/* Alert threshold */}
+                      <div>
+                        <label className="form-label">Thời gian cảnh báo trước hạn chót (phút)</label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          value={alertThresholdMinutes} 
+                          onChange={(e) => setAlertThresholdMinutes(Number(e.target.value))} 
+                          min={1} 
+                          max={180}
+                        />
+                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
+                          Cảnh báo sẽ tự động gửi qua Telegram khi một tác vụ chưa hoàn thành có deadline cách hiện tại nhỏ hơn hoặc bằng số phút này.
+                        </small>
+                      </div>
+                    </>
+                  )}
+
+                </div>
+              </div>
             </div>
           </div>
 

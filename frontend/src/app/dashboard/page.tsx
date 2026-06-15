@@ -147,11 +147,11 @@ export default function DashboardPage() {
         {/* Header Greeting */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
               Xin chào, {user?.fullName}!
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Phân hệ trực: <strong style={{ color: '#fff' }}>{user?.department?.name || 'ADMIN Portal'}</strong>. Theo dõi và quản lý checklist vận hành.
+              Phân hệ trực: <strong style={{ color: 'var(--text-primary)' }}>{user?.department?.name || 'ADMIN Portal'}</strong>. Theo dõi và quản lý checklist vận hành.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -179,11 +179,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Mid Section Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', alignItems: 'start' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           {/* Active Shifts Checklist Area */}
           <div className="glass-panel" style={{ padding: '28px', minHeight: '380px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={20} color="var(--color-accent)" /> Ca trực hiện tại hôm nay
               </h3>
               <span className="badge badge-medium">Hôm nay</span>
@@ -203,7 +203,7 @@ export default function DashboardPage() {
                   <div key={shift._id} className="glass-panel" style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255,255,255,0.015)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <div>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>{shift.templateId.title}</h4>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{shift.templateId.title}</h4>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {getSessionBadge(shift.templateId.sessionType)}
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId.fullName}</span>
@@ -242,7 +242,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             {/* Initialize Shift Log Card */}
             <div className="glass-panel" style={{ padding: '28px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
                 <Play size={20} color="var(--color-primary)" /> Khởi tạo ca trực mới
               </h3>
 
@@ -288,8 +288,8 @@ export default function DashboardPage() {
                     <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>{tpl.title}</p>
-                          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Phòng ban: <strong style={{ color: '#fff' }}>{tpl.departmentId?.name || 'Không xác định'}</strong></p>
+                          <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{tpl.title}</p>
+                          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong></p>
                         </div>
                         {user?.role === 'ADMIN' && (
                           <Link href="/admin/templates" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', color: 'var(--color-accent)', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(59,130,246,0.2)' }}>
@@ -317,7 +317,7 @@ export default function DashboardPage() {
 
             {/* All templates summary - dynamic */}
             <div className="glass-panel" style={{ padding: '28px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Layers size={18} color="#a855f7" /> Danh sách mẫu checklist
               </h3>
               {templates.length === 0 ? (
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                   {templates.map((tpl, i) => (
                     <div key={tpl._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: i < templates.length - 1 ? '1px solid var(--border-color)' : 'none', paddingBottom: '8px' }}>
                       <span style={{ flex: 1, paddingRight: '8px' }}>{tpl.title}</span>
-                      <span style={{ fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>{tpl.tasks?.length ?? '?'} tác vụ</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{tpl.tasks?.length ?? '?'} tác vụ</span>
                     </div>
                   ))}
                 </div>
@@ -338,7 +338,7 @@ export default function DashboardPage() {
 
         {/* History / Recent Completed Logs */}
         <div className="glass-panel" style={{ padding: '28px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
             <FolderOpen size={20} color="var(--text-secondary)" /> Hoạt động ca trực gần đây
           </h3>
           {recentShifts.length === 0 ? (

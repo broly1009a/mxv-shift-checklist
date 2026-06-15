@@ -149,7 +149,7 @@ function HistoryAudit() {
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
             Lịch Sử Ca Trực & Đối Chiếu
           </h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -159,7 +159,7 @@ function HistoryAudit() {
 
         {/* Filters Form Panel */}
         <div className="glass-panel" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <SlidersHorizontal size={18} color="var(--color-accent)" /> Bộ lọc tìm kiếm ca trực
           </h3>
 
@@ -285,15 +285,15 @@ function HistoryAudit() {
               maxWidth: '800px',
               maxHeight: '85vh',
               overflowY: 'auto',
-              background: '#0d1326',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
               borderRadius: '16px',
               padding: '32px'
             }}>
               {/* Modal Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
                     {activeDetail.templateId?.title}
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
@@ -318,7 +318,7 @@ function HistoryAudit() {
                   {activeDetail.status === 'COMPLETED' && activeDetail.handoverNote && (
                     <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--color-primary)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px', fontWeight: 700, textTransform: 'uppercase' }}>Biên bản bàn giao ca trực:</span>
-                      <p style={{ margin: 0, color: '#fff', fontSize: '0.85rem', fontStyle: 'italic' }}>"{activeDetail.handoverNote}"</p>
+                      <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>"{activeDetail.handoverNote}"</p>
                     </div>
                   )}
                 </div>
@@ -360,7 +360,7 @@ function HistoryAudit() {
                         {task.isChecked && '✓'}
                       </span>
                       <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff' }}>
+                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                           {idx + 1}. {task.taskNameSnapshot}
                         </p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>

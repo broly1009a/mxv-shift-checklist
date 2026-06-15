@@ -276,7 +276,7 @@ export default function AdminUsersPage() {
             {/* Page Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
                   Quản Lý Tài Khoản Cán Bộ
                 </h1>
                 <p style={{ color: 'var(--text-secondary)' }}>
@@ -321,12 +321,12 @@ export default function AdminUsersPage() {
                     <tbody>
                       {users.map((u) => (
                         <tr key={u._id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }}>
-                          <td style={{ padding: '14px 16px', fontWeight: 700, color: '#fff' }}>{u.username}</td>
+                          <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>{u.username}</td>
                           <td style={{ padding: '14px 16px' }}>{u.fullName}</td>
                           <td style={{ padding: '14px 16px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               {u.divisionId ? (
-                                <span style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 500 }}>
+                                <span style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 500 }}>
                                   🏢 {u.divisionId.name}
                                 </span>
                               ) : null}
@@ -438,10 +438,10 @@ export default function AdminUsersPage() {
           <div className="glass-panel" style={{
             width: '100%',
             maxWidth: '500px',
-            background: '#0d1326',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-color)',
             borderRadius: '16px',
-            padding: '32px',
+            padding: '24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
@@ -449,7 +449,7 @@ export default function AdminUsersPage() {
           }}>
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <UsersIcon size={20} color="var(--primary-color)" /> 
                 {editingUser ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'}
               </h2>
@@ -610,7 +610,7 @@ export default function AdminUsersPage() {
                   style={{ 
                     fontSize: '0.9rem', 
                     fontWeight: 600, 
-                    color: '#fff', 
+                    color: 'var(--text-primary)', 
                     cursor: 'pointer',
                     userSelect: 'none'
                   }}

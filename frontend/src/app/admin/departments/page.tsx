@@ -197,7 +197,7 @@ export default function AdminDepartmentsPage() {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
               Quản Lý Phòng Ban Vận Hành
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
@@ -249,7 +249,7 @@ export default function AdminDepartmentsPage() {
                       <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>
                         {idx + 1}
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#fff' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <Building2 size={16} color="var(--color-accent)" />
                           {dept.name}
@@ -316,14 +316,14 @@ export default function AdminDepartmentsPage() {
         }}>
           <div className="glass-panel" style={{
             width: '100%', maxWidth: '460px',
-            background: '#0d1326', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '16px', padding: '32px',
+            background: 'var(--bg-app)', border: '1px solid var(--border-color)',
+            borderRadius: '16px', padding: '24px',
             display: 'flex', flexDirection: 'column', gap: '20px',
             margin: 'auto' // Căn giữa thông minh và tránh bị cut-off khi màn hình nhỏ
             }}>
               {/* Modal Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Building2 size={20} color="var(--color-accent)" />
                   {editingDept ? 'Chỉnh sửa phòng ban' : 'Thêm phòng ban mới'}
                 </h2>

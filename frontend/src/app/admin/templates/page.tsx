@@ -361,7 +361,7 @@ export default function AdminTemplatesPage() {
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
               Quản Trị Mẫu Checklist Vận Hành
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
@@ -385,11 +385,10 @@ export default function AdminTemplatesPage() {
         )}
 
         {/* Layout Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '32px', alignItems: 'start' }}>
-          
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
           {/* Templates list panel */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
               <Layers size={18} color="var(--color-accent)" /> Các mẫu checklist
             </h3>
             {loading ? (
@@ -435,7 +434,7 @@ export default function AdminTemplatesPage() {
               {/* Template Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                     {selectedTemplate.title}
                   </h2>
                   <div style={{ display: 'flex', gap: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -472,10 +471,10 @@ export default function AdminTemplatesPage() {
 
               {/* Add Task Subform */}
               <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Plus size={16} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 100px 90px', gap: '12px', alignItems: 'end' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[120px_1fr_120px_100px_90px] gap-3 items-end">
                   <div>
                     <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
                     <input
@@ -528,7 +527,7 @@ export default function AdminTemplatesPage() {
 
               {/* Tasks List Table */}
               <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Settings size={18} color="var(--color-accent)" /> Danh sách tác vụ đang có ({selectedTemplate.tasks?.length || 0} tác vụ)
                 </h4>
 
@@ -552,7 +551,7 @@ export default function AdminTemplatesPage() {
                             #{index + 1}
                           </span>
                           <div style={{ flex: 1 }}>
-                            <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff' }}>
+                            <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                               {task.taskName}
                             </p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -628,13 +627,13 @@ export default function AdminTemplatesPage() {
         }}>
           <div className="glass-panel" style={{
             width: '100%', maxWidth: '500px',
-            background: '#0d1326', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '16px', padding: '32px',
+            background: 'var(--bg-app)', border: '1px solid var(--border-color)',
+            borderRadius: '16px', padding: '24px',
             display: 'flex', flexDirection: 'column', gap: '20px',
             margin: 'auto' // Căn giữa thông minh và tránh bị cut-off khi màn hình nhỏ
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Settings size={20} color="var(--color-accent)" />
                   {editingTemplateInfo ? 'Chỉnh sửa mẫu checklist' : 'Tạo mẫu checklist mới'}
                 </h2>
