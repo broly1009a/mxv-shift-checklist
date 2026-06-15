@@ -13,7 +13,7 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userModel.findOne({ username }).populate('departmentId').exec();
+    const user = await this.userModel.findOne({ username }).populate('departmentId').populate('divisionId').exec();
     if (user && (await bcrypt.compare(pass, user.passwordHash))) {
       if (!user.isActive) {
         throw new UnauthorizedException('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ Admin.');
@@ -130,7 +130,7 @@ export class AuthService {
     const username = email.split('@')[0];
     
     // Check if user already exists
-    let user = await this.userModel.findOne({ username }).populate('departmentId').exec();
+    let user = await this.userModel.findOne({ username }).populate('departmentId').populate('divisionId').exec();
     
     if (user) {
       // User exists - check activation status
