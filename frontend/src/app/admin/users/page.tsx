@@ -12,7 +12,9 @@ import {
   Layers,
   X,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Search,
+  RotateCcw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
@@ -58,6 +60,34 @@ export default function AdminUsersPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [filterDivision, setFilterDivision] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterActive, setFilterActive] = useState('');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const handleDivisionFilterChange = (val: string) => {
+    setFilterDivision(val);
+    setFilterDepartment('');
+    setCurrentPage(1);
+  };
+
   // Form states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -80,17 +110,9 @@ export default function AdminUsersPage() {
     }
   }, [currentUser, router]);
 
-  const fetchData = useCallback(async () => {
+  const fetchMetadata = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
     try {
-      // Fetch users
-      const usersRes = await fetch(`${API_BASE_URL}/api/v1/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const usersData = await usersRes.json();
-      setUsers(usersData);
-
       // Fetch divisions
       const divsRes = await fetch(`${API_BASE_URL}/api/v1/divisions`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -105,15 +127,51 @@ export default function AdminUsersPage() {
       const deptsData = await deptsRes.json();
       setDepartments(deptsData);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error('Lỗi khi tải metadata:', err);
     }
   }, [token]);
 
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', limit.toString());
+      if (debouncedSearchQuery) params.append('search', debouncedSearchQuery);
+      if (filterRole) params.append('role', filterRole);
+      if (filterDivision) params.append('divisionId', filterDivision);
+      if (filterDepartment) params.append('departmentId', filterDepartment);
+      if (filterActive !== '') params.append('isActive', filterActive);
+
+      const usersRes = await fetch(`${API_BASE_URL}/api/v1/users?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const usersData = await usersRes.json();
+      
+      if (usersData && typeof usersData === 'object' && 'data' in usersData) {
+        setUsers(usersData.data || []);
+        setTotalCount(usersData.total || 0);
+        setTotalPages(usersData.totalPages || 1);
+      } else {
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setTotalCount(Array.isArray(usersData) ? usersData.length : 0);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách người dùng:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, currentPage, limit, debouncedSearchQuery, filterRole, filterDivision, filterDepartment, filterActive]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchMetadata();
+  }, [fetchMetadata]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const openAddModal = () => {
     setEditingUser(null);
@@ -208,7 +266,7 @@ export default function AdminUsersPage() {
       setSuccess(editingUser ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản mới thành công!');
       setTimeout(() => {
         setModalOpen(false);
-        fetchData();
+        fetchUsers();
       }, 1000);
     } catch (err: any) {
       setError(err.message || 'Lỗi xảy ra');
@@ -233,7 +291,7 @@ export default function AdminUsersPage() {
       }
 
       setSuccess('Đã xóa tài khoản.');
-      fetchData();
+      fetchUsers();
     } catch (err: any) {
       setError(err.message || 'Lỗi xảy ra');
     }
@@ -301,12 +359,156 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {/* Filter Panel */}
+            <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontWeight: 700, fontSize: '1.1rem' }}>
+                <Search size={18} color="var(--color-accent)" />
+                <span>Bộ lọc tìm kiếm</span>
+              </div>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '16px',
+                alignItems: 'end'
+              }}>
+                {/* Search Text Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tìm kiếm tài khoản / họ tên</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Nhập tên, username..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                {/* Role Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vai trò / Chức vụ</label>
+                  <select
+                    className="form-input"
+                    value={filterRole}
+                    onChange={(e) => {
+                      setFilterRole(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: 'var(--bg-app)' }}
+                  >
+                    <option value="">-- Tất cả vai trò --</option>
+                    <option value="STAFF">Nhân viên vận hành</option>
+                    <option value="DEPARTMENT_HEAD">Trưởng bộ phận / Trưởng ca</option>
+                    <option value="DIVISION_DIRECTOR">Giám đốc Khối</option>
+                    <option value="CEO">Ban Giám đốc (CEO)</option>
+                    <option value="CHAIRMAN">Chủ tịch Hội đồng</option>
+                    <option value="ADMIN">Quản trị hệ thống (ADMIN)</option>
+                  </select>
+                </div>
+
+                {/* Division Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Khối quản lý</label>
+                  <select
+                    className="form-input"
+                    value={filterDivision}
+                    onChange={(e) => handleDivisionFilterChange(e.target.value)}
+                    style={{ background: 'var(--bg-app)' }}
+                  >
+                    <option value="">-- Tất cả các Khối --</option>
+                    {divisions.map(div => (
+                      <option key={div._id} value={div._id}>{div.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Department Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Phòng ban trực</label>
+                  <select
+                    className="form-input"
+                    value={filterDepartment}
+                    onChange={(e) => {
+                      setFilterDepartment(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: 'var(--bg-app)' }}
+                  >
+                    <option value="">-- Tất cả phòng ban --</option>
+                    {departments
+                      .filter(d => {
+                        if (!filterDivision) return true;
+                        const deptDivId = typeof d.divisionId === 'object' && d.divisionId !== null ? d.divisionId._id : d.divisionId;
+                        return deptDivId === filterDivision;
+                      })
+                      .map(d => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                {/* Active Status Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Trạng thái hoạt động</label>
+                  <select
+                    className="form-input"
+                    value={filterActive}
+                    onChange={(e) => {
+                      setFilterActive(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: 'var(--bg-app)' }}
+                  >
+                    <option value="">-- Tất cả trạng thái --</option>
+                    <option value="true">Hoạt động</option>
+                    <option value="false">Chờ kích hoạt</option>
+                  </select>
+                </div>
+
+                {/* Clear Filter button */}
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setDebouncedSearchQuery('');
+                    setFilterRole('');
+                    setFilterDivision('');
+                    setFilterDepartment('');
+                    setFilterActive('');
+                    setCurrentPage(1);
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    height: '46px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    borderColor: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)',
+                    color: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? '#ef4444' : 'var(--text-muted)',
+                    background: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                    opacity: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 1 : 0.6,
+                    cursor: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'pointer' : 'not-allowed'
+                  }}
+                  disabled={!(searchQuery || filterRole || filterDivision || filterDepartment || filterActive)}
+                >
+                  <RotateCcw size={16} />
+                  <span>Xóa bộ lọc</span>
+                </button>
+              </div>
+            </div>
+
             {/* Users List */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
               {loading ? (
                 <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Đang tải người dùng...</div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <>
+                  <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -414,6 +616,116 @@ export default function AdminUsersPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Pagination Controls */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginTop: '20px', 
+                  paddingTop: '20px',
+                  borderTop: '1px solid var(--border-color)',
+                  flexWrap: 'wrap',
+                  gap: '16px'
+                }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    Hiển thị <strong>{totalCount > 0 ? (currentPage - 1) * limit + 1 : 0}</strong> - <strong>{Math.min(currentPage * limit, totalCount)}</strong> trong tổng số <strong>{totalCount}</strong> tài khoản
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                    {/* Page Size Selector */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      <span>Hiển thị:</span>
+                      <select 
+                        value={limit} 
+                        onChange={(e) => {
+                          setLimit(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        style={{
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+
+                    {/* Page Navigation */}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="btn btn-secondary"
+                        style={{ 
+                          padding: '6px 12px', 
+                          fontSize: '0.8rem',
+                          opacity: currentPage === 1 ? 0.5 : 1,
+                          cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Trước
+                      </button>
+                      
+                      {/* Generate page numbers */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNo => {
+                        if (
+                          pageNo === 1 || 
+                          pageNo === totalPages || 
+                          (pageNo >= currentPage - 1 && pageNo <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={pageNo}
+                              onClick={() => setCurrentPage(pageNo)}
+                              className="btn"
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '0.8rem',
+                                background: currentPage === pageNo ? 'var(--color-accent)' : 'rgba(255, 255, 255, 0.05)',
+                                color: currentPage === pageNo ? '#fff' : 'var(--text-primary)',
+                                border: '1px solid var(--border-color)',
+                                fontWeight: currentPage === pageNo ? 'bold' : 'normal'
+                              }}
+                            >
+                              {pageNo}
+                            </button>
+                          );
+                        }
+                        if (
+                          (pageNo === 2 && currentPage > 3) || 
+                          (pageNo === totalPages - 1 && currentPage < totalPages - 2)
+                        ) {
+                          return <span key={pageNo} style={{ color: 'var(--text-muted)', alignSelf: 'center', padding: '0 4px' }}>...</span>;
+                        }
+                        return null;
+                      })}
+
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        className="btn btn-secondary"
+                        style={{ 
+                          padding: '6px 12px', 
+                          fontSize: '0.8rem',
+                          opacity: (currentPage === totalPages || totalPages === 0) ? 0.5 : 1,
+                          cursor: (currentPage === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Sau
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                </>
               )}
             </div>
           </div>

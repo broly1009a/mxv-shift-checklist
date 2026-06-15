@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ConflictException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -16,8 +16,65 @@ export class UsersController {
   ) {}
 
   @Get()
-  async findAll() {
-    return this.userModel.find().populate('departmentId').populate('divisionId').sort({ username: 1 }).exec();
+  async findAll(
+    @Query('page') pageNum?: string,
+    @Query('limit') limitNum?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('divisionId') divisionId?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    const page = parseInt(pageNum || '1', 10);
+    const limit = parseInt(limitNum || '10', 10);
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+
+    if (search) {
+      filter.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (role) {
+      filter.role = role;
+    }
+
+    if (departmentId) {
+      filter.departmentId = departmentId;
+    }
+
+    if (divisionId) {
+      filter.divisionId = divisionId;
+    }
+
+    if (isActive !== undefined && isActive !== '') {
+      filter.isActive = isActive === 'true';
+    }
+
+    const [data, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .populate('departmentId')
+        .populate('divisionId')
+        .sort({ username: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(filter).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   @Post()
