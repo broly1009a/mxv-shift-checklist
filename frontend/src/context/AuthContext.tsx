@@ -49,26 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Helper to check token expiration
-  const isTokenExpired = useCallback((tokenStr: string): boolean => {
-    try {
-      const base64Url = tokenStr.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        window
-          .atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      const { exp } = JSON.parse(jsonPayload);
-      if (!exp) return false;
-      return Date.now() >= exp * 1000;
-    } catch (e) {
-      return true; // Treat invalid token as expired
-    }
-  }, []);
-
   const logout = useCallback(() => {
     localStorage.removeItem('mxv_token');
     localStorage.removeItem('mxv_user');
@@ -83,29 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem('mxv_user');
     
     if (storedToken && storedUser) {
-      if (isTokenExpired(storedToken)) {
-        localStorage.removeItem('mxv_token');
-        localStorage.removeItem('mxv_user');
-      } else {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      }
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
     }
     setLoading(false);
-  }, [isTokenExpired]);
-
-  // Periodic expiration check
-  useEffect(() => {
-    if (!token) return;
-    
-    const interval = setInterval(() => {
-      if (isTokenExpired(token)) {
-        logout();
-      }
-    }, 5000); // Check every 5 seconds
-    
-    return () => clearInterval(interval);
-  }, [token, isTokenExpired, logout]);
+  }, []);
 
   // Global fetch interceptor for 401 errors
   useEffect(() => {
