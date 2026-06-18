@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check if user is authenticated from local storage
     const storedToken = localStorage.getItem('mxv_token');
     const storedUser = localStorage.getItem('mxv_user');
-    
+
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
@@ -77,11 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.status === 401) {
         const url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url || '';
         if (
-          !url.includes('/api/v1/auth/login') && 
+          !url.includes('/api/v1/auth/login') &&
           !url.includes('/api/v1/auth/sso') &&
           !url.includes('/api/v1/auth/register')
         ) {
           logout();
+          throw new Error('Unauthorized'); // Chặn không cho code tiếp tục chạy vào phần parse JSON/set state để tránh crash trang
         }
       }
       return response;
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(tokenVal);
       setUser(userVal);
       setLoading(false);
-      
+
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
@@ -148,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(tokenVal);
       setUser(userVal);
       setLoading(false);
-      
+
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
