@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { ShiftSlot } from './shift-slot.schema';
 
 @Schema({ _id: false })
 export class TaskItem {
@@ -17,6 +18,24 @@ export class TaskItem {
 
   @Prop({ required: false, type: String })
   deadline?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  functionUrl?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  urdReference?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  fileLocation?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  timetable?: string;
+
+  @Prop({ required: false, type: Boolean, default: false })
+  isBotCheck?: boolean;
+
+  @Prop({ required: false, type: String, default: '' })
+  botTriggerTime?: string;
 }
 
 export const TaskItemSchema = SchemaFactory.createForClass(TaskItem);
@@ -29,8 +48,14 @@ export class ChecklistTemplate extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Department', required: true })
   departmentId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'ShiftSlot', required: false, default: null })
+  shiftSlotId?: Types.ObjectId | null;
+
   @Prop({ required: true, enum: ['OPEN', 'DURING', 'CLOSE'] })
   sessionType: string;
+
+  @Prop({ required: true, type: Boolean, default: true })
+  isActive: boolean;
 
   @Prop({ type: [TaskItemSchema], default: [] })
   tasks: TaskItem[];

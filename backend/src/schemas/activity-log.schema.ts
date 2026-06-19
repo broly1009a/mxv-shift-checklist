@@ -3,8 +3,8 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class ActivityLog extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  userId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false, default: null, index: true })
+  userId?: Types.ObjectId | null;
 
   @Prop({ required: true })
   action: string; // e.g. 'POST /api/v1/departments', 'PUT /api/v1/users/id'

@@ -20,7 +20,9 @@ import {
   Activity,
   UserCheck,
   Search,
-  Filter
+  Filter,
+  Link2,
+  Cpu
 } from 'lucide-react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
@@ -38,6 +40,12 @@ interface TaskDetail {
   };
   note?: string;
   deadlineSnapshot?: string;
+  functionUrlSnapshot?: string;
+  urdReferenceSnapshot?: string;
+  fileLocationSnapshot?: string;
+  timetableSnapshot?: string;
+  isBotCheckSnapshot?: boolean;
+  botTriggerTimeSnapshot?: string;
 }
 
 interface ShiftLog {
@@ -45,7 +53,7 @@ interface ShiftLog {
   shiftDate: string;
   status: 'PENDING' | 'COMPLETED';
   progressPercentage: number;
-  templateId: {
+  templateId?: {
     _id: string;
     title: string;
     sessionType: 'OPEN' | 'DURING' | 'CLOSE';
@@ -54,12 +62,12 @@ interface ShiftLog {
       name: string;
       code: string;
     };
-  };
-  userId: {
+  } | null;
+  userId?: {
     _id: string;
     fullName: string;
     username: string;
-  };
+  } | null;
   details: TaskDetail[];
   closedBy?: {
     _id: string;
@@ -494,14 +502,14 @@ function ChecklistWorksheet() {
                   <div key={item._id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div>
                       <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                        {item.templateId.title}
+                        {item.templateId?.title || 'Không rõ mẫu'}
                       </h4>
-                      <span className="badge badge-medium">{item.templateId.sessionType}</span>
+                      <span className="badge badge-medium">{item.templateId?.sessionType || 'OPEN'}</span>
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <div>Trực ngày: <strong>{item.shiftDate}</strong></div>
-                      <div>Phòng ban: <strong>{item.templateId.departmentId?.name}</strong></div>
-                      <div>Người trực: <strong>{item.userId.fullName}</strong></div>
+                      <div>Phòng ban: <strong>{item.templateId?.departmentId?.name || 'Không xác định'}</strong></div>
+                      <div>Người trực: <strong>{item.userId?.fullName || 'Hệ thống'}</strong></div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -859,6 +867,35 @@ function ChecklistWorksheet() {
                               {item.isChecked && item.updatedBy && (
                                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                   <UserIcon size={11} /> Bởi: {item.updatedBy.fullName}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Additional Snapshotted Fields */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '8px', fontSize: '0.75rem' }}>
+                              {item.functionUrlSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Link2 size={12} /> URL: <a href={item.functionUrlSnapshot} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>{item.functionUrlSnapshot}</a>
+                                </span>
+                              )}
+                              {item.urdReferenceSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <FileText size={12} /> URD: {item.urdReferenceSnapshot}
+                                </span>
+                              )}
+                              {item.fileLocationSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <FileText size={12} /> File: {item.fileLocationSnapshot}
+                                </span>
+                              )}
+                              {item.timetableSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Clock size={12} /> Khung giờ: {item.timetableSnapshot}
+                                </span>
+                              )}
+                              {item.isBotCheckSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.06)', color: '#ec4899', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Cpu size={12} /> Bot Check {item.botTriggerTimeSnapshot ? `(${item.botTriggerTimeSnapshot})` : ''}
                                 </span>
                               )}
                             </div>

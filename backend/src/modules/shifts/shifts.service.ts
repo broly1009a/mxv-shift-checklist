@@ -98,15 +98,25 @@ export class ShiftsService {
       checkedAt: null,
       updatedBy: null,
       note: null,
+      functionUrlSnapshot: task.functionUrl || '',
+      urdReferenceSnapshot: task.urdReference || '',
+      fileLocationSnapshot: task.fileLocation || '',
+      timetableSnapshot: task.timetable || '',
+      isBotCheckSnapshot: task.isBotCheck || false,
+      botTriggerTimeSnapshot: task.botTriggerTime || '',
     }));
 
     const newLog = new this.shiftLogModel({
       templateId: new Types.ObjectId(templateId),
       userId: new Types.ObjectId(user.id || user._id),
+      shiftSlotId: template.shiftSlotId ? new Types.ObjectId(template.shiftSlotId as any) : null,
+      departmentId: template.departmentId ? new Types.ObjectId(template.departmentId as any) : null,
       shiftDate,
       status: 'PENDING',
       progressPercentage: 0.00,
       details,
+      creationSource: 'MANUAL_USER',
+      createdByType: 'USER',
     });
 
     const saved = await newLog.save();
@@ -116,6 +126,8 @@ export class ShiftsService {
         path: 'templateId',
         populate: { path: 'departmentId' }
       })
+      .populate('shiftSlotId')
+      .populate('departmentId')
       .exec();
     if (!result) {
       throw new NotFoundException('Lỗi khởi tạo ca trực');
@@ -365,6 +377,8 @@ export class ShiftsService {
         path: 'templateId',
         populate: { path: 'departmentId' }
       })
+      .populate('shiftSlotId')
+      .populate('departmentId')
       .sort({ shiftDate: -1, createdAt: -1 })
       .exec();
   }
@@ -404,6 +418,8 @@ export class ShiftsService {
         path: 'templateId',
         populate: { path: 'departmentId' }
       })
+      .populate('shiftSlotId')
+      .populate('departmentId')
       .exec();
   }
 
@@ -419,6 +435,8 @@ export class ShiftsService {
         path: 'templateId',
         populate: { path: 'departmentId' }
       })
+      .populate('shiftSlotId')
+      .populate('departmentId')
       .exec();
     if (!log) {
       throw new NotFoundException('Không tìm thấy ca trực');

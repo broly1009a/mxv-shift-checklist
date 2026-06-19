@@ -26,6 +26,24 @@ export class ShiftLogDetail {
 
   @Prop({ required: false, type: String, default: null })
   deadlineSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: '' })
+  functionUrlSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  urdReferenceSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  fileLocationSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  timetableSnapshot?: string;
+
+  @Prop({ required: false, type: Boolean, default: false })
+  isBotCheckSnapshot?: boolean;
+
+  @Prop({ required: false, type: String, default: '' })
+  botTriggerTimeSnapshot?: string;
 }
 
 export const ShiftLogDetailSchema = SchemaFactory.createForClass(ShiftLogDetail);
@@ -35,8 +53,14 @@ export class ShiftLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ChecklistTemplate', required: true })
   templateId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId; // User who initialized the shift
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false, default: null })
+  userId?: Types.ObjectId | null; // User who initialized the shift (nullable for system cron)
+
+  @Prop({ type: Types.ObjectId, ref: 'ShiftSlot', required: false, default: null })
+  shiftSlotId?: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'Department', required: false, default: null })
+  departmentId?: Types.ObjectId | null;
 
   @Prop({ required: true, index: true })
   shiftDate: string; // YYYY-MM-DD
@@ -58,6 +82,12 @@ export class ShiftLog extends Document {
 
   @Prop({ type: String, default: null })
   handoverNote?: string | null;
+
+  @Prop({ required: true, enum: ['SYSTEM_CRON', 'MANUAL_ADMIN', 'MANUAL_USER'], default: 'MANUAL_USER' })
+  creationSource: string;
+
+  @Prop({ required: true, enum: ['USER', 'SYSTEM'], default: 'USER' })
+  createdByType: string;
 }
 
 export const ShiftLogSchema = SchemaFactory.createForClass(ShiftLog);

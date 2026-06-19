@@ -6,6 +6,8 @@ import { Department } from '../schemas/department.schema';
 import { User } from '../schemas/user.schema';
 import { ChecklistTemplate } from '../schemas/template.schema';
 import { Division } from '../schemas/division.schema';
+import { ShiftSlot } from '../schemas/shift-slot.schema';
+import { WorkingCalendar } from '../schemas/working-calendar.schema';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -16,6 +18,8 @@ export class SeedService implements OnApplicationBootstrap {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(ChecklistTemplate.name) private readonly templateModel: Model<ChecklistTemplate>,
     @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
+    @InjectModel(ShiftSlot.name) private readonly shiftSlotModel: Model<ShiftSlot>,
+    @InjectModel(WorkingCalendar.name) private readonly workingCalendarModel: Model<WorkingCalendar>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -24,7 +28,9 @@ export class SeedService implements OnApplicationBootstrap {
       const divs = await this.seedDivisions();
       const depts = await this.seedDepartments(divs);
       await this.seedUsers(divs, depts);
-      await this.seedTemplates(depts);
+      const slots = await this.seedShiftSlots();
+      await this.seedWorkingCalendar();
+      await this.seedTemplates(depts, slots);
       this.logger.log('Database seeding completed successfully.');
     } catch (error) {
       this.logger.error('Error seeding database', error);
@@ -52,11 +58,14 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedDepartments(divs: Record<string, string>): Promise<Record<string, string>> {
+    // Delete legacy departments to clean up old codes
+    await this.departmentModel.deleteMany({ code: { $in: ['RE_OPS', 'MARKET_SURV'] } }).exec();
+
     const departments = [
-      { name: 'Vận hành Hệ thống công nghệ thông tin', code: 'IT_CORE', divisionId: divs['IT_DIVISION'] },
+      { name: 'IT Core Operations', code: 'IT_CORE', divisionId: divs['IT_DIVISION'] },
       { name: 'Nghiên cứu và Phát triển Công nghệ', code: 'IT_RND', divisionId: divs['IT_DIVISION'] },
-      { name: 'Phòng Nghiệp Vụ Giao Nhận', code: 'RE_OPS', divisionId: divs['TRADE_DIVISION'] },
-      { name: 'Phòng Giám Sát Thị Trường', code: 'MARKET_SURV', divisionId: divs['TRADE_DIVISION'] },
+      { name: 'Trading Operations', code: 'QLGD_OPS', divisionId: divs['TRADE_DIVISION'] },
+      { name: 'Risk Management', code: 'QLRR_RISK', divisionId: divs['TRADE_DIVISION'] },
     ];
 
     const mapping: Record<string, string> = {};
@@ -67,7 +76,6 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
-        // Cập nhật divisionId và tên mới cho các bộ phận cũ
         doc.name = dept.name;
         doc.divisionId = dept.divisionId as any;
         await doc.save();
@@ -145,7 +153,7 @@ export class SeedService implements OnApplicationBootstrap {
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giao nhận',
         divisionId: divs['TRADE_DIVISION'],
-        departmentId: depts['RE_OPS'],
+        departmentId: depts['QLGD_OPS'],
         role: 'STAFF',
         isActive: true,
       },
@@ -154,7 +162,7 @@ export class SeedService implements OnApplicationBootstrap {
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giám sát',
         divisionId: divs['TRADE_DIVISION'],
-        departmentId: depts['MARKET_SURV'],
+        departmentId: depts['QLRR_RISK'],
         role: 'STAFF',
         isActive: true,
       },
@@ -167,7 +175,6 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded user: ${user.username}`);
       } else {
-        // Cập nhật vai trò, phòng ban và trạng thái kích hoạt cho tài khoản hiện có
         existing.isActive = true;
         existing.role = user.role;
         existing.fullName = user.fullName;
@@ -178,31 +185,129 @@ export class SeedService implements OnApplicationBootstrap {
     }
   }
 
-  private async seedTemplates(depts: Record<string, string>) {
+  private async seedShiftSlots(): Promise<Record<string, string>> {
+    const shiftSlots = [
+      { code: 'SHIFT_1', name: 'Ca 1', startTime: '14:00', endTime: '22:00', isOvernight: false, isActive: true, sortOrder: 1 },
+      { code: 'SHIFT_2', name: 'Ca 2 (Qua đêm)', startTime: '22:00', endTime: '06:00', isOvernight: true, isActive: true, sortOrder: 2 },
+      { code: 'SHIFT_3', name: 'Ca 3', startTime: '06:00', endTime: '14:00', isOvernight: false, isActive: true, sortOrder: 3 },
+      { code: 'OFFICE_SHIFT', name: 'Ca hành chính', startTime: '08:00', endTime: '17:30', isOvernight: false, isActive: true, sortOrder: 4 },
+    ];
+
+    const mapping: Record<string, string> = {};
+    for (const slot of shiftSlots) {
+      let doc = await this.shiftSlotModel.findOne({ code: slot.code }).exec();
+      if (!doc) {
+        doc = new this.shiftSlotModel(slot);
+        await doc.save();
+        this.logger.log(`Seeded shift slot: ${slot.code}`);
+      } else {
+        doc.name = slot.name;
+        doc.startTime = slot.startTime;
+        doc.endTime = slot.endTime;
+        doc.isOvernight = slot.isOvernight;
+        doc.isActive = slot.isActive;
+        doc.sortOrder = slot.sortOrder;
+        await doc.save();
+      }
+      mapping[slot.code] = doc._id.toString();
+    }
+    return mapping;
+  }
+
+  private async seedWorkingCalendar() {
+    const now = new Date();
+    const saigonTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Saigon' }));
+    const format = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const dates = [];
+    // Seed today
+    dates.push({ date: format(saigonTime), isTradingDay: true, isHoliday: false, note: 'Ngày giao dịch bình thường' });
+
+    // Seed next 5 days
+    for (let i = 1; i <= 5; i++) {
+      const nextDay = new Date(saigonTime.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayOfWeek = nextDay.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      dates.push({
+        date: format(nextDay),
+        isTradingDay: !isWeekend,
+        isHoliday: false,
+        note: isWeekend ? 'Cuối tuần' : 'Ngày giao dịch bình thường',
+      });
+    }
+
+    for (const d of dates) {
+      const existing = await this.workingCalendarModel.findOne({ date: d.date }).exec();
+      if (!existing) {
+        const [year, month, day] = d.date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        const dayOfWeek = dateObj.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        const doc = new this.workingCalendarModel({
+          date: d.date,
+          isTradingDay: d.isTradingDay,
+          isHoliday: d.isHoliday,
+          isWeekend,
+          note: d.note,
+        });
+        await doc.save();
+        this.logger.log(`Seeded working calendar: ${d.date}`);
+      }
+    }
+  }
+
+  private async seedTemplates(depts: Record<string, string>, slots: Record<string, string>) {
+    // Delete legacy templates using old department IDs or references
+    await this.templateModel.deleteMany({
+      title: {
+        $in: [
+          'Checklist Mở Cửa - Phòng Nghiệp Vụ Giao Nhận',
+          'Checklist Trong Phiên - Phòng Nghiệp Vụ Giao Nhận',
+          'Checklist Đóng Cửa - Phòng Nghiệp Vụ Giao Nhận',
+          'Checklist Mở Cửa - Phòng Giám Sát Thị Trường',
+          'Checklist Trong Phiên - Phòng Giám Sát Thị Trường',
+          'Checklist Đóng Cửa - Phòng Giám Sát Thị Trường'
+        ]
+      }
+    }).exec();
+
     const templatesData = [
       // ==================== IT CORE ====================
       {
         title: 'Checklist Mở Cửa - IT Vận Hành Core',
         departmentCode: 'IT_CORE',
         sessionType: 'OPEN',
+        shiftSlotCode: 'SHIFT_3',
         tasks: [
           {
             taskId: 'it_open_01',
             taskName: 'Kiểm tra kết nối hệ thống mạng nội bộ (Intranet) và kết nối VPN sang các đầu mối Thành viên kinh doanh',
             priority: 'HIGH',
             sortOrder: 1,
+            functionUrl: 'http://intranet.mxv.vn/ping',
+            urdReference: 'URD-NET-001',
           },
           {
             taskId: 'it_open_02',
             taskName: 'Kiểm tra ping và trạng thái kết nối cổng FIX Gateway sang hệ thống bù trừ của ngân hàng liên kết (MSB UAT/Production)',
             priority: 'CRITICAL',
             sortOrder: 2,
+            functionUrl: 'http://gateway.mxv.vn/fix',
+            urdReference: 'URD-FIX-002',
           },
           {
             taskId: 'it_open_03',
             taskName: 'Khởi động dịch vụ BroadcastServer và kiểm tra log kết nối luồng giá Realtime qua giao thức WebSocket thuần (ws)',
             priority: 'CRITICAL',
             sortOrder: 3,
+            isBotCheck: true,
+            botTriggerTime: '06:05',
           },
           {
             taskId: 'it_open_04',
@@ -222,6 +327,7 @@ export class SeedService implements OnApplicationBootstrap {
         title: 'Checklist Trong Phiên - IT Vận Hành Core',
         departmentCode: 'IT_CORE',
         sessionType: 'DURING',
+        shiftSlotCode: 'SHIFT_1',
         tasks: [
           {
             taskId: 'it_during_01',
@@ -247,12 +353,15 @@ export class SeedService implements OnApplicationBootstrap {
         title: 'Checklist Đóng Cửa - IT Vận Hành Core',
         departmentCode: 'IT_CORE',
         sessionType: 'CLOSE',
+        shiftSlotCode: 'SHIFT_2',
         tasks: [
           {
             taskId: 'it_close_01',
             taskName: 'Thực hiện tiến trình sao lưu cơ sở dữ liệu tự động (Auto-backup Database Snapshot) cuối ngày của phân hệ ca trực',
             priority: 'HIGH',
             sortOrder: 1,
+            isBotCheck: true,
+            botTriggerTime: '23:30',
           },
           {
             taskId: 'it_close_02',
@@ -269,11 +378,12 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
 
-      // ==================== RE OPS (GIAO NHAN) ====================
+      // ==================== TRADING OPERATIONS ====================
       {
-        title: 'Checklist Mở Cửa - Phòng Nghiệp Vụ Giao Nhận',
-        departmentCode: 'RE_OPS',
+        title: 'Checklist Mở Cửa - Trading Operations',
+        departmentCode: 'QLGD_OPS',
         sessionType: 'OPEN',
+        shiftSlotCode: 'SHIFT_3',
         tasks: [
           {
             taskId: 'ops_open_01',
@@ -296,9 +406,10 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
       {
-        title: 'Checklist Trong Phiên - Phòng Nghiệp Vụ Giao Nhận',
-        departmentCode: 'RE_OPS',
+        title: 'Checklist Trong Phiên - Trading Operations',
+        departmentCode: 'QLGD_OPS',
         sessionType: 'DURING',
+        shiftSlotCode: 'SHIFT_1',
         tasks: [
           {
             taskId: 'ops_during_01',
@@ -339,9 +450,10 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
       {
-        title: 'Checklist Đóng Cửa - Phòng Nghiệp Vụ Giao Nhận',
-        departmentCode: 'RE_OPS',
+        title: 'Checklist Đóng Cửa - Trading Operations',
+        departmentCode: 'QLGD_OPS',
         sessionType: 'CLOSE',
+        shiftSlotCode: 'SHIFT_2',
         tasks: [
           {
             taskId: 'ops_close_01',
@@ -364,11 +476,12 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
 
-      // ==================== MARKET SURV ====================
+      // ==================== RISK MANAGEMENT ====================
       {
-        title: 'Checklist Mở Cửa - Phòng Giám Sát Thị Trường',
-        departmentCode: 'MARKET_SURV',
+        title: 'Checklist Mở Cửa - Risk Management',
+        departmentCode: 'QLRR_RISK',
         sessionType: 'OPEN',
+        shiftSlotCode: 'SHIFT_3',
         tasks: [
           {
             taskId: 'surv_open_01',
@@ -391,9 +504,10 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
       {
-        title: 'Checklist Trong Phiên - Phòng Giám Sát Thị Trường',
-        departmentCode: 'MARKET_SURV',
+        title: 'Checklist Trong Phiên - Risk Management',
+        departmentCode: 'QLRR_RISK',
         sessionType: 'DURING',
+        shiftSlotCode: 'SHIFT_1',
         tasks: [
           {
             taskId: 'surv_during_01',
@@ -422,9 +536,10 @@ export class SeedService implements OnApplicationBootstrap {
         ],
       },
       {
-        title: 'Checklist Đóng Cửa - Phòng Giám Sát Thị Trường',
-        departmentCode: 'MARKET_SURV',
+        title: 'Checklist Đóng Cửa - Risk Management',
+        departmentCode: 'QLRR_RISK',
         sessionType: 'CLOSE',
+        shiftSlotCode: 'SHIFT_2',
         tasks: [
           {
             taskId: 'surv_close_01',
@@ -458,6 +573,9 @@ export class SeedService implements OnApplicationBootstrap {
       const deptId = depts[tpl.departmentCode];
       if (!deptId) continue;
 
+      const slotId = slots[tpl.shiftSlotCode];
+      if (!slotId) continue;
+
       const existing = await this.templateModel
         .findOne({ departmentId: deptId, sessionType: tpl.sessionType })
         .exec();
@@ -467,14 +585,19 @@ export class SeedService implements OnApplicationBootstrap {
           title: tpl.title,
           departmentId: deptId,
           sessionType: tpl.sessionType,
+          shiftSlotId: slotId,
+          isActive: true,
           tasks: tpl.tasks,
         });
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
-        // Option to update / overwrite tasks to verify 34 tasks are correct
+        existing.title = tpl.title;
+        existing.shiftSlotId = slotId as any;
+        existing.isActive = true;
         existing.tasks = tpl.tasks as any;
         await existing.save();
+        this.logger.log(`Updated checklist template: ${tpl.title}`);
       }
     }
   }

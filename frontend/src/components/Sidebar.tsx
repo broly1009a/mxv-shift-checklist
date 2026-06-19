@@ -17,7 +17,8 @@ import {
   Building2,
   UserCheck,
   PanelLeftClose,
-  Activity
+  Activity,
+  Calendar
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -238,6 +239,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             >
               <Settings size={18} style={{ flexShrink: 0 }} />
               <span>Mẫu checklist</span>
+            </Link>
+            <Link 
+              href="/admin/calendar" 
+              onClick={onClose} 
+              className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
+              title={isCollapsed ? "Lịch giao dịch" : undefined}
+            >
+              <Calendar size={18} style={{ flexShrink: 0 }} />
+              <span>Lịch giao dịch</span>
             </Link>
           </>
         )}

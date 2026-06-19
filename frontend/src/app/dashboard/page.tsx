@@ -67,7 +67,7 @@ interface ShiftLog {
   shiftDate: string;
   status: 'PENDING' | 'COMPLETED';
   progressPercentage: number;
-  templateId: {
+  templateId?: {
     _id: string;
     title: string;
     sessionType: 'OPEN' | 'DURING' | 'CLOSE';
@@ -76,12 +76,12 @@ interface ShiftLog {
       name: string;
       code: string;
     };
-  };
-  userId: {
+  } | null;
+  userId?: {
     _id: string;
     fullName: string;
     username: string;
-  };
+  } | null;
 }
 
 // Lightweight custom SVG sparkline component
@@ -118,12 +118,26 @@ export default function DashboardPage() {
   const [initError, setInitError] = useState('');
   const [initSuccess, setInitSuccess] = useState('');
 
+  // Shift job states
+  const [jobDate, setJobDate] = useState('');
+  const [jobRunning, setJobRunning] = useState(false);
+  const [jobSuccess, setJobSuccess] = useState('');
+  const [jobError, setJobError] = useState('');
+
   // Dashboard layout and component states
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
   const [dashboardLayout, setDashboardLayout] = useState<'grid' | 'stack'>('grid');
   const [showChart, setShowChart] = useState(true);
   const [showAuditLogs, setShowAuditLogs] = useState(true);
   const layoutSettingsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    setJobDate(`${yyyy}-${mm}-${dd}`);
+  }, []);
 
   useEffect(() => {
     const savedLayout = localStorage.getItem('mxv_dash_layout');
@@ -227,6 +241,40 @@ export default function DashboardPage() {
       fetchDashboardData();
     } catch (err: any) {
       setInitError(err.message || 'Lỗi xảy ra khi khởi tạo ca trực');
+    }
+  };
+
+  const handleTriggerJob = async () => {
+    if (!token) return;
+    setJobRunning(true);
+    setJobSuccess('');
+    setJobError('');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/shift-jobs/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ date: jobDate })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Kích hoạt sinh ca thất bại');
+      }
+
+      if (data.success === false && data.reason === 'NOT_A_TRADING_DAY') {
+        setJobError(`Ngày ${jobDate} được cấu hình là ngày nghỉ/không giao dịch. Không sinh ca trực.`);
+      } else {
+        setJobSuccess(`Đã sinh ca trực thành công! Đã tạo: ${data.createdCount}, Bỏ qua (trùng lặp): ${data.skippedCount}`);
+        fetchDashboardData();
+      }
+    } catch (err: any) {
+      setJobError(err.message || 'Lỗi xảy ra');
+    } finally {
+      setJobRunning(false);
     }
   };
 
@@ -642,10 +690,10 @@ export default function DashboardPage() {
                     <div key={shift._id} className="glass-panel animate-fade-in" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.015)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div>
-                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{shift.templateId.title}</h4>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{shift.templateId?.title || 'Không rõ mẫu'}</h4>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {getSessionBadge(shift.templateId.sessionType)}
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId.fullName}</span>
+                            {getSessionBadge(shift.templateId?.sessionType || 'OPEN')}
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId?.fullName || 'Hệ thống'}</span>
                           </div>
                         </div>
                         <Link href={`/checklist?id=${shift._id}`} style={{ textDecoration: 'none' }}>
@@ -705,9 +753,9 @@ export default function DashboardPage() {
                         {recentShifts.map((log) => (
                           <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10">
                             <td style={{ padding: '12px 12px', fontWeight: 600 }}>{log.shiftDate}</td>
-                            <td style={{ padding: '12px 12px' }}>{log.templateId?.title}</td>
-                            <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || '')}</td>
-                            <td style={{ padding: '12px 12px' }}>{log.userId?.fullName}</td>
+                            <td style={{ padding: '12px 12px' }}>{log.templateId?.title || 'Không rõ mẫu'}</td>
+                            <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || 'OPEN')}</td>
+                            <td style={{ padding: '12px 12px' }}>{log.userId?.fullName || 'Hệ thống'}</td>
                             <td style={{ padding: '12px 12px' }}>
                               {log.status === 'COMPLETED' ? (
                                 <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
@@ -808,6 +856,53 @@ export default function DashboardPage() {
                 </button>
               </form>
             </div>
+
+            {/* Admin Manual Shift Job Generation */}
+            {user?.role === 'ADMIN' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0 }}>
+                  <Calendar size={18} color="var(--color-primary)" /> Sinh ca trực tự động
+                </h3>
+                
+                {jobError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
+                    {jobError}
+                  </div>
+                )}
+                {jobSuccess && (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                    {jobSuccess}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Chọn ngày cần chạy job
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={jobDate}
+                      onChange={(e) => setJobDate(e.target.value)}
+                      style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
+                      disabled={jobRunning}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerJob}
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
+                    disabled={jobRunning}
+                  >
+                    <Activity size={14} />
+                    {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* All templates list summary */}
             <div className="glass-panel" style={{ padding: '24px' }}>

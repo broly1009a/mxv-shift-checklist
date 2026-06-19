@@ -19,7 +19,7 @@ export class TemplatesController {
     if (departmentId) {
       filter.departmentId = new Types.ObjectId(departmentId);
     }
-    return this.templateModel.find(filter).populate('departmentId').exec();
+    return this.templateModel.find(filter).populate('departmentId').populate('shiftSlotId').exec();
   }
 
   @UseGuards(RolesGuard)
@@ -27,14 +27,15 @@ export class TemplatesController {
   @Post()
   async create(@Body() body: any) {
     const newTpl = new this.templateModel(body);
-    return newTpl.save();
+    const saved = await newTpl.save();
+    return this.templateModel.findById(saved._id).populate('departmentId').populate('shiftSlotId').exec();
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
-    return this.templateModel.findByIdAndUpdate(id, body, { new: true }).populate('departmentId').exec();
+    return this.templateModel.findByIdAndUpdate(id, body, { new: true }).populate('departmentId').populate('shiftSlotId').exec();
   }
 
   @UseGuards(RolesGuard)
