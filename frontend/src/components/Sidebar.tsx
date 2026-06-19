@@ -16,7 +16,7 @@ import {
   ShieldAlert,
   Building2,
   UserCheck,
-  X,
+  PanelLeftClose,
   Activity
 } from 'lucide-react';
 
@@ -76,22 +76,23 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           border: 'none',
           color: 'var(--text-secondary)',
           cursor: 'pointer',
-          display: 'flex',
+          display: 'none',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '4px',
           zIndex: 10
         }}
-        className="md:hidden"
+        className="sidebar-mobile-close"
       >
-        <X size={20} />
+        <PanelLeftClose size={20} />
       </button>
 
       {/* Brand Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
+        justifyContent: isCollapsed ? 'center' : 'flex-start',
+        gap: isCollapsed ? '0' : '12px',
         marginBottom: '24px',
         paddingBottom: '20px',
         borderBottom: '1px solid var(--border-color)',
@@ -111,11 +112,11 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           <ShieldAlert size={20} color="#3b82f6" />
         </div>
         <div className="sidebar-header-text">
-          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-            MXV GIÁM SÁT
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+            OPERATE CHECKLIST
           </h2>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textTransform: 'uppercase', fontWeight: 600 }}>
-            Transaction Monitor
+            MXV SHIFT SYSTEM
           </span>
         </div>
       </div>
@@ -298,6 +299,13 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           {!isCollapsed && <span>Đăng xuất</span>}
         </button>
       </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 1023px) {
+          .sidebar-mobile-close {
+            display: flex !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

@@ -14,7 +14,8 @@ import {
   LogOut, 
   Settings, 
   User as UserIcon,
-  Menu
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -163,14 +164,14 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
             cursor: 'pointer',
             padding: '8px',
             borderRadius: '6px',
-            display: 'none', // Shown on desktop
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          className="lg:flex hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="desktop-toggle hover:bg-slate-100 dark:hover:bg-slate-800"
           title={isCollapsed ? 'Mở rộng sidebar' : 'Thu nhỏ sidebar'}
         >
-          <Menu size={20} />
+          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
         </button>
 
         {/* Toggle for Mobile */}
@@ -187,9 +188,9 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          className="lg:hidden hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="mobile-toggle hover:bg-slate-100 dark:hover:bg-slate-800"
         >
-          <Menu size={20} />
+          <PanelLeftOpen size={20} />
         </button>
 
         {/* Search Input bar */}
@@ -499,6 +500,24 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
           )}
         </div>
       </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (min-width: 1024px) {
+          .desktop-toggle {
+            display: flex !important;
+          }
+          .mobile-toggle {
+            display: none !important;
+          }
+        }
+        @media (max-width: 1023px) {
+          .desktop-toggle {
+            display: none !important;
+          }
+          .mobile-toggle {
+            display: flex !important;
+          }
+        }
+      `}} />
     </header>
   );
 }
