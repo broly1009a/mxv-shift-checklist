@@ -18,7 +18,9 @@ import {
   Download,
   Printer,
   Activity,
-  UserCheck
+  UserCheck,
+  Search,
+  Filter
 } from 'lucide-react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
@@ -94,6 +96,12 @@ function ChecklistWorksheet() {
   const [notesState, setNotesState] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
   const togglingTaskIds = useRef<Set<string>>(new Set());
   const focusedTaskIdRef = useRef<string | null>(null);
 
@@ -427,6 +435,25 @@ function ChecklistWorksheet() {
     }
   };
 
+  const getSessionBadge = (type: string) => {
+    switch (type) {
+      case 'OPEN': return <span className="badge badge-low">Mở Cửa</span>;
+      case 'DURING': return <span className="badge badge-medium">Trong Phiên</span>;
+      default: return <span className="badge badge-high">Đóng Cửa</span>;
+    }
+  };
+
+  // Filter tasks based on query variables
+  const filteredDetails = log?.details?.filter(item => {
+    const matchesSearch = item.taskNameSnapshot.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.taskId.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPriority = priorityFilter === 'ALL' || item.prioritySnapshot === priorityFilter;
+    const matchesStatus = statusFilter === 'ALL' || 
+                          (statusFilter === 'CHECKED' && item.isChecked) ||
+                          (statusFilter === 'UNCHECKED' && !item.isChecked);
+    return matchesSearch && matchesPriority && matchesStatus;
+  }) || [];
+
   if (loading) {
     return (
       <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '100px 0' }}>
@@ -522,8 +549,12 @@ function ChecklistWorksheet() {
             background: #fff !important;
             color: #000 !important;
           }
-          .sidebar, .no-print {
+          .sidebar, .no-print, .app-header {
             display: none !important;
+          }
+          .mobile-content-layout {
+            margin-left: 0 !important;
+            width: 100% !important;
           }
           .main-content {
             margin: 0 !important;
@@ -592,10 +623,10 @@ function ChecklistWorksheet() {
       `}} />
 
       {/* Screen view wrapper (hidden on print via no-print class) */}
-      <div className="animate-fade-in no-print" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <div className="animate-fade-in no-print" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
         {/* Navigation Breadcrumb */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
             <span style={{ margin: '0 8px' }}>/</span>
@@ -603,10 +634,10 @@ function ChecklistWorksheet() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+            <button onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
               <Download size={14} /> Xuất file Excel
             </button>
-            <button onClick={triggerPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+            <button onClick={triggerPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
               <Printer size={14} /> In Biên Bản (PDF)
             </button>
           </div>
@@ -615,18 +646,21 @@ function ChecklistWorksheet() {
         {/* Shift log state banner */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {log.templateId?.title}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+                {log.templateId?.title}
+              </h1>
+              {getSessionBadge(log.templateId?.sessionType || '')}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={16} /> Ngày trực: <strong style={{ color: 'var(--text-primary)' }}>{log.shiftDate}</strong>
+                <Clock size={15} /> Ngày trực: <strong style={{ color: 'var(--text-primary)' }}>{log.shiftDate}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <UserIcon size={16} /> Trực chính: <strong style={{ color: 'var(--text-primary)' }}>{log.userId?.fullName}</strong>
+                <UserIcon size={15} /> Trực chính: <strong style={{ color: 'var(--text-primary)' }}>{log.userId?.fullName}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {isCompleted ? <Lock size={16} color="var(--color-primary)" /> : <Unlock size={16} color="var(--color-accent)" />}
+                {isCompleted ? <Lock size={15} color="var(--color-primary)" /> : <Unlock size={15} color="var(--color-accent)" />}
                 Trạng thái: 
                 {isCompleted ? (
                   <strong style={{ color: 'var(--color-primary)' }}>ĐÃ CHỐT</strong>
@@ -636,19 +670,14 @@ function ChecklistWorksheet() {
               </span>
               {isCompleted && log.closedBy && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <UserCheck size={16} color="var(--color-primary)" /> Người chốt: <strong style={{ color: 'var(--text-primary)' }}>{log.closedBy.fullName}</strong>
-                </span>
-              )}
-              {isCompleted && log.closedAt && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Clock size={16} color="var(--color-primary)" /> Giờ chốt: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.closedAt).toLocaleTimeString('vi-VN')} {new Date(log.closedAt).toLocaleDateString('vi-VN')}</strong>
+                  <UserCheck size={15} color="var(--color-primary)" /> Người chốt: <strong style={{ color: 'var(--text-primary)' }}>{log.closedBy.fullName}</strong>
                 </span>
               )}
             </div>
             {isCompleted && log.handoverNote && (
-              <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)', maxWidth: '700px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Biên bản bàn giao ca trực:</span>
-                <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', fontStyle: 'italic', lineHeight: '1.4' }}>"{log.handoverNote}"</p>
+              <div style={{ marginTop: '16px', padding: '14px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px', borderLeft: '4px solid var(--color-primary)', maxWidth: '700px' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Biên bản bàn giao ca trực:</span>
+                <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.88rem', fontStyle: 'italic', lineHeight: '1.4' }}>"{log.handoverNote}"</p>
               </div>
             )}
           </div>
@@ -667,7 +696,7 @@ function ChecklistWorksheet() {
             </div>
 
             {!isCompleted && (
-              <button onClick={handleCloseShift} className="btn btn-success" style={{ padding: '12px 20px' }}>
+              <button onClick={handleCloseShift} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
                 <CheckCircle2 size={16} /> Chốt Ca Trực
               </button>
             )}
@@ -687,161 +716,233 @@ function ChecklistWorksheet() {
         )}
 
         {/* Workspace Layout Grid: Left Checklist, Right Audit Logs */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="lg:grid-cols-[1fr_360px]">
           
           {/* Left Panel: Checklist Tasks */}
-          <div className="glass-panel" style={{ padding: '24px', overflow: 'visible' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={20} color="var(--color-accent)" /> Danh sách tác vụ kiểm tra ({log.details?.length || 0} tác vụ)
-            </h3>
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <FileText size={18} color="var(--color-accent)" /> Checklist Nhiệm vụ ({filteredDetails.length} / {log.details?.length || 0})
+              </h3>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {log.details?.map((item, index) => {
-                const isSaving = savingTaskId === item.taskId;
-                return (
-                  <div key={item.taskId} className="glass-panel" style={{
-                    padding: '20px',
-                    borderRadius: '12px',
-                    background: item.isChecked ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.008)',
-                    borderLeft: item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                    transition: 'all 0.2s ease'
-                  }}>
-                    {/* Task details bar */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                        <input
-                          type="checkbox"
-                          checked={item.isChecked}
-                          onChange={() => handleToggle(item.taskId, item.isChecked)}
-                          disabled={isCompleted || isSaving}
-                          style={{
-                            width: '20px',
-                            height: '20px',
-                            marginTop: '3px',
-                            cursor: isCompleted ? 'not-allowed' : 'pointer',
-                            accentColor: 'var(--color-primary)'
-                          }}
-                        />
-                        <div>
-                          <p style={{
-                            fontSize: '1rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            lineHeight: '1.4',
-                            textDecoration: item.isChecked ? 'line-through' : 'none',
-                            opacity: item.isChecked ? 0.7 : 1
-                          }}>
-                            {index + 1}. {item.taskNameSnapshot}
-                          </p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
-                            {getPriorityBadge(item.prioritySnapshot)}
-                            {item.deadlineSnapshot && (
-                              <span style={{ 
-                                fontSize: '0.75rem', 
-                                color: '#ef4444', 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                gap: '4px', 
-                                background: 'rgba(239, 68, 68, 0.1)', 
-                                padding: '2px 8px', 
-                                borderRadius: '4px', 
-                                fontWeight: 600 
-                              }}>
-                                <Clock size={12} /> Hạn chót: {item.deadlineSnapshot}
-                              </span>
-                            )}
-                            {item.isChecked && (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} /> Đã kiểm: {item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') : ''}
-                              </span>
-                            )}
-                            {item.isChecked && item.updatedBy && (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <UserIcon size={12} /> Bàn giao: {item.updatedBy.fullName}
-                              </span>
-                            )}
+            {/* Live Search and Filters group */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              marginBottom: '20px',
+              background: 'rgba(128,128,128,0.02)',
+              padding: '12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)',
+              alignItems: 'center'
+            }}>
+              {/* Text search */}
+              <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Tìm nội dung, mã tác vụ..."
+                  className="form-input"
+                  style={{ height: '36px', paddingLeft: '32px', fontSize: '0.82rem' }}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              {/* Priority Select */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
+                <select
+                  className="form-input"
+                  style={{ width: '130px', height: '36px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                >
+                  <option value="ALL">Mọi ưu tiên</option>
+                  <option value="CRITICAL">Khẩn cấp</option>
+                  <option value="HIGH">Ưu tiên Cao</option>
+                  <option value="MEDIUM">Ưu tiên Trung bình</option>
+                  <option value="LOW">Ưu tiên Thấp</option>
+                </select>
+              </div>
+
+              {/* Status Select */}
+              <div>
+                <select
+                  className="form-input"
+                  style={{ width: '130px', height: '36px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">Mọi trạng thái</option>
+                  <option value="CHECKED">Đã kiểm tra</option>
+                  <option value="UNCHECKED">Chưa kiểm tra</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Checklist tasks mapping */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredDetails.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                  Không tìm thấy tác vụ phù hợp với bộ lọc.
+                </div>
+              ) : (
+                filteredDetails.map((item, index) => {
+                  const isSaving = savingTaskId === item.taskId;
+                  return (
+                    <div key={item.taskId} className="glass-panel animate-fade-in" style={{
+                      padding: '16px',
+                      borderRadius: '12px',
+                      background: item.isChecked ? 'rgba(16, 185, 129, 0.012)' : 'var(--bg-app)',
+                      borderLeft: item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}>
+                      
+                      {/* Checkbox and task information row */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <input
+                            type="checkbox"
+                            checked={item.isChecked}
+                            onChange={() => handleToggle(item.taskId, item.isChecked)}
+                            disabled={isCompleted || isSaving}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              marginTop: '3px',
+                              cursor: isCompleted ? 'not-allowed' : 'pointer',
+                              accentColor: 'var(--color-primary)'
+                            }}
+                          />
+                          <div>
+                            <p style={{
+                              fontSize: '0.92rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              lineHeight: '1.4',
+                              textDecoration: item.isChecked ? 'line-through' : 'none',
+                              opacity: item.isChecked ? 0.65 : 1,
+                              margin: 0
+                            }}>
+                              [{item.taskId}] {item.taskNameSnapshot}
+                            </p>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                              {getPriorityBadge(item.prioritySnapshot)}
+                              {item.deadlineSnapshot && (
+                                <span style={{ 
+                                  fontSize: '0.72rem', 
+                                  color: '#ef4444', 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '4px', 
+                                  background: 'rgba(239, 68, 68, 0.08)', 
+                                  padding: '1px 6px', 
+                                  borderRadius: '4px', 
+                                  fontWeight: 600 
+                                }}>
+                                  <Clock size={11} /> Hạn chót: {item.deadlineSnapshot}
+                                </span>
+                              )}
+                              {item.isChecked && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={11} /> Đã kiểm: {item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') : ''}
+                                </span>
+                              )}
+                              {item.isChecked && item.updatedBy && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <UserIcon size={11} /> Bởi: {item.updatedBy.fullName}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Comment & Notes form */}
-                    <div style={{
-                      borderTop: '1px solid rgba(255,255,255,0.03)',
-                      paddingTop: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <MessageSquare size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú hoặc kết quả kiểm tra..."}
-                        value={notesState[item.taskId] || ''}
-                        onChange={(e) => setNotesState({ ...notesState, [item.taskId]: e.target.value })}
-                        onFocus={() => { focusedTaskIdRef.current = item.taskId; }}
-                        onBlur={() => { focusedTaskIdRef.current = null; }}
-                        disabled={isCompleted || isSaving}
-                        style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                      />
-                      {!isCompleted && (
-                        <button
-                          onClick={() => handleSaveNote(item.taskId)}
-                          className="btn btn-secondary"
-                          disabled={isSaving}
-                          style={{ padding: '8px 14px', flexShrink: 0 }}
-                        >
-                          <Save size={14} />
-                        </button>
-                      )}
+                      {/* Notes / Comment section */}
+                      <div style={{
+                        borderTop: '1px dashed var(--border-color)',
+                        paddingTop: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <MessageSquare size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú kết quả vận hành..."}
+                          value={notesState[item.taskId] || ''}
+                          onChange={(e) => setNotesState({ ...notesState, [item.taskId]: e.target.value })}
+                          onFocus={() => { focusedTaskIdRef.current = item.taskId; }}
+                          onBlur={() => { focusedTaskIdRef.current = null; }}
+                          disabled={isCompleted || isSaving}
+                          style={{ padding: '6px 10px', fontSize: '0.8rem', height: '32px' }}
+                        />
+                        {!isCompleted && (
+                          <button
+                            onClick={() => handleSaveNote(item.taskId)}
+                            className="btn btn-secondary"
+                            disabled={isSaving}
+                            style={{ padding: '6px 10px', flexShrink: 0, height: '32px' }}
+                            title="Lưu ghi chú"
+                          >
+                            <Save size={13} />
+                          </button>
+                        )}
+                      </div>
+
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
           {/* Right Panel: Audit Trail Timeline */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '800px', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
-              <Activity size={18} color="var(--color-accent)" /> Nhật ký hoạt động (Audit)
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', margin: 0 }}>
+              <Activity size={16} color="var(--color-accent)" /> Nhật ký hoạt động (Audit)
             </h3>
             
             {auditLogs.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: '20px 0' }}>
                 Chưa có hoạt động nào được ghi nhận.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
                 {/* Visual vertical line for timeline */}
-                <div style={{ position: 'absolute', top: '8px', bottom: '8px', left: '15px', width: '2px', background: 'rgba(255,255,255,0.06)' }}></div>
+                <div style={{ position: 'absolute', top: '8px', bottom: '8px', left: '15px', width: '2px', background: 'var(--border-color)' }}></div>
                 
                 {auditLogs.map((audit) => {
-                  let badgeColor = 'rgba(255,255,255,0.2)';
+                  let badgeColor = 'rgba(255,255,255,0.02)';
                   let dotColor = '#94a3b8';
                   if (audit.action === 'CHECK') {
-                    badgeColor = 'rgba(16, 185, 129, 0.1)';
+                    badgeColor = 'rgba(16, 185, 129, 0.03)';
                     dotColor = 'var(--color-primary)';
                   } else if (audit.action === 'UNCHECK') {
-                    badgeColor = 'rgba(239, 68, 68, 0.1)';
+                    badgeColor = 'rgba(239, 68, 68, 0.03)';
                     dotColor = '#ef4444';
                   } else if (audit.action === 'NOTE_UPDATE') {
-                    badgeColor = 'rgba(245, 158, 11, 0.1)';
+                    badgeColor = 'rgba(245, 158, 11, 0.03)';
                     dotColor = '#f59e0b';
                   }
 
                   return (
-                    <div key={audit._id} style={{ display: 'flex', gap: '14px', position: 'relative', zIndex: 1 }}>
+                    <div key={audit._id} style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
                       {/* Custom timeline dot */}
                       <div style={{
                         width: '32px',
                         height: '32px',
                         borderRadius: '50%',
-                        background: '#0d1326',
+                        background: 'var(--bg-app)',
                         border: `2px solid ${dotColor}`,
                         display: 'flex',
                         alignItems: 'center',
@@ -851,16 +952,16 @@ function ChecklistWorksheet() {
                         <UserCheck size={14} style={{ color: dotColor }} />
                       </div>
                       
-                      <div style={{ flex: 1, padding: '12px', borderRadius: '8px', background: badgeColor, border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ flex: 1, padding: '10px', borderRadius: '8px', background: badgeColor, border: '1px solid var(--border-color)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                             {audit.userId?.fullName || 'Nhân sự Sở'}
                           </span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                             {new Date(audit.createdAt).toLocaleTimeString('vi-VN')}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word', lineHeight: '1.4', margin: 0 }}>
                           <strong>{audit.taskId}</strong>: {audit.details}
                         </p>
                       </div>

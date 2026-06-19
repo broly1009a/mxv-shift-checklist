@@ -3,19 +3,34 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Menu, ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
+import Header from './Header';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    // Sync collapse state from localStorage
+    const saved = localStorage.getItem('mxv_sidebar_collapsed');
+    if (saved === 'true') {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    const nextState = !isCollapsed;
+    setIsCollapsed(nextState);
+    localStorage.setItem('mxv_sidebar_collapsed', String(nextState));
+  };
 
   if (loading) {
     return (
@@ -57,44 +72,51 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   return (
     <div className="app-container">
-      {/* Mobile Navbar Header */}
-      <header className="mobile-header">
-        <button 
-          onClick={() => setSidebarOpen(true)}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <Menu size={24} />
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ShieldAlert size={18} color="#3b82f6" />
-          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
-            MXV CHECKLIST
-          </span>
-        </div>
-        <div style={{ width: '24px' }}></div> {/* Spacer to balance flexbox */}
-      </header>
-
       {/* Dark overlay backdrop for mobile sidebar */}
       <div 
         className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`} 
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* Sidebar with mobile toggle state */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Sidebar with mobile toggle state and collapsed layout */}
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        isCollapsed={isCollapsed} 
+        onClose={() => setSidebarOpen(false)} 
+      />
 
-      <main className="main-content">
-        {children}
-      </main>
+      {/* Right Content Column */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          flex: 1, 
+          minHeight: '100vh',
+          marginLeft: isCollapsed ? '72px' : '260px',
+          transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          width: isCollapsed ? 'calc(100% - 72px)' : 'calc(100% - 260px)'
+        }}
+        className="mobile-content-layout"
+      >
+        <Header 
+          isCollapsed={isCollapsed} 
+          onToggleCollapse={handleToggleCollapse}
+          onOpenMobileSidebar={() => setSidebarOpen(true)}
+        />
+        
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 1023px) {
+          .mobile-content-layout {
+            margin-left: 0 !important;
+            width: 100% !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

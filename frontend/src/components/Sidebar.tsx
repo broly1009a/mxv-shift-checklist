@@ -16,62 +16,27 @@ import {
   ShieldAlert,
   Building2,
   UserCheck,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
   isOpen?: boolean;
+  isCollapsed?: boolean;
   onClose?: () => void;
 }
 
-export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, token, updateUser } = useAuth();
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    // Sync theme with user account settings from DB or fallback to localStorage
+    // Sync theme with user settings
     const dbTheme = user?.settings?.theme;
-    const savedTheme = dbTheme || (localStorage.getItem('mxv_theme') as 'dark' | 'light');
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
+    const savedTheme = dbTheme || (localStorage.getItem('mxv_theme') as 'dark' | 'light') || 'dark';
+    setTheme(savedTheme);
   }, [user?.settings?.theme]);
-
-  const toggleTheme = async () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('mxv_theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-
-    // Persist theme to database if user is logged in
-    if (user && token) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            settings: {
-              ...user.settings,
-              theme: newTheme
-            }
-          })
-        });
-        if (res.ok) {
-          const updatedUser = await res.json();
-          updateUser(updatedUser);
-        }
-      } catch (err) {
-        console.error('Failed to sync theme to DB:', err);
-      }
-    }
-  };
 
   const getRoleName = (role: string) => {
     switch (role) {
@@ -99,7 +64,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   if (!user) return null;
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+    <div className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
       {/* Mobile Close Button */}
       <button 
         onClick={onClose}
@@ -114,7 +79,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px'
+          padding: '4px',
+          zIndex: 10
         }}
         className="md:hidden"
       >
@@ -126,9 +92,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        marginBottom: '32px',
+        marginBottom: '24px',
         paddingBottom: '20px',
-        borderBottom: '1px solid var(--border-color)'
+        borderBottom: '1px solid var(--border-color)',
+        minHeight: '57px'
       }}>
         <div style={{
           width: '36px',
@@ -138,28 +105,34 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '1px solid rgba(59, 130, 246, 0.3)'
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          flexShrink: 0
         }}>
           <ShieldAlert size={20} color="#3b82f6" />
         </div>
-        <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>MXV CHECKLIST</h2>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Operations Portal</span>
+        <div className="sidebar-header-text">
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+            MXV GIÁM SÁT
+          </h2>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textTransform: 'uppercase', fontWeight: 600 }}>
+            Transaction Monitor
+          </span>
         </div>
       </div>
 
       {/* User profile widget */}
-      <div className="glass-panel" style={{
+      <div className="glass-panel sidebar-user-details" style={{
         padding: '16px',
         borderRadius: '12px',
-        marginBottom: '24px',
+        marginBottom: '20px',
         textAlign: 'left',
-        border: '1px solid rgba(255, 255, 255, 0.04)'
+        border: '1px solid rgba(255, 255, 255, 0.04)',
+        display: isCollapsed ? 'none' : 'block'
       }}>
-        <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+        <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {user.fullName}
         </p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4 }}>
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN'
             ? 'Ban Lãnh Đạo / Admin'
             : user.division
@@ -172,82 +145,157 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       </div>
 
       {/* Menu links */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <Link href="/dashboard" onClick={onClose} className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>
-          <LayoutDashboard size={18} />
-          <span>Bảng điều khiển</span>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden' }}>
+        
+        {/* Section Header */}
+        <div className="sidebar-section-header" style={{
+          fontSize: '0.68rem',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: 'var(--text-muted)',
+          margin: '12px 0 6px 16px',
+          display: isCollapsed ? 'none' : 'block'
+        }}>
+          Giám sát
+        </div>
+
+        <Link 
+          href="/dashboard" 
+          onClick={onClose} 
+          className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}
+          title={isCollapsed ? "Tổng quan giám sát" : undefined}
+        >
+          <LayoutDashboard size={18} style={{ flexShrink: 0 }} />
+          <span>Tổng quan</span>
         </Link>
-        <Link href="/checklist" onClick={onClose} className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}>
-          <CheckSquare size={18} />
+        <Link 
+          href="/checklist" 
+          onClick={onClose} 
+          className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
+          title={isCollapsed ? "Ca trực hiện tại" : undefined}
+        >
+          <CheckSquare size={18} style={{ flexShrink: 0 }} />
           <span>Ca trực hiện tại</span>
         </Link>
-        <Link href="/history" onClick={onClose} className={`nav-link ${pathname === '/history' ? 'active' : ''}`}>
-          <History size={18} />
+        <Link 
+          href="/history" 
+          onClick={onClose} 
+          className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
+          title={isCollapsed ? "Tra cứu lịch sử" : undefined}
+        >
+          <History size={18} style={{ flexShrink: 0 }} />
           <span>Tra cứu lịch sử</span>
         </Link>
-        <Link href="/settings" onClick={onClose} className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}>
-          <Settings size={18} />
-          <span>Cấu hình cá nhân</span>
+        <Link 
+          href="/settings" 
+          onClick={onClose} 
+          className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}
+          title={isCollapsed ? "Cấu hình cá nhân" : undefined}
+        >
+          <Settings size={18} style={{ flexShrink: 0 }} />
+          <span>Cấu hình</span>
         </Link>
 
         {['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'].includes(user.role) && (
           <>
-            <div style={{
-              fontSize: '0.7rem',
+            <div className="sidebar-section-header" style={{
+              fontSize: '0.68rem',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               color: 'var(--text-muted)',
-              margin: '20px 0 8px 16px'
+              margin: '20px 0 6px 16px',
+              display: isCollapsed ? 'none' : 'block'
             }}>
               Quản trị hệ thống
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <Link href="/admin/departments" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}>
-                <Building2 size={18} />
-                <span>Quản lý phòng ban</span>
-              </Link>
-              <Link href="/admin/users" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}>
-                <UserCheck size={18} />
-                <span>Quản lý tài khoản</span>
-              </Link>
-              <Link href="/admin/templates" onClick={onClose} className={`nav-link ${pathname.startsWith('/admin/templates') ? 'active' : ''}`}>
-                <Settings size={18} />
-                <span>Mẫu checklist</span>
-              </Link>
-            </div>
+            
+            <Link 
+              href="/admin/departments" 
+              onClick={onClose} 
+              className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}
+              title={isCollapsed ? "Quản lý phòng ban" : undefined}
+            >
+              <Building2 size={18} style={{ flexShrink: 0 }} />
+              <span>Quản lý phòng ban</span>
+            </Link>
+            <Link 
+              href="/admin/users" 
+              onClick={onClose} 
+              className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}
+              title={isCollapsed ? "Quản lý tài khoản" : undefined}
+            >
+              <UserCheck size={18} style={{ flexShrink: 0 }} />
+              <span>Quản lý tài khoản</span>
+            </Link>
+            <Link 
+              href="/admin/templates" 
+              onClick={onClose} 
+              className={`nav-link ${pathname.startsWith('/admin/templates') ? 'active' : ''}`}
+              title={isCollapsed ? "Mẫu checklist" : undefined}
+            >
+              <Settings size={18} style={{ flexShrink: 0 }} />
+              <span>Mẫu checklist</span>
+            </Link>
           </>
         )}
       </nav>
 
-      {/* Bottom widgets */}
+      {/* Sidebar Uptime Status Card */}
+      {!isCollapsed && (
+        <div className="sidebar-status-card" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              background: '#10b981',
+              borderRadius: '50%',
+              boxShadow: '0 0 6px #10b981'
+            }} />
+            <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+              Hệ thống ổn định
+            </strong>
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div>Uptime 99.98%</div>
+            <div>TPS hiện tại: 1,248</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+              <span>Tải hệ thống:</span>
+              <span style={{ color: '#10b981', fontWeight: 600 }}>Thấp</span>
+            </div>
+            {/* Progress line */}
+            <div style={{ width: '100%', height: '4px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
+              <div style={{ width: '25%', height: '100%', background: '#10b981', borderRadius: '2px' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapse Icon Placeholder for Mobile / Bottom Actions */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        paddingTop: '20px',
+        gap: '8px',
+        paddingTop: '16px',
         borderTop: '1px solid var(--border-color)',
-        marginTop: '20px'
+        marginTop: isCollapsed ? 'auto' : '0'
       }}>
         <button 
-          onClick={toggleTheme}
+          onClick={logout}
           className="btn btn-secondary" 
-          style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 16px' }}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối'}</span>
-        </button>
-
-        <button 
-          onClick={() => {
-            if (onClose) onClose();
-            logout();
+          style={{ 
+            width: '100%', 
+            justifyContent: isCollapsed ? 'center' : 'flex-start', 
+            color: '#ef4444', 
+            padding: '8px 12px',
+            background: 'transparent',
+            border: 'none'
           }}
-          className="btn btn-secondary" 
-          style={{ width: '100%', justifyContent: 'flex-start', color: '#ef4444', padding: '10px 16px' }}
+          title={isCollapsed ? "Đăng xuất" : undefined}
         >
-          <LogOut size={18} />
-          <span>Đăng xuất</span>
+          <LogOut size={18} style={{ flexShrink: 0 }} />
+          {!isCollapsed && <span>Đăng xuất</span>}
         </button>
       </div>
     </div>
