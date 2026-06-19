@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Save, Shield, Bell, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
   const { user, token, updateUser } = useAuth();
@@ -22,6 +23,18 @@ export default function SettingsPage() {
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Trigger toasts on message state change
+  useEffect(() => {
+    if (message) {
+      if (message.type === 'success') {
+        toast.success(message.text);
+      } else {
+        toast.error(message.text);
+      }
+      setMessage(null);
+    }
+  }, [message]);
 
   // Initialize fields with current user settings
   useEffect(() => {
@@ -107,29 +120,6 @@ export default function SettingsPage() {
         <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình Cá Nhân</h1>
         <p style={{ color: 'var(--text-secondary)' }}>Thiết lập thông tin tài khoản, mật khẩu và cấu hình nhận cảnh báo</p>
       </div>
-
-        {/* Feedback Messages */}
-        {message && (
-          <div className={`glass-panel`} style={{
-            padding: '16px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            borderLeft: `4px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
-            background: 'rgba(255, 255, 255, 0.02)'
-          }}>
-            {message.type === 'success' ? (
-              <CheckCircle2 size={20} color="#10b981" />
-            ) : (
-              <AlertCircle size={20} color="#ef4444" />
-            )}
-            <span style={{ fontSize: '0.95rem', color: message.type === 'success' ? '#10b981' : '#ef4444', fontWeight: 500 }}>
-              {message.text}
-            </span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
           

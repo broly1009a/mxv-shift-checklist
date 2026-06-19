@@ -17,6 +17,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import Sidebar from '@/components/Sidebar';
 
 interface Division {
@@ -103,6 +104,21 @@ export default function AdminUsersPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Auto-toast effects when success/error state changes
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess('');
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError('');
+    }
+  }, [error]);
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -352,18 +368,6 @@ export default function AdminUsersPage() {
                 </button>
               )}
             </div>
-
-            {/* Notifications */}
-            {error && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem' }}>
-                {error}
-              </div>
-            )}
-            {success && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#10b981', fontSize: '0.875rem' }}>
-                {success}
-              </div>
-            )}
 
             {/* Filter Panel */}
             <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -780,34 +784,6 @@ export default function AdminUsersPage() {
                 <X size={20} />
               </button>
             </div>
-
-            {error && (
-              <div style={{ 
-                background: 'rgba(239, 68, 68, 0.1)', 
-                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                padding: '10px 14px', 
-                borderRadius: '8px', 
-                color: '#ef4444', 
-                fontSize: '0.85rem', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px' 
-              }}>
-                <AlertTriangle size={14} /> {error}
-              </div>
-            )}
-            {success && (
-              <div style={{ 
-                background: 'rgba(16, 185, 129, 0.1)', 
-                border: '1px solid rgba(16, 185, 129, 0.2)', 
-                padding: '10px 14px', 
-                borderRadius: '8px', 
-                color: '#10b981', 
-                fontSize: '0.85rem' 
-              }}>
-                {success}
-              </div>
-            )}
 
             {/* Form fields */}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

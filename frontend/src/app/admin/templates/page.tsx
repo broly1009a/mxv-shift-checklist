@@ -23,6 +23,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface Task {
   taskId: string;
@@ -95,6 +96,21 @@ export default function AdminTemplatesPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Auto-toast effects when success/error state changes
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess('');
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError('');
+    }
+  }, [error]);
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -447,17 +463,6 @@ export default function AdminTemplatesPage() {
             </button>
           )}
         </div>
-
-        {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem' }}>
-            {error}
-          </div>
-        )}
-        {success && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.875rem' }}>
-            {success}
-          </div>
-        )}
 
         {/* Layout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">

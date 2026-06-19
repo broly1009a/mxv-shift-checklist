@@ -14,6 +14,7 @@ import { ActivityLogInterceptor } from './interceptors/activity-log.interceptor'
 import { ShiftSlotsModule } from './modules/shift-slots/shift-slots.module';
 import { WorkingCalendarModule } from './modules/working-calendar/working-calendar.module';
 import { ShiftJobsModule } from './modules/shift-jobs/shift-jobs.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ShiftJobsModule } from './modules/shift-jobs/shift-jobs.module';
     ShiftSlotsModule,
     WorkingCalendarModule,
     ShiftJobsModule,
+    SystemSettingsModule,
   ],
   controllers: [AppController],
   providers: [

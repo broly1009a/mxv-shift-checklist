@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Shield, Key, User as UserIcon, Mail, Info, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const { user, login, loginSSO } = useAuth();
@@ -21,6 +22,21 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Auto-toast effects when success/error state changes
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess('');
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError('');
+    }
+  }, [error]);
 
   // If already logged in, redirect to dashboard, or check URL query parameters from Microsoft callback redirection
   useEffect(() => {
@@ -147,34 +163,6 @@ export default function LoginPage() {
             Sở Giao Dịch Hàng Hóa Việt Nam
           </p>
         </div>
-
-        {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: '#ef4444',
-            fontSize: '0.875rem',
-            textAlign: 'left',
-          }}>
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--color-primary)',
-            fontSize: '0.875rem',
-            textAlign: 'left',
-          }}>
-            {success}
-          </div>
-        )}
 
         {/* Internal Login Form */}
         <form onSubmit={handleInternalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

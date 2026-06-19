@@ -43,7 +43,10 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
       const dd = String(d.getDate()).padStart(2, '0');
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
-      const customEntry = entryMap.get(dateStr);
+      const monthDay = `${mm}-${dd}`;
+      const recurringEntry = entries.find(e => e.date === `*-${monthDay}`);
+      const customEntry = entryMap.get(dateStr) || recurringEntry;
+
       if (customEntry) {
         if (customEntry.isTradingDay) {
           generatedEvents.push({
@@ -144,12 +147,12 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
   });
 
   return (
-    <div className="glass-panel" style={{ padding: '16px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+    <div className="glass-panel" style={{ padding: '16px', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .sx__calendar-wrapper {
           --sx-font-family: inherit;
           --sx-border-radius: 12px;
-          --sx-color-background: var(--bg-panel, rgba(30, 41, 59, 0.3));
+          --sx-color-background: var(--bg-card, #ffffff);
           --sx-color-on-background: var(--text-primary, #ffffff);
           --sx-color-border-subtle: var(--border-color, rgba(255, 255, 255, 0.08));
           --sx-color-grid-line: var(--border-color, rgba(255, 255, 255, 0.08));
@@ -167,6 +170,12 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
           border-bottom: 1px solid var(--border-color) !important;
           padding: 12px 16px !important;
           background: rgba(255, 255, 255, 0.01) !important;
+        }
+
+        /* Hide floating labels "View" and "Date" completely in all themes */
+        .sx__view-selection-label,
+        .sx__date-input-label {
+          display: none !important;
         }
 
         .sx__range-heading {
@@ -196,12 +205,12 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
         }
 
         .sx__chevron-wrapper {
-          min-height: 30px !important;
-          min-width: 30px !important;
-          height: 30px !important;
-          width: 30px !important;
+          min-height: 34px !important;
+          min-width: 34px !important;
+          height: 34px !important;
+          width: 34px !important;
           border: 1px solid var(--border-color) !important;
-          border-radius: 6px !important;
+          border-radius: 8px !important;
           background: var(--bg-app) !important;
           display: inline-flex !important;
           align-items: center !important;
@@ -215,6 +224,19 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
 
         .sx__chevron-wrapper .sx__chevron {
           border-color: var(--text-secondary) !important;
+        }
+
+        .sx__forward-backward-navigation {
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          height: 34px !important;
+        }
+
+        .sx__calendar-header-content {
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
         }
 
         .sx__week-grid__date-number {
