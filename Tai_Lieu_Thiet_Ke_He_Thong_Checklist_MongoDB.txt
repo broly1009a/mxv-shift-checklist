@@ -1,68 +1,0 @@
-TÀI LI?U ??C T? KI?N TRÚC & THI?T K?
-H? TH?NG
-S? Hóa Checklist Ca Tr?c V?n Hành ??ng V?i MongoDB
-
-??n v? phát tri?n:Phòng Phát Tri?n H? Th?ng Lõi L?p Trình & V?n Hành (IT Core)C?u ki?n trúc tích h?p:NestJS (Backend v10) & NextJS (Frontend v14 App Router)C? s? d? li?u (NoSQL):MongoDB (Production Grade / Embedded Document Model)Phiên b?n tài li?u:v1.2.0-PROD-MONGONgày phát hành:11 tháng 06, 2026Ng??i phê duy?t:Technical Team Leader (Anh Tú)1. T?ng Quan D? Án & Bài Toán Nghi?p V?
-
-Hi?n nay, công tác tr?c v?n hành t?i các phòng ban nghi?p v?, giám sát th? tr??ng và h? t?ng IT c?a S? ?ang ???c th?c hi?n th? công thông qua bi?u m?u gi?y ho?c các file Excel phân tán. Quy trình này b?c l? nhi?u ?i?m h?n ch? l?n: Khó giám sát ti?n ?? th?i gian th?c (realtime), d? x?y ra sai sót ho?c b? quên ??u vi?c quan tr?ng trong các khung gi? cao ?i?m (m? phiên, trong phiên, k?t thúc phiên), và không có d? li?u log t?p trung ?? ph?c v? công tác h?u ki?m (audit log).
-H? th?ng Shift Checklist Digitalization ???c thi?t k? nh?m m?c ?ích s? hóa toàn b? quy trình v?n hành thành m?t n?n t?ng Web App realtime. Vi?c chuy?n ??i sang ki?n trúc MongoDB giúp t?n d?ng t?i ?a s?c m?nh c?a Document Model (D? li?u l?ng nhau), lo?i b? hoàn toàn các liên k?t b?ng ph?c t?p (JOIN), t?i ?u hóa t?c ?? ??c ghi d? li?u ??ng th?i và cho phép c?u hình ??ng danh sách tác v? c?a các b? ph?n m?t cách linh ho?t tuy?t ??i.
-2. Thi?t K? C? S? D? Li?u ??ng (MongoDB Collections)
-
-Áp d?ng mô hình Embedded Document Pattern (Nhúng tr?c ti?p m?ng vi?c vào trong lòng m?t tài li?u), toàn b? c?u trúc ca tr?c c?a m?t ngày ???c gom g?n vào trong m?t b?n ghi duy nh?t, giúp t?i ?u hóa hi?u n?ng và t?c ?? truy v?n.
- 2.1. Collection: departments (Phòng ban / B? ph?n tr?c)
-L?u tr? thông tin các ??i tr?c ??c l?p trong S? ?? phân tách không gian d? li?u (Data Isolation).
-
-Indexes: { "code": 1 } (Unique) ?? t?ng t?c ?? ??nh tuy?n và tra c?u phòng ban.
-
-
-Indexes: { "username": 1 } (Unique) ph?c v? ti?n trình xác th?c ??ng nh?p.
- 2.3. Collection: checklist_templates (M?u c?u hình vi?c ??ng) 2.4. Collection: shift_logs (Nh?t ký ca tr?c ch?y th?c t?)
-M?u c?u hình ch?a danh sách t?t c? ??u vi?c t?nh c?a m?t phiên, phân lo?i theo sessionType.
-Áp d?ng Data Cloner Pattern, khi k? s? m? ca tr?c, h? th?ng snapshot nguyên tr?ng m?ng c?u hình sang m?ng details c?a log kèm tr?ng thái runtime.
-
-3. Thi?t K? Backend Ki?n Trúc H? Th?ng (NestJS & Mongoose)
-3.1. API Endpoints ??c T? Production
-1. Kh?i t?o ca tr?c: POST /api/v1/shifts/initialize
-2. C?p nh?t tr?ng thái tích ch?n (Toggle & Auto-save): PATCH /api/v1/shifts/items/toggle
-
-4. ??c T? T?p D? Li?u Tác V? Chi Ti?t Nghi?p V? (Dùng cho Seed/Import Code)
-
-D??i ?ây là toàn b? danh sách 34 tác v? nghi?p v? chu?n ch?nh c?a S? MXV ???c thi?t k? s?n c?u trúc JSON ?? n?p th?ng vào c? s? d? li?u MongoDB ph?c v? quá trình coding backend và giao di?n.
- 4.1. B? Ph?n IT V?n Hành H? Th?ng Lõi (code: "IT_CORE")
-Phiên M? C?a (sessionType: "OPEN")
-[   { "taskId": "it_open_01", "taskName": "Kim tra kt ni h tng mng ni b (Intranet) và kt ni VPN sang các ?u mi Thành viên kinh doanh", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "it_open_02", "taskName": "Kim tra ping và trng thái kt ni cng FIX Gateway sang h thng bù tr ca ngân hàng liên kt (MSB UAT/Production)", "priority": "CRITICAL", "sortOrder": 2 },   { "taskId": "it_open_03", "taskName": "Khi ?ng dch v BroadcastServer và kim tra log kt ni lung giá Realtime qua giao thc WebSocket thun (ws)", "priority": "CRITICAL", "sortOrder": 3 },   { "taskId": "it_open_04", "taskName": "Kim tra dung lng  ??a cng (Disk Storage) và mc ? tiêu th RAM/CPU ca cm máy ch c s d liu MongoDB", "priority": "HIGH", "sortOrder": 4 },   { "taskId": "it_open_05", "taskName": "Xác nhn ?ng b thành công d liu giá m ca ?u ngày (Snapshot Full Refresh) t các sàn quc t liên thông", "priority": "CRITICAL", "sortOrder": 5 }
-]
-Phiên Trong Phiên (sessionType: "DURING")
-
-Phiên K?t Thúc (sessionType: "CLOSE")
-
- 4.2. B? Ph?n Phòng Nghi?p V? Giao Nh?n (code: "RE_OPS")
-Phiên M? C?a (sessionType: "OPEN")
-
-Phiên Trong Phiên (sessionType: "DURING")
-[   { "taskId": "ops_during_01", "taskName": "Tip nhn và phê duyt các yêu cu ??ng ký lu ký vt cht (DELIVERY_DEPOSIT) ca bên Bán gi lên t UI", "priority": "HIGH", "sortOrder": 1 },   { "taskId": "ops_during_02", "taskName": "X lý phê duyt hoc t chi các yêu cu Hy lu ký (CANCEL_DEPOSIT) da trên ?iu kin kim tra trng thái ti kho MSB", "priority": "HIGH", 
-"sortOrder": 2 },
-  { "taskId": "ops_during_03", "taskName": "Kim tra tính hp l ca các yêu cu rút ký qu (MARGIN_WITHDRAW), ?i chiu sc mua TTM trc khi duyt chuyn tin sang VCB", "priority": 
-"CRITICAL", "sortOrder": 3 },   { "taskId": "ops_during_04", "taskName": "Giám sát lung d liu phn hi MSB_STATUS t phía ngân hàng ? cp nht trng thái 'Ngi bán ?ã giao Bc' sang mã 'S'", "priority": "HIGH", "sortOrder": 4 },
-  { "taskId": "ops_during_05", "taskName": "Tip nhn yêu cu ??ng ký nhn hàng vt cht (DELIVERY_PHYSICAL_REGIS), kim tra ràng buc v th Mua m (Long Position)", "priority": 
-"CRITICAL", "sortOrder": 5 },
-  { "taskId": "ops_during_06", "taskName": "X lý h s ??ng ký nhn hàng ch ?nh (RECEIVE_DESIGNATED), ?i chiu mã phiu ghép cp (pairingCode) phát hành bi CCP", "priority": "HIGH", "sortOrder": 6 }
-]
-Phiên K?t Thúc (sessionType: "CLOSE")
-[   { "taskId": "ops_close_01", "taskName": "Thc hin x lý EOD vt cht (End-of-Day): Quét tr tin phí giao nhn ca các tài khon (chp nhn tr âm nu thiu tin)", "priority": "CRITICAL", "sortOrder": 1 },   { "taskId": "ops_close_02", "taskName": "Kt xut file ?i chiu tng hp d liu giao nhn an toàn sang ngân hàng MSB chi nhánh ?ng ?a và TP.HCM", "priority": "HIGH", "sortOrder": 2 },   { "taskId": "ops_close_03", "taskName": "Hy toàn b các yêu cu ??ng ký giao nhn vt cht còn tn ?ng  trng thái PENDING cha ?c duyt tính ?n cui ngày", "priority": "MEDIUM", 
-
-
-Phiên Trong Phiên (sessionType: "DURING")
-
-Phiên K?t Thúc (sessionType: "CLOSE")
-
-5. ?u Th? Nghi?m Thu Ki?n Trúc K? Thu?t (Production Benefits)
-
-• T?c ?? ??c/ghi t?i ?u: Toàn b? d? li?u phiên tr?c n?m g?n trong m?t Document duy nh?t. Query theo ID ??t ?? ph?c t?p O(1), lo?i b? hoàn toàn các c?u trúc g?p b?ng ph?c t?p, gi?m t?i t?i ?a cho RAM máy ch? Production khi v?n hành realtime.
-• Linh ho?t v? c?u trúc (Schema Flexibility): Khi nghi?p v? c?a S? thay ??i ho?c c?n b? sung các tr??ng thông tin ghi v?t m?i, h? th?ng t? ??ng thích ?ng ngay l?p t?c mà không yêu c?u ch?y migration s?a b?ng nh? c? s? d? li?u quan h? truy?n th?ng.
-S? Giao D?ch Hàng Hóa MXV - Tài Li?u K? Thu?t N?i B?	1 / 8
-
-S? Giao D?ch Hàng Hóa MXV - Tài Li?u K? Thu?t N?i B?	1 / 8
-
-S? Giao D?ch Hàng Hóa MXV - Tài Li?u K? Thu?t N?i B?	1 / 8
-
