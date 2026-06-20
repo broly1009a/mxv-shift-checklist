@@ -118,13 +118,14 @@ export class UsersController {
       }
     }
 
-    const existing = await this.userModel.findOne({ username }).exec();
+    const lowerUsername = username.toLowerCase();
+    const existing = await this.userModel.findOne({ username: lowerUsername }).exec();
     if (existing) {
       throw new ConflictException('Tài khoản đã tồn tại');
     }
     const passwordHash = await bcrypt.hash(password || 'Staff@MXV123', 10);
     const newUser = new this.userModel({
-      username,
+      username: lowerUsername,
       passwordHash,
       fullName,
       departmentId: departmentId || null,
@@ -161,6 +162,9 @@ export class UsersController {
       departmentId: departmentId || null,
       divisionId: divisionId || null,
     };
+    if (updateData.username) {
+      updateData.username = updateData.username.toLowerCase();
+    }
     if (password) {
       updateData.passwordHash = await bcrypt.hash(password, 10);
     }
