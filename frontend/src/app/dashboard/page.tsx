@@ -841,6 +841,52 @@ export default function DashboardPage() {
     );
   };
 
+  const renderWidgetsList = (widgets: string[], col: 'left' | 'right') => {
+    const list: React.ReactNode[] = [];
+    let skipNext = false;
+
+    for (let i = 0; i < widgets.length; i++) {
+      if (skipNext) {
+        skipNext = false;
+        continue;
+      }
+
+      const current = widgets[i];
+      const next = widgets[i + 1];
+
+      const isCurrentInit = current === 'initShift';
+      const isNextAuto = next === 'autoShift';
+      const isCurrentAuto = current === 'autoShift';
+      const isNextInit = next === 'initShift';
+
+      if (user?.role === 'ADMIN' && ((isCurrentInit && isNextAuto) || (isCurrentAuto && isNextInit))) {
+        const renderedCurrent = renderDraggableWidget(current, col);
+        const renderedNext = renderDraggableWidget(next, col);
+
+        if (renderedCurrent && renderedNext) {
+          list.push(
+            <div key={`${current}-${next}`} style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px'
+            }}>
+              {renderedCurrent}
+              {renderedNext}
+            </div>
+          );
+          skipNext = true;
+          continue;
+        }
+      }
+
+      const rendered = renderDraggableWidget(current, col);
+      if (rendered) {
+        list.push(rendered);
+      }
+    }
+    return list;
+  };
+
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -1124,7 +1170,7 @@ export default function DashboardPage() {
             onDrop={(e) => handleColumnDrop(e, 'left')}
             style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
           >
-            {leftWidgets.map(widgetId => renderDraggableWidget(widgetId, 'left'))}
+            {renderWidgetsList(leftWidgets, 'left')}
           </div>
 
           {/* Right Column */}
@@ -1133,7 +1179,7 @@ export default function DashboardPage() {
             onDrop={(e) => handleColumnDrop(e, 'right')}
             style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
           >
-            {rightWidgets.map(widgetId => renderDraggableWidget(widgetId, 'right'))}
+            {renderWidgetsList(rightWidgets, 'right')}
           </div>
 
         </div>
