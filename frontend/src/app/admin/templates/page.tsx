@@ -20,7 +20,8 @@ import {
   Link2,
   Cpu,
   FileText,
-  Clock
+  Clock,
+  GripVertical
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -94,7 +95,9 @@ export default function AdminTemplatesPage() {
   const [templateSubmitting, setTemplateSubmitting] = useState(false);
   const [templateErrors, setTemplateErrors] = useState<{ title?: string; dept?: string }>({});
 
-
+  // Drag and drop states for task reordering
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -368,6 +371,53 @@ export default function AdminTemplatesPage() {
       ...selectedTemplate,
       tasks: updated
     });
+  };
+
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+    if (draggedIndex === null || draggedIndex === index || !selectedTemplate) return;
+
+    const tasks = [...selectedTemplate.tasks];
+    const draggedItem = tasks[draggedIndex];
+    
+    // Remove from old position
+    tasks.splice(draggedIndex, 1);
+    // Insert into new position
+    tasks.splice(index, 0, draggedItem);
+
+    // Update sortOrder values
+    const updated = tasks.map((t, idx) => ({
+      ...t,
+      sortOrder: idx + 1
+    }));
+
+    setSelectedTemplate({
+      ...selectedTemplate,
+      tasks: updated
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleSaveTemplate = async () => {
@@ -677,27 +727,52 @@ export default function AdminTemplatesPage() {
                   {selectedTemplate.tasks?.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>Không có tác vụ nào trong mẫu này.</div>
                   ) : (
-                    selectedTemplate.tasks.map((task, index) => (
-                      <div key={task.taskId} style={{
-                        padding: '16px',
-                        borderRadius: '8px',
-                        background: 'rgba(255,255,255,0.01)',
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '16px'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', width: '30px' }}>
-                              #{index + 1}
-                            </span>
-                            <div style={{ flex: 1 }}>
+                    selectedTemplate.tasks.map((task, index) => {
+                      const isDragged = draggedIndex === index;
+                      const isOver = dragOverIndex === index;
+
+                      return (
+                        <div 
+                          key={task.taskId}
+                          draggable={isAdmin}
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDrop={(e) => handleDrop(e, index)}
+                          onDragEnd={handleDragEnd}
+                          onDragLeave={handleDragLeave}
+                          style={{
+                            padding: '16px',
+                            borderRadius: '8px',
+                            background: isDragged ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.01)',
+                            border: isOver 
+                              ? '1px dashed var(--color-primary)' 
+                              : isDragged 
+                                ? '1px solid rgba(59, 130, 246, 0.3)' 
+                                : '1px solid var(--border-color)',
+                            opacity: isDragged ? 0.6 : 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                            transition: 'all 0.2s ease',
+                            cursor: isAdmin ? 'grab' : 'default'
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '16px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                              {isAdmin && (
+                                <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)', cursor: 'grab' }}>
+                                  <GripVertical size={18} />
+                                </div>
+                              )}
+                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                #{index + 1}
+                              </span>
+                              <div style={{ flex: 1 }}>
                               <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {task.taskName}
                               </p>
@@ -746,7 +821,7 @@ export default function AdminTemplatesPage() {
                         </div>
 
                         {/* Extra fields snapshot view */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem', paddingLeft: '42px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem', paddingLeft: '72px' }}>
                           {task.functionUrl && (
                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
                               <Link2 size={12} /> URL: {task.functionUrl}
@@ -774,8 +849,9 @@ export default function AdminTemplatesPage() {
                           )}
                         </div>
                       </div>
-                    ))
-                  )}
+                    );
+                  })
+                )}
                 </div>
               </div>
             </div>
