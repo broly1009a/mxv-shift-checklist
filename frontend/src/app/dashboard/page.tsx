@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { 
-  Play, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Play,
+  CheckCircle2,
+  Clock,
   AlertTriangle,
   FolderOpen,
   Calendar,
@@ -18,7 +18,8 @@ import {
   Check,
   TrendingUp,
   ShieldAlert,
-  ArrowUpRight
+  ArrowUpRight,
+  GripVertical
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -180,6 +181,127 @@ export default function DashboardPage() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  // Draggable Widgets
+  const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeShifts', 'history']);
+  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'templatesSummary', 'healthChecks']);
+  const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
+  const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
+
+  useEffect(() => {
+    const defaultLeft = ['chart', 'activeShifts', 'history'];
+    const defaultRight = ['initShift', 'templatesSummary', 'healthChecks'];
+
+    const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
+    const savedRight = localStorage.getItem('mxv_dash_right_widgets');
+
+    let parsedLeft = savedLeft ? JSON.parse(savedLeft) : defaultLeft;
+    let parsedRight = savedRight ? JSON.parse(savedRight) : defaultRight;
+
+    // Filter out autoShift since it is now merged inside initShift
+    parsedLeft = parsedLeft.filter((w: string) => w !== 'autoShift');
+    parsedRight = parsedRight.filter((w: string) => w !== 'autoShift');
+
+    setLeftWidgets(parsedLeft);
+    setRightWidgets(parsedRight);
+  }, []);
+
+  const handleWidgetDragStart = (e: React.DragEvent, id: string, col: 'left' | 'right') => {
+    setDraggedWidget({ id, col });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleWidgetDragOver = (e: React.DragEvent, id: string, col: 'left' | 'right') => {
+    e.preventDefault();
+    if (!draggedWidget || (draggedWidget.id === id && draggedWidget.col === col)) return;
+    setDragOverWidget({ id, col });
+  };
+
+  const handleWidgetDrop = (e: React.DragEvent, targetId: string, targetCol: 'left' | 'right') => {
+    e.preventDefault();
+    setDragOverWidget(null);
+    if (!draggedWidget) return;
+
+    const sourceCol = draggedWidget.col;
+    const sourceId = draggedWidget.id;
+
+    if (sourceId === targetId && sourceCol === targetCol) return;
+
+    const nextLeft = [...leftWidgets];
+    const nextRight = [...rightWidgets];
+
+    if (sourceCol === 'left') {
+      const idx = nextLeft.indexOf(sourceId);
+      if (idx !== -1) nextLeft.splice(idx, 1);
+    } else {
+      const idx = nextRight.indexOf(sourceId);
+      if (idx !== -1) nextRight.splice(idx, 1);
+    }
+
+    if (targetCol === 'left') {
+      const idx = nextLeft.indexOf(targetId);
+      if (idx !== -1) {
+        nextLeft.splice(idx, 0, sourceId);
+      } else {
+        nextLeft.push(sourceId);
+      }
+    } else {
+      const idx = nextRight.indexOf(targetId);
+      if (idx !== -1) {
+        nextRight.splice(idx, 0, sourceId);
+      } else {
+        nextRight.push(sourceId);
+      }
+    }
+
+    setLeftWidgets(nextLeft);
+    setRightWidgets(nextRight);
+    localStorage.setItem('mxv_dash_left_widgets', JSON.stringify(nextLeft));
+    localStorage.setItem('mxv_dash_right_widgets', JSON.stringify(nextRight));
+  };
+
+  const handleWidgetDragEnd = () => {
+    setDraggedWidget(null);
+    setDragOverWidget(null);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleColumnDrop = (e: React.DragEvent, targetCol: 'left' | 'right') => {
+    e.preventDefault();
+    if (!draggedWidget) return;
+    const sourceCol = draggedWidget.col;
+    const sourceId = draggedWidget.id;
+
+    if (sourceCol === targetCol) return;
+
+    const nextLeft = [...leftWidgets];
+    const nextRight = [...rightWidgets];
+
+    if (sourceCol === 'left') {
+      const idx = nextLeft.indexOf(sourceId);
+      if (idx !== -1) nextLeft.splice(idx, 1);
+    } else {
+      const idx = nextRight.indexOf(sourceId);
+      if (idx !== -1) nextRight.splice(idx, 1);
+    }
+
+    if (targetCol === 'left') {
+      if (!nextLeft.includes(sourceId)) nextLeft.push(sourceId);
+    } else {
+      if (!nextRight.includes(sourceId)) nextRight.push(sourceId);
+    }
+
+    setLeftWidgets(nextLeft);
+    setRightWidgets(nextRight);
+    localStorage.setItem('mxv_dash_left_widgets', JSON.stringify(nextLeft));
+    localStorage.setItem('mxv_dash_right_widgets', JSON.stringify(nextRight));
+    setDraggedWidget(null);
+    setDragOverWidget(null);
+  };
 
   const fetchDashboardData = useCallback(async () => {
     if (!token) return;
@@ -364,7 +486,7 @@ export default function DashboardPage() {
         grid: { drawOnChartArea: false },
         ticks: {
           font: { size: 11 },
-          callback: function(value: any) { return value + '%'; }
+          callback: function (value: any) { return value + '%'; }
         },
         min: 0,
         max: 100
@@ -372,10 +494,380 @@ export default function DashboardPage() {
     }
   };
 
+  const renderWidget = (widgetId: string) => {
+    switch (widgetId) {
+      case 'chart':
+        return showChart ? (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <div style={{ marginBottom: '20px', paddingRight: '24px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+                Khối lượng giao dịch & tần suất tác vụ theo giờ
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Biểu đồ cột + đường nối biểu diễn số lượng tác vụ kiểm tra phát sinh và xử lý trong ngày.
+              </p>
+            </div>
+            <div style={{ height: '280px', position: 'relative' }}>
+              <Bar data={hourlyChartData as any} options={hourlyChartOptions as any} />
+            </div>
+          </div>
+        ) : null;
+
+      case 'activeShifts':
+        return (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingRight: '24px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Clock size={18} color="var(--color-accent)" /> Ca trực hiện tại hôm nay
+              </h3>
+              <span className="badge badge-medium">Hôm nay</span>
+            </div>
+
+            {loading ? (
+              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '30px 0' }}>Đang tải ca trực...</div>
+            ) : activeShifts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
+                <AlertTriangle size={28} color="var(--color-high)" style={{ marginBottom: '10px' }} />
+                <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo hôm nay</p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>
+                  Hãy chọn một mẫu bên cạnh để khởi tạo ca trực mới.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {activeShifts.map((shift) => (
+                  <div key={shift._id} className="glass-panel" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.015)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{shift.templateId?.title || 'Không rõ mẫu'}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {getSessionBadge(shift.templateId?.sessionType || 'OPEN')}
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId?.fullName || 'Hệ thống'}</span>
+                        </div>
+                      </div>
+                      <Link href={`/checklist?id=${shift._id}`} style={{ textDecoration: 'none' }}>
+                        <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
+                          Mở Checklist <ArrowRight size={12} />
+                        </button>
+                      </Link>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                        <span>Tiến độ hoàn thành</span>
+                        <span style={{ fontWeight: 700, color: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--text-primary)' }}>
+                          {shift.progressPercentage}%
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${shift.progressPercentage}%`,
+                          height: '100%',
+                          background: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--color-accent)',
+                          borderRadius: '3px',
+                          transition: 'width 0.4s ease'
+                        }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'history':
+        return showAuditLogs ? (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
+              <FolderOpen size={18} color="var(--text-secondary)" /> Hoạt động ca trực gần đây
+            </h3>
+            {recentShifts.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Chưa ghi nhận ca trực lịch sử nào</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 12px' }}>Ngày trực</th>
+                      <th style={{ padding: '10px 12px' }}>Mẫu Checklist</th>
+                      <th style={{ padding: '10px 12px' }}>Phiên trực</th>
+                      <th style={{ padding: '10px 12px' }}>Người trực chính</th>
+                      <th style={{ padding: '10px 12px' }}>Trạng thái</th>
+                      <th style={{ padding: '10px 12px' }}>Tiến độ</th>
+                      <th style={{ padding: '10px 12px' }}>Chi tiết</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentShifts.map((log) => (
+                      <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10">
+                        <td style={{ padding: '12px 12px', fontWeight: 600 }}>{log.shiftDate}</td>
+                        <td style={{ padding: '12px 12px' }}>{log.templateId?.title || 'Không rõ mẫu'}</td>
+                        <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || 'OPEN')}</td>
+                        <td style={{ padding: '12px 12px' }}>{log.userId?.fullName || 'Hệ thống'}</td>
+                        <td style={{ padding: '12px 12px' }}>
+                          {log.status === 'COMPLETED' ? (
+                            <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                              <CheckCircle2 size={12} /> HOÀN THÀNH
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                              <Clock size={12} /> ĐANG CHẠY
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 12px', fontWeight: 700 }}>{log.progressPercentage}%</td>
+                        <td style={{ padding: '12px 12px' }}>
+                          <Link href={`/checklist?id=${log._id}`} style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600 }}>
+                            Xem
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : null;
+
+      case 'initShift':
+        return (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', margin: 0, paddingRight: '24px' }}>
+              <Play size={18} color="var(--color-primary)" /> Khởi tạo & Quản lý ca trực
+            </h3>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: user?.role === 'ADMIN' ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr', 
+              gap: '32px' 
+            }}>
+              {/* Column 1: Manual shift initialization */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {user?.role === 'ADMIN' && (
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 4px 0' }}>
+                    <Play size={14} color="var(--color-accent)" /> Khởi tạo thủ công
+                  </h4>
+                )}
+
+                {initError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '4px' }}>
+                    {initError}
+                  </div>
+                )}
+                {initSuccess && (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '4px' }}>
+                    {initSuccess}
+                  </div>
+                )}
+
+                <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Chọn mẫu checklist vận hành
+                    </label>
+                    <select
+                      className="form-input"
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
+                    >
+                      <option value="">-- Chọn mẫu checklist --</option>
+                      {templates.map((tpl) => (
+                        <option key={tpl._id} value={tpl._id}>
+                          [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Template Preview Card */}
+                  {(() => {
+                    const tpl = templates.find((t) => t._id === selectedTemplate);
+                    if (!tpl) return null;
+                    const sessionLabel = tpl.sessionType === 'OPEN' ? 'Mở Cửa' : tpl.sessionType === 'DURING' ? 'Trong Phiên' : 'Đóng Cửa';
+                    const sessionColor = tpl.sessionType === 'OPEN' ? 'var(--color-low)' : tpl.sessionType === 'DURING' ? 'var(--color-medium)' : 'var(--color-high)';
+                    const taskCount = tpl.tasks?.length ?? '...';
+                    return (
+                      <div className="glass-panel" style={{ background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.12)', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{tpl.title}</p>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                            Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong>
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: sessionColor, fontWeight: 700, border: `1px solid ${sessionColor}33` }}>
+                            {sessionLabel}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <ListChecks size={12} /> {taskCount} tác vụ
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
+                    <Play size={14} /> Bắt đầu ca trực
+                  </button>
+                </form>
+              </div>
+
+              {/* Column 2: Automatic shift generation (Only for ADMIN) */}
+              {user?.role === 'ADMIN' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 4px 0' }}>
+                    <Calendar size={14} color="var(--color-primary)" /> Sinh tự động (Job)
+                  </h4>
+
+                  {jobError && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '4px' }}>
+                      {jobError}
+                    </div>
+                  )}
+                  {jobSuccess && (
+                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '4px' }}>
+                      {jobSuccess}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Chọn ngày cần chạy job
+                      </label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={jobDate}
+                        onChange={(e) => setJobDate(e.target.value)}
+                        style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem', width: '100%' }}
+                        disabled={jobRunning}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTriggerJob}
+                      className="btn btn-primary"
+                      style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
+                      disabled={jobRunning}
+                    >
+                      <Activity size={14} />
+                      {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'autoShift':
+        return null;
+
+      case 'templatesSummary':
+        return (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0, paddingRight: '24px' }}>
+              <Layers size={16} color="#a855f7" /> Danh sách mẫu checklist
+            </h3>
+            {templates.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Chưa có mẫu checklist nào.</p>
+            ) : (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {templates.map((tpl, i) => (
+                  <div key={tpl._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: i < templates.length - 1 ? '1px solid var(--border-color)' : 'none', paddingBottom: '6px' }}>
+                    <span style={{ flex: 1, paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.title}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{tpl.tasks?.length ?? 0} tác vụ</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'healthChecks':
+        return (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0, paddingRight: '24px' }}>
+              <ShieldAlert size={16} color="#10b981" /> Kết nối và tích hợp
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>MongoDB Core</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>KẾT NỐI</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Socket Gateway</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>ĐỒNG BỘ</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Microsoft 365 SSO</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>SẴN SÀNG</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderDraggableWidget = (widgetId: string, col: 'left' | 'right') => {
+    const isDragged = draggedWidget?.id === widgetId && draggedWidget?.col === col;
+    const isOver = dragOverWidget?.id === widgetId && dragOverWidget?.col === col;
+
+    const content = renderWidget(widgetId);
+    if (!content) return null;
+
+    return (
+      <div
+        key={widgetId}
+        draggable
+        onDragStart={(e) => handleWidgetDragStart(e, widgetId, col)}
+        onDragOver={(e) => handleWidgetDragOver(e, widgetId, col)}
+        onDrop={(e) => handleWidgetDrop(e, widgetId, col)}
+        onDragEnd={handleWidgetDragEnd}
+        style={{
+          opacity: isDragged ? 0.3 : 1,
+          border: isOver ? '2px dashed var(--color-primary)' : 'none',
+          borderRadius: '16px',
+          transition: 'opacity 0.2s ease, border 0.2s ease',
+        }}
+      >
+        {content}
+      </div>
+    );
+  };
+
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        
+
         {/* Realtime Dashboard Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -390,9 +882,9 @@ export default function DashboardPage() {
             </p>
           </div>
           <div ref={layoutSettingsRef} style={{ position: 'relative' }}>
-            <button 
+            <button
               onClick={() => setShowLayoutSettings(!showLayoutSettings)}
-              className="btn btn-secondary" 
+              className="btn btn-secondary"
               style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: '38px' }}
             >
               <Layers size={14} /> Tùy chỉnh bố cục
@@ -417,12 +909,12 @@ export default function DashboardPage() {
                 <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '4px' }}>
                   <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tùy chỉnh giao diện</h4>
                 </div>
-                
+
                 {/* Layout option */}
                 <div>
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Cấu trúc cột:</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => handleLayoutChange('grid')}
                       className={`btn ${dashboardLayout === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
@@ -430,7 +922,7 @@ export default function DashboardPage() {
                     >
                       Bản đồ (2 Cột)
                     </button>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => handleLayoutChange('stack')}
                       className={`btn ${dashboardLayout === 'stack' ? 'btn-primary' : 'btn-secondary'}`}
@@ -444,20 +936,20 @@ export default function DashboardPage() {
                 {/* Show/Hide controls */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={showChart} 
-                      onChange={handleToggleChart} 
+                    <input
+                      type="checkbox"
+                      checked={showChart}
+                      onChange={handleToggleChart}
                       style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
                     />
                     Hiển thị biểu đồ hiệu suất
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={showAuditLogs} 
-                      onChange={handleToggleLogs} 
+                    <input
+                      type="checkbox"
+                      checked={showAuditLogs}
+                      onChange={handleToggleLogs}
                       style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
                     />
                     Hiển thị nhật ký hoạt động
@@ -471,7 +963,7 @@ export default function DashboardPage() {
         {/* Large Highlight Overview Card */}
         <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-center">
-            
+
             {/* Left part: Core KPI display */}
             <div>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
@@ -497,11 +989,11 @@ export default function DashboardPage() {
             {/* Right part: Spark mini KPIs side by side */}
             <div style={{ display: 'flex', gap: '16px' }} className="flex-col sm:flex-row">
               {/* Mini card 1 */}
-              <div style={{ 
-                flex: 1, 
-                padding: '16px', 
-                background: 'rgba(59, 130, 246, 0.04)', 
-                border: '1px solid rgba(59, 130, 246, 0.1)', 
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(59, 130, 246, 0.04)',
+                border: '1px solid rgba(59, 130, 246, 0.1)',
                 borderRadius: '12px',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -511,13 +1003,13 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>TPS Hiện Tại</span>
                   <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--text-primary)' }}>1,248</p>
                 </div>
-                <div style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '8px', 
-                  background: 'rgba(59, 130, 246, 0.1)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   color: '#3b82f6'
                 }}>
@@ -526,11 +1018,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Mini card 2 */}
-              <div style={{ 
-                flex: 1, 
-                padding: '16px', 
-                background: 'rgba(16, 185, 129, 0.04)', 
-                border: '1px solid rgba(16, 185, 129, 0.1)', 
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(16, 185, 129, 0.04)',
+                border: '1px solid rgba(16, 185, 129, 0.1)',
                 borderRadius: '12px',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -540,13 +1032,13 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Tỷ Lệ Thành Công</span>
                   <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: '#10b981' }}>99.2%</p>
                 </div>
-                <div style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '8px', 
-                  background: 'rgba(16, 185, 129, 0.1)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   color: '#10b981'
                 }}>
@@ -560,7 +1052,7 @@ export default function DashboardPage() {
 
         {/* 4 Analytics cards grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-          
+
           {/* Card 1 */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -640,314 +1132,31 @@ export default function DashboardPage() {
         </div>
 
         {/* Mid Section Responsive Grid Layout */}
-        <div 
-          style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr', 
-            gap: '28px' 
-          }} 
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr',
+            gap: '28px'
+          }}
           className={dashboardLayout === 'grid' ? 'lg:grid-cols-[1fr_360px]' : 'lg:grid-cols-1'}
         >
-          
-          {/* Left Column: Chart, Active Shifts, and History */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            
-            {/* Hourly Activity Chart Panel */}
-            {showChart && (
-              <div className="glass-panel" style={{ padding: '24px' }}>
-                <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                    Khối lượng giao dịch & tần suất tác vụ theo giờ
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    Biểu đồ cột + đường nối biểu diễn số lượng tác vụ kiểm tra phát sinh và xử lý trong ngày.
-                  </p>
-                </div>
-                <div style={{ height: '280px', position: 'relative' }}>
-                  <Bar data={hourlyChartData as any} options={hourlyChartOptions as any} />
-                </div>
-              </div>
-            )}
 
-            {/* Active Shifts Checklist Area */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Clock size={18} color="var(--color-accent)" /> Ca trực hiện tại hôm nay
-                </h3>
-                <span className="badge badge-medium">Hôm nay</span>
-              </div>
-
-              {loading ? (
-                <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '30px 0' }}>Đang tải ca trực...</div>
-              ) : activeShifts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-                  <AlertTriangle size={28} color="var(--color-high)" style={{ marginBottom: '10px' }} />
-                  <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo hôm nay</p>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>
-                    Hãy chọn một mẫu bên cạnh để khởi tạo ca trực mới.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {activeShifts.map((shift) => (
-                    <div key={shift._id} className="glass-panel animate-fade-in" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.015)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div>
-                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{shift.templateId?.title || 'Không rõ mẫu'}</h4>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {getSessionBadge(shift.templateId?.sessionType || 'OPEN')}
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId?.fullName || 'Hệ thống'}</span>
-                          </div>
-                        </div>
-                        <Link href={`/checklist?id=${shift._id}`} style={{ textDecoration: 'none' }}>
-                          <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
-                            Mở Checklist <ArrowRight size={12} />
-                          </button>
-                        </Link>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                          <span>Tiến độ hoàn thành</span>
-                          <span style={{ fontWeight: 700, color: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--text-primary)' }}>
-                            {shift.progressPercentage}%
-                          </span>
-                        </div>
-                        <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${shift.progressPercentage}%`,
-                            height: '100%',
-                            background: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--color-accent)',
-                            borderRadius: '3px',
-                            transition: 'width 0.4s ease'
-                          }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* History / Recent Completed Logs */}
-            {showAuditLogs && (
-              <div className="glass-panel" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0 }}>
-                  <FolderOpen size={18} color="var(--text-secondary)" /> Hoạt động ca trực gần đây
-                </h3>
-                {recentShifts.length === 0 ? (
-                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Chưa ghi nhận ca trực lịch sử nào</div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                          <th style={{ padding: '10px 12px' }}>Ngày trực</th>
-                          <th style={{ padding: '10px 12px' }}>Mẫu Checklist</th>
-                          <th style={{ padding: '10px 12px' }}>Phiên trực</th>
-                          <th style={{ padding: '10px 12px' }}>Người trực chính</th>
-                          <th style={{ padding: '10px 12px' }}>Trạng thái</th>
-                          <th style={{ padding: '10px 12px' }}>Tiến độ</th>
-                          <th style={{ padding: '10px 12px' }}>Chi tiết</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentShifts.map((log) => (
-                          <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10">
-                            <td style={{ padding: '12px 12px', fontWeight: 600 }}>{log.shiftDate}</td>
-                            <td style={{ padding: '12px 12px' }}>{log.templateId?.title || 'Không rõ mẫu'}</td>
-                            <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || 'OPEN')}</td>
-                            <td style={{ padding: '12px 12px' }}>{log.userId?.fullName || 'Hệ thống'}</td>
-                            <td style={{ padding: '12px 12px' }}>
-                              {log.status === 'COMPLETED' ? (
-                                <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                                  <CheckCircle2 size={12} /> HOÀN THÀNH
-                                </span>
-                              ) : (
-                                <span style={{ color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                                  <Clock size={12} /> ĐANG CHẠY
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: '12px 12px', fontWeight: 700 }}>{log.progressPercentage}%</td>
-                            <td style={{ padding: '12px 12px' }}>
-                              <Link href={`/checklist?id=${log._id}`} style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600 }}>
-                                Xem
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
+          {/* Left Column */}
+          <div
+            onDragOver={handleColumnDragOver}
+            onDrop={(e) => handleColumnDrop(e, 'left')}
+            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
+          >
+            {leftWidgets.map(widgetId => renderDraggableWidget(widgetId, 'left'))}
           </div>
 
-          {/* Right Column: Initialize, templates summary, and health checks */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            
-            {/* Initialize Shift Log Card */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0 }}>
-                <Play size={18} color="var(--color-primary)" /> Khởi tạo ca trực mới
-              </h3>
-
-              {initError && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-                  {initError}
-                </div>
-              )}
-              {initSuccess && (
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                  {initSuccess}
-                </div>
-              )}
-
-              <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Chọn mẫu checklist vận hành
-                  </label>
-                  <select
-                    className="form-input"
-                    value={selectedTemplate}
-                    onChange={(e) => setSelectedTemplate(e.target.value)}
-                    style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-                  >
-                    <option value="">-- Chọn mẫu checklist --</option>
-                    {templates.map((tpl) => (
-                      <option key={tpl._id} value={tpl._id}>
-                        [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Template Preview Card */}
-                {(() => {
-                  const tpl = templates.find((t) => t._id === selectedTemplate);
-                  if (!tpl) return null;
-                  const sessionLabel = tpl.sessionType === 'OPEN' ? 'Mở Cửa' : tpl.sessionType === 'DURING' ? 'Trong Phiên' : 'Đóng Cửa';
-                  const sessionColor = tpl.sessionType === 'OPEN' ? 'var(--color-low)' : tpl.sessionType === 'DURING' ? 'var(--color-medium)' : 'var(--color-high)';
-                  const taskCount = tpl.tasks?.length ?? '...';
-                  return (
-                    <div className="glass-panel" style={{ background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.12)', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div>
-                        <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{tpl.title}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                          Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong>
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: sessionColor, fontWeight: 700, border: `1px solid ${sessionColor}33` }}>
-                          {sessionLabel}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <ListChecks size={12} /> {taskCount} tác vụ
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
-                  <Play size={14} /> Bắt đầu ca trực
-                </button>
-              </form>
-            </div>
-
-            {/* Admin Manual Shift Job Generation */}
-            {user?.role === 'ADMIN' && (
-              <div className="glass-panel" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0 }}>
-                  <Calendar size={18} color="var(--color-primary)" /> Sinh ca trực tự động
-                </h3>
-                
-                {jobError && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-                    {jobError}
-                  </div>
-                )}
-                {jobSuccess && (
-                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                    {jobSuccess}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Chọn ngày cần chạy job
-                    </label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={jobDate}
-                      onChange={(e) => setJobDate(e.target.value)}
-                      style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-                      disabled={jobRunning}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleTriggerJob}
-                    className="btn btn-primary"
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
-                    disabled={jobRunning}
-                  >
-                    <Activity size={14} />
-                    {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* All templates list summary */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0 }}>
-                <Layers size={16} color="#a855f7" /> Danh sách mẫu checklist
-              </h3>
-              {templates.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Chưa có mẫu checklist nào.</p>
-              ) : (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {templates.map((tpl, i) => (
-                    <div key={tpl._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: i < templates.length - 1 ? '1px solid var(--border-color)' : 'none', paddingBottom: '6px' }}>
-                      <span style={{ flex: 1, paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.title}</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{tpl.tasks?.length ?? 0} tác vụ</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Health checks panel */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0 }}>
-                <ShieldAlert size={16} color="#10b981" /> Kết nối và tích hợp
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>MongoDB Core</span>
-                  <span style={{ color: '#10b981', fontWeight: 700 }}>KẾT NỐI</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Socket Gateway</span>
-                  <span style={{ color: '#10b981', fontWeight: 700 }}>ĐỒNG BỘ</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Microsoft 365 SSO</span>
-                  <span style={{ color: '#10b981', fontWeight: 700 }}>SẴN SÀNG</span>
-                </div>
-              </div>
-            </div>
-
+          {/* Right Column */}
+          <div
+            onDragOver={handleColumnDragOver}
+            onDrop={(e) => handleColumnDrop(e, 'right')}
+            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
+          >
+            {rightWidgets.map(widgetId => renderDraggableWidget(widgetId, 'right'))}
           </div>
 
         </div>
