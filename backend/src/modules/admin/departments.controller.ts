@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Department } from '../../schemas/department.schema';
@@ -10,7 +19,8 @@ import { Roles } from '../auth/roles.decorator';
 @Controller('api/v1/departments')
 export class DepartmentsController {
   constructor(
-    @InjectModel(Department.name) private readonly departmentModel: Model<Department>,
+    @InjectModel(Department.name)
+    private readonly departmentModel: Model<Department>,
   ) {}
 
   @Get()
@@ -30,7 +40,9 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
-    return this.departmentModel.findByIdAndUpdate(id, body, { new: true }).exec();
+    return this.departmentModel
+      .findByIdAndUpdate(id, body, { new: true })
+      .exec();
   }
 
   @UseGuards(RolesGuard)

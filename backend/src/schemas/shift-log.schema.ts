@@ -46,7 +46,8 @@ export class ShiftLogDetail {
   botTriggerTimeSnapshot?: string;
 }
 
-export const ShiftLogDetailSchema = SchemaFactory.createForClass(ShiftLogDetail);
+export const ShiftLogDetailSchema =
+  SchemaFactory.createForClass(ShiftLogDetail);
 
 @Schema({ timestamps: true })
 export class ShiftLog extends Document {
@@ -56,10 +57,20 @@ export class ShiftLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: false, default: null })
   userId?: Types.ObjectId | null; // User who initialized the shift (nullable for system cron)
 
-  @Prop({ type: Types.ObjectId, ref: 'ShiftSlot', required: false, default: null })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'ShiftSlot',
+    required: false,
+    default: null,
+  })
   shiftSlotId?: Types.ObjectId | null;
 
-  @Prop({ type: Types.ObjectId, ref: 'Department', required: false, default: null })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Department',
+    required: false,
+    default: null,
+  })
   departmentId?: Types.ObjectId | null;
 
   @Prop({ required: true, index: true })
@@ -83,7 +94,11 @@ export class ShiftLog extends Document {
   @Prop({ type: String, default: null })
   handoverNote?: string | null;
 
-  @Prop({ required: true, enum: ['SYSTEM_CRON', 'MANUAL_ADMIN', 'MANUAL_USER'], default: 'MANUAL_USER' })
+  @Prop({
+    required: true,
+    enum: ['SYSTEM_CRON', 'MANUAL_ADMIN', 'MANUAL_USER'],
+    default: 'MANUAL_USER',
+  })
   creationSource: string;
 
   @Prop({ required: true, enum: ['USER', 'SYSTEM'], default: 'USER' })

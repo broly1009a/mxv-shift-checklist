@@ -12,8 +12,10 @@ export class ShiftJobsService {
 
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
-    @InjectModel(ChecklistTemplate.name) private readonly templateModel: Model<ChecklistTemplate>,
-    @InjectModel(ActivityLog.name) private readonly activityLogModel: Model<ActivityLog>,
+    @InjectModel(ChecklistTemplate.name)
+    private readonly templateModel: Model<ChecklistTemplate>,
+    @InjectModel(ActivityLog.name)
+    private readonly activityLogModel: Model<ActivityLog>,
     private readonly workingCalendarService: WorkingCalendarService,
   ) {}
 
@@ -22,12 +24,17 @@ export class ShiftJobsService {
     triggerType: 'SYSTEM' | 'USER',
     userId?: string,
   ): Promise<any> {
-    this.logger.log(`Starting shift job generation for date ${dateStr} (Trigger: ${triggerType})`);
+    this.logger.log(
+      `Starting shift job generation for date ${dateStr} (Trigger: ${triggerType})`,
+    );
 
     // 1. Validate if it's a trading day
-    const calendarValidation = await this.workingCalendarService.validateDate(dateStr);
+    const calendarValidation =
+      await this.workingCalendarService.validateDate(dateStr);
     if (!calendarValidation.isTradingDay) {
-      this.logger.warn(`Date ${dateStr} is not a trading day. Skipping shift job generation.`);
+      this.logger.warn(
+        `Date ${dateStr} is not a trading day. Skipping shift job generation.`,
+      );
       return {
         success: false,
         reason: 'NOT_A_TRADING_DAY',
@@ -41,8 +48,13 @@ export class ShiftJobsService {
     }
 
     // 2. Fetch active checklist templates
-    const templates = await this.templateModel.find({ isActive: true }).populate('departmentId').exec();
-    this.logger.log(`Found ${templates.length} active checklist templates to process.`);
+    const templates = await this.templateModel
+      .find({ isActive: true })
+      .populate('departmentId')
+      .exec();
+    this.logger.log(
+      `Found ${templates.length} active checklist templates to process.`,
+    );
 
     let createdCount = 0;
     let skippedCount = 0;
@@ -50,10 +62,12 @@ export class ShiftJobsService {
 
     for (const template of templates) {
       // Check if a ShiftLog already exists for this template and date
-      const existing = await this.shiftLogModel.findOne({
-        templateId: template._id,
-        shiftDate: dateStr,
-      }).exec();
+      const existing = await this.shiftLogModel
+        .findOne({
+          templateId: template._id,
+          shiftDate: dateStr,
+        })
+        .exec();
 
       if (existing) {
         skippedCount++;
@@ -62,12 +76,14 @@ export class ShiftJobsService {
           title: template.title,
           status: 'SKIPPED_EXISTING',
         });
-        this.logger.log(`Shift log already exists for template "${template.title}" on ${dateStr}. Skipping.`);
+        this.logger.log(
+          `Shift log already exists for template "${template.title}" on ${dateStr}. Skipping.`,
+        );
         continue;
       }
 
       // Clone tasks
-      const tasksSnapshot = template.tasks.map(task => ({
+      const tasksSnapshot = template.tasks.map((task) => ({
         taskId: task.taskId,
         taskNameSnapshot: task.taskName,
         prioritySnapshot: task.priority,
@@ -88,13 +104,18 @@ export class ShiftJobsService {
       const newLog = new this.shiftLogModel({
         templateId: template._id,
         userId: userId ? new Types.ObjectId(userId) : null,
-        shiftSlotId: template.shiftSlotId ? new Types.ObjectId(template.shiftSlotId as any) : null,
-        departmentId: template.departmentId ? new Types.ObjectId(template.departmentId as any) : null,
+        shiftSlotId: template.shiftSlotId
+          ? new Types.ObjectId(template.shiftSlotId as any)
+          : null,
+        departmentId: template.departmentId
+          ? new Types.ObjectId(template.departmentId as any)
+          : null,
         shiftDate: dateStr,
         status: 'PENDING',
         progressPercentage: 0.0,
         details: tasksSnapshot,
-        creationSource: triggerType === 'SYSTEM' ? 'SYSTEM_CRON' : 'MANUAL_ADMIN',
+        creationSource:
+          triggerType === 'SYSTEM' ? 'SYSTEM_CRON' : 'MANUAL_ADMIN',
         createdByType: triggerType === 'SYSTEM' ? 'SYSTEM' : 'USER',
       });
 
@@ -107,10 +128,12 @@ export class ShiftJobsService {
       });
 
       // Create ActivityLog
-      const activityAction = triggerType === 'SYSTEM' ? 'SYSTEM_JOB_GEN' : 'MANUAL_JOB_GEN';
-      const activityDetails = triggerType === 'SYSTEM'
-        ? `Hệ thống tự động khởi tạo ca trực cho mẫu: "${template.title}"`
-        : `Admin khởi tạo ca trực thủ công cho mẫu: "${template.title}"`;
+      const activityAction =
+        triggerType === 'SYSTEM' ? 'SYSTEM_JOB_GEN' : 'MANUAL_JOB_GEN';
+      const activityDetails =
+        triggerType === 'SYSTEM'
+          ? `Hệ thống tự động khởi tạo ca trực cho mẫu: "${template.title}"`
+          : `Admin khởi tạo ca trực thủ công cho mẫu: "${template.title}"`;
 
       const newActivity = new this.activityLogModel({
         userId: userId ? new Types.ObjectId(userId) : null,
@@ -119,7 +142,9 @@ export class ShiftJobsService {
         ipAddress: '127.0.0.1',
       });
       await newActivity.save();
-      this.logger.log(`Created shift log for template "${template.title}" on ${dateStr}`);
+      this.logger.log(
+        `Created shift log for template "${template.title}" on ${dateStr}`,
+      );
     }
 
     return {

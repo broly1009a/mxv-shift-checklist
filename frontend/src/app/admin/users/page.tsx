@@ -102,23 +102,7 @@ export default function AdminUsersPage() {
   const [departmentId, setDepartmentId] = useState('');
   const [isActive, setIsActive] = useState(true);
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Auto-toast effects when success/error state changes
-  useEffect(() => {
-    if (success) {
-      toast.success(success);
-      setSuccess('');
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      setError('');
-    }
-  }, [error]);
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -186,11 +170,15 @@ export default function AdminUsersPage() {
   }, [token, currentPage, limit, debouncedSearchQuery, filterRole, filterDivision, filterDepartment, filterActive]);
 
   useEffect(() => {
-    fetchMetadata();
+    Promise.resolve().then(() => {
+      fetchMetadata();
+    });
   }, [fetchMetadata]);
 
   useEffect(() => {
-    fetchUsers();
+    Promise.resolve().then(() => {
+      fetchUsers();
+    });
   }, [fetchUsers]);
 
   const openAddModal = () => {
@@ -202,8 +190,6 @@ export default function AdminUsersPage() {
     setDivisionId('');
     setDepartmentId('');
     setIsActive(true);
-    setError('');
-    setSuccess('');
     setModalOpen(true);
   };
 
@@ -216,28 +202,24 @@ export default function AdminUsersPage() {
     setDivisionId(u.divisionId?._id || '');
     setDepartmentId(u.departmentId?._id || '');
     setIsActive(u.isActive !== undefined ? u.isActive : true);
-    setError('');
-    setSuccess('');
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
     if (!username || !fullName || !role) {
-      setError('Vui lòng điền đầy đủ các thông tin bắt buộc');
+      toast.error('Vui lòng điền đầy đủ các thông tin bắt buộc');
       return;
     }
 
     if (isActive) {
       if ((role === 'STAFF' || role === 'DEPARTMENT_HEAD') && !departmentId) {
-        setError('Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải gán phòng ban trực!');
+        toast.error('Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải gán phòng ban trực!');
         return;
       }
       if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        setError('Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải gán Khối quản lý!');
+        toast.error('Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải gán Khối quản lý!');
         return;
       }
     }
@@ -265,7 +247,7 @@ export default function AdminUsersPage() {
         });
       } else {
         if (!password) {
-          setError('Vui lòng nhập mật khẩu cho tài khoản mới');
+          toast.error('Vui lòng nhập mật khẩu cho tài khoản mới');
           return;
         }
         res = await fetch(`${API_BASE_URL}/api/v1/users`, {
@@ -283,13 +265,13 @@ export default function AdminUsersPage() {
         throw new Error(err.message || 'Thao tác thất bại');
       }
 
-      setSuccess(editingUser ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản mới thành công!');
+      toast.success(editingUser ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản mới thành công!');
       setTimeout(() => {
         setModalOpen(false);
         fetchUsers();
       }, 1000);
     } catch (err: any) {
-      setError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     }
   };
 
@@ -297,8 +279,6 @@ export default function AdminUsersPage() {
     if (!window.confirm(`Bạn có chắc chắn muốn XÓA tài khoản "${name}"?`)) {
       return;
     }
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/users/${id}`, {
         method: 'DELETE',
@@ -310,10 +290,10 @@ export default function AdminUsersPage() {
         throw new Error(err.message || 'Xóa tài khoản thất bại');
       }
 
-      setSuccess('Đã xóa tài khoản.');
+      toast.success('Đã xóa tài khoản.');
       fetchUsers();
     } catch (err: any) {
-      setError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     }
   };
 

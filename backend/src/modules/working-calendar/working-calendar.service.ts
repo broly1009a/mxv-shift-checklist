@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WorkingCalendar } from '../../schemas/working-calendar.schema';
@@ -7,7 +11,8 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 @Injectable()
 export class WorkingCalendarService {
   constructor(
-    @InjectModel(WorkingCalendar.name) private readonly workingCalendarModel: Model<WorkingCalendar>,
+    @InjectModel(WorkingCalendar.name)
+    private readonly workingCalendarModel: Model<WorkingCalendar>,
     private readonly settingsService: SystemSettingsService,
   ) {}
 
@@ -16,19 +21,27 @@ export class WorkingCalendarService {
   }
 
   async findOne(dateStr: string): Promise<WorkingCalendar> {
-    const calendar = await this.workingCalendarModel.findOne({ date: dateStr }).exec();
+    const calendar = await this.workingCalendarModel
+      .findOne({ date: dateStr })
+      .exec();
     if (!calendar) {
-      throw new NotFoundException(`Calendar entry for date ${dateStr} not found`);
+      throw new NotFoundException(
+        `Calendar entry for date ${dateStr} not found`,
+      );
     }
     return calendar;
   }
 
   async create(data: any, userId?: string): Promise<WorkingCalendar> {
-    const existing = await this.workingCalendarModel.findOne({ date: data.date }).exec();
+    const existing = await this.workingCalendarModel
+      .findOne({ date: data.date })
+      .exec();
     if (existing) {
-      throw new ConflictException(`Calendar entry for date ${data.date} already exists`);
+      throw new ConflictException(
+        `Calendar entry for date ${data.date} already exists`,
+      );
     }
-    
+
     // Automatically calculate isWeekend dynamically
     const isWeekend = await this.checkWeekend(data.date);
     const newCalendar = new this.workingCalendarModel({
@@ -40,40 +53,56 @@ export class WorkingCalendarService {
     return newCalendar.save();
   }
 
-  async update(dateStr: string, data: any, userId?: string): Promise<WorkingCalendar> {
+  async update(
+    dateStr: string,
+    data: any,
+    userId?: string,
+  ): Promise<WorkingCalendar> {
     const isWeekend = await this.checkWeekend(dateStr);
-    const updated = await this.workingCalendarModel.findOneAndUpdate(
-      { date: dateStr },
-      {
-        ...data,
-        isWeekend,
-        updatedBy: userId ? userId : null,
-      },
-      { new: true }
-    ).exec();
+    const updated = await this.workingCalendarModel
+      .findOneAndUpdate(
+        { date: dateStr },
+        {
+          ...data,
+          isWeekend,
+          updatedBy: userId ? userId : null,
+        },
+        { new: true },
+      )
+      .exec();
 
     if (!updated) {
-      throw new NotFoundException(`Calendar entry for date ${dateStr} not found`);
+      throw new NotFoundException(
+        `Calendar entry for date ${dateStr} not found`,
+      );
     }
     return updated;
   }
 
   async remove(dateStr: string): Promise<any> {
-    const deleted = await this.workingCalendarModel.findOneAndDelete({ date: dateStr }).exec();
+    const deleted = await this.workingCalendarModel
+      .findOneAndDelete({ date: dateStr })
+      .exec();
     if (!deleted) {
-      throw new NotFoundException(`Calendar entry for date ${dateStr} not found`);
+      throw new NotFoundException(
+        `Calendar entry for date ${dateStr} not found`,
+      );
     }
     return { deleted: true };
   }
 
   async validateDate(dateStr: string): Promise<any> {
     // 1. Check for specific date override first
-    let calendarRecord = await this.workingCalendarModel.findOne({ date: dateStr }).exec();
-    
+    let calendarRecord = await this.workingCalendarModel
+      .findOne({ date: dateStr })
+      .exec();
+
     // 2. If not found, check for recurring annual holiday (pattern: *-MM-DD)
     if (!calendarRecord) {
       const [, mm, dd] = dateStr.split('-');
-      calendarRecord = await this.workingCalendarModel.findOne({ date: `*-${mm}-${dd}` }).exec();
+      calendarRecord = await this.workingCalendarModel
+        .findOne({ date: `*-${mm}-${dd}` })
+        .exec();
     }
 
     if (calendarRecord) {
@@ -111,7 +140,10 @@ export class WorkingCalendarService {
     const dayOfWeek = dateObj.getDay(); // 0 Sunday, 1 Monday, ..., 6 Saturday
 
     // Load active rest days from settings (defaults to [0, 6] for Sunday, Saturday)
-    const restDaysStr = await this.settingsService.getSetting('weekly_rest_days', '[0, 6]');
+    const restDaysStr = await this.settingsService.getSetting(
+      'weekly_rest_days',
+      '[0, 6]',
+    );
     try {
       const restDays: number[] = JSON.parse(restDaysStr);
       return restDays.includes(dayOfWeek);

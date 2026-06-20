@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -13,10 +17,16 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userModel.findOne({ username }).populate('departmentId').populate('divisionId').exec();
+    const user = await this.userModel
+      .findOne({ username })
+      .populate('departmentId')
+      .populate('divisionId')
+      .exec();
     if (user && (await bcrypt.compare(pass, user.passwordHash))) {
       if (!user.isActive) {
-        throw new UnauthorizedException('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ Admin.');
+        throw new UnauthorizedException(
+          'Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ Admin.',
+        );
       }
       return user;
     }
@@ -24,12 +34,12 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { 
-      username: user.username, 
-      sub: user._id, 
+    const payload = {
+      username: user.username,
+      sub: user._id,
       role: user.role,
       departmentId: user.departmentId?._id || user.departmentId || null,
-      divisionId: user.divisionId?._id || user.divisionId || null
+      divisionId: user.divisionId?._id || user.divisionId || null,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -46,13 +56,19 @@ export class AuthService {
           autoRefreshInterval: 30,
           telegramNotifications: true,
           telegramChatId: '',
-          alertThresholdMinutes: 15
+          alertThresholdMinutes: 15,
         },
       },
     };
   }
 
-  async register(username: string, pass: string, fullName: string, departmentId: string, role: string) {
+  async register(
+    username: string,
+    pass: string,
+    fullName: string,
+    departmentId: string,
+    role: string,
+  ) {
     const existing = await this.userModel.findOne({ username }).exec();
     if (existing) {
       throw new ConflictException('Username already exists');
@@ -77,24 +93,29 @@ export class AuthService {
     const redirectUri = process.env.MICROSOFT_CALLBACK_URL;
 
     // 1. Send POST request to Microsoft to exchange authorization code for access token
-    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+    const tokenResponse = await fetch(
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId || '',
+          scope: 'openid profile email User.Read',
+          code: code,
+          redirect_uri: redirectUri || '',
+          grant_type: 'authorization_code',
+          client_secret: clientSecret || '',
+        }),
       },
-      body: new URLSearchParams({
-        client_id: clientId || '',
-        scope: 'openid profile email User.Read',
-        code: code,
-        redirect_uri: redirectUri || '',
-        grant_type: 'authorization_code',
-        client_secret: clientSecret || '',
-      }),
-    });
+    );
 
     if (!tokenResponse.ok) {
       const errData = await tokenResponse.json();
-      throw new UnauthorizedException(errData.error_description || 'Không thể xác thực mã với Microsoft.');
+      throw new UnauthorizedException(
+        errData.error_description || 'Không thể xác thực mã với Microsoft.',
+      );
     }
 
     const tokenData = await tokenResponse.json();
@@ -108,7 +129,9 @@ export class AuthService {
     });
 
     if (!profileResponse.ok) {
-      throw new UnauthorizedException('Không thể lấy thông tin tài khoản từ Microsoft Graph.');
+      throw new UnauthorizedException(
+        'Không thể lấy thông tin tài khoản từ Microsoft Graph.',
+      );
     }
 
     const profile = await profileResponse.json();
@@ -117,45 +140,57 @@ export class AuthService {
 
     // 3. Call validateMicrosoftSSO to check/create user in the database
     const user = await this.validateMicrosoftSSO(email, fullName);
-    
+
     // 4. Generate local system JWT and return
     return this.login(user);
   }
 
   async validateMicrosoftSSO(email: string, fullName: string): Promise<any> {
     if (!email || !email.endsWith('@mxv.vn')) {
-      throw new UnauthorizedException('Email không thuộc tên miền Sở MXV (@mxv.vn)');
+      throw new UnauthorizedException(
+        'Email không thuộc tên miền Sở MXV (@mxv.vn)',
+      );
     }
 
     const username = email.split('@')[0];
-    
+
     // Check if user already exists
-    let user = await this.userModel.findOne({ username }).populate('departmentId').populate('divisionId').exec();
-    
+    const user = await this.userModel
+      .findOne({ username })
+      .populate('departmentId')
+      .populate('divisionId')
+      .exec();
+
     if (user) {
       // User exists - check activation status
       if (!user.isActive) {
-        throw new UnauthorizedException('Tài khoản của bạn đang chờ Admin kích hoạt và gán phòng ban.');
+        throw new UnauthorizedException(
+          'Tài khoản của bạn đang chờ Admin kích hoạt và gán phòng ban.',
+        );
       }
       return user;
     }
-    
+
     // User does not exist - create automatically in pending status
     const dummyHash = await bcrypt.hash('dummy_sso_pass_2026', 10);
     const isInitialAdmin = username === 'admin_sso';
-    
+
     const newUser = new this.userModel({
       username,
       passwordHash: dummyHash,
-      fullName: fullName || `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
+      fullName:
+        fullName ||
+        `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
       departmentId: null, // Waiting for admin assignment
       role: isInitialAdmin ? 'ADMIN' : 'STAFF',
       isActive: isInitialAdmin ? true : false, // Initial admin is active, others wait for admin approval
     });
-    
+
     await newUser.save();
-    
-    throw new UnauthorizedException('Tài khoản đã được tạo tự động từ Microsoft 365 và đang chờ Admin kích hoạt, gán phòng ban.');
+
+    throw new UnauthorizedException(
+      'Tài khoản đã được tạo tự động từ Microsoft 365 và đang chờ Admin kích hoạt, gán phòng ban.',
+    );
   }
 
   async updateProfile(userId: string, data: any): Promise<any> {
@@ -174,16 +209,31 @@ export class AuthService {
 
     if (data.settings) {
       user.settings = {
-        theme: data.settings.theme !== undefined ? data.settings.theme : user.settings?.theme || 'dark',
-        autoRefreshInterval: data.settings.autoRefreshInterval !== undefined ? Number(data.settings.autoRefreshInterval) : user.settings?.autoRefreshInterval || 30,
-        telegramNotifications: data.settings.telegramNotifications !== undefined ? !!data.settings.telegramNotifications : user.settings?.telegramNotifications ?? true,
-        telegramChatId: data.settings.telegramChatId !== undefined ? data.settings.telegramChatId : user.settings?.telegramChatId || '',
-        alertThresholdMinutes: data.settings.alertThresholdMinutes !== undefined ? Number(data.settings.alertThresholdMinutes) : user.settings?.alertThresholdMinutes || 15,
+        theme:
+          data.settings.theme !== undefined
+            ? data.settings.theme
+            : user.settings?.theme || 'dark',
+        autoRefreshInterval:
+          data.settings.autoRefreshInterval !== undefined
+            ? Number(data.settings.autoRefreshInterval)
+            : user.settings?.autoRefreshInterval || 30,
+        telegramNotifications:
+          data.settings.telegramNotifications !== undefined
+            ? !!data.settings.telegramNotifications
+            : (user.settings?.telegramNotifications ?? true),
+        telegramChatId:
+          data.settings.telegramChatId !== undefined
+            ? data.settings.telegramChatId
+            : user.settings?.telegramChatId || '',
+        alertThresholdMinutes:
+          data.settings.alertThresholdMinutes !== undefined
+            ? Number(data.settings.alertThresholdMinutes)
+            : user.settings?.alertThresholdMinutes || 15,
       };
     }
 
     await user.save();
-    
+
     return {
       id: user._id,
       username: user.username,

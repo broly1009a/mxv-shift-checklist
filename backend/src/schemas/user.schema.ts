@@ -13,13 +13,34 @@ export class User extends Document {
   @Prop({ required: true })
   fullName: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Department', required: false, default: null })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Department',
+    required: false,
+    default: null,
+  })
   departmentId?: Types.ObjectId | null;
 
-  @Prop({ type: Types.ObjectId, ref: 'Division', required: false, default: null })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Division',
+    required: false,
+    default: null,
+  })
   divisionId?: Types.ObjectId | null;
 
-  @Prop({ required: true, enum: ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD', 'STAFF'], default: 'STAFF' })
+  @Prop({
+    required: true,
+    enum: [
+      'ADMIN',
+      'CHAIRMAN',
+      'CEO',
+      'DIVISION_DIRECTOR',
+      'DEPARTMENT_HEAD',
+      'STAFF',
+    ],
+    default: 'STAFF',
+  })
   role: string;
 
   @Prop({ required: true, type: Boolean, default: false })
@@ -34,7 +55,7 @@ export class User extends Document {
       alertThresholdMinutes: { type: Number, default: 15 },
     },
     _id: false,
-    default: () => ({})
+    default: () => ({}),
   })
   settings: {
     theme: 'dark' | 'light';

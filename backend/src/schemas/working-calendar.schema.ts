@@ -25,7 +25,8 @@ export class WorkingCalendar extends Document {
   updatedBy?: Types.ObjectId | null;
 }
 
-export const WorkingCalendarSchema = SchemaFactory.createForClass(WorkingCalendar);
+export const WorkingCalendarSchema =
+  SchemaFactory.createForClass(WorkingCalendar);
 WorkingCalendarSchema.virtual('id').get(function (this: WorkingCalendar) {
   return this._id.toHexString();
 });

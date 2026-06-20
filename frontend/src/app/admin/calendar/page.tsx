@@ -84,23 +84,7 @@ export default function AdminCalendarPage() {
   const [formNote, setFormNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Auto-toast effects when success/error state changes
-  useEffect(() => {
-    if (success) {
-      toast.success(success);
-      setSuccess('');
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      setError('');
-    }
-  }, [error]);
 
   // Redirect if not allowed
   useEffect(() => {
@@ -131,7 +115,9 @@ export default function AdminCalendarPage() {
   }, [token]);
 
   useEffect(() => {
-    fetchCalendarEntries();
+    Promise.resolve().then(() => {
+      fetchCalendarEntries();
+    });
   }, [fetchCalendarEntries]);
 
   const fetchStandards = useCallback(async () => {
@@ -172,15 +158,14 @@ export default function AdminCalendarPage() {
 
   useEffect(() => {
     if (viewMode === 'standards') {
-      fetchStandards();
+      Promise.resolve().then(() => {
+        fetchStandards();
+      });
     }
   }, [viewMode, fetchStandards]);
 
   const saveSystemSetting = async (key: string, value: string) => {
     if (!token) return;
-    setSavingStandards(true);
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
         method: 'POST',
@@ -193,10 +178,10 @@ export default function AdminCalendarPage() {
       if (!res.ok) {
         throw new Error('Không thể lưu cài đặt hệ thống');
       }
-      setSuccess('Cập nhật cấu hình hệ thống thành công!');
+      toast.success('Cập nhật cấu hình hệ thống thành công!');
       fetchStandards();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       setSavingStandards(false);
     }
@@ -237,9 +222,6 @@ export default function AdminCalendarPage() {
   const handleSlotSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-    setSubmitting(true);
-    setError('');
-    setSuccess('');
     try {
       const url = editingSlot
         ? `${API_BASE_URL}/api/v1/shift-slots/${editingSlot.id}`
@@ -269,11 +251,11 @@ export default function AdminCalendarPage() {
         throw new Error(data.message || 'Lưu ca trực thất bại');
       }
 
-      setSuccess(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
+      toast.success(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
       setSlotModalOpen(false);
       fetchStandards();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
     }
@@ -281,8 +263,6 @@ export default function AdminCalendarPage() {
 
   const handleSlotDelete = async (slot: ShiftSlot) => {
     if (!token || !window.confirm(`Bạn có chắc muốn xóa ca trực ${slot.name}?`)) return;
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shift-slots/${slot.id}`, {
         method: 'DELETE',
@@ -291,10 +271,10 @@ export default function AdminCalendarPage() {
       if (!res.ok) {
         throw new Error('Xóa ca trực thất bại');
       }
-      setSuccess('Đã xóa ca trực thành công!');
+      toast.success('Đã xóa ca trực thành công!');
       fetchStandards();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     }
   };
 
@@ -310,8 +290,6 @@ export default function AdminCalendarPage() {
     setFormIsHoliday(false);
     setFormIsRecurring(false);
     setFormNote('');
-    setError('');
-    setSuccess('');
     setModalOpen(true);
   };
 
@@ -322,8 +300,6 @@ export default function AdminCalendarPage() {
     setFormIsHoliday(false);
     setFormIsRecurring(false);
     setFormNote('');
-    setError('');
-    setSuccess('');
     setModalOpen(true);
   };
 
@@ -340,8 +316,6 @@ export default function AdminCalendarPage() {
     setFormIsTrading(entry.isTradingDay);
     setFormIsHoliday(entry.isHoliday);
     setFormNote(entry.note || '');
-    setError('');
-    setSuccess('');
     setModalOpen(true);
   };
 
@@ -349,8 +323,6 @@ export default function AdminCalendarPage() {
     e.preventDefault();
     if (!token) return;
     setSubmitting(true);
-    setError('');
-    setSuccess('');
 
     try {
       const url = editingEntry 
@@ -386,11 +358,11 @@ export default function AdminCalendarPage() {
         throw new Error(data.message || 'Lưu cấu hình lịch thất bại');
       }
 
-      setSuccess(editingEntry ? 'Cập nhật ngày thành công!' : 'Thêm ngày cấu hình mới thành công!');
+      toast.success(editingEntry ? 'Cập nhật ngày thành công!' : 'Thêm ngày cấu hình mới thành công!');
       setModalOpen(false);
       fetchCalendarEntries();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
     }
@@ -398,8 +370,6 @@ export default function AdminCalendarPage() {
 
   const handleDelete = async (entry: CalendarEntry) => {
     if (!token || !window.confirm(`Bạn có chắc chắn muốn xóa cấu hình ngày ${entry.date}?`)) return;
-    setError('');
-    setSuccess('');
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/working-calendar/${entry.date}`, {
@@ -412,10 +382,10 @@ export default function AdminCalendarPage() {
         throw new Error(data.message || 'Xóa cấu hình ngày thất bại');
       }
 
-      setSuccess('Đã xóa cấu hình lịch thành công!');
+      toast.success('Đã xóa cấu hình lịch thành công!');
       fetchCalendarEntries();
     } catch (err: any) {
-      setError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     }
   };
 

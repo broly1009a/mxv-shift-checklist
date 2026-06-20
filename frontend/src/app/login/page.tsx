@@ -19,29 +19,12 @@ export default function LoginPage() {
   const [ssoEmail, setSsoEmail] = useState('');
   const [ssoFullName, setSsoFullName] = useState('');
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Force dark mode trên trang login — đảm bảo không kế thừa theme cũ từ dashboard
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
   }, []);
-
-  // Auto-toast effects when success/error state changes
-  useEffect(() => {
-    if (success) {
-      toast.success(success);
-      setSuccess('');
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      setError('');
-    }
-  }, [error]);
 
   // If already logged in, redirect to dashboard, or check URL query parameters from Microsoft callback redirection
   useEffect(() => {
@@ -63,64 +46,60 @@ export default function LoginPage() {
         localStorage.setItem('mxv_token', tokenVal);
         localStorage.setItem('mxv_user', JSON.stringify(userVal));
         
-        setSuccess('Đăng nhập Microsoft 365 thành công! Đang chuyển hướng...');
+        toast.success('Đăng nhập Microsoft 365 thành công! Đang chuyển hướng...');
         
         // Reload to let AuthProvider load values and update state
         window.location.href = '/dashboard';
-      } catch (e) {
-        setError('Lỗi phân tích thông tin tài khoản.');
+      } catch {
+        toast.error('Lỗi phân tích thông tin tài khoản.');
       }
     } else if (errorParam) {
-      setError(decodeURIComponent(errorParam));
+      toast.error(decodeURIComponent(errorParam));
     }
   }, [user, router]);
 
 
   const handleInternalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
     if (!username || !password) {
-      setError('Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
+      toast.error('Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
       return;
     }
     setLoading(true);
     try {
       await login(username, password);
     } catch (err: any) {
-      setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
+      toast.error(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
       setLoading(false);
     }
   };
 
   const handleSSOSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
     if (!ssoEmail) {
-      setError('Vui lòng nhập email Microsoft.');
+      toast.error('Vui lòng nhập email Microsoft.');
       return;
     }
     if (!ssoEmail.endsWith('@mxv.vn')) {
-      setError('Email bắt buộc phải thuộc tên miền Sở MXV (@mxv.vn).');
+      toast.error('Email bắt buộc phải thuộc tên miền Sở MXV (@mxv.vn).');
       return;
     }
 
     setLoading(true);
     try {
       await loginSSO(ssoEmail, ssoFullName);
-      setSuccess('Đăng nhập Microsoft 365 thành công!');
+      toast.success('Đăng nhập Microsoft 365 thành công!');
       setShowSSOModal(false);
     } catch (err: any) {
       // If the error indicates waiting for admin activation
       if (err.message && err.message.includes('chờ Admin kích hoạt')) {
-        setError(err.message);
-        setSuccess('Tài khoản đã được tạo tự động từ Microsoft 365! Vui lòng chờ Admin kích hoạt.');
+        toast.error(err.message);
+        toast.success('Tài khoản đã được tạo tự động từ Microsoft 365! Vui lòng chờ Admin kích hoạt.');
         setShowSSOModal(false);
       } else {
-        setError(err.message || 'Đăng nhập Microsoft 365 thất bại.');
+        toast.error(err.message || 'Đăng nhập Microsoft 365 thất bại.');
       }
       setLoading(false);
     }
@@ -232,8 +211,6 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => {
-            setError('');
-            setSuccess('');
             // Redirect browser to NestJS backend Microsoft authentication endpoint
             const backendBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
             window.location.href = `${backendBaseUrl}/api/v1/auth/microsoft`;

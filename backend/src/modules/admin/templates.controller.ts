@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ChecklistTemplate } from '../../schemas/template.schema';
@@ -10,7 +20,8 @@ import { Roles } from '../auth/roles.decorator';
 @Controller('api/v1/templates')
 export class TemplatesController {
   constructor(
-    @InjectModel(ChecklistTemplate.name) private readonly templateModel: Model<ChecklistTemplate>,
+    @InjectModel(ChecklistTemplate.name)
+    private readonly templateModel: Model<ChecklistTemplate>,
   ) {}
 
   @Get()
@@ -19,7 +30,11 @@ export class TemplatesController {
     if (departmentId) {
       filter.departmentId = new Types.ObjectId(departmentId);
     }
-    return this.templateModel.find(filter).populate('departmentId').populate('shiftSlotId').exec();
+    return this.templateModel
+      .find(filter)
+      .populate('departmentId')
+      .populate('shiftSlotId')
+      .exec();
   }
 
   @UseGuards(RolesGuard)
@@ -28,14 +43,22 @@ export class TemplatesController {
   async create(@Body() body: any) {
     const newTpl = new this.templateModel(body);
     const saved = await newTpl.save();
-    return this.templateModel.findById(saved._id).populate('departmentId').populate('shiftSlotId').exec();
+    return this.templateModel
+      .findById(saved._id)
+      .populate('departmentId')
+      .populate('shiftSlotId')
+      .exec();
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
-    return this.templateModel.findByIdAndUpdate(id, body, { new: true }).populate('departmentId').populate('shiftSlotId').exec();
+    return this.templateModel
+      .findByIdAndUpdate(id, body, { new: true })
+      .populate('departmentId')
+      .populate('shiftSlotId')
+      .exec();
   }
 
   @UseGuards(RolesGuard)

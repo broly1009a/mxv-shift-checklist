@@ -21,7 +21,7 @@ export class TelegramService implements OnModuleInit {
     this.logger.log('Khởi chạy daemon giám sát deadline Telegram Bot...');
     // Quét mỗi 60 giây để kiểm thử thời gian thực nhanh nhạy
     setInterval(() => {
-      this.scanDeadlines().catch(err => {
+      this.scanDeadlines().catch((err) => {
         this.logger.error('Lỗi khi quét hạn chót tác vụ:', err);
       });
     }, 60000);
@@ -29,12 +29,12 @@ export class TelegramService implements OnModuleInit {
 
   async sendMessage(text: string, customChatId?: string): Promise<void> {
     const targetChatId = customChatId || this.chatId;
-    
+
     // Check if token and target chat ID are configured
-    const isConfigured = 
-      this.botToken && 
-      this.botToken !== 'YOUR_BOT_TOKEN' && 
-      targetChatId && 
+    const isConfigured =
+      this.botToken &&
+      this.botToken !== 'YOUR_BOT_TOKEN' &&
+      targetChatId &&
       targetChatId !== 'YOUR_CHAT_ID';
 
     if (isConfigured) {
@@ -51,17 +51,25 @@ export class TelegramService implements OnModuleInit {
         });
         if (!res.ok) {
           const errText = await res.text();
-          this.logger.error(`Gửi tin nhắn Telegram đến ${targetChatId} thất bại: ${errText}`);
+          this.logger.error(
+            `Gửi tin nhắn Telegram đến ${targetChatId} thất bại: ${errText}`,
+          );
         }
       } catch (err) {
         this.logger.error('Lỗi kết nối API Telegram:', err);
       }
     } else {
       // Simulation Mode inside terminal log
-      console.log('\n========================================================================');
-      console.log(`[TELEGRAM SIMULATION BOT ALERT - Chat ID: ${targetChatId || 'GROUP_CHAT'}]`);
+      console.log(
+        '\n========================================================================',
+      );
+      console.log(
+        `[TELEGRAM SIMULATION BOT ALERT - Chat ID: ${targetChatId || 'GROUP_CHAT'}]`,
+      );
       console.log(`Nội dung: ${text.replace(/<[^>]*>/g, '')}`); // Strip HTML tags for console printing
-      console.log('========================================================================\n');
+      console.log(
+        '========================================================================\n',
+      );
     }
   }
 
@@ -75,28 +83,33 @@ export class TelegramService implements OnModuleInit {
     const currentTotalMins = currentHour * 60 + currentMin;
 
     // Find active pending shifts for today, populating settings
-    const activeShifts = await this.shiftLogModel.find({
-      status: 'PENDING',
-      shiftDate: todayStr,
-    })
-    .populate('userId', 'fullName username settings')
-    .populate({
-      path: 'templateId',
-      select: 'title'
-    })
-    .exec();
+    const activeShifts = await this.shiftLogModel
+      .find({
+        status: 'PENDING',
+        shiftDate: todayStr,
+      })
+      .populate('userId', 'fullName username settings')
+      .populate({
+        path: 'templateId',
+        select: 'title',
+      })
+      .exec();
 
     for (const shift of activeShifts) {
       const userObj = shift.userId as any;
       const userSettings = userObj?.settings;
       // Lấy ngưỡng cảnh báo động từ cài đặt cá nhân, mặc định là 15 phút
-      const threshold = (userSettings?.alertThresholdMinutes !== undefined && userSettings?.alertThresholdMinutes !== null)
-        ? Number(userSettings.alertThresholdMinutes)
-        : 15;
+      const threshold =
+        userSettings?.alertThresholdMinutes !== undefined &&
+        userSettings?.alertThresholdMinutes !== null
+          ? Number(userSettings.alertThresholdMinutes)
+          : 15;
 
       for (const item of shift.details) {
         if (!item.isChecked && item.deadlineSnapshot) {
-          const [deadHour, deadMin] = item.deadlineSnapshot.split(':').map(Number);
+          const [deadHour, deadMin] = item.deadlineSnapshot
+            .split(':')
+            .map(Number);
           if (isNaN(deadHour) || isNaN(deadMin)) continue;
 
           const deadTotalMins = deadHour * 60 + deadMin;
@@ -110,15 +123,18 @@ export class TelegramService implements OnModuleInit {
             if (!this.sentWarnings.has(cacheKey)) {
               this.sentWarnings.add(cacheKey);
 
-              const titleText = warningType === 'OVERDUE' 
-                ? `🚨 <b>[CẢNH BÁO QUÁ HẠN CHÓT]</b>` 
-                : `⚠️ <b>[CẢNH BÁO SẮP ĐẾN HẠN CHÓT]</b>`;
+              const titleText =
+                warningType === 'OVERDUE'
+                  ? `🚨 <b>[CẢNH BÁO QUÁ HẠN CHÓT]</b>`
+                  : `⚠️ <b>[CẢNH BÁO SẮP ĐẾN HẠN CHÓT]</b>`;
 
-              const timeText = warningType === 'OVERDUE'
-                ? `Đã trễ <b>${Math.abs(minsDiff)} phút</b> so với hạn chót (${item.deadlineSnapshot})`
-                : `Chỉ còn <b>${minsDiff} phút</b> nữa đến hạn chót (${item.deadlineSnapshot})`;
+              const timeText =
+                warningType === 'OVERDUE'
+                  ? `Đã trễ <b>${Math.abs(minsDiff)} phút</b> so với hạn chót (${item.deadlineSnapshot})`
+                  : `Chỉ còn <b>${minsDiff} phút</b> nữa đến hạn chót (${item.deadlineSnapshot})`;
 
-              const message = `${titleText}\n` +
+              const message =
+                `${titleText}\n` +
                 `• Tác vụ: <b>${item.taskId} - ${item.taskNameSnapshot}</b>\n` +
                 `• Mức độ ưu tiên: <b>${item.prioritySnapshot}</b>\n` +
                 `• Thời hạn: ${timeText}\n` +
@@ -130,7 +146,10 @@ export class TelegramService implements OnModuleInit {
               await this.sendMessage(message);
 
               // 2. Gửi riêng cho nhân sự trực nếu cấu hình bật nhận tin nhắn và cung cấp chat ID
-              if (userSettings?.telegramNotifications && userSettings?.telegramChatId) {
+              if (
+                userSettings?.telegramNotifications &&
+                userSettings?.telegramChatId
+              ) {
                 await this.sendMessage(message, userSettings.telegramChatId);
               }
             }

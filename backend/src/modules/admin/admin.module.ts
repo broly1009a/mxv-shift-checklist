@@ -6,7 +6,10 @@ import { TemplatesController } from './templates.controller';
 import { DivisionsController } from './divisions.controller';
 import { Department, DepartmentSchema } from '../../schemas/department.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
-import { ChecklistTemplate, ChecklistTemplateSchema } from '../../schemas/template.schema';
+import {
+  ChecklistTemplate,
+  ChecklistTemplateSchema,
+} from '../../schemas/template.schema';
 import { Division, DivisionSchema } from '../../schemas/division.schema';
 
 @Module({
@@ -18,6 +21,11 @@ import { Division, DivisionSchema } from '../../schemas/division.schema';
       { name: Division.name, schema: DivisionSchema },
     ]),
   ],
-  controllers: [DepartmentsController, UsersController, TemplatesController, DivisionsController],
+  controllers: [
+    DepartmentsController,
+    UsersController,
+    TemplatesController,
+    DivisionsController,
+  ],
 })
 export class AdminModule {}

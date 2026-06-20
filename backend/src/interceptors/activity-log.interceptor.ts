@@ -1,4 +1,9 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { InjectModel } from '@nestjs/mongoose';
@@ -8,7 +13,8 @@ import { ActivityLog } from '../schemas/activity-log.schema';
 @Injectable()
 export class ActivityLogInterceptor implements NestInterceptor {
   constructor(
-    @InjectModel(ActivityLog.name) private readonly activityLogModel: Model<ActivityLog>,
+    @InjectModel(ActivityLog.name)
+    private readonly activityLogModel: Model<ActivityLog>,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -26,7 +32,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
           try {
             const action = `${method} ${originalUrl}`;
             let details = '';
-            
+
             // Customize details based on URL / Body
             if (method === 'POST' || method === 'PUT') {
               // Clone body and remove sensitive fields like password
@@ -34,10 +40,12 @@ export class ActivityLogInterceptor implements NestInterceptor {
               delete bodyClone.password;
               delete bodyClone.passwordConfirm;
               delete bodyClone.passwordHash;
-              
+
               details = JSON.stringify({
                 body: bodyClone,
-                response: responseBody ? { id: responseBody._id || responseBody.id } : null
+                response: responseBody
+                  ? { id: responseBody._id || responseBody.id }
+                  : null,
               });
             } else if (method === 'DELETE') {
               details = JSON.stringify({ params: request.params });

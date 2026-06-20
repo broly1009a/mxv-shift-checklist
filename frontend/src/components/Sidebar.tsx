@@ -3,21 +3,17 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { 
   LayoutDashboard, 
   CheckSquare, 
   History, 
-  Users, 
   Settings, 
   LogOut, 
-  Sun, 
-  Moon,
   ShieldAlert,
   Building2,
   UserCheck,
   PanelLeftClose,
-  Activity,
   Calendar
 } from 'lucide-react';
 
@@ -29,15 +25,23 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout, token, updateUser } = useAuth();
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const { user, logout } = useAuth();
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('mxv_theme') as 'dark' | 'light') || 'dark';
+    }
+    return 'dark';
+  });
 
   useEffect(() => {
     // Sync theme with user settings
     const dbTheme = user?.settings?.theme;
-    const savedTheme = dbTheme || (localStorage.getItem('mxv_theme') as 'dark' | 'light') || 'dark';
-    setTheme(savedTheme);
-  }, [user?.settings?.theme]);
+    if (dbTheme && dbTheme !== theme) {
+      Promise.resolve().then(() => {
+        setTheme(dbTheme);
+      });
+    }
+  }, [user?.settings?.theme, theme]);
 
   const getRoleName = (role: string) => {
     switch (role) {

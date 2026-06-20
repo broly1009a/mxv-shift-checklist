@@ -3,7 +3,13 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class ActivityLog extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: false, default: null, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    required: false,
+    default: null,
+    index: true,
+  })
   userId?: Types.ObjectId | null;
 
   @Prop({ required: true })

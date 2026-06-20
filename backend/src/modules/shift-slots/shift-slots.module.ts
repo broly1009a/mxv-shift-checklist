@@ -6,7 +6,9 @@ import { ShiftSlotsService } from './shift-slots.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: ShiftSlot.name, schema: ShiftSlotSchema }]),
+    MongooseModule.forFeature([
+      { name: ShiftSlot.name, schema: ShiftSlotSchema },
+    ]),
   ],
   controllers: [ShiftSlotsController],
   providers: [ShiftSlotsService],

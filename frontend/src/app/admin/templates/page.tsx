@@ -94,23 +94,7 @@ export default function AdminTemplatesPage() {
   const [templateSubmitting, setTemplateSubmitting] = useState(false);
   const [templateErrors, setTemplateErrors] = useState<{ title?: string; dept?: string }>({});
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Auto-toast effects when success/error state changes
-  useEffect(() => {
-    if (success) {
-      toast.success(success);
-      setSuccess('');
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      setError('');
-    }
-  }, [error]);
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -177,15 +161,15 @@ export default function AdminTemplatesPage() {
   }, [token]);
 
   useEffect(() => {
-    fetchTemplates();
-    fetchDepartments();
-    fetchShiftSlots();
+    Promise.resolve().then(() => {
+      fetchTemplates();
+      fetchDepartments();
+      fetchShiftSlots();
+    });
   }, [fetchTemplates, fetchDepartments, fetchShiftSlots]);
 
   const handleSelectTemplate = (tpl: Template) => {
     setSelectedTemplate(tpl);
-    setError('');
-    setSuccess('');
     setNewTaskId('');
     setNewTaskName('');
     setNewFunctionUrl('');
@@ -205,8 +189,6 @@ export default function AdminTemplatesPage() {
     setTemplateShiftSlotId('');
     setTemplateIsActive(true);
     setTemplateErrors({});
-    setError('');
-    setSuccess('');
     setTemplateModalOpen(true);
   };
 
@@ -218,8 +200,6 @@ export default function AdminTemplatesPage() {
     setTemplateShiftSlotId(tpl.shiftSlotId?._id || (tpl.shiftSlotId as any) || '');
     setTemplateIsActive(tpl.isActive !== false);
     setTemplateErrors({});
-    setError('');
-    setSuccess('');
     setTemplateModalOpen(true);
   };
 
@@ -244,8 +224,6 @@ export default function AdminTemplatesPage() {
     }
 
     setTemplateSubmitting(true);
-    setError('');
-    setSuccess('');
 
     try {
       const body = {
@@ -277,13 +255,13 @@ export default function AdminTemplatesPage() {
       }
 
       const savedTpl = await res.json();
-      setSuccess(editingTemplateInfo ? 'Cập nhật mẫu thành công!' : 'Tạo mẫu mới thành công!');
+      toast.success(editingTemplateInfo ? 'Cập nhật mẫu thành công!' : 'Tạo mẫu mới thành công!');
       
       // Refresh list and keep selection
       await fetchTemplates(savedTpl._id);
       setTimeout(() => closeTemplateModal(), 800);
     } catch (err: any) {
-      setError(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setTemplateSubmitting(false);
     }
@@ -291,8 +269,6 @@ export default function AdminTemplatesPage() {
 
   const handleDeleteTemplate = async (tpl: Template) => {
     if (!window.confirm(`Bạn có chắc chắn muốn XÓA mẫu checklist "${tpl.title}"?\n\nHành động này không thể hoàn tác.`)) return;
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/templates/${tpl._id}`, {
         method: 'DELETE',
@@ -304,10 +280,10 @@ export default function AdminTemplatesPage() {
         throw new Error(errData.message || 'Xóa mẫu checklist thất bại');
       }
 
-      setSuccess(`Đã xóa mẫu checklist "${tpl.title}" thành công.`);
+      toast.success(`Đã xóa mẫu checklist "${tpl.title}" thành công.`);
       fetchTemplates();
     } catch (err: any) {
-      setError(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi kết nối máy chủ');
     }
   };
 
@@ -315,12 +291,12 @@ export default function AdminTemplatesPage() {
   const handleAddTask = () => {
     if (!selectedTemplate) return;
     if (!newTaskId || !newTaskName) {
-      setError('Vui lòng điền mã tác vụ và nội dung công việc');
+      toast.error('Vui lòng điền mã tác vụ và nội dung công việc');
       return;
     }
     // Check duplication
     if (selectedTemplate.tasks.some(t => t.taskId === newTaskId)) {
-      setError('Mã tác vụ đã tồn tại trong mẫu checklist này');
+      toast.error('Mã tác vụ đã tồn tại trong mẫu checklist này');
       return;
     }
 
@@ -354,7 +330,6 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
-    setError('');
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -397,8 +372,6 @@ export default function AdminTemplatesPage() {
 
   const handleSaveTemplate = async () => {
     if (!selectedTemplate || !token) return;
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/templates/${selectedTemplate._id}`, {
         method: 'PUT',
@@ -421,10 +394,10 @@ export default function AdminTemplatesPage() {
         throw new Error(err.message || 'Cập nhật mẫu checklist thất bại');
       }
 
-      setSuccess('Đã lưu cấu hình mẫu checklist thành công!');
+      toast.success('Đã lưu cấu hình mẫu checklist thành công!');
       fetchTemplates(selectedTemplate._id);
     } catch (err: any) {
-      setError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     }
   };
 

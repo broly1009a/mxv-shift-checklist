@@ -48,7 +48,12 @@ export class ChecklistTemplate extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Department', required: true })
   departmentId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'ShiftSlot', required: false, default: null })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'ShiftSlot',
+    required: false,
+    default: null,
+  })
   shiftSlotId?: Types.ObjectId | null;
 
   @Prop({ required: true, enum: ['OPEN', 'DURING', 'CLOSE'] })
@@ -61,7 +66,8 @@ export class ChecklistTemplate extends Document {
   tasks: TaskItem[];
 }
 
-export const ChecklistTemplateSchema = SchemaFactory.createForClass(ChecklistTemplate);
+export const ChecklistTemplateSchema =
+  SchemaFactory.createForClass(ChecklistTemplate);
 ChecklistTemplateSchema.virtual('id').get(function (this: ChecklistTemplate) {
   return this._id.toHexString();
 });

@@ -1,4 +1,14 @@
-import { Controller, Post, Body, Patch, Get, Query, UseGuards, Request, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Patch,
+  Get,
+  Query,
+  UseGuards,
+  Request,
+  Param,
+} from '@nestjs/common';
 import { ShiftsService } from './shifts.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -16,7 +26,13 @@ export class ShiftsController {
   @Patch('items/toggle')
   async toggleItem(@Request() req: any, @Body() body: any) {
     const { shiftLogId, taskId, isChecked, note } = body;
-    return this.shiftsService.toggleTask(shiftLogId, taskId, isChecked, req.user, note);
+    return this.shiftsService.toggleTask(
+      shiftLogId,
+      taskId,
+      isChecked,
+      req.user,
+      note,
+    );
   }
 
   @Post('close')
@@ -33,7 +49,13 @@ export class ShiftsController {
     @Query('endDate') endDate?: string,
     @Query('status') status?: string,
   ) {
-    return this.shiftsService.getHistory(req.user, departmentId, startDate, endDate, status);
+    return this.shiftsService.getHistory(
+      req.user,
+      departmentId,
+      startDate,
+      endDate,
+      status,
+    );
   }
 
   @Get('active')
@@ -42,7 +64,11 @@ export class ShiftsController {
     @Query('departmentId') departmentId?: string,
     @Query('shiftDate') shiftDate?: string,
   ) {
-    return this.shiftsService.getActiveShiftsByDepartment(req.user, departmentId, shiftDate);
+    return this.shiftsService.getActiveShiftsByDepartment(
+      req.user,
+      departmentId,
+      shiftDate,
+    );
   }
 
   @Get(':id')

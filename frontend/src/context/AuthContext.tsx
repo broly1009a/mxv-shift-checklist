@@ -64,11 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedToken = localStorage.getItem('mxv_token');
     const storedUser = localStorage.getItem('mxv_user');
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    Promise.resolve().then(() => {
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+      setLoading(false);
+    });
   }, []);
 
   // Global fetch interceptor for 401 errors

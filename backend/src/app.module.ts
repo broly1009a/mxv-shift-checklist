@@ -18,7 +18,9 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trading_mxv'),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trading_mxv',
+    ),
     ScheduleModule.forRoot(),
     AuthModule,
     ShiftsModule,
@@ -41,8 +43,6 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(LoggerMiddleware)
-      .forRoutes('*');
+    consumer.apply(LoggerMiddleware).forRoutes('*');
   }
 }

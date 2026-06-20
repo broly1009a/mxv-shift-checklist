@@ -11,7 +11,8 @@ import { User, UserSchema } from '../../schemas/user.schema';
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]), // khai báo model User
     PassportModule, // module passport
-    JwtModule.register({  // module jwt
+    JwtModule.register({
+      // module jwt
       secret: process.env.JWT_SECRET || 'trading_mxv_secret_key_2026',
       signOptions: { expiresIn: '10s' },
     }),
@@ -20,4 +21,4 @@ import { User, UserSchema } from '../../schemas/user.schema';
   controllers: [AuthController], // khai báo controller
   exports: [AuthService, MongooseModule, JwtModule], // export các module
 })
-export class AuthModule { }
+export class AuthModule {}

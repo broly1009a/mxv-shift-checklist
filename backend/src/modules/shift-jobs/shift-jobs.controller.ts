@@ -1,4 +1,11 @@
-import { Controller, Post, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  BadRequestException,
+} from '@nestjs/common';
 import { ShiftJobsService } from './shift-jobs.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -15,20 +22,30 @@ export class ShiftJobsController {
     let targetDate = body.date;
     if (!targetDate) {
       const now = new Date();
-      const saigonTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Saigon' }));
-      const yyyy = saigonTime.getFullYear();
-      const mm = String(saigonTime.getMonth() + 1).padStart(2, '0');
-      const dd = String(saigonTime.getDate()).padStart(2, '0');
-      targetDate = `${yyyy}-${mm}-${dd}`;
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Saigon',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const parts = formatter.formatToParts(now);
+      const partMap = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+      targetDate = `${partMap.year}-${partMap.month}-${partMap.day}`;
     }
 
     // Basic date validation YYYY-MM-DD
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(targetDate)) {
-      throw new BadRequestException('Định dạng ngày không hợp lệ. Vui lòng sử dụng YYYY-MM-DD');
+      throw new BadRequestException(
+        'Định dạng ngày không hợp lệ. Vui lòng sử dụng YYYY-MM-DD',
+      );
     }
 
     const userId = req.user._id || req.user.id;
-    return this.shiftJobsService.generateShiftsForDate(targetDate, 'USER', userId);
+    return this.shiftJobsService.generateShiftsForDate(
+      targetDate,
+      'USER',
+      userId,
+    );
   }
 }

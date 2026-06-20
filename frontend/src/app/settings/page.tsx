@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Save, Shield, Bell, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, Shield, Bell, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -21,41 +21,29 @@ export default function SettingsPage() {
   const [telegramChatId, setTelegramChatId] = useState('');
   const [alertThresholdMinutes, setAlertThresholdMinutes] = useState(15);
 
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Trigger toasts on message state change
-  useEffect(() => {
-    if (message) {
-      if (message.type === 'success') {
-        toast.success(message.text);
-      } else {
-        toast.error(message.text);
-      }
-      setMessage(null);
-    }
-  }, [message]);
 
   // Initialize fields with current user settings
   useEffect(() => {
     if (user) {
-      setFullName(user.fullName || '');
-      if (user.settings) {
-        setTheme(user.settings.theme || 'dark');
-        setAutoRefreshInterval(user.settings.autoRefreshInterval || 30);
-        setTelegramNotifications(user.settings.telegramNotifications !== false);
-        setTelegramChatId(user.settings.telegramChatId || '');
-        setAlertThresholdMinutes(user.settings.alertThresholdMinutes || 15);
-      }
+      Promise.resolve().then(() => {
+        setFullName(user.fullName || '');
+        if (user.settings) {
+          setTheme(user.settings.theme || 'dark');
+          setAutoRefreshInterval(user.settings.autoRefreshInterval || 30);
+          setTelegramNotifications(user.settings.telegramNotifications !== false);
+          setTelegramChatId(user.settings.telegramChatId || '');
+          setAlertThresholdMinutes(user.settings.alertThresholdMinutes || 15);
+        }
+      });
     }
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     if (password && password !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Mật khẩu xác nhận không khớp' });
+      toast.error('Mật khẩu xác nhận không khớp');
       return;
     }
 
@@ -94,12 +82,12 @@ export default function SettingsPage() {
       updateUser(updatedUser);
       setPassword('');
       setConfirmPassword('');
-      setMessage({ type: 'success', text: 'Cập nhật thông tin tài khoản thành công!' });
+      toast.success('Cập nhật thông tin tài khoản thành công!');
       
       // Update theme token on root element
       document.documentElement.setAttribute('data-theme', theme);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Có lỗi xảy ra khi lưu cấu hình.' });
+      toast.error(err.message || 'Có lỗi xảy ra khi lưu cấu hình.');
     } finally {
       setIsSubmitting(false);
     }

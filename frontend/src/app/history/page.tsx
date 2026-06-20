@@ -5,14 +5,12 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { 
   Search, 
-  Calendar, 
   SlidersHorizontal, 
   CheckCircle2, 
   Clock, 
   User as UserIcon, 
   Eye, 
-  X,
-  FileText
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -67,7 +65,7 @@ interface ShiftLog {
 }
 
 function HistoryAudit() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   
   // Filters
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -119,8 +117,10 @@ function HistoryAudit() {
   }, [token, selectedDept, selectedStatus, startDate, endDate]);
 
   useEffect(() => {
-    fetchFilters();
-    fetchLogs();
+    Promise.resolve().then(() => {
+      fetchFilters();
+      fetchLogs();
+    });
   }, [fetchFilters, fetchLogs]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -318,7 +318,7 @@ function HistoryAudit() {
                   {activeDetail.status === 'COMPLETED' && activeDetail.handoverNote && (
                     <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--color-primary)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px', fontWeight: 700, textTransform: 'uppercase' }}>Biên bản bàn giao ca trực:</span>
-                      <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>"{activeDetail.handoverNote}"</p>
+                      <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>&ldquo;{activeDetail.handoverNote}&rdquo;</p>
                     </div>
                   )}
                 </div>

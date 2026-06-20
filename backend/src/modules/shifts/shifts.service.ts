@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ShiftLog } from '../../schemas/shift-log.schema';
@@ -11,18 +16,27 @@ import { TelegramService } from '../telegram/telegram.service';
 export class ShiftsService {
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
-    @InjectModel(ChecklistTemplate.name) private readonly templateModel: Model<ChecklistTemplate>,
+    @InjectModel(ChecklistTemplate.name)
+    private readonly templateModel: Model<ChecklistTemplate>,
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
     private readonly shiftsGateway: ShiftsGateway,
     private readonly telegramService: TelegramService,
   ) {}
 
-  private validateScope(user: any, departmentId: string | Types.ObjectId, divisionId?: string | Types.ObjectId) {
+  private validateScope(
+    user: any,
+    departmentId: string | Types.ObjectId,
+    divisionId?: string | Types.ObjectId,
+  ) {
     if (!user) {
       throw new ForbiddenException('Yêu cầu đăng nhập để truy cập tài nguyên');
     }
 
-    if (user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN') {
+    if (
+      user.role === 'ADMIN' ||
+      user.role === 'CEO' ||
+      user.role === 'CHAIRMAN'
+    ) {
       return true;
     }
 
@@ -31,20 +45,28 @@ export class ShiftsService {
 
     if (user.role === 'DIVISION_DIRECTOR') {
       if (!uDivId || !divisionId) {
-        throw new ForbiddenException('Bạn không thuộc Khối nào hoặc tài nguyên không thuộc Khối nào');
+        throw new ForbiddenException(
+          'Bạn không thuộc Khối nào hoặc tài nguyên không thuộc Khối nào',
+        );
       }
       if (uDivId.toString() !== divisionId.toString()) {
-        throw new ForbiddenException('Bạn không có quyền truy cập dữ liệu của Khối khác');
+        throw new ForbiddenException(
+          'Bạn không có quyền truy cập dữ liệu của Khối khác',
+        );
       }
       return true;
     }
 
     if (user.role === 'DEPARTMENT_HEAD' || user.role === 'STAFF') {
       if (!uDeptId || !departmentId) {
-        throw new ForbiddenException('Bạn không thuộc Bộ phận nào hoặc tài nguyên không thuộc Bộ phận nào');
+        throw new ForbiddenException(
+          'Bạn không thuộc Bộ phận nào hoặc tài nguyên không thuộc Bộ phận nào',
+        );
       }
       if (uDeptId.toString() !== departmentId.toString()) {
-        throw new ForbiddenException('Bạn không có quyền truy cập dữ liệu của Bộ phận khác');
+        throw new ForbiddenException(
+          'Bạn không có quyền truy cập dữ liệu của Bộ phận khác',
+        );
       }
       return true;
     }
@@ -52,12 +74,21 @@ export class ShiftsService {
     throw new ForbiddenException('Quyền hạn của bạn không hợp lệ');
   }
 
-  async initializeShift(templateId: string, user: any, shiftDateInput?: string): Promise<ShiftLog> {
+  async initializeShift(
+    templateId: string,
+    user: any,
+    shiftDateInput?: string,
+  ): Promise<ShiftLog> {
     if (user.role === 'STAFF' || user.role === 'CHAIRMAN') {
-      throw new ForbiddenException('Chức vụ của bạn không có quyền khởi tạo ca trực');
+      throw new ForbiddenException(
+        'Chức vụ của bạn không có quyền khởi tạo ca trực',
+      );
     }
 
-    const template = await this.templateModel.findById(templateId).populate('departmentId').exec();
+    const template = await this.templateModel
+      .findById(templateId)
+      .populate('departmentId')
+      .exec();
     if (!template) {
       throw new NotFoundException('Mẫu checklist không tồn tại');
     }
@@ -77,11 +108,15 @@ export class ShiftsService {
 
     // Check if an active (PENDING) shift log already exists for this template and date
     const existingLog = await this.shiftLogModel
-      .findOne({ templateId: new Types.ObjectId(templateId), shiftDate, status: 'PENDING' })
+      .findOne({
+        templateId: new Types.ObjectId(templateId),
+        shiftDate,
+        status: 'PENDING',
+      })
       .populate('userId', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
 
@@ -89,7 +124,7 @@ export class ShiftsService {
       return existingLog;
     }
 
-    const details = template.tasks.map(task => ({
+    const details = template.tasks.map((task) => ({
       taskId: task.taskId,
       taskNameSnapshot: task.taskName,
       prioritySnapshot: task.priority,
@@ -109,22 +144,27 @@ export class ShiftsService {
     const newLog = new this.shiftLogModel({
       templateId: new Types.ObjectId(templateId),
       userId: new Types.ObjectId(user.id || user._id),
-      shiftSlotId: template.shiftSlotId ? new Types.ObjectId(template.shiftSlotId as any) : null,
-      departmentId: template.departmentId ? new Types.ObjectId(template.departmentId as any) : null,
+      shiftSlotId: template.shiftSlotId
+        ? new Types.ObjectId(template.shiftSlotId as any)
+        : null,
+      departmentId: template.departmentId
+        ? new Types.ObjectId(template.departmentId as any)
+        : null,
       shiftDate,
       status: 'PENDING',
-      progressPercentage: 0.00,
+      progressPercentage: 0.0,
       details,
       creationSource: 'MANUAL_USER',
       createdByType: 'USER',
     });
 
     const saved = await newLog.save();
-    const result = await this.shiftLogModel.findById(saved._id)
+    const result = await this.shiftLogModel
+      .findById(saved._id)
       .populate('userId', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .populate('shiftSlotId')
       .populate('departmentId')
@@ -134,23 +174,31 @@ export class ShiftsService {
     }
 
     // Gửi thông báo Telegram khi khởi tạo ca trực
-    const deptName = (result.templateId as any)?.departmentId?.name || 'Vận hành';
+    const deptName =
+      (result.templateId as any)?.departmentId?.name || 'Vận hành';
     await this.telegramService.sendMessage(
       `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
-      `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
-      `• Ngày trực: <b>${result.shiftDate}</b>\n` +
-      `• Phòng ban: <b>${deptName}</b>\n` +
-      `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`
+        `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
+        `• Ngày trực: <b>${result.shiftDate}</b>\n` +
+        `• Phòng ban: <b>${deptName}</b>\n` +
+        `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
     );
 
     return result;
   }
 
-  async toggleTask(shiftLogId: string, taskId: string, isChecked: boolean, user: any, note?: string): Promise<ShiftLog> {
-    const log = await this.shiftLogModel.findById(shiftLogId)
+  async toggleTask(
+    shiftLogId: string,
+    taskId: string,
+    isChecked: boolean,
+    user: any,
+    note?: string,
+  ): Promise<ShiftLog> {
+    const log = await this.shiftLogModel
+      .findById(shiftLogId)
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
 
@@ -159,7 +207,9 @@ export class ShiftsService {
     }
 
     if (log.status === 'COMPLETED') {
-      throw new BadRequestException('Ca trực đã được chốt, không thể thay đổi dữ liệu');
+      throw new BadRequestException(
+        'Ca trực đã được chốt, không thể thay đổi dữ liệu',
+      );
     }
 
     const dept = (log.templateId as any)?.departmentId;
@@ -167,9 +217,11 @@ export class ShiftsService {
     const divId = dept?.divisionId || null;
     this.validateScope(user, deptId, divId);
 
-    const task = log.details.find(d => d.taskId === taskId);
+    const task = log.details.find((d) => d.taskId === taskId);
     if (!task) {
-      throw new NotFoundException('Không tìm thấy tác vụ tương ứng trong ca trực');
+      throw new NotFoundException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực',
+      );
     }
 
     const oldIsChecked = task.isChecked;
@@ -179,20 +231,22 @@ export class ShiftsService {
     const now = new Date();
     const updateQuery: any = {
       $set: {
-        "details.$.isChecked": isChecked,
-        "details.$.checkedAt": isChecked ? now : null,
-        "details.$.updatedBy": new Types.ObjectId(user.id || user._id) as any,
-      }
+        'details.$.isChecked': isChecked,
+        'details.$.checkedAt': isChecked ? now : null,
+        'details.$.updatedBy': new Types.ObjectId(user.id || user._id) as any,
+      },
     };
     if (note !== undefined) {
-      updateQuery.$set["details.$.note"] = note || null;
+      updateQuery.$set['details.$.note'] = note || null;
     }
 
-    const updatedLog = await this.shiftLogModel.findOneAndUpdate(
-      { _id: shiftLogId, "details.taskId": taskId },
-      updateQuery,
-      { new: true }
-    ).exec();
+    const updatedLog = await this.shiftLogModel
+      .findOneAndUpdate(
+        { _id: shiftLogId, 'details.taskId': taskId },
+        updateQuery,
+        { new: true },
+      )
+      .exec();
 
     if (!updatedLog) {
       throw new NotFoundException('Lỗi cập nhật tác vụ đồng thời');
@@ -200,17 +254,19 @@ export class ShiftsService {
 
     // Tính toán lại tiến trình và lưu trữ
     const total = updatedLog.details.length;
-    const completed = updatedLog.details.filter(d => d.isChecked).length;
-    updatedLog.progressPercentage = total > 0 ? parseFloat(((completed / total) * 100).toFixed(2)) : 0.00;
+    const completed = updatedLog.details.filter((d) => d.isChecked).length;
+    updatedLog.progressPercentage =
+      total > 0 ? parseFloat(((completed / total) * 100).toFixed(2)) : 0.0;
     await updatedLog.save();
 
-    const result = await this.shiftLogModel.findById(updatedLog._id)
+    const result = await this.shiftLogModel
+      .findById(updatedLog._id)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
       .populate('details.updatedBy', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
     if (!result) {
@@ -229,7 +285,10 @@ export class ShiftsService {
         details: isChecked ? 'Tích hoàn thành tác vụ' : 'Hủy hoàn thành tác vụ',
       });
       const saved = await audit.save();
-      auditLogRecord = await this.auditLogModel.findById(saved._id).populate('userId', 'fullName username').exec();
+      auditLogRecord = await this.auditLogModel
+        .findById(saved._id)
+        .populate('userId', 'fullName username')
+        .exec();
     }
 
     if (note !== undefined && oldNote !== note) {
@@ -243,7 +302,10 @@ export class ShiftsService {
       });
       const saved = await noteAudit.save();
       if (!auditLogRecord) {
-        auditLogRecord = await this.auditLogModel.findById(saved._id).populate('userId', 'fullName username').exec();
+        auditLogRecord = await this.auditLogModel
+          .findById(saved._id)
+          .populate('userId', 'fullName username')
+          .exec();
       }
     }
 
@@ -255,24 +317,31 @@ export class ShiftsService {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
         `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
-        `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
-        `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
-        `• Thực hiện bởi: <b>${actorName}</b>`
+          `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
+          `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
+          `• Thực hiện bởi: <b>${actorName}</b>`,
       );
     }
 
     return result;
   }
 
-  async closeShift(shiftLogId: string, user: any, handoverNote?: string): Promise<ShiftLog> {
+  async closeShift(
+    shiftLogId: string,
+    user: any,
+    handoverNote?: string,
+  ): Promise<ShiftLog> {
     if (user.role === 'STAFF' || user.role === 'CHAIRMAN') {
-      throw new ForbiddenException('Chức vụ của bạn không có quyền chốt ca trực');
+      throw new ForbiddenException(
+        'Chức vụ của bạn không có quyền chốt ca trực',
+      );
     }
 
-    const log = await this.shiftLogModel.findById(shiftLogId)
+    const log = await this.shiftLogModel
+      .findById(shiftLogId)
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
 
@@ -286,20 +355,21 @@ export class ShiftsService {
     this.validateScope(user, deptId, divId);
 
     log.status = 'COMPLETED';
-    log.closedBy = new Types.ObjectId(user.id || user._id) as any;
+    log.closedBy = new Types.ObjectId(user.id || user._id);
     log.closedAt = new Date();
     if (handoverNote !== undefined) {
       log.handoverNote = handoverNote || null;
     }
     await log.save();
 
-    const result = await this.shiftLogModel.findById(log._id)
+    const result = await this.shiftLogModel
+      .findById(log._id)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
       .populate('details.updatedBy', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
     if (!result) {
@@ -310,9 +380,10 @@ export class ShiftsService {
     this.shiftsGateway.notifyShiftUpdate(shiftLogId, result);
 
     // Gửi thông báo Telegram báo cáo kết quả chốt ca
-    const completedCount = result.details.filter(d => d.isChecked).length;
+    const completedCount = result.details.filter((d) => d.isChecked).length;
     const totalCount = result.details.length;
-    let telMsg = `🔒 <b>[MXV CHỐT CA TRỰC]</b>\n` +
+    let telMsg =
+      `🔒 <b>[MXV CHỐT CA TRỰC]</b>\n` +
       `• Ca trực: <b>${(result.templateId as any)?.title || 'Ca vận hành'}</b>\n` +
       `• Ngày trực: <b>${result.shiftDate}</b>\n` +
       `• Trạng thái: <b>ĐÃ HOÀN THÀNH & KHÓA SỔ</b>\n` +
@@ -328,7 +399,13 @@ export class ShiftsService {
     return result;
   }
 
-  async getHistory(user: any, departmentId?: string, startDate?: string, endDate?: string, status?: string): Promise<ShiftLog[]> {
+  async getHistory(
+    user: any,
+    departmentId?: string,
+    startDate?: string,
+    endDate?: string,
+    status?: string,
+  ): Promise<ShiftLog[]> {
     const filter: any = {};
 
     if (status) {
@@ -346,36 +423,48 @@ export class ShiftsService {
     }
 
     // Scoping
-    if (user.role !== 'ADMIN' && user.role !== 'CEO' && user.role !== 'CHAIRMAN') {
+    if (
+      user.role !== 'ADMIN' &&
+      user.role !== 'CEO' &&
+      user.role !== 'CHAIRMAN'
+    ) {
       if (user.role === 'DIVISION_DIRECTOR') {
-        const templates = await this.templateModel.find().populate('departmentId').exec();
-        const filteredTemplates = templates.filter(t => {
+        const templates = await this.templateModel
+          .find()
+          .populate('departmentId')
+          .exec();
+        const filteredTemplates = templates.filter((t) => {
           const dept = t.departmentId as any;
           const uDivId = user.divisionId?._id || user.divisionId;
           const targetDivId = dept?.divisionId?._id || dept?.divisionId;
           return targetDivId?.toString() === uDivId?.toString();
         });
-        const templateIds = filteredTemplates.map(t => t._id);
+        const templateIds = filteredTemplates.map((t) => t._id);
         filter.templateId = { $in: templateIds };
       } else {
         const deptId = user.departmentId?._id || user.departmentId;
-        const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(deptId) }).exec();
-        const templateIds = templates.map(t => t._id);
+        const templates = await this.templateModel
+          .find({ departmentId: new Types.ObjectId(deptId) })
+          .exec();
+        const templateIds = templates.map((t) => t._id);
         filter.templateId = { $in: templateIds };
       }
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
-      const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(departmentId) }).exec();
-      const templateIds = templates.map(t => t._id);
+      const templates = await this.templateModel
+        .find({ departmentId: new Types.ObjectId(departmentId) })
+        .exec();
+      const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };
     }
 
-    return this.shiftLogModel.find(filter)
+    return this.shiftLogModel
+      .find(filter)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
       .populate('details.updatedBy', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .populate('shiftSlotId')
       .populate('departmentId')
@@ -383,40 +472,60 @@ export class ShiftsService {
       .exec();
   }
 
-  async getActiveShiftsByDepartment(user: any, departmentId?: string, shiftDate?: string): Promise<ShiftLog[]> {
-    const targetDate = shiftDate || new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+  async getActiveShiftsByDepartment(
+    user: any,
+    departmentId?: string,
+    shiftDate?: string,
+  ): Promise<ShiftLog[]> {
+    const targetDate =
+      shiftDate ||
+      new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
     const filter: any = { shiftDate: targetDate };
 
-    if (user.role !== 'ADMIN' && user.role !== 'CEO' && user.role !== 'CHAIRMAN') {
+    if (
+      user.role !== 'ADMIN' &&
+      user.role !== 'CEO' &&
+      user.role !== 'CHAIRMAN'
+    ) {
       if (user.role === 'DIVISION_DIRECTOR') {
-        const templates = await this.templateModel.find().populate('departmentId').exec();
-        const filteredTemplates = templates.filter(t => {
+        const templates = await this.templateModel
+          .find()
+          .populate('departmentId')
+          .exec();
+        const filteredTemplates = templates.filter((t) => {
           const dept = t.departmentId as any;
           const uDivId = user.divisionId?._id || user.divisionId;
           const targetDivId = dept?.divisionId?._id || dept?.divisionId;
           return targetDivId?.toString() === uDivId?.toString();
         });
-        const templateIds = filteredTemplates.map(t => t._id);
+        const templateIds = filteredTemplates.map((t) => t._id);
         filter.templateId = { $in: templateIds };
       } else {
         const deptId = user.departmentId?._id || user.departmentId;
-        const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(deptId) }).exec();
-        const templateIds = templates.map(t => t._id);
+        const templates = await this.templateModel
+          .find({ departmentId: new Types.ObjectId(deptId) })
+          .exec();
+        const templateIds = templates.map((t) => t._id);
         filter.templateId = { $in: templateIds };
       }
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
-      const templates = await this.templateModel.find({ departmentId: new Types.ObjectId(departmentId) }).exec();
-      const templateIds = templates.map(t => t._id);
+      const templates = await this.templateModel
+        .find({ departmentId: new Types.ObjectId(departmentId) })
+        .exec();
+      const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };
     }
 
-    return this.shiftLogModel.find(filter)
+    return this.shiftLogModel
+      .find(filter)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
       .populate('details.updatedBy', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .populate('shiftSlotId')
       .populate('departmentId')
@@ -427,13 +536,14 @@ export class ShiftsService {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID ca trực không hợp lệ');
     }
-    const log = await this.shiftLogModel.findById(id)
+    const log = await this.shiftLogModel
+      .findById(id)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
       .populate('details.updatedBy', 'fullName username')
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .populate('shiftSlotId')
       .populate('departmentId')
@@ -455,10 +565,11 @@ export class ShiftsService {
       throw new BadRequestException('ID ca trực không hợp lệ');
     }
 
-    const log = await this.shiftLogModel.findById(shiftLogId)
+    const log = await this.shiftLogModel
+      .findById(shiftLogId)
       .populate({
         path: 'templateId',
-        populate: { path: 'departmentId' }
+        populate: { path: 'departmentId' },
       })
       .exec();
     if (!log) {
@@ -470,7 +581,8 @@ export class ShiftsService {
     const divId = dept?.divisionId || null;
     this.validateScope(user, deptId, divId);
 
-    return this.auditLogModel.find({ shiftLogId: new Types.ObjectId(shiftLogId) })
+    return this.auditLogModel
+      .find({ shiftLogId: new Types.ObjectId(shiftLogId) })
       .populate('userId', 'fullName username')
       .sort({ createdAt: -1 })
       .exec();

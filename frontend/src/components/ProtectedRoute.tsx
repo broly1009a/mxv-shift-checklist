@@ -10,21 +10,18 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mxv_sidebar_collapsed') === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
-
-  useEffect(() => {
-    // Sync collapse state from localStorage
-    const saved = localStorage.getItem('mxv_sidebar_collapsed');
-    if (saved === 'true') {
-      setIsCollapsed(true);
-    }
-  }, []);
 
   const handleToggleCollapse = () => {
     const nextState = !isCollapsed;

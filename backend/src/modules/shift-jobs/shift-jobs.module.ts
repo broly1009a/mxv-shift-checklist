@@ -1,9 +1,18 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
-import { ChecklistTemplate, ChecklistTemplateSchema } from '../../schemas/template.schema';
-import { WorkingCalendar, WorkingCalendarSchema } from '../../schemas/working-calendar.schema';
-import { ActivityLog, ActivityLogSchema } from '../../schemas/activity-log.schema';
+import {
+  ChecklistTemplate,
+  ChecklistTemplateSchema,
+} from '../../schemas/template.schema';
+import {
+  WorkingCalendar,
+  WorkingCalendarSchema,
+} from '../../schemas/working-calendar.schema';
+import {
+  ActivityLog,
+  ActivityLogSchema,
+} from '../../schemas/activity-log.schema';
 import { ShiftJobsService } from './shift-jobs.service';
 import { ShiftJobsController } from './shift-jobs.controller';
 import { ShiftJobScheduler } from './shift-job.scheduler';

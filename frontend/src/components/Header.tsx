@@ -5,7 +5,6 @@ import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { 
   Sun, 
   Moon, 
-  Monitor, 
   Search, 
   Minus, 
   Plus, 
@@ -13,7 +12,6 @@ import {
   ChevronDown, 
   LogOut, 
   Settings, 
-  User as UserIcon,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -28,7 +26,12 @@ interface HeaderProps {
 export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSidebar }: HeaderProps) {
   const { user, token, logout, updateUser } = useAuth();
   const [zoom, setZoom] = useState<number>(100);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('mxv_theme') as 'light' | 'dark') || 'dark';
+    }
+    return 'dark';
+  });
   const [searchVal, setSearchVal] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -39,10 +42,13 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
   // Sync theme
   useEffect(() => {
     const dbTheme = user?.settings?.theme;
-    const savedTheme = dbTheme || (localStorage.getItem('mxv_theme') as 'light' | 'dark') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }, [user?.settings?.theme]);
+    if (dbTheme && dbTheme !== theme) {
+      Promise.resolve().then(() => {
+        setTheme(dbTheme);
+      });
+    }
+    document.documentElement.setAttribute('data-theme', dbTheme || theme);
+  }, [user?.settings?.theme, theme]);
 
   // Handle Ctrl+K shortcut to focus search
   useEffect(() => {

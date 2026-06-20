@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -82,15 +94,27 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   async create(@Body() body: any) {
-    const { username, password, fullName, departmentId, divisionId, role, isActive } = body;
+    const {
+      username,
+      password,
+      fullName,
+      departmentId,
+      divisionId,
+      role,
+      isActive,
+    } = body;
     const isActiveVal = isActive !== undefined ? isActive : true;
-    
+
     if (isActiveVal) {
       if ((role === 'STAFF' || role === 'DEPARTMENT_HEAD') && !departmentId) {
-        throw new BadRequestException('Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban');
+        throw new BadRequestException(
+          'Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban',
+        );
       }
       if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        throw new BadRequestException('Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý');
+        throw new BadRequestException(
+          'Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý',
+        );
       }
     }
 
@@ -118,17 +142,21 @@ export class UsersController {
     const { password, departmentId, divisionId, ...rest } = body;
     const isActiveVal = body.isActive;
     const role = body.role;
-    
+
     if (isActiveVal) {
       if ((role === 'STAFF' || role === 'DEPARTMENT_HEAD') && !departmentId) {
-        throw new BadRequestException('Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban');
+        throw new BadRequestException(
+          'Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban',
+        );
       }
       if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        throw new BadRequestException('Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý');
+        throw new BadRequestException(
+          'Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý',
+        );
       }
     }
 
-    const updateData: any = { 
+    const updateData: any = {
       ...rest,
       departmentId: departmentId || null,
       divisionId: divisionId || null,
@@ -136,7 +164,8 @@ export class UsersController {
     if (password) {
       updateData.passwordHash = await bcrypt.hash(password, 10);
     }
-    return this.userModel.findByIdAndUpdate(id, updateData, { new: true })
+    return this.userModel
+      .findByIdAndUpdate(id, updateData, { new: true })
       .populate('departmentId')
       .populate('divisionId')
       .exec();

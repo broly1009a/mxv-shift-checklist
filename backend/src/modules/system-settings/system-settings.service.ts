@@ -6,7 +6,8 @@ import { SystemSetting } from '../../schemas/system-setting.schema';
 @Injectable()
 export class SystemSettingsService {
   constructor(
-    @InjectModel(SystemSetting.name) private readonly systemSettingModel: Model<SystemSetting>,
+    @InjectModel(SystemSetting.name)
+    private readonly systemSettingModel: Model<SystemSetting>,
   ) {}
 
   async getSetting(key: string, defaultValue: string = ''): Promise<string> {
