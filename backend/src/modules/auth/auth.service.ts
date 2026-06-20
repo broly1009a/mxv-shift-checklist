@@ -18,7 +18,7 @@ export class AuthService {
 
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.userModel
-      .findOne({ username })
+      .findOne({ username: username.toLowerCase() })
       .populate('departmentId')
       .populate('divisionId')
       .exec();
@@ -69,13 +69,14 @@ export class AuthService {
     departmentId: string,
     role: string,
   ) {
-    const existing = await this.userModel.findOne({ username }).exec();
+    const lowerUsername = username.toLowerCase();
+    const existing = await this.userModel.findOne({ username: lowerUsername }).exec();
     if (existing) {
       throw new ConflictException('Username already exists');
     }
     const passwordHash = await bcrypt.hash(pass, 10);
     const created = new this.userModel({
-      username,
+      username: lowerUsername,
       passwordHash,
       fullName,
       departmentId: departmentId || null,
@@ -152,7 +153,7 @@ export class AuthService {
       );
     }
 
-    const username = email.split('@')[0];
+    const username = email.split('@')[0].toLowerCase();
 
     // Check if user already exists
     const user = await this.userModel
