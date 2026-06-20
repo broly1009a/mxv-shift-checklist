@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('mxv_user');
     setToken(null);
     setUser(null);
+    // Reset theme về dark khi logout để trang login không kế thừa light mode cũ
+    document.documentElement.setAttribute('data-theme', 'dark');
     router.push('/login');
   }, [router]);
 
@@ -82,7 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !url.includes('/api/v1/auth/register')
         ) {
           logout();
-          throw new Error('Unauthorized'); // Chặn không cho code tiếp tục chạy vào phần parse JSON/set state để tránh crash trang
+          // Trả về một Promise không bao giờ resolve/reject để dừng luồng thực thi tiếp theo của hàm fetch (không chạy vào parse JSON hay set state gây crash)
+          // đồng thời tránh phát sinh lỗi Unhandled Promise Rejection hiển thị ở UI Dev Overlay của Next.js.
+          return new Promise(() => {});
         }
       }
       return response;

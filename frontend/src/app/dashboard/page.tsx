@@ -33,7 +33,9 @@ import {
   Title as ChartTitle,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  BarController,
+  LineController
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
@@ -46,7 +48,9 @@ ChartJS.register(
   ChartTitle,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  BarController,
+  LineController
 );
 
 interface Template {

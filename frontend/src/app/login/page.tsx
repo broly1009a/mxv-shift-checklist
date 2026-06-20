@@ -23,6 +23,11 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Force dark mode trên trang login — đảm bảo không kế thừa theme cũ từ dashboard
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }, []);
+
   // Auto-toast effects when success/error state changes
   useEffect(() => {
     if (success) {
