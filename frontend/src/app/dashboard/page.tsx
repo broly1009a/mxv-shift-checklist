@@ -184,26 +184,19 @@ export default function DashboardPage() {
 
   // Draggable Widgets
   const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeShifts', 'history']);
-  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'templatesSummary', 'healthChecks']);
+  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'templatesSummary', 'healthChecks']);
   const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
 
   useEffect(() => {
     const defaultLeft = ['chart', 'activeShifts', 'history'];
-    const defaultRight = ['initShift', 'templatesSummary', 'healthChecks'];
+    const defaultRight = ['initShift', 'autoShift', 'templatesSummary', 'healthChecks'];
 
     const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
     const savedRight = localStorage.getItem('mxv_dash_right_widgets');
 
-    let parsedLeft = savedLeft ? JSON.parse(savedLeft) : defaultLeft;
-    let parsedRight = savedRight ? JSON.parse(savedRight) : defaultRight;
-
-    // Filter out autoShift since it is now merged inside initShift
-    parsedLeft = parsedLeft.filter((w: string) => w !== 'autoShift');
-    parsedRight = parsedRight.filter((w: string) => w !== 'autoShift');
-
-    setLeftWidgets(parsedLeft);
-    setRightWidgets(parsedRight);
+    setLeftWidgets(savedLeft ? JSON.parse(savedLeft) : defaultLeft);
+    setRightWidgets(savedRight ? JSON.parse(savedRight) : defaultRight);
   }, []);
 
   const handleWidgetDragStart = (e: React.DragEvent, id: string, col: 'left' | 'right') => {
@@ -647,140 +640,124 @@ export default function DashboardPage() {
             <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
               <GripVertical size={16} />
             </div>
-            
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', margin: 0, paddingRight: '24px' }}>
-              <Play size={18} color="var(--color-primary)" /> Khởi tạo & Quản lý ca trực
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
+              <Play size={18} color="var(--color-primary)" /> Khởi tạo ca trực mới
             </h3>
 
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: user?.role === 'ADMIN' ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr', 
-              gap: '32px' 
-            }}>
-              {/* Column 1: Manual shift initialization */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {user?.role === 'ADMIN' && (
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 4px 0' }}>
-                    <Play size={14} color="var(--color-accent)" /> Khởi tạo thủ công
-                  </h4>
-                )}
+            {initError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
+                {initError}
+              </div>
+            )}
+            {initSuccess && (
+              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                {initSuccess}
+              </div>
+            )}
 
-                {initError && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '4px' }}>
-                    {initError}
-                  </div>
-                )}
-                {initSuccess && (
-                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '4px' }}>
-                    {initSuccess}
-                  </div>
-                )}
-
-                <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Chọn mẫu checklist vận hành
-                    </label>
-                    <select
-                      className="form-input"
-                      value={selectedTemplate}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                      style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-                    >
-                      <option value="">-- Chọn mẫu checklist --</option>
-                      {templates.map((tpl) => (
-                        <option key={tpl._id} value={tpl._id}>
-                          [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Template Preview Card */}
-                  {(() => {
-                    const tpl = templates.find((t) => t._id === selectedTemplate);
-                    if (!tpl) return null;
-                    const sessionLabel = tpl.sessionType === 'OPEN' ? 'Mở Cửa' : tpl.sessionType === 'DURING' ? 'Trong Phiên' : 'Đóng Cửa';
-                    const sessionColor = tpl.sessionType === 'OPEN' ? 'var(--color-low)' : tpl.sessionType === 'DURING' ? 'var(--color-medium)' : 'var(--color-high)';
-                    const taskCount = tpl.tasks?.length ?? '...';
-                    return (
-                      <div className="glass-panel" style={{ background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.12)', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div>
-                          <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{tpl.title}</p>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                            Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong>
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: sessionColor, fontWeight: 700, border: `1px solid ${sessionColor}33` }}>
-                            {sessionLabel}
-                          </span>
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <ListChecks size={12} /> {taskCount} tác vụ
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
-                    <Play size={14} /> Bắt đầu ca trực
-                  </button>
-                </form>
+            <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Chọn mẫu checklist vận hành
+                </label>
+                <select
+                  className="form-input"
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
+                >
+                  <option value="">-- Chọn mẫu checklist --</option>
+                  {templates.map((tpl) => (
+                    <option key={tpl._id} value={tpl._id}>
+                      [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Column 2: Automatic shift generation (Only for ADMIN) */}
-              {user?.role === 'ADMIN' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 4px 0' }}>
-                    <Calendar size={14} color="var(--color-primary)" /> Sinh tự động (Job)
-                  </h4>
-
-                  {jobError && (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '4px' }}>
-                      {jobError}
-                    </div>
-                  )}
-                  {jobSuccess && (
-                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '4px' }}>
-                      {jobSuccess}
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Template Preview Card */}
+              {(() => {
+                const tpl = templates.find((t) => t._id === selectedTemplate);
+                if (!tpl) return null;
+                const sessionLabel = tpl.sessionType === 'OPEN' ? 'Mở Cửa' : tpl.sessionType === 'DURING' ? 'Trong Phiên' : 'Đóng Cửa';
+                const sessionColor = tpl.sessionType === 'OPEN' ? 'var(--color-low)' : tpl.sessionType === 'DURING' ? 'var(--color-medium)' : 'var(--color-high)';
+                const taskCount = tpl.tasks?.length ?? '...';
+                return (
+                  <div className="glass-panel" style={{ background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.12)', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Chọn ngày cần chạy job
-                      </label>
-                      <input
-                        type="date"
-                        className="form-input"
-                        value={jobDate}
-                        onChange={(e) => setJobDate(e.target.value)}
-                        style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem', width: '100%' }}
-                        disabled={jobRunning}
-                      />
+                      <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{tpl.title}</p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong>
+                      </p>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleTriggerJob}
-                      className="btn btn-primary"
-                      style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
-                      disabled={jobRunning}
-                    >
-                      <Activity size={14} />
-                      {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: sessionColor, fontWeight: 700, border: `1px solid ${sessionColor}33` }}>
+                        {sessionLabel}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <ListChecks size={12} /> {taskCount} tác vụ
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                );
+              })()}
+
+              <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
+                <Play size={14} /> Bắt đầu ca trực
+              </button>
+            </form>
           </div>
         );
 
       case 'autoShift':
-        return null;
+        return user?.role === 'ADMIN' ? (
+          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
+              <GripVertical size={16} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
+              <Calendar size={18} color="var(--color-primary)" /> Sinh ca trực tự động
+            </h3>
+
+            {jobError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
+                {jobError}
+              </div>
+            )}
+            {jobSuccess && (
+              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                {jobSuccess}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Chọn ngày cần chạy job
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={jobDate}
+                  onChange={(e) => setJobDate(e.target.value)}
+                  style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
+                  disabled={jobRunning}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleTriggerJob}
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
+                disabled={jobRunning}
+              >
+                <Activity size={14} />
+                {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
+              </button>
+            </div>
+          </div>
+        ) : null;
 
       case 'templatesSummary':
         return (
