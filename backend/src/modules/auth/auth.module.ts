@@ -14,11 +14,11 @@ import { User, UserSchema } from '../../schemas/user.schema';
     JwtModule.register({
       // module jwt
       secret: process.env.JWT_SECRET || 'trading_mxv_secret_key_2026',
-      signOptions: { expiresIn: '10s' },
+      signOptions: { expiresIn: '1d' },
     }),
   ],
   providers: [AuthService, JwtStrategy], // khai báo service và strategy
   controllers: [AuthController], // khai báo controller
   exports: [AuthService, MongooseModule, JwtModule], // export các module
 })
-export class AuthModule {}
+export class AuthModule { }
