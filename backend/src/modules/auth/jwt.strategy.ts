@@ -8,10 +8,14 @@ import { User } from '../../schemas/user.schema';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL CONFIGURATION ERROR: JWT_SECRET environment variable is not defined!');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'trading_mxv_secret_key_2026',
+      secretOrKey: secret || 'trading_mxv_secret_key_2026',
     });
   }
 

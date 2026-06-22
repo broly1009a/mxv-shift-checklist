@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Shield, Key, User as UserIcon, Mail, Info, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -34,27 +34,48 @@ export default function LoginPage() {
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const tokenVal = urlParams.get('token');
-    const userJson = urlParams.get('user');
+    const codeVal = urlParams.get('code');
     const errorParam = urlParams.get('error');
 
-    if (tokenVal && userJson) {
-      try {
-        const userVal = JSON.parse(decodeURIComponent(userJson));
-        
-        // Save auth info to local storage
-        localStorage.setItem('mxv_token', tokenVal);
-        localStorage.setItem('mxv_user', JSON.stringify(userVal));
-        
-        toast.success('Đăng nhập Microsoft 365 thành công! Đang chuyển hướng...');
-        
-        // Reload to let AuthProvider load values and update state
-        window.location.href = '/dashboard';
-      } catch {
-        toast.error('Lỗi phân tích thông tin tài khoản.');
-      }
+    if (codeVal) {
+      const exchangeToken = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/v1/auth/exchange-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: codeVal }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn.');
+          }
+
+          const data = await res.json();
+          const tokenVal = data.access_token;
+          const userVal = data.user;
+
+          // Save auth info to local storage
+          localStorage.setItem('mxv_token', tokenVal);
+          localStorage.setItem('mxv_user', JSON.stringify(userVal));
+
+          toast.success('Đăng nhập Microsoft 365 thành công! Đang chuyển hướng...');
+
+          // Clean URL parameters
+          router.replace('/login');
+
+          // Reload to let AuthProvider load values and update state
+          window.location.href = '/dashboard';
+        } catch (err: any) {
+          toast.error(err.message || 'Đăng nhập Microsoft thất bại.');
+          router.replace('/login');
+        }
+      };
+
+      exchangeToken();
     } else if (errorParam) {
       toast.error(decodeURIComponent(errorParam));
+      router.replace('/login');
     }
   }, [user, router]);
 

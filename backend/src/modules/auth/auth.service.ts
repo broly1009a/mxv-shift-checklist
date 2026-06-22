@@ -7,14 +7,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { User } from '../../schemas/user.schema';
 
 @Injectable()
 export class AuthService {
+  private readonly exchangeCodes = new Map<string, { token: string; user: any; expiresAt: number }>();
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    // Periodically clean up expired exchange codes (every 5 minutes)
+    setInterval(() => {
+      const now = Date.now();
+      for (const [code, data] of this.exchangeCodes.entries()) {
+        if (data.expiresAt < now) {
+          this.exchangeCodes.delete(code);
+        }
+      }
+    }, 300000).unref();
+  }
 
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.userModel
@@ -174,7 +187,7 @@ export class AuthService {
 
     // User does not exist - create automatically in pending status
     const dummyHash = await bcrypt.hash('dummy_sso_pass_2026', 10);
-    const isInitialAdmin = username === 'admin_sso';
+    const isInitialAdmin = username === 'admin_sso' && process.env.NODE_ENV !== 'production';
 
     const newUser = new this.userModel({
       username,
@@ -244,6 +257,32 @@ export class AuthService {
       divisionId: user.divisionId || null,
       isActive: user.isActive,
       settings: user.settings,
+    };
+  }
+
+  createExchangeCode(token: string, user: any): string {
+    const code = 'ex_' + crypto.randomBytes(16).toString('hex');
+    this.exchangeCodes.set(code, {
+      token,
+      user,
+      expiresAt: Date.now() + 60000, // Valid for 60 seconds
+    });
+    return code;
+  }
+
+  exchangeToken(code: string) {
+    const data = this.exchangeCodes.get(code);
+    if (!data) {
+      throw new UnauthorizedException('Mã xác thực không hợp lệ hoặc đã hết hạn.');
+    }
+    if (data.expiresAt < Date.now()) {
+      this.exchangeCodes.delete(code);
+      throw new UnauthorizedException('Mã xác thực đã hết hạn.');
+    }
+    this.exchangeCodes.delete(code); // Single-use!
+    return {
+      access_token: data.token,
+      user: data.user,
     };
   }
 }
