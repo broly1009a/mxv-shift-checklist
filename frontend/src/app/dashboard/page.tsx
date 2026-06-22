@@ -22,96 +22,15 @@ import {
   GripVertical
 } from 'lucide-react';
 import Link from 'next/link';
-
-// Import and register Chart.js components
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title as ChartTitle,
-  Tooltip,
-  Legend,
-  Filler,
-  BarController,
-  LineController
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  ChartTitle,
-  Tooltip,
-  Legend,
-  Filler,
-  BarController,
-  LineController
-);
-
-interface Template {
-  _id: string;
-  id: string;
-  title: string;
-  sessionType: 'OPEN' | 'DURING' | 'CLOSE';
-  departmentId?: {
-    _id: string;
-    name: string;
-    code: string;
-  };
-  tasks?: { taskId: string; taskName: string; priority: string; sortOrder: number }[];
-}
-
-interface ShiftLog {
-  _id: string;
-  shiftDate: string;
-  status: 'PENDING' | 'COMPLETED';
-  progressPercentage: number;
-  templateId?: {
-    _id: string;
-    title: string;
-    sessionType: 'OPEN' | 'DURING' | 'CLOSE';
-    departmentId?: {
-      _id: string;
-      name: string;
-      code: string;
-    };
-  } | null;
-  userId?: {
-    _id: string;
-    fullName: string;
-    username: string;
-  } | null;
-}
-
-// Lightweight custom SVG sparkline component
-const Sparkline = ({ points, color }: { points: number[], color: string }) => {
-  const width = 70;
-  const height = 24;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const pathPoints = points.map((p, i) => {
-    const x = (i / (points.length - 1)) * width;
-    const y = height - ((p - min) / range) * height + 2;
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <svg className="sparkline-svg" viewBox={`0 0 ${width} ${height + 4}`}>
-      <polyline
-        className="sparkline-path"
-        style={{ stroke: color }}
-        points={pathPoints}
-      />
-    </svg>
-  );
-};
+import { Template, ShiftLog } from './types';
+import { InitShiftWidget } from './components/InitShiftWidget';
+import { AutoShiftWidget } from './components/AutoShiftWidget';
+import { HourlyChartWidget } from './components/HourlyChartWidget';
+import { ActiveShiftsWidget } from './components/ActiveShiftsWidget';
+import { RecentShiftsWidget } from './components/RecentShiftsWidget';
+import { TemplatesSummaryWidget } from './components/TemplatesSummaryWidget';
+import { HealthChecksWidget } from './components/HealthChecksWidget';
+import { PerformanceOverview } from './components/PerformanceOverview';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -409,405 +328,46 @@ export default function DashboardPage() {
   const totalActiveTasks = activeShifts.reduce((acc, shift) => acc + shift.progressPercentage, 0);
   const averageProgress = activeShifts.length > 0 ? parseFloat((totalActiveTasks / activeShifts.length).toFixed(1)) : 0;
 
-  // Chart configuration data matching the transaction volumes standard
-  const hourlyChartData = {
-    labels: ['06h', '07h', '08h', '09h', '10h', '11h', '12h', '13h', '14h', '15h', '16h', '17h'],
-    datasets: [
-      {
-        type: 'line' as const,
-        label: 'Tỷ lệ hoàn thành nhiệm vụ (%)',
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        fill: false,
-        tension: 0.4,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#3b82f6',
-        pointBorderWidth: 2.5,
-        pointRadius: 4.5,
-        pointHoverRadius: 6,
-        data: [25, 38, 55, 72, 85, 95, 99.2, 92, 94, 96, 98, 99.2],
-        yAxisID: 'y1',
-      } as any,
-      {
-        type: 'bar' as const,
-        label: 'Tần suất kiểm tra (Số lượng)',
-        backgroundColor: 'rgba(59, 130, 246, 0.75)',
-        hoverBackgroundColor: '#3b82f6',
-        borderRadius: 6,
-        borderWidth: 0,
-        barPercentage: 0.5,
-        categoryPercentage: 0.8,
-        data: [30, 55, 62, 78, 98, 92, 70, 60, 68, 75, 82, 90],
-        yAxisID: 'y',
-      } as any
-    ]
-  };
-
-  const hourlyChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top' as const,
-        labels: {
-          boxWidth: 12,
-          usePointStyle: true,
-          font: { size: 11, family: 'Outfit, Inter' }
-        }
-      },
-      tooltip: {
-        padding: 10,
-        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-        titleFont: { size: 12, family: 'Outfit' },
-        bodyFont: { size: 12, family: 'Inter' },
-        cornerRadius: 8
-      }
-    },
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { font: { size: 11 } }
-      },
-      y: {
-        position: 'left' as const,
-        grid: { color: 'rgba(128,128,128,0.08)' },
-        ticks: { font: { size: 11 } }
-      },
-      y1: {
-        position: 'right' as const,
-        grid: { drawOnChartArea: false },
-        ticks: {
-          font: { size: 11 },
-          callback: function (value: any) { return value + '%'; }
-        },
-        min: 0,
-        max: 100
-      }
-    }
-  };
-
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'chart':
-        return showChart ? (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <div style={{ marginBottom: '20px', paddingRight: '24px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                Khối lượng giao dịch & tần suất tác vụ theo giờ
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Biểu đồ cột + đường nối biểu diễn số lượng tác vụ kiểm tra phát sinh và xử lý trong ngày.
-              </p>
-            </div>
-            <div style={{ height: '280px', position: 'relative' }}>
-              <Bar data={hourlyChartData as any} options={hourlyChartOptions as any} />
-            </div>
-          </div>
-        ) : null;
+        return <HourlyChartWidget showChart={showChart} />;
 
       case 'activeShifts':
-        return (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingRight: '24px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <Clock size={18} color="var(--color-accent)" /> Ca trực hiện tại hôm nay
-              </h3>
-              <span className="badge badge-medium">Hôm nay</span>
-            </div>
-
-            {loading ? (
-              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '30px 0' }}>Đang tải ca trực...</div>
-            ) : activeShifts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-                <AlertTriangle size={28} color="var(--color-high)" style={{ marginBottom: '10px' }} />
-                <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo hôm nay</p>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>
-                  Hãy chọn một mẫu bên cạnh để khởi tạo ca trực mới.
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {activeShifts.map((shift) => (
-                  <div key={shift._id} className="glass-panel" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.015)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div>
-                        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{shift.templateId?.title || 'Không rõ mẫu'}</h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {getSessionBadge(shift.templateId?.sessionType || 'OPEN')}
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bởi {shift.userId?.fullName || 'Hệ thống'}</span>
-                        </div>
-                      </div>
-                      <Link href={`/checklist?id=${shift._id}`} style={{ textDecoration: 'none' }}>
-                        <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
-                          Mở Checklist <ArrowRight size={12} />
-                        </button>
-                      </Link>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                        <span>Tiến độ hoàn thành</span>
-                        <span style={{ fontWeight: 700, color: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--text-primary)' }}>
-                          {shift.progressPercentage}%
-                        </span>
-                      </div>
-                      <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${shift.progressPercentage}%`,
-                          height: '100%',
-                          background: shift.progressPercentage === 100 ? 'var(--color-primary)' : 'var(--color-accent)',
-                          borderRadius: '3px',
-                          transition: 'width 0.4s ease'
-                        }}></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} />;
 
       case 'history':
-        return showAuditLogs ? (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
-              <FolderOpen size={18} color="var(--text-secondary)" /> Hoạt động ca trực gần đây
-            </h3>
-            {recentShifts.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Chưa ghi nhận ca trực lịch sử nào</div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: '10px 12px' }}>Ngày trực</th>
-                      <th style={{ padding: '10px 12px' }}>Mẫu Checklist</th>
-                      <th style={{ padding: '10px 12px' }}>Phiên trực</th>
-                      <th style={{ padding: '10px 12px' }}>Người trực chính</th>
-                      <th style={{ padding: '10px 12px' }}>Trạng thái</th>
-                      <th style={{ padding: '10px 12px' }}>Tiến độ</th>
-                      <th style={{ padding: '10px 12px' }}>Chi tiết</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentShifts.map((log) => (
-                      <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10">
-                        <td style={{ padding: '12px 12px', fontWeight: 600 }}>{log.shiftDate}</td>
-                        <td style={{ padding: '12px 12px' }}>{log.templateId?.title || 'Không rõ mẫu'}</td>
-                        <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || 'OPEN')}</td>
-                        <td style={{ padding: '12px 12px' }}>{log.userId?.fullName || 'Hệ thống'}</td>
-                        <td style={{ padding: '12px 12px' }}>
-                          {log.status === 'COMPLETED' ? (
-                            <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                              <CheckCircle2 size={12} /> HOÀN THÀNH
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                              <Clock size={12} /> ĐANG CHẠY
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 12px', fontWeight: 700 }}>{log.progressPercentage}%</td>
-                        <td style={{ padding: '12px 12px' }}>
-                          <Link href={`/checklist?id=${log._id}`} style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600 }}>
-                            Xem
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : null;
+        return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} />;
 
       case 'initShift':
         return (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
-              <Play size={18} color="var(--color-primary)" /> Khởi tạo ca trực mới
-            </h3>
-
-            {initError && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-                {initError}
-              </div>
-            )}
-            {initSuccess && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                {initSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Chọn mẫu checklist vận hành
-                </label>
-                <select
-                  className="form-input"
-                  value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                  style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-                >
-                  <option value="">-- Chọn mẫu checklist --</option>
-                  {templates.map((tpl) => (
-                    <option key={tpl._id} value={tpl._id}>
-                      [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Template Preview Card */}
-              {(() => {
-                const tpl = templates.find((t) => t._id === selectedTemplate);
-                if (!tpl) return null;
-                const sessionLabel = tpl.sessionType === 'OPEN' ? 'Mở Cửa' : tpl.sessionType === 'DURING' ? 'Trong Phiên' : 'Đóng Cửa';
-                const sessionColor = tpl.sessionType === 'OPEN' ? 'var(--color-low)' : tpl.sessionType === 'DURING' ? 'var(--color-medium)' : 'var(--color-high)';
-                const taskCount = tpl.tasks?.length ?? '...';
-                return (
-                  <div className="glass-panel" style={{ background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.12)', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div>
-                      <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{tpl.title}</p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                        Phòng ban: <strong style={{ color: 'var(--text-primary)' }}>{tpl.departmentId?.name || 'Không xác định'}</strong>
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: sessionColor, fontWeight: 700, border: `1px solid ${sessionColor}33` }}>
-                        {sessionLabel}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <ListChecks size={12} /> {taskCount} tác vụ
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
-                <Play size={14} /> Bắt đầu ca trực
-              </button>
-            </form>
-          </div>
+          <InitShiftWidget
+            templates={templates}
+            selectedTemplate={selectedTemplate}
+            setSelectedTemplate={setSelectedTemplate}
+            initError={initError}
+            initSuccess={initSuccess}
+            handleInitializeShift={handleInitializeShift}
+          />
         );
 
       case 'autoShift':
         return user?.role === 'ADMIN' ? (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
-              <Calendar size={18} color="var(--color-primary)" /> Sinh ca trực tự động
-            </h3>
-
-            {jobError && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-                {jobError}
-              </div>
-            )}
-            {jobSuccess && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                {jobSuccess}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Chọn ngày cần chạy job
-                </label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={jobDate}
-                  onChange={(e) => setJobDate(e.target.value)}
-                  style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-                  disabled={jobRunning}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleTriggerJob}
-                className="btn btn-primary"
-                style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', gap: '8px' }}
-                disabled={jobRunning}
-              >
-                <Activity size={14} />
-                {jobRunning ? 'Đang khởi tạo ca trực...' : 'Kích hoạt khởi tạo'}
-              </button>
-            </div>
-          </div>
+          <AutoShiftWidget
+            jobDate={jobDate}
+            setJobDate={setJobDate}
+            jobRunning={jobRunning}
+            jobSuccess={jobSuccess}
+            jobError={jobError}
+            handleTriggerJob={handleTriggerJob}
+          />
         ) : null;
 
       case 'templatesSummary':
-        return (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0, paddingRight: '24px' }}>
-              <Layers size={16} color="#a855f7" /> Danh sách mẫu checklist
-            </h3>
-            {templates.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Chưa có mẫu checklist nào.</p>
-            ) : (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {templates.map((tpl, i) => (
-                  <div key={tpl._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: i < templates.length - 1 ? '1px solid var(--border-color)' : 'none', paddingBottom: '6px' }}>
-                    <span style={{ flex: 1, paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.title}</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{tpl.tasks?.length ?? 0} tác vụ</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <TemplatesSummaryWidget templates={templates} />;
 
       case 'healthChecks':
-        return (
-          <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
-              <GripVertical size={16} />
-            </div>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', margin: 0, paddingRight: '24px' }}>
-              <ShieldAlert size={16} color="#10b981" /> Kết nối và tích hợp
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>MongoDB Core</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>KẾT NỐI</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Socket Gateway</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>ĐỒNG BỘ</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Microsoft 365 SSO</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>SẴN SÀNG</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <HealthChecksWidget />;
 
       default:
         return null;
@@ -983,176 +543,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Large Highlight Overview Card */}
-        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-center">
-
-            {/* Left part: Core KPI display */}
-            <div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                Tiến độ hoàn thành ca trực hôm nay
-              </span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginTop: '8px', marginBottom: '8px' }}>
-                <h2 style={{ fontSize: '3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {averageProgress}%
-                </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '0.9rem', fontWeight: 700 }}>
-                  <TrendingUp size={16} /> <span>+2.4% so với hôm qua</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                <span><strong>{activeShifts.length}</strong> ca trực đang chạy</span>
-                <span style={{ color: 'var(--border-color)' }}>|</span>
-                <span><strong>{recentShifts.filter(s => s.status === 'COMPLETED').length}</strong> ca trực hoàn thành</span>
-                <span style={{ color: 'var(--border-color)' }}>|</span>
-                <span style={{ color: '#ef4444' }}><strong>0</strong> cảnh báo rủi ro</span>
-              </div>
-            </div>
-
-            {/* Right part: Spark mini KPIs side by side */}
-            <div style={{ display: 'flex', gap: '16px' }} className="flex-col sm:flex-row">
-              {/* Mini card 1 */}
-              <div style={{
-                flex: 1,
-                padding: '16px',
-                background: 'rgba(59, 130, 246, 0.04)',
-                border: '1px solid rgba(59, 130, 246, 0.1)',
-                borderRadius: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>TPS Hiện Tại</span>
-                  <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--text-primary)' }}>1,248</p>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#3b82f6'
-                }}>
-                  <Activity size={16} />
-                </div>
-              </div>
-
-              {/* Mini card 2 */}
-              <div style={{
-                flex: 1,
-                padding: '16px',
-                background: 'rgba(16, 185, 129, 0.04)',
-                border: '1px solid rgba(16, 185, 129, 0.1)',
-                borderRadius: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Tỷ Lệ Thành Công</span>
-                  <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: '#10b981' }}>99.2%</p>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#10b981'
-                }}>
-                  <Check size={16} />
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* 4 Analytics cards grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-
-          {/* Card 1 */}
-          <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Ca trực hôm nay</span>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-                {activeShifts.length}
-              </h3>
-              <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                <ArrowUpRight size={12} /> +12.4% vs hôm qua
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-              <div style={{ color: 'var(--color-accent)' }}>
-                <Clock size={20} />
-              </div>
-              <Sparkline points={[1, 2, 2, 3, 3, 2, 4]} color="#3b82f6" />
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Tiến độ bình quân</span>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-                {averageProgress}%
-              </h3>
-              <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                <ArrowUpRight size={12} /> +8.1% vs hôm qua
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-              <div style={{ color: '#10b981' }}>
-                <CheckCircle2 size={20} />
-              </div>
-              <Sparkline points={[60, 75, 70, 85, 90, 92, 98.2]} color="#10b981" />
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Cảnh báo rủi ro</span>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ef4444', margin: '4px 0 6px 0' }}>
-                0
-              </h3>
-              <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                <Check size={12} /> Hệ thống an toàn
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-              <div style={{ color: '#ef4444' }}>
-                <AlertTriangle size={20} />
-              </div>
-              <Sparkline points={[0, 0, 0, 0, 0, 0, 0]} color="#ef4444" />
-            </div>
-          </div>
-
-          {/* Card 4 */}
-          <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Tỷ lệ đúng hạn</span>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-                98.6%
-              </h3>
-              <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                <ArrowUpRight size={12} /> +0.3% vs hôm qua
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-              <div style={{ color: '#a855f7' }}>
-                <Activity size={20} />
-              </div>
-              <Sparkline points={[96, 97, 96, 98, 98, 99, 98.6]} color="#a855f7" />
-            </div>
-          </div>
-
-        </div>
+        <PerformanceOverview
+          averageProgress={averageProgress}
+          activeShiftsCount={activeShifts.length}
+          completedShiftsCount={recentShifts.filter((s) => s.status === 'COMPLETED').length}
+        />
 
         {/* Mid Section Responsive Grid Layout */}
         <div
