@@ -33,7 +33,7 @@ export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading,
         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '30px 0' }}>Đang tải ca trực...</div>
       ) : activeShifts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-          <AlertTriangle size={28} color="var(--color-high)" style={{ marginBottom: '10px' }} />
+          <AlertTriangle size={28} color="var(--color-high)" style={{ display: 'block', margin: '0 auto 10px auto' }} />
           <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo hôm nay</p>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>
             Hãy chọn một mẫu bên cạnh để khởi tạo ca trực mới.

@@ -4,24 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import {
-  Play,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  FolderOpen,
-  Calendar,
   Layers,
-  ArrowRight,
-  Settings,
-  ListChecks,
-  Activity,
-  Check,
-  TrendingUp,
-  ShieldAlert,
-  ArrowUpRight,
   GripVertical
 } from 'lucide-react';
-import Link from 'next/link';
 import { Template, ShiftLog } from './types';
 import { InitShiftWidget } from './components/InitShiftWidget';
 import { AutoShiftWidget } from './components/AutoShiftWidget';
@@ -352,7 +337,7 @@ export default function DashboardPage() {
         );
 
       case 'autoShift':
-        return user?.role === 'ADMIN' ? (
+        return (
           <AutoShiftWidget
             jobDate={jobDate}
             setJobDate={setJobDate}
@@ -361,7 +346,7 @@ export default function DashboardPage() {
             jobError={jobError}
             handleTriggerJob={handleTriggerJob}
           />
-        ) : null;
+        );
 
       case 'templatesSummary':
         return <TemplatesSummaryWidget templates={templates} />;
@@ -419,7 +404,7 @@ export default function DashboardPage() {
       const isCurrentAuto = current === 'autoShift';
       const isNextInit = next === 'initShift';
 
-      if (user?.role === 'ADMIN' && ((isCurrentInit && isNextAuto) || (isCurrentAuto && isNextInit))) {
+      if ((isCurrentInit && isNextAuto) || (isCurrentAuto && isNextInit)) {
         const renderedCurrent = renderDraggableWidget(current, col);
         const renderedNext = renderDraggableWidget(next, col);
 
