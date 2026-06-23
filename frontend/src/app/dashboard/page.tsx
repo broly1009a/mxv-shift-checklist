@@ -283,7 +283,7 @@ export default function DashboardPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ templateId: selectedTemplate })
+        body: JSON.stringify({ templateId: selectedTemplate, shiftDate: dashboardDate })
       });
 
       if (!res.ok) {
@@ -348,10 +348,10 @@ export default function DashboardPage() {
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'chart':
-        return <HourlyChartWidget showChart={showChart} />;
+        return <HourlyChartWidget showChart={showChart} summary={summary} />;
 
       case 'activeShifts':
-        return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} />;
+        return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} />;
 
       case 'history':
         return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} />;
@@ -574,6 +574,7 @@ export default function DashboardPage() {
 
         <PerformanceOverview
           summary={summary}
+          dateStr={dashboardDate}
         />
 
         {/* Mid Section Responsive Grid Layout */}

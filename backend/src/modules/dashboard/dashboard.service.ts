@@ -47,16 +47,34 @@ export class DashboardService {
     const pendingJobs = logs.filter(l => l.status === 'PENDING').length;
     const completedJobs = logs.filter(l => l.status === 'COMPLETED').length;
 
+    const hourlyChecks = new Array(24).fill(0);
+
     logs.forEach(log => {
       progressSum += log.progressPercentage || 0;
       log.details.forEach(task => {
         totalTasks++;
-        if (task.isChecked) completedTasks++;
+        if (task.isChecked) {
+          completedTasks++;
+          if (task.checkedAt) {
+            const checkedDate = new Date(task.checkedAt);
+            const vnHour = (checkedDate.getUTCHours() + 7) % 24;
+            hourlyChecks[vnHour]++;
+          }
+        }
         if (task.isBotCheckSnapshot) botTasks++;
       });
     });
 
     const completionPercentage = logs.length > 0 ? parseFloat((progressSum / logs.length).toFixed(2)) : 0.0;
+
+    const hourlyProgress = new Array(24).fill(0);
+    if (totalTasks > 0) {
+      let cumulative = 0;
+      for (let h = 0; h < 24; h++) {
+        cumulative += hourlyChecks[h];
+        hourlyProgress[h] = parseFloat(((cumulative / totalTasks) * 100).toFixed(1));
+      }
+    }
 
     return {
       date: dateStr,
@@ -70,6 +88,8 @@ export class DashboardService {
       failedTasks: 0, // Placeholder for Sprint 2A
       botTasks,
       manualTasks: totalTasks - botTasks,
+      hourlyChecks,
+      hourlyProgress,
     };
   }
 

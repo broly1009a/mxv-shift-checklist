@@ -12,6 +12,31 @@ export class SystemLogsService {
     private readonly systemLogModel: Model<SystemLog>,
   ) {}
 
+  private cleanObjectId(input: any): Types.ObjectId | null {
+    if (!input) return null;
+
+    if (input instanceof Types.ObjectId) {
+      return input;
+    }
+
+    if (typeof input === 'string') {
+      const hex24Regex = /^[0-9a-fA-F]{24}$/;
+      if (hex24Regex.test(input)) {
+        return new Types.ObjectId(input);
+      }
+      return null;
+    }
+
+    if (typeof input === 'object') {
+      const idVal = input._id || input.id;
+      if (idVal) {
+        return this.cleanObjectId(idVal);
+      }
+    }
+
+    return null;
+  }
+
   async logEvent(logData: {
     eventType: string;
     source: 'SYSTEM' | 'CRON' | 'USER' | 'NOTIFICATION' | 'BOT_PLACEHOLDER';
@@ -27,10 +52,10 @@ export class SystemLogsService {
       const newLog = new this.systemLogModel({
         eventType: logData.eventType,
         source: logData.source,
-        actorUserId: logData.actorUserId ? new Types.ObjectId(logData.actorUserId.toString()) : null,
-        jobId: logData.jobId ? new Types.ObjectId(logData.jobId.toString()) : null,
-        departmentId: logData.departmentId ? new Types.ObjectId(logData.departmentId.toString()) : null,
-        shiftSlotId: logData.shiftSlotId ? new Types.ObjectId(logData.shiftSlotId.toString()) : null,
+        actorUserId: this.cleanObjectId(logData.actorUserId),
+        jobId: this.cleanObjectId(logData.jobId),
+        departmentId: this.cleanObjectId(logData.departmentId),
+        shiftSlotId: this.cleanObjectId(logData.shiftSlotId),
         status: logData.status,
         message: logData.message,
         metadata: logData.metadata || {},

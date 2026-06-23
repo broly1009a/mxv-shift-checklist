@@ -6,6 +6,7 @@ import { ShiftLog } from '../types';
 interface ActiveShiftsWidgetProps {
   loading: boolean;
   activeShifts: ShiftLog[];
+  dateStr?: string;
 }
 
 const getSessionBadge = (type: string) => {
@@ -16,7 +17,16 @@ const getSessionBadge = (type: string) => {
   }
 };
 
-export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading, activeShifts }) => {
+export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading, activeShifts, dateStr }) => {
+  const formatDate = (ds?: string) => {
+    if (!ds) return 'hôm nay';
+    const parts = ds.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return ds;
+  };
+
   return (
     <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
       <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
@@ -24,9 +34,9 @@ export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading,
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingRight: '24px' }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-          <Clock size={18} color="var(--color-accent)" /> Ca trực hiện tại hôm nay
+          <Clock size={18} color="var(--color-accent)" /> Ca trực hiện tại ngày {formatDate(dateStr)}
         </h3>
-        <span className="badge badge-medium">Hôm nay</span>
+        <span className="badge badge-medium">{formatDate(dateStr)}</span>
       </div>
 
       {loading ? (
@@ -34,7 +44,7 @@ export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading,
       ) : activeShifts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
           <AlertTriangle size={28} color="var(--color-high)" style={{ display: 'block', margin: '0 auto 10px auto' }} />
-          <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo hôm nay</p>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>Chưa có ca trực nào được khởi tạo ngày {formatDate(dateStr)}</p>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>
             Hãy chọn một mẫu bên cạnh để khởi tạo ca trực mới.
           </p>

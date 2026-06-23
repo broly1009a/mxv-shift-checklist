@@ -24,9 +24,19 @@ interface PerformanceOverviewProps {
     botTasks: number;
     manualTasks: number;
   } | null;
+  dateStr?: string;
 }
 
-export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({ summary }) => {
+export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({ summary, dateStr }) => {
+  const formatDate = (ds?: string) => {
+    if (!ds) return 'hôm nay';
+    const parts = ds.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return ds;
+  };
+
   const completionPercentage = summary?.completionPercentage ?? 0;
   const activeShiftsCount = summary?.pendingJobs ?? 0;
   const completedShiftsCount = summary?.completedJobs ?? 0;
@@ -46,7 +56,7 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({ summar
           {/* Left part: Core KPI display */}
           <div>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-              Tiến độ hoàn thành ca trực hôm nay
+              Tiến độ hoàn thành ca trực ngày {formatDate(dateStr)}
             </span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginTop: '8px', marginBottom: '8px' }}>
               <h2 style={{ fontSize: '3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -137,7 +147,7 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({ summar
         {/* Card 1 */}
         <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Ca trực hôm nay</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Ca trực ngày {formatDate(dateStr)}</span>
             <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
               {totalJobs}
             </h3>

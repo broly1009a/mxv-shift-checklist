@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class SystemLog extends Document {
@@ -31,7 +31,7 @@ export class SystemLog extends Document {
   @Prop({ required: true })
   message: string;
 
-  @Prop({ type: Map, of: SchemaFactory.createForClass(Object), default: {} })
+  @Prop({ type: Map, of: MongooseSchema.Types.Mixed, default: {} })
   metadata: Map<string, any>;
 
   createdAt: Date;
