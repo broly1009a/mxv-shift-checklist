@@ -50,7 +50,7 @@ export const ActiveShiftsWidget: React.FC<ActiveShiftsWidgetProps> = ({ loading,
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
           {activeShifts.map((shift) => (
             <div key={shift._id} className="glass-panel" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.015)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>

@@ -18,7 +18,7 @@ export const TemplatesSummaryWidget: React.FC<TemplatesSummaryWidgetProps> = ({ 
       {templates.length === 0 ? (
         <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Chưa có mẫu checklist nào.</p>
       ) : (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
           {templates.map((tpl, i) => (
             <div key={tpl._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: i < templates.length - 1 ? '1px solid var(--border-color)' : 'none', paddingBottom: '6px' }}>
               <span style={{ flex: 1, paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.title}</span>

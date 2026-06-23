@@ -354,7 +354,7 @@ export default function DashboardPage() {
         return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} />;
 
       case 'history':
-        return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} />;
+        return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} />;
 
       case 'initShift':
         return (
@@ -487,7 +487,10 @@ export default function DashboardPage() {
               <input
                 type="date"
                 value={dashboardDate}
-                onChange={(e) => setDashboardDate(e.target.value)}
+                onChange={(e) => {
+                  setDashboardDate(e.target.value);
+                  setJobDate(e.target.value);
+                }}
                 className="form-input"
                 style={{ width: '150px', height: '38px', padding: '0 10px', fontSize: '0.85rem', cursor: 'pointer' }}
               />

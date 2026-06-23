@@ -6,6 +6,7 @@ import { ShiftLog } from '../types';
 interface RecentShiftsWidgetProps {
   showAuditLogs: boolean;
   recentShifts: ShiftLog[];
+  dateStr?: string;
 }
 
 const getSessionBadge = (type: string) => {
@@ -16,8 +17,17 @@ const getSessionBadge = (type: string) => {
   }
 };
 
-export const RecentShiftsWidget: React.FC<RecentShiftsWidgetProps> = ({ showAuditLogs, recentShifts }) => {
+export const RecentShiftsWidget: React.FC<RecentShiftsWidgetProps> = ({ showAuditLogs, recentShifts, dateStr }) => {
   if (!showAuditLogs) return null;
+
+  const formatDate = (ds?: string) => {
+    if (!ds) return 'gần đây';
+    const parts = ds.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return ds;
+  };
 
   return (
     <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
@@ -25,10 +35,10 @@ export const RecentShiftsWidget: React.FC<RecentShiftsWidgetProps> = ({ showAudi
         <GripVertical size={16} />
       </div>
       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
-        <FolderOpen size={18} color="var(--text-secondary)" /> Hoạt động ca trực gần đây
+        <FolderOpen size={18} color="var(--text-secondary)" /> Hoạt động ca trực ngày {formatDate(dateStr)}
       </h3>
       {recentShifts.length === 0 ? (
-        <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Chưa ghi nhận ca trực lịch sử nào</div>
+        <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Chưa ghi nhận ca trực hoàn thành nào ngày {formatDate(dateStr)}</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
