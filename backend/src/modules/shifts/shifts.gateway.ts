@@ -55,4 +55,40 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     console.log(`Broadcasted update to room: ${shiftLogId}`);
   }
+
+  emitEvent(
+    eventType: 'SHIFT_JOB_GENERATED' | 'SHIFT_JOB_UPDATED' | 'SHIFT_JOB_CLOSED' | 'TASK_UPDATED' | 'NOTIFICATION_CREATED' | 'DASHBOARD_UPDATED',
+    jobId: string | null,
+    departmentId: string | null,
+    shiftSlotId: string | null,
+    date: string,
+    data: any,
+  ) {
+    const eventNameMap = {
+      SHIFT_JOB_GENERATED: 'shift-job-generated',
+      SHIFT_JOB_UPDATED: 'shift-job-updated',
+      SHIFT_JOB_CLOSED: 'shift-job-closed',
+      TASK_UPDATED: 'task-updated',
+      NOTIFICATION_CREATED: 'notification-created',
+      DASHBOARD_UPDATED: 'dashboard-updated',
+    };
+
+    const payload = {
+      eventType,
+      jobId,
+      departmentId,
+      shiftSlotId,
+      date,
+      data,
+    };
+
+    const eventName = eventNameMap[eventType];
+    if (eventName) {
+      this.server.emit(eventName, payload);
+      if (jobId) {
+        this.server.to(jobId).emit(eventName, payload);
+      }
+      console.log(`[WebSocket] Emitted event '${eventName}' to room/global with payload:`, JSON.stringify(payload));
+    }
+  }
 }

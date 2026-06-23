@@ -7,6 +7,7 @@ import {
   Layers,
   GripVertical
 } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { Template, ShiftLog } from './types';
 import { InitShiftWidget } from './components/InitShiftWidget';
 import { AutoShiftWidget } from './components/AutoShiftWidget';
@@ -22,6 +23,8 @@ export default function DashboardPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [activeShifts, setActiveShifts] = useState<ShiftLog[]>([]);
   const [recentShifts, setRecentShifts] = useState<ShiftLog[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [dashboardDate, setDashboardDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [initError, setInitError] = useState('');
@@ -42,10 +45,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    setJobDate(`${yyyy}-${mm}-${dd}`);
+    const vietnamTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
+    const dateStr = vietnamTime.toISOString().split('T')[0];
+    setDashboardDate(dateStr);
+    setJobDate(dateStr);
   }, []);
 
   useEffect(() => {
@@ -201,7 +204,7 @@ export default function DashboardPage() {
   };
 
   const fetchDashboardData = useCallback(async () => {
-    if (!token) return;
+    if (!token || !dashboardDate) return;
     try {
       const deptIdFilter = user?.role === 'ADMIN' ? '' : `departmentId=${user?.department?.id || user?.department?._id || ''}`;
 
@@ -212,29 +215,58 @@ export default function DashboardPage() {
       const tplData = await tplRes.json();
       setTemplates(tplData);
 
-      // 2. Fetch active shifts
-      const activeRes = await fetch(`${API_BASE_URL}/api/v1/shifts/active?${deptIdFilter}`, {
+      // 2. Fetch summary
+      const summaryRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/summary?date=${dashboardDate}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const summaryData = await summaryRes.json();
+      setSummary(summaryData);
+
+      // 3. Fetch active shifts (jobs status=PENDING)
+      const activeRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=PENDING`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const activeData = await activeRes.json();
       setActiveShifts(activeData);
 
-      // 3. Fetch recent history (limit to 5)
-      const historyRes = await fetch(`${API_BASE_URL}/api/v1/shifts/history?${deptIdFilter}`, {
+      // 4. Fetch recent shifts (jobs status=COMPLETED)
+      const historyRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=COMPLETED`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const historyData = await historyRes.json();
-      setRecentShifts(historyData.slice(0, 5));
+      setRecentShifts(historyData);
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu dashboard', err);
     } finally {
       setLoading(false);
     }
-  }, [token, user]);
+  }, [token, user, dashboardDate]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // WebSockets Real-time Synchronization for Dashboard
+  useEffect(() => {
+    if (!token) return;
+
+    const socket = io(API_BASE_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to socket gateway from Dashboard');
+    });
+
+    socket.on('dashboard-updated', (payload: any) => {
+      console.log('Dashboard update event received via WS:', payload);
+      fetchDashboardData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, fetchDashboardData]);
 
   const handleInitializeShift = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -449,89 +481,99 @@ export default function DashboardPage() {
               Theo dõi khối lượng công việc, tỷ lệ thành công và tiến độ checklist vận hành trong ngày.
             </p>
           </div>
-          <div ref={layoutSettingsRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowLayoutSettings(!showLayoutSettings)}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: '38px' }}
-            >
-              <Layers size={14} /> Tùy chỉnh bố cục
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ngày giám sát:</span>
+              <input
+                type="date"
+                value={dashboardDate}
+                onChange={(e) => setDashboardDate(e.target.value)}
+                className="form-input"
+                style={{ width: '150px', height: '38px', padding: '0 10px', fontSize: '0.85rem', cursor: 'pointer' }}
+              />
+            </div>
+            <div ref={layoutSettingsRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowLayoutSettings(!showLayoutSettings)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: '38px' }}
+              >
+                <Layers size={14} /> Tùy chỉnh bố cục
+              </button>
 
-            {showLayoutSettings && (
-              <div className="glass-panel animate-fade-in" style={{
-                position: 'absolute',
-                right: 0,
-                top: '44px',
-                width: '280px',
-                padding: '16px',
-                background: 'var(--bg-sidebar)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                boxShadow: 'var(--glass-shadow)',
-                zIndex: 50,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}>
-                <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '4px' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tùy chỉnh giao diện</h4>
-                </div>
+              {showLayoutSettings && (
+                <div className="glass-panel animate-fade-in" style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '44px',
+                  width: '280px',
+                  padding: '16px',
+                  background: 'var(--bg-sidebar)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--glass-shadow)',
+                  zIndex: 50,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '4px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tùy chỉnh giao diện</h4>
+                  </div>
 
-                {/* Layout option */}
-                <div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Cấu trúc cột:</span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleLayoutChange('grid')}
-                      className={`btn ${dashboardLayout === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ flex: 1, fontSize: '0.75rem', padding: '6px 0' }}
-                    >
-                      Bản đồ (2 Cột)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleLayoutChange('stack')}
-                      className={`btn ${dashboardLayout === 'stack' ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ flex: 1, fontSize: '0.75rem', padding: '6px 0' }}
-                    >
-                      Toàn màn hình
-                    </button>
+                  {/* Layout option */}
+                  <div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Cấu trúc cột:</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleLayoutChange('grid')}
+                        className={`btn ${dashboardLayout === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ flex: 1, fontSize: '0.75rem', padding: '6px 0' }}
+                      >
+                        Bản đồ (2 Cột)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLayoutChange('stack')}
+                        className={`btn ${dashboardLayout === 'stack' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ flex: 1, fontSize: '0.75rem', padding: '6px 0' }}
+                      >
+                        Toàn màn hình
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Show/Hide controls */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={showChart}
+                        onChange={handleToggleChart}
+                        style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
+                      />
+                      Hiển thị biểu đồ hiệu suất
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={showAuditLogs}
+                        onChange={handleToggleLogs}
+                        style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
+                      />
+                      Hiển thị nhật ký hoạt động
+                    </label>
                   </div>
                 </div>
-
-                {/* Show/Hide controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={showChart}
-                      onChange={handleToggleChart}
-                      style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
-                    />
-                    Hiển thị biểu đồ hiệu suất
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={showAuditLogs}
-                      onChange={handleToggleLogs}
-                      style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
-                    />
-                    Hiển thị nhật ký hoạt động
-                  </label>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
         <PerformanceOverview
-          averageProgress={averageProgress}
-          activeShiftsCount={activeShifts.length}
-          completedShiftsCount={recentShifts.filter((s) => s.status === 'COMPLETED').length}
+          summary={summary}
         />
 
         {/* Mid Section Responsive Grid Layout */}

@@ -11,6 +11,7 @@ import { ChecklistTemplate } from '../../schemas/template.schema';
 import { AuditLog } from '../../schemas/audit-log.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 @Injectable()
 export class ShiftsService {
@@ -21,6 +22,7 @@ export class ShiftsService {
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
     private readonly shiftsGateway: ShiftsGateway,
     private readonly telegramService: TelegramService,
+    private readonly systemLogsService: SystemLogsService,
   ) {}
 
   private validateScope(
@@ -121,6 +123,17 @@ export class ShiftsService {
       .exec();
 
     if (existingLog) {
+      await this.systemLogsService.logEvent({
+        eventType: 'JOB_GENERATION_SKIPPED',
+        source: 'USER',
+        actorUserId: user.id || user._id,
+        departmentId: existingLog.departmentId as any,
+        shiftSlotId: existingLog.shiftSlotId as any,
+        jobId: existingLog._id as any,
+        status: 'SKIPPED',
+        message: `Bỏ qua khởi tạo ca trực cho mẫu "${(existingLog.templateId as any)?.title}" do đã tồn tại.`,
+        metadata: { templateTitle: (existingLog.templateId as any)?.title, date: shiftDate },
+      });
       return existingLog;
     }
 
@@ -183,6 +196,30 @@ export class ShiftsService {
         `• Phòng ban: <b>${deptName}</b>\n` +
         `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
     );
+
+    // Ghi nhận log hệ thống
+    await this.systemLogsService.logEvent({
+      eventType: 'JOB_GENERATED',
+      source: 'USER',
+      actorUserId: user.id || user._id,
+      jobId: result._id as any,
+      departmentId: result.departmentId as any,
+      shiftSlotId: result.shiftSlotId as any,
+      status: 'SUCCESS',
+      message: `Khởi tạo thành công ca trực "${(result.templateId as any)?.title}" bởi ${user.fullName || 'Nhân sự'}.`,
+      metadata: { templateTitle: (result.templateId as any)?.title, date: result.shiftDate },
+    });
+
+    // Phát sự kiện qua WebSocket
+    this.shiftsGateway.emitEvent(
+      'SHIFT_JOB_GENERATED',
+      result._id.toString(),
+      result.departmentId ? result.departmentId.toString() : null,
+      result.shiftSlotId ? result.shiftSlotId.toString() : null,
+      result.shiftDate,
+      { title: (result.templateId as any)?.title }
+    );
+    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
 
     return result;
   }
@@ -312,6 +349,30 @@ export class ShiftsService {
     // Notify Gateway
     this.shiftsGateway.notifyShiftUpdate(shiftLogId, result, auditLogRecord);
 
+    // Ghi nhận log hệ thống
+    await this.systemLogsService.logEvent({
+      eventType: 'TASK_UPDATED',
+      source: 'USER',
+      actorUserId: user.id || user._id,
+      jobId: result._id as any,
+      departmentId: result.departmentId as any,
+      shiftSlotId: result.shiftSlotId as any,
+      status: 'SUCCESS',
+      message: `Tác vụ "${task.taskNameSnapshot}" trong ca trực "${(result.templateId as any)?.title || 'Ca trực'}" được cập nhật: isChecked=${isChecked}${note !== undefined ? `, note="${note}"` : ''}.`,
+      metadata: { taskId, taskName: task.taskNameSnapshot, isChecked, note },
+    });
+
+    // Phát sự kiện qua WebSocket
+    this.shiftsGateway.emitEvent(
+      'TASK_UPDATED',
+      result._id.toString(),
+      result.departmentId ? result.departmentId.toString() : null,
+      result.shiftSlotId ? result.shiftSlotId.toString() : null,
+      result.shiftDate,
+      { taskId, taskName: task.taskNameSnapshot, isChecked, progressPercentage: result.progressPercentage }
+    );
+    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+
     // Alert Telegram nếu tác vụ khẩn cấp (CRITICAL) vừa được hoàn thành
     if (isChecked && !oldIsChecked && task.prioritySnapshot === 'CRITICAL') {
       const actorName = user.fullName || 'Nhân sự vận hành';
@@ -378,6 +439,30 @@ export class ShiftsService {
 
     // Notify Gateway
     this.shiftsGateway.notifyShiftUpdate(shiftLogId, result);
+
+    // Ghi nhận log hệ thống
+    await this.systemLogsService.logEvent({
+      eventType: 'SHIFT_JOB_CLOSED',
+      source: 'USER',
+      actorUserId: user.id || user._id,
+      jobId: result._id as any,
+      departmentId: result.departmentId as any,
+      shiftSlotId: result.shiftSlotId as any,
+      status: 'SUCCESS',
+      message: `Chốt ca trực "${(result.templateId as any)?.title || 'Ca trực'}" ngày ${result.shiftDate} thành công.`,
+      metadata: { handoverNote: result.handoverNote, progressPercentage: result.progressPercentage },
+    });
+
+    // Phát sự kiện qua WebSocket
+    this.shiftsGateway.emitEvent(
+      'SHIFT_JOB_CLOSED',
+      result._id.toString(),
+      result.departmentId ? result.departmentId.toString() : null,
+      result.shiftSlotId ? result.shiftSlotId.toString() : null,
+      result.shiftDate,
+      { progressPercentage: result.progressPercentage }
+    );
+    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
 
     // Gửi thông báo Telegram báo cáo kết quả chốt ca
     const completedCount = result.details.filter((d) => d.isChecked).length;

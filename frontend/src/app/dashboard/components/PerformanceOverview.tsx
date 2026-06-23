@@ -6,21 +6,37 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight
+  ArrowUpRight,
+  Cpu
 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 
 interface PerformanceOverviewProps {
-  averageProgress: number;
-  activeShiftsCount: number;
-  completedShiftsCount: number;
+  summary: {
+    totalJobs: number;
+    pendingJobs: number;
+    completedJobs: number;
+    totalTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    completionPercentage: number;
+    failedTasks: number;
+    botTasks: number;
+    manualTasks: number;
+  } | null;
 }
 
-export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
-  averageProgress,
-  activeShiftsCount,
-  completedShiftsCount
-}) => {
+export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({ summary }) => {
+  const completionPercentage = summary?.completionPercentage ?? 0;
+  const activeShiftsCount = summary?.pendingJobs ?? 0;
+  const completedShiftsCount = summary?.completedJobs ?? 0;
+  const totalJobs = summary?.totalJobs ?? 0;
+  const totalTasks = summary?.totalTasks ?? 0;
+  const completedTasks = summary?.completedTasks ?? 0;
+  const failedTasks = summary?.failedTasks ?? 0;
+  const botTasks = summary?.botTasks ?? 0;
+  const manualTasks = summary?.manualTasks ?? 0;
+
   return (
     <>
       {/* Large Highlight Overview Card */}
@@ -34,10 +50,10 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
             </span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginTop: '8px', marginBottom: '8px' }}>
               <h2 style={{ fontSize: '3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {averageProgress}%
+                {completionPercentage}%
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '0.9rem', fontWeight: 700 }}>
-                <TrendingUp size={16} /> <span>+2.4% so với hôm qua</span>
+                <TrendingUp size={16} /> <span>Hệ thống ổn định</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -45,13 +61,44 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
               <span style={{ color: 'var(--border-color)' }}>|</span>
               <span><strong>{completedShiftsCount}</strong> ca trực hoàn thành</span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
-              <span style={{ color: '#ef4444' }}><strong>0</strong> cảnh báo rủi ro</span>
+              <span style={{ color: failedTasks > 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                <strong>{failedTasks}</strong> cảnh báo rủi ro
+              </span>
             </div>
           </div>
 
           {/* Right part: Spark mini KPIs side by side */}
           <div style={{ display: 'flex', gap: '16px' }} className="flex-col sm:flex-row">
             {/* Mini card 1 */}
+            <div style={{
+              flex: 1,
+              padding: '16px',
+              background: 'rgba(168, 85, 247, 0.04)',
+              border: '1px solid rgba(168, 85, 247, 0.1)',
+              borderRadius: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Tác Vụ Tự Động (Bot)</span>
+                <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--text-primary)' }}>{botTasks}</p>
+              </div>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'rgba(168, 85, 247, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#a855f7'
+              }}>
+                <Cpu size={16} />
+              </div>
+            </div>
+
+            {/* Mini card 2 */}
             <div style={{
               flex: 1,
               padding: '16px',
@@ -63,8 +110,8 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
               alignItems: 'center'
             }}>
               <div>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>TPS Hiện Tại</span>
-                <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--text-primary)' }}>1,248</p>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Tác Vụ Thủ Công</span>
+                <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: '#3b82f6' }}>{manualTasks}</p>
               </div>
               <div style={{
                 width: '32px',
@@ -77,35 +124,6 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
                 color: '#3b82f6'
               }}>
                 <Activity size={16} />
-              </div>
-            </div>
-
-            {/* Mini card 2 */}
-            <div style={{
-              flex: 1,
-              padding: '16px',
-              background: 'rgba(16, 185, 129, 0.04)',
-              border: '1px solid rgba(16, 185, 129, 0.1)',
-              borderRadius: '12px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Tỷ Lệ Thành Công</span>
-                <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '4px 0 0 0', color: '#10b981' }}>99.2%</p>
-              </div>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#10b981'
-              }}>
-                <Check size={16} />
               </div>
             </div>
           </div>
@@ -121,17 +139,17 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
           <div>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Ca trực hôm nay</span>
             <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-              {activeShiftsCount}
+              {totalJobs}
             </h3>
             <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-              <ArrowUpRight size={12} /> +12.4% vs hôm qua
+              <ArrowUpRight size={12} /> {activeShiftsCount} ca đang xử lý
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
             <div style={{ color: 'var(--color-accent)' }}>
               <Clock size={20} />
             </div>
-            <Sparkline points={[1, 2, 2, 3, 3, 2, 4]} color="#3b82f6" />
+            <Sparkline points={[1, 2, 2, 3, 3, 2, totalJobs || 1]} color="#3b82f6" />
           </div>
         </div>
 
@@ -140,17 +158,17 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
           <div>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Tiến độ bình quân</span>
             <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-              {averageProgress}%
+              {completionPercentage}%
             </h3>
             <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-              <ArrowUpRight size={12} /> +8.1% vs hôm qua
+              <ArrowUpRight size={12} /> {completedShiftsCount} ca hoàn thành
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
             <div style={{ color: '#10b981' }}>
               <CheckCircle2 size={20} />
             </div>
-            <Sparkline points={[60, 75, 70, 85, 90, 92, 98.2]} color="#10b981" />
+            <Sparkline points={[60, 75, 70, 85, 90, 92, completionPercentage || 1]} color="#10b981" />
           </div>
         </div>
 
@@ -158,37 +176,37 @@ export const PerformanceOverview: React.FC<PerformanceOverviewProps> = ({
         <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Cảnh báo rủi ro</span>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ef4444', margin: '4px 0 6px 0' }}>
-              0
+            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: failedTasks > 0 ? '#ef4444' : 'var(--text-primary)', margin: '4px 0 6px 0' }}>
+              {failedTasks}
             </h3>
-            <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-              <Check size={12} /> Hệ thống an toàn
+            <span style={{ color: failedTasks > 0 ? '#ef4444' : '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              {failedTasks > 0 ? <AlertTriangle size={12} /> : <Check size={12} />} {failedTasks > 0 ? 'Phát hiện sự cố' : 'Hệ thống an toàn'}
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-            <div style={{ color: '#ef4444' }}>
+            <div style={{ color: failedTasks > 0 ? '#ef4444' : '#10b981' }}>
               <AlertTriangle size={20} />
             </div>
-            <Sparkline points={[0, 0, 0, 0, 0, 0, 0]} color="#ef4444" />
+            <Sparkline points={[0, 0, 0, 0, 0, 0, failedTasks]} color={failedTasks > 0 ? '#ef4444' : '#10b981'} />
           </div>
         </div>
 
         {/* Card 4 */}
         <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Tỷ lệ đúng hạn</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Tác vụ hoàn thành</span>
             <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 6px 0' }}>
-              98.6%
+              {completedTasks}/{totalTasks}
             </h3>
             <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-              <ArrowUpRight size={12} /> +0.3% vs hôm qua
+              <ArrowUpRight size={12} /> {totalTasks - completedTasks} tác vụ còn lại
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
             <div style={{ color: '#a855f7' }}>
               <Activity size={20} />
             </div>
-            <Sparkline points={[96, 97, 96, 98, 98, 99, 98.6]} color="#a855f7" />
+            <Sparkline points={[96, 97, 96, 98, 98, 99, totalTasks ? (completedTasks / totalTasks) * 100 : 0]} color="#a855f7" />
           </div>
         </div>
 

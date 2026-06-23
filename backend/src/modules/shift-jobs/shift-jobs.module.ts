@@ -17,6 +17,8 @@ import { ShiftJobsService } from './shift-jobs.service';
 import { ShiftJobsController } from './shift-jobs.controller';
 import { ShiftJobScheduler } from './shift-job.scheduler';
 import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
+import { ShiftsModule } from '../shifts/shifts.module';
+import { SystemLogsModule } from '../system-logs/system-logs.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { WorkingCalendarModule } from '../working-calendar/working-calendar.modu
       { name: ActivityLog.name, schema: ActivityLogSchema },
     ]),
     WorkingCalendarModule,
+    ShiftsModule,
+    SystemLogsModule,
   ],
   controllers: [ShiftJobsController],
   providers: [ShiftJobsService, ShiftJobScheduler],

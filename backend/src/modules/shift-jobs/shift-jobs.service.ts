@@ -5,6 +5,8 @@ import { ShiftLog } from '../../schemas/shift-log.schema';
 import { ChecklistTemplate } from '../../schemas/template.schema';
 import { ActivityLog } from '../../schemas/activity-log.schema';
 import { WorkingCalendarService } from '../working-calendar/working-calendar.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
+import { ShiftsGateway } from '../shifts/shifts.gateway';
 
 @Injectable()
 export class ShiftJobsService {
@@ -17,6 +19,8 @@ export class ShiftJobsService {
     @InjectModel(ActivityLog.name)
     private readonly activityLogModel: Model<ActivityLog>,
     private readonly workingCalendarService: WorkingCalendarService,
+    private readonly systemLogsService: SystemLogsService,
+    private readonly shiftsGateway: ShiftsGateway,
   ) {}
 
   async generateShiftsForDate(
@@ -35,6 +39,16 @@ export class ShiftJobsService {
       this.logger.warn(
         `Date ${dateStr} is not a trading day. Skipping shift job generation.`,
       );
+
+      await this.systemLogsService.logEvent({
+        eventType: 'JOB_GENERATION_SKIPPED',
+        source: triggerType,
+        actorUserId: userId || null,
+        status: 'SKIPPED',
+        message: `Bỏ qua sinh ca trực ngày ${dateStr} do không phải ngày giao dịch.`,
+        metadata: { date: dateStr },
+      });
+
       return {
         success: false,
         reason: 'NOT_A_TRADING_DAY',
@@ -79,6 +93,18 @@ export class ShiftJobsService {
         this.logger.log(
           `Shift log already exists for template "${template.title}" on ${dateStr}. Skipping.`,
         );
+
+        await this.systemLogsService.logEvent({
+          eventType: 'JOB_GENERATION_SKIPPED',
+          source: triggerType,
+          actorUserId: userId || null,
+          departmentId: template.departmentId as any,
+          shiftSlotId: template.shiftSlotId as any,
+          status: 'SKIPPED',
+          message: `Ca trực "${template.title}" đã tồn tại cho ngày ${dateStr}. Bỏ qua.`,
+          metadata: { templateTitle: template.title, date: dateStr },
+        });
+
         continue;
       }
 
@@ -119,12 +145,25 @@ export class ShiftJobsService {
         createdByType: triggerType === 'SYSTEM' ? 'SYSTEM' : 'USER',
       });
 
-      await newLog.save();
+      const savedLog = await newLog.save();
       createdCount++;
       details.push({
         templateId: template._id.toString(),
         title: template.title,
         status: 'CREATED',
+      });
+
+      // Log system event
+      await this.systemLogsService.logEvent({
+        eventType: 'JOB_GENERATED',
+        source: triggerType,
+        actorUserId: userId || null,
+        jobId: savedLog._id as any,
+        departmentId: template.departmentId as any,
+        shiftSlotId: template.shiftSlotId as any,
+        status: 'SUCCESS',
+        message: `Khởi tạo thành công ca trực "${template.title}" ngày ${dateStr}.`,
+        metadata: { templateTitle: template.title, date: dateStr },
       });
 
       // Create ActivityLog
@@ -146,6 +185,10 @@ export class ShiftJobsService {
         `Created shift log for template "${template.title}" on ${dateStr}`,
       );
     }
+
+    // Emit WS events
+    this.shiftsGateway.emitEvent('SHIFT_JOB_GENERATED', null, null, null, dateStr, { createdCount, skippedCount });
+    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, dateStr, {});
 
     return {
       success: true,

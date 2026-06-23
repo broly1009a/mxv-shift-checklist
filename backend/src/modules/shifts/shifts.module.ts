@@ -10,6 +10,7 @@ import {
 import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
+import { SystemLogsModule } from '../system-logs/system-logs.module';
 
 @Module({
   imports: [
@@ -18,9 +19,10 @@ import { TelegramService } from '../telegram/telegram.service';
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
       { name: AuditLog.name, schema: AuditLogSchema },
     ]),
+    SystemLogsModule,
   ],
   providers: [ShiftsService, ShiftsGateway, TelegramService],
   controllers: [ShiftsController],
-  exports: [ShiftsService, TelegramService],
+  exports: [ShiftsService, TelegramService, ShiftsGateway],
 })
 export class ShiftsModule {}

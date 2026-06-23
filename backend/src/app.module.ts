@@ -15,6 +15,9 @@ import { ShiftSlotsModule } from './modules/shift-slots/shift-slots.module';
 import { WorkingCalendarModule } from './modules/working-calendar/working-calendar.module';
 import { ShiftJobsModule } from './modules/shift-jobs/shift-jobs.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { SystemLogsModule } from './modules/system-logs/system-logs.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
     WorkingCalendarModule,
     ShiftJobsModule,
     SystemSettingsModule,
+    SystemLogsModule,
+    NotificationsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [
