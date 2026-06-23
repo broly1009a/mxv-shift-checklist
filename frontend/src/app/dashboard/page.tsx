@@ -584,17 +584,17 @@ export default function DashboardPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr',
+            gridTemplateColumns: 'minmax(0, 1fr)',
             gap: '28px'
           }}
-          className={dashboardLayout === 'grid' ? 'lg:grid-cols-[1fr_360px]' : 'lg:grid-cols-1'}
+          className={dashboardLayout === 'grid' ? 'lg:grid-cols-[minmax(0,_1fr)_360px]' : 'lg:grid-cols-1'}
         >
 
           {/* Left Column */}
           <div
             onDragOver={handleColumnDragOver}
             onDrop={(e) => handleColumnDrop(e, 'left')}
-            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
           >
             {renderWidgetsList(leftWidgets, 'left')}
           </div>
@@ -603,7 +603,7 @@ export default function DashboardPage() {
           <div
             onDragOver={handleColumnDragOver}
             onDrop={(e) => handleColumnDrop(e, 'right')}
-            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
           >
             {renderWidgetsList(rightWidgets, 'right')}
           </div>

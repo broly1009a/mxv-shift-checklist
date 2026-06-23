@@ -145,7 +145,7 @@ export const HourlyChartWidget: React.FC<HourlyChartWidgetProps> = ({ showChart,
   };
 
   return (
-    <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
+    <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative', minWidth: 0, overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
         <GripVertical size={16} />
       </div>
@@ -157,7 +157,7 @@ export const HourlyChartWidget: React.FC<HourlyChartWidgetProps> = ({ showChart,
           Biểu đồ cột + đường nối biểu diễn số lượng tác vụ kiểm tra phát sinh và xử lý trong ngày.
         </p>
       </div>
-      <div style={{ height: '280px', position: 'relative' }}>
+      <div style={{ height: '280px', position: 'relative', width: '100%', minWidth: 0 }}>
         <Bar data={hourlyChartData as any} options={hourlyChartOptions as any} />
       </div>
     </div>
