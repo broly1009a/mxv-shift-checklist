@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'templatesSummary', 'healthChecks']);
   const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
+  const [canDragId, setCanDragId] = useState<string | null>(null);
 
   useEffect(() => {
     const defaultLeft = ['chart', 'activeShifts', 'history'];
@@ -107,6 +108,10 @@ export default function DashboardPage() {
   }, []);
 
   const handleWidgetDragStart = (e: React.DragEvent, id: string, col: 'left' | 'right') => {
+    if (canDragId !== id) {
+      e.preventDefault();
+      return;
+    }
     setDraggedWidget({ id, col });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', id);
@@ -121,10 +126,15 @@ export default function DashboardPage() {
   const handleWidgetDrop = (e: React.DragEvent, targetId: string, targetCol: 'left' | 'right') => {
     e.preventDefault();
     setDragOverWidget(null);
-    if (!draggedWidget) return;
+    const currentDragged = draggedWidget;
 
-    const sourceCol = draggedWidget.col;
-    const sourceId = draggedWidget.id;
+    setDraggedWidget(null);
+    setCanDragId(null);
+
+    if (!currentDragged) return;
+
+    const sourceCol = currentDragged.col;
+    const sourceId = currentDragged.id;
 
     if (sourceId === targetId && sourceCol === targetCol) return;
 
@@ -164,6 +174,7 @@ export default function DashboardPage() {
   const handleWidgetDragEnd = () => {
     setDraggedWidget(null);
     setDragOverWidget(null);
+    setCanDragId(null);
   };
 
   const handleColumnDragOver = (e: React.DragEvent) => {
@@ -172,9 +183,15 @@ export default function DashboardPage() {
 
   const handleColumnDrop = (e: React.DragEvent, targetCol: 'left' | 'right') => {
     e.preventDefault();
-    if (!draggedWidget) return;
-    const sourceCol = draggedWidget.col;
-    const sourceId = draggedWidget.id;
+    setDragOverWidget(null);
+    const currentDragged = draggedWidget;
+
+    setDraggedWidget(null);
+    setCanDragId(null);
+
+    if (!currentDragged) return;
+    const sourceCol = currentDragged.col;
+    const sourceId = currentDragged.id;
 
     if (sourceCol === targetCol) return;
 
@@ -199,8 +216,6 @@ export default function DashboardPage() {
     setRightWidgets(nextRight);
     localStorage.setItem('mxv_dash_left_widgets', JSON.stringify(nextLeft));
     localStorage.setItem('mxv_dash_right_widgets', JSON.stringify(nextRight));
-    setDraggedWidget(null);
-    setDragOverWidget(null);
   };
 
   const fetchDashboardData = useCallback(async () => {
@@ -401,11 +416,29 @@ export default function DashboardPage() {
     return (
       <div
         key={widgetId}
-        draggable
+        draggable={canDragId === widgetId}
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          const isGrip = target.closest('[title="Kéo thả để sắp xếp"]') !== null;
+          if (isGrip) {
+            e.currentTarget.draggable = true;
+            setCanDragId(widgetId);
+          } else {
+            e.currentTarget.draggable = false;
+            setCanDragId(null);
+          }
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.draggable = false;
+          setCanDragId(null);
+        }}
         onDragStart={(e) => handleWidgetDragStart(e, widgetId, col)}
         onDragOver={(e) => handleWidgetDragOver(e, widgetId, col)}
         onDrop={(e) => handleWidgetDrop(e, widgetId, col)}
-        onDragEnd={handleWidgetDragEnd}
+        onDragEnd={(e) => {
+          e.currentTarget.draggable = false;
+          handleWidgetDragEnd();
+        }}
         style={{
           opacity: isDragged ? 0.3 : 1,
           border: isOver ? '2px dashed var(--color-primary)' : 'none',
