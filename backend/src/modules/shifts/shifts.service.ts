@@ -15,6 +15,7 @@ import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
 import { IncidentsService } from '../incidents/incidents.service';
+import { AccessControlService } from '../auth/access-control.service';
 
 @Injectable()
 export class ShiftsService {
@@ -28,6 +29,7 @@ export class ShiftsService {
     private readonly systemLogsService: SystemLogsService,
     @Inject(forwardRef(() => IncidentsService))
     private readonly incidentsService: IncidentsService,
+    private readonly accessControlService: AccessControlService,
   ) { }
 
   private validateScope(
@@ -35,51 +37,13 @@ export class ShiftsService {
     departmentId: string | Types.ObjectId,
     divisionId?: string | Types.ObjectId,
   ) {
-    if (!user) {
-      throw new ForbiddenException('Yêu cầu đăng nhập để truy cập tài nguyên');
-    }
-
-    if (
-      user.role === 'ADMIN' ||
-      user.role === 'CEO' ||
-      user.role === 'CHAIRMAN'
-    ) {
-      return true;
-    }
-
-    const uDivId = user.divisionId?._id || user.divisionId;
-    const uDeptId = user.departmentId?._id || user.departmentId;
-
-    if (user.role === 'DIVISION_DIRECTOR') {
-      if (!uDivId || !divisionId) {
-        throw new ForbiddenException(
-          'Bạn không thuộc Khối nào hoặc tài nguyên không thuộc Khối nào',
-        );
-      }
-      if (uDivId.toString() !== divisionId.toString()) {
-        throw new ForbiddenException(
-          'Bạn không có quyền truy cập dữ liệu của Khối khác',
-        );
-      }
-      return true;
-    }
-
-    if (user.role === 'DEPARTMENT_HEAD' || user.role === 'STAFF') {
-      if (!uDeptId || !departmentId) {
-        throw new ForbiddenException(
-          'Bạn không thuộc Bộ phận nào hoặc tài nguyên không thuộc Bộ phận nào',
-        );
-      }
-      if (uDeptId.toString() !== departmentId.toString()) {
-        throw new ForbiddenException(
-          'Bạn không có quyền truy cập dữ liệu của Bộ phận khác',
-        );
-      }
-      return true;
-    }
-
-    throw new ForbiddenException('Quyền hạn của bạn không hợp lệ');
+    this.accessControlService.validateScope(
+      user,
+      departmentId ? departmentId.toString() : null,
+      divisionId ? divisionId.toString() : null,
+    );
   }
+
 
   async initializeShift(
     templateId: string,

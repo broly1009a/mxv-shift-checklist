@@ -8,13 +8,17 @@ import {
   Param,
   UseGuards,
   Query,
+  Request,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ChecklistTemplate } from '../../schemas/template.schema';
+import { Department } from '../../schemas/department.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { AccessControlService } from '../auth/access-control.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/templates')
@@ -22,14 +26,32 @@ export class TemplatesController {
   constructor(
     @InjectModel(ChecklistTemplate.name)
     private readonly templateModel: Model<ChecklistTemplate>,
+    @InjectModel(Department.name)
+    private readonly departmentModel: Model<Department>,
+    private readonly accessControlService: AccessControlService,
   ) {}
 
   @Get()
-  async findAll(@Query('departmentId') departmentId?: string) {
-    const filter: any = {};
+  async findAll(@Request() req: any, @Query('departmentId') departmentId?: string) {
+    const scopeFilter = await this.accessControlService.getScopeFilter(req.user);
+    const filter: any = { ...scopeFilter };
+
     if (departmentId) {
-      filter.departmentId = new Types.ObjectId(departmentId);
+      const targetDeptId = new Types.ObjectId(departmentId);
+      // If there's already a scopeFilter restricting departmentIds
+      if (filter.departmentId) {
+        if (filter.departmentId.$in) {
+          const hasAccess = filter.departmentId.$in.some((id: any) => id.toString() === departmentId);
+          if (!hasAccess) {
+            return []; // No access to this department
+          }
+        } else if (filter.departmentId.toString() !== departmentId) {
+          return []; // No access to this department
+        }
+      }
+      filter.departmentId = targetDeptId;
     }
+
     return this.templateModel
       .find(filter)
       .populate('departmentId')
@@ -38,9 +60,20 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
   @Post()
-  async create(@Body() body: any) {
+  async create(@Request() req: any, @Body() body: any) {
+    const deptId = body.departmentId;
+    if (!deptId) {
+      throw new NotFoundException('Vui lòng chọn phòng ban');
+    }
+    const dept = await this.departmentModel.findById(deptId).exec();
+    if (!dept) {
+      throw new NotFoundException('Phòng ban không tồn tại');
+    }
+
+    this.accessControlService.validateScope(req.user, dept._id, (dept.divisionId || null) as any);
+
     const newTpl = new this.templateModel(body);
     const saved = await newTpl.save();
     return this.templateModel
@@ -51,9 +84,25 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+    const existing = await this.templateModel.findById(id).exec();
+    if (!existing) {
+      throw new NotFoundException('Mẫu checklist không tồn tại');
+    }
+
+    const oldDept = await this.departmentModel.findById(existing.departmentId).exec();
+    this.accessControlService.validateScope(req.user, existing.departmentId, oldDept?.divisionId || null);
+
+    if (body.departmentId && body.departmentId.toString() !== existing.departmentId.toString()) {
+      const newDept = await this.departmentModel.findById(body.departmentId).exec();
+      if (!newDept) {
+        throw new NotFoundException('Phòng ban mới không tồn tại');
+      }
+      this.accessControlService.validateScope(req.user, newDept._id, (newDept.divisionId || null) as any);
+    }
+
     return this.templateModel
       .findByIdAndUpdate(id, body, { new: true })
       .populate('departmentId')
@@ -62,9 +111,18 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Request() req: any, @Param('id') id: string) {
+    const existing = await this.templateModel.findById(id).exec();
+    if (!existing) {
+      throw new NotFoundException('Mẫu checklist không tồn tại');
+    }
+
+    const dept = await this.departmentModel.findById(existing.departmentId).exec();
+    this.accessControlService.validateScope(req.user, existing.departmentId, dept?.divisionId || null);
+
     return this.templateModel.findByIdAndDelete(id).exec();
   }
 }
+

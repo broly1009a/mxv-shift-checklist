@@ -5,6 +5,7 @@ import { ShiftLog } from '../../schemas/shift-log.schema';
 import { Department } from '../../schemas/department.schema';
 import { AuditLog } from '../../schemas/audit-log.schema';
 import { SystemLog } from '../../schemas/system-log.schema';
+import { AccessControlService } from '../auth/access-control.service';
 
 @Injectable()
 export class DashboardService {
@@ -13,24 +14,13 @@ export class DashboardService {
     @InjectModel(Department.name) private readonly departmentModel: Model<Department>,
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
     @InjectModel(SystemLog.name) private readonly systemLogModel: Model<SystemLog>,
+    private readonly accessControlService: AccessControlService,
   ) {}
 
   private async getScopeFilter(user: any): Promise<any> {
-    if (!user) return { _id: null }; // Fail closed
-    if (user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN') {
-      return {};
-    }
-    if (user.role === 'DIVISION_DIRECTOR') {
-      const divId = user.divisionId?._id || user.divisionId;
-      if (!divId) return { _id: null };
-      const depts = await this.departmentModel.find({ divisionId: new Types.ObjectId(divId.toString()) }).exec();
-      const deptIds = depts.map(d => d._id);
-      return { departmentId: { $in: deptIds } };
-    }
-    const deptId = user.departmentId?._id || user.departmentId;
-    if (!deptId) return { _id: null };
-    return { departmentId: new Types.ObjectId(deptId.toString()) };
+    return this.accessControlService.getScopeFilter(user);
   }
+
 
   async getSummary(dateStr: string, user: any): Promise<any> {
     this.validateDateStr(dateStr);

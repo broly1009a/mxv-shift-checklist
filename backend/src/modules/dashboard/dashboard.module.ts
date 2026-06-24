@@ -6,6 +6,7 @@ import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
 import { SystemLog, SystemLogSchema } from '../../schemas/system-log.schema';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -15,8 +16,10 @@ import { DashboardService } from './dashboard.service';
       { name: AuditLog.name, schema: AuditLogSchema },
       { name: SystemLog.name, schema: SystemLogSchema },
     ]),
+    AuthModule,
   ],
   controllers: [DashboardController],
   providers: [DashboardService],
 })
+
 export class DashboardModule {}

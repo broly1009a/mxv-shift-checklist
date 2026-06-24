@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Layers,
   GripVertical
@@ -22,6 +23,12 @@ import { MarginChangeRequestsWidget } from './components/MarginChangeRequestsWid
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
+  const {
+    canManageTemplates,
+    canAccessMarginChange,
+    canAccessAutoShift,
+    canAccessHealthChecks,
+  } = usePermissions();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [activeShifts, setActiveShifts] = useState<ShiftLog[]>([]);
   const [recentShifts, setRecentShifts] = useState<ShiftLog[]>([]);
@@ -395,6 +402,7 @@ export default function DashboardPage() {
         return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} />;
 
       case 'initShift':
+        if (!canManageTemplates) return null;
         return (
           <InitShiftWidget
             templates={templates}
@@ -407,6 +415,7 @@ export default function DashboardPage() {
         );
 
       case 'autoShift':
+        if (!canAccessAutoShift) return null;
         return (
           <AutoShiftWidget
             jobDate={jobDate}
@@ -419,12 +428,15 @@ export default function DashboardPage() {
         );
 
       case 'templatesSummary':
+        if (!canManageTemplates) return null;
         return <TemplatesSummaryWidget templates={templates} />;
 
       case 'healthChecks':
+        if (!canAccessHealthChecks) return null;
         return <HealthChecksWidget />;
 
       case 'marginChangeRequests':
+        if (!canAccessMarginChange) return null;
         return <MarginChangeRequestsWidget token={token} currentUser={user} />;
 
       default:

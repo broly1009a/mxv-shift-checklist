@@ -17,6 +17,8 @@ import {
   Calendar
 } from 'lucide-react';
 
+import { usePermissions } from '@/hooks/usePermissions';
+
 interface SidebarProps {
   isOpen?: boolean;
   isCollapsed?: boolean;
@@ -26,6 +28,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { canManageTemplates, isAdmin } = usePermissions();
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('mxv_theme') as 'dark' | 'light') || 'dark';
@@ -203,7 +206,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           <span>Cấu hình</span>
         </Link>
 
-        {['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'].includes(user.role) && (
+        {canManageTemplates && (
           <>
             <div className="sidebar-section-header" style={{
               fontSize: '0.68rem',
@@ -217,24 +220,29 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               Quản trị hệ thống
             </div>
             
-            <Link 
-              href="/admin/departments" 
-              onClick={onClose} 
-              className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}
-              title={isCollapsed ? "Quản lý phòng ban" : undefined}
-            >
-              <Building2 size={18} style={{ flexShrink: 0 }} />
-              <span>Quản lý phòng ban</span>
-            </Link>
-            <Link 
-              href="/admin/users" 
-              onClick={onClose} 
-              className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}
-              title={isCollapsed ? "Quản lý tài khoản" : undefined}
-            >
-              <UserCheck size={18} style={{ flexShrink: 0 }} />
-              <span>Quản lý tài khoản</span>
-            </Link>
+            {isAdmin && (
+              <>
+                <Link 
+                  href="/admin/departments" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}
+                  title={isCollapsed ? "Quản lý phòng ban" : undefined}
+                >
+                  <Building2 size={18} style={{ flexShrink: 0 }} />
+                  <span>Quản lý phòng ban</span>
+                </Link>
+                <Link 
+                  href="/admin/users" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}
+                  title={isCollapsed ? "Quản lý tài khoản" : undefined}
+                >
+                  <UserCheck size={18} style={{ flexShrink: 0 }} />
+                  <span>Quản lý tài khoản</span>
+                </Link>
+              </>
+            )}
+
             <Link 
               href="/admin/templates" 
               onClick={onClose} 
@@ -244,17 +252,21 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <Settings size={18} style={{ flexShrink: 0 }} />
               <span>Mẫu checklist</span>
             </Link>
-            <Link 
-              href="/admin/calendar" 
-              onClick={onClose} 
-              className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
-              title={isCollapsed ? "Lịch giao dịch" : undefined}
-            >
-              <Calendar size={18} style={{ flexShrink: 0 }} />
-              <span>Lịch giao dịch</span>
-            </Link>
+
+            {isAdmin && (
+              <Link 
+                href="/admin/calendar" 
+                onClick={onClose} 
+                className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
+                title={isCollapsed ? "Lịch giao dịch" : undefined}
+              >
+                <Calendar size={18} style={{ flexShrink: 0 }} />
+                <span>Lịch giao dịch</span>
+              </Link>
+            )}
           </>
         )}
+
       </nav>
 
       {/* Sidebar Uptime Status Card */}

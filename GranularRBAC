@@ -1,0 +1,24 @@
+Cơ chế RBAC (Phân quyền truy cập) hiện tại của hệ thống được xây dựng dưới dạng Phân quyền lai (Hybrid Authorization), kết hợp giữa Vai trò (Role) + Phạm vi quản lý (Scope - Phòng ban/Khối) + Tính năng nghiệp vụ (Feature Permission).
+
+Cụ thể hoạt động thông qua 3 trụ cột cốt lõi sau:
+
+1. Phân quyền theo Tính năng nghiệp vụ (canAccessFeature)
+Hệ thống quản lý quyền truy cập các chức năng đặc thù dựa trên Khối nghiệp vụ (Division):
+
+Tính năng Ký quỹ (MARGIN_CHANGE): Chỉ dành cho Admin, Ban giám đốc (CEO/Chairman) và những ai thuộc Khối QLGD (TRADE_DIVISION).
+Tính năng Sinh ca trực (AUTO_SHIFT) và Kiểm tra hệ thống (HEALTH_CHECKS): Chỉ dành cho Admin và những ai thuộc Khối IT (IT_DIVISION).
+2. Cách ly Dữ liệu tự động (getScopeFilter)
+Khi người dùng truy vấn dữ liệu (xem Danh sách ca trực, Lịch sử, hay Sự cố):
+
+Nếu là Admin / Ban giám đốc: Hệ thống trả về toàn bộ dữ liệu của tất cả các khối (không lọc).
+Nếu là Trưởng khối / Nhân viên khối IT hoặc QLGD: Hệ thống sẽ tự động chèn thêm điều kiện lọc theo bộ phận (departmentId) hoặc khối (divisionId) của người dùng đó. Người dùng chỉ nhìn thấy dữ liệu thuộc phạm vi quản lý của mình mà không cần phải chọn bộ lọc thủ công.
+3. Kiểm tra Phạm vi thao tác (validateScope)
+Khi người dùng cố tình cập nhật dữ liệu (như hoàn thành tác vụ, chốt ca trực, tạo/chỉnh sửa template, giải quyết sự cố):
+
+Hệ thống sẽ lấy thông tin departmentId và divisionId của tài nguyên (ca trực, template, sự cố) đó so sánh với tài khoản đang đăng nhập.
+Nếu không trùng khớp (hoặc không phải Admin/CEO), Backend sẽ từ chối xử lý và trả về lỗi 403 Forbidden ngay lập tức.
+Tích hợp lên Giao diện (Frontend)
+Tất cả các cơ chế bảo mật trên được đồng bộ lên UI thông qua hook usePermissions:
+
+Ẩn menu Sidebar: Trưởng khối chỉ thấy trang quản lý Mẫu checklist của khối mình, không thấy các mục quản trị hệ thống khác. Nhân viên không nhìn thấy bất kỳ mục cấu hình nào.
+Ẩn/Hiện Widget Dashboard: Widget ký quỹ tự động ẩn đối với IT; widget kiểm tra hệ thống và sinh ca tự động ẩn đối với QLGD.

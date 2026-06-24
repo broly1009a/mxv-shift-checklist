@@ -4,6 +4,7 @@ import { MarginChangeRequest, MarginChangeRequestSchema } from '../../schemas/ma
 import { MarginChangeRequestsService } from './margin-change-requests.service';
 import { MarginChangeRequestsController } from './margin-change-requests.controller';
 import { ShiftsModule } from '../shifts/shifts.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -11,7 +12,9 @@ import { ShiftsModule } from '../shifts/shifts.module';
       { name: MarginChangeRequest.name, schema: MarginChangeRequestSchema },
     ]),
     forwardRef(() => ShiftsModule),
+    AuthModule,
   ],
+
   providers: [MarginChangeRequestsService],
   controllers: [MarginChangeRequestsController],
   exports: [MarginChangeRequestsService],

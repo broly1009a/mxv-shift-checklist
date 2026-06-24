@@ -12,6 +12,7 @@ import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { IncidentsModule } from '../incidents/incidents.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -22,7 +23,9 @@ import { IncidentsModule } from '../incidents/incidents.module';
     ]),
     SystemLogsModule,
     forwardRef(() => IncidentsModule),
+    AuthModule,
   ],
+
   providers: [ShiftsService, ShiftsGateway, TelegramService],
   controllers: [ShiftsController],
   exports: [ShiftsService, TelegramService, ShiftsGateway],

@@ -23,13 +23,13 @@ export class IncidentsController {
   }
 
   @Get('shift/:shiftLogId')
-  async getByShift(@Param('shiftLogId') shiftLogId: string) {
-    return this.incidentsService.getIncidentsByShift(shiftLogId);
+  async getByShift(@Request() req: any, @Param('shiftLogId') shiftLogId: string) {
+    return this.incidentsService.getIncidentsByShift(shiftLogId, req.user);
   }
 
   @Get('pending')
-  async getPending() {
-    return this.incidentsService.getPendingIncidents();
+  async getPending(@Request() req: any) {
+    return this.incidentsService.getPendingIncidents(req.user);
   }
 
   @Patch(':id/resolve')

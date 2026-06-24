@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { MarginChangeRequest } from '../../schemas/margin-change-request.schema';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
+import { AccessControlService } from '../auth/access-control.service';
 
 @Injectable()
 export class MarginChangeRequestsService {
@@ -11,6 +12,7 @@ export class MarginChangeRequestsService {
     private readonly requestModel: Model<MarginChangeRequest>,
     @Inject(forwardRef(() => ShiftsGateway))
     private readonly shiftsGateway: ShiftsGateway,
+    private readonly accessControlService: AccessControlService,
   ) {}
 
   async createRequest(
@@ -24,6 +26,11 @@ export class MarginChangeRequestsService {
     },
     user: any,
   ): Promise<MarginChangeRequest> {
+    const hasAccess = await this.accessControlService.canAccessFeature(user, 'MARGIN_CHANGE');
+    if (!hasAccess) {
+      throw new ForbiddenException('Tài khoản của bạn không thuộc khối QLGD để tạo yêu cầu ký quỹ.');
+    }
+
     const request = new this.requestModel({
       commodity: dto.commodity,
       oldMargin: dto.oldMargin,
@@ -48,7 +55,12 @@ export class MarginChangeRequestsService {
     return saved;
   }
 
-  async listRequests(status?: string): Promise<MarginChangeRequest[]> {
+  async listRequests(user: any, status?: string): Promise<MarginChangeRequest[]> {
+    const hasAccess = await this.accessControlService.canAccessFeature(user, 'MARGIN_CHANGE');
+    if (!hasAccess) {
+      return [];
+    }
+
     const filter = status ? { status } : {};
     return this.requestModel
       .find(filter)
@@ -57,6 +69,7 @@ export class MarginChangeRequestsService {
       .sort({ createdAt: -1 })
       .exec();
   }
+
 
   async approveRequest(
     id: string,
@@ -90,6 +103,13 @@ export class MarginChangeRequestsService {
     if (!checkerRoles.includes(checkerUser.role)) {
       throw new ForbiddenException(
         'Tài khoản của bạn không có vai trò phê duyệt yêu cầu này (Chỉ dành cho Approver).',
+      );
+    }
+
+    const hasAccess = await this.accessControlService.canAccessFeature(checkerUser, 'MARGIN_CHANGE');
+    if (!hasAccess) {
+      throw new ForbiddenException(
+        'Tài khoản của bạn không thuộc khối QLGD để phê duyệt yêu cầu ký quỹ.',
       );
     }
 
@@ -148,6 +168,13 @@ export class MarginChangeRequestsService {
     if (!checkerRoles.includes(checkerUser.role)) {
       throw new ForbiddenException(
         'Tài khoản của bạn không có vai trò từ chối yêu cầu này (Chỉ dành cho Approver).',
+      );
+    }
+
+    const hasAccess = await this.accessControlService.canAccessFeature(checkerUser, 'MARGIN_CHANGE');
+    if (!hasAccess) {
+      throw new ForbiddenException(
+        'Tài khoản của bạn không thuộc khối QLGD để từ chối yêu cầu ký quỹ.',
       );
     }
 

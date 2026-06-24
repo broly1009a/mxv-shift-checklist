@@ -6,6 +6,7 @@ import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
 import { IncidentsService } from './incidents.service';
 import { IncidentsController } from './incidents.controller';
 import { ShiftsModule } from '../shifts/shifts.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ShiftsModule } from '../shifts/shifts.module';
       { name: AuditLog.name, schema: AuditLogSchema },
     ]),
     forwardRef(() => ShiftsModule),
+    AuthModule,
   ],
   providers: [IncidentsService],
   controllers: [IncidentsController],

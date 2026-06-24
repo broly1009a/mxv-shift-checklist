@@ -19,8 +19,8 @@ export class MarginChangeRequestsController {
   }
 
   @Get()
-  async list(@Query('status') status?: string) {
-    return this.marginChangeRequestsService.listRequests(status);
+  async list(@Request() req: any, @Query('status') status?: string) {
+    return this.marginChangeRequestsService.listRequests(req.user, status);
   }
 
   @Patch(':id/approve')

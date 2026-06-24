@@ -11,6 +11,7 @@ import {
   ChecklistTemplateSchema,
 } from '../../schemas/template.schema';
 import { Division, DivisionSchema } from '../../schemas/division.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -20,7 +21,9 @@ import { Division, DivisionSchema } from '../../schemas/division.schema';
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
       { name: Division.name, schema: DivisionSchema },
     ]),
+    AuthModule,
   ],
+
   controllers: [
     DepartmentsController,
     UsersController,

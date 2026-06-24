@@ -6,6 +6,7 @@ import { ShiftLog } from '../../schemas/shift-log.schema';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { AuditLog } from '../../schemas/audit-log.schema';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { AccessControlService } from '../auth/access-control.service';
 
 @Injectable()
 export class IncidentsService {
@@ -15,7 +16,9 @@ export class IncidentsService {
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
     @Inject(forwardRef(() => ShiftsGateway))
     private readonly shiftsGateway: ShiftsGateway,
+    private readonly accessControlService: AccessControlService,
   ) {}
+
 
   async createIncident(
     shiftLogId: string,
@@ -91,6 +94,12 @@ export class IncidentsService {
     if (!incident) {
       throw new NotFoundException('Không tìm thấy sự cố');
     }
+
+    const shift = await this.shiftLogModel.findById(incident.shiftLogId);
+    if (shift) {
+      this.accessControlService.validateScope(user, (shift.departmentId || null) as any, (shift.divisionId || null) as any);
+    }
+
     if (incident.status === 'RESOLVED') {
       return incident;
     }
@@ -131,16 +140,31 @@ export class IncidentsService {
     return saved;
   }
 
-  async getIncidentsByShift(shiftLogId: string): Promise<Incident[]> {
+  async getIncidentsByShift(shiftLogId: string, user: any): Promise<Incident[]> {
+    const shift = await this.shiftLogModel.findById(shiftLogId);
+    if (!shift) {
+      throw new NotFoundException('Không tìm thấy ca trực');
+    }
+    this.accessControlService.validateScope(user, (shift.departmentId || null) as any, (shift.divisionId || null) as any);
+
     return this.incidentModel
       .find({ shiftLogId: new Types.ObjectId(shiftLogId) })
       .sort({ createdAt: -1 })
       .exec();
   }
 
-  async getPendingIncidents(): Promise<Incident[]> {
+  async getPendingIncidents(user: any): Promise<Incident[]> {
+    const scopeFilter = await this.accessControlService.getScopeFilter(user);
+    const filter: any = { status: 'PENDING' };
+
+    if (Object.keys(scopeFilter).length > 0) {
+      const matchingShifts = await this.shiftLogModel.find(scopeFilter).select('_id').exec();
+      const shiftIds = matchingShifts.map((s) => s._id);
+      filter.shiftLogId = { $in: shiftIds };
+    }
+
     return this.incidentModel
-      .find({ status: 'PENDING' })
+      .find(filter)
       .populate({
         path: 'shiftLogId',
         populate: { path: 'templateId' }

@@ -428,7 +428,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                   placeholder="Ví dụ: Dầu thô WTI, Đồng LME, Ngô..."
                   value={commodity}
                   onChange={(e) => setCommodity(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                 />
               </div>
 
@@ -441,7 +441,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                     placeholder="Ví dụ: 7000"
                     value={oldMargin}
                     onChange={(e) => setOldMargin(e.target.value)}
-                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -452,7 +452,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                     placeholder="Ví dụ: 6500"
                     value={newMargin}
                     onChange={(e) => setNewMargin(e.target.value)}
-                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                   />
                 </div>
               </div>
@@ -465,7 +465,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                   placeholder="Ví dụ: Phiên Mỹ 24/06/2026, Đầu phiên..."
                   value={effectiveSession}
                   onChange={(e) => setEffectiveSession(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                 />
               </div>
 
@@ -477,7 +477,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                   placeholder="Lý do điều chỉnh, quyết định của sở..."
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
                 />
               </div>
 
@@ -543,7 +543,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
                   placeholder="Nhập lý do chi tiết từ chối phê duyệt..."
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
                 />
               </div>
 
