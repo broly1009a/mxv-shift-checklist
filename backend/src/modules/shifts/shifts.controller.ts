@@ -35,6 +35,18 @@ export class ShiftsController {
     );
   }
 
+  @Patch('items/status')
+  async updateStatus(@Request() req: any, @Body() body: any) {
+    const { shiftLogId, taskId, status, note } = body;
+    return this.shiftsService.updateTaskStatus(
+      shiftLogId,
+      taskId,
+      status,
+      req.user,
+      note,
+    );
+  }
+
   @Post('close')
   async close(@Request() req: any, @Body() body: any) {
     const { shiftLogId, handoverNote } = body;

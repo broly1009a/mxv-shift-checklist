@@ -49,11 +49,13 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   notifyShiftUpdate(shiftLogId: string, updatedLog: any, auditLog?: any) {
-    this.server.to(shiftLogId).emit('shift-updated', {
-      shiftLog: updatedLog,
-      auditLog,
-    });
-    console.log(`Broadcasted update to room: ${shiftLogId}`);
+    if (this.server) {
+      this.server.to(shiftLogId).emit('shift-updated', {
+        shiftLog: updatedLog,
+        auditLog,
+      });
+      console.log(`Broadcasted update to room: ${shiftLogId}`);
+    }
   }
 
   emitEvent(
@@ -83,7 +85,7 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
 
     const eventName = eventNameMap[eventType];
-    if (eventName) {
+    if (eventName && this.server) {
       this.server.emit(eventName, payload);
       if (jobId) {
         this.server.to(jobId).emit(eventName, payload);

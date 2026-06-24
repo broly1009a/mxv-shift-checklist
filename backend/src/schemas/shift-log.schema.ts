@@ -44,6 +44,57 @@ export class ShiftLogDetail {
 
   @Prop({ required: false, type: String, default: '' })
   botTriggerTimeSnapshot?: string;
+
+  @Prop({ required: true, enum: ['PENDING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'], default: 'PENDING' })
+  status: string;
+
+  @Prop({ required: false, type: String, default: null })
+  resultNote?: string | null;
+
+  @Prop({ type: Date, default: null })
+  startedAt?: Date | null;
+
+  @Prop({ type: Date, default: null })
+  completedAt?: Date | null;
+
+  @Prop({ type: Date, default: null })
+  failedAt?: Date | null;
+
+  @Prop({ type: Date, default: null })
+  skippedAt?: Date | null;
+
+  @Prop({ type: Date, default: null })
+  needsAttentionAt?: Date | null;
+
+  @Prop({ required: false, type: [String], default: [] })
+  dependsOnTaskIdsSnapshot?: string[];
+
+  @Prop({ required: false, type: String, default: null })
+  sessionTypeSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  triggerTimeSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaDeadlineSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaWindowStartSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaWindowEndSnapshot?: string | null;
+
+  @Prop({ required: false, type: String, default: '' })
+  actionDescriptionSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  exceptionCodeSnapshot?: string;
+
+  @Prop({ required: false, type: Number, default: null })
+  frequencyMinutesSnapshot?: number | null;
+
+  @Prop({ required: false, type: String, default: '' })
+  recurrenceGroupIdSnapshot?: string;
 }
 
 export const ShiftLogDetailSchema =

@@ -36,6 +36,36 @@ export class TaskItem {
 
   @Prop({ required: false, type: String, default: '' })
   botTriggerTime?: string;
+
+  @Prop({ required: false, type: String, default: null })
+  sessionType?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  triggerTime?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaDeadline?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaWindowStart?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  slaWindowEnd?: string | null;
+
+  @Prop({ required: false, type: String, default: '' })
+  actionDescription?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  exceptionCode?: string;
+
+  @Prop({ required: false, type: Number, default: null })
+  frequencyMinutes?: number | null;
+
+  @Prop({ required: false, type: String, default: '' })
+  recurrenceGroupId?: string;
+
+  @Prop({ required: false, type: [String], default: [] })
+  dependsOnTaskIds?: string[];
 }
 
 export const TaskItemSchema = SchemaFactory.createForClass(TaskItem);

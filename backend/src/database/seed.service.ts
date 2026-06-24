@@ -413,6 +413,7 @@ export class SeedService implements OnApplicationBootstrap {
               'Kiểm tra dung lượng ổ đĩa cứng (Disk Storage) và mức độ tiêu thụ RAM/CPU của cụm máy chủ cơ sở dữ liệu MongoDB',
             priority: 'HIGH',
             sortOrder: 4,
+            dependsOnTaskIds: ['it_open_01'],
           },
           {
             taskId: 'it_open_05',
@@ -420,6 +421,7 @@ export class SeedService implements OnApplicationBootstrap {
               'Xác nhận đồng bộ thành công dữ liệu giá mở cửa đầu ngày (Snapshot Full Refresh) từ các sàn quốc tế liên thông',
             priority: 'CRITICAL',
             sortOrder: 5,
+            dependsOnTaskIds: ['it_open_02'],
           },
         ],
       },
@@ -511,6 +513,7 @@ export class SeedService implements OnApplicationBootstrap {
               'Đối chiếu số dư tài khoản tiền mặt (LND - Lọc Nộp Dòng) đầu ngày của danh sách Nhà đầu tư đăng ký nhận hàng',
             priority: 'CRITICAL',
             sortOrder: 3,
+            dependsOnTaskIds: ['ops_open_02'],
           },
         ],
       },
@@ -725,6 +728,7 @@ export class SeedService implements OnApplicationBootstrap {
         existing.shiftSlotId = slotId as any;
         existing.isActive = true;
         existing.tasks = tpl.tasks;
+        existing.markModified('tasks');
         await existing.save();
         this.logger.log(`Updated checklist template: ${tpl.title}`);
       }

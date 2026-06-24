@@ -22,7 +22,11 @@ import {
   Search,
   Filter,
   Link2,
-  Cpu
+  Cpu,
+  AlertTriangle,
+  XCircle,
+  SkipForward,
+  ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
@@ -46,6 +50,23 @@ interface TaskDetail {
   timetableSnapshot?: string;
   isBotCheckSnapshot?: boolean;
   botTriggerTimeSnapshot?: string;
+  
+  status: 'PENDING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'NEEDS_ATTENTION';
+  resultNote?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  skippedAt?: string | null;
+  needsAttentionAt?: string | null;
+  dependsOnTaskIdsSnapshot?: string[];
+  sessionTypeSnapshot?: string;
+  triggerTimeSnapshot?: string;
+  slaDeadlineSnapshot?: string;
+  slaWindowStartSnapshot?: string;
+  slaWindowEndSnapshot?: string;
+  actionDescriptionSnapshot?: string;
+  exceptionCodeSnapshot?: string;
+  frequencyMinutesSnapshot?: number | null;
 }
 
 interface ShiftLog {
@@ -86,10 +107,48 @@ interface AuditLog {
     fullName: string;
     username: string;
   };
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE';
+  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE';
   details: string;
   createdAt: string;
 }
+
+const STATUS_CONFIGS = {
+  PENDING: {
+    label: 'Chưa thực hiện',
+    color: '#94a3b8',
+    bgColor: 'rgba(148, 163, 184, 0.1)',
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    icon: Clock,
+  },
+  PASSED: {
+    label: 'Đạt',
+    color: '#10b981',
+    bgColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+    icon: CheckCircle2,
+  },
+  FAILED: {
+    label: 'Không đạt',
+    color: '#ef4444',
+    bgColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    icon: XCircle,
+  },
+  SKIPPED: {
+    label: 'Bỏ qua',
+    color: '#60a5fa',
+    bgColor: 'rgba(96, 165, 250, 0.1)',
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+    icon: SkipForward,
+  },
+  NEEDS_ATTENTION: {
+    label: 'Cần chú ý',
+    color: '#f59e0b',
+    bgColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    icon: AlertTriangle,
+  },
+};
 
 function ChecklistWorksheet() {
   const { user, token } = useAuth();
@@ -109,6 +168,7 @@ function ChecklistWorksheet() {
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState<string | null>(null);
 
   const togglingTaskIds = useRef<Set<string>>(new Set());
   const focusedTaskIdRef = useRef<string | null>(null);
@@ -223,15 +283,42 @@ function ChecklistWorksheet() {
     };
   }, [shiftLogId, token]);
 
-  const handleToggle = async (taskId: string, currentStatus: boolean) => {
+  const isTaskLocked = useCallback((item: TaskDetail) => {
+    if (!item.dependsOnTaskIdsSnapshot || item.dependsOnTaskIdsSnapshot.length === 0) {
+      return false;
+    }
+    return item.dependsOnTaskIdsSnapshot.some(depId => {
+      const depTask = log?.details.find(d => d.taskId === depId);
+      return depTask && !depTask.isChecked;
+    });
+  }, [log]);
+
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
     if (!log || log.status === 'COMPLETED' || !token) return;
     if (togglingTaskIds.current.has(taskId)) return;
+
+    // Check frontend dependency validation
+    const targetItem = log.details.find(d => d.taskId === taskId);
+    if (targetItem?.dependsOnTaskIdsSnapshot && targetItem.dependsOnTaskIdsSnapshot.length > 0 && newStatus !== 'PENDING') {
+      const unmet = targetItem.dependsOnTaskIdsSnapshot.filter(depId => {
+        const depTask = log.details.find(d => d.taskId === depId);
+        return depTask && !depTask.isChecked;
+      });
+      if (unmet.length > 0) {
+        const listStr = unmet.map(depId => {
+          const depTask = log.details.find(d => d.taskId === depId);
+          return `[${depId}] "${depTask ? depTask.taskNameSnapshot : ''}"`;
+        }).join(', ');
+        setActionError(`Không thể thay đổi trạng thái. Tác vụ này phụ thuộc vào tác vụ chưa hoàn thành: ${listStr}`);
+        return;
+      }
+    }
 
     togglingTaskIds.current.add(taskId);
     setActionError('');
     setActionSuccess('');
-    
-    const isChecked = !currentStatus;
+
+    const isChecked = newStatus !== 'PENDING';
     const note = notesState[taskId] || '';
 
     // Save previous state for rollback
@@ -242,6 +329,7 @@ function ChecklistWorksheet() {
       if (item.taskId === taskId) {
         return {
           ...item,
+          status: newStatus as any,
           isChecked,
           checkedAt: isChecked ? new Date().toISOString() : undefined,
           updatedBy: isChecked ? {
@@ -267,7 +355,7 @@ function ChecklistWorksheet() {
     setLog(optimisticLog);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/toggle`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -276,26 +364,30 @@ function ChecklistWorksheet() {
         body: JSON.stringify({
           shiftLogId: log._id,
           taskId,
-          isChecked,
+          status: newStatus,
           note
         })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message || 'Cập nhật tác vụ thất bại');
+        throw new Error(err.message || 'Cập nhật trạng thái thất bại');
       }
 
       const updated: ShiftLog = await res.json();
       setLog(updated);
       setActionSuccess('Cập nhật trạng thái tác vụ thành công.');
     } catch (err: any) {
-      // Rollback to previous log state on failure
       setLog(previousLog);
       setActionError(err.message || 'Có lỗi xảy ra');
     } finally {
       togglingTaskIds.current.delete(taskId);
     }
+  };
+
+  const handleToggle = async (taskId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus ? 'PASSED' : 'PENDING';
+    await handleStatusChange(taskId, newStatus);
   };
 
   const handleSaveNote = async (taskId: string) => {
@@ -305,11 +397,11 @@ function ChecklistWorksheet() {
     setActionSuccess('');
 
     const targetItem = log.details.find(d => d.taskId === taskId);
-    const isChecked = targetItem ? targetItem.isChecked : false;
+    const status = targetItem ? (targetItem.status || (targetItem.isChecked ? 'PASSED' : 'PENDING')) : 'PENDING';
     const note = notesState[taskId] || '';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/toggle`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +410,7 @@ function ChecklistWorksheet() {
         body: JSON.stringify({
           shiftLogId: log._id,
           taskId,
-          isChecked,
+          status,
           note
         })
       });
@@ -458,7 +550,8 @@ function ChecklistWorksheet() {
     const matchesPriority = priorityFilter === 'ALL' || item.prioritySnapshot === priorityFilter;
     const matchesStatus = statusFilter === 'ALL' || 
                           (statusFilter === 'CHECKED' && item.isChecked) ||
-                          (statusFilter === 'UNCHECKED' && !item.isChecked);
+                          (statusFilter === 'UNCHECKED' && !item.isChecked) ||
+                          (item.status === statusFilter || (!item.status && statusFilter === 'PENDING' && !item.isChecked));
     return matchesSearch && matchesPriority && matchesStatus;
   }) || [];
 
@@ -628,6 +721,9 @@ function ChecklistWorksheet() {
         .print-only {
           display: none;
         }
+        .status-option-hover:hover {
+          background: rgba(255, 255, 255, 0.06) !important;
+        }
       `}} />
 
       {/* Screen view wrapper (hidden on print via no-print class) */}
@@ -788,6 +884,11 @@ function ChecklistWorksheet() {
                   <option value="ALL">Mọi trạng thái</option>
                   <option value="CHECKED">Đã kiểm tra</option>
                   <option value="UNCHECKED">Chưa kiểm tra</option>
+                  <option value="PENDING">Chưa thực hiện</option>
+                  <option value="PASSED">Đạt</option>
+                  <option value="FAILED">Không đạt</option>
+                  <option value="SKIPPED">Bỏ qua</option>
+                  <option value="NEEDS_ATTENTION">Cần chú ý</option>
                 </select>
               </div>
             </div>
@@ -801,6 +902,10 @@ function ChecklistWorksheet() {
               ) : (
                 filteredDetails.map((item, index) => {
                   const isSaving = savingTaskId === item.taskId;
+                  const currentStatus = item.status || 'PENDING';
+                  const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
+                  const StatusIcon = currentStatusConfig.icon;
+                  const locked = isTaskLocked(item);
                   return (
                     <div key={item.taskId} className="glass-panel animate-fade-in" style={{
                       padding: '16px',
@@ -816,19 +921,29 @@ function ChecklistWorksheet() {
                       {/* Checkbox and task information row */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                          <input
-                            type="checkbox"
-                            checked={item.isChecked}
-                            onChange={() => handleToggle(item.taskId, item.isChecked)}
-                            disabled={isCompleted || isSaving}
-                            style={{
-                              width: '18px',
-                              height: '18px',
-                              marginTop: '3px',
-                              cursor: isCompleted ? 'not-allowed' : 'pointer',
-                              accentColor: 'var(--color-primary)'
-                            }}
-                          />
+                          {locked ? (
+                            <span title="Bị khóa do phụ thuộc tác vụ chưa hoàn thành">
+                              <Lock
+                                size={18}
+                                color="#ef4444"
+                                style={{ marginTop: '3px', flexShrink: 0 }}
+                              />
+                            </span>
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={item.isChecked}
+                              onChange={() => handleToggle(item.taskId, item.isChecked)}
+                              disabled={isCompleted || isSaving}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                marginTop: '3px',
+                                cursor: isCompleted ? 'not-allowed' : 'pointer',
+                                accentColor: 'var(--color-primary)'
+                              }}
+                            />
+                          )}
                           <div>
                             <p style={{
                               fontSize: '0.92rem',
@@ -841,6 +956,32 @@ function ChecklistWorksheet() {
                             }}>
                               [{item.taskId}] {item.taskNameSnapshot}
                             </p>
+                            
+                            {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                                {item.dependsOnTaskIdsSnapshot.map(depId => {
+                                  const depTask = log.details.find(d => d.taskId === depId);
+                                  const isDepDone = depTask ? depTask.isChecked : false;
+                                  return (
+                                    <span key={depId} style={{
+                                      fontSize: '0.72rem',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      background: isDepDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                                      color: isDepDone ? '#10b981' : '#ef4444',
+                                      border: `1px solid ${isDepDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}`,
+                                      fontWeight: 600
+                                    }}>
+                                      {isDepDone ? <Unlock size={11} /> : <Lock size={11} />}
+                                      Phụ thuộc: {depId} ({isDepDone ? 'Đã hoàn thành' : 'Chưa hoàn thành'})
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                             
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                               {getPriorityBadge(item.prioritySnapshot)}
@@ -901,6 +1042,100 @@ function ChecklistWorksheet() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Status Selector Dropdown */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <button
+                            onClick={() => {
+                              if (isCompleted || locked || isSaving) return;
+                              setOpenStatusDropdownTaskId(openStatusDropdownTaskId === item.taskId ? null : item.taskId);
+                            }}
+                            disabled={isCompleted || locked || isSaving}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: (isCompleted || locked || isSaving) ? 'not-allowed' : 'pointer',
+                              background: currentStatusConfig.bgColor,
+                              color: currentStatusConfig.color,
+                              border: `1px solid ${currentStatusConfig.borderColor}`,
+                              transition: 'all 0.2s ease',
+                              minWidth: '140px',
+                              justifyContent: 'space-between'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <StatusIcon size={14} />
+                              {currentStatusConfig.label}
+                            </span>
+                            {!isCompleted && !locked && <ChevronDown size={12} />}
+                          </button>
+
+                          {/* Dropdown Options List */}
+                          {openStatusDropdownTaskId === item.taskId && (
+                            <>
+                              {/* Overlay click catcher to close dropdown */}
+                              <div 
+                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                                onClick={() => setOpenStatusDropdownTaskId(null)}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '100%',
+                                marginTop: '4px',
+                                background: '#1e293b',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: '10px',
+                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)',
+                                zIndex: 1000,
+                                minWidth: '170px',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: '4px'
+                              }}>
+                                {Object.entries(STATUS_CONFIGS).map(([statusKey, cfg]) => {
+                                  const OptionIcon = cfg.icon;
+                                  return (
+                                    <button
+                                      key={statusKey}
+                                      onClick={() => {
+                                        handleStatusChange(item.taskId, statusKey);
+                                        setOpenStatusDropdownTaskId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '8px 12px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        color: cfg.color,
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        transition: 'background 0.15s ease'
+                                      }}
+                                      className="status-option-hover"
+                                    >
+                                      <OptionIcon size={14} />
+                                      {cfg.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
                       </div>
 
                       {/* Notes / Comment section */}

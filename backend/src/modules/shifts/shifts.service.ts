@@ -23,7 +23,7 @@ export class ShiftsService {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly telegramService: TelegramService,
     private readonly systemLogsService: SystemLogsService,
-  ) {}
+  ) { }
 
   private validateScope(
     user: any,
@@ -152,6 +152,17 @@ export class ShiftsService {
       timetableSnapshot: task.timetable || '',
       isBotCheckSnapshot: task.isBotCheck || false,
       botTriggerTimeSnapshot: task.botTriggerTime || '',
+      status: 'PENDING',
+      dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
+      sessionTypeSnapshot: task.sessionType || null,
+      triggerTimeSnapshot: task.triggerTime || null,
+      slaDeadlineSnapshot: task.slaDeadline || null,
+      slaWindowStartSnapshot: task.slaWindowStart || null,
+      slaWindowEndSnapshot: task.slaWindowEnd || null,
+      actionDescriptionSnapshot: task.actionDescription || '',
+      exceptionCodeSnapshot: task.exceptionCode || '',
+      frequencyMinutesSnapshot: task.frequencyMinutes || null,
+      recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
     }));
 
     const newLog = new this.shiftLogModel({
@@ -191,10 +202,10 @@ export class ShiftsService {
       (result.templateId as any)?.departmentId?.name || 'Vận hành';
     await this.telegramService.sendMessage(
       `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
-        `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
-        `• Ngày trực: <b>${result.shiftDate}</b>\n` +
-        `• Phòng ban: <b>${deptName}</b>\n` +
-        `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
+      `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
+      `• Ngày trực: <b>${result.shiftDate}</b>\n` +
+      `• Phòng ban: <b>${deptName}</b>\n` +
+      `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
     );
 
     // Ghi nhận log hệ thống
@@ -224,13 +235,18 @@ export class ShiftsService {
     return result;
   }
 
-  async toggleTask(
+  async updateTaskStatus(
     shiftLogId: string,
     taskId: string,
-    isChecked: boolean,
+    status: string,
     user: any,
     note?: string,
   ): Promise<ShiftLog> {
+    const validStatuses = ['PENDING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'];
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestException('Trạng thái tác vụ không hợp lệ');
+    }
+
     const log = await this.shiftLogModel
       .findById(shiftLogId)
       .populate({
@@ -262,19 +278,86 @@ export class ShiftsService {
     }
 
     const oldIsChecked = task.isChecked;
+    const oldStatus = task.status || 'PENDING';
     const oldNote = task.note;
 
-    // Cập nhật nguyên tử mảng details của MongoDB để bảo vệ chống ghi đè đồng thời
+    // Check task dependencies if status is not PENDING
+    if (status !== 'PENDING' && task.dependsOnTaskIdsSnapshot && task.dependsOnTaskIdsSnapshot.length > 0) {
+      for (const depId of task.dependsOnTaskIdsSnapshot) {
+        const depTask = log.details.find((d) => d.taskId === depId);
+        if (depTask && !depTask.isChecked) {
+          throw new BadRequestException(
+            `Tác vụ này phụ thuộc vào tác vụ [${depId}] "${depTask.taskNameSnapshot}" chưa hoàn thành.`,
+          );
+        }
+      }
+    }
+
+    // Ensure no other checked task depends on this task if we are unchecking it
+    if (status === 'PENDING') {
+      const dependents = log.details.filter(
+        (d) =>
+          d.isChecked &&
+          d.dependsOnTaskIdsSnapshot &&
+          d.dependsOnTaskIdsSnapshot.includes(taskId),
+      );
+      if (dependents.length > 0) {
+        const listStr = dependents.map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`).join(', ');
+        throw new BadRequestException(
+          `Không thể hủy hoàn thành tác vụ này do có tác vụ khác đang hoàn thành phụ thuộc vào nó: ${listStr}`,
+        );
+      }
+    }
+
     const now = new Date();
+    const isChecked = status !== 'PENDING';
+
     const updateQuery: any = {
       $set: {
+        'details.$.status': status,
         'details.$.isChecked': isChecked,
         'details.$.checkedAt': isChecked ? now : null,
         'details.$.updatedBy': new Types.ObjectId(user.id || user._id) as any,
       },
     };
+
     if (note !== undefined) {
       updateQuery.$set['details.$.note'] = note || null;
+      updateQuery.$set['details.$.resultNote'] = note || null;
+    }
+
+    // Set startedAt if transitioning from PENDING
+    if (oldStatus === 'PENDING' && status !== 'PENDING' && !task.startedAt) {
+      updateQuery.$set['details.$.startedAt'] = now;
+    }
+
+    // Set other lifecycle timestamps and clear non-matching ones
+    if (status === 'PENDING') {
+      updateQuery.$set['details.$.startedAt'] = null;
+      updateQuery.$set['details.$.completedAt'] = null;
+      updateQuery.$set['details.$.failedAt'] = null;
+      updateQuery.$set['details.$.skippedAt'] = null;
+      updateQuery.$set['details.$.needsAttentionAt'] = null;
+    } else if (status === 'PASSED') {
+      updateQuery.$set['details.$.completedAt'] = now;
+      updateQuery.$set['details.$.failedAt'] = null;
+      updateQuery.$set['details.$.skippedAt'] = null;
+      updateQuery.$set['details.$.needsAttentionAt'] = null;
+    } else if (status === 'FAILED') {
+      updateQuery.$set['details.$.failedAt'] = now;
+      updateQuery.$set['details.$.completedAt'] = null;
+      updateQuery.$set['details.$.skippedAt'] = null;
+      updateQuery.$set['details.$.needsAttentionAt'] = null;
+    } else if (status === 'SKIPPED') {
+      updateQuery.$set['details.$.skippedAt'] = now;
+      updateQuery.$set['details.$.completedAt'] = null;
+      updateQuery.$set['details.$.failedAt'] = null;
+      updateQuery.$set['details.$.needsAttentionAt'] = null;
+    } else if (status === 'NEEDS_ATTENTION') {
+      updateQuery.$set['details.$.needsAttentionAt'] = now;
+      updateQuery.$set['details.$.completedAt'] = null;
+      updateQuery.$set['details.$.failedAt'] = null;
+      updateQuery.$set['details.$.skippedAt'] = null;
     }
 
     const updatedLog = await this.shiftLogModel
@@ -289,7 +372,7 @@ export class ShiftsService {
       throw new NotFoundException('Lỗi cập nhật tác vụ đồng thời');
     }
 
-    // Tính toán lại tiến trình và lưu trữ
+    // Recalculate progress
     const total = updatedLog.details.length;
     const completed = updatedLog.details.filter((d) => d.isChecked).length;
     updatedLog.progressPercentage =
@@ -310,16 +393,16 @@ export class ShiftsService {
       throw new NotFoundException('Không tìm thấy ca trực sau cập nhật');
     }
 
-    // Tạo Audit Logs
+    // Create Audit Log record
     let auditLogRecord: any = null;
-    if (oldIsChecked !== isChecked) {
+    if (oldStatus !== status) {
       const audit = new this.auditLogModel({
         shiftLogId: new Types.ObjectId(shiftLogId),
         taskId,
         taskName: task.taskNameSnapshot,
         userId: new Types.ObjectId(user.id || user._id),
         action: isChecked ? 'CHECK' : 'UNCHECK',
-        details: isChecked ? 'Tích hoàn thành tác vụ' : 'Hủy hoàn thành tác vụ',
+        details: `Cập nhật trạng thái tác vụ từ "${oldStatus}" sang "${status}"`,
       });
       const saved = await audit.save();
       auditLogRecord = await this.auditLogModel
@@ -349,7 +432,7 @@ export class ShiftsService {
     // Notify Gateway
     this.shiftsGateway.notifyShiftUpdate(shiftLogId, result, auditLogRecord);
 
-    // Ghi nhận log hệ thống
+    // Write system log
     await this.systemLogsService.logEvent({
       eventType: 'TASK_UPDATED',
       source: 'USER',
@@ -358,33 +441,45 @@ export class ShiftsService {
       departmentId: result.departmentId as any,
       shiftSlotId: result.shiftSlotId as any,
       status: 'SUCCESS',
-      message: `Tác vụ "${task.taskNameSnapshot}" trong ca trực "${(result.templateId as any)?.title || 'Ca trực'}" được cập nhật: isChecked=${isChecked}${note !== undefined ? `, note="${note}"` : ''}.`,
-      metadata: { taskId, taskName: task.taskNameSnapshot, isChecked, note },
+      message: `Tác vụ "${task.taskNameSnapshot}" trong ca trực "${(result.templateId as any)?.title || 'Ca trực'}" được cập nhật: status=${status}${note !== undefined ? `, note="${note}"` : ''}.`,
+      metadata: { taskId, taskName: task.taskNameSnapshot, status, isChecked, note },
     });
 
-    // Phát sự kiện qua WebSocket
+    // Emit WebSocket Events
     this.shiftsGateway.emitEvent(
       'TASK_UPDATED',
       result._id.toString(),
       result.departmentId ? result.departmentId.toString() : null,
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
-      { taskId, taskName: task.taskNameSnapshot, isChecked, progressPercentage: result.progressPercentage }
+      { taskId, taskName: task.taskNameSnapshot, isChecked, status, progressPercentage: result.progressPercentage }
     );
     this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
 
-    // Alert Telegram nếu tác vụ khẩn cấp (CRITICAL) vừa được hoàn thành
+    // Alert Telegram if CRITICAL just updated
     if (isChecked && !oldIsChecked && task.prioritySnapshot === 'CRITICAL') {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
         `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
-          `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
-          `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
-          `• Thực hiện bởi: <b>${actorName}</b>`,
+        `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
+        `• Trạng thái: <b>${status}</b>\n` +
+        `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
+        `• Thực hiện bởi: <b>${actorName}</b>`,
       );
     }
 
     return result;
+  }
+
+  async toggleTask(
+    shiftLogId: string,
+    taskId: string,
+    isChecked: boolean,
+    user: any,
+    note?: string,
+  ): Promise<ShiftLog> {
+    const status = isChecked ? 'PASSED' : 'PENDING';
+    return this.updateTaskStatus(shiftLogId, taskId, status, user, note);
   }
 
   async closeShift(
@@ -414,6 +509,24 @@ export class ShiftsService {
     const deptId = dept?._id || dept;
     const divId = dept?.divisionId || null;
     this.validateScope(user, deptId, divId);
+
+    // Enforce CE/ACM priority backup validation for closing checklists
+    const sessionType = (log.templateId as any)?.sessionType || '';
+    if (sessionType === 'CLOSE') {
+      const backupTasks = log.details.filter(
+        (d) =>
+          (d.taskId.toLowerCase().includes('ce') || d.taskId.toLowerCase().includes('acm')) &&
+          (d.taskNameSnapshot.toLowerCase().includes('backup') ||
+            d.taskNameSnapshot.toLowerCase().includes('sao lưu')),
+      );
+      const incomplete = backupTasks.filter((d) => !d.isChecked);
+      if (incomplete.length > 0) {
+        const listStr = incomplete.map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`).join(', ');
+        throw new BadRequestException(
+          `Không thể chốt ca trực. Các tác vụ sao lưu CE/ACM bắt buộc chưa hoàn thành: ${listStr}`,
+        );
+      }
+    }
 
     log.status = 'COMPLETED';
     log.closedBy = new Types.ObjectId(user.id || user._id);
