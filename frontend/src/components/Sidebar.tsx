@@ -14,7 +14,8 @@ import {
   Building2,
   UserCheck,
   PanelLeftClose,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -104,7 +105,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         marginBottom: '24px',
         paddingBottom: '20px',
         borderBottom: '1px solid var(--border-color)',
-        minHeight: '57px'
+        minHeight: '57px',
+        flexShrink: 0
       }}>
         <div style={{
           width: '36px',
@@ -136,7 +138,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         marginBottom: '20px',
         textAlign: 'left',
         border: '1px solid rgba(255, 255, 255, 0.04)',
-        display: isCollapsed ? 'none' : 'block'
+        display: isCollapsed ? 'none' : 'block',
+        flexShrink: 0
       }}>
         <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {user.fullName}
@@ -154,7 +157,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       </div>
 
       {/* Menu links */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden' }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden', minHeight: '120px', marginBottom: '16px' }}>
         
         {/* Section Header */}
         <div className="sidebar-section-header" style={{
@@ -240,6 +243,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   <UserCheck size={18} style={{ flexShrink: 0 }} />
                   <span>Quản lý tài khoản</span>
                 </Link>
+                <Link 
+                  href="/admin/shift-slots" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/shift-slots') ? 'active' : ''}`}
+                  title={isCollapsed ? "Cấu hình ca trực" : undefined}
+                >
+                  <Clock size={18} style={{ flexShrink: 0 }} />
+                  <span>Cấu hình ca trực</span>
+                </Link>
               </>
             )}
 
@@ -271,7 +283,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
       {/* Sidebar Uptime Status Card */}
       {!isCollapsed && (
-        <div className="sidebar-status-card" style={{ marginBottom: '16px' }}>
+        <div className="sidebar-status-card" style={{ marginTop: '0px', marginBottom: '16px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <div style={{
               width: '8px',
@@ -299,32 +311,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         </div>
       )}
 
-      {/* Collapse Icon Placeholder for Mobile / Bottom Actions */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        paddingTop: '16px',
-        borderTop: '1px solid var(--border-color)',
-        marginTop: isCollapsed ? 'auto' : '0'
-      }}>
-        <button 
-          onClick={logout}
-          className="btn btn-secondary" 
-          style={{ 
-            width: '100%', 
-            justifyContent: isCollapsed ? 'center' : 'flex-start', 
-            color: '#ef4444', 
-            padding: '8px 12px',
-            background: 'transparent',
-            border: 'none'
-          }}
-          title={isCollapsed ? "Đăng xuất" : undefined}
-        >
-          <LogOut size={18} style={{ flexShrink: 0 }} />
-          {!isCollapsed && <span>Đăng xuất</span>}
-        </button>
-      </div>
+
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 1023px) {
           .sidebar-mobile-close {

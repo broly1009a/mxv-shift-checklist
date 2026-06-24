@@ -38,6 +38,12 @@ interface Task {
   timetable?: string;
   isBotCheck?: boolean;
   botTriggerTime?: string;
+  sessionType?: 'OPEN' | 'DURING' | 'CLOSE' | null;
+  triggerTime?: string | null;
+  slaDeadline?: string | null;
+  slaType?: 'FIXED_TIME' | 'DYNAMIC_AFTER_TASK';
+  actionDescription?: string;
+  dependsOnTaskIds?: string[];
 }
 
 interface Template {
@@ -83,6 +89,13 @@ export default function AdminTemplatesPage() {
   const [newTimetable, setNewTimetable] = useState('');
   const [newIsBotCheck, setNewIsBotCheck] = useState(false);
   const [newBotTriggerTime, setNewBotTriggerTime] = useState('');
+  const [newSlaType, setNewSlaType] = useState<'FIXED_TIME' | 'DYNAMIC_AFTER_TASK'>('FIXED_TIME');
+  const [newTriggerTime, setNewTriggerTime] = useState('');
+  const [newSlaDeadline, setNewSlaDeadline] = useState('');
+  const [newActionDescription, setNewActionDescription] = useState('');
+  const [newDependsOnTaskIds, setNewDependsOnTaskIds] = useState<string[]>([]);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [isTaskFormExpanded, setIsTaskFormExpanded] = useState(false);
   
   // Modal states for Template CRUD
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -173,6 +186,7 @@ export default function AdminTemplatesPage() {
 
   const handleSelectTemplate = (tpl: Template) => {
     setSelectedTemplate(tpl);
+    setEditingTaskId(null);
     setNewTaskId('');
     setNewTaskName('');
     setNewFunctionUrl('');
@@ -181,6 +195,51 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
+    setNewSlaType('FIXED_TIME');
+    setNewTriggerTime('');
+    setNewSlaDeadline('');
+    setNewActionDescription('');
+    setNewDependsOnTaskIds([]);
+  };
+
+  const handleStartEditTask = (task: Task) => {
+    setEditingTaskId(task.taskId);
+    setIsTaskFormExpanded(true);
+    setNewTaskId(task.taskId);
+    setNewTaskName(task.taskName);
+    setNewPriority(task.priority);
+    setNewDeadline(task.deadline || '');
+    setNewFunctionUrl(task.functionUrl || '');
+    setNewUrdReference(task.urdReference || '');
+    setNewFileLocation(task.fileLocation || '');
+    setNewTimetable(task.timetable || '');
+    setNewIsBotCheck(!!task.isBotCheck);
+    setNewBotTriggerTime(task.botTriggerTime || '');
+    setNewSlaType(task.slaType || 'FIXED_TIME');
+    setNewTriggerTime(task.triggerTime || '');
+    setNewSlaDeadline(task.slaDeadline || '');
+    setNewActionDescription(task.actionDescription || '');
+    setNewDependsOnTaskIds(task.dependsOnTaskIds || []);
+  };
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null);
+    setIsTaskFormExpanded(false);
+    setNewTaskId('');
+    setNewTaskName('');
+    setNewPriority('MEDIUM');
+    setNewDeadline('');
+    setNewFunctionUrl('');
+    setNewUrdReference('');
+    setNewFileLocation('');
+    setNewTimetable('');
+    setNewIsBotCheck(false);
+    setNewBotTriggerTime('');
+    setNewSlaType('FIXED_TIME');
+    setNewTriggerTime('');
+    setNewSlaDeadline('');
+    setNewActionDescription('');
+    setNewDependsOnTaskIds([]);
   };
 
   // ─── Template CRUD Modals ───────────────────────────────────────────────────
@@ -297,7 +356,42 @@ export default function AdminTemplatesPage() {
       toast.error('Vui lòng điền mã tác vụ và nội dung công việc');
       return;
     }
-    // Check duplication
+
+    if (editingTaskId) {
+      // Update existing task
+      const updatedTasks = selectedTemplate.tasks.map(t => {
+        if (t.taskId === editingTaskId) {
+          return {
+            ...t,
+            taskName: newTaskName.trim(),
+            priority: newPriority,
+            deadline: newDeadline.trim() || undefined,
+            functionUrl: newFunctionUrl.trim() || undefined,
+            urdReference: newUrdReference.trim() || undefined,
+            fileLocation: newFileLocation.trim() || undefined,
+            timetable: newTimetable.trim() || undefined,
+            isBotCheck: newIsBotCheck || undefined,
+            botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
+            slaType: newSlaType,
+            triggerTime: newTriggerTime.trim() || undefined,
+            slaDeadline: newSlaDeadline.trim() || undefined,
+            actionDescription: newActionDescription.trim() || undefined,
+            dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined
+          };
+        }
+         return t;
+      });
+
+      setSelectedTemplate({
+        ...selectedTemplate,
+        tasks: updatedTasks
+      });
+      toast.success('Đã cập nhật thông tin tác vụ. Hãy bấm "Lưu Cấu Hình Tác Vụ" để lưu vào cơ sở dữ liệu.');
+      handleCancelEditTask();
+      return;
+    }
+
+    // Check duplication for new tasks
     if (selectedTemplate.tasks.some(t => t.taskId === newTaskId)) {
       toast.error('Mã tác vụ đã tồn tại trong mẫu checklist này');
       return;
@@ -314,14 +408,20 @@ export default function AdminTemplatesPage() {
       fileLocation: newFileLocation.trim() || undefined,
       timetable: newTimetable.trim() || undefined,
       isBotCheck: newIsBotCheck || undefined,
-      botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined
-    };
+      botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
+      slaType: newSlaType,
+      triggerTime: newTriggerTime.trim() || undefined,
+      slaDeadline: newSlaDeadline.trim() || undefined,
+      actionDescription: newActionDescription.trim() || undefined,
+      dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined
+    }; 
 
     const updatedTasks = [...selectedTemplate.tasks, newTask];
     setSelectedTemplate({
       ...selectedTemplate,
       tasks: updatedTasks
     });
+    setIsTaskFormExpanded(false);
 
     setNewTaskId('');
     setNewTaskName('');
@@ -333,6 +433,11 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
+    setNewSlaType('FIXED_TIME');
+    setNewTriggerTime('');
+    setNewSlaDeadline('');
+    setNewActionDescription('');
+    setNewDependsOnTaskIds([]);
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -585,136 +690,255 @@ export default function AdminTemplatesPage() {
 
               {/* Add Task Subform */}
               {isAdmin && (
-                <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Plus size={16} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
-                  </h4>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="vd: it_open_06"
-                          value={newTaskId}
-                          onChange={(e) => setNewTaskId(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Nhập nội dung tác vụ..."
-                          value={newTaskName}
-                          onChange={(e) => setNewTaskName(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
-                        <select
-                          className="form-input"
-                          value={newPriority}
-                          onChange={(e) => setNewPriority(e.target.value as any)}
-                          style={{ background: 'var(--bg-app)' }}
-                        >
-                          <option value="LOW">THẤP</option>
-                          <option value="MEDIUM">T.BÌNH</option>
-                          <option value="HIGH">CAO</option>
-                          <option value="CRITICAL">KHẨN CẤP</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="vd: 16:30"
-                          value={newDeadline}
-                          onChange={(e) => setNewDeadline(e.target.value)}
-                        />
-                      </div>
+                !isTaskFormExpanded ? (
+                  <button 
+                    onClick={() => setIsTaskFormExpanded(true)} 
+                    className="btn btn-secondary" 
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '8px', 
+                      background: 'rgba(59, 130, 246, 0.04)', 
+                      border: '1px dashed rgba(59, 130, 246, 0.2)',
+                      borderRadius: '12px',
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Plus size={18} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
+                  </button>
+                ) : (
+                  <div className="glass-panel animate-fade-in" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {editingTaskId ? <Edit size={16} color="var(--color-primary)" /> : <Plus size={16} color="var(--color-primary)" />}
+                        {editingTaskId ? `Chỉnh sửa tác vụ: ${editingTaskId}` : 'Thêm tác vụ mới vào danh sách'}
+                      </h4>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (editingTaskId) {
+                            handleCancelEditTask();
+                          }
+                          setIsTaskFormExpanded(false);
+                        }} 
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="http://..."
-                          value={newFunctionUrl}
-                          onChange={(e) => setNewFunctionUrl(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="URD-XXX"
-                          value={newUrdReference}
-                          onChange={(e) => setNewUrdReference(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="vd: /var/log/..."
-                          value={newFileLocation}
-                          onChange={(e) => setNewFileLocation(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="vd: 08:00 - 10:00"
-                          value={newTimetable}
-                          onChange={(e) => setNewTimetable(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          id="newIsBotCheck"
-                          checked={newIsBotCheck}
-                          onChange={(e) => setNewIsBotCheck(e.target.checked)}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                        <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                          Sử dụng Bot Check tự động
-                        </label>
-                      </div>
-
-                      {newIsBotCheck && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Giờ trigger:</span>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="vd: 08:30"
-                            value={newBotTriggerTime}
-                            onChange={(e) => setNewBotTriggerTime(e.target.value)}
-                            style={{ width: '100px', padding: '6px 12px' }}
+                            placeholder="vd: it_open_06"
+                            value={newTaskId}
+                            onChange={(e) => setNewTaskId(e.target.value)}
+                            disabled={!!editingTaskId}
+                            style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
                           />
                         </div>
-                      )}
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Nhập nội dung tác vụ..."
+                            value={newTaskName}
+                            onChange={(e) => setNewTaskName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
+                          <select
+                            className="form-input"
+                            value={newPriority}
+                            onChange={(e) => setNewPriority(e.target.value as any)}
+                            style={{ background: 'var(--bg-app)' }}
+                          >
+                            <option value="LOW">THẤP</option>
+                            <option value="MEDIUM">T.BÌNH</option>
+                            <option value="HIGH">CAO</option>
+                            <option value="CRITICAL">KHẨN CẤP</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 16:30"
+                            value={newDeadline}
+                            onChange={(e) => setNewDeadline(e.target.value)}
+                          />
+                        </div>
+                      </div>
 
-                      <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ marginLeft: 'auto', padding: '10px 24px' }}>
-                        <Plus size={16} /> Thêm tác vụ
-                      </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="http://..."
+                            value={newFunctionUrl}
+                            onChange={(e) => setNewFunctionUrl(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="URD-XXX"
+                            value={newUrdReference}
+                            onChange={(e) => setNewUrdReference(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: /var/log/..."
+                            value={newFileLocation}
+                            onChange={(e) => setNewFileLocation(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 08:00 - 10:00"
+                            value={newTimetable}
+                            onChange={(e) => setNewTimetable(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
+                          <select
+                            className="form-input"
+                            value={newSlaType}
+                            onChange={(e) => setNewSlaType(e.target.value as any)}
+                            style={{ background: 'var(--bg-app)', width: '100%' }}
+                          >
+                            <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
+                            <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 06:00"
+                            value={newTriggerTime}
+                            onChange={(e) => setNewTriggerTime(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder={newSlaType === 'FIXED_TIME' ? 'vd: 07:30' : 'vd: 30'}
+                            value={newSlaDeadline}
+                            onChange={(e) => setNewSlaDeadline(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
+                          <select
+                            multiple
+                            className="form-input"
+                            value={newDependsOnTaskIds}
+                            onChange={(e) => {
+                              const options = e.target.options;
+                              const selectedValues: string[] = [];
+                              for (let i = 0; i < options.length; i++) {
+                                if (options[i].selected) {
+                                  selectedValues.push(options[i].value);
+                                }
+                              }
+                              setNewDependsOnTaskIds(selectedValues);
+                            }}
+                            style={{ height: '38px', background: 'var(--bg-app)', padding: '4px 8px', width: '100%' }}
+                          >
+                            {selectedTemplate.tasks?.map(t => (
+                              <option key={t.taskId} value={t.taskId}>{t.taskName} ({t.taskId})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mô tả hành động chi tiết</label>
+                        <textarea
+                          className="form-input"
+                          placeholder="Mô tả các bước thực hiện của công việc này..."
+                          value={newActionDescription}
+                          onChange={(e) => setNewActionDescription(e.target.value)}
+                          style={{ width: '100%', height: '60px', resize: 'vertical', padding: '8px 12px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            id="newIsBotCheck"
+                            checked={newIsBotCheck}
+                            onChange={(e) => setNewIsBotCheck(e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                            Sử dụng Bot Check tự động
+                          </label>
+                        </div>
+
+                        {newIsBotCheck && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Giờ trigger:</span>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="vd: 08:30"
+                              value={newBotTriggerTime}
+                              onChange={(e) => setNewBotTriggerTime(e.target.value)}
+                              style={{ width: '100px', padding: '6px 12px' }}
+                            />
+                          </div>
+                        )}
+
+                        {editingTaskId && (
+                          <button type="button" onClick={handleCancelEditTask} className="btn btn-secondary" style={{ marginLeft: 'auto', marginRight: '8px', padding: '10px 20px' }}>
+                            Hủy chỉnh sửa
+                          </button>
+                        )}
+                        <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ marginLeft: editingTaskId ? '0' : 'auto', padding: '10px 24px' }}>
+                          {editingTaskId ? <Save size={16} /> : <Plus size={16} />}
+                          {editingTaskId ? ' Cập nhật tác vụ' : ' Thêm tác vụ'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* Tasks List Table */}
@@ -795,6 +1019,14 @@ export default function AdminTemplatesPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <button
                                 type="button"
+                                onClick={() => handleStartEditTask(task)}
+                                title="Chỉnh sửa tác vụ"
+                                style={{ padding: '6px', background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleMoveTask(index, 'up')}
                                 disabled={index === 0}
                                 style={{ padding: '6px', background: 'transparent', border: 'none', color: index === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === 0 ? 'not-allowed' : 'pointer' }}
@@ -812,6 +1044,7 @@ export default function AdminTemplatesPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteTask(task.taskId)}
+                                title="Xóa tác vụ"
                                 style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                               >
                                 <Trash2 size={16} />
@@ -847,7 +1080,32 @@ export default function AdminTemplatesPage() {
                               <Cpu size={12} /> Bot Check {task.botTriggerTime ? `(${task.botTriggerTime})` : ''}
                             </span>
                           )}
+                          {task.slaType && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
+                              SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
+                            </span>
+                          )}
+                          {task.triggerTime && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                              Bắt đầu: {task.triggerTime}
+                            </span>
+                          )}
+                          {task.slaDeadline && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
+                              Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
+                            </span>
+                          )}
+                          {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
+                              Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
+                            </span>
+                          )}
                         </div>
+                        {task.actionDescription && (
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '72px', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.4 }}>
+                            Mô tả: {task.actionDescription}
+                          </p>
+                        )}
                       </div>
                     );
                   })

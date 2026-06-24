@@ -89,9 +89,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
           flexDirection: 'column', 
           flex: 1, 
           minHeight: '100vh',
-          marginLeft: isCollapsed ? '72px' : '260px',
+          marginLeft: isCollapsed ? 'calc(72px / var(--app-zoom, 1))' : 'calc(260px / var(--app-zoom, 1))',
           transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: isCollapsed ? 'calc(100% - 72px)' : 'calc(100% - 260px)'
+          width: isCollapsed ? 'calc(100% - (72px / var(--app-zoom, 1)))' : 'calc(100% - (260px / var(--app-zoom, 1)))'
         }}
         className="mobile-content-layout"
       >

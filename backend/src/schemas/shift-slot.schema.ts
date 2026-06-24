@@ -23,6 +23,9 @@ export class ShiftSlot extends Document {
 
   @Prop({ required: true, type: Number, default: 0 })
   sortOrder: number;
+
+  @Prop({ required: false, type: Number, default: 0 })
+  gracePeriodMinutes?: number;
 }
 
 export const ShiftSlotSchema = SchemaFactory.createForClass(ShiftSlot);

@@ -132,6 +132,7 @@ export class ShiftsService {
       exceptionCodeSnapshot: task.exceptionCode || '',
       frequencyMinutesSnapshot: task.frequencyMinutes || null,
       recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
+      slaTypeSnapshot: (task as any).slaType || 'FIXED_TIME',
     }));
 
     const newLog = new this.shiftLogModel({

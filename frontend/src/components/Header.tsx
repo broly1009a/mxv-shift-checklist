@@ -62,6 +62,13 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Set initial zoom property on mount
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.style.setProperty('--app-zoom', '1');
+    }
+  }, []);
+
   // Handle Zoom change
   const handleZoom = (type: 'in' | 'out' | 'reset') => {
     let newZoom = zoom;
@@ -77,6 +84,7 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     if (typeof document !== 'undefined') {
       // Modern browsers support standard CSS zoom (Chrome/Edge/Safari)
       (document.body.style as any).zoom = `${newZoom}%`;
+      document.body.style.setProperty('--app-zoom', (newZoom / 100).toString());
     }
   };
 

@@ -66,6 +66,9 @@ export class TaskItem {
 
   @Prop({ required: false, type: [String], default: [] })
   dependsOnTaskIds?: string[];
+
+  @Prop({ required: false, type: String, enum: ['FIXED_TIME', 'DYNAMIC_AFTER_TASK'], default: 'FIXED_TIME' })
+  slaType?: string;
 }
 
 export const TaskItemSchema = SchemaFactory.createForClass(TaskItem);
