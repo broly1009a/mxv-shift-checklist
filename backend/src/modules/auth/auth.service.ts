@@ -186,7 +186,7 @@ export class AuthService {
     }
 
     // User does not exist - create automatically in pending status
-    const dummyHash = await bcrypt.hash('dummy_sso_pass_2026', 10);
+    const dummyHash = await bcrypt.hash(process.env.DUMMY_SSO_PASS || 'dummy_sso_pass_2026', 10);
     const isInitialAdmin = username === 'admin_sso' && process.env.NODE_ENV !== 'production';
 
     const newUser = new this.userModel({
