@@ -68,6 +68,7 @@ interface TaskDetail {
   actionDescriptionSnapshot?: string;
   exceptionCodeSnapshot?: string;
   frequencyMinutesSnapshot?: number | null;
+  slaTypeSnapshot?: string;
 }
 
 interface ShiftLog {
@@ -1243,7 +1244,17 @@ function ChecklistWorksheet() {
                                   <Cpu size={12} /> Bot Check {item.botTriggerTimeSnapshot ? `(${item.botTriggerTimeSnapshot})` : ''}
                                 </span>
                               )}
+                              {item.slaDeadlineSnapshot && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                  <Clock size={12} /> SLA: {item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'Động' : 'Cố định'} ({item.slaDeadlineSnapshot}{item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? ' phút' : ''})
+                                </span>
+                              )}
                             </div>
+                            {item.actionDescriptionSnapshot && (
+                              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '8px', fontStyle: 'italic', lineHeight: 1.4, opacity: item.isChecked ? 0.6 : 1 }}>
+                                <strong>Hướng dẫn:</strong> {item.actionDescriptionSnapshot}
+                              </p>
+                            )}
                           </div>
                         </div>
 
