@@ -19,6 +19,7 @@ import { SystemLogsModule } from './modules/system-logs/system-logs.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
+import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
     NotificationsModule,
     DashboardModule,
     IncidentsModule,
+    MarginChangeRequestsModule,
   ],
   controllers: [AppController],
   providers: [

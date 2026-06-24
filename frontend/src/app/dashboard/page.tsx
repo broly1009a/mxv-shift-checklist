@@ -18,6 +18,7 @@ import { TemplatesSummaryWidget } from './components/TemplatesSummaryWidget';
 import { HealthChecksWidget } from './components/HealthChecksWidget';
 import { PerformanceOverview } from './components/PerformanceOverview';
 import { ActiveIncidentsWidget } from './components/ActiveIncidentsWidget';
+import { MarginChangeRequestsWidget } from './components/MarginChangeRequestsWidget';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -92,14 +93,14 @@ export default function DashboardPage() {
 
   // Draggable Widgets
   const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeIncidents', 'activeShifts', 'history']);
-  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'templatesSummary', 'healthChecks']);
+  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks']);
   const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [canDragId, setCanDragId] = useState<string | null>(null);
 
   useEffect(() => {
     const defaultLeft = ['chart', 'activeIncidents', 'activeShifts', 'history'];
-    const defaultRight = ['initShift', 'autoShift', 'templatesSummary', 'healthChecks'];
+    const defaultRight = ['initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks'];
 
     const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
     const savedRight = localStorage.getItem('mxv_dash_right_widgets');
@@ -404,6 +405,9 @@ export default function DashboardPage() {
 
       case 'healthChecks':
         return <HealthChecksWidget />;
+
+      case 'marginChangeRequests':
+        return <MarginChangeRequestsWidget token={token} currentUser={user} />;
 
       default:
         return null;

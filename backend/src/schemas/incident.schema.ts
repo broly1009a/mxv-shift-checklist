@@ -48,6 +48,7 @@ export class Incident extends Document {
   resolvedBy?: Types.ObjectId | null;
 
   @Prop({
+    type: String,
     required: false,
     enum: ['MISSING_CONFIGURATION', 'MESSAGE_SYNC_LOSS', 'SOFTWARE_BUG', 'NETWORK_DISRUPTION', 'OTHER', null],
     default: null
