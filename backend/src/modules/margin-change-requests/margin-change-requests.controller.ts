@@ -11,9 +11,9 @@ export class MarginChangeRequestsController {
 
   @Post()
   async create(@Request() req: any, @Body() body: any) {
-    const { commodity, oldMargin, newMargin, effectiveSession, comments } = body;
+    const { commodity, oldMargin, newMargin, effectiveSession, comments, taskId } = body;
     return this.marginChangeRequestsService.createRequest(
-      { commodity, oldMargin, newMargin, effectiveSession, comments },
+      { commodity, oldMargin, newMargin, effectiveSession, comments, taskId },
       req.user,
     );
   }
@@ -27,9 +27,9 @@ export class MarginChangeRequestsController {
   async approve(
     @Param('id') id: string,
     @Request() req: any,
-    @Body() body: any,
+    @Body() body?: any,
   ) {
-    const { comments } = body;
+    const comments = body?.comments;
     return this.marginChangeRequestsService.approveRequest(id, req.user, comments);
   }
 
@@ -37,9 +37,10 @@ export class MarginChangeRequestsController {
   async reject(
     @Param('id') id: string,
     @Request() req: any,
-    @Body() body: any,
+    @Body() body?: any,
   ) {
-    const { reason, comments } = body;
+    const reason = body?.reason;
+    const comments = body?.comments;
     return this.marginChangeRequestsService.rejectRequest(id, req.user, reason, comments);
   }
 }

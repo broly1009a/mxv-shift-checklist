@@ -179,6 +179,7 @@ export class ShiftsService {
       departmentId: template.departmentId
         ? new Types.ObjectId(template.departmentId as any)
         : null,
+      divisionId: divId ? new Types.ObjectId(divId as any) : null,
       shiftDate,
       status: 'PENDING',
       progressPercentage: 0.0,
@@ -234,6 +235,117 @@ export class ShiftsService {
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
       { title: (result.templateId as any)?.title }
+    );
+    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+
+    return result;
+  }
+
+  async addAdhocTask(
+    shiftLogId: string,
+    user: any,
+    taskData: { taskName: string; priority: string; deadline?: string },
+  ): Promise<ShiftLog> {
+    const log = await this.shiftLogModel
+      .findById(shiftLogId)
+      .populate({
+        path: 'templateId',
+        populate: { path: 'departmentId' },
+      })
+      .exec();
+
+    if (!log) {
+      throw new NotFoundException('Không tìm thấy ca trực');
+    }
+
+    if (log.status === 'COMPLETED') {
+      throw new BadRequestException('Ca trực đã đóng, không thể thêm tác vụ mới');
+    }
+
+    const dept = (log.templateId as any)?.departmentId;
+    const deptId = dept?._id || dept;
+    const divId = dept?.divisionId || null;
+    this.validateScope(user, deptId, divId);
+
+    const timestamp = Date.now();
+    const taskId = `adhoc_${timestamp}`;
+
+    const newDetail = {
+      taskId,
+      taskNameSnapshot: taskData.taskName,
+      prioritySnapshot: taskData.priority || 'MEDIUM',
+      deadlineSnapshot: taskData.deadline || null,
+      isChecked: false,
+      status: 'PENDING',
+      checkedAt: null,
+      updatedBy: null,
+      note: null,
+    };
+
+    log.details.push(newDetail as any);
+
+    // Recalculate progress
+    const total = log.details.length;
+    const completed = log.details.filter((d) => d.isChecked).length;
+    log.progressPercentage =
+      total > 0 ? parseFloat(((completed / total) * 100).toFixed(2)) : 0.0;
+
+    const saved = await log.save();
+
+    // Create Audit Log record
+    const audit = new this.auditLogModel({
+      shiftLogId: new Types.ObjectId(shiftLogId),
+      taskId,
+      taskName: taskData.taskName,
+      userId: new Types.ObjectId(user.id || user._id),
+      action: 'ADD_TASK',
+      details: `Thêm tác vụ phát sinh: "${taskData.taskName}" (Độ ưu tiên: ${taskData.priority})`,
+    });
+    const savedAudit = await audit.save();
+    const auditLogRecord = await this.auditLogModel
+      .findById(savedAudit._id)
+      .populate('userId', 'fullName username')
+      .exec();
+
+    const result = await this.shiftLogModel
+      .findById(saved._id)
+      .populate('userId', 'fullName username')
+      .populate('closedBy', 'fullName username')
+      .populate('details.updatedBy', 'fullName username')
+      .populate({
+        path: 'templateId',
+        populate: { path: 'departmentId' },
+      })
+      .exec();
+
+    if (!result) {
+      throw new NotFoundException('Không tìm thấy ca trực sau khi cập nhật');
+    }
+
+    // Notify Gateway
+    this.shiftsGateway.notifyShiftUpdate(shiftLogId, result, auditLogRecord);
+
+    // Write system log
+    await this.systemLogsService.logEvent({
+      eventType: 'TASK_UPDATED',
+      source: 'USER',
+      actorUserId: user.id || user._id,
+      jobId: result._id as any,
+      departmentId: result.departmentId as any,
+      shiftSlotId: result.shiftSlotId as any,
+      status: 'SUCCESS',
+      message: `Thêm tác vụ phát sinh: "${taskData.taskName}" (Độ ưu tiên: ${taskData.priority})`,
+      metadata: { taskId, taskName: taskData.taskName },
+    });
+
+    // Emit WebSocket Events
+    this.shiftsGateway.emitEvent(
+      'TASK_UPDATED',
+      result._id.toString(),
+      result.departmentId ? result.departmentId.toString() : null,
+      result.shiftSlotId ? result.shiftSlotId.toString() : null,
+      result.shiftDate,
+      { taskId, taskName: taskData.taskName, isChecked: false, status: 'PENDING', progressPercentage: result.progressPercentage }
     );
     this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
 

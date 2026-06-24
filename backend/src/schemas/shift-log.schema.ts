@@ -124,6 +124,14 @@ export class ShiftLog extends Document {
   })
   departmentId?: Types.ObjectId | null;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Division',
+    required: false,
+    default: null,
+  })
+  divisionId?: Types.ObjectId | null;
+
   @Prop({ required: true, index: true })
   shiftDate: string; // YYYY-MM-DD
 

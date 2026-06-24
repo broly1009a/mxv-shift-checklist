@@ -20,6 +20,7 @@ export class MarginChangeRequestsService {
       newMargin: number;
       effectiveSession: string;
       comments?: string;
+      taskId?: string;
     },
     user: any,
   ): Promise<MarginChangeRequest> {
@@ -31,6 +32,7 @@ export class MarginChangeRequestsService {
       status: 'PENDING_APPROVAL',
       createdBy: new Types.ObjectId(user.id || user._id),
       comments: dto.comments || null,
+      taskId: dto.taskId || null,
     });
 
     const saved = await request.save();

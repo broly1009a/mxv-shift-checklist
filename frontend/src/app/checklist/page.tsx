@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   XCircle,
   SkipForward,
-  ChevronDown
+  ChevronDown,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
@@ -222,6 +223,13 @@ function ChecklistWorksheet() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState<string | null>(null);
 
+  // Ad-hoc task modal states
+  const [isAdhocModalOpen, setIsAdhocModalOpen] = useState(false);
+  const [adhocTaskName, setAdhocTaskName] = useState('');
+  const [adhocPriority, setAdhocPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [adhocDeadline, setAdhocDeadline] = useState('');
+  const [isSubmittingAdhoc, setIsSubmittingAdhoc] = useState(false);
+
   const togglingTaskIds = useRef<Set<string>>(new Set());
   const focusedTaskIdRef = useRef<string | null>(null);
 
@@ -334,6 +342,62 @@ function ChecklistWorksheet() {
       setActionError(err.message || 'Không thể cập nhật sự cố.');
     } finally {
       setIsResolving(false);
+    }
+  };
+
+  const handleAddAdhocTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adhocTaskName.trim()) {
+      setActionError('Tên tác vụ không được để trống');
+      return;
+    }
+    if (!log || !token) return;
+
+    setIsSubmittingAdhoc(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${log._id}/add-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskName: adhocTaskName.trim(),
+          priority: adhocPriority,
+          deadline: adhocDeadline.trim() || undefined
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Thêm tác vụ phát sinh thất bại');
+      }
+
+      const updatedShift: ShiftLog = await res.json();
+      setLog(updatedShift);
+      // Sync noteState for any new task
+      setNotesState(prev => {
+        const notes = { ...prev };
+        updatedShift.details.forEach(item => {
+          if (!notes[item.taskId]) {
+            notes[item.taskId] = item.note || '';
+          }
+        });
+        return notes;
+      });
+
+      setActionSuccess('Đã thêm tác vụ phát sinh thành công!');
+      setIsAdhocModalOpen(false);
+      setAdhocTaskName('');
+      setAdhocPriority('MEDIUM');
+      setAdhocDeadline('');
+    } catch (err: any) {
+      setActionError(err.message || 'Lỗi xảy ra');
+    } finally {
+      setIsSubmittingAdhoc(false);
     }
   };
 
@@ -960,6 +1024,15 @@ function ChecklistWorksheet() {
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <FileText size={18} color="var(--color-accent)" /> Checklist Nhiệm vụ ({filteredDetails.length} / {log.details?.length || 0})
               </h3>
+              {!isCompleted && (
+                <button
+                  onClick={() => setIsAdhocModalOpen(true)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={14} /> Thêm tác vụ phát sinh
+                </button>
+              )}
             </div>
 
             {/* Live Search and Filters group */}
@@ -1569,6 +1642,107 @@ function ChecklistWorksheet() {
                 {isResolving ? 'Đang lưu...' : 'Xác nhận khắc phục'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ad-hoc Task Modal */}
+      {isAdhocModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '500px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Plus size={18} color="var(--color-primary)" /> Thêm tác vụ phát sinh trong ca
+              </h3>
+              <button
+                onClick={() => setIsAdhocModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAdhocTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nội dung công việc (Tác vụ)*</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Mô tả công việc cần làm..."
+                  value={adhocTaskName}
+                  onChange={(e) => setAdhocTaskName(e.target.value)}
+                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Độ ưu tiên*</label>
+                <select
+                  className="form-input"
+                  value={adhocPriority}
+                  onChange={(e) => setAdhocPriority(e.target.value as any)}
+                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                >
+                  <option value="LOW">THẤP</option>
+                  <option value="MEDIUM">TRUNG BÌNH</option>
+                  <option value="HIGH">CAO</option>
+                  <option value="CRITICAL">KHẨN CẤP</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Hạn chót (Deadline - tùy chọn)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="vd: 17:00, 21:30..."
+                  value={adhocDeadline}
+                  onChange={(e) => setAdhocDeadline(e.target.value)}
+                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAdhocModalOpen(false)}
+                  className="btn btn-secondary"
+                  disabled={isSubmittingAdhoc}
+                  style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmittingAdhoc || !adhocTaskName.trim()}
+                  style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+                >
+                  {isSubmittingAdhoc ? 'Đang thêm...' : 'Thêm tác vụ'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -92,4 +92,18 @@ export class ShiftsController {
   async getAuditLogs(@Request() req: any, @Param('id') id: string) {
     return this.shiftsService.getAuditLogs(id, req.user);
   }
+
+  @Post(':id/add-task')
+  async addAdhocTask(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: any,
+  ) {
+    const { taskName, priority, deadline } = body;
+    return this.shiftsService.addAdhocTask(id, req.user, {
+      taskName,
+      priority,
+      deadline,
+    });
+  }
 }

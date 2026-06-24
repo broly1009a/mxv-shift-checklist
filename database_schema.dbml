@@ -246,6 +246,8 @@ Table "shift_logs.details" as ShiftLogDetail {
 Table shift_logs {
   id                 varchar(24)      [pk, note: 'MongoDB ObjectId']
   templateId         varchar(24)      [ref: > checklist_templates.id, not null, note: 'Template snapshot gốc']
+  departmentId       varchar(24)      [ref: > departments.id, not null, note: 'Phòng ban trực tiếp quản lý ca này']
+  divisionId         varchar(24)      [ref: > divisions.id, not null, note: 'Khối quản lý ca này']
   userId             varchar(24)      [ref: > users.id, not null, note: 'Nhân viên trực ca (người nhận ca)']
   shiftDate          varchar          [not null, note: 'Ngày trực, format YYYY-MM-DD']
   status             shift_log_status [not null, default: 'PENDING']
@@ -376,10 +378,11 @@ Enum request_status {
 Table margin_change_requests {
   id             varchar(24)    [pk, note: 'MongoDB ObjectId']
   shiftLogId     varchar(24)    [ref: > shift_logs.id, not null]
+  taskId         varchar        [note: 'Mã task liên quan trong checklist (nullable)']
   commodity      varchar        [not null, note: 'Mã hàng hóa, e.g. XAUUSD']
   oldMargin      varchar        [not null, note: 'Mức ký quỹ cũ']
   newMargin      varchar        [not null, note: 'Mức ký quỹ đề xuất mới']
-  effectiveSession session_type [not null, default: 'OPEN', note: 'Phiên áp dụng thay đổi']
+  effectiveSession varchar      [not null, note: 'Phiên áp dụng thay đổi, e.g. Phiên Mỹ 24/06/2026']
   effectiveDate  varchar        [not null, note: 'Ngày áp dụng, format YYYY-MM-DD']
   status         request_status [not null, default: 'PENDING_APPROVAL']
   
@@ -418,7 +421,7 @@ Table contract_catalog {
   contractCode varchar         [not null, unique, note: 'Mã hợp đồng, e.g. GLEQ26']
   commodity    varchar         [not null, note: 'Mã mặt hàng']
   type         contract_type   [not null]
-  maturityDate varchar         [not null, note: 'Ngày đáo hạn YYYY-MM-DD']
+  maturityDate timestamp       [not null, note: 'Thời điểm đáo hạn chính xác (ngày và giờ)']
   status       contract_status [not null, default: 'ACTIVE']
   createdAt    timestamp
   updatedAt    timestamp

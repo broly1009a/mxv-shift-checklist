@@ -105,8 +105,26 @@ export default function DashboardPage() {
     const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
     const savedRight = localStorage.getItem('mxv_dash_right_widgets');
 
-    setLeftWidgets(savedLeft ? JSON.parse(savedLeft) : defaultLeft);
-    setRightWidgets(savedRight ? JSON.parse(savedRight) : defaultRight);
+    let parsedLeft = savedLeft ? JSON.parse(savedLeft) : defaultLeft;
+    let parsedRight = savedRight ? JSON.parse(savedRight) : defaultRight;
+
+    // Filter to check if any default widgets are missing from both columns
+    const allParsed = new Set([...parsedLeft, ...parsedRight]);
+    
+    defaultLeft.forEach(w => {
+      if (!allParsed.has(w)) {
+        parsedLeft.push(w);
+      }
+    });
+
+    defaultRight.forEach(w => {
+      if (!allParsed.has(w)) {
+        parsedRight.push(w);
+      }
+    });
+
+    setLeftWidgets(parsedLeft);
+    setRightWidgets(parsedRight);
   }, []);
 
   const handleWidgetDragStart = (e: React.DragEvent, id: string, col: 'left' | 'right') => {

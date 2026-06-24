@@ -30,6 +30,9 @@ export class MarginChangeRequest extends Document {
   approvedBy?: Types.ObjectId | User | null;
 
   @Prop({ type: String, default: null })
+  taskId?: string | null;
+
+  @Prop({ type: String, default: null })
   rejectionReason?: string | null;
 
   @Prop({ type: String, default: null })

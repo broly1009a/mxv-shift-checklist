@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { GripVertical, ClipboardList, Check, X, ShieldAlert, Plus } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 
@@ -33,6 +34,11 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
   const [loading, setLoading] = useState<boolean>(true);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showRejectModal, setShowRejectModal] = useState<MarginChangeRequest | null>(null);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form states
   const [commodity, setCommodity] = useState<string>('');
@@ -395,7 +401,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
       )}
 
       {/* Creation Modal */}
-      {showCreateModal && (
+      {showCreateModal && mounted && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
           <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
@@ -505,11 +511,12 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Reject Reason Dialog */}
-      {showRejectModal && (
+      {showRejectModal && mounted && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
           <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
@@ -562,7 +569,8 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
