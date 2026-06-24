@@ -4,12 +4,12 @@ import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { 
-  CheckSquare, 
-  Lock, 
-  Unlock, 
-  User as UserIcon, 
-  Clock, 
+import {
+  CheckSquare,
+  Lock,
+  Unlock,
+  User as UserIcon,
+  Clock,
   MessageSquare,
   AlertCircle,
   FileText,
@@ -50,7 +50,7 @@ interface TaskDetail {
   timetableSnapshot?: string;
   isBotCheckSnapshot?: boolean;
   botTriggerTimeSnapshot?: string;
-  
+
   status: 'PENDING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'NEEDS_ATTENTION';
   resultNote?: string | null;
   startedAt?: string | null;
@@ -107,7 +107,7 @@ interface AuditLog {
     fullName: string;
     username: string;
   };
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE';
+  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED';
   details: string;
   createdAt: string;
 }
@@ -150,6 +150,52 @@ const STATUS_CONFIGS = {
   },
 };
 
+function IncidentSlaCountdown({ deadline }: { deadline: string }) {
+  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [isOverdue, setIsOverdue] = useState<boolean>(false);
+
+  useEffect(() => {
+    const target = new Date(deadline).getTime();
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setIsOverdue(true);
+        const absDiff = Math.abs(diff);
+        const mins = Math.floor(absDiff / 60000);
+        const secs = Math.floor((absDiff % 60000) / 1000);
+        setTimeLeft(`Trễ SLA ${mins}m ${secs}s`);
+      } else {
+        setIsOverdue(false);
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${mins}m ${secs}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  return (
+    <span
+      className="badge"
+      style={{
+        fontSize: '0.7rem',
+        padding: '2px 8px',
+        fontWeight: 'bold',
+        backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+        color: isOverdue ? '#ef4444' : '#f59e0b',
+        border: `1px solid ${isOverdue ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
+        borderRadius: '4px'
+      }}
+    >
+      {timeLeft}
+    </span>
+  );
+}
+
 function ChecklistWorksheet() {
   const { user, token } = useAuth();
   const searchParams = useSearchParams();
@@ -158,12 +204,18 @@ function ChecklistWorksheet() {
   const [activeLogs, setActiveLogs] = useState<ShiftLog[]>([]);
   const [log, setLog] = useState<ShiftLog | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [resolvingIncident, setResolvingIncident] = useState<any | null>(null);
+  const [rootCause, setRootCause] = useState('MISSING_CONFIGURATION');
+  const [remediationAction, setRemediationAction] = useState('');
+  const [affectedAccountsInput, setAffectedAccountsInput] = useState('');
+  const [isResolving, setIsResolving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [notesState, setNotesState] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
-  
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -229,16 +281,73 @@ function ChecklistWorksheet() {
     }
   }, [token]);
 
+  const loadIncidents = useCallback(async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/shift/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIncidents(data);
+      }
+    } catch (err) {
+      console.error('Lỗi tải danh sách sự cố:', err);
+    }
+  }, [token]);
+
+  const handleResolveIncident = async () => {
+    if (!resolvingIncident || !token) return;
+    setIsResolving(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      const accounts = affectedAccountsInput.split(',').map(s => s.trim()).filter(Boolean);
+      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${resolvingIncident._id}/resolve`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rootCause,
+          remediationAction,
+          affectedAccounts: accounts
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Lỗi xử lý sự cố');
+      }
+
+      const updated = await res.json();
+      setIncidents(prev => prev.map(inc => inc._id === updated._id ? updated : inc));
+      setResolvingIncident(null);
+      setRootCause('MISSING_CONFIGURATION');
+      setRemediationAction('');
+      setAffectedAccountsInput('');
+      setActionSuccess('Đã xử lý giải quyết sự cố thành công!');
+    } catch (err: any) {
+      console.error(err);
+      setActionError(err.message || 'Không thể cập nhật sự cố.');
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
   // Load baseline data
   useEffect(() => {
     if (shiftLogId) {
       loadLogDetail(shiftLogId);
       loadAuditLogs(shiftLogId);
+      loadIncidents(shiftLogId);
     } else {
       loadActiveLogs();
       setLoading(false);
     }
-  }, [shiftLogId, loadLogDetail, loadActiveLogs, loadAuditLogs]);
+  }, [shiftLogId, loadLogDetail, loadActiveLogs, loadAuditLogs, loadIncidents]);
 
   // WebSockets Real-time Synchronization
   useEffect(() => {
@@ -259,7 +368,7 @@ function ChecklistWorksheet() {
       console.log('Real-time sync update received:', data);
       if (data?.shiftLog) {
         setLog(data.shiftLog);
-        
+
         // Sync local input values (do not overwrite active editing note)
         setNotesState(prev => {
           const notes = { ...prev };
@@ -269,6 +378,27 @@ function ChecklistWorksheet() {
             }
           });
           return notes;
+        });
+      }
+
+      if (data?.auditLog) {
+        setAuditLogs(prev => [data.auditLog!, ...prev]);
+      }
+    });
+
+    // Listen for incident update events
+    socket.on('incident-updated', (data: { incident: any; auditLog?: any }) => {
+      console.log('Real-time incident update received:', data);
+      if (data?.incident) {
+        setIncidents(prev => {
+          const idx = prev.findIndex(inc => inc._id === data.incident._id);
+          if (idx >= 0) {
+            const copy = [...prev];
+            copy[idx] = data.incident;
+            return copy;
+          } else {
+            return [data.incident, ...prev];
+          }
         });
       }
 
@@ -448,7 +578,7 @@ function ChecklistWorksheet() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           shiftLogId: log._id,
           handoverNote: noteInput
         })
@@ -472,7 +602,7 @@ function ChecklistWorksheet() {
   // Export to Excel (CSV with UTF-8 BOM)
   const exportToExcel = () => {
     if (!log) return;
-    
+
     // Headers
     const headers = [
       'STT',
@@ -484,7 +614,7 @@ function ChecklistWorksheet() {
       'Người xác nhận',
       'Ghi chú'
     ];
-    
+
     // Rows
     const rows = log.details.map((item, idx) => [
       idx + 1,
@@ -546,12 +676,12 @@ function ChecklistWorksheet() {
   // Filter tasks based on query variables
   const filteredDetails = log?.details?.filter(item => {
     const matchesSearch = item.taskNameSnapshot.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.taskId.toLowerCase().includes(searchQuery.toLowerCase());
+      item.taskId.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriority = priorityFilter === 'ALL' || item.prioritySnapshot === priorityFilter;
-    const matchesStatus = statusFilter === 'ALL' || 
-                          (statusFilter === 'CHECKED' && item.isChecked) ||
-                          (statusFilter === 'UNCHECKED' && !item.isChecked) ||
-                          (item.status === statusFilter || (!item.status && statusFilter === 'PENDING' && !item.isChecked));
+    const matchesStatus = statusFilter === 'ALL' ||
+      (statusFilter === 'CHECKED' && item.isChecked) ||
+      (statusFilter === 'UNCHECKED' && !item.isChecked) ||
+      (item.status === statusFilter || (!item.status && statusFilter === 'PENDING' && !item.isChecked));
     return matchesSearch && matchesPriority && matchesStatus;
   }) || [];
 
@@ -644,7 +774,8 @@ function ChecklistWorksheet() {
   return (
     <ProtectedRoute>
       {/* Dynamic Print Stylesheet injection */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media print {
           body, html, main, #__next, .app-layout-content {
             background: #fff !important;
@@ -728,7 +859,7 @@ function ChecklistWorksheet() {
 
       {/* Screen view wrapper (hidden on print via no-print class) */}
       <div className="animate-fade-in no-print" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
+
         {/* Navigation Breadcrumb */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -765,7 +896,7 @@ function ChecklistWorksheet() {
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isCompleted ? <Lock size={15} color="var(--color-primary)" /> : <Unlock size={15} color="var(--color-accent)" />}
-                Trạng thái: 
+                Trạng thái:
                 {isCompleted ? (
                   <strong style={{ color: 'var(--color-primary)' }}>ĐÃ CHỐT</strong>
                 ) : (
@@ -821,10 +952,10 @@ function ChecklistWorksheet() {
 
         {/* Workspace Layout Grid: Left Checklist, Right Audit Logs */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="lg:grid-cols-[1fr_360px]">
-          
+
           {/* Left Panel: Checklist Tasks */}
           <div className="glass-panel" style={{ padding: '24px' }}>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <FileText size={18} color="var(--color-accent)" /> Checklist Nhiệm vụ ({filteredDetails.length} / {log.details?.length || 0})
@@ -855,7 +986,7 @@ function ChecklistWorksheet() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              
+
               {/* Priority Select */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
@@ -917,7 +1048,7 @@ function ChecklistWorksheet() {
                       gap: '12px',
                       transition: 'all 0.2s ease'
                     }}>
-                      
+
                       {/* Checkbox and task information row */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -956,7 +1087,7 @@ function ChecklistWorksheet() {
                             }}>
                               [{item.taskId}] {item.taskNameSnapshot}
                             </p>
-                            
+
                             {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
                                 {item.dependsOnTaskIdsSnapshot.map(depId => {
@@ -982,20 +1113,20 @@ function ChecklistWorksheet() {
                                 })}
                               </div>
                             )}
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                               {getPriorityBadge(item.prioritySnapshot)}
                               {item.deadlineSnapshot && (
-                                <span style={{ 
-                                  fontSize: '0.72rem', 
-                                  color: '#ef4444', 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '4px', 
-                                  background: 'rgba(239, 68, 68, 0.08)', 
-                                  padding: '1px 6px', 
-                                  borderRadius: '4px', 
-                                  fontWeight: 600 
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  color: '#ef4444',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: 'rgba(239, 68, 68, 0.08)',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: 600
                                 }}>
                                   <Clock size={11} /> Hạn chót: {item.deadlineSnapshot}
                                 </span>
@@ -1079,7 +1210,7 @@ function ChecklistWorksheet() {
                           {openStatusDropdownTaskId === item.taskId && (
                             <>
                               {/* Overlay click catcher to close dropdown */}
-                              <div 
+                              <div
                                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
                                 onClick={() => setOpenStatusDropdownTaskId(null)}
                               />
@@ -1178,75 +1309,269 @@ function ChecklistWorksheet() {
             </div>
           </div>
 
-          {/* Right Panel: Audit Trail Timeline */}
-          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '800px', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', margin: 0 }}>
-              <Activity size={16} color="var(--color-accent)" /> Nhật ký hoạt động (Audit)
-            </h3>
+          {/* Right Column Layout: Incident Manager & Audit Trail */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {auditLogs.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: '20px 0' }}>
-                Chưa có hoạt động nào được ghi nhận.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
-                {/* Visual vertical line for timeline */}
-                <div style={{ position: 'absolute', top: '8px', bottom: '8px', left: '15px', width: '2px', background: 'var(--border-color)' }}></div>
-                
-                {auditLogs.map((audit) => {
-                  let badgeColor = 'rgba(255,255,255,0.02)';
-                  let dotColor = '#94a3b8';
-                  if (audit.action === 'CHECK') {
-                    badgeColor = 'rgba(16, 185, 129, 0.03)';
-                    dotColor = 'var(--color-primary)';
-                  } else if (audit.action === 'UNCHECK') {
-                    badgeColor = 'rgba(239, 68, 68, 0.03)';
-                    dotColor = '#ef4444';
-                  } else if (audit.action === 'NOTE_UPDATE') {
-                    badgeColor = 'rgba(245, 158, 11, 0.03)';
-                    dotColor = '#f59e0b';
-                  }
+            {/* Incident Manager Panel */}
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', margin: 0 }}>
+                <AlertTriangle size={16} color="#ef4444" /> Sự cố & Ngoại lệ ({incidents.filter(inc => inc.status === 'PENDING').length})
+              </h3>
 
-                  return (
-                    <div key={audit._id} style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
-                      {/* Custom timeline dot */}
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'var(--bg-app)',
-                        border: `2px solid ${dotColor}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <UserCheck size={14} style={{ color: dotColor }} />
-                      </div>
-                      
-                      <div style={{ flex: 1, padding: '10px', borderRadius: '8px', background: badgeColor, border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {audit.userId?.fullName || 'Nhân sự Sở'}
+              {incidents.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: '20px 0' }}>
+                  Không có ngoại lệ hay sự cố trễ SLA nào trong ca.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '320px', overflowY: 'auto' }} className="custom-scrollbar">
+                  {incidents.map((inc) => {
+                    const isPending = inc.status === 'PENDING';
+                    return (
+                      <div
+                        key={inc._id}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: isPending ? 'rgba(239, 68, 68, 0.04)' : 'rgba(16, 185, 129, 0.02)',
+                          border: `1px solid ${isPending ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)'}`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isPending ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>
+                            [{inc.code}] {inc.taskId}
                           </span>
-                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                            {new Date(audit.createdAt).toLocaleTimeString('vi-VN')}
-                          </span>
+                          {isPending && inc.slaDeadlineAt && (
+                            <IncidentSlaCountdown deadline={inc.slaDeadlineAt} />
+                          )}
+                          {!isPending && (
+                            <span className="badge badge-success" style={{ fontSize: '0.62rem', padding: '2px 6px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>Đã khắc phục</span>
+                          )}
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word', lineHeight: '1.4', margin: 0 }}>
-                          <strong>{audit.taskId}</strong>: {audit.details}
+
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                          <strong>Yêu cầu SOP:</strong> {inc.requiredAction}
                         </p>
+
+                        {!isPending && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div><strong>Nguyên nhân:</strong> {inc.rootCause}</div>
+                            <div><strong>Giải quyết:</strong> {inc.remediationAction}</div>
+                            {inc.affectedAccounts && inc.affectedAccounts.length > 0 && (
+                              <div><strong>Tài khoản ảnh hưởng:</strong> {inc.affectedAccounts.join(', ')}</div>
+                            )}
+                          </div>
+                        )}
+
+                        {isPending && !isCompleted && (
+                          <button
+                            onClick={() => {
+                              setRootCause('MISSING_CONFIGURATION');
+                              setRemediationAction('');
+                              setAffectedAccountsInput('');
+                              setResolvingIncident(inc);
+                            }}
+                            className="btn btn-primary"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              alignSelf: 'flex-end',
+                              height: 'auto',
+                              marginTop: '4px'
+                            }}
+                          >
+                            Khắc phục sự cố
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Audit Trail Timeline */}
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '420px', overflowY: 'auto' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', margin: 0 }}>
+                <Activity size={16} color="var(--color-accent)" /> Nhật ký hoạt động (Audit)
+              </h3>
+
+              {auditLogs.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: '20px 0' }}>
+                  Chưa có hoạt động nào được ghi nhận.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+                  {/* Visual vertical line for timeline */}
+                  <div style={{ position: 'absolute', top: '8px', bottom: '8px', left: '15px', width: '2px', background: 'var(--border-color)' }}></div>
+
+                  {auditLogs.map((audit) => {
+                    let badgeColor = 'rgba(255,255,255,0.02)';
+                    let dotColor = '#94a3b8';
+                    if (audit.action === 'CHECK' || audit.action === 'INCIDENT_RESOLVED') {
+                      badgeColor = 'rgba(16, 185, 129, 0.03)';
+                      dotColor = 'var(--color-primary)';
+                    } else if (audit.action === 'UNCHECK' || audit.action === 'INCIDENT_CREATED') {
+                      badgeColor = 'rgba(239, 68, 68, 0.03)';
+                      dotColor = '#ef4444';
+                    } else if (audit.action === 'NOTE_UPDATE') {
+                      badgeColor = 'rgba(245, 158, 11, 0.03)';
+                      dotColor = '#f59e0b';
+                    }
+
+                    return (
+                      <div key={audit._id} style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
+                        {/* Custom timeline dot */}
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'var(--bg-app)',
+                          border: `2px solid ${dotColor}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <UserCheck size={14} style={{ color: dotColor }} />
+                        </div>
+
+                        <div style={{ flex: 1, padding: '10px', borderRadius: '8px', background: badgeColor, border: '1px solid var(--border-color)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {audit.userId?.fullName || 'Hệ thống'}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                              {new Date(audit.createdAt).toLocaleTimeString('vi-VN')}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word', lineHeight: '1.4', margin: 0 }}>
+                            <strong>{audit.taskId}</strong>: {audit.details}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
 
         </div>
 
       </div>
+
+      {/* Incident Resolution Modal */}
+      {resolvingIncident && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '500px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={18} color="#ef4444" /> Giải quyết sự cố [{resolvingIncident.code}]
+              </h3>
+              <button
+                onClick={() => setResolvingIncident(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: '1.4' }}>
+                <strong>Mã tác vụ lỗi:</strong> {resolvingIncident.taskId}<br />
+                <strong>Yêu cầu khắc phục:</strong> {resolvingIncident.requiredAction}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nguyên nhân gốc rễ (Root Cause)*</label>
+                  <select
+                    className="form-input"
+                    value={rootCause}
+                    onChange={(e) => setRootCause(e.target.value)}
+                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  >
+                    <option value="MISSING_CONFIGURATION">MISSING_CONFIGURATION (Thiếu cấu hình)</option>
+                    <option value="MESSAGE_SYNC_LOSS">MESSAGE_SYNC_LOSS (Mất đồng bộ tin nhắn)</option>
+                    <option value="SOFTWARE_BUG">SOFTWARE_BUG (Lỗi phần mềm)</option>
+                    <option value="NETWORK_DISRUPTION">NETWORK_DISRUPTION (Sự cố đường truyền/mạng)</option>
+                    <option value="OTHER">OTHER (Nguyên nhân khác)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Giải pháp khắc phục (Remediation)*</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder="Mô tả chi tiết các bước xử lý khắc phục sự cố..."
+                    value={remediationAction}
+                    onChange={(e) => setRemediationAction(e.target.value)}
+                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tài khoản bị ảnh hưởng (Tùy chọn)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Nhập các tài khoản cách nhau bằng dấu phẩy, vd: TVKD01, TVKD02..."
+                    value={affectedAccountsInput}
+                    onChange={(e) => setAffectedAccountsInput(e.target.value)}
+                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setResolvingIncident(null)}
+                className="btn btn-secondary"
+                disabled={isResolving}
+                style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleResolveIncident}
+                className="btn btn-primary"
+                disabled={isResolving || !remediationAction.trim()}
+                style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+              >
+                {isResolving ? 'Đang lưu...' : 'Xác nhận khắc phục'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PDF PRINT ONLY CONTAINER (Normally hidden, shown only in media print mode) */}
       <div className="print-only print-container">

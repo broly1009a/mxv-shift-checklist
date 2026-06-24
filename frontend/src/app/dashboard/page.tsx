@@ -17,6 +17,7 @@ import { RecentShiftsWidget } from './components/RecentShiftsWidget';
 import { TemplatesSummaryWidget } from './components/TemplatesSummaryWidget';
 import { HealthChecksWidget } from './components/HealthChecksWidget';
 import { PerformanceOverview } from './components/PerformanceOverview';
+import { ActiveIncidentsWidget } from './components/ActiveIncidentsWidget';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -90,14 +91,14 @@ export default function DashboardPage() {
   }, []);
 
   // Draggable Widgets
-  const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeShifts', 'history']);
+  const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeIncidents', 'activeShifts', 'history']);
   const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'templatesSummary', 'healthChecks']);
   const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [canDragId, setCanDragId] = useState<string | null>(null);
 
   useEffect(() => {
-    const defaultLeft = ['chart', 'activeShifts', 'history'];
+    const defaultLeft = ['chart', 'activeIncidents', 'activeShifts', 'history'];
     const defaultRight = ['initShift', 'autoShift', 'templatesSummary', 'healthChecks'];
 
     const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
@@ -367,6 +368,9 @@ export default function DashboardPage() {
 
       case 'activeShifts':
         return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} />;
+
+      case 'activeIncidents':
+        return <ActiveIncidentsWidget token={token} />;
 
       case 'history':
         return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} />;

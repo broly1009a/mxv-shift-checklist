@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ShiftsService } from './shifts.service';
 import { ShiftsController } from './shifts.controller';
@@ -11,6 +11,7 @@ import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
+import { IncidentsModule } from '../incidents/incidents.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SystemLogsModule } from '../system-logs/system-logs.module';
       { name: AuditLog.name, schema: AuditLogSchema },
     ]),
     SystemLogsModule,
+    forwardRef(() => IncidentsModule),
   ],
   providers: [ShiftsService, ShiftsGateway, TelegramService],
   controllers: [ShiftsController],

@@ -18,6 +18,7 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
 import { SystemLogsModule } from './modules/system-logs/system-logs.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     SystemLogsModule,
     NotificationsModule,
     DashboardModule,
+    IncidentsModule,
   ],
   controllers: [AppController],
   providers: [

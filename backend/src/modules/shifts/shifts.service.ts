@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -12,6 +14,7 @@ import { AuditLog } from '../../schemas/audit-log.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
+import { IncidentsService } from '../incidents/incidents.service';
 
 @Injectable()
 export class ShiftsService {
@@ -23,6 +26,8 @@ export class ShiftsService {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly telegramService: TelegramService,
     private readonly systemLogsService: SystemLogsService,
+    @Inject(forwardRef(() => IncidentsService))
+    private readonly incidentsService: IncidentsService,
   ) { }
 
   private validateScope(
@@ -348,6 +353,20 @@ export class ShiftsService {
       updateQuery.$set['details.$.completedAt'] = null;
       updateQuery.$set['details.$.skippedAt'] = null;
       updateQuery.$set['details.$.needsAttentionAt'] = null;
+
+      // Trigger Automatic Incident Creation
+      const code = task.exceptionCodeSnapshot || 'SYSTEM_OR_NETWORK_ERROR';
+      const requiredAction = task.actionDescriptionSnapshot || 'Yêu cầu kiểm tra sự cố hệ thống.';
+      const severity = task.prioritySnapshot || 'MEDIUM';
+      this.incidentsService.createIncident(
+        shiftLogId,
+        taskId,
+        code,
+        severity,
+        requiredAction,
+        user.fullName || user.username,
+        15
+      ).catch(err => console.error('Error creating automatic incident:', err));
     } else if (status === 'SKIPPED') {
       updateQuery.$set['details.$.skippedAt'] = now;
       updateQuery.$set['details.$.completedAt'] = null;
