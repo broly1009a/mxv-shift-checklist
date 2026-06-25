@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from './user.schema';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'margin_change_requests' })
 export class MarginChangeRequest extends Document {
   @Prop({ required: true })
   commodity: string;

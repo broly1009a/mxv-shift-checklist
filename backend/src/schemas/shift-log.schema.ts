@@ -103,7 +103,7 @@ export class ShiftLogDetail {
 export const ShiftLogDetailSchema =
   SchemaFactory.createForClass(ShiftLogDetail);
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'shift_logs' })
 export class ShiftLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ChecklistTemplate', required: true })
   templateId: Types.ObjectId;

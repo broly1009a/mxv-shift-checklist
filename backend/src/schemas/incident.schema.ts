@@ -18,7 +18,7 @@ export class IncidentTimelineEvent {
 
 export const IncidentTimelineEventSchema = SchemaFactory.createForClass(IncidentTimelineEvent);
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'incidents' })
 export class Incident extends Document {
   @Prop({ required: true, index: true })
   code: string;

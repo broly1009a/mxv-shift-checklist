@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'audit_logs' })
 export class AuditLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ShiftLog', required: true, index: true })
   shiftLogId: Types.ObjectId;

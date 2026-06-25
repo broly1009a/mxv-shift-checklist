@@ -12,7 +12,7 @@ export class RuleTemplate {
 
 const RuleTemplateSchema = SchemaFactory.createForClass(RuleTemplate);
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'notification_rules' })
 export class NotificationRule extends Document {
   @Prop({ required: true })
   name: string;

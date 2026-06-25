@@ -73,7 +73,7 @@ export class TaskItem {
 
 export const TaskItemSchema = SchemaFactory.createForClass(TaskItem);
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'checklist_templates' })
 export class ChecklistTemplate extends Document {
   @Prop({ required: true })
   title: string;
