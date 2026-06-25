@@ -864,26 +864,55 @@ export default function AdminTemplatesPage() {
                         </div>
                         <div>
                           <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
-                          <select
-                            multiple
-                            className="form-input"
-                            value={newDependsOnTaskIds}
-                            onChange={(e) => {
-                              const options = e.target.options;
-                              const selectedValues: string[] = [];
-                              for (let i = 0; i < options.length; i++) {
-                                if (options[i].selected) {
-                                  selectedValues.push(options[i].value);
-                                }
-                              }
-                              setNewDependsOnTaskIds(selectedValues);
-                            }}
-                            style={{ height: '38px', background: 'var(--bg-app)', padding: '4px 8px', width: '100%' }}
-                          >
-                            {selectedTemplate.tasks?.map(t => (
-                              <option key={t.taskId} value={t.taskId}>{t.taskName} ({t.taskId})</option>
-                            ))}
-                          </select>
+                          <div style={{
+                            maxHeight: '120px',
+                            overflowY: 'auto',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            background: 'var(--bg-app)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px'
+                          }} className="custom-scrollbar">
+                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId).map(t => {
+                              const isChecked = newDependsOnTaskIds.includes(t.taskId);
+                              return (
+                                <label key={t.taskId} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '4px 8px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.78rem',
+                                  borderRadius: '6px',
+                                  background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                  transition: 'background 0.15s ease'
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setNewDependsOnTaskIds([...newDependsOnTaskIds, t.taskId]);
+                                      } else {
+                                        setNewDependsOnTaskIds(newDependsOnTaskIds.filter(id => id !== t.taskId));
+                                      }
+                                    }}
+                                    style={{ width: '14px', height: '14px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                                  />
+                                  <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400 }}>
+                                    {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
+                                  </span>
+                                </label>
+                              );
+                            })}
+                            {(!selectedTemplate.tasks || selectedTemplate.tasks.filter(t => t.taskId !== editingTaskId).length === 0) && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px', textAlign: 'center' }}>
+                                Chưa có tác vụ nào khác trong mẫu.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
