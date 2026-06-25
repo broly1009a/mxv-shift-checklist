@@ -614,7 +614,7 @@ export default function AdminTemplatesPage() {
                       border: 'none',
                       borderRadius: '8px',
                       padding: '12px 16px',
-                      color: selectedTemplate?._id === tpl._id ? '#fff' : 'var(--text-secondary)',
+                      color: selectedTemplate?._id === tpl._id ? 'var(--color-accent)' : 'var(--text-secondary)',
                       fontWeight: selectedTemplate?._id === tpl._id ? 700 : 500,
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -629,7 +629,7 @@ export default function AdminTemplatesPage() {
                     <span style={{ fontSize: '0.85rem', flex: 1, paddingRight: '8px' }}>
                       {tpl.title} {tpl.isActive === false && <strong style={{ fontSize: '0.72rem', color: '#ef4444' }}>(Tắt)</strong>}
                     </span>
-                    <ChevronRight size={14} style={{ opacity: selectedTemplate?._id === tpl._id ? 1 : 0.3 }} />
+                    <ChevronRight size={14} style={{ opacity: selectedTemplate?._id === tpl._id ? 1 : 0.3, color: selectedTemplate?._id === tpl._id ? 'var(--color-accent)' : 'inherit' }} />
                   </button>
                 ))}
               </div>
