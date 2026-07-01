@@ -4,14 +4,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ShiftSlot } from '../../schemas/shift-slot.schema';
+import { ShiftLog } from '../../schemas/shift-log.schema';
+import { ChecklistTemplate } from '../../schemas/template.schema';
 
 @Injectable()
 export class ShiftSlotsService {
   constructor(
     @InjectModel(ShiftSlot.name)
     private readonly shiftSlotModel: Model<ShiftSlot>,
+    @InjectModel(ShiftLog.name)
+    private readonly shiftLogModel: Model<ShiftLog>,
+    @InjectModel(ChecklistTemplate.name)
+    private readonly templateModel: Model<ChecklistTemplate>,
   ) {}
 
   async findAll(): Promise<ShiftSlot[]> {
@@ -64,6 +70,21 @@ export class ShiftSlotsService {
   }
 
   async remove(id: string): Promise<any> {
+    const [hasLog, hasTemplate] = await Promise.all([
+      this.shiftLogModel.findOne({ shiftSlotId: new Types.ObjectId(id) }).exec(),
+      this.templateModel.findOne({ shiftSlotId: new Types.ObjectId(id) }).exec(),
+    ]);
+
+    if (hasLog || hasTemplate) {
+      const updated = await this.shiftSlotModel
+        .findByIdAndUpdate(id, { isActive: false }, { new: true })
+        .exec();
+      if (!updated) {
+        throw new NotFoundException(`Shift slot with ID ${id} not found`);
+      }
+      return { deleted: false, statusChanged: true, data: updated };
+    }
+
     const deleted = await this.shiftSlotModel.findByIdAndDelete(id).exec();
     if (!deleted) {
       throw new NotFoundException(`Shift slot with ID ${id} not found`);

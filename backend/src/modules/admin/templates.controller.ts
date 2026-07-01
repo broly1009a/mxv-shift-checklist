@@ -20,6 +20,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { AccessControlService } from '../auth/access-control.service';
 
+import { ShiftLog } from '../../schemas/shift-log.schema';
+
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/templates')
 export class TemplatesController {
@@ -28,6 +30,8 @@ export class TemplatesController {
     private readonly templateModel: Model<ChecklistTemplate>,
     @InjectModel(Department.name)
     private readonly departmentModel: Model<Department>,
+    @InjectModel(ShiftLog.name)
+    private readonly shiftLogModel: Model<ShiftLog>,
     private readonly accessControlService: AccessControlService,
   ) {}
 
@@ -122,7 +126,16 @@ export class TemplatesController {
     const dept = await this.departmentModel.findById(existing.departmentId).exec();
     this.accessControlService.validateScope(req.user, existing.departmentId, dept?.divisionId || null);
 
-    return this.templateModel.findByIdAndDelete(id).exec();
+    const hasLog = await this.shiftLogModel.findOne({ templateId: new Types.ObjectId(id) }).exec();
+    if (hasLog) {
+      const updated = await this.templateModel
+        .findByIdAndUpdate(id, { isActive: false }, { new: true })
+        .exec();
+      return { deleted: false, statusChanged: true, data: updated };
+    }
+
+    const deleted = await this.templateModel.findByIdAndDelete(id).exec();
+    return { deleted: true, data: deleted };
   }
 }
 

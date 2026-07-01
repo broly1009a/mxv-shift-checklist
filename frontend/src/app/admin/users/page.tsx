@@ -289,8 +289,12 @@ export default function AdminUsersPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa tài khoản thất bại');
       }
-
-      toast.success('Đã xóa tài khoản.');
+      const data = await res.json();
+      if (data.statusChanged) {
+        toast.success(`Tài khoản "${name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
+      } else {
+        toast.success('Đã xóa tài khoản.');
+      }
       fetchUsers();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi xảy ra');

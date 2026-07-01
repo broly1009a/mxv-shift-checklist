@@ -11,6 +11,8 @@ import {
   ChecklistTemplateSchema,
 } from '../../schemas/template.schema';
 import { Division, DivisionSchema } from '../../schemas/division.schema';
+import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
+import { Incident, IncidentSchema } from '../../schemas/incident.schema';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -20,6 +22,8 @@ import { AuthModule } from '../auth/auth.module';
       { name: User.name, schema: UserSchema },
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
       { name: Division.name, schema: DivisionSchema },
+      { name: ShiftLog.name, schema: ShiftLogSchema },
+      { name: Incident.name, schema: IncidentSchema },
     ]),
     AuthModule,
   ],

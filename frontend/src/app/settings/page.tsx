@@ -230,7 +230,7 @@ export default function SettingsPage() {
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                     <label htmlFor="telegramNotifications" style={{ color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
-                      Kích hoạt nhận cảnh báo cá nhân qua Telegram
+                      Kích hoạt nhận tin nhắn nhắc việc cá nhân trực tiếp từ Bot
                     </label>
                   </div>
 
@@ -238,7 +238,7 @@ export default function SettingsPage() {
                   {telegramNotifications && (
                     <>
                       <div>
-                        <label className="form-label">Telegram Chat ID</label>
+                        <label className="form-label">Telegram Chat ID cá nhân</label>
                         <input 
                           type="text" 
                           className="form-input" 
@@ -246,14 +246,16 @@ export default function SettingsPage() {
                           onChange={(e) => setTelegramChatId(e.target.value)} 
                           placeholder="e.g. 523192038"
                         />
-                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
-                          💡 Hướng dẫn lấy Chat ID: Nhấn tìm kiếm tài khoản bot Telegram của MXV hoặc nhắn tin <code>/start</code> hoặc <code>/my_id</code> với bot <b>@userinfobot</b> hoặc <b>@MXV_Checklist_Bot</b> để lấy ID số của bạn.
+                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                          💡 <strong>Hướng dẫn liên kết nhận tin nhắn riêng:</strong><br />
+                          1. Tìm kiếm bot Telegram của hệ thống (ví dụ: <b>@MXV_Checklist_Bot</b>) và nhấn <b>/start</b>.<br />
+                          2. Nhắn tin <code>/my_id</code> với bot hoặc dùng bot <b>@userinfobot</b> để lấy ID số cá nhân của bạn (ví dụ: 523192038) rồi điền vào ô trên.
                         </small>
                       </div>
 
                       {/* Alert threshold */}
                       <div>
-                        <label className="form-label">Thời gian cảnh báo trước hạn chót (phút)</label>
+                        <label className="form-label">Thời gian nhắc nhở trước hạn chót (phút)</label>
                         <input 
                           type="number" 
                           className="form-input" 
@@ -262,8 +264,8 @@ export default function SettingsPage() {
                           min={1} 
                           max={180}
                         />
-                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem' }}>
-                          Cảnh báo sẽ tự động gửi qua Telegram khi một tác vụ chưa hoàn thành có deadline cách hiện tại nhỏ hơn hoặc bằng số phút này.
+                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                          Hệ thống sẽ tự động gửi tin nhắn riêng cho bạn khi một tác vụ chưa hoàn thành có deadline cách hiện tại nhỏ hơn hoặc bằng số phút này.
                         </small>
                       </div>
                     </>

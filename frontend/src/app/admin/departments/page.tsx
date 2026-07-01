@@ -11,6 +11,7 @@ interface Department {
   _id: string;
   name: string;
   code: string;
+  isActive?: boolean;
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ export default function AdminDepartmentsPage() {
   // Form state
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; code?: string }>({});
 
   // Redirect if not admin or manager
@@ -92,6 +94,7 @@ export default function AdminDepartmentsPage() {
     setEditingDept(null);
     setName('');
     setCode('');
+    setIsActive(true);
     setFieldErrors({});
     setModalOpen(true);
   };
@@ -100,6 +103,7 @@ export default function AdminDepartmentsPage() {
     setEditingDept(dept);
     setName(dept.name);
     setCode(dept.code);
+    setIsActive(dept.isActive !== false);
     setFieldErrors({});
     setModalOpen(true);
   };
@@ -139,7 +143,7 @@ export default function AdminDepartmentsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: name.trim(), code: code.trim() }),
+        body: JSON.stringify({ name: name.trim(), code: code.trim(), isActive }),
       });
 
       if (!res.ok) {
@@ -176,7 +180,12 @@ export default function AdminDepartmentsPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa thất bại');
       }
-      toast.success(`Đã xóa phòng ban "${dept.name}".`);
+      const data = await res.json();
+      if (data.statusChanged) {
+        toast.success(`Phòng ban "${dept.name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
+      } else {
+        toast.success(`Đã xóa phòng ban "${dept.name}".`);
+      }
       fetchDepartments();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kết nối máy chủ');
@@ -224,6 +233,7 @@ export default function AdminDepartmentsPage() {
                     <th style={{ padding: '12px 16px' }}>#</th>
                     <th style={{ padding: '12px 16px' }}>Tên Phòng Ban</th>
                     <th style={{ padding: '12px 16px' }}>Mã Phòng Ban (Code)</th>
+                    <th style={{ padding: '12px 16px' }}>Trạng Thái</th>
                     {isAdmin && <th style={{ padding: '12px 16px' }}>Hành Động</th>}
                   </tr>
                 </thead>
@@ -255,6 +265,39 @@ export default function AdminDepartmentsPage() {
                         }}>
                           {dept.code}
                         </code>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        {dept.isActive !== false ? (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            background: 'rgba(16, 185, 129, 0.1)', 
+                            color: '#10b981', 
+                            border: '1px solid rgba(16, 185, 129, 0.2)', 
+                            padding: '4px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 600 
+                          }}>
+                            Hoạt động
+                          </span>
+                        ) : (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            background: 'rgba(239, 68, 68, 0.1)', 
+                            color: '#ef4444', 
+                            border: '1px solid rgba(239, 68, 68, 0.2)', 
+                            padding: '4px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 600 
+                          }}>
+                            Vô hiệu hóa
+                          </span>
+                        )}
                       </td>
                       {isAdmin && (
                         <td style={{ padding: '14px 16px' }}>
@@ -387,6 +430,36 @@ export default function AdminDepartmentsPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Account Activation Toggle */}
+                {editingDept && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0' }}>
+                    <input
+                      type="checkbox"
+                      id="isActiveCheckbox"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      style={{ 
+                        width: '18px', 
+                        height: '18px', 
+                        cursor: 'pointer',
+                        accentColor: 'var(--primary-color)'
+                      }}
+                    />
+                    <label 
+                      htmlFor="isActiveCheckbox" 
+                      style={{ 
+                        fontSize: '0.9rem', 
+                        fontWeight: 600, 
+                        color: 'var(--text-primary)', 
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                    >
+                      Kích hoạt phòng ban (Active)
+                    </label>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>

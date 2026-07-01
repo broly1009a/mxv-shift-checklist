@@ -41,8 +41,8 @@ export class NotificationRule extends Document {
   @Prop({ required: true, type: Boolean, default: true, index: true })
   isActive: boolean;
 
-  @Prop({ type: Map, of: SchemaFactory.createForClass(Object), default: {} })
-  conditions: Map<string, any>;
+  @Prop({ type: Object, default: {} })
+  conditions: Record<string, any>;
 
   @Prop({ type: RuleTemplateSchema, required: true })
   template: RuleTemplate;

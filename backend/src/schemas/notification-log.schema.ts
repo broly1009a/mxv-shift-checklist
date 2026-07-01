@@ -25,8 +25,8 @@ export class NotificationLog extends Document {
   })
   status: string;
 
-  @Prop({ type: Map, of: SchemaFactory.createForClass(Object), default: {} })
-  payload: Map<string, any>;
+  @Prop({ type: Object, default: {} })
+  payload: Record<string, any>;
 
   @Prop({ required: false, type: String, default: null })
   errorMessage?: string | null;

@@ -12,9 +12,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../schemas/user.schema';
+import { ShiftLog } from '../../schemas/shift-log.schema';
+import { Incident } from '../../schemas/incident.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -24,6 +26,8 @@ import { Roles } from '../auth/roles.decorator';
 export class UsersController {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
+    @InjectModel(Incident.name) private readonly incidentModel: Model<Incident>,
   ) {}
 
   @Get()
@@ -179,6 +183,24 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   async remove(@Param('id') id: string) {
-    return this.userModel.findByIdAndDelete(id).exec();
+    const [hasLog, hasIncident] = await Promise.all([
+      this.shiftLogModel.findOne({
+        $or: [
+          { userId: new Types.ObjectId(id) },
+          { closedBy: new Types.ObjectId(id) },
+        ],
+      }).exec(),
+      this.incidentModel.findOne({ resolvedBy: new Types.ObjectId(id) }).exec(),
+    ]);
+
+    if (hasLog || hasIncident) {
+      const updated = await this.userModel
+        .findByIdAndUpdate(id, { isActive: false }, { new: true })
+        .exec();
+      return { deleted: false, statusChanged: true, data: updated };
+    }
+
+    const deleted = await this.userModel.findByIdAndDelete(id).exec();
+    return { deleted: true, data: deleted };
   }
 }

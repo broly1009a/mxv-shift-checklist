@@ -16,6 +16,9 @@ export class Department extends Document {
     default: null,
   })
   divisionId?: Types.ObjectId | null;
+
+  @Prop({ required: true, type: Boolean, default: true })
+  isActive: boolean;
 }
 
 export const DepartmentSchema = SchemaFactory.createForClass(Department);

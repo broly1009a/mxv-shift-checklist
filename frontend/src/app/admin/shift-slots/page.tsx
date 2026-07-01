@@ -221,7 +221,12 @@ export default function AdminShiftSlotsPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa ca trực thất bại');
       }
-      toast.success(`Đã xóa ca trực "${slot.name}"`);
+      const data = await res.json();
+      if (data.statusChanged) {
+        toast.success(`Ca trực "${slot.name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
+      } else {
+        toast.success(`Đã xóa ca trực "${slot.name}"`);
+      }
       fetchShiftSlots();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi xóa ca trực');

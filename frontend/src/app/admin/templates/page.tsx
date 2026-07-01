@@ -361,8 +361,12 @@ export default function AdminTemplatesPage() {
         const errData = await res.json();
         throw new Error(errData.message || 'Xóa mẫu checklist thất bại');
       }
-
-      toast.success(`Đã xóa mẫu checklist "${tpl.title}" thành công.`);
+      const data = await res.json();
+      if (data.statusChanged) {
+        toast.success(`Mẫu checklist "${tpl.title}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
+      } else {
+        toast.success(`Đã xóa mẫu checklist "${tpl.title}" thành công.`);
+      }
       fetchTemplates();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kết nối máy chủ');

@@ -185,7 +185,11 @@ export default function AdminNotificationsPage() {
       if (slotRes.ok) setShiftSlots(await slotRes.json());
       if (userRes.ok) {
         const userData = await userRes.json();
-        setUsersList(userData.users || userData);
+        if (userData && typeof userData === 'object') {
+          setUsersList(userData.data || userData.users || (Array.isArray(userData) ? userData : []));
+        } else {
+          setUsersList([]);
+        }
       }
     } catch (err) {
       console.error('Error fetching lookups for notifications:', err);
