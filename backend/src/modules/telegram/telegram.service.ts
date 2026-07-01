@@ -30,6 +30,13 @@ export class TelegramService implements OnModuleInit {
   async sendMessage(text: string, customChatId?: string): Promise<void> {
     const targetChatId = customChatId || this.chatId;
 
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
+      this.logger.log(
+        `[DEV MODE] Bỏ qua gửi Telegram đến ${targetChatId || 'GROUP_CHAT'}: ${text.replace(/<[^>]*>/g, '')}`,
+      );
+      return;
+    }
+
     // Check if token and target chat ID are configured
     const isConfigured =
       this.botToken &&
