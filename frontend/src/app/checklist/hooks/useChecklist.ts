@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 export interface TaskDetail {
   taskId: string;
@@ -103,8 +104,7 @@ export function useChecklist() {
   const [loading, setLoading] = useState(true);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [notesState, setNotesState] = useState<Record<string, string>>({});
-  const [actionError, setActionError] = useState('');
-  const [actionSuccess, setActionSuccess] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,7 +157,7 @@ export function useChecklist() {
       setNotesState(notes);
     } catch (err: any) {
       console.error(err);
-      setActionError(err.message || 'Lỗi kết nối máy chủ.');
+      setLoadError(err.message || 'Lỗi kết nối máy chủ.');
     } finally {
       setLoading(false);
     }
@@ -196,8 +196,6 @@ export function useChecklist() {
   const handleResolveIncident = async () => {
     if (!resolvingIncident || !token) return;
     setIsResolving(true);
-    setActionError('');
-    setActionSuccess('');
 
     try {
       const accounts = affectedAccountsInput.split(',').map(s => s.trim()).filter(Boolean);
@@ -225,10 +223,10 @@ export function useChecklist() {
       setRootCause('MISSING_CONFIGURATION');
       setRemediationAction('');
       setAffectedAccountsInput('');
-      setActionSuccess('Đã xử lý giải quyết sự cố thành công!');
+      toast.success('Đã xử lý giải quyết sự cố thành công!');
     } catch (err: any) {
       console.error(err);
-      setActionError(err.message || 'Không thể cập nhật sự cố.');
+      toast.error(err.message || 'Không thể cập nhật sự cố.');
     } finally {
       setIsResolving(false);
     }
@@ -237,14 +235,12 @@ export function useChecklist() {
   const handleAddAdhocTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adhocTaskName.trim()) {
-      setActionError('Tên tác vụ không được để trống');
+      toast.error('Tên tác vụ không được để trống');
       return;
     }
     if (!log || !token) return;
 
     setIsSubmittingAdhoc(true);
-    setActionError('');
-    setActionSuccess('');
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${log._id}/add-task`, {
@@ -278,13 +274,13 @@ export function useChecklist() {
         return notes;
       });
 
-      setActionSuccess('Đã thêm tác vụ phát sinh thành công!');
+      toast.success('Đã thêm tác vụ phát sinh thành công!');
       setIsAdhocModalOpen(false);
       setAdhocTaskName('');
       setAdhocPriority('MEDIUM');
       setAdhocDeadline('');
     } catch (err: any) {
-      setActionError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     } finally {
       setIsSubmittingAdhoc(false);
     }
@@ -392,14 +388,12 @@ export function useChecklist() {
           const depTask = log.details.find(d => d.taskId === depId);
           return `[${depId}] "${depTask ? depTask.taskNameSnapshot : ''}"`;
         }).join(', ');
-        setActionError(`Không thể thay đổi trạng thái. Tác vụ này phụ thuộc vào tác vụ chưa hoàn thành: ${listStr}`);
+        toast.error(`Không thể thay đổi trạng thái. Tác vụ này phụ thuộc vào tác vụ chưa hoàn thành: ${listStr}`);
         return;
       }
     }
 
     togglingTaskIds.current.add(taskId);
-    setActionError('');
-    setActionSuccess('');
 
     const isChecked = newStatus === 'PASSED' || newStatus === 'SKIPPED';
     const note = notesState[taskId] || '';
@@ -459,10 +453,10 @@ export function useChecklist() {
 
       const updated: ShiftLog = await res.json();
       setLog(updated);
-      setActionSuccess('Cập nhật trạng thái tác vụ thành công.');
+      toast.success('Cập nhật trạng thái tác vụ thành công.');
     } catch (err: any) {
       setLog(previousLog);
-      setActionError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       togglingTaskIds.current.delete(taskId);
     }
@@ -476,8 +470,6 @@ export function useChecklist() {
   const handleSaveNote = async (taskId: string) => {
     if (!log || log.status === 'COMPLETED' || !token) return;
     setSavingTaskId(taskId);
-    setActionError('');
-    setActionSuccess('');
 
     const targetItem = log.details.find(d => d.taskId === taskId);
     const status = targetItem ? (targetItem.status || (targetItem.isChecked ? 'PASSED' : 'PENDING')) : 'PENDING';
@@ -505,9 +497,9 @@ export function useChecklist() {
 
       const updated: ShiftLog = await res.json();
       setLog(updated);
-      setActionSuccess('Ghi chú đã được cập nhật.');
+      toast.success('Ghi chú đã được cập nhật.');
     } catch (err: any) {
-      setActionError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       setSavingTaskId(null);
     }
@@ -522,8 +514,6 @@ export function useChecklist() {
     if (noteInput === null) return;
 
     setLoading(true);
-    setActionError('');
-    setActionSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/close`, {
         method: 'POST',
@@ -544,9 +534,9 @@ export function useChecklist() {
 
       const updated: ShiftLog = await res.json();
       setLog(updated);
-      setActionSuccess('Đã CHỐT ca trực vận hành thành công!');
+      toast.success('Đã CHỐT ca trực vận hành thành công!');
     } catch (err: any) {
-      setActionError(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
@@ -639,10 +629,8 @@ export function useChecklist() {
     savingTaskId,
     notesState,
     setNotesState,
-    actionError,
-    setActionError,
-    actionSuccess,
-    setActionSuccess,
+    loadError,
+    setLoadError,
     searchQuery,
     setSearchQuery,
     priorityFilter,

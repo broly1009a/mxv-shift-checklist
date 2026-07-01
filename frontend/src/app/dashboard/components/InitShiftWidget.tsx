@@ -6,8 +6,6 @@ interface InitShiftWidgetProps {
   templates: Template[];
   selectedTemplate: string;
   setSelectedTemplate: (val: string) => void;
-  initError: string;
-  initSuccess: string;
   handleInitializeShift: (e: React.FormEvent) => void;
 }
 
@@ -15,8 +13,6 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
   templates,
   selectedTemplate,
   setSelectedTemplate,
-  initError,
-  initSuccess,
   handleInitializeShift,
 }) => {
   return (
@@ -27,17 +23,6 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
         <Play size={18} color="var(--color-primary)" /> Khởi tạo ca trực mới
       </h3>
-
-      {initError && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-          {initError}
-        </div>
-      )}
-      {initSuccess && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-          {initSuccess}
-        </div>
-      )}
 
       <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div>

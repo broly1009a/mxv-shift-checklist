@@ -5,8 +5,6 @@ interface AutoShiftWidgetProps {
   jobDate: string;
   setJobDate: (val: string) => void;
   jobRunning: boolean;
-  jobSuccess: string;
-  jobError: string;
   handleTriggerJob: () => void;
 }
 
@@ -14,8 +12,6 @@ export const AutoShiftWidget: React.FC<AutoShiftWidgetProps> = ({
   jobDate,
   setJobDate,
   jobRunning,
-  jobSuccess,
-  jobError,
   handleTriggerJob,
 }) => {
   return (
@@ -26,17 +22,6 @@ export const AutoShiftWidget: React.FC<AutoShiftWidgetProps> = ({
       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', margin: 0, paddingRight: '24px' }}>
         <Calendar size={18} color="var(--color-primary)" /> Sinh ca trực tự động
       </h3>
-
-      {jobError && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 12px', borderRadius: '8px', color: '#ef4444', fontSize: '0.8rem', marginBottom: '12px' }}>
-          {jobError}
-        </div>
-      )}
-      {jobSuccess && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem', marginBottom: '12px' }}>
-          {jobSuccess}
-        </div>
-      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div>

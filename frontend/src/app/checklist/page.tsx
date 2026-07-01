@@ -44,10 +44,8 @@ function ChecklistWorksheet() {
     savingTaskId,
     notesState,
     setNotesState,
-    actionError,
-    setActionError,
-    actionSuccess,
-    setActionSuccess,
+    loadError,
+    setLoadError,
     searchQuery,
     setSearchQuery,
     priorityFilter,
@@ -105,7 +103,7 @@ function ChecklistWorksheet() {
       <div className="glass-panel no-print" style={{ padding: '40px', textAlign: 'center' }}>
         <AlertCircle size={40} color="var(--color-critical)" style={{ marginBottom: '16px' }} />
         <p style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Lỗi tải ca trực</p>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>{actionError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>{loadError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
         <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '20px' }}>
           Quay lại bảng điều khiển
         </Link>
@@ -320,17 +318,7 @@ function ChecklistWorksheet() {
           </div>
         </div>
 
-        {/* Feedback states */}
-        {actionError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem' }}>
-            {actionError}
-          </div>
-        )}
-        {actionSuccess && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.875rem' }}>
-            {actionSuccess}
-          </div>
-        )}
+
 
         {/* Workspace Layout Grid: Left Checklist, Right Audit Logs */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="lg:grid-cols-[1fr_360px]">

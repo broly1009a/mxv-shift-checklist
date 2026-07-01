@@ -9,6 +9,7 @@ import {
   GripVertical
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 import { Template, ShiftLog } from './types';
 import { InitShiftWidget } from './components/InitShiftWidget';
 import { AutoShiftWidget } from './components/AutoShiftWidget';
@@ -36,14 +37,10 @@ export default function DashboardPage() {
   const [dashboardDate, setDashboardDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [initError, setInitError] = useState('');
-  const [initSuccess, setInitSuccess] = useState('');
 
   // Shift job states
   const [jobDate, setJobDate] = useState('');
   const [jobRunning, setJobRunning] = useState(false);
-  const [jobSuccess, setJobSuccess] = useState('');
-  const [jobError, setJobError] = useState('');
 
   // Dashboard layout and component states
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
@@ -313,11 +310,9 @@ export default function DashboardPage() {
   const handleInitializeShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTemplate) {
-      setInitError('Vui lòng chọn một mẫu checklist');
+      toast.error('Vui lòng chọn một mẫu checklist');
       return;
     }
-    setInitError('');
-    setInitSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/initialize`, {
         method: 'POST',
@@ -333,19 +328,17 @@ export default function DashboardPage() {
         throw new Error(err.message || 'Khởi tạo thất bại');
       }
 
-      setInitSuccess('Khởi tạo ca trực thành công!');
+      toast.success('Khởi tạo ca trực thành công!');
       setSelectedTemplate('');
       fetchDashboardData();
     } catch (err: any) {
-      setInitError(err.message || 'Lỗi xảy ra khi khởi tạo ca trực');
+      toast.error(err.message || 'Lỗi xảy ra khi khởi tạo ca trực');
     }
   };
 
   const handleTriggerJob = async () => {
     if (!token) return;
     setJobRunning(true);
-    setJobSuccess('');
-    setJobError('');
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shift-jobs/generate`, {
@@ -363,13 +356,13 @@ export default function DashboardPage() {
       }
 
       if (data.success === false && data.reason === 'NOT_A_TRADING_DAY') {
-        setJobError(`Ngày ${jobDate} được cấu hình là ngày nghỉ/không giao dịch. Không sinh ca trực.`);
+        toast.error(`Ngày ${jobDate} được cấu hình là ngày nghỉ/không giao dịch. Không sinh ca trực.`);
       } else {
-        setJobSuccess(`Đã sinh ca trực thành công! Đã tạo: ${data.createdCount}, Bỏ qua (trùng lặp): ${data.skippedCount}`);
+        toast.success(`Đã sinh ca trực thành công! Đã tạo: ${data.createdCount}, Bỏ qua (trùng lặp): ${data.skippedCount}`);
         fetchDashboardData();
       }
     } catch (err: any) {
-      setJobError(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra');
     } finally {
       setJobRunning(false);
     }
@@ -408,8 +401,6 @@ export default function DashboardPage() {
             templates={templates}
             selectedTemplate={selectedTemplate}
             setSelectedTemplate={setSelectedTemplate}
-            initError={initError}
-            initSuccess={initSuccess}
             handleInitializeShift={handleInitializeShift}
           />
         );
@@ -421,8 +412,6 @@ export default function DashboardPage() {
             jobDate={jobDate}
             setJobDate={setJobDate}
             jobRunning={jobRunning}
-            jobSuccess={jobSuccess}
-            jobError={jobError}
             handleTriggerJob={handleTriggerJob}
           />
         );

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import {
   Bell,
   Plus,
@@ -116,9 +117,7 @@ export default function AdminNotificationsPage() {
   const [editingChannel, setEditingChannel] = useState<NotificationChannel | null>(null);
   const [editingRule, setEditingRule] = useState<NotificationRule | null>(null);
 
-  // Banners state
-  const [apiError, setApiError] = useState('');
-  const [apiSuccess, setApiSuccess] = useState('');
+
 
   // ----------------------------------------------------
   // CHANNEL FORM STATES
@@ -250,8 +249,6 @@ export default function AdminNotificationsPage() {
   // Handle Tab Switch
   const handleTabChange = (tab: 'channels' | 'rules' | 'logs' | 'test') => {
     setActiveTab(tab);
-    setApiError('');
-    setApiSuccess('');
     if (tab === 'logs') {
       fetchLogs();
     }
@@ -273,8 +270,6 @@ export default function AdminNotificationsPage() {
     setChannelConfigSenderEmail('');
     setChannelConfigSenderPass('');
     setChannelErrors({});
-    setApiError('');
-    setApiSuccess('');
     setChannelModalOpen(true);
   };
 
@@ -291,8 +286,6 @@ export default function AdminNotificationsPage() {
     setChannelConfigSenderEmail(channel.config?.senderEmail || '');
     setChannelConfigSenderPass(channel.config?.senderPassword || '');
     setChannelErrors({});
-    setApiError('');
-    setApiSuccess('');
     setChannelModalOpen(true);
   };
 
@@ -325,8 +318,6 @@ export default function AdminNotificationsPage() {
     e.preventDefault();
     if (!validateChannel()) return;
     setSubmitting(true);
-    setApiError('');
-    setApiSuccess('');
 
     const config: Record<string, any> = {};
     if (channelType === 'TELEGRAM') {
@@ -367,11 +358,11 @@ export default function AdminNotificationsPage() {
         throw new Error(errData.message || 'Thao tác lưu kênh thất bại');
       }
 
-      setApiSuccess(editingChannel ? 'Cập nhật kênh thành công!' : 'Tạo kênh thành công!');
+      toast.success(editingChannel ? 'Cập nhật kênh thành công!' : 'Tạo kênh thành công!');
       fetchChannels();
-      setTimeout(() => setChannelModalOpen(false), 1000);
+      setChannelModalOpen(false);
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi hệ thống');
+      toast.error(err.message || 'Lỗi hệ thống');
     } finally {
       setSubmitting(false);
     }
@@ -380,8 +371,6 @@ export default function AdminNotificationsPage() {
   const deleteChannel = async (channel: NotificationChannel) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa kênh thông báo "${channel.name}"?`)) return;
     setDeletingId(channel._id);
-    setApiError('');
-    setApiSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/notifications/channels/${channel._id}`, {
         method: 'DELETE',
@@ -391,10 +380,10 @@ export default function AdminNotificationsPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa kênh thất bại');
       }
-      setApiSuccess(`Đã xóa kênh "${channel.name}"`);
+      toast.success(`Đã xóa kênh "${channel.name}"`);
       fetchChannels();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi hệ thống');
+      toast.error(err.message || 'Lỗi hệ thống');
     } finally {
       setDeletingId(null);
     }
@@ -417,8 +406,6 @@ export default function AdminNotificationsPage() {
     setRuleTemplateTitle('');
     setRuleTemplateBody('');
     setRuleErrors({});
-    setApiError('');
-    setApiSuccess('');
     setRuleModalOpen(true);
   };
 
@@ -436,8 +423,6 @@ export default function AdminNotificationsPage() {
     setRuleTemplateTitle(rule.template?.title || '');
     setRuleTemplateBody(rule.template?.body || '');
     setRuleErrors({});
-    setApiError('');
-    setApiSuccess('');
     setRuleModalOpen(true);
   };
 
@@ -464,8 +449,6 @@ export default function AdminNotificationsPage() {
     e.preventDefault();
     if (!validateRule()) return;
     setSubmitting(true);
-    setApiError('');
-    setApiSuccess('');
 
     const payload = {
       name: ruleName.trim(),
@@ -504,11 +487,11 @@ export default function AdminNotificationsPage() {
         throw new Error(errData.message || 'Thao tác lưu luật thất bại');
       }
 
-      setApiSuccess(editingRule ? 'Cập nhật luật thành công!' : 'Tạo luật thành công!');
+      toast.success(editingRule ? 'Cập nhật luật thành công!' : 'Tạo luật thành công!');
       fetchRules();
-      setTimeout(() => setRuleModalOpen(false), 1000);
+      setRuleModalOpen(false);
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi hệ thống');
+      toast.error(err.message || 'Lỗi hệ thống');
     } finally {
       setSubmitting(false);
     }
@@ -517,8 +500,6 @@ export default function AdminNotificationsPage() {
   const deleteRule = async (rule: NotificationRule) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa luật thông báo "${rule.name}"?`)) return;
     setDeletingId(rule._id);
-    setApiError('');
-    setApiSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/notifications/rules/${rule._id}`, {
         method: 'DELETE',
@@ -528,10 +509,10 @@ export default function AdminNotificationsPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa luật thất bại');
       }
-      setApiSuccess(`Đã xóa luật "${rule.name}"`);
+      toast.success(`Đã xóa luật "${rule.name}"`);
       fetchRules();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi hệ thống');
+      toast.error(err.message || 'Lỗi hệ thống');
     } finally {
       setDeletingId(null);
     }
@@ -543,11 +524,9 @@ export default function AdminNotificationsPage() {
   const handleTestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testRecipient.trim()) {
-      setApiError('Người nhận (Recipient) không được để trống');
+      toast.error('Người nhận (Recipient) không được để trống');
       return;
     }
-    setApiError('');
-    setApiSuccess('');
     setTestLoading(true);
     setTestResult(null);
 
@@ -557,7 +536,7 @@ export default function AdminNotificationsPage() {
         parsedPayload = JSON.parse(testPayload);
       }
     } catch (err) {
-      setApiError('Payload JSON không hợp lệ');
+      toast.error('Payload JSON không hợp lệ');
       setTestLoading(false);
       return;
     }
@@ -584,10 +563,10 @@ export default function AdminNotificationsPage() {
 
       const resData = await res.json();
       setTestResult(resData);
-      setApiSuccess('Đã gửi thử nghiệm thành công! Log đã được tạo.');
+      toast.success('Đã gửi thử nghiệm thành công! Log đã được tạo.');
       fetchLogs();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi gửi test');
+      toast.error(err.message || 'Lỗi gửi test');
     } finally {
       setTestLoading(false);
     }
@@ -731,17 +710,7 @@ export default function AdminNotificationsPage() {
           </button>
         </div>
 
-        {/* Global notification alerts */}
-        {apiError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={16} /> {apiError}
-          </div>
-        )}
-        {apiSuccess && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={16} color="var(--color-primary)" /> {apiSuccess}
-          </div>
-        )}
+
 
         {/* Content body */}
         <div style={{ minHeight: '300px' }}>

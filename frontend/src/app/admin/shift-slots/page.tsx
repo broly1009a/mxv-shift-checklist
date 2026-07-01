@@ -85,8 +85,6 @@ export default function AdminShiftSlotsPage() {
     startTime?: string;
     endTime?: string;
   }>({});
-  const [apiError, setApiError] = useState('');
-  const [apiSuccess, setApiSuccess] = useState('');
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -133,8 +131,6 @@ export default function AdminShiftSlotsPage() {
     setSortOrder(shiftSlots.length + 1);
     setGracePeriodMinutes(15);
     setFieldErrors({});
-    setApiError('');
-    setApiSuccess('');
     setModalOpen(true);
   };
 
@@ -149,8 +145,6 @@ export default function AdminShiftSlotsPage() {
     setSortOrder(slot.sortOrder);
     setGracePeriodMinutes(slot.gracePeriodMinutes || 0);
     setFieldErrors({});
-    setApiError('');
-    setApiSuccess('');
     setModalOpen(true);
   };
 
@@ -166,8 +160,6 @@ export default function AdminShiftSlotsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setApiError('');
-    setApiSuccess('');
 
     const errors = validateForm(name, code, startTime, endTime, shiftSlots, editingSlot?._id);
     if (Object.keys(errors).length > 0) {
@@ -206,12 +198,11 @@ export default function AdminShiftSlotsPage() {
         throw new Error(err.message || 'Thao tác lưu ca trực thất bại');
       }
 
-      setApiSuccess(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
-      toast.success(editingSlot ? 'Đã lưu thay đổi ca trực' : 'Đã tạo ca trực mới');
+      toast.success(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
       fetchShiftSlots();
-      setTimeout(() => closeModal(), 800);
+      closeModal();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setSubmitting(false);
     }
@@ -395,16 +386,6 @@ export default function AdminShiftSlotsPage() {
               </button>
             </div>
 
-            {apiError && !submitting && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 14px', borderRadius: '8px', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={14} /> {apiError}
-              </div>
-            )}
-            {apiSuccess && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 14px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.85rem' }}>
-                {apiSuccess}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>

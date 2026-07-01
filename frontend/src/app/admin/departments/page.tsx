@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { Building2, Plus, Edit, Trash2, X, Save, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface Department {
   _id: string;
@@ -57,8 +58,6 @@ export default function AdminDepartmentsPage() {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; code?: string }>({});
-  const [apiError, setApiError] = useState('');
-  const [apiSuccess, setApiSuccess] = useState('');
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -94,8 +93,6 @@ export default function AdminDepartmentsPage() {
     setName('');
     setCode('');
     setFieldErrors({});
-    setApiError('');
-    setApiSuccess('');
     setModalOpen(true);
   };
 
@@ -104,8 +101,6 @@ export default function AdminDepartmentsPage() {
     setName(dept.name);
     setCode(dept.code);
     setFieldErrors({});
-    setApiError('');
-    setApiSuccess('');
     setModalOpen(true);
   };
 
@@ -123,8 +118,6 @@ export default function AdminDepartmentsPage() {
   // ─── Submit Create/Edit ────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setApiError('');
-    setApiSuccess('');
 
     const errors = validateForm(name, code, departments, editingDept?._id);
     if (Object.keys(errors).length > 0) {
@@ -154,11 +147,11 @@ export default function AdminDepartmentsPage() {
         throw new Error(err.message || 'Thao tác thất bại');
       }
 
-      setApiSuccess(editingDept ? 'Cập nhật phòng ban thành công!' : 'Tạo phòng ban mới thành công!');
+      toast.success(editingDept ? 'Cập nhật phòng ban thành công!' : 'Tạo phòng ban mới thành công!');
       fetchDepartments();
-      setTimeout(() => closeModal(), 1000);
+      closeModal();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setSubmitting(false);
     }
@@ -174,8 +167,6 @@ export default function AdminDepartmentsPage() {
       return;
 
     setDeletingId(dept._id);
-    setApiError('');
-    setApiSuccess('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/departments/${dept._id}`, {
         method: 'DELETE',
@@ -185,10 +176,10 @@ export default function AdminDepartmentsPage() {
         const err = await res.json();
         throw new Error(err.message || 'Xóa thất bại');
       }
-      setApiSuccess(`Đã xóa phòng ban "${dept.name}".`);
+      toast.success(`Đã xóa phòng ban "${dept.name}".`);
       fetchDepartments();
     } catch (err: any) {
-      setApiError(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setDeletingId(null);
     }
@@ -215,17 +206,7 @@ export default function AdminDepartmentsPage() {
           )}
         </div>
 
-        {/* Global messages */}
-        {apiError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={16} /> {apiError}
-          </div>
-        )}
-        {apiSuccess && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.875rem' }}>
-            {apiSuccess}
-          </div>
-        )}
+
 
         {/* Table */}
         <div className="glass-panel" style={{ padding: '24px' }}>
@@ -340,17 +321,7 @@ export default function AdminDepartmentsPage() {
                 </button>
               </div>
 
-              {/* API errors inside modal */}
-              {apiError && !submitting && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 14px', borderRadius: '8px', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertCircle size={14} /> {apiError}
-                </div>
-              )}
-              {apiSuccess && (
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 14px', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.85rem' }}>
-                  {apiSuccess}
-                </div>
-              )}
+
 
               {/* Form */}
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
