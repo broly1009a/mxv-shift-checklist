@@ -28,6 +28,7 @@ export class IncidentsService {
     requiredAction: string,
     actor: string,
     slaMinutes: number = 15,
+    actorUserId?: string,
   ): Promise<Incident> {
     // Check if there is an existing PENDING incident for the same task in this shift log
     const existing = await this.incidentModel.findOne({
@@ -61,14 +62,19 @@ export class IncidentsService {
 
     const saved = await incident.save();
 
+    // Fetch shift log to get taskName
+    const shiftLog = await this.shiftLogModel.findById(shiftLogId);
+    const taskDetail = shiftLog?.details.find((t) => t.taskId === taskId);
+    const taskName = taskDetail ? taskDetail.taskNameSnapshot : taskId;
+
     // Log audit event
     const audit = new this.auditLogModel({
       shiftLogId: new Types.ObjectId(shiftLogId),
       taskId,
+      taskName,
+      userId: new Types.ObjectId(actorUserId || '000000000000000000000000'),
       action: 'INCIDENT_CREATED',
-      performedBy: actor,
-      comment: `Tự động tạo sự cố [${code}] cho tác vụ [${taskId}].`,
-      timestamp: new Date(),
+      details: `Tự động tạo sự cố [${code}] cho tác vụ "${taskName}".`,
     });
     await audit.save();
 
@@ -119,14 +125,17 @@ export class IncidentsService {
 
     const saved = await incident.save();
 
+    const taskDetail = shift?.details.find((t) => t.taskId === incident.taskId);
+    const taskName = taskDetail ? taskDetail.taskNameSnapshot : incident.taskId;
+
     // Log audit event
     const audit = new this.auditLogModel({
       shiftLogId: incident.shiftLogId,
       taskId: incident.taskId,
+      taskName,
+      userId: new Types.ObjectId(user.id || user._id),
       action: 'INCIDENT_RESOLVED',
-      performedBy: user.fullName || user.username,
-      comment: `Giải quyết sự cố [${incident.code}]. Nguyên nhân: ${resolveDto.rootCause}`,
-      timestamp: new Date(),
+      details: `Giải quyết sự cố [${incident.code}]. Nguyên nhân: ${resolveDto.rootCause}. Xử lý: ${resolveDto.remediationAction}`,
     });
     await audit.save();
 

@@ -19,6 +19,7 @@ export class IncidentsController {
       requiredAction,
       actor,
       slaMinutes,
+      req.user.id || req.user._id,
     );
   }
 

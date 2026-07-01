@@ -15,8 +15,8 @@ export class AuditLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['CHECK', 'UNCHECK', 'NOTE_UPDATE'] })
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE';
+  @Prop({ required: true, enum: ['CHECK', 'UNCHECK', 'NOTE_UPDATE', 'INCIDENT_CREATED', 'INCIDENT_RESOLVED'] })
+  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED';
 
   @Prop({ required: true })
   details: string;

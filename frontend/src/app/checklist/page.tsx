@@ -520,7 +520,7 @@ function ChecklistWorksheet() {
     setActionError('');
     setActionSuccess('');
 
-    const isChecked = newStatus !== 'PENDING';
+    const isChecked = newStatus === 'PASSED' || newStatus === 'SKIPPED';
     const note = notesState[taskId] || '';
 
     // Save previous state for rollback
@@ -925,7 +925,7 @@ function ChecklistWorksheet() {
           display: none;
         }
         .status-option-hover:hover {
-          background: rgba(255, 255, 255, 0.06) !important;
+          background: var(--border-color) !important;
         }
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
@@ -1321,10 +1321,10 @@ function ChecklistWorksheet() {
                                 right: 0,
                                 top: '100%',
                                 marginTop: '4px',
-                                background: '#1e293b',
-                                border: '1px solid rgba(255,255,255,0.08)',
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-color)',
                                 borderRadius: '10px',
-                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)',
+                                boxShadow: 'var(--glass-shadow)',
                                 zIndex: 1000,
                                 minWidth: '170px',
                                 overflow: 'hidden',
@@ -1615,7 +1615,7 @@ function ChecklistWorksheet() {
                     className="form-input"
                     value={rootCause}
                     onChange={(e) => setRootCause(e.target.value)}
-                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                   >
                     <option value="MISSING_CONFIGURATION">MISSING_CONFIGURATION (Thiếu cấu hình)</option>
                     <option value="MESSAGE_SYNC_LOSS">MESSAGE_SYNC_LOSS (Mất đồng bộ tin nhắn)</option>
@@ -1633,7 +1633,7 @@ function ChecklistWorksheet() {
                     placeholder="Mô tả chi tiết các bước xử lý khắc phục sự cố..."
                     value={remediationAction}
                     onChange={(e) => setRemediationAction(e.target.value)}
-                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
+                    style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
                   />
                 </div>
 
@@ -1645,7 +1645,7 @@ function ChecklistWorksheet() {
                     placeholder="Nhập các tài khoản cách nhau bằng dấu phẩy, vd: TVKD01, TVKD02..."
                     value={affectedAccountsInput}
                     onChange={(e) => setAffectedAccountsInput(e.target.value)}
-                    style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                   />
                 </div>
               </div>
@@ -1720,7 +1720,7 @@ function ChecklistWorksheet() {
                   placeholder="Mô tả công việc cần làm..."
                   value={adhocTaskName}
                   onChange={(e) => setAdhocTaskName(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                   required
                 />
               </div>
@@ -1731,7 +1731,7 @@ function ChecklistWorksheet() {
                   className="form-input"
                   value={adhocPriority}
                   onChange={(e) => setAdhocPriority(e.target.value as any)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                 >
                   <option value="LOW">THẤP</option>
                   <option value="MEDIUM">TRUNG BÌNH</option>
@@ -1748,7 +1748,7 @@ function ChecklistWorksheet() {
                   placeholder="vd: 17:00, 21:30..."
                   value={adhocDeadline}
                   onChange={(e) => setAdhocDeadline(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                  style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                 />
               </div>
 

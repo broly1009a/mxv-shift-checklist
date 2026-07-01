@@ -396,7 +396,7 @@ export class ShiftsService {
     }
 
     const now = new Date();
-    const isChecked = status !== 'PENDING';
+    const isChecked = status === 'PASSED' || status === 'SKIPPED';
 
     const updateQuery: any = {
       $set: {
@@ -451,7 +451,8 @@ export class ShiftsService {
         severity,
         requiredAction,
         user.fullName || user.username,
-        15
+        15,
+        user.id || user._id
       ).catch(err => console.error('Error creating automatic incident:', err));
     } else if (status === 'SKIPPED') {
       updateQuery.$set['details.$.skippedAt'] = now;
