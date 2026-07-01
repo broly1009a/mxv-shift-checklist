@@ -45,7 +45,19 @@ export class ShiftLogDetail {
   @Prop({ required: false, type: String, default: '' })
   botTriggerTimeSnapshot?: string;
 
-  @Prop({ required: true, enum: ['PENDING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'], default: 'PENDING' })
+  @Prop({ required: false, type: String, default: '' })
+  botCheckTypeSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botCheckTargetSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botSuccessConditionSnapshot?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botFailureActionSnapshot?: string;
+
+  @Prop({ required: true, enum: ['PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'], default: 'PENDING' })
   status: string;
 
   @Prop({ required: false, type: String, default: null })
@@ -138,7 +150,7 @@ export class ShiftLog extends Document {
   @Prop({ required: true, index: true })
   shiftDate: string; // YYYY-MM-DD
 
-  @Prop({ required: true, enum: ['PENDING', 'COMPLETED'], default: 'PENDING' })
+  @Prop({ required: true, enum: ['PENDING', 'COMPLETED'], default: 'PENDING', index: true })
   status: string;
 
   @Prop({ required: true, type: Number, default: 0.0 })

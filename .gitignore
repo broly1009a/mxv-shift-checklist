@@ -61,3 +61,6 @@ Thumbs.db
 .parcel-cache
 .cache/
 .tsbuildinfo
+
+# MXV IT Tool local source code
+it-tool-src/

@@ -124,6 +124,10 @@ export class ShiftJobsService {
         timetableSnapshot: task.timetable || '',
         isBotCheckSnapshot: task.isBotCheck || false,
         botTriggerTimeSnapshot: task.botTriggerTime || '',
+        botCheckTypeSnapshot: task.botCheckType || '',
+        botCheckTargetSnapshot: task.botCheckTarget || '',
+        botSuccessConditionSnapshot: task.botSuccessCondition || '',
+        botFailureActionSnapshot: task.botFailureAction || '',
       }));
 
       // Create new ShiftLog

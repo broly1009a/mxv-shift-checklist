@@ -52,7 +52,7 @@ interface TaskDetail {
   isBotCheckSnapshot?: boolean;
   botTriggerTimeSnapshot?: string;
 
-  status: 'PENDING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'NEEDS_ATTENTION';
+  status: 'PENDING' | 'WAITING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'NEEDS_ATTENTION';
   resultNote?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -121,6 +121,13 @@ const STATUS_CONFIGS = {
     bgColor: 'rgba(148, 163, 184, 0.1)',
     borderColor: 'rgba(148, 163, 184, 0.2)',
     icon: Clock,
+  },
+  WAITING: {
+    label: 'Đang kiểm tra',
+    color: '#3b82f6',
+    bgColor: 'rgba(59, 130, 246, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    icon: Cpu,
   },
   PASSED: {
     label: 'Đạt',
@@ -920,6 +927,13 @@ function ChecklistWorksheet() {
         .status-option-hover:hover {
           background: rgba(255, 255, 255, 0.06) !important;
         }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
       `}} />
 
       {/* Screen view wrapper (hidden on print via no-print class) */}
@@ -1090,6 +1104,7 @@ function ChecklistWorksheet() {
                   <option value="CHECKED">Đã kiểm tra</option>
                   <option value="UNCHECKED">Chưa kiểm tra</option>
                   <option value="PENDING">Chưa thực hiện</option>
+                  <option value="WAITING">Đang kiểm tra</option>
                   <option value="PASSED">Đạt</option>
                   <option value="FAILED">Không đạt</option>
                   <option value="SKIPPED">Bỏ qua</option>
@@ -1284,7 +1299,10 @@ function ChecklistWorksheet() {
                             }}
                           >
                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <StatusIcon size={14} />
+                              <StatusIcon 
+                                size={14} 
+                                className={item.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''}
+                              />
                               {currentStatusConfig.label}
                             </span>
                             {!isCompleted && !locked && <ChevronDown size={12} />}

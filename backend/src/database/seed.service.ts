@@ -406,6 +406,10 @@ export class SeedService implements OnApplicationBootstrap {
             sortOrder: 3,
             isBotCheck: true,
             botTriggerTime: '06:05',
+            botCheckType: 'API_STATUS',
+            botCheckTarget: 'http://cqg.mxv.vn/api/status',
+            botSuccessCondition: '{"connection": "ACTIVE"}',
+            botFailureAction: 'ALERT_TELEGRAM',
           },
           {
             taskId: 'it_open_04',
@@ -468,6 +472,10 @@ export class SeedService implements OnApplicationBootstrap {
             sortOrder: 1,
             isBotCheck: true,
             botTriggerTime: '23:30',
+            botCheckType: 'FILE_EXISTS',
+            botCheckTarget: '\\\\shared-folder\\backup\\EOD_TTM.csv',
+            botSuccessCondition: '{"minSizeKb": 10}',
+            botFailureAction: 'ALERT_TELEGRAM',
           },
           {
             taskId: 'it_close_02',
@@ -496,9 +504,16 @@ export class SeedService implements OnApplicationBootstrap {
           {
             taskId: 'ops_open_01',
             taskName:
-              'Kiểm tra danh sách các mã hợp đồng hàng hóa đến kỳ hạn giao nhận vật chất trong ngày (Xác định khung ngày FND và LND)',
+              'Nhận và kiểm tra Email báo cáo "Job Snapshot" từ hệ thống đối chiếu giao dịch tự động đầu ngày',
             priority: 'HIGH',
             sortOrder: 1,
+            isBotCheck: true,
+            botTriggerTime: '05:00',
+            botCheckType: 'EMAIL_PARSE',
+            botCheckTarget: '{"subject": "Job Snapshot - THÀNH CÔNG", "sender": "anhdao@mxv.vn"}',
+            botSuccessCondition: 'successfully',
+            botFailureAction: 'ALERT_TELEGRAM',
+            slaDeadline: '05:15',
           },
           {
             taskId: 'ops_open_02',

@@ -37,6 +37,18 @@ export class TaskItem {
   @Prop({ required: false, type: String, default: '' })
   botTriggerTime?: string;
 
+  @Prop({ required: false, type: String, default: '' })
+  botCheckType?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botCheckTarget?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botSuccessCondition?: string;
+
+  @Prop({ required: false, type: String, default: '' })
+  botFailureAction?: string;
+
   @Prop({ required: false, type: String, default: null })
   sessionType?: string | null;
 

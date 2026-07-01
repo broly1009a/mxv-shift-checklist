@@ -20,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
+import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { MarginChangeRequestsModule } from './modules/margin-change-requests/mar
     DashboardModule,
     IncidentsModule,
     MarginChangeRequestsModule,
+    BotEngineModule,
   ],
   controllers: [AppController],
   providers: [

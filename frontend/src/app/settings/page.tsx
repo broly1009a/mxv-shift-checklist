@@ -83,9 +83,6 @@ export default function SettingsPage() {
       setPassword('');
       setConfirmPassword('');
       toast.success('Cập nhật thông tin tài khoản thành công!');
-      
-      // Update theme token on root element
-      document.documentElement.setAttribute('data-theme', theme);
     } catch (err: any) {
       toast.error(err.message || 'Có lỗi xảy ra khi lưu cấu hình.');
     } finally {

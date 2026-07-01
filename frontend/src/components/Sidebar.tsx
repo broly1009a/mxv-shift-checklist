@@ -15,7 +15,8 @@ import {
   UserCheck,
   PanelLeftClose,
   Calendar,
-  Clock
+  Clock,
+  Bell
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -30,22 +31,6 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { canManageTemplates, isAdmin } = usePermissions();
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('mxv_theme') as 'dark' | 'light') || 'dark';
-    }
-    return 'dark';
-  });
-
-  useEffect(() => {
-    // Sync theme with user settings
-    const dbTheme = user?.settings?.theme;
-    if (dbTheme && dbTheme !== theme) {
-      Promise.resolve().then(() => {
-        setTheme(dbTheme);
-      });
-    }
-  }, [user?.settings?.theme, theme]);
 
   const getRoleName = (role: string) => {
     switch (role) {
@@ -266,15 +251,26 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </Link>
 
             {isAdmin && (
-              <Link 
-                href="/admin/calendar" 
-                onClick={onClose} 
-                className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
-                title={isCollapsed ? "Lịch giao dịch" : undefined}
-              >
-                <Calendar size={18} style={{ flexShrink: 0 }} />
-                <span>Lịch giao dịch</span>
-              </Link>
+              <>
+                <Link 
+                  href="/admin/calendar" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
+                  title={isCollapsed ? "Lịch giao dịch" : undefined}
+                >
+                  <Calendar size={18} style={{ flexShrink: 0 }} />
+                  <span>Lịch giao dịch</span>
+                </Link>
+                <Link 
+                  href="/admin/notifications" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/notifications') ? 'active' : ''}`}
+                  title={isCollapsed ? "Cấu hình thông báo" : undefined}
+                >
+                  <Bell size={18} style={{ flexShrink: 0 }} />
+                  <span>Cấu hình thông báo</span>
+                </Link>
+              </>
             )}
           </>
         )}

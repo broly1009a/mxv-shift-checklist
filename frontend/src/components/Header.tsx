@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Sun, 
   Moon, 
@@ -24,31 +24,14 @@ interface HeaderProps {
 }
 
 export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSidebar }: HeaderProps) {
-  const { user, token, logout, updateUser } = useAuth();
+  const { user, token, logout, updateUser, theme, changeTheme } = useAuth();
   const [zoom, setZoom] = useState<number>(100);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('mxv_theme') as 'light' | 'dark') || 'dark';
-    }
-    return 'dark';
-  });
   const [searchVal, setSearchVal] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifyRef = useRef<HTMLDivElement>(null);
-
-  // Sync theme
-  useEffect(() => {
-    const dbTheme = user?.settings?.theme;
-    if (dbTheme && dbTheme !== theme) {
-      Promise.resolve().then(() => {
-        setTheme(dbTheme);
-      });
-    }
-    document.documentElement.setAttribute('data-theme', dbTheme || theme);
-  }, [user?.settings?.theme, theme]);
 
   // Handle Ctrl+K shortcut to focus search
   useEffect(() => {
@@ -85,37 +68,6 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
       // Modern browsers support standard CSS zoom (Chrome/Edge/Safari)
       (document.body.style as any).zoom = `${newZoom}%`;
       document.body.style.setProperty('--app-zoom', (newZoom / 100).toString());
-    }
-  };
-
-  // Toggle Theme
-  const changeTheme = async (newTheme: 'light' | 'dark') => {
-    setTheme(newTheme);
-    localStorage.setItem('mxv_theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-
-    if (user && token) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            settings: {
-              ...user.settings,
-              theme: newTheme
-            }
-          })
-        });
-        if (res.ok) {
-          const updatedUser = await res.json();
-          updateUser(updatedUser);
-        }
-      } catch (err) {
-        console.error('Failed to sync theme to DB:', err);
-      }
     }
   };
 

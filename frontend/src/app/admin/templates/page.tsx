@@ -38,6 +38,10 @@ interface Task {
   timetable?: string;
   isBotCheck?: boolean;
   botTriggerTime?: string;
+  botCheckType?: string;
+  botCheckTarget?: string;
+  botSuccessCondition?: string;
+  botFailureAction?: string;
   sessionType?: 'OPEN' | 'DURING' | 'CLOSE' | null;
   triggerTime?: string | null;
   slaDeadline?: string | null;
@@ -89,6 +93,10 @@ export default function AdminTemplatesPage() {
   const [newTimetable, setNewTimetable] = useState('');
   const [newIsBotCheck, setNewIsBotCheck] = useState(false);
   const [newBotTriggerTime, setNewBotTriggerTime] = useState('');
+  const [newBotCheckType, setNewBotCheckType] = useState<string>('EMAIL_PARSE');
+  const [newBotCheckTarget, setNewBotCheckTarget] = useState('');
+  const [newBotSuccessCondition, setNewBotSuccessCondition] = useState('');
+  const [newBotFailureAction, setNewBotFailureAction] = useState('ALERT_TELEGRAM');
   const [newSlaType, setNewSlaType] = useState<'FIXED_TIME' | 'DYNAMIC_AFTER_TASK'>('FIXED_TIME');
   const [newTriggerTime, setNewTriggerTime] = useState('');
   const [newSlaDeadline, setNewSlaDeadline] = useState('');
@@ -195,6 +203,10 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
+    setNewBotCheckType('EMAIL_PARSE');
+    setNewBotCheckTarget('');
+    setNewBotSuccessCondition('');
+    setNewBotFailureAction('ALERT_TELEGRAM');
     setNewSlaType('FIXED_TIME');
     setNewTriggerTime('');
     setNewSlaDeadline('');
@@ -215,6 +227,10 @@ export default function AdminTemplatesPage() {
     setNewTimetable(task.timetable || '');
     setNewIsBotCheck(!!task.isBotCheck);
     setNewBotTriggerTime(task.botTriggerTime || '');
+    setNewBotCheckType(task.botCheckType || 'EMAIL_PARSE');
+    setNewBotCheckTarget(task.botCheckTarget || '');
+    setNewBotSuccessCondition(task.botSuccessCondition || '');
+    setNewBotFailureAction(task.botFailureAction || 'ALERT_TELEGRAM');
     setNewSlaType(task.slaType || 'FIXED_TIME');
     setNewTriggerTime(task.triggerTime || '');
     setNewSlaDeadline(task.slaDeadline || '');
@@ -235,6 +251,10 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
+    setNewBotCheckType('EMAIL_PARSE');
+    setNewBotCheckTarget('');
+    setNewBotSuccessCondition('');
+    setNewBotFailureAction('ALERT_TELEGRAM');
     setNewSlaType('FIXED_TIME');
     setNewTriggerTime('');
     setNewSlaDeadline('');
@@ -372,6 +392,10 @@ export default function AdminTemplatesPage() {
             timetable: newTimetable.trim() || undefined,
             isBotCheck: newIsBotCheck || undefined,
             botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
+            botCheckType: newIsBotCheck ? (newBotCheckType || undefined) : undefined,
+            botCheckTarget: newIsBotCheck ? (newBotCheckTarget.trim() || undefined) : undefined,
+            botSuccessCondition: newIsBotCheck ? (newBotSuccessCondition.trim() || undefined) : undefined,
+            botFailureAction: newIsBotCheck ? (newBotFailureAction || undefined) : undefined,
             slaType: newSlaType,
             triggerTime: newTriggerTime.trim() || undefined,
             slaDeadline: newSlaDeadline.trim() || undefined,
@@ -409,6 +433,10 @@ export default function AdminTemplatesPage() {
       timetable: newTimetable.trim() || undefined,
       isBotCheck: newIsBotCheck || undefined,
       botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
+      botCheckType: newIsBotCheck ? (newBotCheckType || undefined) : undefined,
+      botCheckTarget: newIsBotCheck ? (newBotCheckTarget.trim() || undefined) : undefined,
+      botSuccessCondition: newIsBotCheck ? (newBotSuccessCondition.trim() || undefined) : undefined,
+      botFailureAction: newIsBotCheck ? (newBotFailureAction || undefined) : undefined,
       slaType: newSlaType,
       triggerTime: newTriggerTime.trim() || undefined,
       slaDeadline: newSlaDeadline.trim() || undefined,
@@ -433,6 +461,10 @@ export default function AdminTemplatesPage() {
     setNewTimetable('');
     setNewIsBotCheck(false);
     setNewBotTriggerTime('');
+    setNewBotCheckType('EMAIL_PARSE');
+    setNewBotCheckTarget('');
+    setNewBotSuccessCondition('');
+    setNewBotFailureAction('ALERT_TELEGRAM');
     setNewSlaType('FIXED_TIME');
     setNewTriggerTime('');
     setNewSlaDeadline('');
@@ -942,16 +974,61 @@ export default function AdminTemplatesPage() {
                         </div>
 
                         {newIsBotCheck && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Giờ trigger:</span>
-                            <input
-                              type="text"
-                              className="form-input"
-                              placeholder="vd: 08:30"
-                              value={newBotTriggerTime}
-                              onChange={(e) => setNewBotTriggerTime(e.target.value)}
-                              style={{ width: '100px', padding: '6px 12px' }}
-                            />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="vd: 08:30"
+                                  value={newBotTriggerTime}
+                                  onChange={(e) => setNewBotTriggerTime(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
+                                <select
+                                  className="form-input"
+                                  value={newBotCheckType}
+                                  onChange={(e) => setNewBotCheckType(e.target.value)}
+                                  style={{ background: 'var(--bg-app)', width: '100%' }}
+                                >
+                                  <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
+                                  <option value="FILE_EXISTS">Kiểm tra File (FILE_EXISTS)</option>
+                                  <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                  {newBotCheckType === 'EMAIL_PARSE' ? 'Tham số Email (JSON: subject, sender)' : newBotCheckType === 'FILE_EXISTS' ? 'Đường dẫn file (vd: C:\\Backup\\...)' : 'Địa chỉ API Endpoint'}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={newBotCheckType === 'EMAIL_PARSE' ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}' : newBotCheckType === 'FILE_EXISTS' ? 'C:\\Backup\\EOD_TTM.csv' : 'http://oms.mxv.vn/api/v1/health'}
+                                  value={newBotCheckTarget}
+                                  onChange={(e) => setNewBotCheckTarget(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                  {newBotCheckType === 'EMAIL_PARSE' ? 'Từ khóa thành công (vd: successfully)' : newBotCheckType === 'FILE_EXISTS' ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})' : 'Điều kiện API thành công (vd: {"status": "UP"})'}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={newBotCheckType === 'EMAIL_PARSE' ? 'successfully' : newBotCheckType === 'FILE_EXISTS' ? '{"minSizeKb": 10}' : '{"status": "UP"}'}
+                                  value={newBotSuccessCondition}
+                                  onChange={(e) => setNewBotSuccessCondition(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                            </div>
                           </div>
                         )}
 
@@ -1037,6 +1114,14 @@ export default function AdminTemplatesPage() {
                                   <>
                                     <span>•</span>
                                     <span>Hạn chót: <strong style={{ color: '#ef4444' }}>{task.deadline}</strong></span>
+                                  </>
+                                )}
+                                {task.isBotCheck && (
+                                  <>
+                                    <span>•</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ec4899', fontWeight: 600 }}>
+                                      <Cpu size={12} /> Bot Check: {task.botCheckType} ({task.botTriggerTime})
+                                    </span>
                                   </>
                                 )}
                               </div>

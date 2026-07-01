@@ -21,11 +21,6 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
 
-  // Force dark mode trên trang login — đảm bảo không kế thừa theme cũ từ dashboard
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }, []);
-
   // If already logged in, redirect to dashboard, or check URL query parameters from Microsoft callback redirection
   useEffect(() => {
     if (user) {
@@ -264,10 +259,10 @@ export default function LoginPage() {
         >
           {/* Microsoft colored 4-square logo using SVG */}
           <svg width="18" height="18" viewBox="0 0 23 23" fill="none" style={{ flexShrink: 0 }}>
-            <rect width="10.5" height="10.5" fill="#F25022"/>
-            <rect x="12" width="10.5" height="10.5" fill="#7FBA00"/>
-            <rect y="12" width="10.5" height="10.5" fill="#00A4EF"/>
-            <rect x="12" y="12" width="10.5" height="10.5" fill="#FFB900"/>
+            <rect width="10.5" height="10.5" fill="#F25022" />
+            <rect x="12" width="10.5" height="10.5" fill="#7FBA00" />
+            <rect y="12" width="10.5" height="10.5" fill="#00A4EF" />
+            <rect x="12" y="12" width="10.5" height="10.5" fill="#FFB900" />
           </svg>
           Đăng nhập bằng Microsoft 365
         </button>
@@ -308,10 +303,10 @@ export default function LoginPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <svg width="18" height="18" viewBox="0 0 23 23" fill="none">
-                  <rect width="10.5" height="10.5" fill="#F25022"/>
-                  <rect x="12" width="10.5" height="10.5" fill="#7FBA00"/>
-                  <rect y="12" width="10.5" height="10.5" fill="#00A4EF"/>
-                  <rect x="12" y="12" width="10.5" height="10.5" fill="#FFB900"/>
+                  <rect width="10.5" height="10.5" fill="#F25022" />
+                  <rect x="12" width="10.5" height="10.5" fill="#7FBA00" />
+                  <rect y="12" width="10.5" height="10.5" fill="#00A4EF" />
+                  <rect x="12" y="12" width="10.5" height="10.5" fill="#FFB900" />
                 </svg>
                 <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
                   Xác thực tài khoản Microsoft 365

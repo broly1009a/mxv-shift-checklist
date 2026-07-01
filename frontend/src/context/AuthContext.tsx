@@ -37,6 +37,8 @@ interface AuthContextType {
   loginSSO: (email: string, fullName: string) => Promise<void>;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
+  theme: 'light' | 'dark';
+  changeTheme: (newTheme: 'light' | 'dark') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,28 +49,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setThemeState] = useState<'light' | 'dark'>('dark');
   const router = useRouter();
+
+  const updateUser = useCallback((updatedUser: User) => {
+    localStorage.setItem('mxv_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    if (updatedUser.settings?.theme) {
+      setThemeState(updatedUser.settings.theme);
+      document.documentElement.setAttribute('data-theme', updatedUser.settings.theme);
+    }
+  }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('mxv_token');
     localStorage.removeItem('mxv_user');
     setToken(null);
     setUser(null);
-    // Reset theme về dark khi logout để trang login không kế thừa light mode cũ
+    setThemeState('dark');
     document.documentElement.setAttribute('data-theme', 'dark');
     router.push('/login');
   }, [router]);
+
+  const changeTheme = useCallback(async (newTheme: 'light' | 'dark') => {
+    setThemeState(newTheme);
+    localStorage.setItem('mxv_theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+
+    if (user && token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            settings: {
+              ...user.settings,
+              theme: newTheme
+            }
+          })
+        });
+        if (res.ok) {
+          const updatedUser = await res.json();
+          updateUser(updatedUser);
+        }
+      } catch (err) {
+        console.error('Failed to sync theme to DB:', err);
+      }
+    }
+  }, [user, token, updateUser]);
 
   useEffect(() => {
     // Check if user is authenticated from local storage
     const storedToken = localStorage.getItem('mxv_token');
     const storedUser = localStorage.getItem('mxv_user');
+    const storedTheme = localStorage.getItem('mxv_theme') as 'light' | 'dark';
 
     Promise.resolve().then(() => {
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+      let activeTheme: 'light' | 'dark' = 'dark';
+      
+      // Trang đăng nhập hoặc root luôn bắt buộc dùng dark mode
+      const isLoginPage = window.location.pathname === '/' || window.location.pathname.startsWith('/login');
+      
+      if (!isLoginPage) {
+        if (storedToken && storedUser) {
+          const parsedUser = JSON.parse(storedUser) as User;
+          setToken(storedToken);
+          setUser(parsedUser);
+          if (parsedUser.settings?.theme) {
+            activeTheme = parsedUser.settings.theme;
+          } else if (storedTheme) {
+            activeTheme = storedTheme;
+          }
+        } else if (storedTheme) {
+          activeTheme = storedTheme;
+        }
       }
+      
+      setThemeState(activeTheme);
+      document.documentElement.setAttribute('data-theme', activeTheme);
       setLoading(false);
     });
   }, []);
@@ -122,6 +183,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setToken(tokenVal);
       setUser(userVal);
+
+      // Cập nhật theme theo cấu hình của user vừa đăng nhập
+      if (userVal.settings?.theme) {
+        setThemeState(userVal.settings.theme);
+        document.documentElement.setAttribute('data-theme', userVal.settings.theme);
+      } else {
+        const storedTheme = localStorage.getItem('mxv_theme') as 'light' | 'dark' || 'dark';
+        setThemeState(storedTheme);
+        document.documentElement.setAttribute('data-theme', storedTheme);
+      }
+
       setLoading(false);
 
       // Redirect to dashboard
@@ -155,6 +227,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setToken(tokenVal);
       setUser(userVal);
+
+      // Cập nhật theme theo cấu hình của user vừa đăng nhập
+      if (userVal.settings?.theme) {
+        setThemeState(userVal.settings.theme);
+        document.documentElement.setAttribute('data-theme', userVal.settings.theme);
+      } else {
+        const storedTheme = localStorage.getItem('mxv_theme') as 'light' | 'dark' || 'dark';
+        setThemeState(storedTheme);
+        document.documentElement.setAttribute('data-theme', storedTheme);
+      }
+
       setLoading(false);
 
       // Redirect to dashboard
@@ -167,13 +250,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  const updateUser = (updatedUser: User) => {
-    localStorage.setItem('mxv_user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, loginSSO, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginSSO, logout, updateUser, theme, changeTheme }}>
       {children}
     </AuthContext.Provider>
   );

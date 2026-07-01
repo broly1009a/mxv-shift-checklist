@@ -121,6 +121,10 @@ export class ShiftsService {
       timetableSnapshot: task.timetable || '',
       isBotCheckSnapshot: task.isBotCheck || false,
       botTriggerTimeSnapshot: task.botTriggerTime || '',
+      botCheckTypeSnapshot: task.botCheckType || '',
+      botCheckTargetSnapshot: task.botCheckTarget || '',
+      botSuccessConditionSnapshot: task.botSuccessCondition || '',
+      botFailureActionSnapshot: task.botFailureAction || '',
       status: 'PENDING',
       dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
       sessionTypeSnapshot: task.sessionType || null,
@@ -324,7 +328,7 @@ export class ShiftsService {
     user: any,
     note?: string,
   ): Promise<ShiftLog> {
-    const validStatuses = ['PENDING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'];
+    const validStatuses = ['PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'];
     if (!validStatuses.includes(status)) {
       throw new BadRequestException('Trạng thái tác vụ không hợp lệ');
     }
@@ -416,6 +420,11 @@ export class ShiftsService {
     // Set other lifecycle timestamps and clear non-matching ones
     if (status === 'PENDING') {
       updateQuery.$set['details.$.startedAt'] = null;
+      updateQuery.$set['details.$.completedAt'] = null;
+      updateQuery.$set['details.$.failedAt'] = null;
+      updateQuery.$set['details.$.skippedAt'] = null;
+      updateQuery.$set['details.$.needsAttentionAt'] = null;
+    } else if (status === 'WAITING') {
       updateQuery.$set['details.$.completedAt'] = null;
       updateQuery.$set['details.$.failedAt'] = null;
       updateQuery.$set['details.$.skippedAt'] = null;

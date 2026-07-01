@@ -22,7 +22,36 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={cn("font-sans", plusJakartaSans.variable)}>
+    <html lang="vi" className={cn("font-sans", plusJakartaSans.variable)} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  if (window.location.pathname === '/' || window.location.pathname.startsWith('/login')) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    return;
+                  }
+                  var storedTheme = localStorage.getItem('mxv_theme');
+                  var storedUser = localStorage.getItem('mxv_user');
+                  var userTheme;
+                  if (storedUser) {
+                    try {
+                      var userObj = JSON.parse(storedUser);
+                      if (userObj && userObj.settings && userObj.settings.theme) {
+                        userTheme = userObj.settings.theme;
+                      }
+                    } catch (e) {}
+                  }
+                  var theme = userTheme || storedTheme || 'dark';
+                  document.documentElement.setAttribute('data-theme', theme);
+                } catch (e) {}
+              })();
+            `
+          }}
+        />
+      </head>
       <body>
         <AuthProvider>
           {children}
