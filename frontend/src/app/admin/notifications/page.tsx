@@ -657,9 +657,11 @@ export default function AdminNotificationsPage() {
               fontWeight: 600,
               fontSize: '0.9rem',
               color: activeTab === 'channels' ? 'var(--color-accent)' : 'var(--text-secondary)',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
               borderBottom: activeTab === 'channels' ? '2px solid var(--color-accent)' : '2px solid transparent',
               background: 'transparent',
-              border: 'none',
               cursor: 'pointer'
             }}
           >
@@ -675,9 +677,11 @@ export default function AdminNotificationsPage() {
               fontWeight: 600,
               fontSize: '0.9rem',
               color: activeTab === 'rules' ? 'var(--color-accent)' : 'var(--text-secondary)',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
               borderBottom: activeTab === 'rules' ? '2px solid var(--color-accent)' : '2px solid transparent',
               background: 'transparent',
-              border: 'none',
               cursor: 'pointer'
             }}
           >
@@ -693,9 +697,11 @@ export default function AdminNotificationsPage() {
               fontWeight: 600,
               fontSize: '0.9rem',
               color: activeTab === 'logs' ? 'var(--color-accent)' : 'var(--text-secondary)',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
               borderBottom: activeTab === 'logs' ? '2px solid var(--color-accent)' : '2px solid transparent',
               background: 'transparent',
-              border: 'none',
               cursor: 'pointer'
             }}
           >
@@ -711,9 +717,11 @@ export default function AdminNotificationsPage() {
               fontWeight: 600,
               fontSize: '0.9rem',
               color: activeTab === 'test' ? 'var(--color-accent)' : 'var(--text-secondary)',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
               borderBottom: activeTab === 'test' ? '2px solid var(--color-accent)' : '2px solid transparent',
               background: 'transparent',
-              border: 'none',
               cursor: 'pointer'
             }}
           >
