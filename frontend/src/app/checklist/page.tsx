@@ -23,6 +23,7 @@ import AuditLogsPanel from './components/AuditLogsPanel';
 import IncidentReportModal from './components/IncidentReportModal';
 import AdhocTaskModal from './components/AdhocTaskModal';
 import ReconciliationModal from './components/ReconciliationModal';
+import MarginCheckerModal from './components/MarginCheckerModal';
 
 function ChecklistWorksheet() {
   const {
@@ -79,6 +80,7 @@ function ChecklistWorksheet() {
   } = useChecklist();
 
   const [isReconModalOpen, setIsReconModalOpen] = React.useState(false);
+  const [isMarginModalOpen, setIsMarginModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
 
   const getSessionBadge = (type: string) => {
@@ -355,6 +357,7 @@ function ChecklistWorksheet() {
               setReconTaskId(taskId);
               setIsReconModalOpen(true);
             }}
+            onOpenMarginChecker={() => setIsMarginModalOpen(true)}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -414,8 +417,19 @@ function ChecklistWorksheet() {
           onClose={() => setIsReconModalOpen(false)}
           shiftLogId={log._id}
           taskId={reconTaskId}
+          taskName={log.details?.find(d => d.taskId === reconTaskId)?.taskNameSnapshot || ''}
           token={token || ''}
           onSuccess={() => {}}
+        />
+      )}
+
+      {/* Margin Checker Modal */}
+      {isMarginModalOpen && (
+        <MarginCheckerModal
+          isOpen={isMarginModalOpen}
+          onClose={() => setIsMarginModalOpen(false)}
+          shiftLogId={log._id}
+          token={token || ''}
         />
       )}
 

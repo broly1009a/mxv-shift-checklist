@@ -19,7 +19,8 @@ import {
   XCircle,
   SkipForward,
   AlertTriangle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShieldAlert
 } from 'lucide-react';
 import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
 
@@ -91,6 +92,7 @@ interface TaskTableProps {
   focusedTaskIdRef: React.MutableRefObject<string | null>;
   user: any;
   onOpenReconciliation: (taskId: string) => void;
+  onOpenMarginChecker: () => void;
 }
 
 export default function TaskTable({
@@ -115,7 +117,8 @@ export default function TaskTable({
   setIsAdhocModalOpen,
   focusedTaskIdRef,
   user,
-  onOpenReconciliation
+  onOpenReconciliation,
+  onOpenMarginChecker
 }: TaskTableProps) {
 
   const getPriorityBadge = (p: string) => {
@@ -366,7 +369,14 @@ export default function TaskTable({
                       )}
 
                       {/* Reconciliation Button */}
-                      {(item.taskId.toUpperCase().includes('KLGD') || item.taskId.toUpperCase().includes('TTM') || item.taskId.toUpperCase().includes('TTTT') || item.taskId.toUpperCase().includes('EOD')) && !isCompleted && (
+                      {(item.taskId.toUpperCase().includes('KLGD') ||
+                        item.taskId.toUpperCase().includes('TTM') ||
+                        item.taskId.toUpperCase().includes('TTTT') ||
+                        item.taskId.toUpperCase().includes('EOD') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU') ||
+                        item.taskNameSnapshot.toUpperCase().includes('EOD') ||
+                        item.taskNameSnapshot.toUpperCase().includes('SỐ DƯ')) && !isCompleted && (
+
                         <button
                           onClick={() => onOpenReconciliation(item.taskId)}
                           className="btn btn-secondary animate-fade-in"
@@ -384,6 +394,32 @@ export default function TaskTable({
                         >
                           <FileSpreadsheet size={12} />
                           Đối chiếu Excel
+                        </button>
+                      )}
+
+                      {/* Margin Checker Button */}
+                      {(item.taskId.toUpperCase().includes('MARGIN') ||
+                        item.taskId.toUpperCase().includes('KYQUY') ||
+                        item.taskNameSnapshot.toUpperCase().includes('MARGIN') ||
+                        item.taskNameSnapshot.toUpperCase().includes('KÝ QUỸ')) && !isCompleted && (
+
+                        <button
+                          onClick={onOpenMarginChecker}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(16, 185, 129, 0.08)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                          }}
+                        >
+                          <ShieldAlert size={12} />
+                          Margin Checker
                         </button>
                       )}
                     </div>

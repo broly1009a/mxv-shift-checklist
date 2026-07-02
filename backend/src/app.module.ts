@@ -22,6 +22,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
 import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
 import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
+import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ReconciliationModule } from './modules/reconciliation/reconciliation.mo
     MarginChangeRequestsModule,
     BotEngineModule,
     ReconciliationModule,
+    MarginCheckerModule,
   ],
   controllers: [AppController],
   providers: [

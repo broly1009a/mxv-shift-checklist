@@ -121,4 +121,140 @@ export class ReconciliationController {
       throw new BadRequestException(`Lỗi khi xử lý file đối chiếu: ${error.message}`);
     }
   }
+
+  @Post('upload-eod')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'qltkgd', maxCount: 1 },
+      { name: 'eod', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'accountsBalances', maxCount: 1 },
+    ]),
+  )
+  async uploadAndReconcileEOD(
+    @UploadedFiles()
+    files: {
+      qltkgd?: any[];
+      eod?: any[];
+      tttt?: any[];
+      accountsBalances?: any[];
+    },
+    @Body('shiftLogId') shiftLogId: string,
+    @Body('taskId') taskId: string,
+    @Body('usdRate') usdRateStr?: string,
+  ) {
+    if (!shiftLogId || !taskId) {
+      throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
+    }
+
+    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+
+    const fileBuffers = {
+      qltkgd: files?.qltkgd?.[0]?.buffer,
+      eod: files?.eod?.[0]?.buffer,
+      tttt: files?.tttt?.[0]?.buffer,
+      accountsBalances: files?.accountsBalances?.[0]?.buffer,
+    };
+
+    const systemUser = {
+      id: '000000000000000000000000',
+      fullName: 'Hệ thống tự động (Bot)',
+      username: 'system_bot',
+      role: 'ADMIN',
+    };
+
+    try {
+      // Case A: CQG EOD Balance check (if accountsBalances is uploaded)
+      if (fileBuffers.accountsBalances) {
+        if (!fileBuffers.qltkgd) {
+          throw new BadRequestException('File QLTKGD.xlsx là bắt buộc để đối chiếu số dư CQG.');
+        }
+
+        const result = await this.reconciliationService.checkEODCQG({
+          qltkgd: fileBuffers.qltkgd,
+          accountsBalances: fileBuffers.accountsBalances,
+        }, usdRate);
+
+        const hasDiscrepancy = result.length > 0;
+        const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
+
+        let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
+        note += `• Số tài khoản chênh lệch (> 100 USD): ${result.length}\n`;
+        if (result.length > 0) {
+          note += `⚠️ Danh sách tài khoản lệch:\n`;
+          result.slice(0, 10).forEach(r => {
+            note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ.toFixed(2)})\n`;
+          });
+          if (result.length > 10) {
+            note += `  ... và ${result.length - 10} tài khoản khác.\n`;
+          }
+        } else {
+          note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
+        }
+
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+
+        return {
+          success: !hasDiscrepancy,
+          type: 'CQG',
+          message: hasDiscrepancy ? 'Đối chiếu số dư CQG có chênh lệch.' : 'Đối chiếu số dư CQG khớp hoàn toàn.',
+          result,
+        };
+      }
+
+      // Case B: M-System EOD Calculation check (if eod and tttt are uploaded)
+      if (fileBuffers.eod) {
+        if (!fileBuffers.qltkgd) {
+          throw new BadRequestException('File QLTKGD.xlsx là bắt buộc để đối chiếu số dư EOD.');
+        }
+        if (!fileBuffers.tttt) {
+          throw new BadRequestException('File TTTT.xlsx là bắt buộc để đối chiếu số dư EOD.');
+        }
+
+        const result = await this.reconciliationService.checkEOD({
+          qltkgd: fileBuffers.qltkgd,
+          eod: fileBuffers.eod,
+          tttt: fileBuffers.tttt,
+        });
+
+        const hasDiscrepancy = result.mismatchedEOD.length > 0;
+        const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
+
+        let note = `[ĐỐI CHIẾU EOD TỰ ĐỘNG]\n`;
+        note += `• Số tài khoản lệch số dư (>= 1,000đ): ${result.mismatchedEOD.length}\n`;
+        note += `• Phát hiện tài khoản âm ký quỹ mới: ${result.negativeIMRAcc.length}\n`;
+        
+        if (result.mismatchedEOD.length > 0) {
+          note += `⚠️ Danh sách tài khoản lệch:\n`;
+          result.mismatchedEOD.slice(0, 10).forEach(r => {
+            note += `  - TK ${r.maTKGD}: Tính toán ${r.calculatedBalance.toLocaleString()}đ vs EOD ${r.eodBalance.toLocaleString()}đ (Lệch: ${r.differ.toLocaleString()}đ)\n`;
+          });
+          if (result.mismatchedEOD.length > 10) {
+            note += `  ... và ${result.mismatchedEOD.length - 10} tài khoản khác.\n`;
+          }
+        } else {
+          note += `✓ Số dư khớp hoàn toàn giữa M-System và báo cáo EOD.\n`;
+        }
+
+        if (result.negativeIMRAcc.length > 0) {
+          note += `🚨 Tài khoản âm ký quỹ khả dụng mới: ${result.negativeIMRAcc.join(', ')}\n`;
+        }
+
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+
+        return {
+          success: !hasDiscrepancy,
+          type: 'EOD',
+          message: hasDiscrepancy ? 'Đối chiếu EOD có chênh lệch.' : 'Đối chiếu EOD khớp hoàn toàn.',
+          result,
+        };
+      }
+
+      throw new BadRequestException('Không nhận diện được loại đối chiếu. Vui lòng tải lên đúng bộ tệp tin.');
+    } catch (error: any) {
+      this.logger.error(`Lỗi đối chiếu EOD/CQG: ${error.message}`, error.stack);
+      throw new BadRequestException(`Lỗi khi xử lý file đối chiếu EOD/CQG: ${error.message}`);
+    }
+  }
 }
+
