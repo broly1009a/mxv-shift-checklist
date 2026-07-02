@@ -504,31 +504,91 @@ export class SeedService implements OnApplicationBootstrap {
           {
             taskId: 'ops_open_01',
             taskName:
-              'Nhận và kiểm tra Email báo cáo "Job Snapshot" từ hệ thống đối chiếu giao dịch tự động đầu ngày',
+              'Kiểm tra Job Snapshot (Email: anhdao@mxv.vn)',
             priority: 'HIGH',
             sortOrder: 1,
             isBotCheck: true,
             botTriggerTime: '05:00',
             botCheckType: 'EMAIL_PARSE',
-            botCheckTarget: '{"subject": "Job Snapshot - THÀNH CÔNG", "sender": "anhdao@mxv.vn"}',
-            botSuccessCondition: 'successfully',
+            botCheckTarget: '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}',
+            botSuccessCondition: 'thành công',
             botFailureAction: 'ALERT_TELEGRAM',
             slaDeadline: '05:15',
+            actionDescription: 'Kiểm tra email kết quả "Job Snapshot". Nếu không thành công, phối hợp với Newgen xử lý kết chuyển dữ liệu.',
           },
           {
             taskId: 'ops_open_02',
             taskName:
-              'Cập nhật biểu phí giao nhận, phí lưu kho vật chất mới nhất áp dụng cho các mặt hàng kim loại (Bạc, Đồng) và năng lượng',
-            priority: 'MEDIUM',
+              'Kiểm tra EOD OMS & lệnh MM OMS (CQG / CCP Screen)',
+            priority: 'HIGH',
             sortOrder: 2,
+            isBotCheck: true,
+            botTriggerTime: '05:00',
+            botCheckType: 'API_STATUS',
+            botCheckTarget: 'http://cqg.mxv.vn/api/oms/status',
+            botSuccessCondition: '{"status": "EOD_COMPLETED"}',
+            botFailureAction: 'ALERT_TELEGRAM',
+            slaDeadline: '05:15',
+            actionDescription: 'Kiểm tra kết quả EOD của CCP / CE. Kiểm tra lệnh MM đã lên CCP / CE hay chưa.',
           },
           {
             taskId: 'ops_open_03',
             taskName:
-              'Đối chiếu số dư tài khoản tiền mặt (LND - Lọc Nộp Dòng) đầu ngày của danh sách Nhà đầu tư đăng ký nhận hàng',
-            priority: 'CRITICAL',
+              'Đối chiếu & Chạy EOD M-System (MS, CQG, ACM, Email)',
+            priority: 'HIGH',
             sortOrder: 3,
-            dependsOnTaskIds: ['ops_open_02'],
+            isBotCheck: true,
+            botTriggerTime: '06:00',
+            botCheckType: 'EMAIL_PARSE',
+            botCheckTarget: '{"subject": "EOD M-System SUCCESS", "sender": "m-system@mxv.vn"}',
+            botSuccessCondition: 'SUCCESS',
+            botFailureAction: 'ALERT_TELEGRAM',
+            slaDeadline: '07:00',
+            actionDescription: 'Kiểm tra đối chiếu dữ liệu phiên T-1 giữa M-System, CQG và ACM; kiểm tra giá thanh toán; thực hiện chạy EOD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Nếu quá trình xử lý lỗi kết chuyển/đối chiếu kéo dài quá 07h30, thông báo lùi thời gian EOD và gửi Sao kê cho TVKD.',
+          },
+          {
+            taskId: 'ops_open_04',
+            taskName:
+              'Xử lý sau EOD (M-System, Ổ shared QLGD, Email)',
+            priority: 'HIGH',
+            sortOrder: 4,
+            dependsOnTaskIds: ['ops_open_03'],
+            actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
+          },
+          {
+            taskId: 'ops_open_05',
+            taskName:
+              'Thực hiện Start of Day (SOD) (M-System)',
+            priority: 'HIGH',
+            sortOrder: 5,
+            dependsOnTaskIds: ['ops_open_03'],
+            actionDescription: 'Cập nhật Start of Day (SOD) cho hệ thống M-System. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.',
+          },
+          {
+            taskId: 'ops_open_06',
+            taskName:
+              'Đồng bộ CQG (Sync CQG) (CQG Cast, M-System)',
+            priority: 'MEDIUM',
+            sortOrder: 6,
+            dependsOnTaskIds: ['ops_open_05'],
+            actionDescription: 'Kiểm tra việc reset dữ liệu trên CQG; sau khi reset xong, thực hiện đồng bộ số dư (Sync CQG) thủ công lên CQG Cast.',
+          },
+          {
+            taskId: 'ops_open_06_1',
+            taskName:
+              'Check sai ký quỹ, check sai lãi lỗ dự kiến (Sử dụng tool và 3 file)',
+            priority: 'MEDIUM',
+            sortOrder: 7,
+            actionDescription: 'Sử dụng công cụ kiểm tra ký quỹ và lãi lỗ dự kiến, import 3 file dữ liệu đối chiếu.',
+          },
+          {
+            taskId: 'ops_open_07',
+            taskName:
+              'Gửi email Sao kê TKGD thủ công (M-System, Email)',
+            priority: 'HIGH',
+            sortOrder: 8,
+            dependsOnTaskIds: ['ops_open_05'],
+            actionDescription: 'Gửi email Sao kê TKGD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 30 phút sau khi kết quả EOD được xác nhận chính xác, thực hiện thao tác gửi email Sao kê TKGD thủ công cho Khách hàng.',
           },
         ],
       },
@@ -541,44 +601,50 @@ export class SeedService implements OnApplicationBootstrap {
           {
             taskId: 'ops_during_01',
             taskName:
-              'Tiếp nhận và phê duyệt các yêu cầu đăng ký lưu ký vật chất (DELIVERY_DEPOSIT) của bên Bán gửi lên từ UI',
+              'Thay đổi ký quỹ hàng hóa (M-System, CQG Cast)',
             priority: 'HIGH',
             sortOrder: 1,
+            actionDescription: 'Nếu có Quyết định thay đổi ký quỹ có hiệu lực từ phiên T, người trực ca 1 thực hiện tạo bản ghi thay đổi, người trực ca 2 duyệt bản ghi (thực hiện khi có Trưởng bộ phận).',
           },
           {
             taskId: 'ops_during_02',
             taskName:
-              'Xử lý phê duyệt hoặc từ chối các yêu cầu Hủy lưu ký (CANCEL_DEPOSIT) dựa trên điều kiện kiểm tra trạng thái tài khoản MSB',
+              'Giám sát & Đối chiếu MS vs CQG (M-System, CQG Cast, Email)',
             priority: 'HIGH',
             sortOrder: 2,
+            actionDescription: 'Kiểm tra tính cân bằng dữ liệu giữa M-System và CQG. Xử lý các lỗi lệch do thiết lập tham số hoặc mất kết nối API.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 30 phút kể từ khi đối chiếu phát hiện không cân bằng: Xác định nguyên nhân và tài khoản bị lệch giao dịch.\n• Sau khi tìm ra nguyên nhân lệch giao dịch: Thông báo cho TVKD (qua room Hỗ trợ nghiệp vụ giao dịch) thực hiện thiết bổ sung các tham số còn thiếu của TKGD và báo cho Newgen kéo lệnh còn thiếu về MS.',
           },
           {
             taskId: 'ops_during_03',
             taskName:
-              'Kiểm tra tính hợp lệ của các yêu cầu rút ký quỹ (MARGIN_WITHDRAW), đối chiếu sức mua TTM trước khi duyệt chuyển tiền sang VCB',
-            priority: 'CRITICAL',
+              'Mở mới hợp đồng giao dịch (M-System, CQG Cast)',
+            priority: 'MEDIUM',
             sortOrder: 3,
+            actionDescription: 'Thực hiện mở mới hợp đồng Futures, Spreads, ACM. Lưu ý: Mở tối đa 1 năm tính từ hiện tại.',
           },
           {
             taskId: 'ops_during_04',
             taskName:
-              'Giám sát luồng dữ liệu phản hồi MSB_STATUS từ phía ngân hàng để cập nhật trạng thái "Người bán đã giao Bạc" sang mã "S"',
+              'Hỗ trợ & Xử lý sự cố (M-System, CQG, ACM, Teams/Zalo)',
             priority: 'HIGH',
             sortOrder: 4,
+            actionDescription: 'Tiếp nhận thắc mắc của TVKD; thông báo lỗi hệ thống; sửa lỗi giao dịch; gán hàng hóa (mặt hàng có điều kiện/API); đình chỉ TVKD.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 05 phút kể từ khi phát hiện lỗi: Thông báo lỗi/sự cố hệ thống (mất kết nối, lỗi phần mềm M-System, CQG, ACM...) cho Newgen và Khối CNTT.\n• Trong vòng 10 phút kể từ khi phát hiện lỗi: Gửi email thông báo sự cố cho các ĐVNV và Thành viên Kinh doanh (TVKD).\n• Ngay sau khi hoàn tất kiểm tra hệ thống: Thông báo lỗi/sự cố đã được khắc phục sau khi kiểm tra dữ liệu chính xác giữa các nền tảng.\n• Trong phiên, sau khi hoàn thành xử lý lỗi / sự cố: Cập nhật vào Báo cáo ghi nhận lỗi giao dịch (Mẫu số: 01/QT/TVH).\n• Trong vòng 15 phút kể từ khi tiếp nhận thông tin qua Teams/Email: Tiếp nhận và tìm hiểu nguyên nhân khiếu nại/thắc mắc của TVKD.',
           },
           {
             taskId: 'ops_during_05',
             taskName:
-              'Tiếp nhận yêu cầu Đăng ký nhận hàng vật chất (DELIVERY_PHYSICAL_REGIS), kiểm tra ràng buộc vị thế Mua mở (Long Position)',
-            priority: 'CRITICAL',
+              'Giám sát tất toán hợp đồng (M-System, Email)',
+            priority: 'HIGH',
             sortOrder: 5,
+            actionDescription: 'Gửi thông báo thời hạn tất toán hợp đồng; thực hiện hủy lệnh chờ và đóng vị thế bắt buộc nếu TVKD không tự thực hiện đúng hạn.',
           },
           {
             taskId: 'ops_during_06',
             taskName:
-              'Xử lý hồ sơ đăng ký nhận hàng chỉ định (RECEIVE_DESIGNATED), đối chiếu mã phiếu ghép cặp (pairingCode) phát hành bởi CCP',
+              'Báo cáo Ban giám sát (M-System, CQG, ACM, Whatsapp)',
             priority: 'HIGH',
             sortOrder: 6,
+            actionDescription: 'Thống kê các dữ liệu giao dịch trong phiên: DSGD, TTM… gửi Ban giám sát qua Whatsapp.',
           },
         ],
       },
@@ -591,23 +657,10 @@ export class SeedService implements OnApplicationBootstrap {
           {
             taskId: 'ops_close_01',
             taskName:
-              'Thực hiện xử lý EOD vật chất (End-of-Day): Quét trừ tiền phí giao nhận của các tài khoản (chấp nhận trừ âm nếu thiếu tiền)',
+              'Backup dữ liệu cuối phiên (M-System, CQG Cast, ACM, CE/CCP, Ổ shared)',
             priority: 'CRITICAL',
             sortOrder: 1,
-          },
-          {
-            taskId: 'ops_close_02',
-            taskName:
-              'Kết xuất file đối chiếu tổng hợp dữ liệu giao nhận an toàn sang ngân hàng MSB chi nhánh Đống Đa và TP.HCM',
-            priority: 'HIGH',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'ops_close_03',
-            taskName:
-              'Hủy toàn bộ các yêu cầu đăng ký giao nhận vật chất còn tồn đọng ở trạng thái PENDING chưa được duyệt tính đến cuối ngày',
-            priority: 'MEDIUM',
-            sortOrder: 3,
+            actionDescription: 'Sao lưu toàn bộ dữ liệu giao dịch, lệnh, trạng thái, ký quỹ, nộp rút tiền... trên M-System, CQG, ACM, CE / CCP. Lưu ý: CE và ACM ưu tiên backup trước. Tổng hợp dữ liệu thành các báo cáo theo mẫu.',
           },
         ],
       },

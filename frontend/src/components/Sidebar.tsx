@@ -10,7 +10,6 @@ import {
   History, 
   Settings, 
   LogOut, 
-  ShieldAlert,
   Building2,
   UserCheck,
   PanelLeftClose,
@@ -94,17 +93,22 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         flexShrink: 0
       }}>
         <div style={{
-          width: '36px',
-          height: '36px',
-          background: 'rgba(59, 130, 246, 0.15)',
-          borderRadius: '8px',
+          width: '46px',
+          height: '46px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
           flexShrink: 0
         }}>
-          <ShieldAlert size={20} color="#3b82f6" />
+          <img 
+            src="/logomxv.svg" 
+            alt="MXV Logo" 
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain'
+            }} 
+          />
         </div>
         <div className="sidebar-header-text">
           <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>

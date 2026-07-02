@@ -3,11 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Save, Shield, Bell, RefreshCw } from 'lucide-react';
+import { Save, Shield, Bell, RefreshCw, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+type TabType = 'profile' | 'notifications' | 'security';
 
 export default function SettingsPage() {
   const { user, token, updateUser } = useAuth();
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<TabType>('profile');
 
   // State for profile / security
   const [fullName, setFullName] = useState('');
@@ -102,24 +107,111 @@ export default function SettingsPage() {
     <ProtectedRoute>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình Cá Nhân</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Thiết lập thông tin tài khoản, mật khẩu và cấu hình nhận cảnh báo</p>
+        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình & Hồ Sơ</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>Quản lý thông tin cá nhân, cài đặt ứng dụng và bảo mật tài khoản</p>
       </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+        {/* Tab Navigation */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: '32px',
+          width: '100%',
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
+            padding: '6px',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            gap: '6px',
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              style={{
+                background: activeTab === 'profile' ? 'var(--color-accent)' : 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: activeTab === 'profile' ? '#ffffff' : 'var(--text-secondary)',
+                padding: '10px 20px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: activeTab === 'profile' ? '0 4px 12px rgba(59, 130, 246, 0.25)' : 'none',
+              }}
+            >
+              <UserIcon size={16} />
+              <span>Hồ sơ cá nhân</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('notifications')}
+              style={{
+                background: activeTab === 'notifications' ? 'var(--color-accent)' : 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: activeTab === 'notifications' ? '#ffffff' : 'var(--text-secondary)',
+                padding: '10px 20px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: activeTab === 'notifications' ? '0 4px 12px rgba(59, 130, 246, 0.25)' : 'none',
+              }}
+            >
+              <Bell size={16} />
+              <span>Nhận cảnh báo & Ứng dụng</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              style={{
+                background: activeTab === 'security' ? 'var(--color-accent)' : 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: activeTab === 'security' ? '#ffffff' : 'var(--text-secondary)',
+                padding: '10px 20px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: activeTab === 'security' ? '0 4px 12px rgba(59, 130, 246, 0.25)' : 'none',
+              }}
+            >
+              <Shield size={16} />
+              <span>Bảo mật & Đổi mật khẩu</span>
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            {/* Cột trái: Thông tin cơ bản & Đổi mật khẩu */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              
-              {/* Section 1: Thông tin tài khoản */}
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                  <RefreshCw size={20} color="var(--primary-color)" />
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Thông Tin Cơ Bản</h3>
+          <div style={{ width: '100%' }}>
+            
+            {/* Tab 1: Profile */}
+            {activeTab === 'profile' && (
+              <div className="glass-panel" style={{ padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <UserIcon size={22} color="var(--color-accent)" />
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Thông Tin Tài Khoản</h3>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
                     <label className="form-label">Tên tài khoản (Read-only)</label>
                     <input 
@@ -130,6 +222,7 @@ export default function SettingsPage() {
                       style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
                     />
                   </div>
+                  
                   <div>
                     <label className="form-label">Họ và tên</label>
                     <input 
@@ -141,54 +234,63 @@ export default function SettingsPage() {
                       placeholder="Nhập đầy đủ họ và tên"
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Section 2: Bảo mật */}
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                  <Shield size={20} color="#f59e0b" />
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Đổi Mật Khẩu (Để trống nếu không đổi)</h3>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <label className="form-label">Mật khẩu mới</label>
+                    <label className="form-label">Chức vụ / Vai trò (Read-only)</label>
                     <input 
-                      type="password" 
+                      type="text" 
                       className="form-input" 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      placeholder="••••••••"
+                      value={
+                        user.role === 'ADMIN' ? 'Quản trị viên hệ thống' :
+                        user.role === 'CHAIRMAN' ? 'Chủ tịch Hội đồng' :
+                        user.role === 'CEO' ? 'Tổng Giám đốc' :
+                        user.role === 'DIVISION_DIRECTOR' ? 'Giám đốc Khối' :
+                        user.role === 'DEPARTMENT_HEAD' ? 'Trưởng bộ phận' :
+                        'Nhân viên vận hành'
+                      } 
+                      disabled 
+                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
                     />
                   </div>
-                  <div>
-                    <label className="form-label">Xác nhận mật khẩu mới</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      value={confirmPassword} 
-                      onChange={(e) => setConfirmPassword(e.target.value)} 
-                      placeholder="••••••••"
-                    />
-                  </div>
+
+                  {user.division && (
+                    <div>
+                      <label className="form-label">Khối trực thuộc (Read-only)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={user.division.name} 
+                        disabled 
+                        style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                      />
+                    </div>
+                  )}
+
+                  {user.department && (
+                    <div>
+                      <label className="form-label">Bộ phận / Phòng ban (Read-only)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={user.department.name} 
+                        disabled 
+                        style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
 
-            </div>
-
-            {/* Cột phải: Cấu hình nhận cảnh báo & ứng dụng */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              
-              {/* Section 3: Cấu hình vận hành & Telegram */}
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                  <Bell size={20} color="#10b981" />
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cấu Hình Nhận Cảnh Báo & Ứng Dụng</h3>
+            {/* Tab 2: Notifications & Theme */}
+            {activeTab === 'notifications' && (
+              <div className="glass-panel" style={{ padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <Bell size={22} color="#10b981" />
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Thiết Lập Ứng Dụng & Cảnh Báo</h3>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   {/* Theme preference */}
                   <div>
                     <label className="form-label">Giao diện mặc định</label>
@@ -230,13 +332,13 @@ export default function SettingsPage() {
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                     <label htmlFor="telegramNotifications" style={{ color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
-                      Kích hoạt nhận tin nhắn nhắc việc cá nhân trực tiếp từ Bot
+                      Kích hoạt nhận tin nhắn nhắc việc cá nhân trực tiếp từ Bot Telegram
                     </label>
                   </div>
 
-                  {/* Telegram Chat ID */}
+                  {/* Telegram Chat ID & Alert threshold */}
                   {telegramNotifications && (
-                    <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '20px', borderLeft: '2px solid var(--color-accent)' }}>
                       <div>
                         <label className="form-label">Telegram Chat ID cá nhân</label>
                         <input 
@@ -249,11 +351,10 @@ export default function SettingsPage() {
                         <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem', lineHeight: '1.4' }}>
                           💡 <strong>Hướng dẫn liên kết nhận tin nhắn riêng:</strong><br />
                           1. Tìm kiếm bot Telegram của hệ thống (ví dụ: <b>@MXV_Checklist_Bot</b>) và nhấn <b>/start</b>.<br />
-                          2. Nhắn tin <code>/my_id</code> với bot hoặc dùng bot <b>@userinfobot</b> để lấy ID số cá nhân của bạn (ví dụ: 523192038) rồi điền vào ô trên.
+                          2. Nhắn tin <code>/my_id</code> với bot hoặc dùng bot <b>@userinfobot</b> để lấy ID số cá nhân của bạn rồi điền vào ô trên.
                         </small>
                       </div>
 
-                      {/* Alert threshold */}
                       <div>
                         <label className="form-label">Thời gian nhắc nhở trước hạn chót (phút)</label>
                         <input 
@@ -268,16 +369,49 @@ export default function SettingsPage() {
                           Hệ thống sẽ tự động gửi tin nhắn riêng cho bạn khi một tác vụ chưa hoàn thành có deadline cách hiện tại nhỏ hơn hoặc bằng số phút này.
                         </small>
                       </div>
-                    </>
+                    </div>
                   )}
-
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Tab 3: Security */}
+            {activeTab === 'security' && (
+              <div className="glass-panel" style={{ padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <Shield size={22} color="#f59e0b" />
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Bảo Mật & Đổi Mật Khẩu</h3>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <label className="form-label">Mật khẩu mới (Để trống nếu không đổi)</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Xác nhận mật khẩu mới</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      value={confirmPassword} 
+                      onChange={(e) => setConfirmPassword(e.target.value)} 
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Action button */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '12px' }}>
             <button 
               type="submit" 
               className="btn btn-primary" 
@@ -290,6 +424,7 @@ export default function SettingsPage() {
           </div>
 
         </form>
-      </ProtectedRoute>
-    );
+      </div>
+    </ProtectedRoute>
+  );
 }

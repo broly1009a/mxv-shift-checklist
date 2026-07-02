@@ -17,6 +17,11 @@ export class TelegramService implements OnModuleInit {
     this.chatId = process.env.TELEGRAM_CHAT_ID || null;
   }
 
+  clearSentWarningsCache(): void {
+    this.sentWarnings.clear();
+    this.logger.log('Đã dọn dẹp bộ nhớ cache chống trùng cảnh báo Telegram.');
+  }
+
   onModuleInit() {
     this.logger.log('Khởi chạy daemon giám sát deadline Telegram Bot...');
     // Quét mỗi 60 giây để kiểm thử thời gian thực nhanh nhạy

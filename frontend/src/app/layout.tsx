@@ -14,6 +14,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Operate Checklist | MXV",
   description: "Hệ thống quản lý ca trực vận hành Sở Giao Dịch Hàng Hóa Việt Nam (MXV)",
+  icons: {
+    icon: "/logomxv.svg",
+    shortcut: "/logomxv.svg",
+    apple: "/logomxv.svg",
+  }
 };
 
 export default function RootLayout({
