@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Download,
   Printer,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 
 import { useChecklist } from './hooks/useChecklist';
@@ -24,6 +25,8 @@ import IncidentReportModal from './components/IncidentReportModal';
 import AdhocTaskModal from './components/AdhocTaskModal';
 import ReconciliationModal from './components/ReconciliationModal';
 import MarginCheckerModal from './components/MarginCheckerModal';
+import CcpStatisticsModal from './components/CcpStatisticsModal';
+import TradingReportModal from './components/TradingReportModal';
 
 function ChecklistWorksheet() {
   const {
@@ -81,6 +84,8 @@ function ChecklistWorksheet() {
 
   const [isReconModalOpen, setIsReconModalOpen] = React.useState(false);
   const [isMarginModalOpen, setIsMarginModalOpen] = React.useState(false);
+  const [isCcpModalOpen, setIsCcpModalOpen] = React.useState(false);
+  const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
 
   const getSessionBadge = (type: string) => {
@@ -238,6 +243,9 @@ function ChecklistWorksheet() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setIsTradingReportModalOpen(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileSpreadsheet size={14} /> Báo cáo Giao dịch
+            </button>
             <button onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
               <Download size={14} /> Xuất file Excel
             </button>
@@ -353,11 +361,13 @@ function ChecklistWorksheet() {
             setIsAdhocModalOpen={setIsAdhocModalOpen}
             focusedTaskIdRef={focusedTaskIdRef}
             user={user}
-            onOpenReconciliation={(taskId) => {
-              setReconTaskId(taskId);
+            onOpenReconciliation={(tid) => {
+              setReconTaskId(tid);
               setIsReconModalOpen(true);
             }}
             onOpenMarginChecker={() => setIsMarginModalOpen(true)}
+            onOpenCcpStatistics={() => setIsCcpModalOpen(true)}
+            onOpenTradingReport={() => setIsTradingReportModalOpen(true)}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -429,6 +439,22 @@ function ChecklistWorksheet() {
           isOpen={isMarginModalOpen}
           onClose={() => setIsMarginModalOpen(false)}
           shiftLogId={log._id}
+          token={token || ''}
+        />
+      )}
+
+      {isCcpModalOpen && (
+        <CcpStatisticsModal
+          isOpen={isCcpModalOpen}
+          onClose={() => setIsCcpModalOpen(false)}
+          token={token || ''}
+        />
+      )}
+
+      {isTradingReportModalOpen && (
+        <TradingReportModal
+          isOpen={isTradingReportModalOpen}
+          onClose={() => setIsTradingReportModalOpen(false)}
           token={token || ''}
         />
       )}

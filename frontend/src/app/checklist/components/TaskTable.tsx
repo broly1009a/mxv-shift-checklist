@@ -93,6 +93,8 @@ interface TaskTableProps {
   user: any;
   onOpenReconciliation: (taskId: string) => void;
   onOpenMarginChecker: () => void;
+  onOpenCcpStatistics: () => void;
+  onOpenTradingReport: () => void;
 }
 
 export default function TaskTable({
@@ -118,7 +120,9 @@ export default function TaskTable({
   focusedTaskIdRef,
   user,
   onOpenReconciliation,
-  onOpenMarginChecker
+  onOpenMarginChecker,
+  onOpenCcpStatistics,
+  onOpenTradingReport
 }: TaskTableProps) {
 
   const getPriorityBadge = (p: string) => {
@@ -420,6 +424,62 @@ export default function TaskTable({
                         >
                           <ShieldAlert size={12} />
                           Margin Checker
+                        </button>
+                      )}
+
+                      {/* CCP Statistics Button */}
+                      {(item.taskId.toUpperCase().includes('CCP') ||
+                        item.taskNameSnapshot.toUpperCase().includes('CCP') ||
+                        item.taskNameSnapshot.toUpperCase().includes('THỐNG KÊ')) && !isCompleted && (
+
+                        <button
+                          onClick={onOpenCcpStatistics}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(52, 211, 153, 0.08)',
+                            color: '#34d399',
+                            border: '1px solid rgba(52, 211, 153, 0.2)',
+                          }}
+                        >
+                          <FileSpreadsheet size={12} />
+                          Thống kê CCP
+                        </button>
+                      )}
+
+                      {/* Trading Report Button */}
+                      {(item.taskId.toUpperCase().includes('REPORT') ||
+                        item.taskId.toUpperCase().includes('TRADING') ||
+                        item.taskId.toUpperCase().includes('DOICHIEU') ||
+                        item.taskId.toUpperCase().includes('TATTOAN') ||
+                        item.taskNameSnapshot.toUpperCase().includes('REPORT') ||
+                        item.taskNameSnapshot.toUpperCase().includes('TRADING') ||
+                        item.taskNameSnapshot.toUpperCase().includes('BÁO CÁO') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU') ||
+                        item.taskNameSnapshot.toUpperCase().includes('TẤT TOÁN')) && !isCompleted && (
+
+                        <button
+                          onClick={onOpenTradingReport}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(56, 189, 248, 0.08)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                          }}
+                        >
+                          <FileSpreadsheet size={12} />
+                          Báo cáo Giao dịch
                         </button>
                       )}
                     </div>

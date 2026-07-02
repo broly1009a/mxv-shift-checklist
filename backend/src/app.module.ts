@@ -23,6 +23,8 @@ import { MarginChangeRequestsModule } from './modules/margin-change-requests/mar
 import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
 import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
 import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
+import { CcpStatisticsModule } from './modules/ccp-statistics/ccp-statistics.module';
+import { TradingReportModule } from './modules/trading-report/trading-report.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { MarginCheckerModule } from './modules/margin-checker/margin-checker.mod
     BotEngineModule,
     ReconciliationModule,
     MarginCheckerModule,
+    CcpStatisticsModule,
+    TradingReportModule,
   ],
   controllers: [AppController],
   providers: [
