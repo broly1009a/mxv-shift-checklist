@@ -21,6 +21,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
 import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
+import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
     IncidentsModule,
     MarginChangeRequestsModule,
     BotEngineModule,
+    ReconciliationModule,
   ],
   controllers: [AppController],
   providers: [

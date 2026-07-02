@@ -22,10 +22,12 @@ import IncidentList from './components/IncidentList';
 import AuditLogsPanel from './components/AuditLogsPanel';
 import IncidentReportModal from './components/IncidentReportModal';
 import AdhocTaskModal from './components/AdhocTaskModal';
+import ReconciliationModal from './components/ReconciliationModal';
 
 function ChecklistWorksheet() {
   const {
     user,
+    token,
     shiftLogId,
     activeLogs,
     log,
@@ -75,6 +77,9 @@ function ChecklistWorksheet() {
     filteredDetails,
     focusedTaskIdRef,
   } = useChecklist();
+
+  const [isReconModalOpen, setIsReconModalOpen] = React.useState(false);
+  const [reconTaskId, setReconTaskId] = React.useState('');
 
   const getSessionBadge = (type: string) => {
     switch (type) {
@@ -346,6 +351,10 @@ function ChecklistWorksheet() {
             setIsAdhocModalOpen={setIsAdhocModalOpen}
             focusedTaskIdRef={focusedTaskIdRef}
             user={user}
+            onOpenReconciliation={(taskId) => {
+              setReconTaskId(taskId);
+              setIsReconModalOpen(true);
+            }}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -397,6 +406,18 @@ function ChecklistWorksheet() {
         isSubmittingAdhoc={isSubmittingAdhoc}
         handleAddAdhocTask={handleAddAdhocTask}
       />
+
+      {/* Reconciliation Modal */}
+      {isReconModalOpen && (
+        <ReconciliationModal
+          isOpen={isReconModalOpen}
+          onClose={() => setIsReconModalOpen(false)}
+          shiftLogId={log._id}
+          taskId={reconTaskId}
+          token={token || ''}
+          onSuccess={() => {}}
+        />
+      )}
 
       {/* PDF PRINT ONLY CONTAINER (Normally hidden, shown only in media print mode) */}
       <div className="print-only print-container">

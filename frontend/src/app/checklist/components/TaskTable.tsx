@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   XCircle,
   SkipForward,
-  AlertTriangle
+  AlertTriangle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
 
@@ -89,6 +90,7 @@ interface TaskTableProps {
   setIsAdhocModalOpen: (v: boolean) => void;
   focusedTaskIdRef: React.MutableRefObject<string | null>;
   user: any;
+  onOpenReconciliation: (taskId: string) => void;
 }
 
 export default function TaskTable({
@@ -112,7 +114,8 @@ export default function TaskTable({
   handleSaveNote,
   setIsAdhocModalOpen,
   focusedTaskIdRef,
-  user
+  user,
+  onOpenReconciliation
 }: TaskTableProps) {
 
   const getPriorityBadge = (p: string) => {
@@ -360,6 +363,28 @@ export default function TaskTable({
                         <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '8px', fontStyle: 'italic', lineHeight: 1.4, opacity: item.isChecked ? 0.6 : 1 }}>
                           <strong>Hướng dẫn:</strong> {item.actionDescriptionSnapshot}
                         </p>
+                      )}
+
+                      {/* Reconciliation Button */}
+                      {(item.taskId.toUpperCase().includes('KLGD') || item.taskId.toUpperCase().includes('TTM') || item.taskId.toUpperCase().includes('TTTT') || item.taskId.toUpperCase().includes('EOD')) && !isCompleted && (
+                        <button
+                          onClick={() => onOpenReconciliation(item.taskId)}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            color: '#3b82f6',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                          }}
+                        >
+                          <FileSpreadsheet size={12} />
+                          Đối chiếu Excel
+                        </button>
                       )}
                     </div>
                   </div>
