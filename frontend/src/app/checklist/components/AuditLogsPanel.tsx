@@ -36,6 +36,9 @@ export default function AuditLogsPanel({ auditLogs }: AuditLogsPanelProps) {
             } else if (audit.action === 'NOTE_UPDATE') {
               badgeColor = 'rgba(245, 158, 11, 0.03)';
               dotColor = '#f59e0b';
+            } else if (audit.action === 'ADD_TASK') {
+              badgeColor = 'rgba(59, 130, 246, 0.03)';
+              dotColor = '#3b82f6';
             }
 
             return (

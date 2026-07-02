@@ -82,7 +82,7 @@ export interface AuditLog {
     fullName: string;
     username: string;
   };
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED';
+  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED' | 'ADD_TASK';
   details: string;
   createdAt: string;
 }
