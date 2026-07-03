@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:checklist": "ts-node src/test-checklist-logic.ts",
-    "test:bot": "ts-node src/test-bot-engine.ts"
+    "test:bot": "ts-node src/test-bot-engine.ts",
+    "test:rpa": "ts-node src/test-rpa-flow.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -41,6 +42,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdf-parse": "^2.4.5",
+    "playwright-core": "^1.61.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",

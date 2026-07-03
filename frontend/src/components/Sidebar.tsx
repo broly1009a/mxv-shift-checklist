@@ -15,7 +15,8 @@ import {
   PanelLeftClose,
   Calendar,
   Clock,
-  Bell
+  Bell,
+  Cpu
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -240,6 +241,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                 >
                   <Clock size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình ca trực</span>
+                </Link>
+                <Link 
+                  href="/admin/bot-config" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/bot-config') ? 'active' : ''}`}
+                  title={isCollapsed ? "Cấu hình Bot/RPA" : undefined}
+                >
+                  <Cpu size={18} style={{ flexShrink: 0 }} />
+                  <span>Cấu hình Bot/RPA</span>
                 </Link>
               </>
             )}

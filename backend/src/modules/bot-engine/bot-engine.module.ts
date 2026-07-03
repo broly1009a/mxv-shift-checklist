@@ -1,16 +1,21 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
+import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftsModule } from '../shifts/shifts.module';
 import { BotEngineService } from './bot-engine.service';
 import { EmailWatcherService } from './email-watcher.service';
 import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
+import { RpaDownloaderService } from './rpa-downloader.service';
+import { BotJobQueueService } from './bot-job-queue.service';
+import { BotEngineController } from './bot-engine.controller';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: ShiftLog.name, schema: ShiftLogSchema },
+      { name: BotJob.name, schema: BotJobSchema },
     ]),
     ShiftsModule,
   ],
@@ -18,10 +23,18 @@ import { ApiWatcherService } from './api-watcher.service';
     EmailWatcherService,
     FileWatcherService,
     ApiWatcherService,
+    RpaDownloaderService,
+    BotJobQueueService,
     BotEngineService,
+  ],
+  controllers: [
+    BotEngineController,
   ],
   exports: [
     BotEngineService,
+    BotJobQueueService,
+    RpaDownloaderService,
   ],
 })
 export class BotEngineModule {}
+

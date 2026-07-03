@@ -7,6 +7,7 @@ import { ShiftsService } from '../shifts/shifts.service';
 import { EmailWatcherService } from './email-watcher.service';
 import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
+import { BotJobQueueService } from './bot-job-queue.service';
 
 @Injectable()
 export class BotEngineService {
@@ -19,6 +20,7 @@ export class BotEngineService {
     private readonly emailWatcherService: EmailWatcherService,
     private readonly fileWatcherService: FileWatcherService,
     private readonly apiWatcherService: ApiWatcherService,
+    private readonly botJobQueueService: BotJobQueueService,
   ) {}
 
   /**
@@ -118,6 +120,38 @@ export class BotEngineService {
             checkResult = await this.fileWatcherService.checkFileTask(filePath, condition);
           } else if (checkType === 'API_STATUS') {
             checkResult = await this.apiWatcherService.checkApiTask(target, condition);
+          } else if (checkType === 'RPA_DOWNLOAD') {
+            let targets: string[] = ['NKTTHT'];
+            try {
+              if (target.trim().startsWith('[')) {
+                targets = JSON.parse(target);
+              } else if (target) {
+                targets = target.split(',').map((t) => t.trim());
+              }
+            } catch (e) {
+              targets = [target];
+            }
+
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            if (!existingJob) {
+              // Enqueue new job
+              await this.botJobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                targets,
+                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu tác vụ RPA tải file báo cáo...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                checkResult = { success: true, message: `RPA tải báo cáo thành công: ${targets.join(', ')}` };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
+                checkResult = { success: false, message: `RPA thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang chạy RPA tải file báo cáo từ M-System...' };
+              }
+            }
           }
 
           // 6. Handle verification outcomes
@@ -182,3 +216,4 @@ export class BotEngineService {
     }
   }
 }
+

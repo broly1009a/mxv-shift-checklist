@@ -547,12 +547,27 @@ export class SeedService implements OnApplicationBootstrap {
             actionDescription: 'Kiểm tra đối chiếu dữ liệu phiên T-1 giữa M-System, CQG và ACM; kiểm tra giá thanh toán; thực hiện chạy EOD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Nếu quá trình xử lý lỗi kết chuyển/đối chiếu kéo dài quá 07h30, thông báo lùi thời gian EOD và gửi Sao kê cho TVKD.',
           },
           {
+            taskId: 'ops_open_rpa_download',
+            taskName:
+              'RPA tự động tải báo cáo đối chiếu đầu ngày từ M-System (NKTTHT, DSTKGD, QLTKGD, NR)',
+            priority: 'HIGH',
+            sortOrder: 4,
+            isBotCheck: true,
+            botTriggerTime: '06:00',
+            botCheckType: 'RPA_DOWNLOAD',
+            botCheckTarget: '["NKTTHT", "DSTKGD-Futures", "DSTKGD-Spread", "DSTKGD-LME", "DSTKGD-ACM", "QLTKGD", "NR"]',
+            botSuccessCondition: 'SUCCESS',
+            botFailureAction: 'ALERT_TELEGRAM',
+            slaDeadline: '06:45',
+            actionDescription: 'Hệ thống sử dụng RPA đăng nhập M-System, giải PIN ảo và tự động tải báo cáo. Vận hành ca trực có thể bấm nút Chạy thử / cưỡng bức nếu bị lỗi.',
+          },
+          {
             taskId: 'ops_open_04',
             taskName:
               'Xử lý sau EOD (M-System, Ổ shared QLGD, Email)',
             priority: 'HIGH',
-            sortOrder: 4,
-            dependsOnTaskIds: ['ops_open_03'],
+            sortOrder: 5,
+            dependsOnTaskIds: ['ops_open_03', 'ops_open_rpa_download'],
             actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
           },
           {
@@ -560,7 +575,7 @@ export class SeedService implements OnApplicationBootstrap {
             taskName:
               'Thực hiện Start of Day (SOD) (M-System)',
             priority: 'HIGH',
-            sortOrder: 5,
+            sortOrder: 6,
             dependsOnTaskIds: ['ops_open_03'],
             actionDescription: 'Cập nhật Start of Day (SOD) cho hệ thống M-System. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.',
           },
@@ -569,7 +584,7 @@ export class SeedService implements OnApplicationBootstrap {
             taskName:
               'Đồng bộ CQG (Sync CQG) (CQG Cast, M-System)',
             priority: 'MEDIUM',
-            sortOrder: 6,
+            sortOrder: 7,
             dependsOnTaskIds: ['ops_open_05'],
             actionDescription: 'Kiểm tra việc reset dữ liệu trên CQG; sau khi reset xong, thực hiện đồng bộ số dư (Sync CQG) thủ công lên CQG Cast.',
           },
@@ -578,7 +593,7 @@ export class SeedService implements OnApplicationBootstrap {
             taskName:
               'Check sai ký quỹ, check sai lãi lỗ dự kiến (Sử dụng tool và 3 file)',
             priority: 'MEDIUM',
-            sortOrder: 7,
+            sortOrder: 8,
             actionDescription: 'Sử dụng công cụ kiểm tra ký quỹ và lãi lỗ dự kiến, import 3 file dữ liệu đối chiếu.',
           },
           {
@@ -586,7 +601,7 @@ export class SeedService implements OnApplicationBootstrap {
             taskName:
               'Gửi email Sao kê TKGD thủ công (M-System, Email)',
             priority: 'HIGH',
-            sortOrder: 8,
+            sortOrder: 9,
             dependsOnTaskIds: ['ops_open_05'],
             actionDescription: 'Gửi email Sao kê TKGD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 30 phút sau khi kết quả EOD được xác nhận chính xác, thực hiện thao tác gửi email Sao kê TKGD thủ công cho Khách hàng.',
           },
