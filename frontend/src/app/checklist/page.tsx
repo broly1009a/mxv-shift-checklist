@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import {
   Clock,
@@ -81,6 +81,7 @@ function ChecklistWorksheet() {
     triggerPrint,
     filteredDetails,
     focusedTaskIdRef,
+    togglingTaskIds,
   } = useChecklist();
 
   const [isReconModalOpen, setIsReconModalOpen] = React.useState(false);
@@ -89,9 +90,11 @@ function ChecklistWorksheet() {
   const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   React.useEffect(() => {
-    if (!shiftLogId && activeLogs.length > 0) {
+    const bypassRedirect = searchParams.get('redirect') === 'false';
+    if (!shiftLogId && activeLogs.length > 0 && !bypassRedirect) {
       const pending = activeLogs.find((item) => item.status !== 'COMPLETED');
       if (pending) {
         router.push(`/checklist?id=${pending._id}`);
@@ -99,7 +102,7 @@ function ChecklistWorksheet() {
         router.push(`/checklist?id=${activeLogs[0]._id}`);
       }
     }
-  }, [shiftLogId, activeLogs, router]);
+  }, [shiftLogId, activeLogs, router, searchParams]);
 
   const getSessionBadge = (type: string) => {
     switch (type) {
@@ -109,10 +112,90 @@ function ChecklistWorksheet() {
     }
   };
 
-  if (loading) {
+  // Render loading skeleton
+  if (loading && !log) {
+    const isGrid = !shiftLogId;
     return (
-      <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '100px 0' }}>
-        Đang tải thông tin ca trực...
+      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          @keyframes skeleton-shimmer {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.25; }
+          }
+          .skeleton-pulse {
+            animation: skeleton-shimmer 1.8s ease-in-out infinite;
+            background-color: var(--border-color);
+            opacity: 0.8;
+            border-radius: 6px;
+          }
+          `
+        }} />
+        {isGrid ? (
+          // Card Grid Skeleton
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="skeleton-pulse" style={{ width: '220px', height: '28px' }}></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="skeleton-pulse" style={{ width: '120px', height: '24px' }}></div>
+                    <div className="skeleton-pulse" style={{ width: '80px', height: '20px' }}></div>
+                  </div>
+                  <div className="skeleton-pulse" style={{ width: '100%', height: '16px' }}></div>
+                  <div className="skeleton-pulse" style={{ width: '60%', height: '16px' }}></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                    <div className="skeleton-pulse" style={{ width: '80px', height: '24px' }}></div>
+                    <div className="skeleton-pulse" style={{ width: '100px', height: '36px' }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          // Worksheet Skeleton
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Navigation Breadcrumb Skeleton */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="skeleton-pulse" style={{ width: '180px', height: '18px' }}></div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="skeleton-pulse" style={{ width: '120px', height: '36px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '120px', height: '36px' }}></div>
+              </div>
+            </div>
+
+            {/* Shift Banner Skeleton */}
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="skeleton-pulse" style={{ width: '320px', height: '32px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '80px', height: '24px' }}></div>
+              </div>
+              <div style={{ display: 'flex', gap: '24px' }}>
+                <div className="skeleton-pulse" style={{ width: '150px', height: '18px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '150px', height: '18px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '150px', height: '18px' }}></div>
+              </div>
+            </div>
+
+            {/* Task Grid Skeleton */}
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div className="skeleton-pulse" style={{ width: '200px', height: '32px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '150px', height: '32px' }}></div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
+                    <div className="skeleton-pulse" style={{ width: '24px', height: '24px', borderRadius: '4px' }}></div>
+                    <div className="skeleton-pulse" style={{ flex: 1, height: '20px' }}></div>
+                    <div className="skeleton-pulse" style={{ width: '80px', height: '20px' }}></div>
+                    <div className="skeleton-pulse" style={{ width: '100px', height: '20px' }}></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -125,11 +208,19 @@ function ChecklistWorksheet() {
   // View: Shift Worksheet details not found
   if (!log) {
     return (
-      <div className="glass-panel no-print" style={{ padding: '40px', textAlign: 'center' }}>
-        <AlertCircle size={40} color="var(--color-critical)" style={{ marginBottom: '16px' }} />
-        <p style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Lỗi tải ca trực</p>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>{loadError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
-        <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '20px' }}>
+      <div className="glass-panel no-print" style={{
+        padding: '40px',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '12px'
+      }}>
+        <AlertCircle size={40} color="var(--color-critical)" />
+        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Lỗi tải ca trực</p>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{loadError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
+        <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '8px' }}>
           Quay lại bảng điều khiển
         </Link>
       </div>
@@ -140,9 +231,25 @@ function ChecklistWorksheet() {
 
   return (
     <>
+      {loading && log && <div className="loading-bar" />}
       {/* Dynamic Print Stylesheet injection & Custom Keyframes */}
       <style dangerouslySetInnerHTML={{
         __html: `
+        @keyframes loading-bar-shim {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .loading-bar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, var(--color-accent) 0%, #10b981 50%, var(--color-accent) 100%);
+          background-size: 200% 100%;
+          animation: loading-bar-shim 1.5s infinite linear;
+          z-index: 9999;
+        }
         @keyframes pulse-dot {
           0% { transform: scale(0.9); opacity: 0.5; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
           70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
@@ -245,7 +352,14 @@ function ChecklistWorksheet() {
       `}} />
 
       {/* Screen view wrapper (hidden on print via no-print class) */}
-      <div className="animate-fade-in no-print" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="animate-fade-in no-print" style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '24px',
+        opacity: loading ? 0.6 : 1,
+        transition: 'opacity 0.25s ease-in-out',
+        pointerEvents: loading ? 'none' : 'auto'
+      }}>
 
         {/* Navigation Breadcrumb & Live Socket status */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -253,7 +367,15 @@ function ChecklistWorksheet() {
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
               <span style={{ margin: '0 8px' }}>/</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
+              {shiftLogId ? (
+                <>
+                  <Link href="/checklist?redirect=false" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Danh sách ca trực</Link>
+                  <span style={{ margin: '0 8px' }}>/</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Danh sách ca trực</span>
+              )}
             </div>
 
             {activeLogs.length > 1 && (
@@ -403,6 +525,7 @@ function ChecklistWorksheet() {
             setIsAdhocModalOpen={setIsAdhocModalOpen}
             focusedTaskIdRef={focusedTaskIdRef}
             user={user}
+            togglingTaskIds={togglingTaskIds}
             onOpenReconciliation={(tid) => {
               setReconTaskId(tid);
               setIsReconModalOpen(true);

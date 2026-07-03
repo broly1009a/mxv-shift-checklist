@@ -38,6 +38,7 @@ export class SystemLog extends Document {
 }
 
 export const SystemLogSchema = SchemaFactory.createForClass(SystemLog);
+SystemLogSchema.index({ createdAt: -1 });
 SystemLogSchema.virtual('id').get(function (this: SystemLog) {
   return this._id.toHexString();
 });

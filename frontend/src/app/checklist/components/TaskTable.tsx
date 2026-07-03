@@ -95,6 +95,7 @@ interface TaskTableProps {
   onOpenMarginChecker: () => void;
   onOpenCcpStatistics: () => void;
   onOpenTradingReport: () => void;
+  togglingTaskIds: Set<string>;
 }
 
 export default function TaskTable({
@@ -122,7 +123,8 @@ export default function TaskTable({
   onOpenReconciliation,
   onOpenMarginChecker,
   onOpenCcpStatistics,
-  onOpenTradingReport
+  onOpenTradingReport,
+  togglingTaskIds
 }: TaskTableProps) {
 
   const getPriorityBadge = (p: string) => {
@@ -223,6 +225,7 @@ export default function TaskTable({
         ) : (
           filteredDetails.map((item) => {
             const isSaving = savingTaskId === item.taskId;
+            const isToggling = togglingTaskIds.has(item.taskId);
             const currentStatus = item.status || 'PENDING';
             const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
             const StatusIcon = currentStatusConfig.icon;
@@ -236,7 +239,9 @@ export default function TaskTable({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                opacity: isToggling ? 0.6 : 1,
+                pointerEvents: isToggling ? 'none' : 'auto'
               }}>
 
                 {/* Checkbox and task information row */}
@@ -255,12 +260,12 @@ export default function TaskTable({
                         type="checkbox"
                         checked={item.isChecked}
                         onChange={() => handleToggle(item.taskId, item.isChecked)}
-                        disabled={isCompleted || isSaving}
+                        disabled={isCompleted || isSaving || isToggling}
                         style={{
                           width: '18px',
                           height: '18px',
                           marginTop: '3px',
-                          cursor: isCompleted ? 'not-allowed' : 'pointer',
+                          cursor: (isCompleted || isToggling) ? 'not-allowed' : 'pointer',
                           accentColor: 'var(--color-primary)'
                         }}
                       />
@@ -489,10 +494,10 @@ export default function TaskTable({
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button
                       onClick={() => {
-                        if (isCompleted || locked || isSaving) return;
+                        if (isCompleted || locked || isSaving || isToggling) return;
                         setOpenStatusDropdownTaskId(openStatusDropdownTaskId === item.taskId ? null : item.taskId);
                       }}
-                      disabled={isCompleted || locked || isSaving}
+                      disabled={isCompleted || locked || isSaving || isToggling}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -501,7 +506,7 @@ export default function TaskTable({
                         borderRadius: '8px',
                         fontSize: '0.8rem',
                         fontWeight: 700,
-                        cursor: (isCompleted || locked || isSaving) ? 'not-allowed' : 'pointer',
+                        cursor: (isCompleted || locked || isSaving || isToggling) ? 'not-allowed' : 'pointer',
                         background: currentStatusConfig.bgColor,
                         color: currentStatusConfig.color,
                         border: `1px solid ${currentStatusConfig.borderColor}`,
@@ -512,8 +517,8 @@ export default function TaskTable({
                     >
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <StatusIcon
-                          size={14}
-                          className={item.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''}
+                           size={14}
+                           className={item.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''}
                         />
                         {currentStatusConfig.label}
                       </span>

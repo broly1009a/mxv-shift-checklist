@@ -470,7 +470,7 @@ export class ShiftsService {
       .findOneAndUpdate(
         { _id: shiftLogId, 'details.taskId': taskId },
         updateQuery,
-        { new: true },
+        { returnDocument: 'after' },
       )
       .exec();
 

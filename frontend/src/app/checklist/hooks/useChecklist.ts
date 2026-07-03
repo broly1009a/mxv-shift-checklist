@@ -119,11 +119,13 @@ export function useChecklist() {
   const [adhocDeadline, setAdhocDeadline] = useState('');
   const [isSubmittingAdhoc, setIsSubmittingAdhoc] = useState(false);
 
-  const togglingTaskIds = useRef<Set<string>>(new Set());
+  const togglingTaskIdsRef = useRef<Set<string>>(new Set());
+  const [togglingTaskIds, setTogglingTaskIds] = useState<Set<string>>(new Set());
   const focusedTaskIdRef = useRef<string | null>(null);
 
   const loadActiveLogs = useCallback(async () => {
     if (!token) return;
+    setLoading(true);
     try {
       const deptIdFilter = user?.role === 'ADMIN' ? '' : `departmentId=${user?.department?.id || user?.department?._id || ''}`;
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/active?${deptIdFilter}`, {
@@ -132,7 +134,9 @@ export function useChecklist() {
       const data = await res.json();
       setActiveLogs(data);
     } catch (err) {
-      console.error(err);
+      console.warn(err);
+    } finally {
+      setLoading(false);
     }
   }, [token, user]);
 
@@ -156,7 +160,7 @@ export function useChecklist() {
       });
       setNotesState(notes);
     } catch (err: any) {
-      console.error(err);
+      console.warn(err);
       setLoadError(err.message || 'Lỗi kết nối máy chủ.');
     } finally {
       setLoading(false);
@@ -174,7 +178,7 @@ export function useChecklist() {
         setAuditLogs(data);
       }
     } catch (err) {
-      console.error('Lỗi tải nhật ký kiểm toán:', err);
+      console.warn('Lỗi tải nhật ký kiểm toán:', err);
     }
   }, [token]);
 
@@ -189,12 +193,16 @@ export function useChecklist() {
         setIncidents(data);
       }
     } catch (err) {
-      console.error('Lỗi tải danh sách sự cố:', err);
+      console.warn('Lỗi tải danh sách sự cố:', err);
     }
   }, [token]);
 
   const handleResolveIncident = async () => {
     if (!resolvingIncident || !token) return;
+    if (!remediationAction.trim()) {
+      toast.error('Vui lòng nhập giải pháp khắc phục (Remediation Action)!');
+      return;
+    }
     setIsResolving(true);
 
     try {
@@ -225,7 +233,7 @@ export function useChecklist() {
       setAffectedAccountsInput('');
       toast.success('Đã xử lý giải quyết sự cố thành công!');
     } catch (err: any) {
-      console.error(err);
+      console.warn(err);
       toast.error(err.message || 'Không thể cập nhật sự cố.');
     } finally {
       setIsResolving(false);
@@ -294,7 +302,6 @@ export function useChecklist() {
       loadIncidents(shiftLogId);
     } else {
       loadActiveLogs();
-      setLoading(false);
     }
   }, [shiftLogId, loadLogDetail, loadActiveLogs, loadAuditLogs, loadIncidents]);
 
@@ -316,7 +323,31 @@ export function useChecklist() {
     socket.on('shift-updated', (data: { shiftLog: ShiftLog; auditLog?: AuditLog }) => {
       console.log('Real-time sync update received:', data);
       if (data?.shiftLog) {
-        setLog(data.shiftLog);
+        setLog(prevLog => {
+          if (!prevLog) return data.shiftLog;
+          
+          // Merge in-flight status/checked states from local state to prevent overwrite by stale broadcast
+          const mergedDetails = data.shiftLog.details.map(item => {
+            if (togglingTaskIdsRef.current.has(item.taskId)) {
+              const localItem = prevLog.details.find(d => d.taskId === item.taskId);
+              if (localItem) {
+                return {
+                  ...item,
+                  status: localItem.status,
+                  isChecked: localItem.isChecked,
+                  checkedAt: localItem.checkedAt,
+                  updatedBy: localItem.updatedBy
+                };
+              }
+            }
+            return item;
+          });
+
+          return {
+            ...data.shiftLog,
+            details: mergedDetails
+          };
+        });
 
         // Sync local input values (do not overwrite active editing note)
         setNotesState(prev => {
@@ -374,7 +405,7 @@ export function useChecklist() {
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     if (!log || log.status === 'COMPLETED' || !token) return;
-    if (togglingTaskIds.current.has(taskId)) return;
+    if (togglingTaskIdsRef.current.has(taskId)) return;
 
     // Check frontend dependency validation
     const targetItem = log.details.find(d => d.taskId === taskId);
@@ -393,7 +424,8 @@ export function useChecklist() {
       }
     }
 
-    togglingTaskIds.current.add(taskId);
+    togglingTaskIdsRef.current.add(taskId);
+    setTogglingTaskIds(new Set(togglingTaskIdsRef.current));
 
     const isChecked = newStatus === 'PASSED' || newStatus === 'SKIPPED';
     const note = notesState[taskId] || '';
@@ -458,7 +490,8 @@ export function useChecklist() {
       setLog(previousLog);
       toast.error(err.message || 'Có lỗi xảy ra');
     } finally {
-      togglingTaskIds.current.delete(taskId);
+      togglingTaskIdsRef.current.delete(taskId);
+      setTogglingTaskIds(new Set(togglingTaskIdsRef.current));
     }
   };
 
@@ -663,5 +696,6 @@ export function useChecklist() {
     triggerPrint,
     filteredDetails,
     focusedTaskIdRef,
+    togglingTaskIds,
   };
 }

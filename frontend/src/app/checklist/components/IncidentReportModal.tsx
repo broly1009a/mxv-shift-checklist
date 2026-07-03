@@ -128,7 +128,7 @@ export default function IncidentReportModal({
             type="button"
             onClick={handleResolveIncident}
             className="btn btn-primary"
-            disabled={isResolving || !remediationAction.trim()}
+            disabled={isResolving}
             style={{ padding: '8px 16px', fontSize: '0.8rem' }}
           >
             {isResolving ? 'Đang lưu...' : 'Xác nhận khắc phục'}

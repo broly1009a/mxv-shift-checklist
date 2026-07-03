@@ -5,7 +5,7 @@ import { API_BASE_URL } from '@/context/AuthContext';
 
 interface Incident {
   _id: string;
-  shiftLogId: string;
+  shiftLogId: string | { _id: string };
   taskId: string;
   code: string;
   severity: string;
@@ -137,7 +137,7 @@ export const ActiveIncidentsWidget: React.FC<{ token: string | null }> = ({ toke
               </p>
 
               <Link
-                href={`/checklist?id=${inc.shiftLogId}`}
+                href={`/checklist?id=${typeof inc.shiftLogId === 'object' && inc.shiftLogId ? inc.shiftLogId._id : inc.shiftLogId}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

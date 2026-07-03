@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import Link from 'next/link';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 interface Department {
   _id: string;
@@ -204,7 +205,7 @@ function HistoryAudit() {
         {/* Results Table */}
         <div className="glass-panel" style={{ padding: '24px' }}>
           {loading ? (
-            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Đang tải lịch sử...</div>
+            <TableSkeleton rows={5} cols={8} />
           ) : logs.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Không tìm thấy ca trực nào phù hợp với bộ lọc.</div>
           ) : (
@@ -413,7 +414,11 @@ function HistoryAudit() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '100px 0' }}>Đang tải lịch sử...</div>}>
+    <Suspense fallback={
+      <div className="glass-panel" style={{ padding: '24px' }}>
+        <TableSkeleton rows={5} cols={8} />
+      </div>
+    }>
       <HistoryAudit />
     </Suspense>
   );

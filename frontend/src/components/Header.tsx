@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Sun, 
   Moon, 
   Search, 
   Minus, 
   Plus, 
-  Bell, 
   ChevronDown, 
   LogOut, 
   Settings, 
@@ -16,7 +15,7 @@ import {
   PanelLeftOpen
 } from 'lucide-react';
 import Link from 'next/link';
-import { io } from 'socket.io-client';
+import NotificationDropdown from './NotificationDropdown';
 
 interface HeaderProps {
   isCollapsed: boolean;
@@ -28,137 +27,9 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
   const { user, token, logout, updateUser, theme, changeTheme } = useAuth();
   const [zoom, setZoom] = useState<number>(100);
   const [searchVal, setSearchVal] = useState('');
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const notifyRef = useRef<HTMLDivElement>(null);
-
-  // Dynamic system activities for notifications
-  const [activities, setActivities] = useState<any[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
-  const [lastClearedTime, setLastClearedTime] = useState<string | null>(null);
-  const [lastReadTime, setLastReadTime] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setLastClearedTime(localStorage.getItem('lastClearedNotificationsTime'));
-      setLastReadTime(localStorage.getItem('lastReadNotificationsTime'));
-    }
-  }, []);
-
-  const handleClearAll = () => {
-    const nowStr = new Date().toISOString();
-    localStorage.setItem('lastClearedNotificationsTime', nowStr);
-    setLastClearedTime(nowStr);
-    setHasUnread(false);
-  };
-
-  const handleMarkAsRead = () => {
-    const nowStr = new Date().toISOString();
-    localStorage.setItem('lastReadNotificationsTime', nowStr);
-    setLastReadTime(nowStr);
-    setHasUnread(false);
-  };
-
-  const fetchActivities = useCallback(async () => {
-    if (!token) return;
-    setLoadingActivities(true);
-    try {
-      const now = new Date();
-      const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-      const todayStr = vietnamTime.toISOString().split('T')[0];
-
-      const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/activity?date=${todayStr}&limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActivities(data);
-        const clearedTime = localStorage.getItem('lastClearedNotificationsTime');
-        const readTime = localStorage.getItem('lastReadNotificationsTime');
-        const hasNew = data.some((act: any) => {
-          const actTime = new Date(act.createdAt).getTime();
-          const isNotCleared = !clearedTime || actTime > new Date(clearedTime).getTime();
-          const isNotRead = !readTime || actTime > new Date(readTime).getTime();
-          return isNotCleared && isNotRead;
-        });
-        if (hasNew && !showNotifications) {
-          setHasUnread(true);
-        } else {
-          setHasUnread(false);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching header activities:', err);
-    } finally {
-      setLoadingActivities(false);
-    }
-  }, [token, showNotifications]);
-
-  useEffect(() => {
-    if (showNotifications) {
-      fetchActivities();
-    }
-  }, [showNotifications, fetchActivities]);
-
-  // Fallback Polling (updates every 30 seconds as safety fallback)
-  useEffect(() => {
-    fetchActivities();
-    const interval = setInterval(() => {
-      fetchActivities();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchActivities]);
-
-  // WebSockets Real-time Synchronization for Notifications
-  useEffect(() => {
-    if (!token) return;
-
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected to socket gateway from Header (Notifications)');
-    });
-
-    const handleUpdateEvent = (payload: any) => {
-      console.log('Notification update event received via WS:', payload);
-      fetchActivities();
-    };
-
-    socket.on('dashboard-updated', handleUpdateEvent);
-    socket.on('task-updated', handleUpdateEvent);
-    socket.on('shift-job-generated', handleUpdateEvent);
-    socket.on('shift-job-closed', handleUpdateEvent);
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, fetchActivities]);
-
-  const formatTimeElapsed = (dateStr: string) => {
-    const now = new Date();
-    const created = new Date(dateStr);
-    const diffMs = now.getTime() - created.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Vừa xong';
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} ngày trước`;
-  };
-
-  // Filter out cleared notifications
-  const displayedActivities = activities.filter(act => {
-    if (!lastClearedTime) return true;
-    return new Date(act.createdAt).getTime() > new Date(lastClearedTime).getTime();
-  });
 
   // Handle Ctrl+K shortcut to focus search
   useEffect(() => {
@@ -203,9 +74,6 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     const handleOutsideClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setShowProfileDropdown(false);
-      }
-      if (notifyRef.current && !notifyRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -414,132 +282,7 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
         </div>
 
         {/* Notifications Tray */}
-        <div ref={notifyRef} style={{ position: 'relative' }}>
-          <button 
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              if (!showNotifications) {
-                handleMarkAsRead();
-              }
-            }}
-            style={{ 
-              background: 'var(--bg-card)', 
-              border: '1px solid var(--border-color)', 
-              color: 'var(--text-primary)', 
-              cursor: 'pointer', 
-              padding: '8px', 
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              position: 'relative'
-            }}
-            className="hover:border-slate-300 dark:hover:border-slate-700"
-          >
-            <Bell size={16} />
-            {hasUnread && displayedActivities.length > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid var(--bg-sidebar)'
-              }}>
-                {displayedActivities.length}
-              </span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <div className="glass-panel" style={{
-              position: 'absolute',
-              right: 0,
-              top: '46px',
-              width: '320px',
-              background: 'var(--bg-sidebar)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              boxShadow: 'var(--glass-shadow)',
-              padding: '16px',
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Thông báo mới</span>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <span 
-                    onClick={handleMarkAsRead} 
-                    style={{ fontSize: '0.75rem', color: 'var(--color-accent)', cursor: 'pointer' }}
-                  >
-                    Đánh dấu đã đọc
-                  </span>
-                  <span 
-                    onClick={handleClearAll} 
-                    style={{ fontSize: '0.75rem', color: '#ef4444', cursor: 'pointer' }}
-                  >
-                    Xóa tất cả
-                  </span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '240px', overflowY: 'auto' }}>
-                {loadingActivities ? (
-                  <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    Đang tải thông báo...
-                  </div>
-                ) : displayedActivities.length === 0 ? (
-                  <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    Không có hoạt động nào hôm nay.
-                  </div>
-                ) : (
-                  displayedActivities.map((act, idx) => {
-                    let title = 'Cập nhật hệ thống';
-                    if (act.type === 'TASK_UPDATED') {
-                      title = 'Cập nhật tác vụ';
-                    } else if (act.type === 'JOB_GENERATED') {
-                      title = 'Khởi tạo ca trực';
-                    }
-
-                    const isLast = idx === displayedActivities.length - 1;
-
-                    return (
-                      <div 
-                        key={act.id || idx} 
-                        style={{ 
-                          fontSize: '0.8rem', 
-                          paddingBottom: isLast ? '0' : '8px', 
-                          borderBottom: isLast ? 'none' : '1px dashed var(--border-color)' 
-                        }}
-                      >
-                        <p style={{ fontWeight: 600, margin: '0 0 2px 0', color: 'var(--text-primary)' }}>{title}</p>
-                        <p style={{ color: 'var(--text-secondary)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
-                          {act.message}
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {act.actorName || 'Hệ thống'}
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {formatTimeElapsed(act.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationDropdown />
 
         {/* User profile dropdown widget */}
         <div ref={profileRef} style={{ position: 'relative' }}>

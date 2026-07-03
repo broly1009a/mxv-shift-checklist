@@ -67,7 +67,7 @@ export class WorkingCalendarService {
           isWeekend,
           updatedBy: userId ? userId : null,
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .exec();
 

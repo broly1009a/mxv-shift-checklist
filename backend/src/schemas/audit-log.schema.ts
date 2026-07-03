@@ -25,6 +25,7 @@ export class AuditLog extends Document {
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
+AuditLogSchema.index({ createdAt: -1 });
 AuditLogSchema.virtual('id').get(function (this: AuditLog) {
   return this._id.toHexString();
 });

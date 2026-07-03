@@ -221,6 +221,8 @@ export class DashboardService {
 
     const auditLogs = await this.auditLogModel
       .find(auditQuery)
+      .sort({ createdAt: -1 })
+      .limit(limit)
       .populate('userId', 'fullName username')
       .populate({
         path: 'shiftLogId',
@@ -241,6 +243,8 @@ export class DashboardService {
 
     const systemLogs = await this.systemLogModel
       .find(systemQuery)
+      .sort({ createdAt: -1 })
+      .limit(limit)
       .populate('actorUserId', 'fullName username')
       .populate('departmentId')
       .exec();
@@ -284,6 +288,61 @@ export class DashboardService {
     return activities
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
+  }
+
+  async getUnreadActivitiesCount(
+    dateStr: string,
+    user: any,
+    lastReadTime?: string,
+    lastClearedTime?: string,
+  ): Promise<{ count: number }> {
+    this.validateDateStr(dateStr);
+    const scopeFilter = await this.getScopeFilter(user);
+
+    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+    let sinceTimeMs = 0;
+    if (lastReadTime) {
+      const ms = new Date(lastReadTime).getTime();
+      if (!isNaN(ms)) sinceTimeMs = Math.max(sinceTimeMs, ms);
+    }
+    if (lastClearedTime) {
+      const ms = new Date(lastClearedTime).getTime();
+      if (!isNaN(ms)) sinceTimeMs = Math.max(sinceTimeMs, ms);
+    }
+
+    const filterStart = sinceTimeMs > startOfDay.getTime() ? new Date(sinceTimeMs) : startOfDay;
+
+    if (filterStart.getTime() >= endOfDay.getTime()) {
+      return { count: 0 };
+    }
+
+    const targetShiftQuery = { shiftDate: dateStr, ...scopeFilter };
+    const matchingShifts = await this.shiftLogModel.find(targetShiftQuery).select('_id').exec();
+    const matchingShiftIds = matchingShifts.map(s => s._id);
+
+    const auditQuery = {
+      shiftLogId: { $in: matchingShiftIds },
+      createdAt: { $gt: filterStart, $lte: endOfDay },
+    };
+
+    const systemQuery: any = {
+      createdAt: { $gt: filterStart, $lte: endOfDay },
+    };
+
+    if (scopeFilter.departmentId) {
+      systemQuery.departmentId = scopeFilter.departmentId;
+    } else if (scopeFilter.departmentId?.$in) {
+      systemQuery.departmentId = { $in: scopeFilter.departmentId.$in };
+    }
+
+    const [auditCount, systemCount] = await Promise.all([
+      this.auditLogModel.countDocuments(auditQuery).exec(),
+      this.systemLogModel.countDocuments(systemQuery).exec(),
+    ]);
+
+    return { count: auditCount + systemCount };
   }
 
   private validateDateStr(dateStr: string) {

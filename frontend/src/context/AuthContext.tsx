@@ -148,9 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !url.includes('/api/v1/auth/exchange-token')
         ) {
           logout();
-          // Trả về một Promise không bao giờ resolve/reject để dừng luồng thực thi tiếp theo của hàm fetch (không chạy vào parse JSON hay set state gây crash)
-          // đồng thời tránh phát sinh lỗi Unhandled Promise Rejection hiển thị ở UI Dev Overlay của Next.js.
-          return new Promise(() => {});
+          throw new Error('Unauthorized');
         }
       }
       return response;

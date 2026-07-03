@@ -179,7 +179,7 @@ export default function IncidentList({
                   </div>
                 )}
 
-                {isPending && !isCompleted && (
+                {isPending && (
                   <button
                     onClick={() => {
                       setRootCause('MISSING_CONFIGURATION');

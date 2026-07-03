@@ -21,6 +21,7 @@ import { HealthChecksWidget } from './components/HealthChecksWidget';
 import { PerformanceOverview } from './components/PerformanceOverview';
 import { ActiveIncidentsWidget } from './components/ActiveIncidentsWidget';
 import { MarginChangeRequestsWidget } from './components/MarginChangeRequestsWidget';
+import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/Skeleton';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -635,40 +636,82 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <PerformanceOverview
-          summary={summary}
-          dateStr={dashboardDate}
-        />
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {/* Overview cards skeleton */}
+            <CardSkeleton count={4} />
 
-        {/* Mid Section Responsive Grid Layout */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr)',
-            gap: '28px'
-          }}
-          className={dashboardLayout === 'grid' ? 'lg:grid-cols-[minmax(0,_1fr)_360px]' : 'lg:grid-cols-1'}
-        >
+            {/* Main content grid skeleton */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: dashboardLayout === 'grid' ? 'minmax(0, 1fr) 360px' : '1fr',
+                gap: '28px'
+              }}
+            >
+              {/* Left Column Skeleton */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Skeleton width="200px" height={24} />
+                  <Skeleton width="100%" height={240} />
+                </div>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Skeleton width="180px" height={24} />
+                  <TableSkeleton rows={4} cols={4} />
+                </div>
+              </div>
 
-          {/* Left Column */}
-          <div
-            onDragOver={handleColumnDragOver}
-            onDrop={(e) => handleColumnDrop(e, 'left')}
-            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
-          >
-            {renderWidgetsList(leftWidgets, 'left')}
+              {/* Right Column Skeleton */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Skeleton width="150px" height={24} />
+                  <Skeleton width="100%" height={120} />
+                </div>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Skeleton width="160px" height={24} />
+                  <Skeleton width="100%" height={80} />
+                </div>
+              </div>
+            </div>
           </div>
+        ) : (
+          <>
+            <PerformanceOverview
+              summary={summary}
+              dateStr={dashboardDate}
+            />
 
-          {/* Right Column */}
-          <div
-            onDragOver={handleColumnDragOver}
-            onDrop={(e) => handleColumnDrop(e, 'right')}
-            style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
-          >
-            {renderWidgetsList(rightWidgets, 'right')}
-          </div>
+            {/* Mid Section Responsive Grid Layout */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr)',
+                gap: '28px'
+              }}
+              className={dashboardLayout === 'grid' ? 'lg:grid-cols-[minmax(0,_1fr)_360px]' : 'lg:grid-cols-1'}
+            >
 
-        </div>
+              {/* Left Column */}
+              <div
+                onDragOver={handleColumnDragOver}
+                onDrop={(e) => handleColumnDrop(e, 'left')}
+                style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
+              >
+                {renderWidgetsList(leftWidgets, 'left')}
+              </div>
+
+              {/* Right Column */}
+              <div
+                onDragOver={handleColumnDragOver}
+                onDrop={(e) => handleColumnDrop(e, 'right')}
+                style={{ display: 'flex', flexDirection: 'column', gap: '28px', minHeight: '200px', minWidth: 0 }}
+              >
+                {renderWidgetsList(rightWidgets, 'right')}
+              </div>
+
+            </div>
+          </>
+        )}
 
       </div>
     </ProtectedRoute>

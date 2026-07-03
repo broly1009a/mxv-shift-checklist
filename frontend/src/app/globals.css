@@ -564,3 +564,15 @@ body {
   stroke: #1d4ed8; /* slightly darker blue for contrast */
 }
 
+/* Skeleton Loading Shimmer Animation */
+@keyframes skeleton-shimmer {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.25; }
+}
+
+.skeleton-pulse {
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  background-color: rgba(128, 128, 128, 0.15);
+  border-radius: 6px;
+}
+

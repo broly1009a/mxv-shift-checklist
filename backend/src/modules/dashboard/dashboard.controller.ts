@@ -52,4 +52,20 @@ export class DashboardController {
     const lim = limit ? parseInt(limit, 10) : 20;
     return this.dashboardService.getActivity(targetDate, req.user, lim);
   }
+
+  @Get('unread-activities-count')
+  async getUnreadActivitiesCount(
+    @Query('date') date: string,
+    @Query('lastReadTime') lastReadTime: string,
+    @Query('lastClearedTime') lastClearedTime: string,
+    @Request() req: any,
+  ) {
+    const targetDate = date || this.getTodayVietnam();
+    return this.dashboardService.getUnreadActivitiesCount(
+      targetDate,
+      req.user,
+      lastReadTime,
+      lastClearedTime,
+    );
+  }
 }

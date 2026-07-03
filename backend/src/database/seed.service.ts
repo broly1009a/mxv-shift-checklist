@@ -807,12 +807,17 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
-        existing.title = tpl.title;
-        existing.shiftSlotId = slotId as any;
-        existing.isActive = true;
-        existing.tasks = tpl.tasks;
-        existing.markModified('tasks');
-        await existing.save();
+        await this.templateModel.updateOne(
+          { _id: existing._id },
+          {
+            $set: {
+              title: tpl.title,
+              shiftSlotId: slotId,
+              isActive: true,
+              tasks: tpl.tasks,
+            },
+          },
+        ).exec();
         this.logger.log(`Updated checklist template: ${tpl.title}`);
       }
     }
