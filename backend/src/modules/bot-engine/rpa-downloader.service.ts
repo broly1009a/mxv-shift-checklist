@@ -173,7 +173,7 @@ export class RpaDownloaderService {
       throw new Error('Không thể giải mã cấu hình tài khoản CQG. Vui lòng cấu hình lại.');
     }
 
-    const cqgUrl = credentials.url || 'https://desktop.cqg.com/cqg/desktop/logon?ref=forced';
+    const cqgUrl = credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
     const { username, password } = credentials;
 
     if (!username || !password) {
@@ -445,5 +445,241 @@ export class RpaDownloaderService {
     } catch (err: any) {
       throw new Error(`Tải DSGD.xlsx thất bại: ${err.message}`);
     }
+  }
+
+  // =========================================================================
+  // GTT CHECK METHODS
+  // =========================================================================
+
+  /**
+   * Download market.csv (Bảng giá) from M-System orderCreating page.
+   * Returns the browser so the caller can close it.
+   * The CSV is saved to: <downloadDir>/market.csv
+   *
+   * NOTE: Selector debug guide - if download fails, check:
+   *   1. Is the download button a CSV icon? Look for: i.fa-file-csv, button[title*='csv'], a[href*='.csv']
+   *   2. Run `npm.cmd run test:ms-login` with headless:false and navigate to orderCreating manually.
+   */
+  async downloadMarketCsv(downloadDir: string): Promise<{ browser: Browser; filePath: string }> {
+    const { browser, page } = await this.loginMSystem(downloadDir);
+
+    try {
+      this.logger.log('Navigating to orderCreating page for market.csv download...');
+
+      // Navigate to the bảng giá / order creating page
+      // Try direct hash navigation first
+      const currentUrl = page.url();
+      const baseUrl = currentUrl.split('#')[0];
+      await page.goto(`${baseUrl}#/orderManagement/orderCreating`);
+      await page.waitForTimeout(3000);
+
+      // Try to find CSV download button (common patterns in M-System)
+      const possibleCsvSelectors = [
+        "xpath=//i[contains(@class, 'fa-file-csv')]",
+        "xpath=//button[contains(@title, 'CSV')]",
+        "xpath=//button[contains(@title, 'csv')]",
+        "xpath=//a[contains(@href, '.csv')]",
+        "xpath=//button[contains(text(), 'CSV')]",
+        "xpath=//i[contains(@class, 'fa-download')]",
+      ];
+
+      let csvBtnFound = false;
+      for (const sel of possibleCsvSelectors) {
+        const btn = page.locator(sel);
+        if (await btn.isVisible().catch(() => false)) {
+          this.logger.log(`Found CSV download button with selector: ${sel}`);
+          const savePath = path.join(downloadDir, 'market.csv');
+          const downloadPromise = page.waitForEvent('download');
+          await btn.click();
+          const download = await downloadPromise;
+          await download.saveAs(savePath);
+          this.logger.log(`market.csv downloaded to: ${savePath}`);
+          csvBtnFound = true;
+          return { browser, filePath: savePath };
+        }
+      }
+
+      if (!csvBtnFound) {
+        // Save debug info for selector analysis
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({ path: path.join(debugDir, `market-csv-page-${ts}.png`), fullPage: true }).catch(() => {});
+        const html = await page.content().catch(() => '');
+        fs.writeFileSync(path.join(debugDir, `market-csv-page-${ts}.html`), html, 'utf8');
+        throw new Error('Không tìm thấy nút tải CSV trên trang Bảng giá. Đã lưu debug screenshot tại temp/debug/.');
+      }
+
+      return { browser, filePath: '' };
+    } catch (err: any) {
+      await browser.close();
+      throw new Error(`downloadMarketCsv thất bại: ${err.message}`);
+    }
+  }
+
+  /**
+   * Login to CQG as mxvprice, open Quote Spreadsheet, search symbol list,
+   * and scrape the Settlement Price (column S) for each contract.
+   *
+   * Returns a Map<symbol, settlementPrice>
+   *
+   * NOTE: This method handles the CQG 100-symbol limit by batching into groups.
+   * Settlement price column: based on the CQG Quote Spreadsheet screenshot,
+   * the 'S' column represents Settlement price.
+   */
+  async fetchCQGSettlementPrices(symbols: string[]): Promise<Map<string, number>> {
+    if (!symbols || symbols.length === 0) {
+      return new Map();
+    }
+
+    const tempDir = path.join(process.cwd(), 'temp', 'gtt');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    const { browser, page } = await this.loginCQG(tempDir);
+    const result = new Map<string, number>();
+
+    try {
+      // CQG limits 100 symbols per Quote Spreadsheet list, batch accordingly
+      const BATCH_SIZE = 95; // Leave some margin
+      const batches: string[][] = [];
+      for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+        batches.push(symbols.slice(i, i + BATCH_SIZE));
+      }
+
+      this.logger.log(`Fetching GTT from CQG for ${symbols.length} symbols in ${batches.length} batch(es)...`);
+
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batch = batches[batchIdx];
+        this.logger.log(`Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} symbols)...`);
+
+        // Open a new Quote Spreadsheet tab
+        await this.openCQGQuoteSpreadsheet(page);
+
+        // Add symbols to the new list
+        await this.addSymbolsToCQGList(page, batch);
+
+        // Read settlement prices from the spreadsheet
+        const batchResult = await this.readCQGSettlementColumn(page, batch);
+        for (const [sym, price] of batchResult) {
+          result.set(sym, price);
+        }
+
+        this.logger.log(`Batch ${batchIdx + 1} done. Got ${batchResult.size} prices.`);
+      }
+    } finally {
+      await browser.close();
+    }
+
+    this.logger.log(`CQG GTT fetch complete. Total prices obtained: ${result.size}`);
+    return result;
+  }
+
+  /**
+   * Open a new Quote Spreadsheet tab in CQG Desktop.
+   * Steps: Click "+" top right → Quotes → Quote Spreadsheet
+   */
+  private async openCQGQuoteSpreadsheet(page: Page): Promise<void> {
+    this.logger.log('Opening new CQG Quote Spreadsheet tab...');
+
+    // Click the "+" (Add tab) button at the top right
+    await page.waitForSelector('button.wpfe-desktop-toolbar-add-tab, [class*="add-tab"], [title*="Add"]', {
+      state: 'visible',
+      timeout: 15000,
+    });
+    await page.click('button.wpfe-desktop-toolbar-add-tab, [class*="add-tab"], [title*="Add"]');
+    await page.waitForTimeout(1000);
+
+    // Click "Quotes" in the left panel of the "Add tab" dialog
+    const quotesSelector = 'text=Quotes';
+    await page.waitForSelector(quotesSelector, { state: 'visible', timeout: 10000 });
+    await page.click(quotesSelector);
+    await page.waitForTimeout(500);
+
+    // Click "Quote Spreadsheet" in the right panel
+    const qssSelector = 'text=Quote spreadsheet';
+    await page.waitForSelector(qssSelector, { state: 'visible', timeout: 10000 });
+    await page.click(qssSelector);
+    await page.waitForTimeout(2000);
+
+    this.logger.log('Quote Spreadsheet tab opened.');
+  }
+
+  /**
+   * In the newly opened Quote Spreadsheet, click "New List" and add symbols.
+   */
+  private async addSymbolsToCQGList(page: Page, symbols: string[]): Promise<void> {
+    this.logger.log(`Adding ${symbols.length} symbols to CQG Quote Spreadsheet list...`);
+
+    // Click "New list..." button or "Open a list" button
+    const newListBtn = page.locator('button:has-text("New list"), button:has-text("New List")');
+    if (await newListBtn.isVisible().catch(() => false)) {
+      await newListBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
+    // The search symbol input field
+    const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="symbol"], input[placeholder*="Symbol"]');
+    await searchInput.waitFor({ state: 'visible', timeout: 15000 });
+
+    // Type symbols comma-separated (CQG accepts comma-separated list)
+    const symbolStr = symbols.join(', ');
+    this.logger.log(`Entering symbol list: ${symbolStr.substring(0, 100)}...`);
+    await searchInput.fill(symbolStr);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(3000); // Wait for symbols to load
+
+    this.logger.log('Symbols entered and submitted.');
+  }
+
+  /**
+   * Read the settlement price ('S' column) from CQG Quote Spreadsheet rows.
+   * Returns Map<symbol, settlementPrice>
+   */
+  private async readCQGSettlementColumn(page: Page, expectedSymbols: string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+
+    this.logger.log('Reading settlement prices from CQG Quote Spreadsheet...');
+
+    // Wait for the data rows to be populated
+    await page.waitForTimeout(5000); // Give CQG time to load prices
+
+    // Try to read row data from the quote spreadsheet table
+    // CQG Quote Spreadsheet rows typically have cells with symbol and price data
+    const rows = await page.$$('tr[class*="row"], div[class*="row"][class*="quote"]').catch(() => []);
+
+    if (rows.length > 0) {
+      for (const row of rows) {
+        try {
+          // Each row: Symbol cell + Settlement cell
+          const cells = await row.$$('td, div[class*="cell"]');
+          if (cells.length < 2) continue;
+
+          const symbolText = (await cells[0].textContent() || '').trim().toUpperCase();
+          // Settlement price is typically the last or specific index column
+          // Based on CQG screenshot: columns are Symbol, T, B, A, ΔT, S
+          // S column = index 5 (0-based)
+          const settlementIdx = Math.min(5, cells.length - 1);
+          const settlementText = (await cells[settlementIdx].textContent() || '').trim().replace(/,/g, '');
+          const price = parseFloat(settlementText);
+
+          if (symbolText && !isNaN(price) && price > 0) {
+            result.set(symbolText, price);
+          }
+        } catch {}
+      }
+    }
+
+    if (result.size === 0) {
+      // Fallback: save debug screenshot for manual analysis
+      const debugDir = path.join(process.cwd(), 'temp', 'debug');
+      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      await page.screenshot({ path: path.join(debugDir, `cqg-qss-${ts}.png`), fullPage: true }).catch(() => {});
+      const html = await page.content().catch(() => '');
+      fs.writeFileSync(path.join(debugDir, `cqg-qss-${ts}.html`), html, 'utf8');
+      this.logger.warn(`Không đọc được giá từ CQG QSS. Debug screenshot lưu tại temp/debug/cqg-qss-${ts}.png`);
+    }
+
+    return result;
   }
 }

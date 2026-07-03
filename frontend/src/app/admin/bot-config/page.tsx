@@ -19,6 +19,11 @@ import {
   Server,
   Terminal,
   Activity,
+  Upload,
+  FileText,
+  AlertTriangle,
+  BarChart2,
+  Download,
 } from 'lucide-react';
 
 interface BotConfig {
@@ -50,7 +55,7 @@ export default function AdminBotConfigPage() {
   const [msystemPassword, setMsystemPassword] = useState('');
   const [msystemPin, setMsystemPin] = useState('');
 
-  const [cqgUrl, setCqgUrl] = useState('https://desktop.cqg.com/cqg/desktop/logon?ref=forced');
+  const [cqgUrl, setCqgUrl] = useState('https://m.cqg.com/cqg/desktop/logon?ref=forced');
   const [cqgUsername, setCqgUsername] = useState('');
   const [cqgPassword, setCqgPassword] = useState('');
 
@@ -63,6 +68,16 @@ export default function AdminBotConfigPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testingCqgConnection, setTestingCqgConnection] = useState(false);
+
+  // GTT Check state
+  const [gttFile, setGttFile] = useState<File | null>(null);
+  const [marketCsvFile, setMarketCsvFile] = useState<File | null>(null);
+  const [uploadingGtt, setUploadingGtt] = useState(false);
+  const [uploadingMarketCsv, setUploadingMarketCsv] = useState(false);
+  const [runningGttCheck, setRunningGttCheck] = useState(false);
+  const [downloadMarketCsv, setDownloadMarketCsv] = useState(false);
+  const [gttReport, setGttReport] = useState<any>(null);
+  const [loadingGttReport, setLoadingGttReport] = useState(false);
 
   // Queue state
   const [jobs, setJobs] = useState<BotJobs[]>([]);
@@ -93,7 +108,7 @@ export default function AdminBotConfigPage() {
           setMsystemPin(data.msystem.pin || '');
         }
         if (data.cqg) {
-          setCqgUrl(data.cqg.url || 'https://desktop.cqg.com/cqg/desktop/logon?ref=forced');
+          setCqgUrl(data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
         }
@@ -236,6 +251,97 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Thử nghiệm CQG thất bại', { id: toastId });
     } finally {
       setTestingCqgConnection(false);
+    }
+  };
+
+  // Upload GTT.xlsx file
+  const handleUploadGtt = async () => {
+    if (!token || !gttFile) return;
+    setUploadingGtt(true);
+    const toastId = toast.loading('Đang tải lên file GTT.xlsx...');
+    try {
+      const buffer = await gttFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ base64, filename: gttFile.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      toast.success('Upload GTT.xlsx thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi upload', { id: toastId });
+    } finally {
+      setUploadingGtt(false);
+    }
+  };
+
+  // Upload market.csv file
+  const handleUploadMarketCsv = async () => {
+    if (!token || !marketCsvFile) return;
+    setUploadingMarketCsv(true);
+    const toastId = toast.loading('Đang tải lên file market.csv...');
+    try {
+      const buffer = await marketCsvFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/market-csv-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ base64, filename: marketCsvFile.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      toast.success('Upload market.csv thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi upload', { id: toastId });
+    } finally {
+      setUploadingMarketCsv(false);
+    }
+  };
+
+  // Run GTT check pipeline
+  const handleRunGttCheck = async () => {
+    if (!token) return;
+    setRunningGttCheck(true);
+    const toastId = toast.loading('Đang chạy pipeline kiểm tra GTT... (có thể mất 2-3 phút)');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/run-gtt-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ downloadMarketCsv }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Kiểm tra GTT thất bại');
+      setGttReport(data.report);
+      const { matched, diffCount, msOnlyCount, cqgOnlyCount } = data.report;
+      toast.success(`GTT Check hoàn tất! ✅ ${matched} khớp, ⚠️ ${diffCount} chênh lệch, ${msOnlyCount + cqgOnlyCount} thiếu`, { id: toastId, duration: 8000 });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kiểm tra GTT', { id: toastId });
+    } finally {
+      setRunningGttCheck(false);
+    }
+  };
+
+  // Load existing GTT report
+  const handleLoadGttReport = async () => {
+    if (!token) return;
+    setLoadingGttReport(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-report`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGttReport(data.report);
+        toast.success('Đã tải báo cáo GTT gần nhất');
+      } else {
+        toast.error(data.message || 'Chưa có báo cáo GTT');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi tải báo cáo GTT');
+    } finally {
+      setLoadingGttReport(false);
     }
   };
 
@@ -480,7 +586,7 @@ export default function AdminBotConfigPage() {
                         type="url"
                         className="form-input"
                         style={{ paddingLeft: '40px' }}
-                        placeholder="https://desktop.cqg.com/cqg/desktop/logon?ref=forced"
+                        placeholder="https://m.cqg.com/cqg/desktop/logon?ref=forced"
                         value={cqgUrl}
                         onChange={(e) => setCqgUrl(e.target.value)}
                         required
@@ -632,6 +738,196 @@ export default function AdminBotConfigPage() {
 
           </div>
         )}
+
+        {/* ============================================================ */}
+        {/* GTT CHECK SECTION */}
+        {/* ============================================================ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <BarChart2 size={24} color="var(--color-accent)" /> Kiểm Tra Giá Thanh Toán (GTT)
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  So sánh GTT giữa M-System (market.csv) và CQG Desktop Quote Spreadsheet tự động.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleLoadGttReport}
+                  disabled={loadingGttReport}
+                  className="btn btn-secondary"
+                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                >
+                  <RefreshCw size={14} className={loadingGttReport ? 'animate-spin' : ''} />
+                  Tải Báo Cáo Gần Nhất
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRunGttCheck}
+                  disabled={runningGttCheck || uploadingGtt || uploadingMarketCsv}
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}
+                >
+                  <Play size={16} />
+                  {runningGttCheck ? 'Đang chạy pipeline...' : 'Chạy Kiểm Tra GTT'}
+                </button>
+              </div>
+            </div>
+
+            {/* File Upload Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              {/* GTT.xlsx Upload */}
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <FileText size={18} color="var(--color-primary)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>File GTT.xlsx</h4>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Upload file GTT.xlsx đã được tạo bằng VBA macro (chứa danh sách hợp đồng mở cần kiểm tra).
+                </p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    id="gtt-file-input"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={(e) => setGttFile(e.target.files?.[0] || null)}
+                    style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUploadGtt}
+                    disabled={!gttFile || uploadingGtt}
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Upload size={14} />
+                    {uploadingGtt ? 'Đang tải...' : 'Upload'}
+                  </button>
+                </div>
+              </div>
+
+              {/* market.csv Upload */}
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Download size={18} color="var(--color-accent)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>File market.csv (Bảng Giá MS)</h4>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Upload thủ công market.csv đã export từ M-System, HOẶC bật tùy chọn để bot tự động tải.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={downloadMarketCsv}
+                      onChange={(e) => setDownloadMarketCsv(e.target.checked)}
+                    />
+                    Bot tự động tải market.csv từ M-System
+                  </label>
+                  {!downloadMarketCsv && (
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        id="market-csv-input"
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => setMarketCsvFile(e.target.files?.[0] || null)}
+                        style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUploadMarketCsv}
+                        disabled={!marketCsvFile || uploadingMarketCsv}
+                        className="btn btn-secondary"
+                        style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                      >
+                        <Upload size={14} />
+                        {uploadingMarketCsv ? 'Đang tải...' : 'Upload'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* GTT Report Table */}
+            {gttReport && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart2 size={18} color="var(--color-accent)" />
+                    Kết Quả Đối Chiếu GTT
+                    <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '8px' }}>
+                      {new Date(gttReport.runAt).toLocaleString('vi-VN')}
+                    </span>
+                  </h3>
+                  {/* Summary badges */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      ✅ Khớp: {gttReport.matched}
+                    </span>
+                    {gttReport.diffCount > 0 && (
+                      <span style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        ⚠️ Chênh lệch: {gttReport.diffCount}
+                      </span>
+                    )}
+                    {(gttReport.msOnlyCount + gttReport.cqgOnlyCount) > 0 && (
+                      <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        ❓ Thiếu: {gttReport.msOnlyCount + gttReport.cqgOnlyCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Mã HĐ</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>GTT M-System</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>GTT CQG</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Chênh lệch</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gttReport.rows.map((row: any, idx: number) => (
+                        <tr
+                          key={row.symbol}
+                          style={{
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                          }}
+                        >
+                          <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{row.symbol}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {row.gttMs !== null ? row.gttMs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {row.gttCqg !== null ? row.gttCqg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: row.diff && row.diff > 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                            {row.diff !== null ? row.diff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            {row.status === 'MATCH' && <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>✅ Khớp</span>}
+                            {row.status === 'DIFF' && <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠️ Chênh lệch</span>}
+                            {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>📋 Chỉ có MS</span>}
+                            {row.status === 'CQG_ONLY' && <span style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: 600 }}>📊 Chỉ có CQG</span>}
+                            {row.status === 'NO_PRICE' && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>❓ Không có giá</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </ProtectedRoute>
   );

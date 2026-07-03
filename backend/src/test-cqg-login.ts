@@ -18,7 +18,7 @@ async function runCQGLoginTest() {
 
   let username = process.env.CQG_USER;
   let password = process.env.CQG_PASS;
-  let cqgUrl = process.env.CQG_URL || 'https://desktop.cqg.com/cqg/desktop/logon?ref=forced';
+  let cqgUrl = process.env.CQG_URL || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
 
   if (!username || !password) {
     console.log('Không tìm thấy tài khoản trong biến môi trường. Đang đọc từ CSDL...');
