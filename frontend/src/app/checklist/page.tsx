@@ -2,6 +2,7 @@
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import {
   Clock,
@@ -87,6 +88,18 @@ function ChecklistWorksheet() {
   const [isCcpModalOpen, setIsCcpModalOpen] = React.useState(false);
   const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!shiftLogId && activeLogs.length > 0) {
+      const pending = activeLogs.find((item) => item.status !== 'COMPLETED');
+      if (pending) {
+        router.push(`/checklist?id=${pending._id}`);
+      } else {
+        router.push(`/checklist?id=${activeLogs[0]._id}`);
+      }
+    }
+  }, [shiftLogId, activeLogs, router]);
 
   const getSessionBadge = (type: string) => {
     switch (type) {
@@ -236,10 +249,39 @@ function ChecklistWorksheet() {
 
         {/* Navigation Breadcrumb & Live Socket status */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
+              <span style={{ margin: '0 8px' }}>/</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
+            </div>
+
+            {activeLogs.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>| Chuyển nhanh ca:</span>
+                <select
+                  value={shiftLogId || ''}
+                  onChange={(e) => router.push(`/checklist?id=${e.target.value}`)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {activeLogs.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.templateId?.title} ({item.shiftDate}) {item.status === 'COMPLETED' ? '[Đã chốt]' : '[Đang chạy]'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>

@@ -786,7 +786,14 @@ export class ShiftsService {
       new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
         .toISOString()
         .split('T')[0];
-    const filter: any = { shiftDate: targetDate };
+    const filter: any = shiftDate
+      ? { shiftDate }
+      : {
+          $or: [
+            { shiftDate: targetDate },
+            { status: 'PENDING' },
+          ],
+        };
 
     if (
       user.role !== 'ADMIN' &&
