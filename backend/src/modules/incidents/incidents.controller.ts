@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Post, Get, Patch, Body, Param, Request } from '@nestjs/common';
+import { Controller, UseGuards, Post, Get, Patch, Body, Param, Request, Res } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -31,6 +31,15 @@ export class IncidentsController {
   @Get('pending')
   async getPending(@Request() req: any) {
     return this.incidentsService.getPendingIncidents(req.user);
+  }
+
+  @Get(':id/export')
+  async exportIncident(
+    @Param('id') incidentId: string,
+    @Request() req: any,
+    @Res() res: any,
+  ) {
+    return this.incidentsService.exportIncidentReport(incidentId, req.user, res);
   }
 
   @Patch(':id/resolve')

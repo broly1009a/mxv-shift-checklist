@@ -7,6 +7,7 @@ import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { AuditLog } from '../../schemas/audit-log.schema';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AccessControlService } from '../auth/access-control.service';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class IncidentsService {
@@ -227,5 +228,289 @@ export class IncidentsService {
         }
       }
     }
+  }
+
+  async exportIncidentReport(incidentId: string, user: any, res: any): Promise<void> {
+    const incident = await this.incidentModel.findById(incidentId)
+      .populate({
+        path: 'shiftLogId',
+        populate: [
+          { path: 'shiftSlotId' },
+          { path: 'departmentId' },
+          { path: 'userId' }
+        ]
+      })
+      .populate('resolvedBy')
+      .exec();
+
+    if (!incident) {
+      throw new NotFoundException('Không tìm thấy sự cố');
+    }
+
+    const shift = incident.shiftLogId as any;
+    if (shift) {
+      this.accessControlService.validateScope(
+        user,
+        (shift.departmentId?._id || shift.departmentId || null) as any,
+        (shift.divisionId?._id || shift.divisionId || null) as any
+      );
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Báo cáo sự cố 01-QT-TVH');
+
+    worksheet.views = [{ showGridLines: true }];
+
+    worksheet.columns = [
+      { key: 'A', width: 8 },
+      { key: 'B', width: 22 },
+      { key: 'C', width: 18 },
+      { key: 'D', width: 50 },
+      { key: 'E', width: 22 },
+    ];
+
+    // Header standard
+    worksheet.mergeCells('A1:C1');
+    worksheet.getCell('A1').value = 'SỞ GIAO DỊCH HÀNG HÓA VIỆT NAM (MXV)';
+    worksheet.getCell('A1').font = { name: 'Arial', size: 10, bold: true };
+
+    worksheet.mergeCells('A2:C2');
+    worksheet.getCell('A2').value = 'BỘ PHẬN VẬN HÀNH GIAO DỊCH';
+    worksheet.getCell('A2').font = { name: 'Arial', size: 9, bold: true, italic: true };
+
+    worksheet.mergeCells('D1:E1');
+    worksheet.getCell('D1').value = 'Mẫu số: 01/QT/TVH';
+    worksheet.getCell('D1').font = { name: 'Arial', size: 10, bold: true };
+    worksheet.getCell('D1').alignment = { horizontal: 'right' };
+
+    // Title
+    worksheet.mergeCells('A4:E4');
+    const titleCell = worksheet.getCell('A4');
+    titleCell.value = 'BÁO CÁO GHI NHẬN SỰ CỐ VẬN HÀNH GIAO DỊCH';
+    titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1F4E78' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(4).height = 30;
+
+    worksheet.mergeCells('A5:E5');
+    const dateCell = worksheet.getCell('A5');
+    dateCell.value = `Ngày lập báo cáo: ${new Date().toLocaleDateString('vi-VN')}`;
+    dateCell.font = { name: 'Arial', size: 10, italic: true };
+    dateCell.alignment = { horizontal: 'center' };
+
+    const borderStyle = {
+      top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+      left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+      bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+      right: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+    } as any;
+
+    // Helper for key-value info block
+    const writeInfoCell = (r: number, colKey: string, val: string, isLabel: boolean) => {
+      const cell = worksheet.getCell(`${colKey}${r}`);
+      cell.value = val;
+      cell.border = borderStyle;
+      if (isLabel) {
+        cell.font = { name: 'Arial', size: 10, bold: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' }
+        };
+      } else {
+        cell.font = { name: 'Arial', size: 10 };
+      }
+    };
+
+    // Rows 7 - 12 (Metadata)
+    const metadata = [
+      { l1: 'Mã sự cố:', v1: incident.code, l2: 'Mức độ:', v2: incident.severity },
+      { l1: 'Trạng thái:', v1: incident.status === 'RESOLVED' ? 'Đã khắc phục' : 'Đang xử lý', l2: 'Ca trực:', v2: shift?.shiftSlotId?.name || '-' },
+      { l1: 'Ngày trực:', v1: shift?.shiftDate || '-', l2: 'Người trực chính:', v2: shift?.userId?.fullName || '-' },
+      {
+        l1: 'Phòng ban:',
+        v1: shift?.departmentId?.name || 'Vận Hành Nghiệp Vụ',
+        l2: 'Tác vụ ảnh hưởng:',
+        v2: (() => {
+          const detail = shift?.details?.find((d: any) => d.taskId === incident.taskId);
+          return detail ? detail.taskNameSnapshot : incident.taskId;
+        })()
+      },
+      { l1: 'Thời điểm phát hiện:', v1: new Date(incident.detectedAt).toLocaleString('vi-VN'), l2: 'Thời điểm khắc phục:', v2: incident.resolvedAt ? new Date(incident.resolvedAt).toLocaleString('vi-VN') : '-' },
+      { l1: 'Người khắc phục:', v1: (incident.resolvedBy as any)?.fullName || '-', l2: '', v2: '' }
+    ];
+
+    let rNum = 7;
+    for (const item of metadata) {
+      worksheet.getRow(rNum).height = 20;
+      writeInfoCell(rNum, 'A', item.l1, true);
+      writeInfoCell(rNum, 'B', item.v1, false);
+      worksheet.mergeCells(`B${rNum}:C${rNum}`);
+      worksheet.getCell(`C${rNum}`).border = borderStyle;
+
+      if (item.l2) {
+        writeInfoCell(rNum, 'D', item.l2, true);
+        writeInfoCell(rNum, 'E', item.v2, false);
+      } else {
+        worksheet.mergeCells(`D${rNum}:E${rNum}`);
+        worksheet.getCell(`D${rNum}`).border = borderStyle;
+        worksheet.getCell(`E${rNum}`).border = borderStyle;
+      }
+      rNum++;
+    }
+
+    // Detail section header
+    rNum++; // 14
+    worksheet.mergeCells(`A${rNum}:E${rNum}`);
+    const sec1Header = worksheet.getCell(`A${rNum}`);
+    sec1Header.value = 'THÔNG TIN CHI TIẾT NGUYÊN NHÂN & BIỆN PHÁP KHẮC PHỤC';
+    sec1Header.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    sec1Header.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F4E78' }
+    };
+    sec1Header.alignment = { vertical: 'middle', indent: 1 };
+    worksheet.getRow(rNum).height = 24;
+
+    const writeLongField = (row: number, label: string, val: string) => {
+      worksheet.getRow(row).height = 24;
+      writeInfoCell(row, 'A', label, true);
+      worksheet.mergeCells(`B${row}:E${row}`);
+      const valCell = worksheet.getCell(`B${row}`);
+      valCell.value = val;
+      valCell.font = { name: 'Arial', size: 10 };
+      valCell.alignment = { wrapText: true, vertical: 'middle' };
+      for (let c = 2; c <= 5; c++) {
+        worksheet.getCell(row, c).border = borderStyle;
+      }
+    };
+
+    rNum++; // 15
+    writeLongField(rNum, 'Nguyên nhân chính:', incident.rootCause || 'Chưa xác định');
+    rNum++; // 16
+    writeLongField(rNum, 'Yêu cầu SOP:', incident.requiredAction || '-');
+    rNum++; // 17
+    writeLongField(rNum, 'Biện pháp khắc phục:', incident.remediationAction || 'Chưa có hành động cụ thể');
+    rNum++; // 18
+    writeLongField(
+      rNum,
+      'Tài khoản ảnh hưởng:',
+      incident.affectedAccounts && incident.affectedAccounts.length > 0
+        ? incident.affectedAccounts.join(', ')
+        : 'Không có / Không ảnh hưởng'
+    );
+
+    // Timeline section header
+    rNum += 2; // 20
+    worksheet.mergeCells(`A${rNum}:E${rNum}`);
+    const sec2Header = worksheet.getCell(`A${rNum}`);
+    sec2Header.value = 'TIẾN TRÌNH DIỄN BIẾN SỰ CỐ (TIMELINE)';
+    sec2Header.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    sec2Header.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F4E78' }
+    };
+    sec2Header.alignment = { vertical: 'middle', indent: 1 };
+    worksheet.getRow(rNum).height = 24;
+
+    // Timeline headers
+    rNum++; // 21
+    const tlHeaders = ['STT', 'Thời gian', 'Trạng thái', 'Nội dung chi tiết (Comment)', 'Người thực hiện'];
+    tlHeaders.forEach((h, idx) => {
+      const cell = worksheet.getCell(rNum, idx + 1);
+      cell.value = h;
+      cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1F4E78' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE9EEF4' }
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = borderStyle;
+    });
+    worksheet.getRow(rNum).height = 22;
+
+    // Timeline rows
+    rNum++; // 22
+    (incident.timeline || []).forEach((event, idx) => {
+      const row = worksheet.getRow(rNum);
+      row.height = 24;
+
+      const c1 = worksheet.getCell(`A${rNum}`);
+      c1.value = idx + 1;
+      c1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const c2 = worksheet.getCell(`B${rNum}`);
+      c2.value = new Date(event.timestamp).toLocaleString('vi-VN');
+      c2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const c3 = worksheet.getCell(`C${rNum}`);
+      c3.value = event.status;
+      c3.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const c4 = worksheet.getCell(`D${rNum}`);
+      c4.value = event.comment;
+      c4.alignment = { wrapText: true, vertical: 'middle' };
+
+      const c5 = worksheet.getCell(`E${rNum}`);
+      c5.value = event.actor;
+      c5.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      for (let col = 1; col <= 5; col++) {
+        const cell = worksheet.getCell(rNum, col);
+        cell.font = { name: 'Arial', size: 9 };
+        cell.border = borderStyle;
+      }
+      rNum++;
+    });
+
+    // Signatures
+    rNum += 2;
+    worksheet.mergeCells(`A${rNum}:B${rNum}`);
+    const sig1 = worksheet.getCell(`A${rNum}`);
+    sig1.value = 'NGƯỜI LẬP BÁO CÁO';
+    sig1.font = { name: 'Arial', size: 10, bold: true };
+    sig1.alignment = { horizontal: 'center' };
+
+    worksheet.mergeCells(`D${rNum}:E${rNum}`);
+    const sig2 = worksheet.getCell(`D${rNum}`);
+    sig2.value = 'TRƯỞNG CA TRỰC';
+    sig2.font = { name: 'Arial', size: 10, bold: true };
+    sig2.alignment = { horizontal: 'center' };
+
+    rNum++;
+    worksheet.mergeCells(`A${rNum}:B${rNum}`);
+    const subSig1 = worksheet.getCell(`A${rNum}`);
+    subSig1.value = '(Ký, ghi rõ họ tên)';
+    subSig1.font = { name: 'Arial', size: 9, italic: true };
+    subSig1.alignment = { horizontal: 'center' };
+
+    worksheet.mergeCells(`D${rNum}:E${rNum}`);
+    const subSig2 = worksheet.getCell(`D${rNum}`);
+    subSig2.value = '(Ký, duyệt báo cáo)';
+    subSig2.font = { name: 'Arial', size: 9, italic: true };
+    subSig2.alignment = { horizontal: 'center' };
+
+    rNum += 4;
+    worksheet.mergeCells(`A${rNum}:B${rNum}`);
+    const name1 = worksheet.getCell(`A${rNum}`);
+    name1.value = user.fullName || user.username || '';
+    name1.font = { name: 'Arial', size: 10, bold: true };
+    name1.alignment = { horizontal: 'center' };
+
+    worksheet.mergeCells(`D${rNum}:E${rNum}`);
+    const name2 = worksheet.getCell(`D${rNum}`);
+    name2.value = '......................................................';
+    name2.font = { name: 'Arial', size: 10 };
+    name2.alignment = { horizontal: 'center' };
+
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="Bao_cao_su_co_01_QT_TVH_${incident.code}.xlsx"`,
+    });
+
+    await workbook.xlsx.write(res);
+    res.end();
   }
 }

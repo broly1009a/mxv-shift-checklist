@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import toast from 'react-hot-toast';
 
 interface IncidentSlaCountdownProps {
   deadline: string;
@@ -70,7 +72,41 @@ export default function IncidentList({
   setAffectedAccountsInput,
   setResolvingIncident
 }: IncidentListProps) {
+  const { token } = useAuth();
   const activeCount = incidents.filter(inc => inc.status === 'PENDING').length;
+
+  const handleExportReport = async (inc: any) => {
+    if (!token) {
+      toast.error('Bạn cần đăng nhập để thực hiện tác vụ này.');
+      return;
+    }
+    const loadToast = toast.loading('Đang khởi tạo file báo cáo...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${inc._id}/export`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error('Lỗi khi tải file báo cáo từ server.');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bao_cao_su_co_01_QT_TVH_${inc.code || inc._id}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Tải báo cáo sự cố thành công!');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Không thể xuất báo cáo.');
+    } finally {
+      toast.dismiss(loadToast);
+    }
+  };
 
   return (
     <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -116,12 +152,30 @@ export default function IncidentList({
                 </p>
 
                 {!isPending && (
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div><strong>Nguyên nhân:</strong> {inc.rootCause}</div>
-                    <div><strong>Giải quyết:</strong> {inc.remediationAction}</div>
-                    {inc.affectedAccounts && inc.affectedAccounts.length > 0 && (
-                      <div><strong>Tài khoản ảnh hưởng:</strong> {inc.affectedAccounts.join(', ')}</div>
-                    )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div><strong>Nguyên nhân:</strong> {inc.rootCause}</div>
+                      <div><strong>Giải quyết:</strong> {inc.remediationAction}</div>
+                      {inc.affectedAccounts && inc.affectedAccounts.length > 0 && (
+                        <div><strong>Tài khoản ảnh hưởng:</strong> {inc.affectedAccounts.join(', ')}</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleExportReport(inc)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.72rem',
+                        alignSelf: 'flex-end',
+                        height: 'auto',
+                        marginTop: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Download size={12} /> Xuất mẫu 01/QT/TVH
+                    </button>
                   </div>
                 )}
 
