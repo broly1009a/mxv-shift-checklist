@@ -62,6 +62,7 @@ export default function AdminBotConfigPage() {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [testingCqgConnection, setTestingCqgConnection] = useState(false);
 
   // Queue state
   const [jobs, setJobs] = useState<BotJobs[]>([]);
@@ -212,6 +213,32 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  // Test CQG connection
+  const handleTestCqgConnection = async () => {
+    if (!token) return;
+    setTestingCqgConnection(true);
+    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CQG...');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/test-connection-cqg`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Đăng nhập thử nghiệm CQG thất bại');
+      }
+
+      toast.success(data.message || 'Kết nối CQG thành công!', { id: toastId });
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm CQG thất bại', { id: toastId });
+    } finally {
+      setTestingCqgConnection(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -304,14 +331,34 @@ export default function AdminBotConfigPage() {
               Quản lý tài khoản đăng nhập M-System/CQG và theo dõi hoạt động tải báo cáo tự động chạy ngầm.
             </p>
           </div>
-          <button
-            onClick={handleTestConnection}
-            disabled={testingConnection || loadingConfig}
-            className="btn btn-secondary"
-            style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <Play size={16} /> Test Đăng Nhập M-System
-          </button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testingConnection || testingCqgConnection || loadingConfig}
+              className="btn btn-secondary"
+              style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Play size={16} /> Test Đăng Nhập M-System
+            </button>
+            <button
+              type="button"
+              onClick={handleTestCqgConnection}
+              disabled={testingConnection || testingCqgConnection || loadingConfig}
+              className="btn btn-secondary"
+              style={{
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              <Play size={16} /> Test Đăng Nhập CQG
+            </button>
+          </div>
         </div>
 
         {loadingConfig ? (

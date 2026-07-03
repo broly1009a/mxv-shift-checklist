@@ -79,6 +79,14 @@ export class RpaDownloaderService {
     const page = await context.newPage();
     page.setDefaultTimeout(30000); // 30s timeout
 
+    // Lắng nghe console và lỗi từ trình duyệt để dễ dàng debug
+    page.on('console', (msg) => {
+      this.logger.debug(`[Browser Console] [${msg.type()}] ${msg.text()}`);
+    });
+    page.on('pageerror', (err) => {
+      this.logger.error(`[Browser PageError] ${err.message}`, err.stack);
+    });
+
     try {
       this.logger.log(`Navigating to M-System at ${msystemUrl}...`);
       await page.goto(msystemUrl);
@@ -88,7 +96,7 @@ export class RpaDownloaderService {
       await page.waitForSelector('input[name="username"]', { state: 'visible' });
       await page.fill('input[name="username"]', username);
       await page.fill('input[name="password"]', password);
-      await page.click('button[type="submit"]');
+      await page.click('button.btn-primary');
 
       // 4. Handle PIN modal
       this.logger.log('Waiting for PIN code keypad modal...');
@@ -116,10 +124,147 @@ export class RpaDownloaderService {
       return { browser, page };
     } catch (err: any) {
       this.logger.error(`Đăng nhập MSystem thất bại: ${err.message}`);
+      
+      // Ghi nhận file log và ảnh chụp lỗi để debug
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const txtPath = path.join(debugDir, `error-login-${timestamp}.txt`);
+        const pngPath = path.join(debugDir, `error-screenshot-${timestamp}.png`);
+        const htmlPath = path.join(debugDir, `error-page-${timestamp}.html`);
+
+        const logContent = `Time: ${new Date().toISOString()}\nURL: ${msystemUrl}\nUsername: ${username}\nError: ${err.message}\nStack: ${err.stack}\n`;
+        fs.writeFileSync(txtPath, logContent, 'utf8');
+
+        if (page && !page.isClosed()) {
+          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => {});
+          const html = await page.content().catch(() => '');
+          if (html) {
+            fs.writeFileSync(htmlPath, html, 'utf8');
+          }
+        }
+        this.logger.warn(`Đã lưu log lỗi và ảnh chụp màn hình debug tại: ${debugDir}`);
+      } catch (logErr: any) {
+        this.logger.error(`Không thể tạo file log lỗi debug: ${logErr.message}`);
+      }
+
       await browser.close();
       throw err;
     }
   }
+
+  /**
+   * Launches browser and logs in to CQG. Returns the browser and authenticated page.
+   */
+  async loginCQG(downloadDir: string): Promise<{ browser: Browser; page: Page }> {
+    // 1. Fetch credentials
+    const credentialsRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+    if (!credentialsRaw) {
+      throw new Error('Chưa cấu hình tài khoản CQG trong cài đặt hệ thống.');
+    }
+
+    let credentials: any;
+    try {
+      credentials = JSON.parse(decrypt(credentialsRaw));
+    } catch (err) {
+      throw new Error('Không thể giải mã cấu hình tài khoản CQG. Vui lòng cấu hình lại.');
+    }
+
+    const cqgUrl = credentials.url || 'https://desktop.cqg.com/cqg/desktop/logon?ref=forced';
+    const { username, password } = credentials;
+
+    if (!username || !password) {
+      throw new Error('Thông tin đăng nhập CQG (username, password) không đầy đủ.');
+    }
+
+    // 2. Launch Browser
+    const executablePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
+    if (executablePath) {
+      launchOptions.executablePath = executablePath;
+    }
+
+    this.logger.log('Starting Playwright browser session for CQG...');
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000); // 30s default timeout
+
+    // Lắng nghe console và lỗi từ trình duyệt để dễ dàng debug
+    page.on('console', (msg) => {
+      this.logger.debug(`[CQG Browser Console] [${msg.type()}] ${msg.text()}`);
+    });
+    page.on('pageerror', (err) => {
+      this.logger.error(`[CQG Browser PageError] ${err.message}`, err.stack);
+    });
+
+    try {
+      this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
+      await page.goto(cqgUrl);
+
+      // 3. Fill Login form
+      this.logger.log('Filling CQG username and password...');
+      await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 20000 });
+      await page.fill('input[name="userName"]', username);
+      await page.fill('input[name="password"]', password);
+      
+      // Click Login button
+      this.logger.log('Clicking CQG login button...');
+      await page.click('button[type="submit"]');
+
+      // 4. Verify Successful Login (wait for the logo)
+      this.logger.log('Waiting for CQG dashboard logo...');
+      await page.waitForSelector('div.wpfe-logo-image', {
+        state: 'visible',
+        timeout: 60000,
+      });
+
+      this.logger.log('Login CQG SUCCESSFUL.');
+      return { browser, page };
+    } catch (err: any) {
+      this.logger.error(`Đăng nhập CQG thất bại: ${err.message}`);
+      
+      // Ghi nhận file log và ảnh chụp lỗi để debug
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const txtPath = path.join(debugDir, `error-login-cqg-${timestamp}.txt`);
+        const pngPath = path.join(debugDir, `error-screenshot-cqg-${timestamp}.png`);
+        const htmlPath = path.join(debugDir, `error-page-cqg-${timestamp}.html`);
+
+        const logContent = `Time: ${new Date().toISOString()}\nURL: ${cqgUrl}\nUsername: ${username}\nError: ${err.message}\nStack: ${err.stack}\n`;
+        fs.writeFileSync(txtPath, logContent, 'utf8');
+
+        if (page && !page.isClosed()) {
+          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => {});
+          const html = await page.content().catch(() => '');
+          if (html) {
+            fs.writeFileSync(htmlPath, html, 'utf8');
+          }
+        }
+        this.logger.warn(`Đã lưu log lỗi CQG và ảnh chụp màn hình debug tại: ${debugDir}`);
+      } catch (logErr: any) {
+        this.logger.error(`Không thể tạo file log lỗi debug CQG: ${logErr.message}`);
+      }
+
+      await browser.close();
+      throw err;
+    }
+  }
+
 
   /**
    * Helper to perform navigation and trigger a file download

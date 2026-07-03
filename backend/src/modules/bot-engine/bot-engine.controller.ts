@@ -11,7 +11,7 @@ import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
 
-@Controller('bot-engine')
+@Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
 export class BotEngineController {
   constructor(
@@ -170,6 +170,28 @@ export class BotEngineController {
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant headless trial login to CQG to verify configurations.
+   */
+  @Post('test-connection-cqg')
+  async testConnectionCQG() {
+    const tempDir = path.join(process.cwd(), 'temp', 'test-connection-cqg');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    try {
+      const { browser } = await this.rpaService.loginCQG(tempDir);
+      await browser.close();
+      return { success: true, message: 'Kết nối thử nghiệm CQG thành công! Robot đăng nhập CQG hoàn tất.' };
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CQG thất bại: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
       );
     }

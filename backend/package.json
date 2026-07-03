@@ -20,7 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:checklist": "ts-node src/test-checklist-logic.ts",
     "test:bot": "ts-node src/test-bot-engine.ts",
-    "test:rpa": "ts-node src/test-rpa-flow.ts"
+    "test:rpa": "ts-node src/test-rpa-flow.ts",
+    "test:ms-login": "ts-node src/test-ms-login.ts",
+    "test:cqg-login": "ts-node src/test-cqg-login.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
