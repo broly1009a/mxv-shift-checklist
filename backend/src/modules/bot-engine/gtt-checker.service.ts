@@ -767,4 +767,48 @@ export class GttCheckerService {
     this.logger.log(`=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`);
     return report;
   }
+
+  /**
+   * Generates a correction Excel file for mismatched prices.
+   */
+  async generateCorrectionFile(type: 'settlement' | 'first_match'): Promise<string> {
+    const report = this.getLatestReport();
+    if (!report || !report.rows) {
+      throw new Error('Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.');
+    }
+
+    // Filter out only DIFF rows (mismatches)
+    const diffRows = report.rows.filter(r => r.status === 'DIFF');
+    if (diffRows.length === 0) {
+      throw new Error('Không có hợp đồng nào bị lệch giá để xuất file sửa.');
+    }
+
+    // Prepare data based on typical IT upload tool formats
+    // We map CQG price (as source of truth) for M-System updates
+    const dataToExport = diffRows.map(r => {
+      if (type === 'settlement') {
+        return {
+          'Mã Hợp Đồng': r.symbol,
+          'Giá Thanh Toán': r.gttCqg,
+        };
+      } else {
+        return {
+          'Mã Hợp Đồng': r.symbol,
+          'Giá Khớp Đầu Tiên': r.gttCqg,
+        };
+      }
+    });
+
+    const exportPath = path.join(this.workDir, `sua-gia-${type}.xlsx`);
+
+    // Use xlsx to write file
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, exportPath);
+
+    this.logger.log(`Created correction Excel file for ${type} at: ${exportPath}`);
+    return exportPath;
+  }
 }
+

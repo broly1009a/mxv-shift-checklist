@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpException, HttpStatus, UploadedFile, UseInterceptors, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, HttpException, HttpStatus, UploadedFile, UseInterceptors, Logger, Res, Query } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { BotJobQueueService } from './bot-job-queue.service';
@@ -288,5 +289,33 @@ export class BotEngineController {
       return { success: false, message: 'Chưa có báo cáo GTT nào. Hãy chạy kiểm tra GTT trước.' };
     }
     return { success: true, report };
+  }
+
+  /**
+   * Generates and downloads the correction Excel file for mismatched GTT prices.
+   */
+  @Get('gtt-report/export-correction')
+  async exportGttCorrection(
+    @Query('type') type: 'settlement' | 'first_match' = 'settlement',
+    @Res() res: Response,
+  ) {
+    try {
+      if (type !== 'settlement' && type !== 'first_match') {
+        throw new HttpException('Loại giá không hợp lệ. Chỉ chấp nhận settlement hoặc first_match.', HttpStatus.BAD_REQUEST);
+      }
+
+      const filePath = await this.gttService.generateCorrectionFile(type);
+      const filename = path.basename(filePath);
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      
+      return res.download(filePath);
+    } catch (err: any) {
+      throw new HttpException(
+        `Không thể xuất file sửa giá: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

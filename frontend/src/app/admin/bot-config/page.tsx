@@ -78,6 +78,7 @@ export default function AdminBotConfigPage() {
   const [downloadMarketCsv, setDownloadMarketCsv] = useState(false);
   const [gttReport, setGttReport] = useState<any>(null);
   const [loadingGttReport, setLoadingGttReport] = useState(false);
+  const [gttFilter, setGttFilter] = useState<'ALL' | 'DIFF' | 'MATCH' | 'MISSING'>('ALL');
 
   // Queue state
   const [jobs, setJobs] = useState<BotJobs[]>([]);
@@ -342,6 +343,35 @@ export default function AdminBotConfigPage() {
       toast.error('Lỗi tải báo cáo GTT');
     } finally {
       setLoadingGttReport(false);
+    }
+  };
+
+  // Download correction file for M-System
+  const handleDownloadCorrection = async (type: 'settlement' | 'first_match') => {
+    if (!token) return;
+    const toastId = toast.loading('Đang khởi tạo file sửa giá...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-report/export-correction?type=${type}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const errorText = await res.json().catch(() => ({ message: 'Không thể xuất file' }));
+        throw new Error(errorText.message || 'Xuất file thất bại');
+      }
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sua-gia-${type === 'settlement' ? 'gtt' : 'first-match'}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Tải xuống file sửa giá thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi tải xuống file sửa giá', { id: toastId });
     }
   };
 
@@ -881,6 +911,103 @@ export default function AdminBotConfigPage() {
                   </div>
                 </div>
 
+                {gttReport.diffCount > 0 && (
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', background: 'rgba(239, 68, 68, 0.05)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertTriangle size={14} />
+                      Có {gttReport.diffCount} hợp đồng bị lệch giá. Bạn có thể tải file sửa giá để đẩy vào M-System:
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleDownloadCorrection('settlement')}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                      >
+                        <Download size={12} /> Tải File Sửa GTT
+                      </button>
+                      <button
+                        onClick={() => handleDownloadCorrection('first_match')}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                      >
+                        <Download size={12} /> Tải File Sửa Giá Khớp Đầu
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* GTT Filter Tabs */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('ALL')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'ALL' ? 'var(--color-accent)' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'ALL' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Tất cả ({gttReport.rows.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('DIFF')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'DIFF' ? '#ef4444' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'DIFF' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Chênh lệch ({gttReport.rows.filter((r: any) => r.status === 'DIFF').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('MATCH')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'MATCH' ? '#10b981' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'MATCH' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Khớp ({gttReport.rows.filter((r: any) => r.status === 'MATCH').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('MISSING')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'MISSING' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'MISSING' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Thiếu/Chỉ có 1 bên ({gttReport.rows.filter((r: any) => r.status === 'MS_ONLY' || r.status === 'CQG_ONLY').length})
+                  </button>
+                </div>
+
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                     <thead>
@@ -890,36 +1017,65 @@ export default function AdminBotConfigPage() {
                         <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>GTT CQG</th>
                         <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Chênh lệch</th>
                         <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>Trạng thái</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Ghi chú</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {gttReport.rows.map((row: any, idx: number) => (
-                        <tr
-                          key={row.symbol}
-                          style={{
-                            borderBottom: '1px solid rgba(255,255,255,0.04)',
-                            background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                          }}
-                        >
-                          <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{row.symbol}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                            {row.gttMs !== null ? row.gttMs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
-                          </td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                            {row.gttCqg !== null ? row.gttCqg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
-                          </td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: row.diff && row.diff > 0 ? '#ef4444' : 'var(--text-muted)' }}>
-                            {row.diff !== null ? row.diff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
-                          </td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                            {row.status === 'MATCH' && <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>✅ Khớp</span>}
-                            {row.status === 'DIFF' && <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠️ Chênh lệch</span>}
-                            {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>📋 Chỉ có MS</span>}
-                            {row.status === 'CQG_ONLY' && <span style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: 600 }}>📊 Chỉ có CQG</span>}
-                            {row.status === 'NO_PRICE' && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>❓ Không có giá</span>}
-                          </td>
-                        </tr>
-                      ))}
+                      {gttReport.rows
+                        .filter((row: any) => {
+                          if (gttFilter === 'ALL') return true;
+                          if (gttFilter === 'DIFF') return row.status === 'DIFF';
+                          if (gttFilter === 'MATCH') return row.status === 'MATCH';
+                          if (gttFilter === 'MISSING') return row.status === 'MS_ONLY' || row.status === 'CQG_ONLY';
+                          return true;
+                        })
+                        .map((row: any, idx: number) => {
+                          const isMinorDiff = row.diff !== null && Math.abs(row.diff) <= 0.05;
+                          return (
+                            <tr
+                              key={row.symbol}
+                              style={{
+                                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                              }}
+                            >
+                              <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{row.symbol}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                {row.gttMs !== null ? row.gttMs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                {row.gttCqg !== null ? row.gttCqg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: row.diff && Math.abs(row.diff) > 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                                {row.diff !== null ? row.diff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                {row.status === 'MATCH' && <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>✅ Khớp</span>}
+                                {row.status === 'DIFF' && (
+                                  <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    ⚠️ {isMinorDiff ? 'Lệch nhỏ' : 'Lệch nhiều'}
+                                  </span>
+                                )}
+                                {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>📋 Chỉ có MS</span>}
+                                {row.status === 'CQG_ONLY' && <span style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: 600 }}>📊 Chỉ có CQG</span>}
+                                {row.status === 'NO_PRICE' && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>❓ Không có giá</span>}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                {row.status === 'MATCH' && <span style={{ color: 'var(--text-muted)' }}>Khớp hoàn toàn.</span>}
+                                {row.status === 'DIFF' && (
+                                  isMinorDiff ? (
+                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>Lệch nhỏ (làm tròn). Kiểm tra kỹ trước khi sửa.</span>
+                                  ) : (
+                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>Lệch lớn! Cần tải file sửa giá để đẩy lại M-System.</span>
+                                  )
+                                )}
+                                {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontWeight: 500 }}>Chỉ có trên MS. Kiểm tra xem hợp đồng đã hoạt động bên CQG chưa.</span>}
+                                {row.status === 'CQG_ONLY' && <span style={{ color: '#3b82f6' }}>Chỉ có trên CQG. Kiểm tra cấu hình hợp đồng trên MS.</span>}
+                                {row.status === 'NO_PRICE' && <span style={{ color: 'var(--text-muted)' }}>Không tìm thấy giá ở cả 2 bên.</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>

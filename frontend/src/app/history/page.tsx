@@ -82,6 +82,18 @@ function HistoryAudit() {
   // Detail Modal
   const [activeDetail, setActiveDetail] = useState<ShiftLog | null>(null);
 
+  const formatTime = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? '' : date.toLocaleTimeString('vi-VN');
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? '' : date.toLocaleDateString('vi-VN');
+  };
+
   const fetchFilters = useCallback(async () => {
     if (!token) return;
     try {
@@ -264,150 +276,159 @@ function HistoryAudit() {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Audit Details Modal Overlay */}
-        {activeDetail && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
+      {/* Audit Details Modal Overlay */}
+      {activeDetail && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '40px 20px',
+          overflowY: 'auto'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{
+            width: '100%',
+            maxWidth: '800px',
+            margin: 'auto 0',
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '32px'
           }}>
-            <div className="glass-panel animate-fade-in" style={{
-              width: '100%',
-              maxWidth: '800px',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '32px'
-            }}>
-              {/* Modal Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                    {activeDetail.templateId?.title}
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <span>Ngày: <strong>{activeDetail.shiftDate}</strong></span>
-                    <span>•</span>
-                    <span>Cán bộ trực chính: <strong>{activeDetail.userId?.fullName}</strong></span>
-                    <span>•</span>
-                    <span>Tiến độ: <strong>{activeDetail.progressPercentage}%</strong></span>
-                    {activeDetail.status === 'COMPLETED' && activeDetail.closedBy && (
-                      <>
-                        <span>•</span>
-                        <span>Người chốt: <strong style={{ color: 'var(--color-primary)' }}>{activeDetail.closedBy.fullName}</strong></span>
-                      </>
-                    )}
-                    {activeDetail.status === 'COMPLETED' && activeDetail.closedAt && (
-                      <>
-                        <span>•</span>
-                        <span>Giờ chốt: <strong style={{ color: 'var(--color-primary)' }}>{new Date(activeDetail.closedAt).toLocaleTimeString('vi-VN')} {new Date(activeDetail.closedAt).toLocaleDateString('vi-VN')}</strong></span>
-                      </>
-                    )}
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {activeDetail.templateId?.title}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                  <span>Ngày: <strong>{activeDetail.shiftDate}</strong></span>
+                  <span>• Cán bộ trực chính: <strong>{activeDetail.userId?.fullName}</strong></span>
+                  <span>• Tiến độ: <strong>{activeDetail.progressPercentage}%</strong></span>
+                  {activeDetail.status === 'COMPLETED' && activeDetail.closedBy && (
+                    <span>• Người chốt: <strong style={{ color: 'var(--color-primary)' }}>{activeDetail.closedBy.fullName}</strong></span>
+                  )}
+                  {activeDetail.status === 'COMPLETED' && activeDetail.closedAt && (
+                    <span>• Giờ chốt: <strong style={{ color: 'var(--color-primary)' }}>{`${formatTime(activeDetail.closedAt)} ${formatDate(activeDetail.closedAt)}`}</strong></span>
+                  )}
+                </div>
+                {activeDetail.status === 'COMPLETED' && activeDetail.handoverNote && (
+                  <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--color-primary)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px', fontWeight: 700, textTransform: 'uppercase' }}>Biên bản bàn giao ca trực:</span>
+                    <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>&ldquo;{activeDetail.handoverNote}&rdquo;</p>
                   </div>
-                  {activeDetail.status === 'COMPLETED' && activeDetail.handoverNote && (
-                    <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--color-primary)' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px', fontWeight: 700, textTransform: 'uppercase' }}>Biên bản bàn giao ca trực:</span>
-                      <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>&ldquo;{activeDetail.handoverNote}&rdquo;</p>
+                )}
+              </div>
+              <button 
+                onClick={() => setActiveDetail(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  padding: '4px',
+                  borderRadius: '50%'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-muted)';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Tasks details list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+              {activeDetail.details?.map((task, idx) => (
+                <div key={task.taskId} style={{
+                  padding: '16px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.015)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '4px',
+                      background: task.isChecked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${task.isChecked ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--color-primary)',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      marginTop: '2px',
+                      flexShrink: 0
+                    }}>
+                      {task.isChecked && '✓'}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {idx + 1}. {task.taskNameSnapshot}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        {getPriorityBadge(task.prioritySnapshot)}
+                        {task.isChecked && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={12} style={{ flexShrink: 0 }} /> Đã kiểm lúc: {formatTime(task.checkedAt)}
+                          </span>
+                        )}
+                        {task.isChecked && task.updatedBy && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <UserIcon size={12} style={{ flexShrink: 0 }} /> Người xác nhận: {task.updatedBy.fullName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Note row */}
+                  {task.note && (
+                    <div style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      color: 'var(--text-secondary)',
+                      borderLeft: '3px solid var(--color-accent)',
+                      marginLeft: '32px'
+                    }}>
+                      <strong>Ghi chú:</strong> {task.note}
                     </div>
                   )}
                 </div>
-                <button 
-                  onClick={() => setActiveDetail(null)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  <X size={24} />
-                </button>
-              </div>
+              ))}
+            </div>
 
-              {/* Tasks details list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                {activeDetail.details?.map((task, idx) => (
-                  <div key={task.taskId} style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.015)',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <span style={{
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '4px',
-                        background: task.isChecked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${task.isChecked ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--color-primary)',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        marginTop: '2px'
-                      }}>
-                        {task.isChecked && '✓'}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {idx + 1}. {task.taskNameSnapshot}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
-                          {getPriorityBadge(task.prioritySnapshot)}
-                          {task.isChecked && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <Clock size={12} /> Đã kiểm lúc: {task.checkedAt ? new Date(task.checkedAt).toLocaleTimeString('vi-VN') : ''}
-                            </span>
-                          )}
-                          {task.isChecked && task.updatedBy && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <UserIcon size={12} /> Người xác nhận: {task.updatedBy.fullName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Note row */}
-                    {task.note && (
-                      <div style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        padding: '10px 12px',
-                        borderRadius: '6px',
-                        fontSize: '0.85rem',
-                        color: 'var(--text-secondary)',
-                        borderLeft: '3px solid var(--color-accent)',
-                        marginLeft: '32px'
-                      }}>
-                        <strong>Ghi chú:</strong> {task.note}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Modal Footer */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <button onClick={() => setActiveDetail(null)} className="btn btn-secondary">
-                  Đóng cửa sổ
-                </button>
-              </div>
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <button onClick={() => setActiveDetail(null)} className="btn btn-secondary">
+                Đóng cửa sổ
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </ProtectedRoute>
   );
 }
