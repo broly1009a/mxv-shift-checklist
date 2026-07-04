@@ -1,0 +1,478 @@
+[
+  {
+    "symbol": "ALIQ26",
+    "price": 3323.5
+  },
+  {
+    "symbol": "ALIU26",
+    "price": 3260.25
+  },
+  {
+    "symbol": "ALIZ26",
+    "price": 3222.75
+  },
+  {
+    "symbol": "C.ZCEQ264400",
+    "price": 4.5
+  },
+  {
+    "symbol": "C.ZCEU264500",
+    "price": 6.375
+  },
+  {
+    "symbol": "C.ZCEU264550",
+    "price": 5.5
+  },
+  {
+    "symbol": "C.ZCEV264600",
+    "price": 11.625
+  },
+  {
+    "symbol": "CCEH27",
+    "price": 5220
+  },
+  {
+    "symbol": "CCEU26",
+    "price": 5036
+  },
+  {
+    "symbol": "CPEF27",
+    "price": 6.283
+  },
+  {
+    "symbol": "CPEQ26",
+    "price": 6.1395
+  },
+  {
+    "symbol": "CPEU26",
+    "price": 6.169
+  },
+  {
+    "symbol": "CPEX26",
+    "price": 6.228
+  },
+  {
+    "symbol": "CPEZ26",
+    "price": 6.2545
+  },
+  {
+    "symbol": "CTEH27",
+    "price": 78.52
+  },
+  {
+    "symbol": "CTEV26",
+    "price": 75.34
+  },
+  {
+    "symbol": "CTEZ26",
+    "price": 77.12
+  },
+  {
+    "symbol": "FEFU26",
+    "price": 97.7
+  },
+  {
+    "symbol": "FEFV26",
+    "price": 97.57
+  },
+  {
+    "symbol": "FEFZ26",
+    "price": 97.35
+  },
+  {
+    "symbol": "KCEH27",
+    "price": 281.1
+  },
+  {
+    "symbol": "KCEU26",
+    "price": 301.2
+  },
+  {
+    "symbol": "KCEZ26",
+    "price": 286.3
+  },
+  {
+    "symbol": "KWEH27",
+    "price": 663.75
+  },
+  {
+    "symbol": "KWEK27",
+    "price": 671.25
+  },
+  {
+    "symbol": "KWEU26",
+    "price": 638.5
+  },
+  {
+    "symbol": "KWEZ26",
+    "price": 652.25
+  },
+  {
+    "symbol": "LRCF27",
+    "price": 3646
+  },
+  {
+    "symbol": "LRCH27",
+    "price": 3614
+  },
+  {
+    "symbol": "LRCK27",
+    "price": 3592
+  },
+  {
+    "symbol": "LRCU26",
+    "price": 3716
+  },
+  {
+    "symbol": "LRCX26",
+    "price": 3679
+  },
+  {
+    "symbol": "MHGH27",
+    "price": 6.34
+  },
+  {
+    "symbol": "MHGK27",
+    "price": 6.3935
+  },
+  {
+    "symbol": "MHGQ26",
+    "price": 6.1395
+  },
+  {
+    "symbol": "MHGU26",
+    "price": 6.169
+  },
+  {
+    "symbol": "MHGV26",
+    "price": 6.1975
+  },
+  {
+    "symbol": "MHGZ26",
+    "price": 6.2545
+  },
+  {
+    "symbol": "MPOU26",
+    "price": 4480
+  },
+  {
+    "symbol": "MQCU26",
+    "price": 6.17
+  },
+  {
+    "symbol": "MZCH27",
+    "price": 456.5
+  },
+  {
+    "symbol": "MZCU26",
+    "price": 423
+  },
+  {
+    "symbol": "MZCZ26",
+    "price": 441.5
+  },
+  {
+    "symbol": "MZLU26",
+    "price": 66.34
+  },
+  {
+    "symbol": "MZLV26",
+    "price": 65.82
+  },
+  {
+    "symbol": "MZLZ26",
+    "price": 65.44
+  },
+  {
+    "symbol": "MZMU26",
+    "price": 303.2
+  },
+  {
+    "symbol": "MZMV26",
+    "price": 301.4
+  },
+  {
+    "symbol": "MZMZ26",
+    "price": 304.4
+  },
+  {
+    "symbol": "MZSF27",
+    "price": 1162.5
+  },
+  {
+    "symbol": "MZSH27",
+    "price": 1168.5
+  },
+  {
+    "symbol": "MZSU26",
+    "price": 1136
+  },
+  {
+    "symbol": "MZSX26",
+    "price": 1148
+  },
+  {
+    "symbol": "MZWU26",
+    "price": 600
+  },
+  {
+    "symbol": "MZWZ26",
+    "price": 614
+  },
+  {
+    "symbol": "P.ZCEQ263900",
+    "price": 1
+  },
+  {
+    "symbol": "P.ZCEU263850",
+    "price": 2.25
+  },
+  {
+    "symbol": "PLEF27",
+    "price": 1640.3
+  },
+  {
+    "symbol": "PLEV26",
+    "price": 1628.1
+  },
+  {
+    "symbol": "QWH27",
+    "price": 474
+  },
+  {
+    "symbol": "QWV26",
+    "price": 476.2
+  },
+  {
+    "symbol": "QWZ26",
+    "price": 474
+  },
+  {
+    "symbol": "SBEH27",
+    "price": 15.77
+  },
+  {
+    "symbol": "SBEK27",
+    "price": 15.6
+  },
+  {
+    "symbol": "SBEV26",
+    "price": 14.85
+  },
+  {
+    "symbol": "SILF27",
+    "price": 61.982
+  },
+  {
+    "symbol": "SILH27",
+    "price": 62.39
+  },
+  {
+    "symbol": "SILK27",
+    "price": 62.851
+  },
+  {
+    "symbol": "SILQ26",
+    "price": 60.844
+  },
+  {
+    "symbol": "SILU26",
+    "price": 61.064
+  },
+  {
+    "symbol": "SILZ26",
+    "price": 61.727
+  },
+  {
+    "symbol": "SNDD22U26",
+    "price": 52584.5
+  },
+  {
+    "symbol": "SNDD23U26",
+    "price": 52589
+  },
+  {
+    "symbol": "TRUN26",
+    "price": 401.2
+  },
+  {
+    "symbol": "TRUU26",
+    "price": 402.7
+  },
+  {
+    "symbol": "XBF27",
+    "price": 1162.25
+  },
+  {
+    "symbol": "XBQ26",
+    "price": 1136.25
+  },
+  {
+    "symbol": "XBU26",
+    "price": 1136
+  },
+  {
+    "symbol": "XBX26",
+    "price": 1147.75
+  },
+  {
+    "symbol": "XCH27",
+    "price": 456.25
+  },
+  {
+    "symbol": "XCU26",
+    "price": 423
+  },
+  {
+    "symbol": "XCZ26",
+    "price": 441.5
+  },
+  {
+    "symbol": "XWH27",
+    "price": 626.5
+  },
+  {
+    "symbol": "XWK27",
+    "price": 634
+  },
+  {
+    "symbol": "XWU26",
+    "price": 599.75
+  },
+  {
+    "symbol": "XWZ26",
+    "price": 614
+  },
+  {
+    "symbol": "ZCEH27",
+    "price": 456.25
+  },
+  {
+    "symbol": "ZCEK27",
+    "price": 465
+  },
+  {
+    "symbol": "ZCEU26",
+    "price": 423
+  },
+  {
+    "symbol": "ZCEZ26",
+    "price": 441.5
+  },
+  {
+    "symbol": "ZDSD04U26",
+    "price": 3563.38
+  },
+  {
+    "symbol": "ZDSD13Q26",
+    "price": 3568.14
+  },
+  {
+    "symbol": "ZFTQ26",
+    "price": 211.6
+  },
+  {
+    "symbol": "ZFTU26",
+    "price": 212.5
+  },
+  {
+    "symbol": "ZFTV26",
+    "price": 212.9
+  },
+  {
+    "symbol": "ZFTX26",
+    "price": 213.2
+  },
+  {
+    "symbol": "ZFTZ26",
+    "price": 213.5
+  },
+  {
+    "symbol": "ZLEF27",
+    "price": 65.33
+  },
+  {
+    "symbol": "ZLEH27",
+    "price": 65.14
+  },
+  {
+    "symbol": "ZLEK27",
+    "price": 64.85
+  },
+  {
+    "symbol": "ZLEN26",
+    "price": 66.95
+  },
+  {
+    "symbol": "ZLEQ26",
+    "price": 66.77
+  },
+  {
+    "symbol": "ZLEU26",
+    "price": 66.34
+  },
+  {
+    "symbol": "ZLEV26",
+    "price": 65.81
+  },
+  {
+    "symbol": "ZLEZ26",
+    "price": 65.43
+  },
+  {
+    "symbol": "ZMEH27",
+    "price": 308.7
+  },
+  {
+    "symbol": "ZMEQ26",
+    "price": 305.5
+  },
+  {
+    "symbol": "ZMEU26",
+    "price": 303.1
+  },
+  {
+    "symbol": "ZMEV26",
+    "price": 301.4
+  },
+  {
+    "symbol": "ZMEZ26",
+    "price": 304.4
+  },
+  {
+    "symbol": "ZSEH27",
+    "price": 1168.25
+  },
+  {
+    "symbol": "ZSEK27",
+    "price": 1175
+  },
+  {
+    "symbol": "ZSEQ26",
+    "price": 1136.25
+  },
+  {
+    "symbol": "ZSEU26",
+    "price": 1136
+  },
+  {
+    "symbol": "ZSEX26",
+    "price": 1147.75
+  },
+  {
+    "symbol": "ZWAH27",
+    "price": 626.5
+  },
+  {
+    "symbol": "ZWAK27",
+    "price": 634
+  },
+  {
+    "symbol": "ZWAU26",
+    "price": 599.75
+  },
+  {
+    "symbol": "ZWAZ26",
+    "price": 614
+  }
+]

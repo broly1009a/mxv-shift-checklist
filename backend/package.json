@@ -22,6 +22,8 @@
     "test:bot": "ts-node src/test-bot-engine.ts",
     "test:rpa": "ts-node src/test-rpa-flow.ts",
     "test:ms-login": "ts-node src/test-ms-login.ts",
+    "test:ms-prices": "ts-node src/test-ms-prices.ts",
+    "test:reconcile": "ts-node src/test-reconciliation.ts",
     "test:cqg-login": "ts-node src/test-cqg-login.ts",
     "test:cqg-qss": "ts-node src/test-cqg-qss.ts"
   },

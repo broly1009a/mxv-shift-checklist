@@ -58,6 +58,9 @@ async function screenshot(page: any, name: string) {
 async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   console.log('\n📊 Thêm cột S (Settlement)...');
 
+  // Wait for the grid header to be rendered and visible first
+  await page.waitForSelector('.ag-header-cell[col-id="symbol"]', { state: 'visible', timeout: 10000 }).catch(() => {});
+
   // Check if S column already exists
   const sColExists = await page.locator('[class*="column-header"]:has-text("S"), th:has-text("S")').isVisible({ timeout: 2000 }).catch(() => false);
   if (sColExists) {
@@ -65,19 +68,22 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
     return;
   }
 
-  // Right-click on the column header area (try "Symbol" header text first)
+  // Right-click on the column header area (try "Symbol" or any value column header cell)
   const headerSelectors = [
-    'th:has-text("Symbol")',
+    '.ag-header-cell[col-id="symbol"]',
+    '.ag-header-cell[col-id="trade"]',
+    '.ag-header-cell[col-id="bid"]',
+    '.ag-header-cell[col-id="ask"]',
+    '.ag-header-cell[col-id="tradenc"]',
+    '.ag-header-cell:has-text("Symbol")',
     '[role="columnheader"]:has-text("Symbol")',
     '[class*="column-header"]:has-text("Symbol")',
-    '[class*="grid-header"]',
-    '.wpfe-quote-spread-sheet-header',
   ];
 
   let headerClicked = false;
   for (const sel of headerSelectors) {
     const el = page.locator(sel).first();
-    if (await el.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await el.isVisible({ timeout: 500 }).catch(() => false)) {
       console.log(`Right-click header: ${sel}`);
       await el.click({ button: 'right' });
       headerClicked = true;
@@ -95,8 +101,9 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await screenshot(page, `tab${batchNum}-07-context-menu`);
 
   // Click "Add columns..." in context menu
-  await page.waitForSelector('text=Add columns', { state: 'visible', timeout: 5000 });
-  await page.click('text=Add columns');
+  const ADD_COLUMNS_SEL = 'wpfe-dropdown-menu-item-text:has-text("Add columns")';
+  await page.waitForSelector(ADD_COLUMNS_SEL, { state: 'visible', timeout: 5000 });
+  await page.click(ADD_COLUMNS_SEL);
   await page.waitForTimeout(1500);
   await screenshot(page, `tab${batchNum}-08-manage-columns-dialog`);
   console.log('✅ Mở Manage Columns dialog');
@@ -224,6 +231,136 @@ async function openQSSTabWithSymbols(page: any, symbols: string[], batchNum: num
   console.log(`✅ QSS Tab ${batchNum} hoàn tất!`);
 }
 
+/**
+ * Trích xuất dữ liệu giá thanh toán từ tab QSS hiện tại, xử lý cuộn ảo (virtual scrolling)
+ */
+async function scrapeQSSPrices(page: any, batchNum: number): Promise<{ symbol: string; price: number }[]> {
+  console.log(`\n🔍 Đang trích xuất dữ liệu từ QSS Tab ${batchNum}...`);
+  await page.waitForTimeout(2000);
+
+  const resultsMap = new Map<string, number>();
+  const viewportSelector = '.ag-body-viewport';
+  const viewportExists = await page.locator(viewportSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+
+  if (viewportExists) {
+    console.log('Phát hiện viewport của grid. Bắt đầu cuộn để đọc dữ liệu virtualized...');
+    let previousCount = -1;
+    let retries = 0;
+
+    while (retries < 6) {
+      const data = await page.evaluate(() => {
+        const parseCQGPrice = (textVal: string | null) => {
+          if (!textVal) return NaN;
+          textVal = textVal.trim().replace(/,/g, '');
+          if (textVal.includes("'")) {
+            const parts = textVal.split("'");
+            const isNegative = parts[0].startsWith('-');
+            const main = Math.abs(parseFloat(parts[0]) || 0);
+            const fraction = parseFloat(parts[1] || '0');
+            const price = main + (fraction / 8);
+            return isNegative ? -price : price;
+          }
+          return parseFloat(textVal);
+        };
+
+        const batch: { symbol: string; price: number }[] = [];
+        const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
+        symbolRows.forEach(row => {
+          const rowId = row.getAttribute('row-id');
+          const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+          if (symbolEl && rowId) {
+            // Chỉ lấy tên hợp đồng (ví dụ ALIZ26), cắt bỏ các mô tả phía sau
+            const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+            const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+            if (settleRow) {
+              const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+              if (priceEl) {
+                const price = parseCQGPrice(priceEl.textContent);
+                if (!isNaN(price)) {
+                  batch.push({ symbol, price });
+                }
+              }
+            }
+          }
+        });
+        return batch;
+      });
+
+      for (const item of data) {
+        resultsMap.set(item.symbol, item.price);
+      }
+
+      if (resultsMap.size === previousCount) {
+        retries++;
+      } else {
+        retries = 0;
+        previousCount = resultsMap.size;
+      }
+
+      // Scroll viewport down by 300px
+      await page.evaluate((sel: string) => {
+        const el = document.querySelector(sel);
+        if (el) el.scrollTop += 300;
+      }, viewportSelector);
+
+      await page.waitForTimeout(400);
+    }
+
+    // Scroll back to top
+    await page.evaluate((sel: string) => {
+      const el = document.querySelector(sel);
+      if (el) el.scrollTop = 0;
+    }, viewportSelector);
+
+  } else {
+    // Fallback: đọc trực tiếp không cuộn
+    const data = await page.evaluate(() => {
+      const parseCQGPrice = (textVal: string | null) => {
+        if (!textVal) return NaN;
+        textVal = textVal.trim().replace(/,/g, '');
+        if (textVal.includes("'")) {
+          const parts = textVal.split("'");
+          const isNegative = parts[0].startsWith('-');
+          const main = Math.abs(parseFloat(parts[0]) || 0);
+          const fraction = parseFloat(parts[1] || '0');
+          const price = main + (fraction / 8);
+          return isNegative ? -price : price;
+        }
+        return parseFloat(textVal);
+      };
+
+      const batch: { symbol: string; price: number }[] = [];
+      const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
+      symbolRows.forEach(row => {
+        const rowId = row.getAttribute('row-id');
+        const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+        if (symbolEl && rowId) {
+          const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+          const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+          if (settleRow) {
+            const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+            if (priceEl) {
+              const price = parseCQGPrice(priceEl.textContent);
+              if (!isNaN(price)) {
+                batch.push({ symbol, price });
+              }
+            }
+          }
+        }
+      });
+      return batch;
+    });
+
+    for (const item of data) {
+      resultsMap.set(item.symbol, item.price);
+    }
+  }
+
+  const finalData = Array.from(resultsMap.entries()).map(([symbol, price]) => ({ symbol, price }));
+  console.log(`📊 Đã trích xuất ${finalData.length} mã hợp đồng từ Tab ${batchNum}`);
+  return finalData;
+}
+
 async function runCQGQSSTest() {
   console.log('\n' + '='.repeat(60));
   console.log('🚀 CQG QSS 2-BATCH TEST (HEADFUL)');
@@ -291,6 +428,8 @@ async function runCQGQSSTest() {
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
 
+  const allExtractedPrices: { symbol: string; price: number }[] = [];
+
   try {
     // Login CQG
     step('Đăng nhập CQG...');
@@ -304,9 +443,13 @@ async function runCQGQSSTest() {
     console.log('✅ Đăng nhập THÀNH CÔNG!');
     await page.waitForTimeout(3000);
 
-    // Open QSS tab for each batch
+    // Open QSS tab for each batch and extract prices
     for (let i = 0; i < batches.length; i++) {
       await openQSSTabWithSymbols(page, batches[i], i + 1);
+
+      // Trích xuất dữ liệu giá của tab vừa mở
+      const tabPrices = await scrapeQSSPrices(page, i + 1);
+      allExtractedPrices.push(...tabPrices);
 
       if (i < batches.length - 1) {
         console.log('\n⏸ Dừng 3 giây trước khi mở tab tiếp theo...');
@@ -314,14 +457,20 @@ async function runCQGQSSTest() {
       }
     }
 
+    // Save final prices list to a JSON file
+    const jsonPath = path.join(DEBUG_DIR, 'cqg-settlement.json');
+    fs.writeFileSync(jsonPath, JSON.stringify(allExtractedPrices, null, 2), 'utf8');
+    console.log(`\n💾 Đã lưu thành công dữ liệu đối chiếu CQG vào file JSON: ${jsonPath}`);
+    console.log(`📊 Tổng số mã lấy được: ${allExtractedPrices.length}/${ALL_SYMBOLS.length}`);
+
     // Final state
     await screenshot(page, 'FINAL-both-tabs-loaded');
     console.log('\n' + '='.repeat(60));
-    console.log('✅ TEST 2 TAB HOÀN TẤT!');
+    console.log('✅ TEST 2 TAB & TRÍCH XUẤT GIÁ HOÀN TẤT!');
     console.log('='.repeat(60));
-    console.log(`📁 Screenshots: ${DEBUG_DIR}`);
-    console.log('\n⏸ Chờ 30 giây để bạn kiểm tra kết quả trên trình duyệt...');
-    await page.waitForTimeout(30000);
+    console.log(`📁 Screenshots & JSON: ${DEBUG_DIR}`);
+    console.log('\n⏸ Chờ 15 giây để bạn kiểm tra kết quả trước khi đóng...');
+    await page.waitForTimeout(15000);
 
   } catch (err: any) {
     console.error(`\n❌ Lỗi: ${err.message}`);

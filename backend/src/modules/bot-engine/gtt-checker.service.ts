@@ -3,6 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { RpaDownloaderService } from './rpa-downloader.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { decrypt } from './utils/crypto';
+import { chromium, Page } from 'playwright-core';
+import * as XLSX from 'xlsx';
 
 export interface GttDataRow {
   symbol: string;
@@ -32,10 +36,14 @@ export class GttCheckerService {
   // Configured paths
   private readonly workDir = path.join(process.cwd(), 'temp', 'gtt');
   private readonly marketCsvPath = path.join(process.cwd(), 'temp', 'gtt', 'market.csv');
+  private readonly trangThaiMoPath = path.join(process.cwd(), 'temp', 'gtt', 'trang-thai-mo.xlsx');
   private readonly gttXlsxPath = path.join(process.cwd(), 'temp', 'gtt', 'GTT.xlsx');
   private readonly reportJsonPath = path.join(process.cwd(), 'temp', 'gtt', 'latest-report.json');
 
-  constructor(private readonly rpaService: RpaDownloaderService) {
+  constructor(
+    private readonly rpaService: RpaDownloaderService,
+    private readonly settingsService: SystemSettingsService,
+  ) {
     // Ensure work directory exists
     if (!fs.existsSync(this.workDir)) {
       fs.mkdirSync(this.workDir, { recursive: true });
@@ -65,10 +73,31 @@ export class GttCheckerService {
   }
 
   /**
+   * Helper to retrieve Chrome executable path.
+   */
+  private getChromeExecutablePath(): string | null {
+    const bundledPath = path.join(
+      process.cwd(),
+      '..',
+      'it-tool-src',
+      'operate-transaction-app',
+      'Chrome',
+      'chrome-win',
+      'chrome.exe'
+    );
+
+    if (fs.existsSync(bundledPath)) {
+      this.logger.log(`Using bundled Chrome binary at: ${bundledPath}`);
+      return bundledPath;
+    }
+
+    this.logger.warn(`Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`);
+    return null;
+  }
+
+  /**
    * Parse market.csv exported from M-System orderCreating page.
-   * Column A: Symbol (contract code)
-   * Column S (index 18, 0-based): Settlement Price (GTT)
-   * Returns: Map<symbol, settlementPrice>
+   * Dynamically matches column names to support format changes.
    */
   async parseMarketCsv(csvFilePath: string): Promise<Map<string, number>> {
     const result = new Map<string, number>();
@@ -77,44 +106,48 @@ export class GttCheckerService {
       throw new Error(`Không tìm thấy file market.csv tại: ${csvFilePath}`);
     }
 
-    const fileStream = fs.createReadStream(csvFilePath);
+    const fileStream = fs.createReadStream(csvFilePath, { encoding: 'utf8' });
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
 
+    let headerIndex: { symbol: number; settle: number } | null = null;
     let lineNum = 0;
-    let symbolColIdx = 0;
-    let gttColIdx = 18; // Column S (index 18, 0-based) = 19th column = Settlement Price
-    let headerParsed = false;
 
     for await (const line of rl) {
       lineNum++;
-      if (!line.trim()) continue;
+      let cleanLine = line.trim();
+      if (cleanLine.startsWith('\uFEFF')) {
+        cleanLine = cleanLine.substring(1);
+      }
+      if (!cleanLine) continue;
 
-      // Parse CSV line respecting quoted fields
-      const cols = this.parseCsvLine(line);
+      const cols = cleanLine.split(',').map(c => {
+        let val = c.trim();
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.substring(1, val.length - 1);
+        }
+        return val;
+      });
 
       if (lineNum === 1) {
-        // Detect header row and find correct column indexes
-        headerParsed = true;
-        for (let i = 0; i < cols.length; i++) {
-          const h = cols[i].toLowerCase().trim();
-          // M-System CSV headers (detect by common Vietnamese/English names)
-          if (h === 'contract' || h === 'symbol' || h === 'mã hợp đồng' || h === 'ma hd') {
-            symbolColIdx = i;
-          }
-          if (h === 'settlement price' || h === 'settlement' || h === 'gtt' || h === 'giá thanh toán') {
-            gttColIdx = i;
-          }
+        const symbolIdx = cols.findIndex(c => c.toLowerCase().includes('mã hợp đồng') || c.toLowerCase() === 'symbol' || c.toLowerCase() === 'contract');
+        const settleIdx = cols.findIndex(c => c.toLowerCase().includes('giá thanh toán') || c.toLowerCase() === 'settlement price');
+        if (symbolIdx !== -1 && settleIdx !== -1) {
+          headerIndex = { symbol: symbolIdx, settle: settleIdx };
+        } else {
+          // Fallback to defaults
+          headerIndex = { symbol: 0, settle: 18 };
         }
-        this.logger.log(`market.csv header detected. Symbol col: ${symbolColIdx}, GTT col: ${gttColIdx}`);
+        this.logger.log(`market.csv headers parsed: Symbol col index = ${headerIndex.symbol}, Settle col index = ${headerIndex.settle}`);
         continue;
       }
 
-      const symbol = (cols[symbolColIdx] || '').trim().toUpperCase();
-      const gttStr = (cols[gttColIdx] || '').trim().replace(/,/g, '');
-      const gtt = parseFloat(gttStr);
-
-      if (symbol && !isNaN(gtt) && gtt > 0) {
-        result.set(symbol, gtt);
+      if (headerIndex) {
+        const symbol = cols[headerIndex.symbol]?.trim().toUpperCase();
+        const priceStr = cols[headerIndex.settle]?.trim().replace(/,/g, '');
+        const price = parseFloat(priceStr || '');
+        if (symbol && !isNaN(price)) {
+          result.set(symbol, price);
+        }
       }
     }
 
@@ -123,23 +156,46 @@ export class GttCheckerService {
   }
 
   /**
-   * Parse GTT.xlsx (uploaded by user) to extract list of open contracts.
-   * Column A: Contract symbol
-   * Column B: GTT value from M-System (VLOOKUP formula result)
-   * 
-   * Since XLSX parsing requires openpyxl equivalent in Node, we use exceljs.
+   * Parse unique open contract symbols from M-System's trang-thai-mo.xlsx
+   */
+  parseUniqueMSContracts(filePath: string): string[] {
+    if (!fs.existsSync(filePath)) return [];
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (data.length < 2) return [];
+
+    const headers = data[0];
+    const contractIndex = headers.indexOf('Mã HĐ');
+    if (contractIndex === -1) {
+      this.logger.warn('⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel trang-thai-mo.xlsx!');
+      return [];
+    }
+
+    const uniqueContracts = new Set<string>();
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row && row[contractIndex]) {
+        uniqueContracts.add(row[contractIndex].toString().trim());
+      }
+    }
+    return Array.from(uniqueContracts).sort();
+  }
+
+  /**
+   * Legacy parser for uploaded GTT.xlsx (fallback option)
    */
   async parseGttXlsx(xlsxPath: string): Promise<{ symbol: string; gttFromFile: number | null }[]> {
     if (!fs.existsSync(xlsxPath)) {
       throw new Error(`Không tìm thấy file GTT.xlsx tại: ${xlsxPath}`);
     }
 
-    // Dynamic import to avoid top-level dependency issues
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(xlsxPath);
 
-    const sheet = workbook.getWorksheet(1); // First sheet
+    const sheet = workbook.getWorksheet(1);
     if (!sheet) {
       throw new Error('GTT.xlsx không có sheet dữ liệu nào.');
     }
@@ -148,14 +204,12 @@ export class GttCheckerService {
     const maxRow = sheet.rowCount;
 
     for (let r = 2; r <= maxRow; r++) {
-      // Row 1 is header, data starts from row 2
       const symbolCell = sheet.getCell(`A${r}`);
       const gttCell = sheet.getCell(`B${r}`);
 
       const symbol = String(symbolCell.value || '').trim().toUpperCase();
       if (!symbol) continue;
 
-      // B column may have VLOOKUP formula result or raw number
       let gttVal: number | null = null;
       const rawGtt = gttCell.result ?? gttCell.value;
       if (rawGtt !== null && rawGtt !== undefined && !isNaN(Number(rawGtt))) {
@@ -170,8 +224,7 @@ export class GttCheckerService {
   }
 
   /**
-   * Compare MS settlement prices (from market.csv) against CQG prices.
-   * MS data comes from market.csv. CQG data comes from Playwright scrape.
+   * Reconcile settlement prices (from market.csv) against CQG prices.
    */
   compareGttData(
     msMap: Map<string, number>,
@@ -202,7 +255,7 @@ export class GttCheckerService {
       rows.push({ symbol, gttMs, gttCqg, diff, status });
     }
 
-    // Sort: DIFF first, then MS_ONLY, CQG_ONLY, NO_PRICE, MATCH last
+    // Sort priority: DIFF first, then MS_ONLY, CQG_ONLY, NO_PRICE, MATCH last
     const priority: Record<string, number> = { DIFF: 0, MS_ONLY: 1, CQG_ONLY: 2, NO_PRICE: 3, MATCH: 4 };
     rows.sort((a, b) => {
       const ap = priority[a.status] ?? 5;
@@ -215,9 +268,206 @@ export class GttCheckerService {
   }
 
   /**
+   * Helper function for CQG price scraping scroll behavior
+   */
+  private async scrapeQSSPrices(page: Page, resultsMap: Map<string, number>): Promise<void> {
+    const viewportSelector = '.ag-body-viewport';
+    const hasViewport = await page.locator(viewportSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (hasViewport) {
+      let previousCount = -1;
+      let retries = 0;
+
+      while (retries < 6) {
+        const data = await page.evaluate(() => {
+          const parseCQGPrice = (textVal: string | null) => {
+            if (!textVal) return NaN;
+            textVal = textVal.trim().replace(/,/g, '');
+            if (textVal.includes("'")) {
+              const parts = textVal.split("'");
+              const isNegative = parts[0].startsWith('-');
+              const main = Math.abs(parseFloat(parts[0]) || 0);
+              const fraction = parseFloat(parts[1] || '0');
+              const price = main + (fraction / 8);
+              return isNegative ? -price : price;
+            }
+            return parseFloat(textVal);
+          };
+
+          const batch: { symbol: string; price: number }[] = [];
+          const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
+          symbolRows.forEach(row => {
+            const rowId = row.getAttribute('row-id');
+            const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+            if (symbolEl && rowId) {
+              const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+              const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+              if (settleRow) {
+                const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+                if (priceEl) {
+                  const price = parseCQGPrice(priceEl.textContent);
+                  if (!isNaN(price)) {
+                    batch.push({ symbol, price });
+                  }
+                }
+              }
+            }
+          });
+          return batch;
+        });
+
+        for (const item of data) {
+          resultsMap.set(item.symbol, item.price);
+        }
+
+        if (resultsMap.size === previousCount) {
+          retries++;
+        } else {
+          retries = 0;
+          previousCount = resultsMap.size;
+        }
+
+        await page.evaluate((sel: string) => {
+          const el = document.querySelector(sel);
+          if (el) el.scrollTop += 300;
+        }, viewportSelector);
+
+        await page.waitForTimeout(400);
+      }
+
+      await page.evaluate((sel: string) => {
+        const el = document.querySelector(sel);
+        if (el) el.scrollTop = 0;
+      }, viewportSelector);
+
+    } else {
+      const data = await page.evaluate(() => {
+        const parseCQGPrice = (textVal: string | null) => {
+          if (!textVal) return NaN;
+          textVal = textVal.trim().replace(/,/g, '');
+          if (textVal.includes("'")) {
+            const parts = textVal.split("'");
+            const isNegative = parts[0].startsWith('-');
+            const main = Math.abs(parseFloat(parts[0]) || 0);
+            const fraction = parseFloat(parts[1] || '0');
+            const price = main + (fraction / 8);
+            return isNegative ? -price : price;
+          }
+          return parseFloat(textVal);
+        };
+
+        const batch: { symbol: string; price: number }[] = [];
+        const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
+        symbolRows.forEach(row => {
+          const rowId = row.getAttribute('row-id');
+          const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+          if (symbolEl && rowId) {
+            const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+            const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+            if (settleRow) {
+              const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+              if (priceEl) {
+                const price = parseCQGPrice(priceEl.textContent);
+                if (!isNaN(price)) {
+                  batch.push({ symbol, price });
+                }
+              }
+            }
+          }
+        });
+        return batch;
+      });
+
+      for (const item of data) {
+        resultsMap.set(item.symbol, item.price);
+      }
+    }
+  }
+
+  /**
+   * Helper function to add column S in CQG Quote Spreadsheet
+   */
+  private async addSettlementColumn(page: Page, batchNum: number): Promise<void> {
+    this.logger.log(`📊 Thêm cột S cho Batch ${batchNum}...`);
+
+    await page.waitForSelector('.ag-header-cell[col-id="symbol"]', { state: 'visible', timeout: 10000 }).catch(() => {});
+
+    const sColExists = await page.locator('[class*="column-header"]:has-text("S"), th:has-text("S")').isVisible({ timeout: 2000 }).catch(() => false);
+    if (sColExists) {
+      this.logger.log('Cột S đã tồn tại, bỏ qua.');
+      return;
+    }
+
+    const headerSelectors = [
+      '.ag-header-cell[col-id="symbol"]',
+      '.ag-header-cell[col-id="trade"]',
+      '.ag-header-cell[col-id="bid"]',
+      '.ag-header-cell[col-id="ask"]',
+      '.ag-header-cell:has-text("Symbol")',
+    ];
+
+    let headerClicked = false;
+    for (const sel of headerSelectors) {
+      const el = page.locator(sel).first();
+      if (await el.isVisible({ timeout: 500 }).catch(() => false)) {
+        await el.click({ button: 'right' });
+        headerClicked = true;
+        break;
+      }
+    }
+
+    if (!headerClicked) {
+      this.logger.warn('Không tìm thấy header để click chuột phải thêm cột S.');
+      return;
+    }
+
+    await page.waitForTimeout(1000);
+
+    const ADD_COLUMNS_SEL = 'wpfe-dropdown-menu-item-text:has-text("Add columns")';
+    await page.waitForSelector(ADD_COLUMNS_SEL, { state: 'visible', timeout: 5000 });
+    await page.click(ADD_COLUMNS_SEL);
+    await page.waitForTimeout(1500);
+
+    const FILTER_INPUT = '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
+    await page.waitForSelector(FILTER_INPUT, { state: 'visible', timeout: 8000 });
+    await page.fill(FILTER_INPUT, 'Settlement');
+    await page.waitForTimeout(1000);
+
+    const S_ITEM_SELECTORS = [
+      '.wpfe-list-item-content:has-text("Last settlement")',
+      '.wpfe-list-item-name-content:has-text("S")',
+      '.wpfe-focus-list-item:has-text("Last settlement")',
+    ];
+
+    let itemClicked = false;
+    for (const sel of S_ITEM_SELECTORS) {
+      const el = page.locator(sel).first();
+      if (await el.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await el.click();
+        itemClicked = true;
+        break;
+      }
+    }
+
+    if (!itemClicked) {
+      await page.dblclick('.wpfe-list-item-content').catch(() => {});
+    }
+
+    await page.waitForTimeout(500);
+
+    // Click "Add + Close"
+    const ADD_CLOSE_BTN = 'button:has-text("Add + Close"), .gpc-button-wrapper-content:has-text("Add + Close")';
+    await page.waitForSelector(ADD_CLOSE_BTN, { state: 'visible', timeout: 5000 });
+    await page.click(ADD_CLOSE_BTN);
+    await page.waitForTimeout(2000);
+
+    this.logger.log(`✅ Đã thêm cột S cho Batch ${batchNum}`);
+  }
+
+  /**
    * Full pipeline orchestrator:
-   * 1. Download market.csv from M-System (if not already present)
-   * 2. Parse GTT.xlsx contract list
+   * 1. Download market.csv and trang-thai-mo.xlsx from M-System
+   * 2. Parse contract list from trang-thai-mo.xlsx
    * 3. Fetch settlement prices from CQG
    * 4. Compare and save report
    */
@@ -226,39 +476,272 @@ export class GttCheckerService {
     gttXlsxPath?: string;
   } = {}): Promise<GttReport> {
     const runAt = new Date().toISOString();
-    this.logger.log('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT ===');
+    this.logger.log('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
 
-    const gttFile = options.gttXlsxPath || this.gttXlsxPath;
-    let marketCsvActualPath = this.marketCsvPath;
+    const downloadMarketCsv = !!options.downloadMarketCsv;
+    const chromePath = this.getChromeExecutablePath();
 
-    // Step 1: Download market.csv from M-System (optional, skip if file exists and fresh)
-    if (options.downloadMarketCsv) {
-      this.logger.log('[Bước 1] Tải market.csv từ M-System...');
-      const { browser } = await this.rpaService.downloadMarketCsv(this.workDir);
-      await browser.close();
-      this.logger.log('[Bước 1] Tải market.csv XONG.');
-    } else {
-      this.logger.log('[Bước 1] Bỏ qua tải market.csv (dùng file có sẵn).');
+    if (downloadMarketCsv) {
+      // =========================================================================
+      // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
+      // =========================================================================
+      this.logger.log('Đăng nhập M-System và tải file báo cáo...');
+      
+      let msUrl = 'https://msadmin.mxv.com.vn/';
+      let msUser = process.env.MS_USER || '';
+      let msPass = process.env.MS_PASSWORD || '';
+      let msPin = process.env.MS_PIN || '';
+
+      const credentialsRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
+      if (credentialsRaw) {
+        try {
+          const credentials = JSON.parse(decrypt(credentialsRaw));
+          if (credentials.url) msUrl = credentials.url;
+          if (credentials.username) msUser = credentials.username;
+          if (credentials.password) msPass = credentials.password;
+          if (credentials.pin) msPin = credentials.pin;
+        } catch (err) {
+          this.logger.warn('Không thể giải mã cấu hình M-System từ DB, dùng biến môi trường.');
+        }
+      }
+
+      if (!msUser || !msPass || !msPin) {
+        throw new Error('Cấu hình tài khoản M-System không đầy đủ (url, username, password, pin). Vui lòng cấu hình qua Admin UI hoặc file .env');
+      }
+
+      const launchOptions: any = {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+      if (chromePath) {
+        launchOptions.executablePath = chromePath;
+      }
+
+      const browser = await chromium.launch(launchOptions);
+      const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      page.setDefaultTimeout(30000);
+
+      try {
+        this.logger.log(`Đi tới trang M-System: ${msUrl}...`);
+        await page.goto(msUrl);
+        await page.waitForTimeout(2000);
+
+        this.logger.log('Nhập tài khoản và mật khẩu...');
+        await page.waitForSelector('input[name="username"]', { state: 'visible' });
+        await page.fill('input[name="username"]', msUser);
+        await page.fill('input[name="password"]', msPass);
+        await page.waitForTimeout(500);
+
+        this.logger.log('Nhấn nút Đăng nhập...');
+        await page.click('button.btn-primary');
+        await page.waitForTimeout(2000);
+
+        this.logger.log('Đang đợi bảng nhập mã PIN ảo hiển thị...');
+        let pinSelectorVisible = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+          if (pinSelectorVisible) break;
+          this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
+          await page.click('button.btn-primary').catch(() => {});
+          await page.waitForTimeout(2000);
+        }
+
+        await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
+        this.logger.log('Đang tự động click mã PIN ảo...');
+        const pinDigits = msPin.split('');
+        for (const digit of pinDigits) {
+          const digitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
+          await page.waitForSelector(digitSelector, { state: 'visible' });
+          await page.click(digitSelector);
+          await page.waitForTimeout(500);
+        }
+
+        this.logger.log('Xác thực đăng nhập...');
+        await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(3000);
+        this.logger.log('🎉 ĐĂNG NHẬP M-SYSTEM THÀNH CÔNG!');
+
+        // Tải market.csv
+        const orderCreatingUrl = `${msUrl.split('#')[0]}#/orderManagement/orderCreating`;
+        this.logger.log(`Điều hướng đến trang bảng giá: ${orderCreatingUrl}...`);
+        await page.goto(orderCreatingUrl);
+        await page.waitForTimeout(5000);
+
+        const csvBtn = page.locator('div.edit-icon i.fa-file-csv, div.edit-icon, i.fa-file-csv.green').first();
+        if (await csvBtn.isVisible().catch(() => false)) {
+          this.logger.log('Tìm thấy nút xuất CSV Bảng giá. Đang tải...');
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 25000 }),
+            csvBtn.click()
+          ]);
+          await download.saveAs(this.marketCsvPath);
+          this.logger.log(`✅ Đã tải thành công market.csv: ${this.marketCsvPath}`);
+        } else {
+          throw new Error('Không tìm thấy nút tải market.csv trên trang orderCreating');
+        }
+
+        // Tải trang-thai-mo.xlsx
+        const openPositionUrl = `${msUrl.split('#')[0]}#/positionManagement/openPositionInfo`;
+        this.logger.log(`Điều hướng đến trang trạng thái mở: ${openPositionUrl}...`);
+        await page.goto(openPositionUrl);
+        await page.waitForTimeout(5000);
+
+        const excelBtn = page.locator('button.ladda-button:has(i.fa-file-csv), button.ladda-button').first();
+        if (await excelBtn.isVisible().catch(() => false)) {
+          this.logger.log('Tìm thấy nút xuất Excel Trạng thái mở. Đang tải...');
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 25000 }),
+            excelBtn.click()
+          ]);
+          await download.saveAs(this.trangThaiMoPath);
+          this.logger.log(`✅ Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`);
+        } else {
+          throw new Error('Không tìm thấy nút tải trang-thai-mo.xlsx trên trang openPositionInfo');
+        }
+
+      } finally {
+        await browser.close();
+      }
     }
 
-    // Step 2: Parse market.csv → MS GTT map
-    this.logger.log('[Bước 2] Phân tích market.csv...');
-    const msMap = await this.parseMarketCsv(marketCsvActualPath);
+    // =========================================================================
+    // BƯỚC 2: TRÍCH XUẤT DANH SÁCH MÃ HỢP ĐỒNG CẦN CHECK
+    // =========================================================================
+    let contractList: string[] = [];
+    if (fs.existsSync(this.trangThaiMoPath)) {
+      this.logger.log(`Đọc danh sách hợp đồng mở từ file Excel trang-thai-mo.xlsx...`);
+      contractList = this.parseUniqueMSContracts(this.trangThaiMoPath);
+    } else {
+      const gttFile = options.gttXlsxPath || this.gttXlsxPath;
+      if (fs.existsSync(gttFile)) {
+        this.logger.log(`Không tìm thấy trang-thai-mo.xlsx. Đọc từ file fallback GTT.xlsx...`);
+        const rows = await this.parseGttXlsx(gttFile);
+        contractList = rows.map(r => r.symbol);
+      }
+    }
 
-    // Step 3: Parse GTT.xlsx → contract list
-    this.logger.log('[Bước 3] Đọc danh sách hợp đồng mở từ GTT.xlsx...');
-    const gttRows = await this.parseGttXlsx(gttFile);
-    const contractList = gttRows.map((r) => r.symbol);
-    this.logger.log(`[Bước 3] Tìm thấy ${contractList.length} hợp đồng mở cần kiểm tra.`);
+    this.logger.log(`Tìm thấy ${contractList.length} mã hợp đồng đang hoạt động để đối soát.`);
+    if (contractList.length === 0) {
+      throw new Error('Không tìm thấy danh sách mã hợp đồng mở để kiểm tra! Vui lòng upload GTT.xlsx hoặc bật chế độ tự động tải.');
+    }
 
-    // Step 4: Fetch CQG settlement prices
-    this.logger.log('[Bước 4] Lấy giá GTT từ CQG Quote Spreadsheet...');
-    const cqgMap = await this.rpaService.fetchCQGSettlementPrices(contractList);
-    this.logger.log(`[Bước 4] CQG trả về ${cqgMap.size} giá.`);
+    // =========================================================================
+    // BƯỚC 3: ĐĂNG NHẬP CQG & QUÉT GIÁ QSS
+    // =========================================================================
+    const cqgPricesMap = new Map<string, number>();
 
-    // Step 5: Compare
-    this.logger.log('[Bước 5] So sánh GTT giữa M-System và CQG...');
-    const rows = this.compareGttData(msMap, cqgMap, contractList);
+    let cqgUrl = 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+    let cqgUser = process.env.CQG_USER || '';
+    let cqgPass = process.env.CQG_PASSWORD || '';
+
+    const cqgCredentialsRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+    if (cqgCredentialsRaw) {
+      try {
+        const cqgCredentials = JSON.parse(decrypt(cqgCredentialsRaw));
+        if (cqgCredentials.url) cqgUrl = cqgCredentials.url;
+        if (cqgCredentials.username) cqgUser = cqgCredentials.username;
+        if (cqgCredentials.password) cqgPass = cqgCredentials.password;
+      } catch (err) {
+        this.logger.warn('Không thể giải mã cấu hình CQG từ DB, dùng biến môi trường.');
+      }
+    }
+
+    if (!cqgUser || !cqgPass) {
+      throw new Error('Cấu hình tài khoản CQG không đầy đủ (url, username, password). Vui lòng cấu hình qua Admin UI hoặc file .env');
+    }
+
+    this.logger.log(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
+    const launchOptions: any = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
+    if (chromePath) {
+      launchOptions.executablePath = chromePath;
+    }
+
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({ viewport: null });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+
+    try {
+      this.logger.log('Đăng nhập CQG...');
+      await page.goto(cqgUrl);
+      await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 20000 });
+      await page.fill('input[name="userName"]', cqgUser);
+      await page.fill('input[name="password"]', cqgPass);
+      await page.click('button[type="submit"]');
+
+      await page.waitForSelector('div.wpfe-logo-image', { state: 'visible', timeout: 60000 });
+      await page.waitForTimeout(3000);
+      this.logger.log('✅ Đăng nhập CQG THÀNH CÔNG!');
+
+      // Batch split (max 95 per tab)
+      const BATCH_LIMIT = 95;
+      const batches: string[][] = [];
+      for (let i = 0; i < contractList.length; i += BATCH_LIMIT) {
+        batches.push(contractList.slice(i, i + BATCH_LIMIT));
+      }
+
+      this.logger.log(`Phân chia thành ${batches.length} batch(es) để tra cứu CQG...`);
+
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batchNum = batchIdx + 1;
+        const batchSymbols = batches[batchIdx];
+        const symbolStr = batchSymbols.join(', ');
+        this.logger.log(`--- BẮT ĐẦU BATCH ${batchNum}/${batches.length} (${batchSymbols.length} mã) ---`);
+
+        // Click Add Tab "+"
+        await page.waitForSelector('.wpfe-add-widget-btn', { state: 'visible', timeout: 15000 });
+        await page.click('.wpfe-add-widget-btn');
+        await page.waitForTimeout(2000);
+
+        // Click Quotes
+        await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', { state: 'visible', timeout: 10000 });
+        await page.click('.wpfe-list-item:has-text("Quotes")');
+        await page.waitForTimeout(1000);
+
+        // Click Quote spreadsheet widget
+        await page.waitForSelector('[data-widgetclass="wpfe-QuoteSpreadSheet"]', { state: 'visible', timeout: 10000 });
+        await page.click('[data-widgetclass="wpfe-QuoteSpreadSheet"]');
+        await page.waitForTimeout(3000);
+
+        // Click New list
+        await page.waitForSelector('button:has-text("New list")', { state: 'visible', timeout: 10000 });
+        await page.click('button:has-text("New list")');
+        await page.waitForTimeout(2000);
+
+        // Fill Search input
+        const SEARCH_INPUT = 'input[placeholder="Search symbols"]';
+        await page.waitForSelector(SEARCH_INPUT, { state: 'visible', timeout: 15000 });
+        await page.fill(SEARCH_INPUT, symbolStr);
+        await page.waitForTimeout(1500);
+
+        // Click OK to load list
+        const okBtn = page.locator('button.wpfe-button-primary:has-text("OK"), button:has-text("OK")').first();
+        await okBtn.click();
+        await page.waitForTimeout(5000);
+
+        // Add Column S (Settlement)
+        await this.addSettlementColumn(page, batchNum);
+
+        // Scrape prices
+        this.logger.log(`Đang quét giá CQG Batch ${batchNum}...`);
+        await this.scrapeQSSPrices(page, cqgPricesMap);
+        this.logger.log(`Lũy kế: Đã đọc được ${cqgPricesMap.size} giá từ CQG.`);
+      }
+
+    } finally {
+      await browser.close();
+    }
+
+    // =========================================================================
+    // BƯỚC 4: ĐỐI CHIẾU SO KHỚP DỮ LIỆU
+    // =========================================================================
+    this.logger.log('Đang phân tích và so khớp dữ liệu...');
+    const msMap = await this.parseMarketCsv(this.marketCsvPath);
+    const rows = this.compareGttData(msMap, cqgPricesMap, contractList);
 
     const matched = rows.filter((r) => r.status === 'MATCH').length;
     const diffCount = rows.filter((r) => r.status === 'DIFF').length;
@@ -273,47 +756,15 @@ export class GttCheckerService {
       msOnlyCount,
       cqgOnlyCount,
       rows,
-      marketCsvPath: marketCsvActualPath,
-      gttFilePath: gttFile,
+      marketCsvPath: this.marketCsvPath,
+      gttFilePath: fs.existsSync(this.trangThaiMoPath) ? this.trangThaiMoPath : this.gttXlsxPath,
     };
 
     // Save report to disk
     fs.writeFileSync(this.reportJsonPath, JSON.stringify(report, null, 2), 'utf8');
     this.latestReport = report;
 
-    this.logger.log(`=== HOÀN TẤT PIPELINE GTT: ${matched} khớp, ${diffCount} chênh lệch, ${msOnlyCount} chỉ có trên MS, ${cqgOnlyCount} chỉ có trên CQG ===`);
+    this.logger.log(`=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`);
     return report;
-  }
-
-  // -------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------
-
-  /**
-   * Simple CSV line parser that handles quoted fields with commas inside.
-   */
-  private parseCsvLine(line: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuote = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuote && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuote = !inQuote;
-        }
-      } else if (ch === ',' && !inQuote) {
-        result.push(current);
-        current = '';
-      } else {
-        current += ch;
-      }
-    }
-    result.push(current);
-    return result;
   }
 }
