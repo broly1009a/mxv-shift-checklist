@@ -98,7 +98,7 @@ export default function AdminNotificationsPage() {
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [rules, setRules] = useState<NotificationRule[]>([]);
   const [logs, setLogs] = useState<NotificationLog[]>([]);
-  
+
   // Lookups Data
   const [departments, setDepartments] = useState<Department[]>([]);
   const [shiftSlots, setShiftSlots] = useState<ShiftSlot[]>([]);
@@ -596,7 +596,7 @@ export default function AdminNotificationsPage() {
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -610,7 +610,7 @@ export default function AdminNotificationsPage() {
               Quản lý các kênh gửi tin (Telegram, Email) và cấu hình điều kiện kích hoạt thông báo tự động.
             </p>
           </div>
-          
+
           <div style={{ display: 'flex', gap: '10px' }}>
             {activeTab === 'channels' && (
               <button onClick={openAddChannel} className="btn btn-primary" style={{ padding: '12px 20px' }}>
@@ -734,7 +734,7 @@ export default function AdminNotificationsPage() {
                       <div key={channel._id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}>
+                            <div style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}>
                               {getChannelIcon(channel.type)}
                             </div>
                             <div>
@@ -747,7 +747,7 @@ export default function AdminNotificationsPage() {
                           </span>
                         </div>
 
-                        <div style={{ flex: 1, fontSize: '0.85rem', background: 'rgba(0,0,0,0.1)', padding: '12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ flex: 1, fontSize: '0.85rem', background: 'var(--bg-input)', padding: '12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: 'var(--text-muted)' }}>Loại kênh:</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{channel.type}</span>
@@ -968,14 +968,14 @@ export default function AdminNotificationsPage() {
               {/* TAB TEST API TOOL */}
               {activeTab === 'test' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
-                  
+
                   {/* Left Column: Form */}
                   <div className="glass-panel" style={{ padding: '24px' }}>
                     <h3 style={{ fontSize: '1.1rem', margin: '0 0 20px 0', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Play size={18} color="var(--color-accent)" />
                       Gửi Thông Báo Thử Nghiệm (Stub)
                     </h3>
-                    
+
                     <form onSubmit={handleTestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div>
                         <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
@@ -1061,13 +1061,13 @@ export default function AdminNotificationsPage() {
                       <Info size={18} color="var(--color-accent)" />
                       Kết Quả Trả Về (API Response)
                     </h3>
-                    
-                    <div style={{ flex: 1, background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px', fontSize: '0.85rem', overflow: 'auto', fontFamily: 'monospace', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+
+                    <div style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px', fontSize: '0.85rem', overflow: 'auto', fontFamily: 'monospace', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
                       {testResult ? (
                         JSON.stringify(testResult, null, 2)
                       ) : (
                         <div style={{ color: 'var(--text-muted)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-                          Nhập thông tin bên trái và bấm chạy thử nghiệm.<br/>Kết quả API sẽ hiển thị tại đây.
+                          Nhập thông tin bên trái và bấm chạy thử nghiệm.<br />Kết quả API sẽ hiển thị tại đây.
                         </div>
                       )}
                     </div>
@@ -1335,9 +1335,9 @@ export default function AdminNotificationsPage() {
               {/* Channels Selector */}
               <div>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Kênh nhận tin nhắn <span style={{ color: '#ef4444' }}>*</span></label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '12px', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   {channels.map(ch => (
-                    <label key={ch._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem' }}>
+                    <label key={ch._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem' }}>
                       <input
                         type="checkbox"
                         checked={ruleChannelIds.includes(ch._id)}
@@ -1363,7 +1363,7 @@ export default function AdminNotificationsPage() {
               {/* Recipient Roles */}
               <div>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nhóm quyền nhận tin (Roles)</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   {['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD', 'STAFF'].map(role => (
                     <label key={role} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
                       <input
@@ -1387,7 +1387,7 @@ export default function AdminNotificationsPage() {
               {/* Recipient Users */}
               <div>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nhân viên nhận tin cụ thể</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '8px', padding: '12px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', borderRadius: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '8px', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px', maxHeight: '120px', overflowY: 'auto' }}>
                   {usersList.map(u => (
                     <label key={u._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <input

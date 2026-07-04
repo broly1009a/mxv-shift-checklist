@@ -390,7 +390,7 @@ export default function MarginCheckerModal({
         <div
           style={{
             display: 'flex',
-            background: 'rgba(0, 0, 0, 0.2)',
+            background: 'var(--bg-input)',
             borderBottom: '1px solid var(--border-color)',
             padding: '0 16px',
           }}
@@ -744,7 +744,7 @@ export default function MarginCheckerModal({
                         }}
                         style={{
                           width: '80px',
-                          background: 'rgba(0,0,0,0.3)',
+                          background: 'var(--bg-input)',
                           border: '1px solid var(--border-color)',
                           color: 'var(--text-primary)',
                           borderRadius: '6px',
@@ -787,7 +787,7 @@ export default function MarginCheckerModal({
                         placeholder="Nhập chat ID Telegram"
                         style={{
                           width: '100%',
-                          background: 'rgba(0,0,0,0.3)',
+                          background: 'var(--bg-input)',
                           border: '1px solid var(--border-color)',
                           color: 'var(--text-primary)',
                           borderRadius: '6px',
@@ -809,7 +809,7 @@ export default function MarginCheckerModal({
                           placeholder="Thêm email nhận tin"
                           style={{
                             flex: 1,
-                            background: 'rgba(0,0,0,0.3)',
+                            background: 'var(--bg-input)',
                             border: '1px solid var(--border-color)',
                             color: 'var(--text-primary)',
                             borderRadius: '6px',
@@ -921,7 +921,7 @@ export default function MarginCheckerModal({
                         placeholder="Nhập chat ID Telegram"
                         style={{
                           width: '100%',
-                          background: 'rgba(0,0,0,0.3)',
+                          background: 'var(--bg-input)',
                           border: '1px solid var(--border-color)',
                           color: 'var(--text-primary)',
                           borderRadius: '6px',
@@ -943,7 +943,7 @@ export default function MarginCheckerModal({
                           placeholder="Thêm email nhận tin"
                           style={{
                             flex: 1,
-                            background: 'rgba(0,0,0,0.3)',
+                            background: 'var(--bg-input)',
                             border: '1px solid var(--border-color)',
                             color: 'var(--text-primary)',
                             borderRadius: '6px',
@@ -1035,7 +1035,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',
@@ -1056,7 +1056,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',
@@ -1079,7 +1079,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',
@@ -1100,7 +1100,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',
@@ -1123,7 +1123,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',
@@ -1144,7 +1144,7 @@ export default function MarginCheckerModal({
                       }}
                       style={{
                         width: '100%',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         borderRadius: '6px',

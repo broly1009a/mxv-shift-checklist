@@ -24,11 +24,11 @@ export class EmailWatcherService {
       filterSubject = target; // Fallback to raw string
     }
 
-    // 2. Fetch MS Graph API credentials from settings
-    const clientId = await this.settingsService.getSetting('m365_client_id', '');
-    const clientSecret = await this.settingsService.getSetting('m365_client_secret', '');
-    const tenantId = await this.settingsService.getSetting('m365_tenant_id', '');
-    const watcherEmail = await this.settingsService.getSetting('m365_watcher_email', '');
+    // 2. Fetch MS Graph API credentials from settings (with environment fallback)
+    const clientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
+    const clientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
+    const tenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
+    const watcherEmail = (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
 
     const isSimulation = !clientId || !clientSecret || !tenantId || !watcherEmail || process.env.SIMULATE_BOT_CHECKS === 'true';
 

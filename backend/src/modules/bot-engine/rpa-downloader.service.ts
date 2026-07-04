@@ -96,11 +96,21 @@ export class RpaDownloaderService {
       await page.waitForSelector('input[name="username"]', { state: 'visible' });
       await page.fill('input[name="username"]', username);
       await page.fill('input[name="password"]', password);
+      await page.waitForTimeout(500);
       await page.click('button.btn-primary');
 
       // 4. Handle PIN modal
       this.logger.log('Waiting for PIN code keypad modal...');
-      await page.waitForSelector('div.pincode', { state: 'visible', timeout: 15000 });
+      let pinSelectorVisible = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+        if (pinSelectorVisible) break;
+        this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
+        await page.click('button.btn-primary').catch(() => {});
+        await page.waitForTimeout(2000);
+      }
+
+      await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
 
       // Click each pin digit
       const pinDigits = pin.split('');

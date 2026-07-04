@@ -196,8 +196,7 @@ export default function NotificationDropdown() {
         onClick={() => {
           setShowNotifications(!showNotifications);
           if (!showNotifications) {
-            setUnreadCount(0);
-            setLastAcknowledgedTime(new Date().toISOString());
+            handleMarkAsRead();
           }
         }}
         style={{ 
