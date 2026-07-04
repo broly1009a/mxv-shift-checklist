@@ -267,6 +267,50 @@ export class RpaDownloaderService {
 
 
   /**
+   * Helper to navigate directly to a hash route and trigger a file download
+   */
+  private async gotoAndDownload(
+    page: Page,
+    hashPath: string,
+    downloadPath: string,
+    optionalTabSelector?: string
+  ): Promise<void> {
+    try {
+      const baseUrl = page.url().split('#')[0];
+      const targetUrl = `${baseUrl}${hashPath}`;
+      this.logger.log(`Direct navigation to: ${targetUrl}`);
+      await page.goto(targetUrl);
+      await page.waitForTimeout(3000); // Wait for UI stabilization
+
+      // Click optional tabs if provided
+      if (optionalTabSelector) {
+        this.logger.log(`Clicking optional tab: ${optionalTabSelector}`);
+        const tabSelector = `xpath=//a[text()='${optionalTabSelector}']`;
+        await page.waitForSelector(tabSelector, { state: 'visible', timeout: 10000 });
+        await page.click(tabSelector);
+        await page.waitForTimeout(2000);
+      }
+
+      // Wait for CSV download button
+      const csvButtonSelector = `xpath=//i[contains(@class, 'fa-file-csv')]`;
+      await page.waitForSelector(csvButtonSelector, { state: 'visible', timeout: 15000 });
+
+      // Start waiting for download event before clicking (increased to 90s)
+      const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
+      
+      this.logger.log('Clicking CSV/Excel download icon...');
+      await page.click(csvButtonSelector);
+      
+      const download = await downloadPromise;
+      await download.saveAs(downloadPath);
+      this.logger.log(`Saved report successfully to: ${downloadPath}`);
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi tải trực tiếp báo cáo (${hashPath}): ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
    * Helper to perform navigation and trigger a file download
    */
   private async navigateAndDownload(
@@ -299,8 +343,8 @@ export class RpaDownloaderService {
       const csvButtonSelector = `xpath=//i[contains(@class, 'fa-file-csv')]`;
       await page.waitForSelector(csvButtonSelector, { state: 'visible', timeout: 15000 });
 
-      // Start waiting for download event before clicking
-      const downloadPromise = page.waitForEvent('download');
+      // Start waiting for download event before clicking (increased to 90 seconds for heavy reports)
+      const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
       
       this.logger.log('Clicking CSV/Excel download icon...');
       await page.click(csvButtonSelector);
@@ -346,7 +390,7 @@ export class RpaDownloaderService {
   }
 
   async downloadQLTTTKGD(page: Page, destFile: string) {
-    await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'QL TT TKGD'], destFile);
+    await this.gotoAndDownload(page, '#/clientManagement/investorManagement', destFile);
   }
 
   async downloadQLTTTKGDAmKQ(page: Page, destFile: string) {
@@ -445,6 +489,134 @@ export class RpaDownloaderService {
     } catch (err: any) {
       throw new Error(`Tải DSGD.xlsx thất bại: ${err.message}`);
     }
+  }
+
+  async downloadTTTT(page: Page, destFile: string) {
+    await this.gotoAndDownload(page, '#/orderManagement/transactionList', destFile);
+  }
+
+  /**
+   * Download eod.csv from M-System.
+   * Path: QL hệ thống -> Kết quả EOD (xuất file kết quả sau khi EOD thành công)
+   */
+  async downloadEODCsv(page: Page, destFile: string) {
+    try {
+      this.logger.log('Navigating to QL hệ thống -> Kết quả EOD...');
+
+      // Try direct navigation to EOD result page via hash routing
+      const currentUrl = page.url();
+      const baseUrl = currentUrl.split('#')[0];
+
+      // Common M-System EOD result paths
+      const eodPaths = [
+        '#/systemManagement/eodResult',
+        '#/systemManagement/eod',
+        '#/eodManagement/eodResult',
+      ];
+
+      let downloaded = false;
+      for (const hashPath of eodPaths) {
+        try {
+          await page.goto(`${baseUrl}${hashPath}`);
+          await page.waitForTimeout(2000);
+
+          const csvBtn = page.locator("xpath=//i[contains(@class, 'fa-file-csv')]");
+          if (await csvBtn.isVisible().catch(() => false)) {
+            const downloadPromise = page.waitForEvent('download');
+            await csvBtn.click();
+            const download = await downloadPromise;
+            await download.saveAs(destFile);
+            this.logger.log(`eod.csv downloaded to: ${destFile}`);
+            downloaded = true;
+            break;
+          }
+        } catch {}
+      }
+
+      if (!downloaded) {
+        // Fallback: try menu navigation QL hệ thống
+        await page.click("xpath=//a[text()='QL hệ thống']").catch(() => {});
+        await page.waitForTimeout(1000);
+
+        const eodMenuSelectors = [
+          "xpath=//a[contains(text(),'EOD')]",
+          "xpath=//a[contains(text(),'Kết quả EOD')]",
+          "xpath=//a[contains(text(),'End of Day')]",
+        ];
+        for (const sel of eodMenuSelectors) {
+          if (await page.locator(sel).isVisible().catch(() => false)) {
+            await page.click(sel);
+            await page.waitForTimeout(2000);
+            const csvBtn = page.locator("xpath=//i[contains(@class, 'fa-file-csv')]");
+            if (await csvBtn.isVisible().catch(() => false)) {
+              const downloadPromise = page.waitForEvent('download');
+              await csvBtn.click();
+              const download = await downloadPromise;
+              await download.saveAs(destFile);
+              this.logger.log(`eod.csv downloaded (fallback) to: ${destFile}`);
+              downloaded = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!downloaded) {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({ path: path.join(debugDir, `eod-csv-debug-${ts}.png`), fullPage: true }).catch(() => {});
+        throw new Error('Không tìm thấy nút tải EOD CSV. Đã lưu debug screenshot tại temp/debug/.');
+      }
+    } catch (err: any) {
+      throw new Error(`Tải eod.csv thất bại: ${err.message}`);
+    }
+  }
+
+  /**
+   * Full pipeline: Login M-System, download QLTKGD + TTTT + EOD files,
+   * save to temp/reconciliation/<date>/ directory. Returns file paths.
+   */
+  async downloadReconciliationFiles(targetDate?: string): Promise<{
+    qltkgdPath: string;
+    ttttPath: string;
+    eodPath: string;
+    downloadDir: string;
+  }> {
+    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+    const downloadDir = path.join(process.cwd(), 'temp', 'reconciliation', dateStr);
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    const qltkgdPath = path.join(downloadDir, 'QLTKGD.xlsx');
+    const ttttPath = path.join(downloadDir, 'TTTT.xlsx');
+    const eodPath = path.join(downloadDir, `eod.${dateStr}.csv`);
+
+    this.logger.log(`Starting reconciliation file download for date: ${dateStr}`);
+    this.logger.log(`Target directory: ${downloadDir}`);
+
+    const { browser, page } = await this.loginMSystem(downloadDir);
+
+    try {
+      // 1. Download QLTKGD.xlsx (QL khách hàng -> QL TKGD -> QL TT TKGD)
+      this.logger.log('Step 1/3: Downloading QLTKGD.xlsx...');
+      await this.downloadQLTTTKGD(page, qltkgdPath);
+
+      // 2. Download TTTT.xlsx (QL giao dịch -> Danh sách giao dịch)
+      this.logger.log('Step 2/3: Downloading TTTT.xlsx...');
+      await this.downloadTTTT(page, ttttPath);
+
+      // 3. Download eod.csv (QL hệ thống -> Kết quả EOD)
+      this.logger.log('Step 3/3: Downloading eod.csv...');
+      await this.downloadEODCsv(page, eodPath);
+
+      this.logger.log('All reconciliation files downloaded successfully!');
+    } finally {
+      await browser.close();
+    }
+
+    return { qltkgdPath, ttttPath, eodPath, downloadDir };
   }
 
   // =========================================================================

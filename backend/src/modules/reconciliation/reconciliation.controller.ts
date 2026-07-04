@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   UseInterceptors,
   UploadedFiles,
   Body,
@@ -10,6 +11,8 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ReconciliationService } from './reconciliation.service';
 import { ShiftsService } from '../shifts/shifts.service';
+import { RpaDownloaderService } from '../bot-engine/rpa-downloader.service';
+import * as fs from 'fs';
 
 @Controller('reconciliation')
 export class ReconciliationController {
@@ -18,6 +21,7 @@ export class ReconciliationController {
   constructor(
     private readonly reconciliationService: ReconciliationService,
     private readonly shiftsService: ShiftsService,
+    private readonly rpaService: RpaDownloaderService,
   ) {}
 
   @Post('upload-klgd')
@@ -256,5 +260,280 @@ export class ReconciliationController {
       throw new BadRequestException(`Lỗi khi xử lý file đối chiếu EOD/CQG: ${error.message}`);
     }
   }
-}
 
+  // =========================================================================
+  // AUTO RECONCILIATION ENDPOINTS
+  // =========================================================================
+
+  /**
+   * List available sample date directories from local BackupMS folder.
+   */
+  @Get('sample-dates')
+  async listSampleDates() {
+    const nodePath = require('path');
+    const baseBackupDir = nodePath.join(process.cwd(), '..', 'it-tool-src', 'operate-transaction-app', 'bin', 'Debug', 'Download', 'BackupMS');
+
+    const dates: { label: string; samplePath: string; year: string; month: string; day: string }[] = [];
+
+    if (!fs.existsSync(baseBackupDir)) {
+      return { success: false, message: 'Thư mục BackupMS không tồn tại', dates: [] };
+    }
+
+    try {
+      const years = fs.readdirSync(baseBackupDir).filter(y => /^\d{4}$/.test(y));
+      for (const year of years) {
+        const yearPath = nodePath.join(baseBackupDir, year);
+        const months = fs.readdirSync(yearPath).filter(m => /^T\d{2}/.test(m));
+        for (const month of months) {
+          const monthPath = nodePath.join(yearPath, month);
+          const days = fs.readdirSync(monthPath).filter(d => /^\d{2}\.\d{2}$/.test(d));
+          for (const day of days) {
+            const dayPath = nodePath.join(monthPath, day);
+            const [dd, mm] = day.split('.');
+            const label = `${dd}/${mm}/${year}`;
+            dates.push({ label, samplePath: dayPath, year, month, day });
+          }
+        }
+      }
+      dates.sort((a, b) => {
+        const da = `${a.year}-${a.day.split('.')[1]}-${a.day.split('.')[0]}`;
+        const db = `${b.year}-${b.day.split('.')[1]}-${b.day.split('.')[0]}`;
+        return db.localeCompare(da);
+      });
+      return { success: true, dates };
+    } catch (err: any) {
+      return { success: false, message: err.message, dates: [] };
+    }
+  }
+
+  /**
+   * Run all 3 reconciliation checks using local sample files from BackupMS directory.
+   * No bot/login required.
+   */
+  @Post('run-test-local')
+  async runTestFromLocalFiles(
+    @Body('samplePath') samplePath: string,
+    @Body('usdRate') usdRateRaw?: number,
+  ) {
+    if (!samplePath) {
+      throw new BadRequestException('Vui lòng cung cấp đường dẫn thư mục (samplePath).');
+    }
+    if (!fs.existsSync(samplePath)) {
+      throw new BadRequestException(`Thư mục không tồn tại: ${samplePath}`);
+    }
+
+    const nodePath = require('path');
+    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+
+    const readIfExists = (prefix: string, ext: string): Buffer | null => {
+      const direct = nodePath.join(samplePath, `${prefix}.${ext}`);
+      if (fs.existsSync(direct)) return fs.readFileSync(direct);
+      // Partial match for files like "eod.2025-08-05.csv"
+      const files = fs.readdirSync(samplePath);
+      const match = files.find((f: string) => f.startsWith(prefix) && f.endsWith(`.${ext}`));
+      if (match) return fs.readFileSync(nodePath.join(samplePath, match));
+      return null;
+    };
+
+    const results: Record<string, any> = {};
+    const errors: Record<string, string> = {};
+
+    // 1. KLGD Check
+    try {
+      const dsgd = readIfExists('DSGD', 'xlsx');
+      if (!dsgd) throw new Error('Thiếu file DSGD.xlsx');
+      const klgdFiles = {
+        dsgd,
+        fr1: readIfExists('FR1', 'xlsx') || undefined,
+        fr2: readIfExists('FR2', 'xlsx') || undefined,
+        op1: readIfExists('OP1', 'xlsx') || undefined,
+        op2: readIfExists('OP2', 'xlsx') || undefined,
+        ttm: readIfExists('TTM', 'xlsx') || undefined,
+      };
+      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date());
+    } catch (err: any) {
+      errors.klgd = err.message;
+    }
+
+    // 2. EOD Check
+    try {
+      const qltkgd = readIfExists('QLTKGD', 'xlsx');
+      const tttt = readIfExists('TTTT', 'xlsx');
+      const eod = readIfExists('eod', 'csv');
+      if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
+      if (!tttt) throw new Error('Thiếu file TTTT.xlsx');
+      if (!eod) throw new Error('Thiếu file eod.*.csv');
+      results.eod = await this.reconciliationService.checkEOD({ qltkgd, tttt, eod });
+    } catch (err: any) {
+      errors.eod = err.message;
+    }
+
+    // 3. CQG Check
+    try {
+      const qltkgd = readIfExists('QLTKGD', 'xlsx');
+      const accountsBalances = readIfExists('Accounts_Balances', 'xlsx');
+      if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
+      if (!accountsBalances) throw new Error('Thiếu file Accounts_Balances.xlsx');
+      results.cqg = await this.reconciliationService.checkEODCQG({ qltkgd, accountsBalances }, usdRate);
+    } catch (err: any) {
+      errors.cqg = err.message;
+    }
+
+    return { success: Object.keys(errors).length === 0, samplePath, usdRate, results, errors };
+  }
+
+  /**
+   * Run EOD reconciliation by downloading files from M-System via RPA bot.
+   */
+  @Post('run-auto')
+  async runAutoReconciliation(
+    @Body('targetDate') targetDate?: string,
+    @Body('usdRate') usdRateRaw?: number,
+  ) {
+    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+    this.logger.log(`Starting auto reconciliation via RPA for date: ${targetDate || 'today'}`);
+
+    let downloadedFiles: { qltkgdPath: string; ttttPath: string; eodPath: string; downloadDir: string };
+    try {
+      downloadedFiles = await this.rpaService.downloadReconciliationFiles(targetDate);
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể tải file từ M-System: ${err.message}`);
+    }
+
+    const results: Record<string, any> = {};
+    const errors: Record<string, string> = {};
+
+    try {
+      const qltkgd = fs.readFileSync(downloadedFiles.qltkgdPath);
+      const tttt = fs.readFileSync(downloadedFiles.ttttPath);
+      const eod = fs.readFileSync(downloadedFiles.eodPath);
+      results.eod = await this.reconciliationService.checkEOD({ qltkgd, tttt, eod });
+    } catch (err: any) {
+      errors.eod = err.message;
+    }
+
+    return {
+      success: Object.keys(errors).length === 0,
+      downloadDir: downloadedFiles.downloadDir,
+      usdRate,
+      results,
+      errors,
+      message: 'Đối chiếu tự động hoàn thành!',
+    };
+  }
+
+  /**
+   * Manual test upload endpoint for testing reconciliation rules with user uploaded files.
+   */
+  @Post('test-upload')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'dsgd', maxCount: 1 },
+      { name: 'fr1', maxCount: 1 },
+      { name: 'fr2', maxCount: 1 },
+      { name: 'nano', maxCount: 1 },
+      { name: 'ttm', maxCount: 1 },
+      { name: 'op1', maxCount: 1 },
+      { name: 'op2', maxCount: 1 },
+      { name: 'qltkgd', maxCount: 1 },
+      { name: 'eod', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'accountsBalances', maxCount: 1 },
+    ]),
+  )
+  async testUploadAndReconcile(
+    @UploadedFiles()
+    files: {
+      dsgd?: any[];
+      fr1?: any[];
+      fr2?: any[];
+      nano?: any[];
+      ttm?: any[];
+      op1?: any[];
+      op2?: any[];
+      qltkgd?: any[];
+      eod?: any[];
+      tttt?: any[];
+      accountsBalances?: any[];
+    },
+    @Body('usdRate') usdRateStr?: string,
+    @Body('tradingDate') tradingDateStr?: string,
+  ) {
+    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    const tradingDate = tradingDateStr ? new Date(tradingDateStr) : new Date();
+
+    const results: Record<string, any> = {};
+    const errors: Record<string, string> = {};
+
+    const fileBuffers = {
+      dsgd: files?.dsgd?.[0]?.buffer,
+      fr1: files?.fr1?.[0]?.buffer,
+      fr2: files?.fr2?.[0]?.buffer,
+      nano: files?.nano?.[0]?.buffer,
+      ttm: files?.ttm?.[0]?.buffer,
+      op1: files?.op1?.[0]?.buffer,
+      op2: files?.op2?.[0]?.buffer,
+      qltkgd: files?.qltkgd?.[0]?.buffer,
+      eod: files?.eod?.[0]?.buffer,
+      tttt: files?.tttt?.[0]?.buffer,
+      accountsBalances: files?.accountsBalances?.[0]?.buffer,
+    };
+
+    // 1. KLGD Check
+    if (fileBuffers.dsgd) {
+      try {
+        const klgdFiles = {
+          dsgd: fileBuffers.dsgd,
+          fr1: fileBuffers.fr1,
+          fr2: fileBuffers.fr2,
+          nano: fileBuffers.nano,
+          ttm: fileBuffers.ttm,
+          op1: fileBuffers.op1,
+          op2: fileBuffers.op2,
+        };
+        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate);
+      } catch (err: any) {
+        errors.klgd = err.message;
+      }
+    }
+
+    // 2. EOD Check
+    if (fileBuffers.qltkgd && fileBuffers.eod && fileBuffers.tttt) {
+      try {
+        results.eod = await this.reconciliationService.checkEOD({
+          qltkgd: fileBuffers.qltkgd,
+          eod: fileBuffers.eod,
+          tttt: fileBuffers.tttt,
+        });
+      } catch (err: any) {
+        errors.eod = err.message;
+      }
+    }
+
+    // 3. CQG Balance Check
+    if (fileBuffers.qltkgd && fileBuffers.accountsBalances) {
+      try {
+        results.cqg = await this.reconciliationService.checkEODCQG({
+          qltkgd: fileBuffers.qltkgd,
+          accountsBalances: fileBuffers.accountsBalances,
+        }, usdRate);
+      } catch (err: any) {
+        errors.cqg = err.message;
+      }
+    }
+
+    const hasAnyResults = Object.keys(results).length > 0;
+    if (!hasAnyResults && Object.keys(errors).length === 0) {
+      throw new BadRequestException(
+        'Vui lòng tải lên tối thiểu file DSGD (cho KLGD), hoặc QLTKGD+EOD+TTTT (cho EOD), hoặc QLTKGD+Accounts_Balances (cho CQG).',
+      );
+    }
+
+    return {
+      success: Object.keys(errors).length === 0,
+      usdRate,
+      results,
+      errors,
+    };
+  }
+}

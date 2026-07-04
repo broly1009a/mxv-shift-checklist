@@ -379,12 +379,13 @@ export default function TaskTable({
 
                       {/* Reconciliation Button */}
                       {(item.taskId.toUpperCase().includes('KLGD') ||
-                        item.taskId.toUpperCase().includes('TTM') ||
-                        item.taskId.toUpperCase().includes('TTTT') ||
                         item.taskId.toUpperCase().includes('EOD') ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU') ||
-                        item.taskNameSnapshot.toUpperCase().includes('EOD') ||
-                        item.taskNameSnapshot.toUpperCase().includes('SỐ DƯ')) && !isCompleted && (
+                        item.taskId.toUpperCase().includes('CQG') ||
+                        item.taskId.toUpperCase().includes('RECON') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU MS') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU EOD') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU CQG') ||
+                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU KHỚP LỆNH')) && !isCompleted && (
 
                         <button
                           onClick={() => onOpenReconciliation(item.taskId)}
@@ -434,8 +435,8 @@ export default function TaskTable({
 
                       {/* CCP Statistics Button */}
                       {(item.taskId.toUpperCase().includes('CCP') ||
-                        item.taskNameSnapshot.toUpperCase().includes('CCP') ||
-                        item.taskNameSnapshot.toUpperCase().includes('THỐNG KÊ')) && !isCompleted && (
+                        item.taskId.toUpperCase().includes('STATISTICS') ||
+                        item.taskNameSnapshot.toUpperCase().includes('THỐNG KÊ CCP')) && !isCompleted && (
 
                         <button
                           onClick={onOpenCcpStatistics}
@@ -460,13 +461,8 @@ export default function TaskTable({
                       {/* Trading Report Button */}
                       {(item.taskId.toUpperCase().includes('REPORT') ||
                         item.taskId.toUpperCase().includes('TRADING') ||
-                        item.taskId.toUpperCase().includes('DOICHIEU') ||
-                        item.taskId.toUpperCase().includes('TATTOAN') ||
-                        item.taskNameSnapshot.toUpperCase().includes('REPORT') ||
-                        item.taskNameSnapshot.toUpperCase().includes('TRADING') ||
-                        item.taskNameSnapshot.toUpperCase().includes('BÁO CÁO') ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU') ||
-                        item.taskNameSnapshot.toUpperCase().includes('TẤT TOÁN')) && !isCompleted && (
+                        item.taskNameSnapshot.toUpperCase().includes('BÁO CÁO GIAO DỊCH') ||
+                        item.taskNameSnapshot.toUpperCase().includes('TRADING REPORT')) && !isCompleted && (
 
                         <button
                           onClick={onOpenTradingReport}

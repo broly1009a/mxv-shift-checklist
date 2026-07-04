@@ -709,7 +709,9 @@ export class ShiftsService {
     startDate?: string,
     endDate?: string,
     status?: string,
-  ): Promise<ShiftLog[]> {
+    page?: number,
+    limit?: number,
+  ): Promise<any> {
     const filter: any = {};
 
     if (status) {
@@ -761,7 +763,9 @@ export class ShiftsService {
       filter.templateId = { $in: templateIds };
     }
 
-    return this.shiftLogModel
+    const total = await this.shiftLogModel.countDocuments(filter).exec();
+
+    let query = this.shiftLogModel
       .find(filter)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
@@ -772,8 +776,21 @@ export class ShiftsService {
       })
       .populate('shiftSlotId')
       .populate('departmentId')
-      .sort({ shiftDate: -1, createdAt: -1 })
-      .exec();
+      .sort({ shiftDate: -1, createdAt: -1 });
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      query = query.skip(skip).limit(limit);
+    }
+
+    const data = await query.exec();
+
+    return {
+      data,
+      total,
+      page: page || 1,
+      limit: limit || total,
+    };
   }
 
   async getActiveShiftsByDepartment(

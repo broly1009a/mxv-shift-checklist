@@ -80,6 +80,30 @@ export default function AdminBotConfigPage() {
   const [loadingGttReport, setLoadingGttReport] = useState(false);
   const [gttFilter, setGttFilter] = useState<'ALL' | 'DIFF' | 'MATCH' | 'MISSING'>('ALL');
 
+  // Reconciliation Test state
+  const [reconSampleDates, setReconSampleDates] = useState<any[]>([]);
+  const [reconSelectedPath, setReconSelectedPath] = useState('');
+  const [reconUsdRate, setReconUsdRate] = useState(25220);
+  const [reconRunning, setReconRunning] = useState(false);
+  const [reconResult, setReconResult] = useState<any>(null);
+  const [reconAutoRunning, setReconAutoRunning] = useState(false);
+  const [reconAutoResult, setReconAutoResult] = useState<any>(null);
+  const [reconTab, setReconTab] = useState<'sample' | 'upload'>('sample');
+  const [manualFiles, setManualFiles] = useState<{
+    dsgd?: File | null;
+    fr1?: File | null;
+    fr2?: File | null;
+    nano?: File | null;
+    ttm?: File | null;
+    op1?: File | null;
+    op2?: File | null;
+    qltkgd?: File | null;
+    eod?: File | null;
+    tttt?: File | null;
+    accountsBalances?: File | null;
+  }>({});
+  const [reconUploadRunning, setReconUploadRunning] = useState(false);
+
   // Queue state
   const [jobs, setJobs] = useState<BotJobs[]>([]);
   const [selectedJob, setSelectedJob] = useState<BotJobs | null>(null);
@@ -343,6 +367,131 @@ export default function AdminBotConfigPage() {
       toast.error('Lỗi tải báo cáo GTT');
     } finally {
       setLoadingGttReport(false);
+    }
+  };
+
+  // Load sample dates for reconciliation test
+  const handleLoadReconSampleDates = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/reconciliation/sample-dates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReconSampleDates(data.dates || []);
+        if (data.dates?.length > 0 && !reconSelectedPath) {
+          setReconSelectedPath(data.dates[0].samplePath);
+        }
+      } else {
+        toast.error(data.message || 'Không tải được danh sách ngày mẫu');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi tải danh sách ngày mẫu');
+    }
+  };
+
+  // Run reconciliation test using local sample files
+  const handleRunReconTest = async () => {
+    if (!token || !reconSelectedPath) return;
+    setReconRunning(true);
+    setReconResult(null);
+    const toastId = toast.loading('Đang chạy kiểm thử đối chiếu từ file mẫu...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/reconciliation/run-test-local`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ samplePath: reconSelectedPath, usdRate: reconUsdRate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi chạy kiểm thử');
+      setReconResult(data);
+      const hasErrors = Object.keys(data.errors || {}).length > 0;
+      if (data.success) {
+        toast.success('Kiểm thử hoàn thành: Tất cả đối chiếu khớp!', { id: toastId, duration: 6000 });
+      } else if (hasErrors) {
+        toast.error(`Kiểm thử xong có lỗi: ${Object.values(data.errors || {}).join(', ')}`, { id: toastId, duration: 6000 });
+      } else {
+        toast('Kiểm thử hoàn thành: Phát hiện chênh lệch dữ liệu', { id: toastId, duration: 6000 });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kiểm thử', { id: toastId });
+    } finally {
+      setReconRunning(false);
+    }
+  };
+
+  // Run auto reconciliation via RPA bot
+  const handleRunAutoRecon = async () => {
+    if (!token) return;
+    setReconAutoRunning(true);
+    setReconAutoResult(null);
+    const toastId = toast.loading('Bot đang đăng nhập M-System và tải file đối chiếu... (2-5 phút)');
+    try {
+      const res = await fetch(`${API_BASE_URL}/reconciliation/run-auto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ usdRate: reconUsdRate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Bot đối chiếu thất bại');
+      setReconAutoResult(data);
+      toast.success(data.message || 'Bot đối chiếu hoàn thành!', { id: toastId, duration: 6000 });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi bot đối chiếu', { id: toastId });
+    } finally {
+      setReconAutoRunning(false);
+    }
+  };
+
+  // Run reconciliation test by uploading manual files
+  const handleRunUploadReconTest = async () => {
+    if (!token) return;
+
+    const hasKlgd = !!manualFiles.dsgd;
+    const hasEod = !!(manualFiles.qltkgd && manualFiles.eod && manualFiles.tttt);
+    const hasCqg = !!(manualFiles.qltkgd && manualFiles.accountsBalances);
+
+    if (!hasKlgd && !hasEod && !hasCqg) {
+      toast.error('Vui lòng chọn tối thiểu file DSGD (cho KLGD), hoặc QLTKGD+EOD+TTTT (cho EOD), hoặc QLTKGD+Accounts_Balances (cho CQG).');
+      return;
+    }
+
+    setReconUploadRunning(true);
+    setReconResult(null);
+    const toastId = toast.loading('Đang upload files và chạy đối chiếu...');
+
+    try {
+      const formData = new FormData();
+      Object.entries(manualFiles).forEach(([key, file]) => {
+        if (file) {
+          formData.append(key, file);
+        }
+      });
+      formData.append('usdRate', String(reconUsdRate));
+
+      const res = await fetch(`${API_BASE_URL}/reconciliation/test-upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi upload chạy đối chiếu');
+
+      setReconResult(data);
+      const hasErrors = Object.keys(data.errors || {}).length > 0;
+      if (data.success) {
+        toast.success('Đối chiếu thành công: Tất cả dữ liệu khớp!', { id: toastId, duration: 6000 });
+      } else if (hasErrors) {
+        toast.error(`Đối chiếu xong có lỗi: ${Object.values(data.errors || {}).join(', ')}`, { id: toastId, duration: 6000 });
+      } else {
+        toast('Đối chiếu thành công: Phát hiện chênh lệch dữ liệu', { id: toastId, duration: 6000 });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi đối chiếu', { id: toastId });
+    } finally {
+      setReconUploadRunning(false);
     }
   };
 
@@ -1082,6 +1231,345 @@ export default function AdminBotConfigPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ============================================================ */}
+        {/* RECONCILIATION TEST SECTION */}
+        {/* ============================================================ */}
+        <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                <FileText size={24} color="var(--color-primary)" /> Kiểm Thử Đối Chiếu Dữ Liệu
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Chọn bộ file mẫu có sẵn hoặc để Bot tự tải từ M-System, rồi chạy đối chiếu KLGD / EOD / CQG.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                id="btn-load-recon-dates"
+                type="button"
+                onClick={handleLoadReconSampleDates}
+                className="btn btn-secondary"
+                style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              >
+                <RefreshCw size={14} /> Tải danh sách ngày
+              </button>
+              <button
+                id="btn-run-auto-recon"
+                type="button"
+                onClick={handleRunAutoRecon}
+                disabled={reconAutoRunning}
+                className="btn btn-primary"
+                style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', opacity: reconAutoRunning ? 0.7 : 1 }}
+              >
+                <Activity size={14} className={reconAutoRunning ? 'animate-spin' : ''} />
+                {reconAutoRunning ? 'Bot đang tải file...' : '🤖 Bot tự động tải & Đối chiếu'}
+              </button>
+            </div>
+          </div>
+
+          {/* Tab selector */}
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <button
+              type="button"
+              onClick={() => { setReconTab('sample'); setReconResult(null); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                background: reconTab === 'sample' ? 'var(--color-primary)' : 'transparent',
+                color: reconTab === 'sample' ? '#fff' : 'var(--text-secondary)',
+                border: reconTab === 'sample' ? 'none' : '1px solid var(--border-color)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              📂 Chạy từ file mẫu local
+            </button>
+            <button
+              type="button"
+              onClick={() => { setReconTab('upload'); setReconResult(null); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                background: reconTab === 'upload' ? 'var(--color-primary)' : 'transparent',
+                color: reconTab === 'upload' ? '#fff' : 'var(--text-secondary)',
+                border: reconTab === 'upload' ? 'none' : '1px solid var(--border-color)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              📤 Upload file thủ công
+            </button>
+          </div>
+
+          {reconTab === 'sample' ? (
+            /* Sample date selector */
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-primary)' }}>📂 Chọn bộ file mẫu từ BackupMS</h3>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: '1', minWidth: '200px' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Ngày giao dịch</label>
+                  <select
+                    id="recon-sample-date-select"
+                    value={reconSelectedPath}
+                    onChange={e => setReconSelectedPath(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.9rem' }}
+                  >
+                    {reconSampleDates.length === 0 && <option value="">-- Nhấn "Tải danh sách ngày" trước --</option>}
+                    {reconSampleDates.map((d, i) => (
+                      <option key={i} value={d.samplePath}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ minWidth: '160px' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Tỷ giá USD/VND</label>
+                  <input
+                    id="recon-usd-rate"
+                    type="number"
+                    value={reconUsdRate}
+                    onChange={e => setReconUsdRate(Number(e.target.value))}
+                    style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.9rem' }}
+                  />
+                </div>
+                <button
+                  id="btn-run-recon-test"
+                  type="button"
+                  onClick={handleRunReconTest}
+                  disabled={reconRunning || !reconSelectedPath}
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', opacity: reconRunning || !reconSelectedPath ? 0.6 : 1 }}
+                >
+                  <Play size={14} className={reconRunning ? 'animate-spin' : ''} />
+                  {reconRunning ? 'Đang chạy...' : 'Chạy kiểm thử'}
+                </button>
+              </div>
+              {reconSelectedPath && (
+                <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                  📁 {reconSelectedPath}
+                </p>
+              )}
+            </div>
+          ) : (
+            /* Manual Uploader Card */
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>📤 Tải lên các file báo cáo cần đối chiếu</h3>
+                <div style={{ width: '140px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 600 }}>Tỷ giá USD/VND</label>
+                  <input
+                    id="recon-usd-rate-upload"
+                    type="number"
+                    value={reconUsdRate}
+                    onChange={e => setReconUsdRate(Number(e.target.value))}
+                    style={{ width: '100%', padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* 1. KLGD Files */}
+                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Activity size={14} color="var(--color-primary)" /> Đối chiếu Khớp lệnh (KLGD)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File DSGD.xlsx (MS) <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, dsgd: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File FR1.xlsx (CQG)</label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, fr1: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File FR2.xlsx (CQG)</label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, fr2: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File TTM.xlsx (Optional)</label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, ttm: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. EOD & CQG Files */}
+                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FileText size={14} color="var(--color-primary)" /> Đối chiếu Số dư EOD & CQG
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File QLTKGD.xlsx (MS Balance) <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, qltkgd: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File TTTT.xlsx (MS Closed Positions) <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, tttt: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File eod.csv (MS EOD Report) <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input type="file" accept=".csv" onChange={e => setManualFiles(prev => ({ ...prev, eod: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>File Accounts_Balances.xlsx (CQG Balance)</label>
+                      <input type="file" accept=".xlsx,.xls" onChange={e => setManualFiles(prev => ({ ...prev, accountsBalances: e.target.files?.[0] || null }))} style={{ fontSize: '0.75rem', width: '100%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setManualFiles({})}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  Xóa hết file đã chọn
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRunUploadReconTest}
+                  disabled={reconUploadRunning}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 24px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', opacity: reconUploadRunning ? 0.6 : 1 }}
+                >
+                  <Upload size={14} className={reconUploadRunning ? 'animate-spin' : ''} />
+                  {reconUploadRunning ? 'Đang chạy đối chiếu...' : 'Chạy đối chiếu file đã chọn'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Results display */}
+          {reconResult && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* KLGD Result */}
+              {reconResult.errors?.klgd ? (
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ color: '#ef4444', fontWeight: 700, marginBottom: '8px' }}>❌ KLGD - Lỗi: {reconResult.errors.klgd}</h4>
+                </div>
+              ) : reconResult.results?.klgd ? (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>📊 Đối chiếu Khớp lệnh (KLGD)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                    {[
+                      { label: 'Tổng MS', value: `${reconResult.results.klgd.totals?.totalDSGD ?? '—'} lot`, color: '#60a5fa' },
+                      { label: 'Tổng CQG', value: `${reconResult.results.klgd.totals?.totalFR ?? '—'} lot`, color: '#60a5fa' },
+                      { label: 'Chênh lệch', value: `${reconResult.results.klgd.totals?.differ ?? '—'} lot`, color: reconResult.results.klgd.totals?.differ > 0 ? '#ef4444' : '#10b981' },
+                      { label: 'GD lệch chi tiết', value: `${reconResult.results.klgd.mismatchedTrades?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTrades?.length > 0 ? '#ef4444' : '#10b981' },
+                      { label: 'TK lệch TTM', value: `${reconResult.results.klgd.mismatchedTTM?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTTM?.length > 0 ? '#f59e0b' : '#10b981' },
+                    ].map((stat, i) => (
+                      <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{stat.label}</p>
+                        <p style={{ fontSize: '1.1rem', fontWeight: 700, color: stat.color, fontFamily: 'monospace' }}>{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* EOD Result */}
+              {reconResult.errors?.eod ? (
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ color: '#ef4444', fontWeight: 700 }}>❌ EOD - Lỗi: {reconResult.errors.eod}</h4>
+                </div>
+              ) : reconResult.results?.eod ? (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>💰 Đối chiếu Số dư EOD</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    {[
+                      { label: 'TK lệch số dư (≥1,000đ)', value: `${reconResult.results.eod.mismatchedEOD?.length ?? 0}`, color: reconResult.results.eod.mismatchedEOD?.length > 0 ? '#ef4444' : '#10b981' },
+                      { label: 'TK âm ký quỹ', value: `${reconResult.results.eod.negativeIMRAcc?.length ?? 0}`, color: reconResult.results.eod.negativeIMRAcc?.length > 0 ? '#ef4444' : '#10b981' },
+                    ].map((stat, i) => (
+                      <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{stat.label}</p>
+                        <p style={{ fontSize: '1.2rem', fontWeight: 700, color: stat.color, fontFamily: 'monospace' }}>{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {reconResult.results.eod.negativeIMRAcc?.length > 0 && (
+                    <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: '8px', borderLeft: '3px solid #ef4444' }}>
+                      <p style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 600 }}>🚨 TK âm ký quỹ: {reconResult.results.eod.negativeIMRAcc.join(', ')}</p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* CQG Result */}
+              {reconResult.errors?.cqg ? (
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ color: '#ef4444', fontWeight: 700 }}>❌ CQG - Lỗi: {reconResult.errors.cqg}</h4>
+                </div>
+              ) : reconResult.results?.cqg !== undefined ? (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>🔵 Đối chiếu Số dư CQG</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>TK lệch số dư CQG (&gt;100 USD)</p>
+                      <p style={{ fontSize: '1.2rem', fontWeight: 700, color: reconResult.results.cqg.length > 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{reconResult.results.cqg.length}</p>
+                    </div>
+                  </div>
+                  {reconResult.results.cqg.length > 0 && (
+                    <div style={{ marginTop: '12px', overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--bg-secondary)' }}>
+                            {['Mã TKGD', 'MS (USD)', 'CQG (USD)', 'Chênh lệch', 'Trạng thái'].map(h => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reconResult.results.cqg.slice(0, 20).map((r: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 600, fontFamily: 'monospace' }}>{r.maTKGD}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>{r.calculatedBalance?.toFixed(2)}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>{r.cqgBalance?.toFixed(2)}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>{r.differ?.toFixed(2)}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '0.75rem' }}>
+                                {!r.inCQG ? '⚠️ Không có trên CQG' : !r.inMS ? '⚠️ Không có trên MS' : '⚠️ Lệch'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {reconResult.results.cqg.length > 20 && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>... và {reconResult.results.cqg.length - 20} tài khoản khác</p>}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Auto reconciliation result */}
+          {reconAutoResult && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+              <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>🤖 Kết quả Bot Tự Động</h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px', fontFamily: 'monospace' }}>📁 {reconAutoResult.downloadDir}</p>
+              {reconAutoResult.results?.eod && (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>TK lệch EOD</p>
+                    <p style={{ fontSize: '1.2rem', fontWeight: 700, color: reconAutoResult.results.eod.mismatchedEOD?.length > 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{reconAutoResult.results.eod.mismatchedEOD?.length ?? 0}</p>
+                  </div>
+                  <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>TK âm ký quỹ</p>
+                    <p style={{ fontSize: '1.2rem', fontWeight: 700, color: reconAutoResult.results.eod.negativeIMRAcc?.length > 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{reconAutoResult.results.eod.negativeIMRAcc?.length ?? 0}</p>
+                  </div>
+                </div>
+              )}
+              {Object.entries(reconAutoResult.errors || {}).map(([k, v]) => (
+                <p key={k} style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '8px' }}>❌ {k}: {String(v)}</p>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

@@ -532,7 +532,7 @@ export class SeedService implements OnApplicationBootstrap {
             actionDescription: 'Kiểm tra kết quả EOD của CCP / CE. Kiểm tra lệnh MM đã lên CCP / CE hay chưa.',
           },
           {
-            taskId: 'ops_open_03',
+            taskId: 'TASK_CHECK_EOD',
             taskName:
               'Đối chiếu & Chạy EOD M-System (MS, CQG, ACM, Email)',
             priority: 'HIGH',
@@ -567,7 +567,7 @@ export class SeedService implements OnApplicationBootstrap {
               'Xử lý sau EOD (M-System, Ổ shared QLGD, Email)',
             priority: 'HIGH',
             sortOrder: 5,
-            dependsOnTaskIds: ['ops_open_03', 'ops_open_rpa_download'],
+            dependsOnTaskIds: ['TASK_CHECK_EOD', 'ops_open_rpa_download'],
             actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
           },
           {
@@ -576,11 +576,11 @@ export class SeedService implements OnApplicationBootstrap {
               'Thực hiện Start of Day (SOD) (M-System)',
             priority: 'HIGH',
             sortOrder: 6,
-            dependsOnTaskIds: ['ops_open_03'],
+            dependsOnTaskIds: ['TASK_CHECK_EOD'],
             actionDescription: 'Cập nhật Start of Day (SOD) cho hệ thống M-System. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.',
           },
           {
-            taskId: 'ops_open_06',
+            taskId: 'TASK_CHECK_CQG',
             taskName:
               'Đồng bộ CQG (Sync CQG) (CQG Cast, M-System)',
             priority: 'MEDIUM',
@@ -589,9 +589,9 @@ export class SeedService implements OnApplicationBootstrap {
             actionDescription: 'Kiểm tra việc reset dữ liệu trên CQG; sau khi reset xong, thực hiện đồng bộ số dư (Sync CQG) thủ công lên CQG Cast.',
           },
           {
-            taskId: 'ops_open_06_1',
+            taskId: 'TASK_MARGIN_CHECK',
             taskName:
-              'Check sai ký quỹ, check sai lãi lỗ dự kiến (Sử dụng tool và 3 file)',
+              'Kiểm tra ký quỹ và lãi lỗ dự kiến (Margin Checker)',
             priority: 'MEDIUM',
             sortOrder: 8,
             actionDescription: 'Sử dụng công cụ kiểm tra ký quỹ và lãi lỗ dự kiến, import 3 file dữ liệu đối chiếu.',
@@ -622,7 +622,7 @@ export class SeedService implements OnApplicationBootstrap {
             actionDescription: 'Nếu có Quyết định thay đổi ký quỹ có hiệu lực từ phiên T, người trực ca 1 thực hiện tạo bản ghi thay đổi, người trực ca 2 duyệt bản ghi (thực hiện khi có Trưởng bộ phận).',
           },
           {
-            taskId: 'ops_during_02',
+            taskId: 'TASK_CHECK_KLGD',
             taskName:
               'Giám sát & Đối chiếu MS vs CQG (M-System, CQG Cast, Email)',
             priority: 'HIGH',
@@ -654,9 +654,9 @@ export class SeedService implements OnApplicationBootstrap {
             actionDescription: 'Gửi thông báo thời hạn tất toán hợp đồng; thực hiện hủy lệnh chờ và đóng vị thế bắt buộc nếu TVKD không tự thực hiện đúng hạn.',
           },
           {
-            taskId: 'ops_during_06',
+            taskId: 'TASK_CCP_STATISTICS',
             taskName:
-              'Báo cáo Ban giám sát (M-System, CQG, ACM, Whatsapp)',
+              'Báo cáo & Thống kê CCP gửi Ban giám sát (DSGD, TTM, TTTT)',
             priority: 'HIGH',
             sortOrder: 6,
             actionDescription: 'Thống kê các dữ liệu giao dịch trong phiên: DSGD, TTM… gửi Ban giám sát qua Whatsapp.',

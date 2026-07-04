@@ -24,6 +24,7 @@
     "test:ms-login": "ts-node src/test-ms-login.ts",
     "test:ms-prices": "ts-node src/test-ms-prices.ts",
     "test:reconcile": "ts-node src/test-reconciliation.ts",
+    "test:reconcile-local": "ts-node src/test-reconcile-local-files.ts",
     "test:cqg-login": "ts-node src/test-cqg-login.ts",
     "test:cqg-qss": "ts-node src/test-cqg-qss.ts"
   },

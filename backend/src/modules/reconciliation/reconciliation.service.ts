@@ -349,14 +349,23 @@ export class ReconciliationService {
     if (rows.length < 2) return [];
 
     const header = rows[0].map(h => String(h || '').trim());
-    const maTKGDIdx = header.indexOf('Mã TKGD');
-    const maHDIdx = header.indexOf('Mã HĐ');
-    const tongMuaIdx = header.indexOf('Tổng mua');
-    const tongBanIdx = header.indexOf('Tổng bán');
-    const giaKhopIdx = header.indexOf('Giá khớp');
+    
+    // Support all variations of headers
+    const maTKGDIdx = header.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
+    const maHDIdx = header.findIndex(h => h === 'Mã HĐ' || h === 'Mã hợp đồng');
+    
+    const tongMuaIdx = header.findIndex(h => 
+      h === 'KL Mua' || h === 'Tổng KL Mua' || h === 'Tổng mua' || h === 'Tổng KL mua'
+    );
+    const tongBanIdx = header.findIndex(h => 
+      h === 'KL Bán' || h === 'Tổng KL Bán' || h === 'Tổng bán' || h === 'Tổng KL bán'
+    );
+    const giaKhopIdx = header.findIndex(h => 
+      h === 'Giá TB' || h === 'Giá khớp' || h === 'Giá trung bình'
+    );
 
     if (maTKGDIdx === -1 || maHDIdx === -1 || tongMuaIdx === -1 || tongBanIdx === -1) {
-      throw new Error('Thiếu cột bắt buộc trong file TTM.xlsx (Mã TKGD, Mã HĐ, Tổng mua, Tổng bán)');
+      throw new Error('Thiếu cột bắt buộc trong file TTM.xlsx (Mã TKGD, Mã HĐ, KL Mua/Tổng mua, KL Bán/Tổng bán)');
     }
 
     const result = [];
@@ -624,15 +633,15 @@ export class ReconciliationService {
     if (qltkgdRows.length < 2) throw new Error('File QLTKGD.xlsx rỗng');
 
     const qltkgdHeader = qltkgdRows[0].map(h => String(h || '').trim());
-    const maTKGDIdx = qltkgdHeader.indexOf('Mã TKGD');
-    const soDuTKKQDauNgayIdx = qltkgdHeader.indexOf('Số dư TKKQ đầu ngày');
-    const nopRutTrongPhienIdx = qltkgdHeader.indexOf('Nộp rút trong phiên');
-    const phiGiaoDichIdx = qltkgdHeader.indexOf('Phí giao dịch');
-    const phiQuyenChonIdx = qltkgdHeader.indexOf('Phí quyền chọn');
-    const phiDVThanhToanIdx = qltkgdHeader.indexOf('Phí dịch vụ thanh toán (VND)');
+    const maTKGDIdx = qltkgdHeader.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
+    const soDuTKKQDauNgayIdx = qltkgdHeader.findIndex(h => h === 'Số dư TKKQ đầu ngày' || h.includes('đầu ngày'));
+    const nopRutTrongPhienIdx = qltkgdHeader.findIndex(h => h === 'Nộp rút trong phiên' || h.includes('Nộp rút'));
+    const phiGiaoDichIdx = qltkgdHeader.findIndex(h => h === 'Phí giao dịch' || h.includes('Phí giao dịch'));
+    const phiQuyenChonIdx = qltkgdHeader.findIndex(h => h === 'Phí quyền chọn' || h.includes('Phí quyền chọn'));
+    const phiDVThanhToanIdx = qltkgdHeader.findIndex(h => h === 'Phí dịch vụ thanh toán (VND)' || h === 'Thuế/Phí' || h === 'Thuế / Phí' || h.includes('Thanh toán') || h.includes('Thuế/Phí'));
 
     if (maTKGDIdx === -1 || soDuTKKQDauNgayIdx === -1 || nopRutTrongPhienIdx === -1 || phiGiaoDichIdx === -1 || phiQuyenChonIdx === -1 || phiDVThanhToanIdx === -1) {
-      throw new Error('Thiếu cột bắt buộc trong QLTKGD.xlsx');
+      throw new Error(`Thiếu cột bắt buộc trong QLTKGD.xlsx (tìm thấy: maTKGD:${maTKGDIdx}, đầu ngày:${soDuTKKQDauNgayIdx}, nộp rút:${nopRutTrongPhienIdx}, phí GD:${phiGiaoDichIdx}, phí QC:${phiQuyenChonIdx}, phí DVTT:${phiDVThanhToanIdx})`);
     }
 
     const qltkgdDataMap = new Map<string, {
