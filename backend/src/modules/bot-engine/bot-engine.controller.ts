@@ -258,6 +258,31 @@ export class BotEngineController {
   }
 
   /**
+   * Upload hang_hoa.xlsx file manually containing commodity specifications.
+   */
+  @Post('commodity-upload')
+  async uploadCommodityFile(@Body() body: { base64: string; filename?: string }) {
+    try {
+      const targetPath = this.gttService.getHangHoaXlsxPath();
+
+      if (!body.base64) {
+        throw new Error('Không có dữ liệu file được gửi lên.');
+      }
+
+      const buffer = Buffer.from(body.base64, 'base64');
+      fs.writeFileSync(targetPath, buffer);
+
+      this.logger.log(`hang_hoa.xlsx uploaded successfully to: ${targetPath}`);
+      return { success: true, message: 'Upload file hàng hóa thành công!', path: targetPath };
+    } catch (err: any) {
+      throw new HttpException(
+        `Upload file hàng hóa thất bại: ${err.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * Trigger the full GTT check pipeline:
    * 1. Optionally download market.csv from M-System
    * 2. Read contract list from GTT.xlsx
@@ -315,6 +340,28 @@ export class BotEngineController {
       throw new HttpException(
         `Không thể xuất file sửa giá: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Pushes the GTT correction prices directly to M-System.
+   */
+  @Post('gtt-report/push-to-ms')
+  async pushGttCorrectionToMs() {
+    try {
+      const result = await this.gttService.pushCorrectionToMSystem();
+      if (!result.success) {
+        throw new HttpException(result.message, HttpStatus.BAD_REQUEST);
+      }
+      return result;
+    } catch (err: any) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      throw new HttpException(
+        `Lỗi khi đẩy giá lên M-System: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

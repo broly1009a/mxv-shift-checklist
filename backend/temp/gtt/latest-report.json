@@ -1,8 +1,8 @@
 {
-  "runAt": "2026-07-04T10:51:48.536Z",
+  "runAt": "2026-07-06T08:23:58.415Z",
   "totalContracts": 130,
-  "matched": 110,
-  "diffCount": 9,
+  "matched": 108,
+  "diffCount": 11,
   "msOnlyCount": 11,
   "cqgOnlyCount": 0,
   "rows": [
@@ -10,913 +10,1174 @@
       "symbol": "SILF27",
       "gttMs": 61.98,
       "gttCqg": 61.982,
-      "diff": 0.0020000000000024443,
-      "status": "DIFF"
+      "diff": 0.002,
+      "status": "DIFF",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "SILK27",
       "gttMs": 62.85,
       "gttCqg": 62.851,
-      "diff": 0.0009999999999976694,
-      "status": "DIFF"
+      "diff": 0.001,
+      "status": "DIFF",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "SILQ26",
       "gttMs": 60.845,
       "gttCqg": 60.844,
-      "diff": 0.0009999999999976694,
-      "status": "DIFF"
+      "diff": 0.001,
+      "status": "DIFF",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "SILU26",
       "gttMs": 61.065,
       "gttCqg": 61.064,
-      "diff": 0.0009999999999976694,
-      "status": "DIFF"
+      "diff": 0.001,
+      "status": "DIFF",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "SILZ26",
       "gttMs": 61.725,
       "gttCqg": 61.727,
-      "diff": 0.001999999999995339,
-      "status": "DIFF"
+      "diff": 0.002,
+      "status": "DIFF",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "SNDD22U26",
       "gttMs": 52585,
       "gttCqg": 52584.5,
       "diff": 0.5,
-      "status": "DIFF"
+      "status": "DIFF",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "SNDD23U26",
       "gttMs": 52590,
       "gttCqg": 52589,
       "diff": 1,
-      "status": "DIFF"
+      "status": "DIFF",
+      "tickSize": 0.05,
+      "isMinorDiff": false
+    },
+    {
+      "symbol": "TRUN26",
+      "gttMs": 401.2,
+      "gttCqg": 408.5,
+      "diff": 7.3,
+      "status": "DIFF",
+      "tickSize": 0.1,
+      "isMinorDiff": false
+    },
+    {
+      "symbol": "TRUU26",
+      "gttMs": 402.7,
+      "gttCqg": 412,
+      "diff": 9.3,
+      "status": "DIFF",
+      "tickSize": 0.1,
+      "isMinorDiff": false
     },
     {
       "symbol": "ZDSD04U26",
       "gttMs": 3563.5,
       "gttCqg": 3563.38,
-      "diff": 0.11999999999989086,
-      "status": "DIFF"
+      "diff": 0.12,
+      "status": "DIFF",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "ZDSD13Q26",
       "gttMs": 3568,
       "gttCqg": 3568.14,
-      "diff": 0.13999999999987267,
-      "status": "DIFF"
+      "diff": 0.14,
+      "status": "DIFF",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "CP2COQ26",
       "gttMs": 6.192,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "CP2COU26",
       "gttMs": 6.217,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "CP2COV26",
       "gttMs": 6.2425,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "PL1NYF27",
       "gttMs": 1664.5,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "PL1NYJ27",
       "gttMs": 1672.2,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "PL1NYN27",
       "gttMs": 1680,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "PL1NYV26",
       "gttMs": 1654.9,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "SI5COF27",
       "gttMs": 63.625,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "SI5COH27",
       "gttMs": 63.9,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "SI5COU26",
       "gttMs": 62.795,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "SI5COZ26",
       "gttMs": 63.5,
       "gttCqg": null,
       "diff": null,
-      "status": "MS_ONLY"
+      "status": "MS_ONLY",
+      "tickSize": 0.05,
+      "isMinorDiff": false
     },
     {
       "symbol": "ALIQ26",
       "gttMs": 3323.5,
       "gttCqg": 3323.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ALIU26",
       "gttMs": 3260.25,
       "gttCqg": 3260.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ALIZ26",
       "gttMs": 3222.75,
       "gttCqg": 3222.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "C.ZCEQ264400",
       "gttMs": 4.5,
       "gttCqg": 4.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "C.ZCEU264500",
       "gttMs": 6.375,
       "gttCqg": 6.375,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "C.ZCEU264550",
       "gttMs": 5.5,
       "gttCqg": 5.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "C.ZCEV264600",
       "gttMs": 11.625,
       "gttCqg": 11.625,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "CCEH27",
       "gttMs": 5220,
       "gttCqg": 5220,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "CCEU26",
       "gttMs": 5036,
       "gttCqg": 5036,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "CPEF27",
       "gttMs": 6.283,
       "gttCqg": 6.283,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "CPEQ26",
       "gttMs": 6.1395,
       "gttCqg": 6.1395,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "CPEU26",
       "gttMs": 6.169,
       "gttCqg": 6.169,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "CPEX26",
       "gttMs": 6.228,
       "gttCqg": 6.228,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "CPEZ26",
       "gttMs": 6.2545,
       "gttCqg": 6.2545,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "CTEH27",
       "gttMs": 78.52,
       "gttCqg": 78.52,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "CTEV26",
       "gttMs": 75.34,
       "gttCqg": 75.34,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "CTEZ26",
       "gttMs": 77.12,
       "gttCqg": 77.12,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "FEFU26",
       "gttMs": 97.7,
       "gttCqg": 97.7,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "FEFV26",
       "gttMs": 97.57,
       "gttCqg": 97.57,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "FEFZ26",
       "gttMs": 97.35,
       "gttCqg": 97.35,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "KCEH27",
       "gttMs": 281.1,
       "gttCqg": 281.1,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "KCEU26",
       "gttMs": 301.2,
       "gttCqg": 301.2,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "KCEZ26",
       "gttMs": 286.3,
       "gttCqg": 286.3,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "KWEH27",
       "gttMs": 663.75,
       "gttCqg": 663.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "KWEK27",
       "gttMs": 671.25,
       "gttCqg": 671.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "KWEU26",
       "gttMs": 638.5,
       "gttCqg": 638.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "KWEZ26",
       "gttMs": 652.25,
       "gttCqg": 652.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "LRCF27",
       "gttMs": 3646,
       "gttCqg": 3646,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "LRCH27",
       "gttMs": 3614,
       "gttCqg": 3614,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "LRCK27",
       "gttMs": 3592,
       "gttCqg": 3592,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "LRCU26",
       "gttMs": 3716,
       "gttCqg": 3716,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "LRCX26",
       "gttMs": 3679,
       "gttCqg": 3679,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGH27",
       "gttMs": 6.34,
       "gttCqg": 6.34,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGK27",
       "gttMs": 6.3935,
       "gttCqg": 6.3935,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGQ26",
       "gttMs": 6.1395,
       "gttCqg": 6.1395,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGU26",
       "gttMs": 6.169,
       "gttCqg": 6.169,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGV26",
       "gttMs": 6.1975,
       "gttCqg": 6.1975,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MHGZ26",
       "gttMs": 6.2545,
       "gttCqg": 6.2545,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.0005,
+      "isMinorDiff": true
     },
     {
       "symbol": "MPOQ26",
       "gttMs": 4458,
       "gttCqg": 4458,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 1,
+      "isMinorDiff": true
     },
     {
       "symbol": "MQCU26",
       "gttMs": 6.17,
       "gttCqg": 6.17,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.002,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZCH27",
       "gttMs": 456.5,
       "gttCqg": 456.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZCU26",
       "gttMs": 423,
       "gttCqg": 423,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZCZ26",
       "gttMs": 441.5,
       "gttCqg": 441.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZLU26",
       "gttMs": 66.34,
       "gttCqg": 66.34,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.02,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZLV26",
       "gttMs": 65.82,
       "gttCqg": 65.82,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.02,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZLZ26",
       "gttMs": 65.44,
       "gttCqg": 65.44,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.02,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZMU26",
       "gttMs": 303.2,
       "gttCqg": 303.2,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.2,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZMV26",
       "gttMs": 301.4,
       "gttCqg": 301.4,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.2,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZMZ26",
       "gttMs": 304.4,
       "gttCqg": 304.4,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.2,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZSF27",
       "gttMs": 1162.5,
       "gttCqg": 1162.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZSH27",
       "gttMs": 1168.5,
       "gttCqg": 1168.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZSU26",
       "gttMs": 1136,
       "gttCqg": 1136,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZSX26",
       "gttMs": 1148,
       "gttCqg": 1148,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZWU26",
       "gttMs": 600,
       "gttCqg": 600,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "MZWZ26",
       "gttMs": 614,
       "gttCqg": 614,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.5,
+      "isMinorDiff": true
     },
     {
       "symbol": "P.ZCEQ263900",
       "gttMs": 1,
       "gttCqg": 1,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "P.ZCEU263850",
       "gttMs": 2.25,
       "gttCqg": 2.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "PLEF27",
       "gttMs": 1640.3,
       "gttCqg": 1640.3,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.1,
+      "isMinorDiff": true
     },
     {
       "symbol": "PLEV26",
       "gttMs": 1628.1,
       "gttCqg": 1628.1,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.1,
+      "isMinorDiff": true
     },
     {
       "symbol": "QWH27",
       "gttMs": 474,
       "gttCqg": 474,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.1,
+      "isMinorDiff": true
     },
     {
       "symbol": "QWV26",
       "gttMs": 476.2,
       "gttCqg": 476.2,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.1,
+      "isMinorDiff": true
     },
     {
       "symbol": "QWZ26",
       "gttMs": 474,
       "gttCqg": 474,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.1,
+      "isMinorDiff": true
     },
     {
       "symbol": "SBEH27",
       "gttMs": 15.77,
       "gttCqg": 15.77,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "SBEK27",
       "gttMs": 15.6,
       "gttCqg": 15.6,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "SBEV26",
       "gttMs": 14.85,
       "gttCqg": 14.85,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.01,
+      "isMinorDiff": true
     },
     {
       "symbol": "SIEU26",
       "gttMs": 61.064,
       "gttCqg": 61.064,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.001,
+      "isMinorDiff": true
     },
     {
       "symbol": "SILH27",
       "gttMs": 62.39,
       "gttCqg": 62.39,
       "diff": 0,
-      "status": "MATCH"
-    },
-    {
-      "symbol": "TRUN26",
-      "gttMs": 401.2,
-      "gttCqg": 401.2,
-      "diff": 0,
-      "status": "MATCH"
-    },
-    {
-      "symbol": "TRUU26",
-      "gttMs": 402.7,
-      "gttCqg": 402.7,
-      "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.005,
+      "isMinorDiff": true
     },
     {
       "symbol": "XBF27",
       "gttMs": 1162.25,
       "gttCqg": 1162.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XBQ26",
       "gttMs": 1136.25,
       "gttCqg": 1136.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XBU26",
       "gttMs": 1136,
       "gttCqg": 1136,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XBX26",
       "gttMs": 1147.75,
       "gttCqg": 1147.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XCH27",
       "gttMs": 456.25,
       "gttCqg": 456.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XCU26",
       "gttMs": 423,
       "gttCqg": 423,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XCZ26",
       "gttMs": 441.5,
       "gttCqg": 441.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XWH27",
       "gttMs": 626.5,
       "gttCqg": 626.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XWK27",
       "gttMs": 634,
       "gttCqg": 634,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XWU26",
       "gttMs": 599.75,
       "gttCqg": 599.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "XWZ26",
       "gttMs": 614,
       "gttCqg": 614,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.125,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZCEH27",
       "gttMs": 456.25,
       "gttCqg": 456.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZCEK27",
       "gttMs": 465,
       "gttCqg": 465,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZCEU26",
       "gttMs": 423,
       "gttCqg": 423,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZCEZ26",
       "gttMs": 441.5,
       "gttCqg": 441.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.25,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZFTU26",
       "gttMs": 212.5,
       "gttCqg": 212.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZFTV26",
       "gttMs": 212.9,
       "gttCqg": 212.9,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZFTX26",
       "gttMs": 213.2,
       "gttCqg": 213.2,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZFTZ26",
       "gttMs": 213.5,
       "gttCqg": 213.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEF27",
       "gttMs": 65.33,
       "gttCqg": 65.33,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEH27",
       "gttMs": 65.14,
       "gttCqg": 65.14,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEK27",
       "gttMs": 64.85,
       "gttCqg": 64.85,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEN26",
       "gttMs": 66.95,
       "gttCqg": 66.95,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEQ26",
       "gttMs": 66.77,
       "gttCqg": 66.77,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEU26",
       "gttMs": 66.34,
       "gttCqg": 66.34,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEV26",
       "gttMs": 65.81,
       "gttCqg": 65.81,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZLEZ26",
       "gttMs": 65.43,
       "gttCqg": 65.43,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZMEH27",
       "gttMs": 308.7,
       "gttCqg": 308.7,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZMEQ26",
       "gttMs": 305.5,
       "gttCqg": 305.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZMEU26",
       "gttMs": 303.1,
       "gttCqg": 303.1,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZMEV26",
       "gttMs": 301.4,
       "gttCqg": 301.4,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZMEZ26",
       "gttMs": 304.4,
       "gttCqg": 304.4,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZSEH27",
       "gttMs": 1168.25,
       "gttCqg": 1168.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZSEK27",
       "gttMs": 1175,
       "gttCqg": 1175,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZSEQ26",
       "gttMs": 1136.25,
       "gttCqg": 1136.25,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZSEU26",
       "gttMs": 1136,
       "gttCqg": 1136,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZSEX26",
       "gttMs": 1147.75,
       "gttCqg": 1147.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZWAH27",
       "gttMs": 626.5,
       "gttCqg": 626.5,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZWAK27",
       "gttMs": 634,
       "gttCqg": 634,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZWAU26",
       "gttMs": 599.75,
       "gttCqg": 599.75,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     },
     {
       "symbol": "ZWAZ26",
       "gttMs": 614,
       "gttCqg": 614,
       "diff": 0,
-      "status": "MATCH"
+      "status": "MATCH",
+      "tickSize": 0.05,
+      "isMinorDiff": true
     }
   ],
   "marketCsvPath": "C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\backend\\temp\\gtt\\market.csv",
-  "gttFilePath": "C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\backend\\temp\\gtt\\trang-thai-mo.xlsx"
+  "gttFilePath": "C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\backend\\temp\\gtt\\trang-thai-mo.xlsx",
+  "hangHoaFilePath": null
 }

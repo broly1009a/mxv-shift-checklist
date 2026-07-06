@@ -14,6 +14,8 @@ export interface GttDataRow {
   gttCqg: number | null;
   diff: number | null;
   status: 'MATCH' | 'DIFF' | 'MS_ONLY' | 'CQG_ONLY' | 'NO_PRICE';
+  tickSize?: number | null;
+  isMinorDiff?: boolean;
 }
 
 export interface GttReport {
@@ -26,6 +28,7 @@ export interface GttReport {
   rows: GttDataRow[];
   marketCsvPath: string | null;
   gttFilePath: string | null;
+  hangHoaFilePath?: string | null;
 }
 
 @Injectable()
@@ -38,6 +41,7 @@ export class GttCheckerService {
   private readonly marketCsvPath = path.join(process.cwd(), 'temp', 'gtt', 'market.csv');
   private readonly trangThaiMoPath = path.join(process.cwd(), 'temp', 'gtt', 'trang-thai-mo.xlsx');
   private readonly gttXlsxPath = path.join(process.cwd(), 'temp', 'gtt', 'GTT.xlsx');
+  private readonly hangHoaXlsxPath = path.join(process.cwd(), 'temp', 'gtt', 'hang_hoa.xlsx');
   private readonly reportJsonPath = path.join(process.cwd(), 'temp', 'gtt', 'latest-report.json');
 
   constructor(
@@ -53,7 +57,7 @@ export class GttCheckerService {
       if (fs.existsSync(this.reportJsonPath)) {
         this.latestReport = JSON.parse(fs.readFileSync(this.reportJsonPath, 'utf8'));
       }
-    } catch {}
+    } catch { }
   }
 
   getWorkDir() {
@@ -66,6 +70,10 @@ export class GttCheckerService {
 
   getMarketCsvPath() {
     return this.marketCsvPath;
+  }
+
+  getHangHoaXlsxPath() {
+    return this.hangHoaXlsxPath;
   }
 
   getLatestReport(): GttReport | null {
@@ -223,6 +231,130 @@ export class GttCheckerService {
     return results;
   }
 
+  private readonly FALLBACK_TICK_SIZES: Record<string, number> = {
+    ALI: 0.25,
+    BM: 0.01,
+    CCE: 1.0,
+    CLE: 0.01,
+    CPE: 0.0005,
+    CTE: 0.01,
+    FEF: 0.01,
+    KCE: 0.05,
+    KWE: 0.25,
+    LRC: 1.0,
+    MCLE: 0.01,
+    MHG: 0.0005,
+    MPO: 1.0,
+    MQC: 0.002,
+    MOJ: 0.0125,
+    MZC: 0.5,
+    MZL: 0.02,
+    MZM: 0.2,
+    MZS: 0.5,
+    MZW: 0.5,
+    NGE: 0.001,
+    NQG: 0.005,
+    NQM: 0.025,
+    PLE: 0.1,
+    QO: 0.01,
+    QP: 0.25,
+    QW: 0.1,
+    RBE: 0.0001,
+    SBE: 0.01,
+    SIE: 0.001,
+    SIL: 0.005,
+    TRU: 0.1,
+    XB: 0.125,
+    XC: 0.125,
+    XW: 0.125,
+    ZCE: 0.25
+  };
+
+  /**
+   * Parse commodity min tick sizes from Excel sheet
+   */
+  parseCommodityTickSizes(filePath: string): Map<string, number> {
+    const result = new Map<string, number>();
+    if (!fs.existsSync(filePath)) {
+      this.logger.warn(`Không tìm thấy file hàng hóa tại: ${filePath}. Sẽ sử dụng dữ liệu mặc định.`);
+      return result;
+    }
+
+    try {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      if (data.length < 2) return result;
+
+      // Find headers for "Mã hàng hóa" and "Bước giá tối thiểu"
+      const headers = data[0].map(h => String(h || '').trim().toLowerCase());
+      const commodityIdx = headers.findIndex(h => h.includes('mã hàng hóa') || h.includes('commodity code') || h.includes('commodity') || h === 'symbol');
+      const tickSizeIdx = headers.findIndex(h => h.includes('bước giá tối thiểu') || h.includes('minimum tick size') || h.includes('tick size') || h.includes('bước giá'));
+
+      if (commodityIdx === -1 || tickSizeIdx === -1) {
+        this.logger.warn(`Không tìm thấy tiêu đề phù hợp trong file hàng hóa: Mã hàng hóa (${commodityIdx}), Bước giá (${tickSizeIdx}). Tìm kiếm trong các hàng tiếp theo...`);
+        // Fallback search in first 20 rows to see if headers are shifted
+        let foundHeaders = false;
+        for (let r = 1; r < Math.min(20, data.length); r++) {
+          const row = data[r].map(h => String(h || '').trim().toLowerCase());
+          const cIdx = row.findIndex(h => h.includes('mã hàng hóa') || h.includes('commodity code') || h.includes('commodity') || h === 'symbol');
+          const tIdx = row.findIndex(h => h.includes('bước giá tối thiểu') || h.includes('minimum tick size') || h.includes('tick size') || h.includes('bước giá'));
+          if (cIdx !== -1 && tIdx !== -1) {
+            this.logger.log(`Tìm thấy tiêu đề tại hàng ${r + 1}: cIdx=${cIdx}, tIdx=${tIdx}`);
+            for (let i = r + 1; i < data.length; i++) {
+              const itemRow = data[i];
+              if (itemRow && itemRow[cIdx]) {
+                const code = String(itemRow[cIdx]).trim().toUpperCase();
+                const tickStr = String(itemRow[tIdx] ?? '').replace(/,/g, '').trim();
+                const tick = parseFloat(tickStr);
+                if (code && !isNaN(tick)) {
+                  result.set(code, tick);
+                }
+              }
+            }
+            foundHeaders = true;
+            break;
+          }
+        }
+        if (!foundHeaders) {
+          // If headers still not found, try hardcoded columns B (index 1) and K (index 10) as fallback
+          this.logger.warn(`Dùng cột mặc định: Mã hàng hóa (Cột B), Bước giá (Cột K)`);
+          for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (row && row[1]) {
+              const code = String(row[1]).trim().toUpperCase();
+              const tickStr = String(row[10] ?? '').replace(/,/g, '').trim();
+              const tick = parseFloat(tickStr);
+              if (code && !isNaN(tick)) {
+                result.set(code, tick);
+              }
+            }
+          }
+        }
+      } else {
+        // Headers found in row 0
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          if (row && row[commodityIdx]) {
+            const code = String(row[commodityIdx]).trim().toUpperCase();
+            const tickStr = String(row[tickSizeIdx] ?? '').replace(/,/g, '').trim();
+            const tick = parseFloat(tickStr);
+            if (code && !isNaN(tick)) {
+              result.set(code, tick);
+            }
+          }
+        }
+      }
+
+      this.logger.log(`Đã phân tích file hang_hoa.xlsx: tìm thấy ${result.size} bước giá của các mặt hàng.`);
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi phân tích file hàng hóa: ${err.message}`, err.stack);
+    }
+
+    return result;
+  }
+
   /**
    * Reconcile settlement prices (from market.csv) against CQG prices.
    */
@@ -234,12 +366,40 @@ export class GttCheckerService {
     const rows: GttDataRow[] = [];
     const allSymbols = new Set([...contractList, ...cqgMap.keys()]);
 
+    const commodityMap = this.parseCommodityTickSizes(this.hangHoaXlsxPath);
+    // Combine with fallbacks and sort descending by length
+    const allCommodityCodes = Array.from(new Set([
+      ...commodityMap.keys(),
+      ...Object.keys(this.FALLBACK_TICK_SIZES)
+    ])).sort((a, b) => b.length - a.length);
+
     for (const symbol of allSymbols) {
       const gttMs = msMap.get(symbol) ?? null;
       const gttCqg = cqgMap.get(symbol) ?? null;
 
       let status: GttDataRow['status'];
       let diff: number | null = null;
+      let tickSize: number | null = null;
+      let isMinorDiff: boolean = false;
+
+      // Parse commodity code from symbol
+      let cleanSymbol = symbol.toUpperCase().trim();
+      if (cleanSymbol.startsWith('C.')) {
+        cleanSymbol = cleanSymbol.substring(2);
+      } else if (cleanSymbol.startsWith('P.')) {
+        cleanSymbol = cleanSymbol.substring(2);
+      }
+
+      for (const code of allCommodityCodes) {
+        if (cleanSymbol.startsWith(code)) {
+          tickSize = commodityMap.get(code) ?? this.FALLBACK_TICK_SIZES[code] ?? null;
+          break;
+        }
+      }
+
+      if (tickSize === null) {
+        tickSize = 0.05; // default fallback if not found anywhere
+      }
 
       if (gttMs === null && gttCqg === null) {
         status = 'NO_PRICE';
@@ -248,11 +408,21 @@ export class GttCheckerService {
       } else if (gttCqg === null) {
         status = 'MS_ONLY';
       } else {
-        diff = Math.abs(gttCqg - gttMs);
+        diff = parseFloat(Math.abs(gttCqg - gttMs).toFixed(6));
         status = diff < 0.0001 ? 'MATCH' : 'DIFF';
+        // Check if diff is minor (<= tickSize)
+        isMinorDiff = diff <= (tickSize + 0.00001);
       }
 
-      rows.push({ symbol, gttMs, gttCqg, diff, status });
+      rows.push({
+        symbol,
+        gttMs,
+        gttCqg,
+        diff,
+        status,
+        tickSize,
+        isMinorDiff,
+      });
     }
 
     // Sort priority: DIFF first, then MS_ONLY, CQG_ONLY, NO_PRICE, MATCH last
@@ -390,7 +560,7 @@ export class GttCheckerService {
   private async addSettlementColumn(page: Page, batchNum: number): Promise<void> {
     this.logger.log(`📊 Thêm cột S cho Batch ${batchNum}...`);
 
-    await page.waitForSelector('.ag-header-cell[col-id="symbol"]', { state: 'visible', timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('.ag-header-cell[col-id="symbol"]', { state: 'visible', timeout: 10000 }).catch(() => { });
 
     const sColExists = await page.locator('[class*="column-header"]:has-text("S"), th:has-text("S")').isVisible({ timeout: 2000 }).catch(() => false);
     if (sColExists) {
@@ -450,7 +620,7 @@ export class GttCheckerService {
     }
 
     if (!itemClicked) {
-      await page.dblclick('.wpfe-list-item-content').catch(() => {});
+      await page.dblclick('.wpfe-list-item-content').catch(() => { });
     }
 
     await page.waitForTimeout(500);
@@ -486,7 +656,7 @@ export class GttCheckerService {
       // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
       // =========================================================================
       this.logger.log('Đăng nhập M-System và tải file báo cáo...');
-      
+
       let msUrl = 'https://msadmin.mxv.com.vn/';
       let msUser = process.env.MS_USER || '';
       let msPass = process.env.MS_PASSWORD || '';
@@ -543,7 +713,7 @@ export class GttCheckerService {
           pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
           if (pinSelectorVisible) break;
           this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
-          await page.click('button.btn-primary').catch(() => {});
+          await page.click('button.btn-primary').catch(() => { });
           await page.waitForTimeout(2000);
         }
 
@@ -558,7 +728,7 @@ export class GttCheckerService {
         }
 
         this.logger.log('Xác thực đăng nhập...');
-        await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => {});
+        await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => { });
         await page.waitForTimeout(3000);
         this.logger.log('🎉 ĐĂNG NHẬP M-SYSTEM THÀNH CÔNG!');
 
@@ -758,6 +928,7 @@ export class GttCheckerService {
       rows,
       marketCsvPath: this.marketCsvPath,
       gttFilePath: fs.existsSync(this.trangThaiMoPath) ? this.trangThaiMoPath : this.gttXlsxPath,
+      hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath) ? this.hangHoaXlsxPath : null,
     };
 
     // Save report to disk
@@ -809,6 +980,76 @@ export class GttCheckerService {
 
     this.logger.log(`Created correction Excel file for ${type} at: ${exportPath}`);
     return exportPath;
+  }
+
+  /**
+   * Pushes the price corrections of majorly discrepant contracts directly to the M-System import price API.
+   */
+  async pushCorrectionToMSystem(): Promise<{ success: boolean; message: string; data?: any }> {
+    const report = this.getLatestReport();
+    if (!report || !report.rows) {
+      throw new Error('Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.');
+    }
+
+    // Filter out only DIFF rows that are NOT minor discrepancies
+    const majorDiffRows = report.rows.filter(r => r.status === 'DIFF' && !r.isMinorDiff);
+    if (majorDiffRows.length === 0) {
+      return {
+        success: true,
+        message: 'Không có hợp đồng nào bị lệch giá nhiều ngoài biên bước giá để đẩy lên M-System.',
+      };
+    }
+
+    // Generate CSV content
+    const csvHeaders = 'contractCode,settlePrice';
+    const csvRows = majorDiffRows.map(r => `${r.symbol},${r.gttCqg}`);
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+
+    this.logger.log(`Chuẩn bị đẩy ${majorDiffRows.length} hợp đồng bị lệch lên M-System...`);
+    this.logger.log(`Nội dung CSV:\n${csvContent}`);
+
+    try {
+      const formData = new FormData();
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      formData.append('file', csvBlob, 'import-prices.csv');
+
+      const response = await fetch('https://uat-msapi.mxv.com.vn/market/importPrice', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer a95e60eab94d21e0c994ef714ecec8abb8cbe49a9c8815064c5f98baec24eef6',
+        },
+        body: formData,
+      });
+
+      const responseText = await response.text();
+      this.logger.log(`M-System API response status: ${response.status} - body: ${responseText}`);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Lỗi từ M-System (HTTP ${response.status}): ${responseText || response.statusText}`,
+        };
+      }
+
+      let parsedData: any = null;
+      try {
+        parsedData = JSON.parse(responseText);
+      } catch (e) {
+        parsedData = responseText;
+      }
+
+      return {
+        success: true,
+        message: `Đã đẩy thành công ${majorDiffRows.length} hợp đồng lên M-System.`,
+        data: parsedData,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi gọi API M-System: ${err.message}`, err.stack);
+      return {
+        success: false,
+        message: `Lỗi kết nối tới API M-System: ${err.message || 'Lỗi không xác định'}`,
+      };
+    }
   }
 }
 

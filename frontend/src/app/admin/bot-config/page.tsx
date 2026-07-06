@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   BarChart2,
   Download,
+  Settings,
 } from 'lucide-react';
 
 interface BotConfig {
@@ -72,13 +73,16 @@ export default function AdminBotConfigPage() {
   // GTT Check state
   const [gttFile, setGttFile] = useState<File | null>(null);
   const [marketCsvFile, setMarketCsvFile] = useState<File | null>(null);
+  const [commodityFile, setCommodityFile] = useState<File | null>(null);
   const [uploadingGtt, setUploadingGtt] = useState(false);
   const [uploadingMarketCsv, setUploadingMarketCsv] = useState(false);
+  const [uploadingCommodity, setUploadingCommodity] = useState(false);
   const [runningGttCheck, setRunningGttCheck] = useState(false);
   const [downloadMarketCsv, setDownloadMarketCsv] = useState(false);
   const [gttReport, setGttReport] = useState<any>(null);
   const [loadingGttReport, setLoadingGttReport] = useState(false);
-  const [gttFilter, setGttFilter] = useState<'ALL' | 'DIFF' | 'MATCH' | 'MISSING'>('ALL');
+  const [gttFilter, setGttFilter] = useState<'ALL' | 'DIFF' | 'DIFF_MINOR' | 'DIFF_MAJOR' | 'MATCH' | 'MISSING'>('ALL');
+  const [pushingToMs, setPushingToMs] = useState(false);
 
   // Reconciliation Test state
   const [reconSampleDates, setReconSampleDates] = useState<any[]>([]);
@@ -323,6 +327,31 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  // Upload hang_hoa.xlsx file (Commodity list)
+  const handleUploadCommodity = async () => {
+    if (!token || !commodityFile) return;
+    setUploadingCommodity(true);
+    const toastId = toast.loading('Đang tải lên file hàng hóa...');
+    try {
+      const buffer = await commodityFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/commodity-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ base64, filename: commodityFile.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      toast.success('Upload file hàng hóa thành công!', { id: toastId });
+      // Reload report to refresh data
+      handleLoadGttReport();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi upload', { id: toastId });
+    } finally {
+      setUploadingCommodity(false);
+    }
+  };
+
   // Run GTT check pipeline
   const handleRunGttCheck = async () => {
     if (!token) return;
@@ -519,6 +548,31 @@ export default function AdminBotConfigPage() {
       toast.success('Tải xuống file sửa giá thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải xuống file sửa giá', { id: toastId });
+    }
+  };
+
+  // Push GTT corrections directly to M-System
+  const handlePushToMSystem = async () => {
+    if (!token) return;
+    if (!window.confirm('Bạn có chắc chắn muốn đẩy trực tiếp giá sửa đổi của các hợp đồng lệch nhiều lên M-System không?')) {
+      return;
+    }
+    setPushingToMs(true);
+    const toastId = toast.loading('Đang gửi yêu cầu cập nhật giá lên M-System...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-report/push-to-ms`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Lỗi không rõ từ M-System');
+      }
+      toast.success(data.message || 'Cập nhật giá lên M-System thành công!', { id: toastId, duration: 5000 });
+    } catch (err: any) {
+      toast.error(err.message || 'Gửi yêu cầu cập nhật giá thất bại', { id: toastId, duration: 6000 });
+    } finally {
+      setPushingToMs(false);
     }
   };
 
@@ -958,7 +1012,7 @@ export default function AdminBotConfigPage() {
             </div>
 
             {/* File Upload Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
               {/* GTT.xlsx Upload */}
               <div className="glass-panel" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -1030,6 +1084,36 @@ export default function AdminBotConfigPage() {
                   )}
                 </div>
               </div>
+
+              {/* hang_hoa.xlsx Upload */}
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Settings size={18} color="var(--color-primary)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>File Hàng Hóa (hang_hoa.xlsx)</h4>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Upload file hang_hoa.xlsx để lấy Bước giá tối thiểu của từng mặt hàng phục vụ đối chiếu.
+                </p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    id="commodity-file-input"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={(e) => setCommodityFile(e.target.files?.[0] || null)}
+                    style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUploadCommodity}
+                    disabled={!commodityFile || uploadingCommodity}
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Upload size={14} />
+                    {uploadingCommodity ? 'Đang tải...' : 'Upload'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* GTT Report Table */}
@@ -1049,12 +1133,17 @@ export default function AdminBotConfigPage() {
                       ✅ Khớp: {gttReport.matched}
                     </span>
                     {gttReport.diffCount > 0 && (
-                      <span style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
-                        ⚠️ Chênh lệch: {gttReport.diffCount}
-                      </span>
+                      <>
+                        <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          ⚠️ Lệch ít: {gttReport.rows.filter((r: any) => r.status === 'DIFF' && (r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length}
+                        </span>
+                        <span style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          🚨 Lệch nhiều: {gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length}
+                        </span>
+                      </>
                     )}
                     {(gttReport.msOnlyCount + gttReport.cqgOnlyCount) > 0 && (
-                      <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      <span style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
                         ❓ Thiếu: {gttReport.msOnlyCount + gttReport.cqgOnlyCount}
                       </span>
                     )}
@@ -1065,9 +1154,37 @@ export default function AdminBotConfigPage() {
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', background: 'rgba(239, 68, 68, 0.05)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <AlertTriangle size={14} />
-                      Có {gttReport.diffCount} hợp đồng bị lệch giá. Bạn có thể tải file sửa giá để đẩy vào M-System:
+                      Có {gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length} hợp đồng bị lệch nhiều. Bạn có thể tải file sửa giá hoặc click đẩy trực tiếp lên M-System:
                     </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={handlePushToMSystem}
+                        disabled={pushingToMs}
+                        className="btn"
+                        style={{
+                          padding: '6px 12.5px',
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                          background: 'rgba(59, 130, 246, 0.2)',
+                          border: '1px solid rgba(59, 130, 246, 0.4)',
+                          color: '#60a5fa',
+                          cursor: 'pointer',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                        }}
+                      >
+                        <Upload size={12} /> {pushingToMs ? 'Đang đẩy...' : 'Đẩy Giá Lên M-System'}
+                      </button>
                       <button
                         onClick={() => handleDownloadCorrection('settlement')}
                         className="btn btn-secondary"
@@ -1085,6 +1202,42 @@ export default function AdminBotConfigPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Preview CSV block */}
+                {gttReport.diffCount > 0 && (() => {
+                  const majorDiffRows = gttReport.rows.filter(
+                    (r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))
+                  );
+                  if (majorDiffRows.length === 0) return null;
+                  
+                  const csvHeaders = 'contractCode,settlePrice';
+                  const csvRows = majorDiffRows.map((r: any) => `${r.symbol},${r.gttCqg}`);
+                  const csvContent = [csvHeaders, ...csvRows].join('\n');
+                  
+                  return (
+                    <div style={{ marginBottom: '20px', background: 'rgba(30, 41, 59, 0.4)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <FileText size={14} color="var(--color-accent)" />
+                          Nội Dung File Sửa Giá M-System (CSV Xem Trước - Chỉ Hợp Đồng Lệch Nhiều)
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(csvContent);
+                            toast.success('Đã copy nội dung CSV vào clipboard!');
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto', display: 'flex', alignItems: 'center' }}
+                        >
+                          Copy CSV
+                        </button>
+                      </div>
+                      <pre style={{ margin: 0, padding: '12px', background: '#0f172a', borderRadius: '6px', color: '#38bdf8', fontSize: '0.8rem', fontFamily: 'monospace', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '180px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        {csvContent}
+                      </pre>
+                    </div>
+                  );
+                })()}
 
                 {/* GTT Filter Tabs */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -1113,14 +1266,48 @@ export default function AdminBotConfigPage() {
                       borderRadius: '6px',
                       fontSize: '0.78rem',
                       fontWeight: 600,
-                      background: gttFilter === 'DIFF' ? '#ef4444' : 'rgba(255, 255, 255, 0.05)',
+                      background: gttFilter === 'DIFF' ? '#6b7280' : 'rgba(255, 255, 255, 0.05)',
                       color: gttFilter === 'DIFF' ? '#fff' : 'var(--text-secondary)',
                       border: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                     }}
                   >
-                    Chênh lệch ({gttReport.rows.filter((r: any) => r.status === 'DIFF').length})
+                    Tổng Chênh lệch ({gttReport.rows.filter((r: any) => r.status === 'DIFF').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('DIFF_MINOR')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'DIFF_MINOR' ? '#d97706' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'DIFF_MINOR' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ⚠️ Lệch ít ({gttReport.rows.filter((r: any) => r.status === 'DIFF' && (r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGttFilter('DIFF_MAJOR')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      background: gttFilter === 'DIFF_MAJOR' ? '#ef4444' : 'rgba(255, 255, 255, 0.05)',
+                      color: gttFilter === 'DIFF_MAJOR' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    🚨 Lệch nhiều ({gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})
                   </button>
                   <button
                     type="button"
@@ -1147,7 +1334,7 @@ export default function AdminBotConfigPage() {
                       borderRadius: '6px',
                       fontSize: '0.78rem',
                       fontWeight: 600,
-                      background: gttFilter === 'MISSING' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                      background: gttFilter === 'MISSING' ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
                       color: gttFilter === 'MISSING' ? '#fff' : 'var(--text-secondary)',
                       border: 'none',
                       cursor: 'pointer',
@@ -1165,6 +1352,7 @@ export default function AdminBotConfigPage() {
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Mã HĐ</th>
                         <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>GTT M-System</th>
                         <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>GTT CQG</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Bước giá</th>
                         <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Chênh lệch</th>
                         <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>Trạng thái</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Ghi chú</th>
@@ -1175,12 +1363,14 @@ export default function AdminBotConfigPage() {
                         .filter((row: any) => {
                           if (gttFilter === 'ALL') return true;
                           if (gttFilter === 'DIFF') return row.status === 'DIFF';
+                          if (gttFilter === 'DIFF_MINOR') return row.status === 'DIFF' && (row.isMinorDiff ?? (row.diff !== null && Math.abs(row.diff) <= (row.tickSize ?? 0.05)));
+                          if (gttFilter === 'DIFF_MAJOR') return row.status === 'DIFF' && !(row.isMinorDiff ?? (row.diff !== null && Math.abs(row.diff) <= (row.tickSize ?? 0.05)));
                           if (gttFilter === 'MATCH') return row.status === 'MATCH';
                           if (gttFilter === 'MISSING') return row.status === 'MS_ONLY' || row.status === 'CQG_ONLY';
                           return true;
                         })
                         .map((row: any, idx: number) => {
-                          const isMinorDiff = row.diff !== null && Math.abs(row.diff) <= 0.05;
+                          const isMinorDiff = row.isMinorDiff ?? (row.diff !== null && Math.abs(row.diff) <= (row.tickSize ?? 0.05));
                           return (
                             <tr
                               key={row.symbol}
@@ -1196,14 +1386,17 @@ export default function AdminBotConfigPage() {
                               <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                                 {row.gttCqg !== null ? row.gttCqg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
                               </td>
-                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: row.diff && Math.abs(row.diff) > 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                {row.tickSize !== undefined && row.tickSize !== null ? row.tickSize.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : '0.05'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: row.diff && Math.abs(row.diff) > 0 ? (isMinorDiff ? '#d97706' : '#ef4444') : 'var(--text-muted)' }}>
                                 {row.diff !== null ? row.diff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
                               </td>
                               <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                                 {row.status === 'MATCH' && <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>✅ Khớp</span>}
                                 {row.status === 'DIFF' && (
-                                  <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
-                                    ⚠️ {isMinorDiff ? 'Lệch nhỏ' : 'Lệch nhiều'}
+                                  <span style={{ color: isMinorDiff ? '#d97706' : '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    {isMinorDiff ? '⚠️ Lệch ít' : '🚨 Lệch nhiều'}
                                   </span>
                                 )}
                                 {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>📋 Chỉ có MS</span>}
@@ -1214,9 +1407,9 @@ export default function AdminBotConfigPage() {
                                 {row.status === 'MATCH' && <span style={{ color: 'var(--text-muted)' }}>Khớp hoàn toàn.</span>}
                                 {row.status === 'DIFF' && (
                                   isMinorDiff ? (
-                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>Lệch nhỏ (làm tròn). Kiểm tra kỹ trước khi sửa.</span>
+                                    <span style={{ color: '#d97706', fontWeight: 500 }}>Chênh lệch bằng hoặc nhỏ hơn bước giá tối thiểu ({row.tickSize ?? 0.05}). Lệch nhỏ (làm tròn).</span>
                                   ) : (
-                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>Lệch lớn! Cần tải file sửa giá để đẩy lại M-System.</span>
+                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>Chênh lệch lớn hơn bước giá tối thiểu ({row.tickSize ?? 0.05}). Lệch nhiều! Cần sửa.</span>
                                   )
                                 )}
                                 {row.status === 'MS_ONLY' && <span style={{ color: '#f59e0b', fontWeight: 500 }}>Chỉ có trên MS. Kiểm tra xem hợp đồng đã hoạt động bên CQG chưa.</span>}
