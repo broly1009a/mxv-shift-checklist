@@ -106,8 +106,11 @@ export default function AdminBotConfigPage() {
 
   // Queue state
   const [jobs, setJobs] = useState<BotJobs[]>([]);
-  const [selectedJob, setSelectedJob] = useState<BotJobs | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
+
+  // Derived selected job
+  const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
   // Redirect if not admin
   useEffect(() => {
@@ -157,18 +160,13 @@ export default function AdminBotConfigPage() {
       if (res.ok) {
         const data = await res.json();
         setJobs(data);
-        // Refresh selected job reference if it is currently displayed
-        if (selectedJob) {
-          const updated = data.find((j: BotJobs) => j._id === selectedJob._id);
-          if (updated) setSelectedJob(updated);
-        }
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingJobs(false);
     }
-  }, [token, selectedJob]);
+  }, [token]);
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -852,31 +850,34 @@ export default function AdminBotConfigPage() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {jobs.map((job) => (
-                      <div
-                        key={job._id}
-                        onClick={() => setSelectedJob(selectedJob?._id === job._id ? null : job)}
-                        style={{
-                          padding: '12px',
-                          border: selectedJob?._id === job._id ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          background: selectedJob?._id === job._id ? 'rgba(59, 130, 246, 0.03)' : 'transparent',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {job.jobType === 'RPA_DOWNLOAD_REPORTS' ? 'Tải Báo Cáo RPA' : job.jobType}
-                          </span>
-                          {getStatusBadge(job.status)}
+                    {jobs.map((job) => {
+                      const isSelected = selectedJobId === job._id;
+                      return (
+                        <div
+                          key={job._id}
+                          onClick={() => setSelectedJobId(isSelected ? null : job._id)}
+                          style={{
+                            padding: '12px',
+                            border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            background: isSelected ? 'rgba(59, 130, 246, 0.03)' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {job.jobType === 'RPA_DOWNLOAD_REPORTS' ? 'Tải Báo Cáo RPA' : job.jobType}
+                            </span>
+                            {getStatusBadge(job.status)}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            <span>Thử: {job.attempts}/{job.maxAttempts}</span>
+                            <span>{new Date(job.createdAt).toLocaleTimeString()}</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                          <span>Thử: {job.attempts}/{job.maxAttempts}</span>
-                          <span>{new Date(job.createdAt).toLocaleTimeString()}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
