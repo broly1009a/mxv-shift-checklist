@@ -78,7 +78,7 @@ export default function AdminBotConfigPage() {
   const [uploadingMarketCsv, setUploadingMarketCsv] = useState(false);
   const [uploadingCommodity, setUploadingCommodity] = useState(false);
   const [runningGttCheck, setRunningGttCheck] = useState(false);
-  const [downloadMarketCsv, setDownloadMarketCsv] = useState(false);
+  const [downloadMarketCsv, setDownloadMarketCsv] = useState(true);
   const [gttReport, setGttReport] = useState<any>(null);
   const [loadingGttReport, setLoadingGttReport] = useState(false);
   const [gttFilter, setGttFilter] = useState<'ALL' | 'DIFF' | 'DIFF_MINOR' | 'DIFF_MAJOR' | 'MATCH' | 'MISSING'>('ALL');
@@ -113,6 +113,37 @@ export default function AdminBotConfigPage() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
+  // Download reports state
+  const [downloadTargets, setDownloadTargets] = useState<string[]>([
+    'NKTTHT',
+    'DSTKGD-Futures',
+    'DSTKGD-Spread',
+    'DSTKGD-LME',
+    'DSTKGD-ACM',
+    'QLTKGD',
+    'QLTKGDAmKQ',
+    'TLKQHSKQ',
+    'NR',
+    'DSTrader',
+    'Markettruoc6h',
+    'DSLDK',
+    'DSLCK',
+    'DSLH',
+    'DSLK',
+    'DSGD',
+    'TTM',
+    'TTTT',
+  ]);
+  const [triggeringDownload, setTriggeringDownload] = useState(false);
+  const [trackedJobs, setTrackedJobs] = useState<string[]>([]);
+
+  // Backup MS Audit state
+  const [backupPathMs, setBackupPathMs] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+  const [savingBackupPathMs, setSavingBackupPathMs] = useState(false);
+  const [auditingMs, setAuditingMs] = useState(false);
+  const [auditMsResults, setAuditMsResults] = useState<any>(null);
+  const [triggeringAuditMs, setTriggeringAuditMs] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -143,6 +174,17 @@ export default function AdminBotConfigPage() {
           setCqgUrl(data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
+        }
+      }
+
+      // Fetch Backup MS path
+      const backupRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-ms/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (backupRes.ok) {
+        const backupData = await backupRes.json();
+        if (backupData.backupPath) {
+          setBackupPathMs(backupData.backupPath);
         }
       }
     } catch (err) {
@@ -187,6 +229,30 @@ export default function AdminBotConfigPage() {
     return () => clearInterval(timer);
   }, [fetchJobs]);
 
+  // Auto-download completed tracked jobs
+  useEffect(() => {
+    if (jobs.length === 0 || trackedJobs.length === 0) return;
+
+    const completedJobs = jobs.filter(
+      (job) => trackedJobs.includes(job._id) && job.status === 'COMPLETED'
+    );
+
+    if (completedJobs.length > 0) {
+      completedJobs.forEach((job) => {
+        toast.success(`Job ${job._id} hoàn tất! Tự động tải file nén...`);
+        handleDownloadZip(job._id);
+      });
+      setTrackedJobs((prev) => prev.filter((id) => !completedJobs.some((cj) => cj._id === id)));
+    }
+
+    const terminatedJobs = jobs.filter(
+      (job) => trackedJobs.includes(job._id) && (job.status === 'FAILED' || job.status === 'CANCELLED' as any)
+    );
+    if (terminatedJobs.length > 0) {
+      setTrackedJobs((prev) => prev.filter((id) => !terminatedJobs.some((tj) => tj._id === id)));
+    }
+  }, [jobs, trackedJobs]);
+
   // Save configurations
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,6 +292,77 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setSavingConfig(false);
+    }
+  };
+
+  // Save Backup MS Path
+  const handleSaveBackupMsConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingBackupPathMs(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-ms/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ backupPath: backupPathMs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success(data.message || 'Đã lưu đường dẫn backup MS thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingBackupPathMs(false);
+    }
+  };
+
+  // Run quick scan audit
+  const handleAuditMsBackup = async () => {
+    if (!token) return;
+    setAuditingMs(true);
+    setAuditMsResults(null);
+    const toastId = toast.loading('Đang scan thư mục backup MS...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ms-backup`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup');
+      setAuditMsResults(data);
+      const { ok, missing, outdated } = data.summary;
+      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kiểm tra backup', { id: toastId });
+    } finally {
+      setAuditingMs(false);
+    }
+  };
+
+  // Trigger Playwright backup recovery job
+  const handleTriggerAuditMs = async () => {
+    if (!token) return;
+    setTriggeringAuditMs(true);
+    const toastId = toast.loading('Đang khởi tạo job tải bổ sung file thiếu...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-audit-ms`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job kiểm tra & tải bổ sung file MS thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy bot recovery', { id: toastId });
+    } finally {
+      setTriggeringAuditMs(false);
     }
   };
 
@@ -576,6 +713,97 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  const handleTargetToggle = (target: string) => {
+    setDownloadTargets((prev) =>
+      prev.includes(target) ? prev.filter((t) => t !== target) : [...prev, target]
+    );
+  };
+
+  const handleSelectAllTargets = () => {
+    const all = [
+      'NKTTHT',
+      'DSTKGD-Futures',
+      'DSTKGD-Spread',
+      'DSTKGD-LME',
+      'DSTKGD-ACM',
+      'QLTKGD',
+      'QLTKGDAmKQ',
+      'TLKQHSKQ',
+      'NR',
+      'DSTrader',
+      'Markettruoc6h',
+      'DSLDK',
+      'DSLCK',
+      'DSLH',
+      'DSLK',
+      'DSGD',
+      'TTM',
+      'TTTT',
+    ];
+    if (downloadTargets.length === all.length) {
+      setDownloadTargets([]);
+    } else {
+      setDownloadTargets(all);
+    }
+  };
+
+  const handleTriggerDownload = async () => {
+    if (!token) return;
+    if (downloadTargets.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một báo cáo để tải!');
+      return;
+    }
+    setTriggeringDownload(true);
+    const toastId = toast.loading('Đang gửi yêu cầu khởi chạy robot tải báo cáo...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targets: downloadTargets }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã gửi yêu cầu chạy RPA tải báo cáo! Theo dõi logs ở góc phải.', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kết nối máy chủ', { id: toastId });
+    } finally {
+      setTriggeringDownload(false);
+    }
+  };
+
+  const handleDownloadZip = async (jobId: string) => {
+    if (!token) return;
+    const toastId = toast.loading('Đang chuẩn bị và tạo file ZIP báo cáo...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}/download-zip`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Không thể tải file nén');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BaoCao_MXV_${jobId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Tải file ZIP thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khi tải file', { id: toastId });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -703,182 +931,305 @@ export default function AdminBotConfigPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_450px] gap-8 items-start">
             
-            {/* Left: Forms */}
-            <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
-              {/* M-System Config Box */}
-              <div className="glass-panel" style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                  <Server size={20} color="var(--color-primary)" />
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản Kết Nối M-System</h3>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Đường dẫn URL đăng nhập M-System
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
-                      <input
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '40px' }}
-                        placeholder="https://msystem.mxv.vn/"
-                        value={msystemUrl}
-                        onChange={(e) => setMsystemUrl(e.target.value)}
-                        required
-                      />
-                    </div>
+            {/* Left: Forms & Tools */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* M-System Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Server size={20} color="var(--color-primary)" />
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản Kết Nối M-System</h3>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div>
                       <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Tên đăng nhập (Username)
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Nhập username..."
-                        value={msystemUsername}
-                        onChange={(e) => setMsystemUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Mã PIN ảo M-System
+                        Đường dẫn URL đăng nhập M-System
                       </label>
                       <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
                         <input
-                          type={showMsystemPin ? 'text' : 'password'}
+                          type="url"
                           className="form-input"
-                          style={{ paddingRight: '40px' }}
-                          placeholder="Mã PIN..."
-                          value={msystemPin}
-                          onChange={(e) => setMsystemPin(e.target.value)}
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://msystem.mxv.vn/"
+                          value={msystemUrl}
+                          onChange={(e) => setMsystemUrl(e.target.value)}
                           required
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowMsystemPin(!showMsystemPin)}
-                          style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                        >
-                          {showMsystemPin ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Mật khẩu (Password)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Key size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
-                      <input
-                        type={showMsystemPassword ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingLeft: '40px', paddingRight: '40px' }}
-                        placeholder="Mật khẩu..."
-                        value={msystemPassword}
-                        onChange={(e) => setMsystemPassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowMsystemPassword(!showMsystemPassword)}
-                        style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                      >
-                        {showMsystemPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Tên đăng nhập (Username)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Nhập username..."
+                          value={msystemUsername}
+                          onChange={(e) => setMsystemUsername(e.target.value)}
+                          required
+                        />
+                      </div>
 
-              {/* CQG Config Box */}
-              <div className="glass-panel" style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                  <Cpu size={20} color="var(--color-primary)" />
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản Kết Nối CQG Desktop</h3>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Đường dẫn URL CQG Desktop
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
-                      <input
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '40px' }}
-                        placeholder="https://m.cqg.com/cqg/desktop/logon?ref=forced"
-                        value={cqgUrl}
-                        onChange={(e) => setCqgUrl(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Tên đăng nhập CQG
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="CQG Username..."
-                        value={cqgUsername}
-                        onChange={(e) => setCqgUsername(e.target.value)}
-                        required
-                      />
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Mã PIN ảo M-System
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showMsystemPin ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Mã PIN..."
+                            value={msystemPin}
+                            onChange={(e) => setMsystemPin(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowMsystemPin(!showMsystemPin)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showMsystemPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div>
                       <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Mật khẩu CQG
+                        Mật khẩu (Password)
                       </label>
                       <div style={{ position: 'relative' }}>
+                        <Key size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
                         <input
-                          type={showCqgPassword ? 'text' : 'password'}
+                          type={showMsystemPassword ? 'text' : 'password'}
                           className="form-input"
-                          style={{ paddingRight: '40px' }}
-                          placeholder="CQG Password..."
-                          value={cqgPassword}
-                          onChange={(e) => setCqgPassword(e.target.value)}
+                          style={{ paddingLeft: '40px', paddingRight: '40px' }}
+                          placeholder="Mật khẩu..."
+                          value={msystemPassword}
+                          onChange={(e) => setMsystemPassword(e.target.value)}
                           required
                         />
                         <button
                           type="button"
-                          onClick={() => setShowCqgPassword(!showCqgPassword)}
+                          onClick={() => setShowMsystemPassword(!showMsystemPassword)}
                           style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
                         >
-                          {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {showMsystemPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Submit Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="submit"
-                  disabled={savingConfig}
-                  className="btn btn-primary"
-                  style={{ padding: '14px 28px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Save size={18} /> Lưu Cấu Hình Credentials
-                </button>
+                {/* CQG Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Cpu size={20} color="var(--color-primary)" />
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản Kết Nối CQG Desktop</h3>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Đường dẫn URL CQG Desktop
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type="url"
+                          className="form-input"
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://m.cqg.com/cqg/desktop/logon?ref=forced"
+                          value={cqgUrl}
+                          onChange={(e) => setCqgUrl(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Tên đăng nhập CQG
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="CQG Username..."
+                          value={cqgUsername}
+                          onChange={(e) => setCqgUsername(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Mật khẩu CQG
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showCqgPassword ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="CQG Password..."
+                            value={cqgPassword}
+                            onChange={(e) => setCqgPassword(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCqgPassword(!showCqgPassword)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    disabled={savingConfig}
+                    className="btn btn-primary"
+                    style={{ padding: '14px 28px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Save size={18} /> Lưu Cấu Hình Credentials
+                  </button>
+                </div>
+              </form>
+
+              {/* Kiểm Tra File Backup MS Box */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <Settings size={20} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Kiểm Tra & Đồng Bộ File Backup MS</h3>
+                </div>
+
+                {/* Form config path */}
+                <form onSubmit={handleSaveBackupMsConfig} style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '280px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Đường dẫn thư mục backup MS của IT Tool
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures"
+                      value={backupPathMs}
+                      onChange={(e) => setBackupPathMs(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={savingBackupPathMs}
+                    className="btn btn-secondary"
+                    style={{ padding: '12px 20px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                  >
+                    {savingBackupPathMs ? 'Đang lưu...' : 'Lưu đường dẫn'}
+                  </button>
+                </form>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleAuditMsBackup}
+                    disabled={auditingMs || triggeringAuditMs}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '12px 20px',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <RefreshCw size={16} className={auditingMs ? 'animate-spin' : ''} /> Quét Thư Mục Backup
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerAuditMs}
+                    disabled={auditingMs || triggeringAuditMs}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Cpu size={16} className={triggeringAuditMs ? 'animate-pulse' : ''} />
+                    {triggeringAuditMs ? 'Đang gửi lệnh...' : '🤖 Tải Bổ Sung File Thiếu'}
+                  </button>
+                </div>
+
+                {/* Audit results */}
+                {auditMsResults && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Tổng số file: {auditMsResults.summary.total}
+                      </span>
+                      <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Đầy đủ (Hôm nay): {auditMsResults.summary.ok}
+                      </span>
+                      {auditMsResults.summary.missing > 0 && (
+                        <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Thiếu: {auditMsResults.summary.missing}
+                        </span>
+                      )}
+                      {auditMsResults.summary.outdated > 0 && (
+                        <span style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Cũ (Không phải hôm nay): {auditMsResults.summary.outdated}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Tên File</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '120px' }}>Trạng Thái</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>Thời Gian Thay Đổi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditMsResults.files.map((file: any) => (
+                            <tr key={file.key} style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 500 }}>{file.filename}</td>
+                              <td style={{ padding: '10px 12px' }}>
+                                {file.status === 'OK' ? (
+                                  <span style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>OK</span>
+                                ) : file.status === 'OUTDATED' ? (
+                                  <span style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>FILE CŨ</span>
+                                ) : (
+                                  <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>THIẾU</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                                {file.lastModified ? new Date(file.lastModified).toLocaleString('vi-VN') : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
-            </form>
+            </div>
 
             {/* Right: Job Queue Logs */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -921,9 +1272,32 @@ export default function AdminBotConfigPage() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {job.jobType === 'RPA_DOWNLOAD_REPORTS' ? 'Tải Báo Cáo RPA' : job.jobType}
+                              {job.jobType === 'RPA_DOWNLOAD_REPORTS' ? 'Tải Báo Cáo RPA' : job.jobType === 'FILE_AUDIT_MS' ? 'Kiểm Tra & Tải Bổ Sung MS' : job.jobType}
                             </span>
-                            {getStatusBadge(job.status)}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {job.status === 'COMPLETED' && job.jobType === 'RPA_DOWNLOAD_REPORTS' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadZip(job._id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#10b981',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '2px',
+                                  }}
+                                  title="Tải file ZIP"
+                                >
+                                  <Download size={14} />
+                                </button>
+                              )}
+                              {getStatusBadge(job.status)}
+                            </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                             <span>Thử: {job.attempts}/{job.maxAttempts}</span>
@@ -939,33 +1313,54 @@ export default function AdminBotConfigPage() {
               {/* Selected Job Console Details */}
               {selectedJob && (
                 <div className="glass-panel" style={{ padding: '20px', background: '#0a0b10', border: '1px solid #1a1e2a' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <Terminal size={16} color="#10b981" />
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>
-                      Console Output - Job {selectedJob._id.substring(0, 8)}
-                    </h4>
-                  </div>
-                  <div
-                    style={{
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      fontFamily: 'monospace',
-                      fontSize: '0.75rem',
-                      color: '#a7f3d0',
-                      background: 'rgba(0,0,0,0.4)',
-                      padding: '12px',
-                      borderRadius: '6px',
-                      lineHeight: '1.5',
-                      whiteSpace: 'pre-wrap',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                    }}
-                  >
-                    {selectedJob.logs.map((logLine, idx) => (
-                      <div key={idx}>{logLine}</div>
-                    ))}
-                  </div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                     <Terminal size={16} color="#10b981" />
+                     <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>
+                       Console Output - Job {selectedJob._id.substring(0, 8)}
+                     </h4>
+                   </div>
+                   <div
+                     style={{
+                       maxHeight: '200px',
+                       overflowY: 'auto',
+                       fontFamily: 'monospace',
+                       fontSize: '0.75rem',
+                       color: '#a7f3d0',
+                       background: 'rgba(0,0,0,0.4)',
+                       padding: '12px',
+                       borderRadius: '6px',
+                       lineHeight: '1.5',
+                       whiteSpace: 'pre-wrap',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       gap: '4px',
+                     }}
+                   >
+                     {selectedJob.logs.map((logLine, idx) => (
+                       <div key={idx}>{logLine}</div>
+                     ))}
+                   </div>
+                   {selectedJob.status === 'COMPLETED' && selectedJob.jobType === 'RPA_DOWNLOAD_REPORTS' && (
+                     <button
+                       type="button"
+                       onClick={() => handleDownloadZip(selectedJob._id)}
+                       className="btn btn-primary"
+                       style={{
+                         marginTop: '16px',
+                         width: '100%',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center',
+                         gap: '8px',
+                         padding: '12px',
+                         background: 'linear-gradient(135deg, #10b981, #059669)',
+                         border: 'none',
+                         fontWeight: 600,
+                       }}
+                     >
+                       <Download size={18} /> Tải File ZIP Báo Cáo
+                     </button>
+                   )}
                 </div>
               )}
             </div>

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import type { Response } from 'express';
+import JSZip from 'jszip';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { BotJobQueueService } from './bot-job-queue.service';
@@ -364,5 +365,160 @@ export class BotEngineController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Triggers an on-demand RPA report download job.
+   */
+  @Post('trigger-download')
+  async triggerDownload(@Body('targets') targets?: string[]) {
+    const defaultTargets = [
+      'NKTTHT',
+      'DSTKGD-Futures',
+      'DSTKGD-Spread',
+      'DSTKGD-LME',
+      'DSTKGD-ACM',
+      'QLTKGD',
+      'TTTT',
+      'NR',
+      'Markettruoc6h',
+    ];
+
+    const actualTargets = targets && targets.length > 0 ? targets : defaultTargets;
+
+    const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+      targets: actualTargets,
+      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+      maxAttempts: 1, // Only 1 attempt for manual triggers
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu chạy RPA tải báo cáo vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  /**
+   * Zips and downloads files for a completed RPA download job.
+   */
+  @Get('jobs/:id/download-zip')
+  async downloadJobZip(@Param('id') jobId: string, @Res() res: Response) {
+    const job = await this.botJobModel.findById(jobId).exec();
+    if (!job) {
+      throw new HttpException('Không tìm thấy background job tương ứng.', HttpStatus.NOT_FOUND);
+    }
+
+    if (job.status !== 'COMPLETED') {
+      throw new HttpException(`Job chưa hoàn thành. Trạng thái hiện tại: ${job.status}`, HttpStatus.BAD_REQUEST);
+    }
+
+    const jobDir = path.join(process.cwd(), 'temp', 'reports', jobId);
+    if (!fs.existsSync(jobDir)) {
+      throw new HttpException('Thư mục lưu trữ báo cáo của Job này không tồn tại hoặc đã bị xóa.', HttpStatus.NOT_FOUND);
+    }
+
+    const files = fs.readdirSync(jobDir);
+    if (files.length === 0) {
+      throw new HttpException('Không có báo cáo nào được tải về trong Job này.', HttpStatus.NOT_FOUND);
+    }
+
+    const zip = new JSZip();
+    for (const filename of files) {
+      const filePath = path.join(jobDir, filename);
+      const fileStat = fs.statSync(filePath);
+      if (fileStat.isFile()) {
+        const fileContent = fs.readFileSync(filePath);
+        zip.file(filename, fileContent);
+      }
+    }
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename=BaoCao_MXV_${jobId}.zip`);
+    return res.send(zipBuffer);
+  }
+
+  // =========================================================================
+  // BACKUP MS AUDIT ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Returns the configured MS backup folder path.
+   */
+  @Get('backup-ms/config')
+  async getBackupMsConfig() {
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    return { backupPath };
+  }
+
+  /**
+   * Saves the MS backup folder path to system settings.
+   */
+  @Post('backup-ms/config')
+  async saveBackupMsConfig(@Body('backupPath') backupPath: string) {
+    if (!backupPath || typeof backupPath !== 'string') {
+      throw new HttpException('backupPath không hợp lệ.', HttpStatus.BAD_REQUEST);
+    }
+    await this.settingsService.setSetting('bot_backup_path_ms', backupPath.trim());
+    return { success: true, message: 'Đã lưu đường dẫn thư mục backup MS.' };
+  }
+
+  /**
+   * Synchronously scans the MS backup folder and returns status of each required file.
+   * Does NOT trigger any Playwright download — just a quick file system scan.
+   */
+  @Post('audit-ms-backup')
+  async auditMsBackup() {
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+
+    if (!fs.existsSync(backupPath)) {
+      throw new HttpException(
+        `Thư mục backup không tồn tại: ${backupPath}. Vui lòng kiểm tra lại đường dẫn.`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const results = await this.jobQueueService.scanMsBackupFiles(backupPath);
+    const okCount = results.filter(r => r.status === 'OK').length;
+    const missingCount = results.filter(r => r.status === 'MISSING').length;
+    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+
+    return {
+      success: true,
+      backupPath,
+      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      files: results,
+    };
+  }
+
+  /**
+   * Triggers an async FILE_AUDIT_MS job:
+   * Scans backup folder → downloads only missing/outdated files via Playwright.
+   */
+  @Post('trigger-audit-ms')
+  async triggerAuditMs() {
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+
+    const job = await this.jobQueueService.enqueue('FILE_AUDIT_MS', {
+      backupPath,
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup MS vào hàng đợi.',
+      jobId: job._id,
+    };
   }
 }
