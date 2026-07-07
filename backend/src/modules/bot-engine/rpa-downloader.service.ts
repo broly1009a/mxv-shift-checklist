@@ -9,7 +9,7 @@ import { decrypt } from './utils/crypto';
 export class RpaDownloaderService {
   private readonly logger = new Logger(RpaDownloaderService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(private readonly settingsService: SystemSettingsService) { }
 
   /**
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
@@ -124,7 +124,7 @@ export class RpaDownloaderService {
         pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
         if (pinSelectorVisible) break;
         this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
-        await page.click('button.btn-primary').catch(() => {});
+        await page.click('button.btn-primary').catch(() => { });
         await page.waitForTimeout(2000);
       }
 
@@ -152,7 +152,7 @@ export class RpaDownloaderService {
       return { browser, page };
     } catch (err: any) {
       this.logger.error(`Đăng nhập MSystem thất bại: ${err.message}`);
-      
+
       // Ghi nhận file log và ảnh chụp lỗi để debug
       try {
         const debugDir = path.join(process.cwd(), 'temp', 'debug');
@@ -168,7 +168,7 @@ export class RpaDownloaderService {
         fs.writeFileSync(txtPath, logContent, 'utf8');
 
         if (page && !page.isClosed()) {
-          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => {});
+          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => { });
           const html = await page.content().catch(() => '');
           if (html) {
             fs.writeFileSync(htmlPath, html, 'utf8');
@@ -245,7 +245,7 @@ export class RpaDownloaderService {
       await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 20000 });
       await page.fill('input[name="userName"]', username);
       await page.fill('input[name="password"]', password);
-      
+
       // Click Login button
       this.logger.log('Clicking CQG login button...');
       await page.click('button[type="submit"]');
@@ -261,7 +261,7 @@ export class RpaDownloaderService {
       return { browser, page };
     } catch (err: any) {
       this.logger.error(`Đăng nhập CQG thất bại: ${err.message}`);
-      
+
       // Ghi nhận file log và ảnh chụp lỗi để debug
       try {
         const debugDir = path.join(process.cwd(), 'temp', 'debug');
@@ -277,7 +277,7 @@ export class RpaDownloaderService {
         fs.writeFileSync(txtPath, logContent, 'utf8');
 
         if (page && !page.isClosed()) {
-          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => {});
+          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => { });
           const html = await page.content().catch(() => '');
           if (html) {
             fs.writeFileSync(htmlPath, html, 'utf8');
@@ -325,11 +325,11 @@ export class RpaDownloaderService {
       // Start waiting for download event before clicking
       this.logger.log(`Starting download waiting with timeout: ${customTimeoutMs}ms...`);
       const downloadPromise = page.waitForEvent('download', { timeout: customTimeoutMs });
-      
+
       this.logger.log('Clicking CSV/Excel download icon/button...');
       // Click the first matching visible button
       await page.locator(csvButtonSelector).first().click();
-      
+
       const download = await downloadPromise;
       await download.saveAs(downloadPath);
       this.logger.log(`Saved report successfully to: ${downloadPath}`);
@@ -350,10 +350,25 @@ export class RpaDownloaderService {
   ): Promise<void> {
     try {
       this.logger.log(`Navigating menu: ${menuSteps.join(' -> ')}`);
-      
-      // Click sequential menus
-      for (const menu of menuSteps) {
-        const selector = `xpath=//a[text()='${menu}']`;
+
+      // Click sequential menus intelligently
+      for (let i = 0; i < menuSteps.length; i++) {
+        const menu = menuSteps[i];
+        const selector = `xpath=//a[text()='${menu}' or normalize-space(text())='${menu}']`;
+
+        // Nếu không phải mục cuối cùng (tức là dropdown parent), kiểm tra xem nó đã mở sẵn chưa
+        if (i < menuSteps.length - 1) {
+          const isAlreadyOpen = await page.locator(selector).evaluate((el) => {
+            const parentLi = el.closest('li');
+            return parentLi ? (parentLi.classList.contains('open') || parentLi.classList.contains('show')) : false;
+          }).catch(() => false);
+
+          if (isAlreadyOpen) {
+            this.logger.log(`Menu cha "${menu}" đã mở sẵn (có class open/show). Bỏ qua click.`);
+            continue;
+          }
+        }
+
         await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
         await page.click(selector, { force: true });
         await page.waitForTimeout(1000); // Stabilize UI
@@ -369,17 +384,17 @@ export class RpaDownloaderService {
       }
 
       // Wait for CSV download button
-      const csvButtonSelector = `xpath=//i[contains(@class, 'fa-file-csv')]`;
-      await page.waitForSelector(csvButtonSelector, { state: 'visible', timeout: 15000 });
+      const csvButtonSelector = `button.ladda-button:has(i.fa-file-csv), i.fa-file-csv, button:has(.fa-file-csv)`;
+      await page.waitForSelector(csvButtonSelector, { state: 'visible', timeout: 45000 });
 
       // Start waiting for download event before clicking (increased to 90 seconds for heavy reports)
       const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
-      
+
       this.logger.log('Clicking CSV/Excel download icon...');
-      await page.click(csvButtonSelector, { force: true });
-      
+      await page.locator(csvButtonSelector).first().click({ force: true });
+
       const download = await downloadPromise;
-      
+
       // Save downloaded file to target directory
       await download.saveAs(downloadPath);
       this.logger.log(`Saved report successfully to: ${downloadPath}`);
@@ -387,7 +402,7 @@ export class RpaDownloaderService {
       // Optional: click parent menu again to collapse/reset menu state
       if (menuSteps.length > 0) {
         const topMenuSelector = `xpath=//a[text()='${menuSteps[0]}']`;
-        await page.click(topMenuSelector, { force: true }).catch(() => {});
+        await page.click(topMenuSelector, { force: true }).catch(() => { });
         await page.waitForTimeout(1000);
       }
     } catch (err: any) {
@@ -403,7 +418,7 @@ export class RpaDownloaderService {
   }
 
   async downloadDSTKGDFutures(page: Page, destFile: string) {
-    await this.gotoAndDownload(page, '#/clientManagement/investorManagement', destFile);
+    await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'], destFile);
   }
 
   async downloadDSTKGDSpread(page: Page, destFile: string) {
@@ -427,7 +442,7 @@ export class RpaDownloaderService {
   }
 
   async downloadQLTTTKGDAmKQ(page: Page, destFile: string) {
-    await this.gotoAndDownload(page, '#/clientManagement/negativeMarginManagement', destFile);
+    await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'QL TKGD âm ký quỹ'], destFile);
   }
 
   async downloadTLKQHSKQ(page: Page, destFile: string) {
@@ -465,7 +480,7 @@ export class RpaDownloaderService {
       const download = await downloadPromise;
       await download.saveAs(destFile);
 
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => {});
+      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`Markettruoc6h downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải Markettruoc6h.xlsx thất bại: ${err.message}`);
@@ -517,7 +532,7 @@ export class RpaDownloaderService {
       const download = await downloadPromise;
       await download.saveAs(destFile);
 
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => {});
+      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`DSGD downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải DSGD.xlsx thất bại: ${err.message}`);
@@ -681,12 +696,12 @@ export class RpaDownloaderService {
             downloaded = true;
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       if (!downloaded) {
         // Fallback: try menu navigation QL hệ thống
-        await page.click("xpath=//a[text()='QL hệ thống']").catch(() => {});
+        await page.click("xpath=//a[text()='QL hệ thống']").catch(() => { });
         await page.waitForTimeout(1000);
 
         const eodMenuSelectors = [
@@ -716,7 +731,7 @@ export class RpaDownloaderService {
         const debugDir = path.join(process.cwd(), 'temp', 'debug');
         if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        await page.screenshot({ path: path.join(debugDir, `eod-csv-debug-${ts}.png`), fullPage: true }).catch(() => {});
+        await page.screenshot({ path: path.join(debugDir, `eod-csv-debug-${ts}.png`), fullPage: true }).catch(() => { });
         throw new Error('Không tìm thấy nút tải EOD CSV. Đã lưu debug screenshot tại temp/debug/.');
       }
     } catch (err: any) {
@@ -827,7 +842,7 @@ export class RpaDownloaderService {
         const debugDir = path.join(process.cwd(), 'temp', 'debug');
         if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        await page.screenshot({ path: path.join(debugDir, `market-csv-page-${ts}.png`), fullPage: true }).catch(() => {});
+        await page.screenshot({ path: path.join(debugDir, `market-csv-page-${ts}.png`), fullPage: true }).catch(() => { });
         const html = await page.content().catch(() => '');
         fs.writeFileSync(path.join(debugDir, `market-csv-page-${ts}.html`), html, 'utf8');
         throw new Error('Không tìm thấy nút tải CSV trên trang Bảng giá. Đã lưu debug screenshot tại temp/debug/.');
@@ -988,7 +1003,7 @@ export class RpaDownloaderService {
           if (symbolText && !isNaN(price) && price > 0) {
             result.set(symbolText, price);
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -997,7 +1012,7 @@ export class RpaDownloaderService {
       const debugDir = path.join(process.cwd(), 'temp', 'debug');
       if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      await page.screenshot({ path: path.join(debugDir, `cqg-qss-${ts}.png`), fullPage: true }).catch(() => {});
+      await page.screenshot({ path: path.join(debugDir, `cqg-qss-${ts}.png`), fullPage: true }).catch(() => { });
       const html = await page.content().catch(() => '');
       fs.writeFileSync(path.join(debugDir, `cqg-qss-${ts}.html`), html, 'utf8');
       this.logger.warn(`Không đọc được giá từ CQG QSS. Debug screenshot lưu tại temp/debug/cqg-qss-${ts}.png`);
