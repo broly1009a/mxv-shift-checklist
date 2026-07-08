@@ -66,6 +66,12 @@ export default function AdminBotConfigPage() {
   const [acmGeminiApiKey, setAcmGeminiApiKey] = useState('');
   const [acmDownloadUrl, setAcmDownloadUrl] = useState('');
   const [acmDownloadBtnSelector, setAcmDownloadBtnSelector] = useState('');
+  const [acmSftpHost, setAcmSftpHost] = useState('sftp.mxv.com.vn');
+  const [acmSftpPort, setAcmSftpPort] = useState('2231');
+  const [acmSftpUsername, setAcmSftpUsername] = useState('');
+  const [acmSftpPassword, setAcmSftpPassword] = useState('');
+  const [acmSftpRemoteDir, setAcmSftpRemoteDir] = useState('/data/');
+  const [showAcmSftpPassword, setShowAcmSftpPassword] = useState(false);
 
   // UI state
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);
@@ -208,6 +214,11 @@ export default function AdminBotConfigPage() {
           setAcmGeminiApiKey(data.acm.geminiApiKey || '');
           setAcmDownloadUrl(data.acm.downloadUrl || '');
           setAcmDownloadBtnSelector(data.acm.downloadBtnSelector || '');
+          setAcmSftpHost(data.acm.sftpHost || 'sftp.mxv.com.vn');
+          setAcmSftpPort(data.acm.sftpPort || '2231');
+          setAcmSftpUsername(data.acm.sftpUsername || '');
+          setAcmSftpPassword(data.acm.sftpPassword || '');
+          setAcmSftpRemoteDir(data.acm.sftpRemoteDir || '/data/');
         }
       }
 
@@ -341,6 +352,11 @@ export default function AdminBotConfigPage() {
             geminiApiKey: acmGeminiApiKey,
             downloadUrl: acmDownloadUrl.trim(),
             downloadBtnSelector: acmDownloadBtnSelector.trim(),
+            sftpHost: acmSftpHost.trim(),
+            sftpPort: acmSftpPort.trim(),
+            sftpUsername: acmSftpUsername.trim(),
+            sftpPassword: acmSftpPassword,
+            sftpRemoteDir: acmSftpRemoteDir.trim(),
           },
         }),
       });
@@ -1544,6 +1560,89 @@ export default function AdminBotConfigPage() {
                         />
                       </div>
                     </div>
+
+                    {/* SFTP CONFIGURATION */}
+                    <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Server size={16} /> Cấu hình đồng bộ SFTP (WinSCP)
+                      </h4>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            SFTP Host
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Ví dụ: sftp.mxv.com.vn"
+                            value={acmSftpHost}
+                            onChange={(e) => setAcmSftpHost(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            SFTP Port
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="2231"
+                            value={acmSftpPort}
+                            onChange={(e) => setAcmSftpPort(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            SFTP Username
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Tên đăng nhập SFTP..."
+                            value={acmSftpUsername}
+                            onChange={(e) => setAcmSftpUsername(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            SFTP Password
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={showAcmSftpPassword ? 'text' : 'password'}
+                              className="form-input"
+                              placeholder="Mật khẩu SFTP..."
+                              value={acmSftpPassword}
+                              onChange={(e) => setAcmSftpPassword(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAcmSftpPassword(!showAcmSftpPassword)}
+                              style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                            >
+                              {showAcmSftpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Thư mục từ xa (Remote Directory)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Ví dụ: /data/"
+                          value={acmSftpRemoteDir}
+                          onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1816,7 +1915,7 @@ export default function AdminBotConfigPage() {
               <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                   <Settings size={20} color="var(--color-primary)" />
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Kiểm Tra & Đồng Bộ File Backup ACM (Order & Fill)</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Kiểm Tra & Đồng Bộ File Backup ACM (Web & SFTP)</h3>
                 </div>
 
                 {/* Form config path (Read-only) */}
@@ -1872,7 +1971,7 @@ export default function AdminBotConfigPage() {
                     style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     <Cpu size={16} className={triggeringAuditAcm ? 'animate-pulse' : ''} />
-                    {triggeringAuditAcm ? 'Đang gửi lệnh...' : '🤖 Tải Báo Cáo Tự Doanh ACM'}
+                    {triggeringAuditAcm ? 'Đang gửi lệnh...' : '🤖 Chạy Đồng Bộ Backup ACM'}
                   </button>
                 </div>
 

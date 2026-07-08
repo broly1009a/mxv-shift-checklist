@@ -48,6 +48,12 @@ export class BotEngineController {
       geminiApiKey: '',
       downloadUrl: '',
       downloadBtnSelector: '',
+      sftpHost: '',
+      sftpPort: '2231',
+      sftpUsername: '',
+      sftpPassword: '',
+      sftpRemoteDir: '',
+      sftpFileExtensions: '',
     };
 
     if (msystemRaw) {
@@ -83,6 +89,12 @@ export class BotEngineController {
           geminiApiKey: decrypted.geminiApiKey ? '********' : '',
           downloadUrl: decrypted.downloadUrl || '',
           downloadBtnSelector: decrypted.downloadBtnSelector || '',
+          sftpHost: decrypted.sftpHost || '',
+          sftpPort: decrypted.sftpPort || '2231',
+          sftpUsername: decrypted.sftpUsername || '',
+          sftpPassword: decrypted.sftpPassword ? '********' : '',
+          sftpRemoteDir: decrypted.sftpRemoteDir || '/data/',
+          sftpFileExtensions: decrypted.sftpFileExtensions || 'dump,log',
         };
       } catch (err) {}
     }
@@ -150,6 +162,12 @@ export class BotEngineController {
         geminiApiKey: acm.geminiApiKey && acm.geminiApiKey !== '********' ? acm.geminiApiKey : currentAcm.geminiApiKey,
         downloadUrl: acm.downloadUrl !== undefined ? acm.downloadUrl : currentAcm.downloadUrl,
         downloadBtnSelector: acm.downloadBtnSelector !== undefined ? acm.downloadBtnSelector : currentAcm.downloadBtnSelector,
+        sftpHost: acm.sftpHost !== undefined ? acm.sftpHost : currentAcm.sftpHost,
+        sftpPort: acm.sftpPort !== undefined ? acm.sftpPort : currentAcm.sftpPort,
+        sftpUsername: acm.sftpUsername !== undefined ? acm.sftpUsername : currentAcm.sftpUsername,
+        sftpPassword: acm.sftpPassword && acm.sftpPassword !== '********' ? acm.sftpPassword : currentAcm.sftpPassword,
+        sftpRemoteDir: acm.sftpRemoteDir !== undefined ? acm.sftpRemoteDir : currentAcm.sftpRemoteDir,
+        sftpFileExtensions: acm.sftpFileExtensions !== undefined ? acm.sftpFileExtensions : currentAcm.sftpFileExtensions,
       };
 
       await this.settingsService.setSetting('bot_credentials_acm', encrypt(JSON.stringify(mergedAcm)));

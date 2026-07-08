@@ -1371,5 +1371,157 @@ export class RpaDownloaderService {
     await download.saveAs(destFile);
     log(`Tải và lưu file thành công: ${destFile}`);
   }
+
+  /**
+   * Tìm đường dẫn executable WinSCP.com trên hệ thống Windows.
+   */
+  private getWinscpPath(log: (msg: string) => void): string {
+    const standardPaths = [
+      'C:\\Program Files (x86)\\WinSCP\\WinSCP.com',
+      'C:\\Program Files\\WinSCP\\WinSCP.com',
+    ];
+    if (process.env.LOCALAPPDATA) {
+      standardPaths.push(path.join(process.env.LOCALAPPDATA, 'Programs', 'WinSCP', 'WinSCP.com'));
+    }
+
+    for (const p of standardPaths) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    // Kiểm tra trong biến môi trường PATH
+    const pathDirs = (process.env.PATH || '').split(path.delimiter);
+    for (const dir of pathDirs) {
+      const p = path.join(dir, 'WinSCP.com');
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    // Tra cứu Registry Windows qua lệnh reg query
+    try {
+      const { execSync } = require('child_process');
+      const regQueries = [
+        'reg query "HKLM\\SOFTWARE\\WinSCP" /v InstallPath',
+        'reg query "HKLM\\SOFTWARE\\WOW6432Node\\WinSCP" /v InstallPath',
+        'reg query "HKCU\\SOFTWARE\\WinSCP" /v InstallPath',
+      ];
+      for (const q of regQueries) {
+        try {
+          const output = execSync(q, { encoding: 'utf8' });
+          const match = output.match(/InstallPath\\s+REG_SZ\\s+(.+)/);
+          if (match && match[1]) {
+            const installDir = match[1].trim();
+            const candidate = path.join(installDir, 'WinSCP.com');
+            if (fs.existsSync(candidate)) {
+              return candidate;
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (err) {}
+
+    throw new Error('Không tìm thấy executable WinSCP.com trên hệ thống. Vui lòng cài đặt WinSCP.');
+  }
+
+  /**
+   * Đồng bộ các file dump/log từ SFTP sử dụng WinSCP.com.
+   */
+  async downloadAcmSftpBackup(dailyPath: string, targetDate: Date, jobLogs: string[] = []): Promise<void> {
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    const credentialsRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
+    let credentials: any = {};
+    if (credentialsRaw) {
+      try {
+        credentials = JSON.parse(decrypt(credentialsRaw));
+      } catch (err) {}
+    }
+
+    const sftpHost = credentials.sftpHost || 'sftp.mxv.com.vn';
+    const sftpPort = credentials.sftpPort || '2231';
+    const sftpUsername = credentials.sftpUsername || 'testuser';
+    const sftpPassword = credentials.sftpPassword || 'Test@2o26';
+    const sftpRemoteDir = credentials.sftpRemoteDir || '/data/';
+
+    const winscpExe = this.getWinscpPath(log);
+
+    const remoteSrc = `${sftpRemoteDir.replace(/\/$/, '')}/*`;
+    const localDest = `${dailyPath.replace(/\\$/, '')}\\`;
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const ddmmyyyy = `${day}${month}${year}`;
+    const yyyy_mm_dd = `${year}-${month}-${day}`;
+
+    // Tải file CSV kết thúc bằng _ddmmyyyy.csv và file XLS bắt đầu bằng yyyy-mm-dd_
+    const filemask = `*_${ddmmyyyy}.csv;${yyyy_mm_dd}_*.xls`;
+
+    // Đảm bảo thư mục log tồn tại để ghi script file tạm
+    const logsDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    const scriptFile = path.join(logsDir, `winscp_temp_${Date.now()}.script`);
+    const scriptContent = [
+      'option batch abort',
+      'option confirm off',
+      `open sftp://${sftpUsername}:${sftpPassword}@${sftpHost}:${sftpPort}/ -hostkey=*`,
+      `get -neweronly -filemask="${filemask}" "${remoteSrc}" "${localDest}"`,
+      'exit'
+    ].join('\n');
+
+    fs.writeFileSync(scriptFile, scriptContent, { encoding: 'utf8' });
+
+    log(`Đang chạy WinSCP đồng bộ từ sftp://${sftpUsername}@${sftpHost}:${sftpPort}${sftpRemoteDir}`);
+    log(`Filemask lọc: "${filemask}"`);
+    log(`Thư mục local: "${localDest}"`);
+
+    const { spawn } = require('child_process');
+    const child = spawn(winscpExe, [`/script=${scriptFile}`]);
+
+    return new Promise<void>((resolve, reject) => {
+      child.stdout.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('winscp>')) {
+            log(`  > ${trimmed}`);
+          }
+        }
+      });
+
+      child.stderr.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        log(`  > [Error] ${text.trim()}`);
+      });
+
+      child.on('close', (code: number | null) => {
+        if (fs.existsSync(scriptFile)) {
+          fs.unlinkSync(scriptFile);
+        }
+        if (code === 0) {
+          log('✅ WinSCP hoàn tất đồng bộ thành công.');
+          resolve();
+        } else {
+          reject(new Error(`WinSCP kết thúc với mã lỗi: ${code}`));
+        }
+      });
+
+      child.on('error', (err: Error) => {
+        if (fs.existsSync(scriptFile)) {
+          fs.unlinkSync(scriptFile);
+        }
+        reject(err);
+      });
+    });
+  }
 }
 

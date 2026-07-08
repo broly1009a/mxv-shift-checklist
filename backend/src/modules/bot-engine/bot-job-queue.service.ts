@@ -517,6 +517,9 @@ export class BotJobQueueService implements OnModuleInit {
   /**
    * Quét thư mục backup ACM xem đã có file Order.xlsx và Fill.xlsx chưa.
    */
+  /**
+   * Quét thư mục backup ACM xem đã có file Order.xlsx và Fill.xlsx và các file SFTP (dump, log) chưa.
+   */
   async scanAcmBackupFiles(backupPath: string, targetDate: Date = new Date()): Promise<Array<{
     key: string;
     filename: string;
@@ -531,7 +534,14 @@ export class BotJobQueueService implements OnModuleInit {
       { key: 'FILL', filename: 'Fill.xlsx' },
     ];
 
-    const results = [];
+    const results: Array<{
+      key: string;
+      filename: string;
+      status: 'OK' | 'MISSING' | 'OUTDATED';
+      lastModified?: Date;
+    }> = [];
+
+    // 1. Quét 2 file Excel từ Web
     for (const fileItem of filesToCheck) {
       const filePath = path.join(backupPath, fileItem.filename);
       if (!fs.existsSync(filePath)) {
@@ -550,6 +560,61 @@ export class BotJobQueueService implements OnModuleInit {
         status: isToday ? ('OK' as const) : ('OUTDATED' as const),
         lastModified: stat.mtime,
       });
+    }
+
+    // 2. Quét các file SFTP (CSV và XLS) trong ngày hôm nay
+    if (fs.existsSync(backupPath)) {
+      const files = fs.readdirSync(backupPath);
+      const year = today.getFullYear().toString();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const ddmmyyyy = `${day}${month}${year}`;
+      const yyyy_mm_dd = `${year}-${month}-${day}`;
+
+      // Check CSV: *_${ddmmyyyy}.csv
+      const csvFile = files.find(f => f.toLowerCase().endsWith(`_${ddmmyyyy}.csv`.toLowerCase()));
+      if (csvFile) {
+        const stat = fs.statSync(path.join(backupPath, csvFile));
+        results.push({
+          key: 'SFTP_CSV',
+          filename: csvFile,
+          status: 'OK' as const,
+          lastModified: stat.mtime,
+        });
+      } else {
+        results.push({
+          key: 'SFTP_CSV',
+          filename: `*_${ddmmyyyy}.csv`,
+          status: 'MISSING' as const,
+        });
+      }
+
+      // Check XLS: ${yyyy_mm_dd}_*.xls
+      const xlsFile = files.find(f => f.toLowerCase().startsWith(`${yyyy_mm_dd}_`.toLowerCase()) && f.toLowerCase().endsWith('.xls'));
+      if (xlsFile) {
+        const stat = fs.statSync(path.join(backupPath, xlsFile));
+        results.push({
+          key: 'SFTP_XLS',
+          filename: xlsFile,
+          status: 'OK' as const,
+          lastModified: stat.mtime,
+        });
+      } else {
+        results.push({
+          key: 'SFTP_XLS',
+          filename: `${yyyy_mm_dd}_*.xls`,
+          status: 'MISSING' as const,
+        });
+      }
+    } else {
+      const year = today.getFullYear().toString();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const ddmmyyyy = `${day}${month}${year}`;
+      const yyyy_mm_dd = `${year}-${month}-${day}`;
+
+      results.push({ key: 'SFTP_CSV', filename: `*_${ddmmyyyy}.csv`, status: 'MISSING' as const });
+      results.push({ key: 'SFTP_XLS', filename: `${yyyy_mm_dd}_*.xls`, status: 'MISSING' as const });
     }
 
     return results;
@@ -581,55 +646,75 @@ export class BotJobQueueService implements OnModuleInit {
     const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
 
     if (missingOrOutdated.length === 0) {
-      job.logs.push(`[${new Date().toISOString()}] ✅ Báo cáo ACM (Order.xlsx, Fill.xlsx) đã có đầy đủ. Không cần tải thêm.`);
+      job.logs.push(`[${new Date().toISOString()}] ✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`);
       await job.save();
       return;
     }
 
-    job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu hoặc cũ file backup ACM. Đang tiến hành đăng nhập và tải bổ sung...`);
-    await job.save();
-
-    // callback để đẩy Captcha lên UI nếu tự động giải bằng Gemini thất bại
-    const getCaptchaFromUI = (base64Img: string): Promise<string> => {
-      return new Promise<string>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          this.captchaResolvers.delete(job._id.toString());
-          reject(new Error('Hết thời gian chờ người dùng nhập Captcha (5 phút).'));
-        }, 5 * 60 * 1000);
-
-        job.status = 'AWAITING_CAPTCHA';
-        job.payload = {
-          ...job.payload,
-          captchaImage: base64Img,
-        };
-        job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
-        job.save().then(() => {
-          this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
-            clearTimeout(timeoutId);
-            resolve(captcha);
-          });
-        }).catch((err) => {
-          clearTimeout(timeoutId);
-          reject(err);
-        });
-      });
-    };
-
-    const { browser, page } = await this.rpaDownloaderService.loginACM(
-      dailyPath,
-      getCaptchaFromUI,
-      job.logs,
-    );
-
-    try {
-      await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, job.logs);
-      job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
+    // 1. Tải báo cáo từ Web ACM nếu thiếu
+    const webMissing = missingOrOutdated.some(r => r.key === 'ORDER' || r.key === 'FILL');
+    if (webMissing) {
+      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`);
       await job.save();
-    } finally {
-      this.logger.log('Closing Playwright browser after ACM audit.');
-      await browser.close().catch((err) => {
-        this.logger.error(`Error closing browser: ${err.message}`);
-      });
+
+      // callback để đẩy Captcha lên UI nếu tự động giải bằng Gemini thất bại
+      const getCaptchaFromUI = (base64Img: string): Promise<string> => {
+        return new Promise<string>((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            this.captchaResolvers.delete(job._id.toString());
+            reject(new Error('Hết thời gian chờ người dùng nhập Captcha (5 phút).'));
+          }, 5 * 60 * 1000);
+
+          job.status = 'AWAITING_CAPTCHA';
+          job.payload = {
+            ...job.payload,
+            captchaImage: base64Img,
+          };
+          job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
+          job.save().then(() => {
+            this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
+              clearTimeout(timeoutId);
+              resolve(captcha);
+            });
+          }).catch((err) => {
+            clearTimeout(timeoutId);
+            reject(err);
+          });
+        });
+      };
+
+      const { browser, page } = await this.rpaDownloaderService.loginACM(
+        dailyPath,
+        getCaptchaFromUI,
+        job.logs,
+      );
+
+      try {
+        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, job.logs);
+        job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
+        await job.save();
+      } finally {
+        this.logger.log('Closing Playwright browser after ACM audit.');
+        await browser.close().catch((err) => {
+          this.logger.error(`Error closing browser: ${err.message}`);
+        });
+      }
+    }
+
+    // 2. Đồng bộ file dump/log từ SFTP nếu thiếu
+    const sftpMissing = missingOrOutdated.some(r => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS');
+    if (sftpMissing) {
+      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ WinSCP...`);
+      await job.save();
+      try {
+        await this.rpaDownloaderService.downloadAcmSftpBackup(dailyPath, targetDate, job.logs);
+        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn tất đồng bộ file từ SFTP.`);
+        await job.save();
+      } catch (err: any) {
+        job.logs.push(`[${new Date().toISOString()}] ❌ Lỗi đồng bộ SFTP: ${err.message}`);
+        await job.save();
+        throw err;
+      }
     }
   }
 }
