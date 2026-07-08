@@ -144,6 +144,13 @@ export default function AdminBotConfigPage() {
   const [auditMsResults, setAuditMsResults] = useState<any>(null);
   const [triggeringAuditMs, setTriggeringAuditMs] = useState(false);
 
+  // Backup CQG Audit state
+  const [backupPathCqg, setBackupPathCqg] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures');
+  const [savingBackupPathCqg, setSavingBackupPathCqg] = useState(false);
+  const [auditingCqg, setAuditingCqg] = useState(false);
+  const [auditCqgResults, setAuditCqgResults] = useState<any>(null);
+  const [triggeringAuditCqg, setTriggeringAuditCqg] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -185,6 +192,17 @@ export default function AdminBotConfigPage() {
         const backupData = await backupRes.json();
         if (backupData.backupPath) {
           setBackupPathMs(backupData.backupPath);
+        }
+      }
+
+      // Fetch Backup CQG path
+      const backupCqgRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-cqg/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (backupCqgRes.ok) {
+        const backupCqgData = await backupCqgRes.json();
+        if (backupCqgData.backupPath) {
+          setBackupPathCqg(backupCqgData.backupPath);
         }
       }
     } catch (err) {
@@ -363,6 +381,77 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi khởi chạy bot recovery', { id: toastId });
     } finally {
       setTriggeringAuditMs(false);
+    }
+  };
+
+  // Save Backup CQG Path
+  const handleSaveBackupCqgConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingBackupPathCqg(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-cqg/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ backupPath: backupPathCqg }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success(data.message || 'Đã lưu đường dẫn backup CQG thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingBackupPathCqg(false);
+    }
+  };
+
+  // Run quick scan audit CQG
+  const handleAuditCqgBackup = async () => {
+    if (!token) return;
+    setAuditingCqg(true);
+    setAuditCqgResults(null);
+    const toastId = toast.loading('Đang scan thư mục backup CQG...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-cqg-backup`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup CQG');
+      setAuditCqgResults(data);
+      const { ok, missing, outdated } = data.summary;
+      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kiểm tra backup CQG', { id: toastId });
+    } finally {
+      setAuditingCqg(false);
+    }
+  };
+
+  // Trigger CQG backup auto-merge job
+  const handleTriggerAuditCqg = async () => {
+    if (!token) return;
+    setTriggeringAuditCqg(true);
+    const toastId = toast.loading('Đang khởi tạo job ghép file backup CQG...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-audit-cqg`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job tự động ghép file CQG thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy bot CQG merge', { id: toastId });
+    } finally {
+      setTriggeringAuditCqg(false);
     }
   };
 
@@ -1216,6 +1305,137 @@ export default function AdminBotConfigPage() {
                                   <span style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>FILE CŨ</span>
                                 ) : (
                                   <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>THIẾU</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                                {file.lastModified ? new Date(file.lastModified).toLocaleString('vi-VN') : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Kiểm Tra File Backup CQG Box */}
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <Settings size={20} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Kiểm Tra & Đồng Bộ File Backup CQG</h3>
+                </div>
+
+                {/* Form config path */}
+                <form onSubmit={handleSaveBackupCqgConfig} style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '280px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Đường dẫn thư mục backup CQG của IT Tool
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures"
+                      value={backupPathCqg}
+                      onChange={(e) => setBackupPathCqg(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={savingBackupPathCqg}
+                    className="btn btn-secondary"
+                    style={{ padding: '12px 20px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                  >
+                    {savingBackupPathCqg ? 'Đang lưu...' : 'Lưu đường dẫn'}
+                  </button>
+                </form>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleAuditCqgBackup}
+                    disabled={auditingCqg || triggeringAuditCqg}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '12px 20px',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <RefreshCw size={16} className={auditingCqg ? 'animate-spin' : ''} /> Quét Thư Mục Backup
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerAuditCqg}
+                    disabled={auditingCqg || triggeringAuditCqg}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Cpu size={16} className={triggeringAuditCqg ? 'animate-pulse' : ''} />
+                    {triggeringAuditCqg ? 'Đang gửi lệnh...' : '🤖 Tự Động Ghép File Thiếu'}
+                  </button>
+                </div>
+
+                {/* Audit results */}
+                {auditCqgResults && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Tổng số file: {auditCqgResults.summary.total}
+                      </span>
+                      <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Đầy đủ (Hôm nay): {auditCqgResults.summary.ok}
+                      </span>
+                      {auditCqgResults.summary.missing > 0 && (
+                        <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Thiếu: {auditCqgResults.summary.missing}
+                        </span>
+                      )}
+                      {auditCqgResults.summary.outdated > 0 && (
+                        <span style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Cũ (Không phải hôm nay): {auditCqgResults.summary.outdated}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Tên File</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '120px' }}>Trạng Thái</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>Loại File</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>Thời Gian Thay Đổi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditCqgResults.files.map((file: any) => (
+                            <tr key={file.key} style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 500 }}>{file.filename}</td>
+                              <td style={{ padding: '10px 12px' }}>
+                                {file.status === 'OK' ? (
+                                  <span style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>OK</span>
+                                ) : file.status === 'OUTDATED' ? (
+                                  <span style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>FILE CŨ</span>
+                                ) : (
+                                  <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>THIẾU</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                {file.type === 'RAW' ? (
+                                  <span style={{ color: '#3b82f6', fontSize: '0.75rem' }}>File thô</span>
+                                ) : file.type === 'CONSOLIDATED' ? (
+                                  <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 500 }}>Tự động gộp</span>
+                                ) : (
+                                  <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>⚠️ Thủ công (AS)</span>
                                 )}
                               </td>
                               <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>

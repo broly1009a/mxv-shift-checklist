@@ -1,0 +1,218 @@
+============================================================
+Filename: xl/vbaProject.bin | Stream: VBA/ThisWorkbook | Module: ThisWorkbook.cls
+============================================================
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+
+============================================================
+Filename: xl/vbaProject.bin | Stream: VBA/Sheet1 | Module: Sheet1.cls
+============================================================
+Attribute VB_Name = "Sheet1"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+
+============================================================
+Filename: xl/vbaProject.bin | Stream: VBA/Module1 | Module: Module1.bas
+============================================================
+Attribute VB_Name = "Module1"
+Sub ghep_fr()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+Dim nwb, owb As Workbook
+Dim str1, str2, str3 As Range
+Set nwb = Workbooks.Add
+Set str1 = ThisWorkbook.Sheets("sheet2").Range("A5")
+Set owb = Workbooks.Open(str1)
+Dim lr1, lr2 As Long
+lr1 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A2:H" & lr1 - 2).Copy nwb.Sheets("Sheet1").Range("A1")
+owb.Close False
+
+Set str2 = ThisWorkbook.Sheets("sheet2").Range("A6")
+Set owb = Workbooks.Open(str2)
+lr2 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+If lr2 > 4 Then
+owb.ActiveSheet.Range("A3:H" & lr2 - 2).Copy nwb.Sheets("Sheet1").Cells(lr1 - 2, 1)
+End If
+owb.Close False
+Set str3 = ThisWorkbook.Sheets("sheet2").Range("A7")
+nwb.SaveAs Filename:=str3
+nwb.Close
+Application.ScreenUpdating = True
+Application.EnableEvents = True
+End Sub
+Sub ghep_op()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+Dim nwb, owb As Workbook
+Dim str1, str2, str3 As Range
+Set nwb = Workbooks.Add
+Set str1 = ThisWorkbook.Sheets("sheet2").Range("A8")
+Set owb = Workbooks.Open(str1)
+Dim lr1, lr2 As Long
+lr1 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A2:M" & lr1).Copy nwb.Sheets("Sheet1").Range("A1")
+owb.Close False
+
+Set str2 = ThisWorkbook.Sheets("sheet2").Range("A9")
+Set owb = Workbooks.Open(str2)
+lr2 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A3:M" & lr2).Copy nwb.Sheets("Sheet1").Cells(lr1, 1)
+owb.Close False
+Set str3 = ThisWorkbook.Sheets("sheet2").Range("A10")
+nwb.SaveAs Filename:=str3
+nwb.Close
+Application.ScreenUpdating = True
+Application.EnableEvents = True
+End Sub
+
+Sub ghep_ps()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+Dim nwb, owb As Workbook
+Dim str1, str2, str3 As Range
+Set nwb = Workbooks.Add
+Set str1 = ThisWorkbook.Sheets("sheet2").Range("A11")
+Set owb = Workbooks.Open(str1)
+Dim lr1, lr2 As Long
+lr1 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A2:K" & lr1).Copy nwb.Sheets("Sheet1").Range("A1")
+owb.Close False
+
+Set str2 = ThisWorkbook.Sheets("sheet2").Range("A12")
+Set owb = Workbooks.Open(str2)
+lr2 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+If lr2 > 3 Then
+lr2 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+
+owb.ActiveSheet.Range("A3:K" & lr2).Copy nwb.Sheets("Sheet1").Cells(lr1, 1)
+End If
+owb.Close False
+nwb.Sheets.Add after:=Sheets("Sheet1")
+nwb.Sheets(2).Name = "Check CQG-MS"
+nwb.Sheets(2).Activate
+lr2 = nwb.Sheets("sheet1").Cells(Rows.Count, 1).End(xlUp).Row
+Dim i, j As Long
+j = 1
+nwb.Sheets("sheet1").Range("A1:J" & lr2).AutoFilter Field:=1, Criteria1:="<>", Operator:=xlFilterValues
+nwb.Sheets("sheet1").Range("A1:J" & lr2).SpecialCells(xlCellTypeVisible).Copy nwb.Sheets(2).Range("A1")
+nwb.Sheets(2).Activate
+With nwb.Sheets(2).Range("A:A")
+            .Replace What:="F", Replacement:=""
+            .Replace What:="L", Replacement:="-L"
+            .Replace What:="S", Replacement:="-S"
+            .Replace What:="--", Replacement:="-"
+    End With
+lr2 = nwb.Sheets(2).Cells(Rows.Count, 1).End(xlUp).Row
+nwb.Sheets(2).Range("K2").Formula = "=A2&D2"
+nwb.Sheets(2).Range("K2:k" & lr2).FillDown
+nwb.Sheets(2).Range("L1") = "CQG"
+nwb.Sheets(2).Range("L2").Formula = "=I2"
+nwb.Sheets(2).Range("L2:L" & lr2).FillDown
+nwb.Sheets.Add after:=Sheets(2)
+nwb.Sheets(3).Name = "Check MS-CQG"
+Set str1 = ThisWorkbook.Sheets("sheet2").Range("A19")
+Set owb = Workbooks.Open(str1)
+owb.ActiveSheet.Cells.Copy nwb.Sheets(3).Range("A1")
+owb.Close False
+lr1 = nwb.Sheets(3).Cells(Rows.Count, 1).End(xlUp).Row
+nwb.Sheets(3).Range("Z1") = "Ma check"
+nwb.Sheets(3).Range("Z2").Formula = "=H2&J2"
+nwb.Sheets(3).Range("Z2:Z" & lr1).FillDown
+nwb.Sheets(3).Range("AA1") = "MS"
+nwb.Sheets(3).Range("AA2").Formula = "=SUMIF(Z:Z,Z2,T:T)"
+nwb.Sheets(3).Range("AA2:AA" & lr1).FillDown
+nwb.Sheets(3).Range("AB1") = "CQG"
+nwb.Sheets(3).Range("AB2").Formula = "=VLOOKUP(Z2,'Check CQG-MS'!K:L,2,0)"
+nwb.Sheets(3).Range("AC1") = "Check"
+nwb.Sheets(3).Range("AC2").Formula = "=AA2-AB2"
+nwb.Sheets(3).Range("A1:AC" & lr1).AutoFilter Field:=29, Criteria1:="<>0", Operator:=xlFilterValues
+nwb.Sheets(2).Activate
+nwb.Sheets(2).Range("M1") = "MS"
+nwb.Sheets(2).Range("M2").Formula = "=SUMIF('Check MS-CQG'!Z:Z,'Check CQG-MS'!K2,'Check MS-CQG'!T:T)"
+nwb.Sheets(2).Range("M2:M" & lr2).FillDown
+nwb.Sheets(2).Range("N2").Formula = "=L2-M2"
+nwb.Sheets(2).Range("N2:N" & lr2).FillDown
+nwb.Sheets(2).Range("A1:N" & lr2).AutoFilter Field:=14, Criteria1:="<>0", Operator:=xlFilterValues
+If nwb.Sheets("Sheet1").AutoFilterMode Then
+     nwb.Sheets("Sheet1").AutoFilterMode = False
+  End If
+nwb.Sheets.Add after:=Sheets(3)
+lr1 = nwb.Sheets(3).Cells(Rows.Count, 1).End(xlUp).Row
+nwb.Sheets(3).Range("H1:H" & lr1).SpecialCells(xlCellTypeVisible).Copy nwb.Sheets(4).Range("A1")
+
+nwb.Sheets(3).Range("J1:J" & lr1).SpecialCells(xlCellTypeVisible).Copy nwb.Sheets(4).Range("B1")
+
+nwb.Sheets(3).Range("AA1:AC" & lr1).SpecialCells(xlCellTypeVisible).Copy nwb.Sheets(4).Range("C1")
+
+lr1 = nwb.Sheets(4).Cells(Rows.Count, 1).End(xlUp).Row
+nwb.Sheets(4).Range("A1:E" & lr1).RemoveDuplicates Columns:=Array(1, 2), Header:=xlYes
+nwb.Sheets(4).Range("A1:E" & lr1).EntireColumn.AutoFit
+nwb.Sheets(4).Name = "MS-CQG"
+nwb.Sheets(3).Visible = xlSheetHidden
+nwb.Sheets(2).Activate
+nwb.Sheets(2).Columns("A:N").EntireColumn.AutoFit
+
+Set str3 = ThisWorkbook.Sheets("sheet2").Range("A13")
+nwb.SaveAs Filename:=str3
+nwb.Close
+Application.ScreenUpdating = True
+Application.EnableEvents = True
+End Sub
+
+Sub ghep_order()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+Dim nwb, owb As Workbook
+Dim str1, str2, str3 As Range
+Set nwb = Workbooks.Add
+Set str1 = ThisWorkbook.Sheets("sheet2").Range("A14")
+Set owb = Workbooks.Open(str1)
+Dim lr1, lr2 As Long
+lr1 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A3:Q" & lr1).Copy nwb.Sheets("Sheet1").Range("A1")
+owb.Close False
+
+Set str2 = ThisWorkbook.Sheets("sheet2").Range("A15")
+Set owb = Workbooks.Open(str2)
+lr2 = owb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+owb.ActiveSheet.Range("A4:Q" & lr2).Copy nwb.Sheets("Sheet1").Cells(lr1 - 3, 1)
+owb.Close False
+Set str3 = ThisWorkbook.Sheets("sheet2").Range("A16")
+nwb.SaveAs Filename:=str3
+nwb.Close
+Application.ScreenUpdating = True
+Application.EnableEvents = True
+End Sub
+
+
+
+
+============================================================
+Filename: xl/vbaProject.bin | Stream: VBA/Sheet2 | Module: Sheet2.cls
+============================================================
+Attribute VB_Name = "Sheet2"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+

@@ -1,0 +1,480 @@
+Attribut
+e VB_Nam
+e = "Thi
+sWorkboo
+k"
+
+
+0{00020P819-
+$0046}
+|Global
+Spac
+dCreat
+Pred
+ecla
+TruBExpo
+Templ
+ateDeriv
+Bustomi
+Attribut
+e VB_Nam
+e = "She@et1"
+
+
+t0{000
+20820-
+$0046
+}|Global!
+Spac
+dCrea
+tabl
+Pre decla
+TruBExp
+Temp
+lateDeri
+Bustom
+sheet2 
+eet1
+sheet2 
+eet1 
+Sheet1 
+A3:M 
+sheet2 
+sheet2 
+Sheet1 
+A2:M 
+sheet2 
+sheet2 
+sheet2 
+Sheet1 
+A2:K 
+Sheet1 
+A3:K 
+Sheet1 
+sheet2 
+Sheet1 
+A3:H 
+sheet2 
+Sheet1 
+A3:Q 
+sheet2 
+sheet2 
+Sheet1 
+A4:Q 
+Sheet1$
+Sheet1 
+=A2&D2
+sheet2 
+sheet1 
+A1:J 
+sheet1 
+A1:J 
+sheet1 
+K2:k 
+sheet2 
+L2:L 
+=H2&J2
+Z2:Z 
+Ma check
+AA2:AA 
+M2:M 
+=SUMIF(Z:Z,Z2,T:T)
+=VLOOKUP(Z2,'Check CQG-MS'!K:L,2,0)
+=L2-M2
+N2:N 
+A1:AC
+Check
+=AA2-AB2
+A1:N 
+Check CQG-MS
+=SUMIF('Check MS-CQG'!Z:Z,'Check CQG-MS'!K2,'Check MS-CQG'!T:T)
+A1:E 
+A1:E 
+Check MS-CQG
+MS-CQG
+H1:H 
+J1:J 
+AA1:AC 
+Sheet1 
+A2:H 
+Attribut
+e VB_Nam
+e = "Mod
+ule1"
+S
+ub ghep_
+fr()
+Ap
+plicatio
+n.ScreenHUpd
+alse
+FEna
+bleEvent
+BDim nw
+b, owb A
+s Workbo
+ok
+
+Rang
+ZSet
+2s.Add
+This
+.Sheets
+2").
+H("A5"
+@s.Ope\n(
+BLong
+.Act
+1.Cel
+ls(Rows.
+Count, 1
+).End(xl
+;ow
+
+F2:H" & !
+,- 2)
+ pyw
+'C`lose 
+k	n<If@52 > @4 Then
+JAY
+Y If
+Filen
+Tru[
+l"A2:
+l_l"A_l@Z_
+"A9} _l
+i#iowb
+_hblFh
+h1BQ!1
+jb.	n
+{1@&
+.o~o~
+
+_n79
+?9("
+fter:=b
+Chec
+k CQG-MS
+1J	c
+1:J3&
+to`x
+ Fie
+ld:=1, C
+ia1:=@"<>", 
+0rHato
+alues
+).Speci
+eVisi0
+WiLth
+.Replac@e What
+KAfFormu
+$"=A2&
+e("K
+ lDo
+t
+L2:L
+7j*3).K:M
+0H2&J
+SUMIF
+(Z:Z,Z2,
+T:T)
+VLOOK(UP(
+K:L,2,0
+
+nwb.She
+ets(3).R
+ange("AC
+1") = "C@heck"
+").Formu
+Z=AA2-
+`1:AC
+" & lr1)
+.AutoFil
+ter Fiel
+d:=29, C
+ia1:=
+"<>0", O
+perator:
+/Valu
+Octi
+vate
+gSU MIF('
+S-CQG'!Z
+-MS0'!K2
+lDown
+ZNI0L2-M
+`N2d:N
+bIf H
+yMode T4he
+Fals@t  E nd If
+I.A dd af@
+:=yF
+ells(Row
+s.Count,
+(xlUp
+Speci
+eVisible
+pyIA4
+J1:J
+& RemoveD uplic
+Columns:
+=Array(1
+, 2), Hehadeb
+
+E`ntire
+Name
+B$= 
+xl"NHi
+@o).
+et str3
+ThisWork
+book
+A13")$
+ aveAs
+le2n@
+*ion
+.ScreenU
+pdating
+ru`mI
+Ena@[
+Events
+ep_or
+Dim!i
+, owb  
+ <
+!
+*`414g
+n^(a
+`a,@
+Longe
+c
+m
+e<3:Q&dCo
+H- 31]
+Attribut
+e VB_Nam
+e = "She@et2"
+
+
+t0{000
+20820-
+$0046
+}|Global!
+Spac
+dCrea
+tabl
+Pre decla
+TruBExp
+Temp
+lateDeri
+Bustom
+VBAProje
+ar_Criteria1
+xlCellTypeVisibleL
+_B_var_SpecialCellsC
+op_all
+Replacef
+What
+Replacement
+_B_var_Field(
+_B_var_Replacement
+FormulaqY
+FillDown
+AutoFilterMode
+hisWorkb
+_B_var_hisWorkb]
+@[Ma check]
+_B_var_Workbook3
+PasteSpecial
+xlPasteValues
+AC}\
+A1k\
+RemoveDuplicates
+_B_var_EntireRow!
+Header
+xlYes
+DisplayAlerts
+AutoFit&	
+EntireColumn
+Hide9z
+Visible
+xlSheetHidden4
+Column
+xlColumnhi
+_B_var_xlC.
+Hidden]
+entirecolums
+hiden
+entirecolum+
+_B_var_apl
+CutCopyMode
+_B_var_ColumnI
+stdole>
+*\G{00
+020430-
+6}#2.0#0
+#C:\Wind
+ows\Syst em32\
+tlb#OLE 
+Automati
+EOffDic
+2DF8D04C
+-5BFA-10
+1B-BDE5
+gram Fil
+es\Commo
+Micros
+oft Shar
+ed\OFFIC
+E16\MSO.0DLL#
+M 1@6.0 Ob
+Library
+ThisW
+orkbookG
+i*"B
+B|Sh
+eet1G
+e@Xt
+Module
+N9*2M92I92M92
+khI9
+ThisWorkbook
+Sheet1
+Module1
+Sheet2
+Else
+endif
+False
+then
+True
+Excel
+Win16
+Win32
+Win64x
+VBA6
+VBA7
+Project1
+
+stdole
+VBAProject
+Office
+ThisWorkbook|
+_Evaluate
+Sheet1
+Module1b
+ghep_fr
+Sheet2
+work
+Workbookk
+owbm
+str1F5
+str2G5
+str3H5
+Range
+str4I5
+str5J5
+str6K5
+str7L5
+str8M5
+this
+_B_var_Set
+Sheets
+
+_Defaultj
+WorkbooksB
+Worksheet
+lr#^
+ActiveSheet%N
+Cells
+Rows
+Count0v
+xlUp
+_B_var_ws>
+Copy
+activeshRange
+activ 
+Activate
+Active
+fail
+failed
+_B_var_failedA
+ailed
+_B_var_ailed
+_B_var_lr
+Save
+Filenamej
+SaveAsf;
+ghep_op) 
+ghep_psQ 
+Application
+ScreenUpdating!
+EnableEvents
+Subs
+SubssssssssssssssssG
+ghep_order	
+shee
+before
+_B_var_shee
+_B_var_before
+_B_var_Filenamer
+after
+_B_var_after
+Columnsp9
+SelectionZ
+SpecialCells
+xlCellTypeBlanks
+EntireRow
+Delete
+_B_var_ForjL
+_B_var_ifP
+nwbshet
+_B_var_nwbshe
+Operatork
+AutoFilter
+Field
+Criteria1
+paramsArrN
+xlFilterValues
+_B_var_paramsArr
+_B_vM
+ghep_order
+Project1
+VBAProject
+ThisWorkbook
+Sheet1
+Module1
+Sheet2
+C:\Program Files\Common Files\Microsoft Shared\VBA\VBA7.1\VBE7.DLL
+Excel
+C:\Program Files\Microsoft Office\Root\Office16\EXCEL.EXE
+C:\Windows\System32\stdole2.tlb
+stdole
+C:\Program Files\Common Files\Microsoft Shared\OFFICE16\MSO.DLL
+Office
+ghep_fr
+Workbook
+Worksheet
+ghep_op
+ghep_ps
+VBE7.DLL
+ID="{1FCF70CF-65AF-45CA-BADC-14A28E51D4D5}"
+Document=ThisWorkbook/&H00000000
+Document=Sheet1/&H00000000
+Module=Module1
+Document=Sheet2/&H00000000
+Name="VBAProject"
+HelpContextID="0"
+VersionCompatible32="393222000"
+CMG="6163509054905490549054"
+DPB="424073905591559155"
+GC="232112B3F2B4F2B40D"
+
+[Host Extender Info]
+&H00000001={3832D640-CF90-11CF-8E43-00A0C911005A};VBE;&H00000000
+
+[Workspace]
+ThisWorkbook=0, 0, 0, 0, C
+Sheet1=0, 0, 0, 0, C
+Module1=104, 104, 1305, 652, Z
+Sheet2=0, 0, 0, 0, C
+

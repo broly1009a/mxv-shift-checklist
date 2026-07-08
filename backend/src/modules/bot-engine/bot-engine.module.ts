@@ -11,6 +11,7 @@ import { RpaDownloaderService } from './rpa-downloader.service';
 import { GttCheckerService } from './gtt-checker.service';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
+import { CqgSyncService } from './cqg-sync.service';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BotEngineController } from './bot-engine.controller';
     RpaDownloaderService,
     GttCheckerService,
     BotJobQueueService,
+    CqgSyncService,
     BotEngineService,
   ],
   controllers: [
@@ -37,7 +39,9 @@ import { BotEngineController } from './bot-engine.controller';
     BotJobQueueService,
     RpaDownloaderService,
     GttCheckerService,
+    CqgSyncService,
   ],
 })
 export class BotEngineModule {}
+
 

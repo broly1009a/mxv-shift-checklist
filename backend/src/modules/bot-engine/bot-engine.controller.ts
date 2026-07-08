@@ -13,6 +13,7 @@ import { GttCheckerService } from './gtt-checker.service';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
+import { CqgSyncService } from './cqg-sync.service';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,7 @@ export class BotEngineController {
     private readonly jobQueueService: BotJobQueueService,
     private readonly rpaService: RpaDownloaderService,
     private readonly gttService: GttCheckerService,
+    private readonly cqgSyncService: CqgSyncService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
   ) {}
@@ -518,6 +520,70 @@ export class BotEngineController {
     return {
       success: true,
       message: 'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup MS vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  // =========================================================================
+  // BACKUP CQG AUDIT ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Returns the configured CQG backup base directory path and resolved full path for today.
+   */
+  @Get('backup-cqg/config')
+  async getBackupCqgConfig() {
+    const { baseDir, fullPath } = await this.cqgSyncService.getDailyBackupPath(new Date());
+    return { backupPath: baseDir, fullPath };
+  }
+
+  /**
+   * Saves the CQG backup folder path to system settings.
+   */
+  @Post('backup-cqg/config')
+  async saveBackupCqgConfig(@Body('backupPath') backupPath: string) {
+    if (!backupPath || typeof backupPath !== 'string') {
+      throw new HttpException('backupPath không hợp lệ.', HttpStatus.BAD_REQUEST);
+    }
+    await this.settingsService.setSetting('bot_backup_path_cqg', backupPath.trim());
+    return { success: true, message: 'Đã lưu đường dẫn thư mục backup CQG.' };
+  }
+
+  /**
+   * Synchronously scans the daily CQG backup folder and returns status of required files.
+   */
+  @Post('audit-cqg-backup')
+  async auditCqgBackup(@Body('targetDate') targetDateStr?: string) {
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+
+    const results = await this.cqgSyncService.scanCqgBackupFiles(targetDate);
+    const okCount = results.filter(r => r.status === 'OK').length;
+    const missingCount = results.filter(r => r.status === 'MISSING').length;
+    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+
+    return {
+      success: true,
+      backupPath: fullPath,
+      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      files: results,
+    };
+  }
+
+  /**
+   * Triggers an async FILE_AUDIT_CQG job:
+   * Scans backup folder -> merges missing/outdated files.
+   */
+  @Post('trigger-audit-cqg')
+  async triggerAuditCqg(@Body('targetDate') targetDateStr?: string) {
+    const job = await this.jobQueueService.enqueue('FILE_AUDIT_CQG', {
+      targetDate: targetDateStr || new Date().toISOString(),
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu kiểm tra và ghép file backup CQG vào hàng đợi.',
       jobId: job._id,
     };
   }

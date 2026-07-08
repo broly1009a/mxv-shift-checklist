@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { RpaDownloaderService } from './rpa-downloader.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { CqgSyncService } from './cqg-sync.service';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -45,6 +46,7 @@ export class BotJobQueueService implements OnModuleInit {
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
+    private readonly cqgSyncService: CqgSyncService,
   ) {}
 
   onModuleInit() {
@@ -140,6 +142,8 @@ export class BotJobQueueService implements OnModuleInit {
         await this.handleRpaDownloadJob(job);
       } else if (job.jobType === 'FILE_AUDIT_MS') {
         await this.handleFileAuditMsJob(job);
+      } else if (job.jobType === 'FILE_AUDIT_CQG') {
+        await this.handleFileAuditCqgJob(job);
       } else {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
@@ -403,6 +407,29 @@ export class BotJobQueueService implements OnModuleInit {
       await browser.close().catch((err) => {
         this.logger.error(`Error closing browser: ${err.message}`);
       });
+    }
+  }
+
+  /**
+   * FILE_AUDIT_CQG job handler:
+   * Runs the CqgSyncService autoMergeMissingFiles to scan and consolidate CQG backup files.
+   */
+  private async handleFileAuditCqgJob(job: BotJob) {
+    const targetDate = job.payload?.targetDate ? new Date(job.payload.targetDate) : new Date();
+    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra file backup CQG tại thư mục: ${fullPath}`);
+    await job.save();
+
+    // Run auto merge
+    const result = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+    for (const logLine of result.logs) {
+      job.logs.push(`[${new Date().toISOString()}] ${logLine}`);
+    }
+    await job.save();
+
+    if (!result.success) {
+      throw new Error('Có lỗi xảy ra trong quá trình tự động ghép file CQG.');
     }
   }
 
