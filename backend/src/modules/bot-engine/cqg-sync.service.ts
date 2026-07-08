@@ -309,7 +309,7 @@ export class CqgSyncService {
     const nwb = XLSX.utils.book_new();
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
     XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
-    XLSX.writeFile(nwb, dest);
+    XLSX.writeFile(nwb, dest, { compression: true });
   }
 
   /**
@@ -340,7 +340,7 @@ export class CqgSyncService {
     const nwb = XLSX.utils.book_new();
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
     XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
-    XLSX.writeFile(nwb, dest);
+    XLSX.writeFile(nwb, dest, { compression: true });
   }
 
   /**
@@ -387,7 +387,7 @@ export class CqgSyncService {
     const nwb = XLSX.utils.book_new();
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
     XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
-    XLSX.writeFile(nwb, dest);
+    XLSX.writeFile(nwb, dest, { compression: true });
   }
 
   /**
@@ -581,6 +581,6 @@ export class CqgSyncService {
       { Hidden: 0 },
     ];
 
-    XLSX.writeFile(nwb, dest);
+    XLSX.writeFile(nwb, dest, { compression: true });
   }
 }

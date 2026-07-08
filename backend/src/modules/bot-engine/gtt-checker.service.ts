@@ -976,7 +976,7 @@ export class GttCheckerService {
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-    XLSX.writeFile(wb, exportPath);
+    XLSX.writeFile(wb, exportPath, { compression: true });
 
     this.logger.log(`Created correction Excel file for ${type} at: ${exportPath}`);
     return exportPath;
