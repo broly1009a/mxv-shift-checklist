@@ -48,12 +48,25 @@ export class BotJobQueueService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // Start background worker loop every 10 seconds
+    // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
+    this.cleanupStuckJobs().catch((err) => {
+      this.logger.error(`Lỗi khi dọn dẹp các Job bị treo lúc khởi động: ${err.message}`);
+    });
+
+    // Khởi chạy vòng lặp worker ngầm mỗi 10 giây
     setInterval(() => {
       this.processQueue().catch((err) => {
         this.logger.error(`Error in background queue loop: ${err.message}`, err.stack);
       });
     }, 10000);
+
+    // Chạy dọn dẹp định kỳ mỗi 5 phút một lần
+    setInterval(() => {
+      this.cleanupStuckJobs().catch((err) => {
+        this.logger.error(`Lỗi khi dọn dẹp định kỳ các Job bị treo: ${err.message}`);
+      });
+    }, 5 * 60 * 1000);
+
     this.logger.log('Background BotJob queue worker initialized (polling every 10s).');
   }
 
@@ -390,6 +403,32 @@ export class BotJobQueueService implements OnModuleInit {
       await browser.close().catch((err) => {
         this.logger.error(`Error closing browser: ${err.message}`);
       });
+    }
+  }
+
+  /**
+   * Tự động quét và dọn dẹp các Job bị treo ở trạng thái PROCESSING quá 30 phút.
+   * Chuyển chúng thành trạng thái FAILED kèm log giải thích.
+   */
+  private async cleanupStuckJobs(): Promise<void> {
+    try {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const stuckJobs = await this.botJobModel.find({
+        status: 'PROCESSING',
+        updatedAt: { $lt: thirtyMinutesAgo },
+      }).exec();
+
+      if (stuckJobs.length > 0) {
+        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo ở trạng thái PROCESSING. Đang tự động dọn dẹp...`);
+        for (const job of stuckJobs) {
+          job.status = 'FAILED';
+          job.logs.push(`[${new Date().toISOString()}] Job tự động chuyển sang thất bại do bị treo quá hạn hoặc Server khởi động lại.`);
+          await job.save();
+        }
+        this.logger.log(`Đã dọn dẹp xong ${stuckJobs.length} Job bị treo.`);
+      }
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi dọn dẹp các Job bị treo: ${err.message}`);
     }
   }
 }
