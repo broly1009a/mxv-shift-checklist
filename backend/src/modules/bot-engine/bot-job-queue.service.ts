@@ -322,13 +322,13 @@ export class BotJobQueueService implements OnModuleInit {
    * Scans the MS backup directory to find missing/outdated required files.
    * Called synchronously from the controller for immediate status display.
    */
-  async scanMsBackupFiles(backupPath: string): Promise<Array<{
+  async scanMsBackupFiles(backupPath: string, targetDate: Date = new Date()): Promise<Array<{
     key: string;
     filename: string;
     status: 'OK' | 'MISSING' | 'OUTDATED';
     lastModified?: Date;
   }>> {
-    const today = new Date();
+    const today = new Date(targetDate);
     today.setHours(0, 0, 0, 0);
 
     return REQUIRED_MS_FILES.map(({ key, filename }) => {
@@ -355,18 +355,29 @@ export class BotJobQueueService implements OnModuleInit {
    * 2. If any missing → login M-System → download only missing files
    */
   private async handleFileAuditMsJob(job: BotJob) {
-    const backupPath: string = job.payload?.backupPath
+    const targetDateStr = job.payload?.targetDate;
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+
+    const msBackupBase = job.payload?.backupPath
       || await this.settingsService.getSetting('bot_backup_path_ms', 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(msBackupBase, subFolder);
+
+    if (!fs.existsSync(dailyPath)) {
+      fs.mkdirSync(dailyPath, { recursive: true });
+    }
+
+    const backupPath = dailyPath;
 
     job.logs.push(`[${new Date().toISOString()}] Thư mục backup: ${backupPath}`);
     await job.save();
 
-    if (!fs.existsSync(backupPath)) {
-      throw new Error(`Thư mục backup không tồn tại: ${backupPath}`);
-    }
-
     // 1. Scan
-    const scanResults = await this.scanMsBackupFiles(backupPath);
+    const scanResults = await this.scanMsBackupFiles(backupPath, targetDate);
     const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
     const okCount = scanResults.length - missingOrOutdated.length;
 

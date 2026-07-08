@@ -475,27 +475,36 @@ export class BotEngineController {
    * Does NOT trigger any Playwright download — just a quick file system scan.
    */
   @Post('audit-ms-backup')
-  async auditMsBackup() {
+  async auditMsBackup(@Body('targetDate') targetDateStr?: string) {
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
 
-    if (!fs.existsSync(backupPath)) {
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(backupPath, subFolder);
+
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : backupPath;
+
+    if (!fs.existsSync(scanPath)) {
       throw new HttpException(
-        `Thư mục backup không tồn tại: ${backupPath}. Vui lòng kiểm tra lại đường dẫn.`,
+        `Thư mục backup không tồn tại: ${scanPath}. Vui lòng kiểm tra lại đường dẫn.`,
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const results = await this.jobQueueService.scanMsBackupFiles(backupPath);
+    const results = await this.jobQueueService.scanMsBackupFiles(scanPath, targetDate);
     const okCount = results.filter(r => r.status === 'OK').length;
     const missingCount = results.filter(r => r.status === 'MISSING').length;
     const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
 
     return {
       success: true,
-      backupPath,
+      backupPath: scanPath,
       summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
       files: results,
     };
@@ -506,7 +515,7 @@ export class BotEngineController {
    * Scans backup folder → downloads only missing/outdated files via Playwright.
    */
   @Post('trigger-audit-ms')
-  async triggerAuditMs() {
+  async triggerAuditMs(@Body('targetDate') targetDateStr?: string) {
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
@@ -514,6 +523,7 @@ export class BotEngineController {
 
     const job = await this.jobQueueService.enqueue('FILE_AUDIT_MS', {
       backupPath,
+      targetDate: targetDateStr || new Date().toISOString(),
       maxAttempts: 1,
     });
 

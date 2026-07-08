@@ -61,39 +61,77 @@ export class CqgSyncService {
   async scanCqgBackupFiles(targetDate: Date = new Date()): Promise<CqgAuditResult[]> {
     const { fullPath } = await this.getDailyBackupPath(targetDate);
     const todayStr = targetDate.toDateString();
+    const results: CqgAuditResult[] = [];
 
-    if (!fs.existsSync(fullPath)) {
-      return REQUIRED_CQG_FILES.map(f => ({
-        key: f.key,
-        filename: f.filename,
-        type: f.type,
-        status: 'MISSING',
-      }));
-    }
-
-    return REQUIRED_CQG_FILES.map(f => {
+    // Scan CQG files
+    for (const f of REQUIRED_CQG_FILES) {
       const filePath = path.join(fullPath, f.filename);
-      if (!fs.existsSync(filePath)) {
-        return {
+      if (!fs.existsSync(fullPath) || !fs.existsSync(filePath)) {
+        results.push({
           key: f.key,
           filename: f.filename,
           type: f.type,
           status: 'MISSING',
-        };
+        });
+      } else {
+        const stat = fs.statSync(filePath);
+        const fileDateStr = new Date(stat.mtime).toDateString();
+        const isToday = fileDateStr === todayStr;
+        results.push({
+          key: f.key,
+          filename: f.filename,
+          type: f.type,
+          status: isToday ? 'OK' : 'OUTDATED',
+          lastModified: stat.mtime,
+        });
       }
+    }
 
-      const stat = fs.statSync(filePath);
+    // Scan M-System TTTT.xlsx file
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    let msFilePath = '';
+    const possiblePaths = [
+      path.join(msBackupBase, subFolder, 'TTTT.xlsx'),
+      path.join(msBackupBase, 'TTTT.xlsx'),
+      path.join(msBackupBase, subFolder, 'TTM.xlsx'),
+      path.join(msBackupBase, 'TTM.xlsx'),
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        msFilePath = p;
+        break;
+      }
+    }
+
+    if (msFilePath) {
+      const stat = fs.statSync(msFilePath);
       const fileDateStr = new Date(stat.mtime).toDateString();
       const isToday = fileDateStr === todayStr;
-
-      return {
-        key: f.key,
-        filename: f.filename,
-        type: f.type,
+      results.push({
+        key: 'MS_TTTT',
+        filename: `TTTT.xlsx (M-System - ${path.basename(msFilePath)})`,
+        type: 'RAW',
         status: isToday ? 'OK' : 'OUTDATED',
         lastModified: stat.mtime,
-      };
-    });
+      });
+    } else {
+      results.push({
+        key: 'MS_TTTT',
+        filename: 'TTTT.xlsx (M-System)',
+        type: 'RAW',
+        status: 'MISSING',
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -112,13 +150,38 @@ export class CqgSyncService {
     const audit = await this.scanCqgBackupFiles(targetDate);
     logs.push(`Bắt đầu chạy quy trình tự động ghép file tại thư mục: ${fullPath}`);
 
-    // Resolve M-System TTM path for PS reconciliation
+    // Resolve M-System backup path for PS reconciliation
     // M-System backup path is typically configured in settings
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
-    const ttmPath = path.join(msBackupBase, 'TTM.xlsx');
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    // Try finding TTTT.xlsx first (realized PnL), then TTM.xlsx (open positions), supporting both nested and flat paths
+    let ttmPath = '';
+    const possiblePaths = [
+      path.join(msBackupBase, subFolder, 'TTTT.xlsx'),
+      path.join(msBackupBase, 'TTTT.xlsx'),
+      path.join(msBackupBase, subFolder, 'TTM.xlsx'),
+      path.join(msBackupBase, 'TTM.xlsx'),
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        ttmPath = p;
+        break;
+      }
+    }
+
+    if (!ttmPath) {
+      ttmPath = path.join(msBackupBase, 'TTTT.xlsx');
+    }
+    this.logger.log(`Sử dụng file MS để đối chiếu PS: ${ttmPath}`);
 
     const runMerge = async (
       name: string,
@@ -312,9 +375,7 @@ export class CqgSyncService {
         // Rows1 index: 2 is OD1 row 3.
         // Excel Row lr1 - 3: is rows1 index lr1 - 4.
         // Target Sheet Row lr1 - 3: is target sheet index lr1 - 4 (if target starts at row 1).
-        // Since we slice(2) to start target, rows1 index X maps to target index X - 2.
-        // So rows1 index lr1 - 4 maps to target index lr1 - 6.
-        const pasteIdx = lr1 - 6;
+        const pasteIdx = lr1 - 4;
         if (pasteIdx >= 0 && pasteIdx < data1.length) {
           mergedData = data1.slice(0, pasteIdx).concat(data2);
         } else {
@@ -375,13 +436,14 @@ export class CqgSyncService {
     // Add formulas to columns K, L, M, N (indices 10 to 13)
     for (let i = 1; i < sheet2Rows.length; i++) {
       const r = i + 1;
-      ws2[XLSX.utils.encode_cell({ r: i, c: 10 })] = { t: 's', f: `A${r}&D${r}` }; // Ma check
-      ws2[XLSX.utils.encode_cell({ r: i, c: 11 })] = { t: 'n', f: `I${r}` }; // CQG
+      ws2[XLSX.utils.encode_cell({ r: i, c: 10 })] = { t: 's', f: `A${r}&D${r}`, v: '' }; // Ma check
+      ws2[XLSX.utils.encode_cell({ r: i, c: 11 })] = { t: 'n', f: `I${r}`, v: 0 }; // CQG
       ws2[XLSX.utils.encode_cell({ r: i, c: 12 })] = {
         t: 'n',
         f: `SUMIF('Check MS-CQG'!Z:Z,'Check CQG-MS'!K${r},'Check MS-CQG'!T:T)`,
+        v: 0,
       }; // MS
-      ws2[XLSX.utils.encode_cell({ r: i, c: 13 })] = { t: 'n', f: `L${r}-M${r}` }; // Check
+      ws2[XLSX.utils.encode_cell({ r: i, c: 13 })] = { t: 'n', f: `L${r}-M${r}`, v: 0 }; // Check
     }
 
     // Set headers
@@ -404,7 +466,7 @@ export class CqgSyncService {
         const wbTtm = XLSX.readFile(ttmPath);
         ttmRows = XLSX.utils.sheet_to_json(wbTtm.Sheets[wbTtm.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
-        this.logger.error(`Không thể đọc TTM.xlsx tại ${ttmPath}: ${err.message}`);
+        this.logger.error(`Không thể đọc file MS tại ${ttmPath}: ${err.message}`);
       }
     }
 
@@ -431,13 +493,14 @@ export class CqgSyncService {
     // Add formulas for columns Z to AC (indices 25 to 28)
     for (let i = 1; i < sheet3Rows.length; i++) {
       const r = i + 1;
-      ws3[XLSX.utils.encode_cell({ r: i, c: 25 })] = { t: 's', f: `H${r}&J${r}` }; // Ma check
-      ws3[XLSX.utils.encode_cell({ r: i, c: 26 })] = { t: 'n', f: `SUMIF(Z:Z,Z${r},T:T)` }; // MS
+      ws3[XLSX.utils.encode_cell({ r: i, c: 25 })] = { t: 's', f: `H${r}&J${r}`, v: '' }; // Ma check
+      ws3[XLSX.utils.encode_cell({ r: i, c: 26 })] = { t: 'n', f: `SUMIF(Z:Z,Z${r},T:T)`, v: 0 }; // MS
       ws3[XLSX.utils.encode_cell({ r: i, c: 27 })] = {
         t: 'n',
         f: `VLOOKUP(Z${r},'Check CQG-MS'!K:L,2,0)`,
+        v: 0,
       }; // CQG
-      ws3[XLSX.utils.encode_cell({ r: i, c: 28 })] = { t: 'n', f: `AA${r}-AB${r}` }; // Check
+      ws3[XLSX.utils.encode_cell({ r: i, c: 28 })] = { t: 'n', f: `AA${r}-AB${r}`, v: 0 }; // Check
     }
 
     // Set headers
