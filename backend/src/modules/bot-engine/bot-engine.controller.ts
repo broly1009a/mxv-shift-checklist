@@ -37,9 +37,18 @@ export class BotEngineController {
   async getConfig() {
     const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
     const cqgRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+    const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
 
     let msystem = { url: 'https://msystem.mxv.vn/', username: '', password: '', pin: '' };
     let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '' };
+    let acm = {
+      url: 'https://acm.member-url.vn/login',
+      username: '',
+      password: '',
+      geminiApiKey: '',
+      downloadUrl: '',
+      downloadBtnSelector: '',
+    };
 
     if (msystemRaw) {
       try {
@@ -64,7 +73,21 @@ export class BotEngineController {
       } catch (err) {}
     }
 
-    return { msystem, cqg };
+    if (acmRaw) {
+      try {
+        const decrypted = JSON.parse(decrypt(acmRaw));
+        acm = {
+          url: decrypted.url || 'https://acm.member-url.vn/login',
+          username: decrypted.username || '',
+          password: decrypted.password ? '********' : '',
+          geminiApiKey: decrypted.geminiApiKey ? '********' : '',
+          downloadUrl: decrypted.downloadUrl || '',
+          downloadBtnSelector: decrypted.downloadBtnSelector || '',
+        };
+      } catch (err) {}
+    }
+
+    return { msystem, cqg, acm };
   }
 
   /**
@@ -72,7 +95,7 @@ export class BotEngineController {
    */
   @Post('config')
   async saveConfig(@Body() body: any) {
-    const { msystem, cqg } = body;
+    const { msystem, cqg, acm } = body;
 
     if (msystem) {
       const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
@@ -109,6 +132,27 @@ export class BotEngineController {
       };
 
       await this.settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(mergedCqg)));
+    }
+
+    if (acm) {
+      const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
+      let currentAcm: any = {};
+      if (acmRaw) {
+        try {
+          currentAcm = JSON.parse(decrypt(acmRaw));
+        } catch (err) {}
+      }
+
+      const mergedAcm = {
+        url: acm.url || currentAcm.url || 'https://acm.member-url.vn/login',
+        username: acm.username !== undefined ? acm.username : currentAcm.username,
+        password: acm.password && acm.password !== '********' ? acm.password : currentAcm.password,
+        geminiApiKey: acm.geminiApiKey && acm.geminiApiKey !== '********' ? acm.geminiApiKey : currentAcm.geminiApiKey,
+        downloadUrl: acm.downloadUrl !== undefined ? acm.downloadUrl : currentAcm.downloadUrl,
+        downloadBtnSelector: acm.downloadBtnSelector !== undefined ? acm.downloadBtnSelector : currentAcm.downloadBtnSelector,
+      };
+
+      await this.settingsService.setSetting('bot_credentials_acm', encrypt(JSON.stringify(mergedAcm)));
     }
 
     return { success: true, message: 'Cấu hình tài khoản robot đã được cập nhật thành công.' };
@@ -200,6 +244,28 @@ export class BotEngineController {
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CQG thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant headless trial login to ACM to verify configurations.
+   */
+  @Post('test-connection-acm')
+  async testConnectionACM() {
+    const tempDir = path.join(process.cwd(), 'temp', 'test-connection-acm');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    try {
+      const { browser } = await this.rpaService.loginACM(tempDir);
+      await browser.close();
+      return { success: true, message: 'Kết nối thử nghiệm ACM thành công! Robot đăng nhập ACM và vượt mã captcha hoàn tất.' };
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm ACM thất bại: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -596,5 +662,96 @@ export class BotEngineController {
       message: 'Đã đưa yêu cầu kiểm tra và ghép file backup CQG vào hàng đợi.',
       jobId: job._id,
     };
+  }
+
+  // =========================================================================
+  // BACKUP ACM AUDIT ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Returns the configured ACM backup folder path.
+   */
+  @Get('backup-acm/config')
+  async getBackupAcmConfig() {
+    const backupPath = await this.jobQueueService.getAcmBackupBase();
+    return { backupPath };
+  }
+
+  /**
+   * Saves the ACM backup folder path to system settings.
+   */
+  @Post('backup-acm/config')
+  async saveBackupAcmConfig(@Body('backupPath') backupPath: string) {
+    return { success: true, message: 'Đường dẫn ACM được tự động đồng bộ theo Backup MS.' };
+  }
+
+  /**
+   * Synchronously scans the ACM backup folder and returns status.
+   */
+  @Post('audit-acm-backup')
+  async auditAcmBackup(@Body('targetDate') targetDateStr?: string) {
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const backupPath = await this.jobQueueService.getAcmBackupBase();
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(backupPath, subFolder);
+
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : backupPath;
+
+    if (!fs.existsSync(scanPath)) {
+      fs.mkdirSync(scanPath, { recursive: true });
+    }
+
+    const results = await this.jobQueueService.scanAcmBackupFiles(scanPath, targetDate);
+    const okCount = results.filter(r => r.status === 'OK').length;
+    const missingCount = results.filter(r => r.status === 'MISSING').length;
+    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+
+    return {
+      success: true,
+      backupPath: scanPath,
+      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      files: results,
+    };
+  }
+
+  /**
+   * Triggers an async FILE_AUDIT_ACM job.
+   */
+  @Post('trigger-audit-acm')
+  async triggerAuditAcm(@Body('targetDate') targetDateStr?: string) {
+    const backupPath = await this.jobQueueService.getAcmBackupBase();
+
+    const job = await this.jobQueueService.enqueue('FILE_AUDIT_ACM', {
+      backupPath,
+      targetDate: targetDateStr || new Date().toISOString(),
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup ACM vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  /**
+   * Cung cấp Captcha gõ tay từ UI cho Job đang chờ.
+   */
+  @Post('jobs/:id/submit-captcha')
+  async submitCaptcha(@Param('id') jobId: string, @Body('captchaText') captchaText: string) {
+    if (!captchaText || typeof captchaText !== 'string') {
+      throw new HttpException('Mã captcha không hợp lệ.', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      await this.jobQueueService.submitCaptcha(jobId, captchaText.trim());
+      return { success: true, message: 'Đã gửi captcha thành công. Job đang tiếp tục chạy.' };
+    } catch (err: any) {
+      throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
+    }
   }
 }

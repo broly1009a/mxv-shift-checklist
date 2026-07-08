@@ -1020,4 +1020,356 @@ export class RpaDownloaderService {
 
     return result;
   }
+
+  /**
+   * Giải quyết Captcha dạng hình ảnh sử dụng Google Gemini 1.5 Flash API.
+   * Chạy nhanh, chính xác cao và hoàn toàn miễn phí dưới ngưỡng 15 RPM.
+   */
+  async solveCaptchaWithGemini(base64Image: string, apiKey: string, jobLogs: string[] = []): Promise<string> {
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log('Đang gửi ảnh Captcha lên Gemini API (gemini-flash-latest)...');
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: 'Read the characters in this image. It is a captcha code. Output ONLY the raw characters (case-sensitive, no spaces, no punctuation, no bold, no explanation). Example output: EBGPG',
+                  },
+                  {
+                    inlineData: {
+                      mimeType: 'image/png',
+                      data: base64Image,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
+      }
+
+      const data = await response.json() as any;
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const solvedCode = text ? text.replace(/\s/g, '') : '';
+      log(`Nhận diện Captcha từ Gemini thành công: "${solvedCode}"`);
+      return solvedCode;
+    } catch (err: any) {
+      log(`Lỗi khi gọi Gemini API: ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Khởi chạy trình duyệt và đăng nhập vào ACM.
+   * Tự động giải captcha bằng Gemini API. Nếu lỗi, có cơ chế fallback nhập tay qua giao diện.
+   */
+  async loginACM(
+    downloadDir: string,
+    getCaptchaFromUI?: (base64Img: string) => Promise<string>,
+    jobLogs: string[] = [],
+  ): Promise<{ browser: Browser; page: Page }> {
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    // 1. Lấy thông tin đăng nhập
+    const credentialsRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
+    if (!credentialsRaw) {
+      throw new Error('Chưa cấu hình tài khoản ACM trong cài đặt hệ thống.');
+    }
+
+    let credentials: any;
+    try {
+      credentials = JSON.parse(decrypt(credentialsRaw));
+    } catch (err) {
+      throw new Error('Không thể giải mã cấu hình tài khoản ACM. Vui lòng cấu hình lại.');
+    }
+
+    const acmUrl = credentials.url || 'https://acm.etp.alphaliongroup.com/exchange/index.html#/login';
+    const { username, password, geminiApiKey } = credentials;
+
+    if (!username || !password) {
+      throw new Error('Thông tin đăng nhập ACM (username, password) không đầy đủ.');
+    }
+
+    // 2. Khởi tạo trình duyệt
+    const executablePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-dev-shm-usage',
+        '--disable-extensions',
+        '--window-size=1280,800',
+      ],
+    };
+    if (executablePath) {
+      launchOptions.executablePath = executablePath;
+    }
+
+    log('Khởi tạo phiên trình duyệt Playwright...');
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1280, height: 800 },
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    });
+
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+    page.setDefaultTimeout(30000);
+
+    try {
+      log(`Truy cập trang đăng nhập ACM: ${acmUrl}`);
+      await page.goto(acmUrl);
+      await page.waitForTimeout(2000);
+
+      // Định nghĩa các selector tìm kiếm thông minh
+      const usernameSelectors = [
+        'input[placeholder="Username"]',
+        'input[name="username"]',
+        'input[placeholder*="user" i]',
+        'input[placeholder*="tài khoản" i]',
+        'input[type="text"]',
+      ];
+      const passwordSelectors = [
+        'input[placeholder="Password"]',
+        'input[name="password"]',
+        'input[type="password"]',
+        'input[placeholder*="pass" i]',
+        'input[placeholder*="mật khẩu" i]',
+      ];
+      const captchaInputSelectors = [
+        'input[placeholder="Captcha"]',
+        'input[name="captcha"]',
+        'input[placeholder*="captcha" i]',
+        'input[placeholder*="mã xác nhận" i]',
+        'input[placeholder*="mã bảo mật" i]',
+      ];
+      const captchaImgSelectors = [
+        '.login-captcha img',
+        'img[src*="captcha" i]',
+        'img[src*="code" i]',
+        'img.captcha',
+        'img#captcha-img',
+        'img#captcha',
+      ];
+      const loginBtnSelectors = [
+        '.el-button--primary',
+        'button:has-text("Login")',
+        'button[type="submit"]',
+        'button:has-text("Đăng nhập")',
+        'input[type="submit"]',
+        'input.btn-primary',
+      ];
+
+      // Hàm tìm selector visible
+      const findSelector = async (selectors: string[]): Promise<string> => {
+        for (const sel of selectors) {
+          const isVis = await page.locator(sel).first().isVisible().catch(() => false);
+          if (isVis) return sel;
+        }
+        return selectors[0];
+      };
+
+      const userSel = await findSelector(usernameSelectors);
+      const passSel = await findSelector(passwordSelectors);
+      const capInputSel = await findSelector(captchaInputSelectors);
+      const capImgSel = await findSelector(captchaImgSelectors);
+      const btnSel = await findSelector(loginBtnSelectors);
+
+      log(`Điền thông tin tài khoản: ${username}`);
+      await page.fill(userSel, username);
+      await page.fill(passSel, password);
+
+      // Vòng lặp giải captcha (tối đa 4 lần thử reload)
+      const maxCaptchaAttempts = 4;
+      for (let attempt = 1; attempt <= maxCaptchaAttempts; attempt++) {
+        log(`[Lần thử đăng nhập ${attempt}/${maxCaptchaAttempts}] Bắt đầu xử lý Captcha...`);
+
+        // Đợi ảnh captcha hiển thị
+        await page.waitForSelector(capImgSel, { state: 'visible', timeout: 10000 });
+        const captchaElement = page.locator(capImgSel).first();
+
+        // Chụp ảnh thẻ captcha dưới dạng base64
+        const imgBuffer = await captchaElement.screenshot({ type: 'png' });
+        const base64Image = imgBuffer.toString('base64');
+
+        let captchaText = '';
+        if (geminiApiKey && geminiApiKey.trim() !== '') {
+          try {
+            captchaText = await this.solveCaptchaWithGemini(base64Image, geminiApiKey, jobLogs);
+          } catch (err: any) {
+            log(`Giải tự động bằng Gemini lỗi: ${err.message}. Chuyển sang cơ chế dự phòng...`);
+          }
+        }
+
+        // Dự phòng: đẩy lên giao diện checklist bắt gõ tay
+        if (!captchaText && getCaptchaFromUI) {
+          log('Chuyển sang luồng nhập tay (Human-in-the-loop). Đang chờ người dùng nhập mã từ UI...');
+          captchaText = await getCaptchaFromUI(base64Image);
+        }
+
+        if (!captchaText) {
+          throw new Error('Không giải được Captcha (cả Gemini và nhập tay đều không có kết quả).');
+        }
+
+        log(`Nhập mã Captcha: "${captchaText}"`);
+        await page.fill(capInputSel, captchaText);
+        await page.waitForTimeout(500);
+
+        log('Bấm nút đăng nhập...');
+        await page.click(btnSel);
+        await page.waitForTimeout(3000);
+
+        // Kiểm tra xem đăng nhập thành công chưa bằng cách check sự biến mất của ô login hoặc xuất hiện trang dashboard
+        const isStillOnLogin = await page.locator(userSel).isVisible().catch(() => false);
+        if (!isStillOnLogin) {
+          log('Đăng nhập ACM thành công!');
+          return { browser, page };
+        }
+
+        // Lấy thông báo lỗi nếu còn ở màn hình login
+        const errorText = await page
+          .evaluate(() => {
+            const errEl = document.querySelector(
+              '.alert-danger, .error-message, .alert, span.error, div[style*="red"]',
+            );
+            return errEl ? errEl.textContent?.trim() : '';
+          })
+          .catch(() => '');
+
+        log(`Đăng nhập thất bại. Thông báo lỗi: "${errorText || 'Sai mã captcha hoặc thông tin tài khoản'}"`);
+
+        if (attempt === maxCaptchaAttempts) {
+          throw new Error(
+            `Đăng nhập ACM thất bại sau ${maxCaptchaAttempts} lần thử. Lỗi: ${errorText || 'Sai mã captcha'}`,
+          );
+        }
+
+        // Reload captcha ảnh
+        log('Đang tải lại mã Captcha mới để giải lại...');
+        await captchaElement.click().catch(() => {});
+        await page.waitForTimeout(1500);
+      }
+
+      throw new Error('Không thể đăng nhập ACM.');
+    } catch (err: any) {
+      log(`Lỗi đăng nhập ACM: ${err.message}`);
+      await browser.close().catch(() => {});
+      throw err;
+    }
+  }
+
+  /**
+   * Tải các file báo cáo tự doanh (Order & Fill) từ ACM về thư mục hàng ngày.
+   */
+  async downloadAcmBackup(page: Page, dailyPath: string, jobLogs: string[] = []): Promise<void> {
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    const orderFile = path.join(dailyPath, 'Order.xlsx');
+    const fillFile = path.join(dailyPath, 'Fill.xlsx');
+
+    log('Bắt đầu tải Báo cáo Order...');
+    await this.downloadAcmReport(
+      page,
+      orderFile,
+      'https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetporder',
+      jobLogs,
+    );
+
+    log('Bắt đầu tải Báo cáo Fill (Trade)...');
+    await this.downloadAcmReport(
+      page,
+      fillFile,
+      'https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetptrade',
+      jobLogs,
+    );
+  }
+
+  /**
+   * Helper tải một báo cáo ACM cụ thể từ URL.
+   */
+  async downloadAcmReport(
+    page: Page,
+    destFile: string,
+    url: string,
+    jobLogs: string[] = [],
+  ): Promise<void> {
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(`Điều hướng đến trang tải báo cáo: ${url}`);
+    await page.goto(url);
+    await page.waitForTimeout(3000); // Đợi tải dữ liệu ban đầu
+
+    const exportBtnSelector =
+      '.el-button--info:has-text("Export"), button:has-text("Export"), button:has-text("Download")';
+    log(`Đang tìm kiếm nút Export bằng selector: "${exportBtnSelector}"...`);
+
+    // Đợi selector xuất hiện
+    await page.waitForSelector(exportBtnSelector, { state: 'visible', timeout: 15000 }).catch(() => {});
+
+    const btn = page.locator(exportBtnSelector).first();
+    const isVisible = await btn.isVisible().catch(() => false);
+
+    if (!isVisible) {
+      log(`Không tìm thấy nút Export tại URL: ${url}. Thử tìm nút thay thế...`);
+      const fallbackBtn = page
+        .locator(
+          'button:has-text("Nano"), a:has-text("Nano"), button:has-text("Tải"), a:has-text("Tải"), button:has-text("Export"), a:has-text("Export")',
+        )
+        .first();
+      const fallbackVis = await fallbackBtn.isVisible().catch(() => false);
+      if (fallbackVis) {
+        log('Tìm thấy nút tải thay thế, click...');
+        const downloadPromise = page.waitForEvent('download');
+        await fallbackBtn.click();
+        const download = await downloadPromise;
+        await download.saveAs(destFile);
+        log(`Tải file thành công: ${destFile}`);
+        return;
+      }
+      throw new Error(`Không tìm thấy nút Export hoặc Download tại trang ${url}`);
+    }
+
+    log('Kích hoạt click xuất file báo cáo...');
+    const downloadPromise = page.waitForEvent('download');
+    await btn.click();
+    const download = await downloadPromise;
+    await download.saveAs(destFile);
+    log(`Tải và lưu file thành công: ${destFile}`);
+  }
 }
+

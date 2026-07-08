@@ -37,7 +37,7 @@ interface BotConfig {
 interface BotJobs {
   _id: string;
   jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA';
   attempts: number;
   maxAttempts: number;
   logs: string[];
@@ -60,15 +60,25 @@ export default function AdminBotConfigPage() {
   const [cqgUsername, setCqgUsername] = useState('');
   const [cqgPassword, setCqgPassword] = useState('');
 
+  const [acmUrl, setAcmUrl] = useState('https://acm.member-url.vn/login');
+  const [acmUsername, setAcmUsername] = useState('');
+  const [acmPassword, setAcmPassword] = useState('');
+  const [acmGeminiApiKey, setAcmGeminiApiKey] = useState('');
+  const [acmDownloadUrl, setAcmDownloadUrl] = useState('');
+  const [acmDownloadBtnSelector, setAcmDownloadBtnSelector] = useState('');
+
   // UI state
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);
   const [showMsystemPin, setShowMsystemPin] = useState(false);
   const [showCqgPassword, setShowCqgPassword] = useState(false);
+  const [showAcmPassword, setShowAcmPassword] = useState(false);
+  const [showAcmGeminiApiKey, setShowAcmGeminiApiKey] = useState(false);
 
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testingCqgConnection, setTestingCqgConnection] = useState(false);
+  const [testingAcmConnection, setTestingAcmConnection] = useState(false);
 
   // GTT Check state
   const [gttFile, setGttFile] = useState<File | null>(null);
@@ -151,6 +161,15 @@ export default function AdminBotConfigPage() {
   const [auditCqgResults, setAuditCqgResults] = useState<any>(null);
   const [triggeringAuditCqg, setTriggeringAuditCqg] = useState(false);
 
+  // Backup ACM Audit state
+  const [backupPathAcm, setBackupPathAcm] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures');
+  const [savingBackupPathAcm, setSavingBackupPathAcm] = useState(false);
+  const [auditingAcm, setAuditingAcm] = useState(false);
+  const [auditAcmResults, setAuditAcmResults] = useState<any>(null);
+  const [triggeringAuditAcm, setTriggeringAuditAcm] = useState(false);
+  const [captchaText, setCaptchaText] = useState('');
+  const [submittingCaptcha, setSubmittingCaptcha] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -182,6 +201,14 @@ export default function AdminBotConfigPage() {
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
         }
+        if (data.acm) {
+          setAcmUrl(data.acm.url || 'https://acm.member-url.vn/login');
+          setAcmUsername(data.acm.username || '');
+          setAcmPassword(data.acm.password || '');
+          setAcmGeminiApiKey(data.acm.geminiApiKey || '');
+          setAcmDownloadUrl(data.acm.downloadUrl || '');
+          setAcmDownloadBtnSelector(data.acm.downloadBtnSelector || '');
+        }
       }
 
       // Fetch Backup MS path
@@ -203,6 +230,17 @@ export default function AdminBotConfigPage() {
         const backupCqgData = await backupCqgRes.json();
         if (backupCqgData.backupPath) {
           setBackupPathCqg(backupCqgData.backupPath);
+        }
+      }
+
+      // Fetch Backup ACM path
+      const backupAcmRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-acm/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (backupAcmRes.ok) {
+        const backupAcmData = await backupAcmRes.json();
+        if (backupAcmData.backupPath) {
+          setBackupPathAcm(backupAcmData.backupPath);
         }
       }
     } catch (err) {
@@ -295,6 +333,14 @@ export default function AdminBotConfigPage() {
             url: cqgUrl.trim(),
             username: cqgUsername.trim(),
             password: cqgPassword,
+          },
+          acm: {
+            url: acmUrl.trim(),
+            username: acmUsername.trim(),
+            password: acmPassword,
+            geminiApiKey: acmGeminiApiKey,
+            downloadUrl: acmDownloadUrl.trim(),
+            downloadBtnSelector: acmDownloadBtnSelector.trim(),
           },
         }),
       });
@@ -455,6 +501,106 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  // Save Backup ACM Path
+  const handleSaveBackupAcmConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingBackupPathAcm(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/backup-acm/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ backupPath: backupPathAcm }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success(data.message || 'Đã lưu đường dẫn backup ACM thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingBackupPathAcm(false);
+    }
+  };
+
+  // Run quick scan audit ACM
+  const handleAuditAcmBackup = async () => {
+    if (!token) return;
+    setAuditingAcm(true);
+    setAuditAcmResults(null);
+    const toastId = toast.loading('Đang scan thư mục backup ACM...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-acm-backup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup ACM');
+      setAuditAcmResults(data);
+      const { ok, missing, outdated } = data.summary;
+      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kiểm tra backup ACM', { id: toastId });
+    } finally {
+      setAuditingAcm(false);
+    }
+  };
+
+  // Trigger ACM backup download job
+  const handleTriggerAuditAcm = async () => {
+    if (!token) return;
+    setTriggeringAuditAcm(true);
+    const toastId = toast.loading('Đang khởi tạo job tải file backup ACM...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-audit-acm`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job tự động tải file ACM thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy bot ACM', { id: toastId });
+    } finally {
+      setTriggeringAuditAcm(false);
+    }
+  };
+
+  // Submit Captcha for selected job
+  const handleSubmitCaptcha = async () => {
+    if (!token || !selectedJob || !captchaText) return;
+    setSubmittingCaptcha(true);
+    const toastId = toast.loading('Đang gửi mã Captcha...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${selectedJob._id}/submit-captcha`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ captchaText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gửi captcha thất bại');
+      toast.success('Gửi mã captcha thành công! Vui lòng đợi bot xử lý.', { id: toastId });
+      setCaptchaText('');
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi gửi captcha', { id: toastId });
+    } finally {
+      setSubmittingCaptcha(false);
+    }
+  };
+
   // Test connection
   const handleTestConnection = async () => {
     if (!token) return;
@@ -504,6 +650,32 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Thử nghiệm CQG thất bại', { id: toastId });
     } finally {
       setTestingCqgConnection(false);
+    }
+  };
+
+  // Test ACM connection
+  const handleTestAcmConnection = async () => {
+    if (!token) return;
+    setTestingAcmConnection(true);
+    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập ACM...');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/test-connection-acm`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Đăng nhập thử nghiệm ACM thất bại');
+      }
+
+      toast.success(data.message || 'Kết nối ACM thành công!', { id: toastId });
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm ACM thất bại', { id: toastId });
+    } finally {
+      setTestingAcmConnection(false);
     }
   };
 
@@ -760,7 +932,7 @@ export default function AdminBotConfigPage() {
         const errorText = await res.json().catch(() => ({ message: 'Không thể xuất file' }));
         throw new Error(errorText.message || 'Xuất file thất bại');
       }
-      
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -770,7 +942,7 @@ export default function AdminBotConfigPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Tải xuống file sửa giá thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải xuống file sửa giá', { id: toastId });
@@ -950,6 +1122,25 @@ export default function AdminBotConfigPage() {
             <RefreshCw size={12} className="animate-spin" /> Đang chạy
           </span>
         );
+      case 'AWAITING_CAPTCHA':
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: '#f59e0b',
+              animation: 'pulse 1.5s infinite',
+            }}
+          >
+            <Activity size={12} /> Chờ Captcha
+          </span>
+        );
       default:
         return (
           <span
@@ -971,10 +1162,44 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  // Pre-calculate GTT CSV preview content
+  let gttCsvContent = '';
+  if (gttReport && gttReport.diffCount > 0) {
+    const majorDiffRows = gttReport.rows.filter(
+      (r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))
+    );
+    if (majorDiffRows.length > 0) {
+      const csvHeaders = 'contractCode,settlePrice';
+      const csvRows = majorDiffRows.map((r: any) => `${r.symbol},${r.gttCqg}`);
+      gttCsvContent = [csvHeaders, ...csvRows].join('\n');
+    }
+  }
+
+  // Pre-calculate KLGD and EOD stats for rendering to avoid TSX compiler bugs
+  let klgdStats: any[] = [];
+  let eodStats: any[] = [];
+  if (reconResult) {
+    if (reconResult.results?.klgd) {
+      klgdStats = [
+        { label: 'Tổng MS', value: `${reconResult.results.klgd.totals?.totalDSGD ?? '—'} lot`, color: '#60a5fa' },
+        { label: 'Tổng CQG', value: `${reconResult.results.klgd.totals?.totalFR ?? '—'} lot`, color: '#60a5fa' },
+        { label: 'Chênh lệch', value: `${reconResult.results.klgd.totals?.differ ?? '—'} lot`, color: reconResult.results.klgd.totals?.differ > 0 ? '#ef4444' : '#10b981' },
+        { label: 'GD lệch chi tiết', value: `${reconResult.results.klgd.mismatchedTrades?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTrades?.length > 0 ? '#ef4444' : '#10b981' },
+        { label: 'TK lệch TTM', value: `${reconResult.results.klgd.mismatchedTTM?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTTM?.length > 0 ? '#f59e0b' : '#10b981' },
+      ];
+    }
+    if (reconResult.results?.eod) {
+      eodStats = [
+        { label: 'TK lệch số dư (≥1,000đ)', value: `${reconResult.results.eod.mismatchedEOD?.length ?? 0}`, color: reconResult.results.eod.mismatchedEOD?.length > 0 ? '#ef4444' : '#10b981' },
+        { label: 'TK âm ký quỹ', value: `${reconResult.results.eod.negativeIMRAcc?.length ?? 0}`, color: reconResult.results.eod.negativeIMRAcc?.length > 0 ? '#ef4444' : '#10b981' },
+      ];
+    }
+  }
+
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        
+
         {/* Page Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -989,7 +1214,7 @@ export default function AdminBotConfigPage() {
             <button
               type="button"
               onClick={handleTestConnection}
-              disabled={testingConnection || testingCqgConnection || loadingConfig}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
               className="btn btn-secondary"
               style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
@@ -998,7 +1223,7 @@ export default function AdminBotConfigPage() {
             <button
               type="button"
               onClick={handleTestCqgConnection}
-              disabled={testingConnection || testingCqgConnection || loadingConfig}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
               className="btn btn-secondary"
               style={{
                 padding: '12px 20px',
@@ -1012,6 +1237,23 @@ export default function AdminBotConfigPage() {
             >
               <Play size={16} /> Test Đăng Nhập CQG
             </button>
+            <button
+              type="button"
+              onClick={handleTestAcmConnection}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
+              className="btn btn-secondary"
+              style={{
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              <Play size={16} /> Test Đăng Nhập ACM
+            </button>
           </div>
         </div>
 
@@ -1019,11 +1261,11 @@ export default function AdminBotConfigPage() {
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải thông tin cấu hình...</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_450px] gap-8 items-start">
-            
+
             {/* Left: Forms & Tools */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                
+
                 {/* M-System Config Box */}
                 <div className="glass-panel" style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
@@ -1180,6 +1422,126 @@ export default function AdminBotConfigPage() {
                             {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACM Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Server size={20} color="var(--color-primary)" />
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản Đăng Nhập ACM</h3>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Đường dẫn URL cổng ACM
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type="url"
+                          className="form-input"
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://acm.member-url.vn/login"
+                          value={acmUrl}
+                          onChange={(e) => setAcmUrl(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Tên đăng nhập ACM
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Nhập tên đăng nhập..."
+                          value={acmUsername}
+                          onChange={(e) => setAcmUsername(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Mật khẩu đăng nhập ACM
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showAcmPassword ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Nhập mật khẩu..."
+                            value={acmPassword}
+                            onChange={(e) => setAcmPassword(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAcmPassword(!showAcmPassword)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showAcmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        API Key giải Captcha (Google Gemini API Key)
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Key size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type={showAcmGeminiApiKey ? 'text' : 'password'}
+                          className="form-input"
+                          style={{ paddingLeft: '40px', paddingRight: '40px' }}
+                          placeholder="AI API Key (Không bắt buộc, nếu có sẽ tự giải Captcha)..."
+                          value={acmGeminiApiKey}
+                          onChange={(e) => setAcmGeminiApiKey(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
+                          style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                        >
+                          {showAcmGeminiApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          URL Tải Báo Cáo ACM (Download URL)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Ví dụ: /acm/report/nano/download"
+                          value={acmDownloadUrl}
+                          onChange={(e) => setAcmDownloadUrl(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                          Selector nút tải (Download Button Selector)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Ví dụ: #btnExportExcel"
+                          value={acmDownloadBtnSelector}
+                          onChange={(e) => setAcmDownloadBtnSelector(e.target.value)}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1449,11 +1811,131 @@ export default function AdminBotConfigPage() {
                   </div>
                 )}
               </div>
+
+              {/* Kiểm Tra File Backup ACM Box */}
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <Settings size={20} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Kiểm Tra & Đồng Bộ File Backup ACM (Order & Fill)</h3>
+                </div>
+
+                {/* Form config path (Read-only) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Đường dẫn thư mục backup ACM (Tự động đồng bộ theo cấu hình Backup MS)
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={backupPathAcm}
+                    readOnly
+                    disabled
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'not-allowed',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      padding: '12px'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', opacity: 0.8, marginTop: '2px' }}>
+                    * Hệ thống tự động lưu vào thư mục ACM nằm song song với thư mục Futures được cấu hình ở phần Backup MS.
+                  </span>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleAuditAcmBackup}
+                    disabled={auditingAcm || triggeringAuditAcm}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '12px 20px',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <RefreshCw size={16} className={auditingAcm ? 'animate-spin' : ''} /> Quét Thư Mục Backup
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerAuditAcm}
+                    disabled={auditingAcm || triggeringAuditAcm}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Cpu size={16} className={triggeringAuditAcm ? 'animate-pulse' : ''} />
+                    {triggeringAuditAcm ? 'Đang gửi lệnh...' : '🤖 Tải Báo Cáo Tự Doanh ACM'}
+                  </button>
+                </div>
+
+                {/* Audit results */}
+                {auditAcmResults && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Tổng số file: {auditAcmResults.summary.total}
+                      </span>
+                      <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Đầy đủ (Hôm nay): {auditAcmResults.summary.ok}
+                      </span>
+                      {auditAcmResults.summary.missing > 0 && (
+                        <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Thiếu: {auditAcmResults.summary.missing}
+                        </span>
+                      )}
+                      {auditAcmResults.summary.outdated > 0 && (
+                        <span style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Cũ (Không phải hôm nay): {auditAcmResults.summary.outdated}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Tên File</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '120px' }}>Trạng Thái</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>Thời Gian Thay Đổi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditAcmResults.files.map((file: any) => (
+                            <tr key={file.key} style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 500 }}>{file.filename}</td>
+                              <td style={{ padding: '10px 12px' }}>
+                                {file.status === 'OK' ? (
+                                  <span style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>OK</span>
+                                ) : file.status === 'OUTDATED' ? (
+                                  <span style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>FILE CŨ</span>
+                                ) : (
+                                  <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>THIẾU</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                                {file.lastModified ? new Date(file.lastModified).toLocaleString('vi-VN') : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Right: Job Queue Logs */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
+
               {/* Jobs list */}
               <div className="glass-panel" style={{ padding: '24px', maxHeight: '550px', overflowY: 'auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
@@ -1492,7 +1974,15 @@ export default function AdminBotConfigPage() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {job.jobType === 'RPA_DOWNLOAD_REPORTS' ? 'Tải Báo Cáo RPA' : job.jobType === 'FILE_AUDIT_MS' ? 'Kiểm Tra & Tải Bổ Sung MS' : job.jobType}
+                              {job.jobType === 'RPA_DOWNLOAD_REPORTS'
+                                ? 'Tải Báo Cáo RPA'
+                                : job.jobType === 'FILE_AUDIT_MS'
+                                  ? 'Kiểm Tra & Tải Bổ Sung MS'
+                                  : job.jobType === 'FILE_AUDIT_CQG'
+                                    ? 'Kiểm Tra & Ghép File CQG'
+                                    : job.jobType === 'FILE_AUDIT_ACM'
+                                      ? '🤖 Tải Báo Cáo Tự Doanh ACM'
+                                      : job.jobType}
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               {job.status === 'COMPLETED' && job.jobType === 'RPA_DOWNLOAD_REPORTS' && (
@@ -1533,54 +2023,124 @@ export default function AdminBotConfigPage() {
               {/* Selected Job Console Details */}
               {selectedJob && (
                 <div className="glass-panel" style={{ padding: '20px', background: '#0a0b10', border: '1px solid #1a1e2a' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                     <Terminal size={16} color="#10b981" />
-                     <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>
-                       Console Output - Job {selectedJob._id.substring(0, 8)}
-                     </h4>
-                   </div>
-                   <div
-                     style={{
-                       maxHeight: '200px',
-                       overflowY: 'auto',
-                       fontFamily: 'monospace',
-                       fontSize: '0.75rem',
-                       color: '#a7f3d0',
-                       background: 'rgba(0,0,0,0.4)',
-                       padding: '12px',
-                       borderRadius: '6px',
-                       lineHeight: '1.5',
-                       whiteSpace: 'pre-wrap',
-                       display: 'flex',
-                       flexDirection: 'column',
-                       gap: '4px',
-                     }}
-                   >
-                     {selectedJob.logs.map((logLine, idx) => (
-                       <div key={idx}>{logLine}</div>
-                     ))}
-                   </div>
-                   {selectedJob.status === 'COMPLETED' && selectedJob.jobType === 'RPA_DOWNLOAD_REPORTS' && (
-                     <button
-                       type="button"
-                       onClick={() => handleDownloadZip(selectedJob._id)}
-                       className="btn btn-primary"
-                       style={{
-                         marginTop: '16px',
-                         width: '100%',
-                         display: 'flex',
-                         alignItems: 'center',
-                         justifyContent: 'center',
-                         gap: '8px',
-                         padding: '12px',
-                         background: 'linear-gradient(135deg, #10b981, #059669)',
-                         border: 'none',
-                         fontWeight: 600,
-                       }}
-                     >
-                       <Download size={18} /> Tải File ZIP Báo Cáo
-                     </button>
-                   )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <Terminal size={16} color="#10b981" />
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>
+                      Console Output - Job {selectedJob._id.substring(0, 8)}
+                    </h4>
+                  </div>
+                  <div
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      fontFamily: 'monospace',
+                      fontSize: '0.75rem',
+                      color: '#a7f3d0',
+                      background: 'rgba(0,0,0,0.4)',
+                      padding: '12px',
+                      borderRadius: '6px',
+                      lineHeight: '1.5',
+                      whiteSpace: 'pre-wrap',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    {selectedJob.logs.map((logLine, idx) => (
+                      <div key={idx}>{logLine}</div>
+                    ))}
+                  </div>
+                  {selectedJob.status === 'AWAITING_CAPTCHA' && (
+                    <div
+                      style={{
+                        marginTop: '16px',
+                        padding: '16px',
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        border: '1px solid #f59e0b',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ color: '#f59e0b', fontWeight: 600, fontSize: '0.85rem' }}>
+                        ⚠️ Yêu cầu giải Captcha thủ công
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {selectedJob.payload?.captchaImage ? (
+                          <div style={{ background: '#fff', padding: '6px', borderRadius: '4px', display: 'inline-block' }}>
+                            <img
+                              src={selectedJob.payload.captchaImage}
+                              alt="Captcha Code"
+                              style={{ height: '40px', display: 'block' }}
+                            />
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Không tìm thấy ảnh Captcha</span>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="Nhập mã Captcha..."
+                          value={captchaText}
+                          onChange={(e) => setCaptchaText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSubmitCaptcha();
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #f59e0b',
+                            background: '#1a1d24',
+                            color: '#fff',
+                            fontSize: '0.85rem',
+                          }}
+                          disabled={submittingCaptcha}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSubmitCaptcha}
+                        disabled={submittingCaptcha || !captchaText}
+                        className="btn"
+                        style={{
+                          background: '#f59e0b',
+                          color: '#000',
+                          fontWeight: 700,
+                          padding: '10px',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {submittingCaptcha ? 'Đang gửi...' : 'Gửi mã xác nhận'}
+                      </button>
+                    </div>
+                  )}
+                  {selectedJob.status === 'COMPLETED' && selectedJob.jobType === 'RPA_DOWNLOAD_REPORTS' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadZip(selectedJob._id)}
+                      className="btn btn-primary"
+                      style={{
+                        marginTop: '16px',
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '12px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Download size={18} /> Tải File ZIP Báo Cáo
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1819,40 +2379,29 @@ export default function AdminBotConfigPage() {
                 )}
 
                 {/* Preview CSV block */}
-                {gttReport.diffCount > 0 && (() => {
-                  const majorDiffRows = gttReport.rows.filter(
-                    (r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))
-                  );
-                  if (majorDiffRows.length === 0) return null;
-                  
-                  const csvHeaders = 'contractCode,settlePrice';
-                  const csvRows = majorDiffRows.map((r: any) => `${r.symbol},${r.gttCqg}`);
-                  const csvContent = [csvHeaders, ...csvRows].join('\n');
-                  
-                  return (
-                    <div style={{ marginBottom: '20px', background: 'rgba(30, 41, 59, 0.4)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <FileText size={14} color="var(--color-accent)" />
-                          Nội Dung File Sửa Giá M-System (CSV Xem Trước - Chỉ Hợp Đồng Lệch Nhiều)
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(csvContent);
-                            toast.success('Đã copy nội dung CSV vào clipboard!');
-                          }}
-                          className="btn btn-secondary"
-                          style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto', display: 'flex', alignItems: 'center' }}
-                        >
-                          Copy CSV
-                        </button>
-                      </div>
-                      <pre style={{ margin: 0, padding: '12px', background: '#0f172a', borderRadius: '6px', color: '#38bdf8', fontSize: '0.8rem', fontFamily: 'monospace', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '180px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        {csvContent}
-                      </pre>
+                {gttCsvContent && (
+                  <div style={{ marginBottom: '20px', background: 'rgba(30, 41, 59, 0.4)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FileText size={14} color="var(--color-accent)" />
+                        Nội Dung File Sửa Giá M-System (CSV Xem Trước - Chỉ Hợp Đồng Lệch Nhiều)
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(gttCsvContent);
+                          toast.success('Đã copy nội dung CSV vào clipboard!');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto', display: 'flex', alignItems: 'center' }}
+                      >
+                        Copy CSV
+                      </button>
                     </div>
-                  );
-                })()}
+                    <pre style={{ margin: 0, padding: '12px', background: '#0f172a', borderRadius: '6px', color: '#38bdf8', fontSize: '0.8rem', fontFamily: 'monospace', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '180px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      {gttCsvContent}
+                    </pre>
+                  </div>
+                )}
 
                 {/* GTT Filter Tabs */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -2268,13 +2817,7 @@ export default function AdminBotConfigPage() {
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
                   <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>📊 Đối chiếu Khớp lệnh (KLGD)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                    {[
-                      { label: 'Tổng MS', value: `${reconResult.results.klgd.totals?.totalDSGD ?? '—'} lot`, color: '#60a5fa' },
-                      { label: 'Tổng CQG', value: `${reconResult.results.klgd.totals?.totalFR ?? '—'} lot`, color: '#60a5fa' },
-                      { label: 'Chênh lệch', value: `${reconResult.results.klgd.totals?.differ ?? '—'} lot`, color: reconResult.results.klgd.totals?.differ > 0 ? '#ef4444' : '#10b981' },
-                      { label: 'GD lệch chi tiết', value: `${reconResult.results.klgd.mismatchedTrades?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTrades?.length > 0 ? '#ef4444' : '#10b981' },
-                      { label: 'TK lệch TTM', value: `${reconResult.results.klgd.mismatchedTTM?.length ?? 0}`, color: reconResult.results.klgd.mismatchedTTM?.length > 0 ? '#f59e0b' : '#10b981' },
-                    ].map((stat, i) => (
+                    {klgdStats.map((stat, i) => (
                       <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{stat.label}</p>
                         <p style={{ fontSize: '1.1rem', fontWeight: 700, color: stat.color, fontFamily: 'monospace' }}>{stat.value}</p>
@@ -2293,10 +2836,7 @@ export default function AdminBotConfigPage() {
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
                   <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>💰 Đối chiếu Số dư EOD</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                    {[
-                      { label: 'TK lệch số dư (≥1,000đ)', value: `${reconResult.results.eod.mismatchedEOD?.length ?? 0}`, color: reconResult.results.eod.mismatchedEOD?.length > 0 ? '#ef4444' : '#10b981' },
-                      { label: 'TK âm ký quỹ', value: `${reconResult.results.eod.negativeIMRAcc?.length ?? 0}`, color: reconResult.results.eod.negativeIMRAcc?.length > 0 ? '#ef4444' : '#10b981' },
-                    ].map((stat, i) => (
+                    {eodStats.map((stat, i) => (
                       <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px' }}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{stat.label}</p>
                         <p style={{ fontSize: '1.2rem', fontWeight: 700, color: stat.color, fontFamily: 'monospace' }}>{stat.value}</p>

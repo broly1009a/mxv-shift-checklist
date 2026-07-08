@@ -41,6 +41,7 @@ const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
 export class BotJobQueueService implements OnModuleInit {
   private readonly logger = new Logger(BotJobQueueService.name);
   private isProcessing = false;
+  private readonly captchaResolvers = new Map<string, (captcha: string) => void>();
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
@@ -144,6 +145,8 @@ export class BotJobQueueService implements OnModuleInit {
         await this.handleFileAuditMsJob(job);
       } else if (job.jobType === 'FILE_AUDIT_CQG') {
         await this.handleFileAuditCqgJob(job);
+      } else if (job.jobType === 'FILE_AUDIT_ACM') {
+        await this.handleFileAuditAcmJob(job);
       } else {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
@@ -452,21 +455,181 @@ export class BotJobQueueService implements OnModuleInit {
     try {
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
       const stuckJobs = await this.botJobModel.find({
-        status: 'PROCESSING',
+        status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
         updatedAt: { $lt: thirtyMinutesAgo },
       }).exec();
 
       if (stuckJobs.length > 0) {
-        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo ở trạng thái PROCESSING. Đang tự động dọn dẹp...`);
+        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo hoặc chờ Captcha. Đang tự động dọn dẹp...`);
         for (const job of stuckJobs) {
           job.status = 'FAILED';
           job.logs.push(`[${new Date().toISOString()}] Job tự động chuyển sang thất bại do bị treo quá hạn hoặc Server khởi động lại.`);
           await job.save();
+          this.captchaResolvers.delete(job._id.toString());
         }
         this.logger.log(`Đã dọn dẹp xong ${stuckJobs.length} Job bị treo.`);
       }
     } catch (err: any) {
       this.logger.error(`Lỗi khi dọn dẹp các Job bị treo: ${err.message}`);
+    }
+  }
+
+  /**
+   * Cung cấp mã Captcha cho một Job đang chờ xử lý từ xa.
+   */
+  async submitCaptcha(jobId: string, captchaText: string): Promise<void> {
+    const resolver = this.captchaResolvers.get(jobId);
+    if (!resolver) {
+      throw new Error('Không tìm thấy phiên giải Captcha hợp lệ hoặc đã hết hạn.');
+    }
+
+    const job = await this.botJobModel.findById(jobId).exec();
+    if (job) {
+      job.status = 'PROCESSING';
+      job.logs.push(`[${new Date().toISOString()}] Đã nhận mã Captcha từ người dùng: "${captchaText}". Tiếp tục đăng nhập...`);
+      await job.save();
+    }
+
+    resolver(captchaText);
+    this.captchaResolvers.delete(jobId);
+  }
+
+  /**
+   * Lấy đường dẫn gốc của thư mục backup ACM bằng cách phân tích từ đường dẫn Backup MS (Futures).
+   */
+  async getAcmBackupBase(): Promise<string> {
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+
+    let acmBackupBase = msBackupBase;
+    if (acmBackupBase.endsWith('Futures')) {
+      acmBackupBase = acmBackupBase.substring(0, acmBackupBase.length - 'Futures'.length) + 'ACM';
+    } else if (acmBackupBase.endsWith('Futures\\')) {
+      acmBackupBase = acmBackupBase.substring(0, acmBackupBase.length - 'Futures\\'.length) + 'ACM';
+    } else {
+      acmBackupBase = path.join(acmBackupBase, 'ACM');
+    }
+    return acmBackupBase;
+  }
+
+  /**
+   * Quét thư mục backup ACM xem đã có file Order.xlsx và Fill.xlsx chưa.
+   */
+  async scanAcmBackupFiles(backupPath: string, targetDate: Date = new Date()): Promise<Array<{
+    key: string;
+    filename: string;
+    status: 'OK' | 'MISSING' | 'OUTDATED';
+    lastModified?: Date;
+  }>> {
+    const today = new Date(targetDate);
+    today.setHours(0, 0, 0, 0);
+
+    const filesToCheck = [
+      { key: 'ORDER', filename: 'Order.xlsx' },
+      { key: 'FILL', filename: 'Fill.xlsx' },
+    ];
+
+    const results = [];
+    for (const fileItem of filesToCheck) {
+      const filePath = path.join(backupPath, fileItem.filename);
+      if (!fs.existsSync(filePath)) {
+        results.push({ key: fileItem.key, filename: fileItem.filename, status: 'MISSING' as const });
+        continue;
+      }
+
+      const stat = fs.statSync(filePath);
+      const fileDay = new Date(stat.mtime);
+      fileDay.setHours(0, 0, 0, 0);
+      const isToday = fileDay.getTime() === today.getTime();
+
+      results.push({
+        key: fileItem.key,
+        filename: fileItem.filename,
+        status: isToday ? ('OK' as const) : ('OUTDATED' as const),
+        lastModified: stat.mtime,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Xử lý Job FILE_AUDIT_ACM.
+   */
+  private async handleFileAuditAcmJob(job: BotJob) {
+    const targetDateStr = job.payload?.targetDate;
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+
+    const acmBackupBase = await this.getAcmBackupBase();
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(acmBackupBase, subFolder);
+
+    if (!fs.existsSync(dailyPath)) {
+      fs.mkdirSync(dailyPath, { recursive: true });
+    }
+
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
+    await job.save();
+
+    const scanResults = await this.scanAcmBackupFiles(dailyPath, targetDate);
+    const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
+
+    if (missingOrOutdated.length === 0) {
+      job.logs.push(`[${new Date().toISOString()}] ✅ Báo cáo ACM (Order.xlsx, Fill.xlsx) đã có đầy đủ. Không cần tải thêm.`);
+      await job.save();
+      return;
+    }
+
+    job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu hoặc cũ file backup ACM. Đang tiến hành đăng nhập và tải bổ sung...`);
+    await job.save();
+
+    // callback để đẩy Captcha lên UI nếu tự động giải bằng Gemini thất bại
+    const getCaptchaFromUI = (base64Img: string): Promise<string> => {
+      return new Promise<string>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          this.captchaResolvers.delete(job._id.toString());
+          reject(new Error('Hết thời gian chờ người dùng nhập Captcha (5 phút).'));
+        }, 5 * 60 * 1000);
+
+        job.status = 'AWAITING_CAPTCHA';
+        job.payload = {
+          ...job.payload,
+          captchaImage: base64Img,
+        };
+        job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
+        job.save().then(() => {
+          this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
+            clearTimeout(timeoutId);
+            resolve(captcha);
+          });
+        }).catch((err) => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+    };
+
+    const { browser, page } = await this.rpaDownloaderService.loginACM(
+      dailyPath,
+      getCaptchaFromUI,
+      job.logs,
+    );
+
+    try {
+      await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, job.logs);
+      job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
+      await job.save();
+    } finally {
+      this.logger.log('Closing Playwright browser after ACM audit.');
+      await browser.close().catch((err) => {
+        this.logger.error(`Error closing browser: ${err.message}`);
+      });
     }
   }
 }
