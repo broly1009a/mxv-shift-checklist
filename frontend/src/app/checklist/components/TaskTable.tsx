@@ -382,9 +382,11 @@ export default function TaskTable({
                         item.taskId.toUpperCase().includes('EOD') ||
                         item.taskId.toUpperCase().includes('CQG') ||
                         item.taskId.toUpperCase().includes('RECON') ||
+                        item.taskId === 'ops_open_04' ||
                         item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU MS') ||
                         item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU EOD') ||
                         item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU CQG') ||
+                        item.taskNameSnapshot.toUpperCase().includes('XỬ LÝ SAU EOD') ||
                         item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU KHỚP LỆNH')) && !isCompleted && (
 
                         <button

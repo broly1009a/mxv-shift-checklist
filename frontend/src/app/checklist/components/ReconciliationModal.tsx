@@ -28,8 +28,9 @@ export default function ReconciliationModal({
   const taskNameUpper = taskName.toUpperCase();
   const taskIdUpper = taskId.toUpperCase();
   const isCQGMode = taskNameUpper.includes('CQG') || taskIdUpper.includes('CQG');
-  const isEODMode = (taskNameUpper.includes('EOD') || taskIdUpper.includes('EOD')) && !isCQGMode;
-  const mode: 'KLGD' | 'EOD' | 'CQG' = isCQGMode ? 'CQG' : (isEODMode ? 'EOD' : 'KLGD');
+  const isEODMode = (taskNameUpper.includes('EOD') || taskIdUpper.includes('EOD')) && !isCQGMode && taskIdUpper !== 'TASK_CHECK_EOD';
+  const isPreEODMode = taskIdUpper === 'TASK_CHECK_EOD';
+  const mode: 'KLGD' | 'EOD' | 'CQG' | 'PRE_EOD' = isPreEODMode ? 'PRE_EOD' : (isCQGMode ? 'CQG' : (isEODMode ? 'EOD' : 'KLGD'));
 
   const [files, setFiles] = useState<Record<string, File | null>>({
     dsgd: null,
@@ -43,7 +44,11 @@ export default function ReconciliationModal({
     qltkgd: null,
     eod: null,
     tttt: null,
-    accountsBalances: null
+    accountsBalances: null,
+    // Pre-EOD files
+    acmTrades: null,
+    cqgFr: null,
+    cqgPs: null
   });
 
   const [usdRate, setUsdRate] = useState<number>(25220);
@@ -55,7 +60,7 @@ export default function ReconciliationModal({
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [resultType, setResultType] = useState<'KLGD' | 'EOD' | 'CQG'>('KLGD');
+  const [resultType, setResultType] = useState<'KLGD' | 'EOD' | 'CQG' | 'PRE_EOD'>('KLGD');
 
   if (!isOpen) return null;
 
@@ -82,7 +87,34 @@ export default function ReconciliationModal({
 
     let endpoint = `${API_BASE_URL}/reconciliation/upload-klgd`;
 
-    if (mode === 'EOD') {
+    if (mode === 'PRE_EOD') {
+      if (!files.dsgd) {
+        toast.error('File DSGD.xlsx là bắt buộc!');
+        return;
+      }
+      if (!files.acmTrades) {
+        toast.error('File Straits CSV (EOD FO trades...) là bắt buộc!');
+        return;
+      }
+      if (!files.cqgFr) {
+        toast.error('File FR.xlsx là bắt buộc!');
+        return;
+      }
+      if (!files.tttt) {
+        toast.error('File TTTT.xlsx là bắt buộc!');
+        return;
+      }
+      if (!files.cqgPs) {
+        toast.error('File PS.xlsx là bắt buộc!');
+        return;
+      }
+      formData.append('dsgd', files.dsgd);
+      formData.append('acmTrades', files.acmTrades);
+      formData.append('cqgFr', files.cqgFr);
+      formData.append('tttt', files.tttt);
+      formData.append('cqgPs', files.cqgPs);
+      endpoint = `${API_BASE_URL}/reconciliation/upload-pre-eod`;
+    } else if (mode === 'EOD') {
       if (!files.qltkgd) {
         toast.error('File QLTKGD.xlsx là bắt buộc!');
         return;
@@ -137,10 +169,18 @@ export default function ReconciliationModal({
 
       const data = await res.json();
       setResult(data.result);
-      if (data.success) {
-        toast.success(mode === 'EOD' ? 'Đối chiếu EOD thành công: Không phát hiện tài khoản âm!' : 'Đối chiếu thành công: Dữ liệu khớp hoàn toàn!');
+      if (mode === 'PRE_EOD') {
+        if (data.result.passed) {
+          toast.success('Đối chiếu trước EOD thành công: Khớp hoàn toàn!');
+        } else {
+          toast.error('Đối chiếu trước EOD hoàn thành: Phát hiện chênh lệch!');
+        }
       } else {
-        toast.error(mode === 'EOD' ? 'Đối chiếu EOD hoàn thành: Phát hiện tài khoản âm ký quỹ/âm số dư!' : 'Đối chiếu hoàn thành: Phát hiện chênh lệch dữ liệu!');
+        if (data.success) {
+          toast.success(mode === 'EOD' ? 'Đối chiếu EOD thành công: Không phát hiện tài khoản âm!' : 'Đối chiếu thành công: Dữ liệu khớp hoàn toàn!');
+        } else {
+          toast.error(mode === 'EOD' ? 'Đối chiếu EOD hoàn thành: Phát hiện tài khoản âm ký quỹ/âm số dư!' : 'Đối chiếu hoàn thành: Phát hiện chênh lệch dữ liệu!');
+        }
       }
       onSuccess();
     } catch (err: any) {
@@ -167,8 +207,8 @@ export default function ReconciliationModal({
 
   const renderFileDropzone = (key: string, label: string, required = false) => {
     const file = files[key];
-    const isCsv = key === 'eod';
-    const acceptTypes = isCsv ? '.csv' : '.xlsx,.xls';
+    const isCsv = key === 'eod' || key === 'acmTrades';
+    const acceptTypes = isCsv ? '.csv,.xlsx,.xls' : '.xlsx,.xls';
     return (
       <div 
         onDragOver={handleDragOver}
@@ -209,7 +249,7 @@ export default function ReconciliationModal({
           {label} {required && <span style={{ color: 'red' }}>*</span>}
         </span>
         <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textAlign: 'center', wordBreak: 'break-all' }}>
-          {file ? file.name : `Kéo thả hoặc click để chọn file ${isCsv ? 'CSV' : 'Excel'}`}
+          {file ? file.name : `Kéo thả hoặc click để chọn file ${key === 'acmTrades' ? 'CSV/Excel' : isCsv ? 'CSV' : 'Excel'}`}
         </span>
       </div>
     );
@@ -217,6 +257,9 @@ export default function ReconciliationModal({
 
   const getRunButtonDisabled = () => {
     if (loading) return true;
+    if (mode === 'PRE_EOD') {
+      return !files.dsgd || !files.acmTrades || !files.cqgFr || !files.tttt || !files.cqgPs;
+    }
     if (mode === 'EOD') return !files.qltkgd;
     if (mode === 'CQG') return !files.qltkgd || !files.accountsBalances;
     return !files.dsgd;
@@ -261,7 +304,7 @@ export default function ReconciliationModal({
         }}>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileSpreadsheet color="var(--color-accent)" size={22} />
-            {mode === 'EOD' ? 'Đối Chiếu Số Dư EOD Tự Động' : mode === 'CQG' ? 'Đối Chiếu Số Dư CQG Tự Động' : 'Đối Chiếu Khớp Lệnh & Trạng Thái Mở'}
+            {mode === 'PRE_EOD' ? 'Đối Chiếu Trước EOD Tự Động' : mode === 'EOD' ? 'Lọc Tài Khoản Âm Ký Quỹ' : mode === 'CQG' ? 'Đối Chiếu Số Dư CQG Tự Động' : 'Đối Chiếu Khớp Lệnh & Trạng Thái Mở'}
           </h2>
           <button 
             onClick={onClose} 
@@ -302,9 +345,11 @@ export default function ReconciliationModal({
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.4', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(59,130,246,0.05)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.1)' }}>
                   <Info size={16} color="#3b82f6" style={{ flexShrink: 0 }} />
-                  {mode === 'EOD' 
-                    ? 'Hệ thống đối chiếu tính toán số dư EOD của từng tài khoản dựa trên nộp rút, phí, và P/L thực tế (chuyển đổi tỷ giá động).' 
-                    : 'Hệ thống đối chiếu chi tiết khớp lệnh của ca trực giữa M-System, CQG và ACM (Nano).'}
+                  {mode === 'PRE_EOD'
+                    ? 'Hệ thống đối chiếu trước EOD: xác thực ngày T-1 và đối chiếu khớp lệnh tự doanh/thường & vị thế mở (net position).'
+                    : mode === 'EOD' 
+                      ? 'Hệ thống đối chiếu tính toán số dư EOD của từng tài khoản dựa trên nộp rút, phí, và P/L thực tế (chuyển đổi tỷ giá động).' 
+                      : 'Hệ thống đối chiếu chi tiết khớp lệnh của ca trực giữa M-System, CQG và ACM (Nano).'}
                 </span>
               </div>
             )}
@@ -313,6 +358,35 @@ export default function ReconciliationModal({
           <div style={{ borderTop: '1px dashed var(--border-color)', margin: '4px 0' }}></div>
 
           {/* Dynamic File selection based on mode */}
+          {mode === 'PRE_EOD' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Group 1: 3 Files for trade volume reconciliation */}
+              <div style={{ padding: '16px', background: 'rgba(128,128,128,0.02)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', fontSize: '0.75rem', fontWeight: 800 }}>1</span>
+                  Đối chiếu Khớp lệnh giao dịch (3 file: MS - ACM - CQG)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
+                  {renderFileDropzone('dsgd', 'File M-System (DSGD.xlsx)', true)}
+                  {renderFileDropzone('acmTrades', 'File Straits CSV (ACM)', true)}
+                  {renderFileDropzone('cqgFr', 'File CQG (FR.xlsx)', true)}
+                </div>
+              </div>
+
+              {/* Group 2: 2 Files for Net Position reconciliation */}
+              <div style={{ padding: '16px', background: 'rgba(128,128,128,0.02)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', fontSize: '0.75rem', fontWeight: 800 }}>2</span>
+                  Đối chiếu Vị thế mở ròng (2 file: MS - CQG)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
+                  {renderFileDropzone('tttt', 'File M-System (TTTT.xlsx)', true)}
+                  {renderFileDropzone('cqgPs', 'File CQG (PS.xlsx)', true)}
+                </div>
+              </div>
+            </div>
+          )}
+
           {mode === 'KLGD' && (
             <>
               <div>
@@ -598,6 +672,124 @@ export default function ReconciliationModal({
                       >
                         <Download size={16} /> Tải file Excel NegativeAccounts.xlsx
                       </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PRE_EOD Mode Results */}
+              {resultType === 'PRE_EOD' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {result.passed ? (
+                      <>
+                        <CheckCircle2 color="var(--color-primary)" size={18} />
+                        Kết Quả: Khớp hoàn toàn
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle color="var(--color-critical)" size={18} />
+                        Kết Quả: Phát hiện chênh lệch dữ liệu trước EOD
+                      </>
+                    )}
+                  </h3>
+
+                  {/* Totals Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '8px' }}>
+                    <div style={{ padding: '10px', background: 'rgba(128,128,128,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>KHỚP LỆNH TỰ DOANH (MS vs Straits)</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>
+                        {result.totals.totalACM_MS} vs {result.totals.totalACM_Straits} lot
+                      </div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: result.totals.differACM > 0 ? 'var(--color-critical)' : 'var(--color-primary)', marginTop: '4px' }}>
+                        Chênh lệch: {result.totals.differACM} lot
+                      </div>
+                    </div>
+                    <div style={{ padding: '10px', background: 'rgba(128,128,128,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>KHỚP LỆNH THƯỜNG (MS vs CQG)</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>
+                        {result.totals.totalCQG_MS} vs {result.totals.totalCQG_FR} lot
+                      </div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: result.totals.differCQG > 0 ? 'var(--color-critical)' : 'var(--color-primary)', marginTop: '4px' }}>
+                        Chênh lệch: {result.totals.differCQG} lot
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detail mismatch tables */}
+                  {result.mismatchedTrades.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} color="var(--color-critical)" />
+                        Danh sách khớp lệnh chênh lệch chi tiết ({result.mismatchedTrades.length})
+                      </h4>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                          <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
+                            <tr>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Nguồn</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Mã lệnh</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Tài khoản</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Hợp đồng</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Giá khớp</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Số lượng</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Chi tiết lỗi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {result.mismatchedTrades.map((m: any, idx: number) => (
+                              <tr key={idx} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 700 }}>{m.source}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.maLenh || '-'}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-accent)' }}>{m.maTKGD}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.maHD}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.giaKhop}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>{m.klGiaoDich}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-critical)' }}>{m.reason}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {result.mismatchedPositions.length > 0 && (
+                    <div>
+                      <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} color="var(--color-critical)" />
+                        Danh sách chênh lệch Vị Thế Ròng (Net Position) ({result.mismatchedPositions.length})
+                      </h4>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                          <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
+                            <tr>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Tài khoản</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Hợp đồng</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Vị thế M-System</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Vị thế CQG</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Chênh lệch</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {result.mismatchedPositions.map((m: any, idx: number) => (
+                              <tr key={idx} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--color-accent)' }}>{m.account}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.symbol}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.msPosition}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.cqgPosition}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-critical)', fontWeight: 700 }}>{m.differ}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {!result.mismatchedTrades.length && !result.mismatchedPositions.length && result.passed && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem' }}>
+                      <CheckCircle2 size={16} /> Đối chiếu thành công. Không phát hiện chênh lệch trước EOD!
                     </div>
                   )}
                 </div>

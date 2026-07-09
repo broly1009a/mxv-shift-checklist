@@ -1016,6 +1016,314 @@ export class ReconciliationService {
       excelBase64: excelBuffer.toString('base64'),
     };
   }
+
+  /**
+   * Parse Straits CSV file containing "Buy" and "Sell" columns
+   */
+  private parseStraitsCsv(buffer: Buffer): { totalVolume: number } {
+    const text = buffer.toString('utf-8');
+    const lines = text.split(/\r?\n/);
+    if (lines.length === 0) {
+      throw new Error('File Straits CSV rỗng');
+    }
+    const headerLine = lines[0];
+    const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+    const buyColIndex = headers.indexOf('buy');
+    const sellColIndex = headers.indexOf('sell');
+
+    if (buyColIndex === -1 || sellColIndex === -1) {
+      throw new Error("Không tìm thấy cột 'Buy' hoặc 'Sell' trong file CSV Straits");
+    }
+
+    let totalVolume = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const values = line.split(',');
+      if (buyColIndex < values.length) {
+        const buyVal = parseFloat(values[buyColIndex].replace(/"/g, '').trim()) || 0;
+        totalVolume += buyVal;
+      }
+      if (sellColIndex < values.length) {
+        const sellVal = parseFloat(values[sellColIndex].replace(/"/g, '').trim()) || 0;
+        totalVolume += sellVal;
+      }
+    }
+    return { totalVolume };
+  }
+
+  /**
+   * Parse TTTT.xlsx / TTM.xlsx for Position reconciliation
+   */
+  private parseTTTTForRecon(buffer: Buffer): { account: string; symbol: string; position: number }[] {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return [];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map(h => String(h || '').trim());
+    const accountIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
+    const symbolIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
+    const positionIdx = this.findHeaderIndex(header, 'KL ròng', ['Khối lượng ròng', 'Net Position', 'Position', 'Vị thế ròng', 'Trạng thái ròng']);
+
+    // fallback to index if not found (column H is 7, column J is 9, column T is 19)
+    const finalAccIdx = accountIdx !== -1 ? accountIdx : 7;
+    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 9;
+    const finalPosIdx = positionIdx !== -1 ? positionIdx : 19;
+
+    const result = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      const account = String(row[finalAccIdx] || '').trim();
+      const symbol = String(row[finalSymIdx] || '').trim();
+      const position = parseFloat(row[finalPosIdx]) || 0;
+      if (!account || !symbol) continue;
+      result.push({ account, symbol, position });
+    }
+    return result;
+  }
+
+  /**
+   * Parse PS.xlsx for Position reconciliation
+   */
+  private parsePSForRecon(buffer: Buffer): { account: string; symbol: string; position: number }[] {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return [];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map(h => String(h || '').trim());
+    const accountIdx = this.findHeaderIndex(header, 'Account', ['Mã TKGD', 'Mã tài khoản']);
+    const symbolIdx = this.findHeaderIndex(header, 'Symbol', ['Mã HĐ', 'Mã hợp đồng']);
+    const positionIdx = this.findHeaderIndex(header, 'Position', ['Net', 'KL ròng', 'Vị thế', 'Trạng thái ròng']);
+
+    // fallback to index if not found (column A is 0, column D is 3, column I is 8)
+    const finalAccIdx = accountIdx !== -1 ? accountIdx : 0;
+    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 3;
+    const finalPosIdx = positionIdx !== -1 ? positionIdx : 8;
+
+    const result = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      let account = String(row[finalAccIdx] || '').trim();
+      const symbol = String(row[finalSymIdx] || '').trim();
+      const position = parseFloat(row[finalPosIdx]) || 0;
+      if (!account || !symbol) continue;
+
+      // adjust account suffix
+      account = account.replace(/F$/i, '')
+                       .replace(/L$/i, '-L')
+                       .replace(/S$/i, '-S')
+                       .replace(/--/g, '-');
+
+      result.push({ account, symbol, position });
+    }
+    return result;
+  }
+
+  async checkPreEOD(
+    files: {
+      dsgd: Buffer;
+      acmTrades: Buffer;
+      cqgFr: Buffer;
+      tttt: Buffer;
+      cqgPs: Buffer;
+    },
+    acmTradesName: string,
+    tradingDate: Date,
+    holidays: string[] = [],
+  ): Promise<{
+    passed: boolean;
+    warnings: string[];
+    totals: {
+      totalACM_MS: number;
+      totalACM_Straits: number;
+      differACM: number;
+      totalCQG_MS: number;
+      totalCQG_FR: number;
+      differCQG: number;
+    };
+    mismatchedTrades: Array<{
+      source: 'MSystem' | 'CQG';
+      maLenh?: string;
+      maTKGD: string;
+      maHD: string;
+      giaKhop: number;
+      klGiaoDich: number;
+      ngayGio: string;
+      reason: string;
+    }>;
+    mismatchedPositions: Array<{
+      account: string;
+      symbol: string;
+      msPosition: number;
+      cqgPosition: number;
+      differ: number;
+    }>;
+  }> {
+    const warnings: string[] = [];
+
+    // 1. Calculate expected T-1 date relative to tradingDate
+    const d = new Date(tradingDate);
+    d.setDate(d.getDate() - 1);
+    while (d.getDay() === 0 || d.getDay() === 6) { // 0 Sunday, 6 Saturday
+      d.setDate(d.getDate() - 1);
+    }
+    const expectedDateStr = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`;
+
+    // Validate filename date suffix for acmTrades - WARNING only, not error
+    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
+      warnings.push(`⚠️ Tên file ACM (${acmTradesName}) không khớp ngày T-1 dự kiến (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Có thể do ngày nghỉ lễ hoặc chọn nhầm file. Vui lòng xác nhận lại.`);
+    }
+
+    // 2. Parse DSGD and separate into ACM and CQG trades
+    const dsgdData = this.parseDSGD(files.dsgd);
+    let totalACM_MS = 0;
+    let totalCQG_MS = 0;
+    dsgdData.forEach(gd => {
+      if (gd.maTKGD.endsWith('A')) {
+        totalACM_MS += gd.klGiaoDich;
+      } else {
+        totalCQG_MS += gd.klGiaoDich;
+      }
+    });
+
+    // 3. Parse Straits ACM Trades CSV
+    const acmStraitsData = this.parseStraitsCsv(files.acmTrades);
+    const totalACM_Straits = acmStraitsData.totalVolume;
+    const differACM = Math.abs(totalACM_MS - totalACM_Straits);
+
+    // 4. Parse CQG FR.xlsx and filter out ZWAZCE
+    const frData = this.parseFR(files.cqgFr, tradingDate, holidays);
+    let totalCQG_FR = 0;
+    frData.forEach(fr => {
+      if (fr.symbol !== 'ZWAZCE') {
+        totalCQG_FR += fr.qty;
+      }
+    });
+    const differCQG = Math.abs(totalCQG_MS - totalCQG_FR);
+
+    // 5. Find trade discrepancies for normal CQG trades (similar to checkKLGD)
+    const mismatchedTrades: Array<{
+      source: 'MSystem' | 'CQG';
+      maLenh?: string;
+      maTKGD: string;
+      maHD: string;
+      giaKhop: number;
+      klGiaoDich: number;
+      ngayGio: string;
+      reason: string;
+    }> = [];
+
+    // Find FR rows not in DSGD
+    frData.forEach(fr => {
+      if (fr.symbol === 'ZWAZCE') return;
+      const existsInDSGD = dsgdData.some(gd => gd.combinedKey === fr.combinedKey);
+      if (!existsInDSGD) {
+        mismatchedTrades.push({
+          source: 'CQG',
+          maLenh: fr.ord,
+          maTKGD: fr.accountRaw,
+          maHD: fr.symbol,
+          giaKhop: fr.fillP,
+          klGiaoDich: fr.qty,
+          ngayGio: fr.time,
+          reason: 'Lệnh CQG không tìm thấy bên M-System',
+        });
+      }
+    });
+
+    // Find DSGD rows not in FR (excluding ACM trades)
+    dsgdData.forEach(gd => {
+      if (gd.maTKGD.endsWith('A')) return;
+      const existsInFR = frData.some(fr => fr.combinedKey === gd.combinedKey);
+      if (!existsInFR) {
+        mismatchedTrades.push({
+          source: 'MSystem',
+          maLenh: gd.maLenh,
+          maTKGD: gd.maTKGD,
+          maHD: gd.maHD,
+          giaKhop: gd.giaKhop,
+          klGiaoDich: gd.klGiaoDich,
+          ngayGio: gd.ngayGio,
+          reason: 'Giao dịch M-System không tìm thấy bên CQG',
+        });
+      }
+    });
+
+    // 6. Compare Net Positions (Check 2: TTTT.xlsx vs PS.xlsx)
+    const ttttList = this.parseTTTTForRecon(files.tttt);
+    const psList = this.parsePSForRecon(files.cqgPs);
+
+    // Group MS positions by Account + Symbol
+    const msSummary = new Map<string, { account: string; symbol: string; position: number }>();
+    ttttList.forEach(item => {
+      const key = `${item.account}_${item.symbol}`;
+      const existing = msSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
+      existing.position += item.position;
+      msSummary.set(key, existing);
+    });
+
+    // Group CQG positions by Account + Symbol
+    const cqgSummary = new Map<string, { account: string; symbol: string; position: number }>();
+    psList.forEach(item => {
+      const key = `${item.account}_${item.symbol}`;
+      const existing = cqgSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
+      existing.position += item.position;
+      cqgSummary.set(key, existing);
+    });
+
+    // Find mismatched net positions
+    const mismatchedPositions: Array<{
+      account: string;
+      symbol: string;
+      msPosition: number;
+      cqgPosition: number;
+      differ: number;
+    }> = [];
+
+    const allKeys = new Set([...msSummary.keys(), ...cqgSummary.keys()]);
+    for (const key of allKeys) {
+      const ms = msSummary.get(key);
+      const cqg = cqgSummary.get(key);
+      const account = ms?.account || cqg?.account || '';
+      const symbol = ms?.symbol || cqg?.symbol || '';
+      const msVal = ms?.position || 0;
+      const cqgVal = cqg?.position || 0;
+      const diff = msVal - cqgVal;
+
+      if (Math.abs(diff) > 0.001) {
+        mismatchedPositions.push({
+          account,
+          symbol,
+          msPosition: msVal,
+          cqgPosition: cqgVal,
+          differ: diff,
+        });
+      }
+    }
+
+    const passed = differACM === 0 && differCQG === 0 && mismatchedTrades.length === 0 && mismatchedPositions.length === 0;
+
+    return {
+      passed,
+      warnings,
+      totals: {
+        totalACM_MS,
+        totalACM_Straits,
+        differACM,
+        totalCQG_MS,
+        totalCQG_FR,
+        differCQG,
+      },
+      mismatchedTrades,
+      mismatchedPositions,
+    };
+  }
 }
 
 

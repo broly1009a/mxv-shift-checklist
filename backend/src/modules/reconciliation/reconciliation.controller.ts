@@ -573,4 +573,110 @@ export class ReconciliationController {
       errors,
     };
   }
+
+  @Post('upload-pre-eod')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'dsgd', maxCount: 1 },
+      { name: 'acmTrades', maxCount: 1 },
+      { name: 'cqgFr', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'cqgPs', maxCount: 1 },
+    ]),
+  )
+  async uploadAndReconcilePreEOD(
+    @UploadedFiles()
+    files: {
+      dsgd?: any[];
+      acmTrades?: any[];
+      cqgFr?: any[];
+      tttt?: any[];
+      cqgPs?: any[];
+    },
+    @Body('shiftLogId') shiftLogId: string,
+    @Body('taskId') taskId: string,
+    @Body('tradingDate') tradingDateStr?: string,
+  ) {
+    if (!shiftLogId || !taskId) {
+      throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
+    }
+
+    const fileBuffers = {
+      dsgd: files?.dsgd?.[0]?.buffer,
+      acmTrades: files?.acmTrades?.[0]?.buffer,
+      cqgFr: files?.cqgFr?.[0]?.buffer,
+      tttt: files?.tttt?.[0]?.buffer,
+      cqgPs: files?.cqgPs?.[0]?.buffer,
+    };
+
+    if (!fileBuffers.dsgd) {
+      throw new BadRequestException('Thiếu file M-System DSGD.xlsx');
+    }
+    if (!fileBuffers.acmTrades) {
+      throw new BadRequestException('Thiếu file ACM Trades (EOD FO trades...)');
+    }
+    if (!fileBuffers.cqgFr) {
+      throw new BadRequestException('Thiếu file CQG FR.xlsx');
+    }
+    if (!fileBuffers.tttt) {
+      throw new BadRequestException('Thiếu file M-System TTTT.xlsx');
+    }
+    if (!fileBuffers.cqgPs) {
+      throw new BadRequestException('Thiếu file CQG PS.xlsx');
+    }
+
+    const tradingDate = tradingDateStr ? new Date(tradingDateStr) : new Date();
+
+    try {
+      const acmTradesName = files?.acmTrades?.[0]?.originalname || '';
+      const result = await this.reconciliationService.checkPreEOD(
+        fileBuffers as any,
+        acmTradesName,
+        tradingDate,
+      );
+
+      const systemUser = {
+        id: '000000000000000000000000',
+        fullName: 'Hệ thống tự động (Bot)',
+        username: 'system_bot',
+        role: 'ADMIN',
+      };
+
+      const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
+
+      let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+      note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
+      note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalCQG_MS} vs ${result.totals.totalCQG_FR} lot (Chênh lệch: ${result.totals.differCQG} lot)\n`;
+      note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;
+
+      if (result.mismatchedTrades.length > 0) {
+        note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        result.mismatchedTrades.slice(0, 10).forEach((m: any) => {
+          note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
+        });
+        if (result.mismatchedTrades.length > 10) {
+          note += `  - ... và ${result.mismatchedTrades.length - 10} giao dịch khác.\n`;
+        }
+      }
+
+      if (result.mismatchedPositions.length > 0) {
+        note += `⚠️ Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+        result.mismatchedPositions.slice(0, 10).forEach((m: any) => {
+          note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
+        });
+        if (result.mismatchedPositions.length > 10) {
+          note += `  - ... và ${result.mismatchedPositions.length - 10} chênh lệch khác.\n`;
+        }
+      }
+
+      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+
+      return {
+        success: true,
+        result,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(err.message);
+    }
+  }
 }
