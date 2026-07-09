@@ -1,0 +1,1132 @@
+[Mon 06/08/2026 18:55:15.94] Exit code: 0 (Python: py) 
+[Mon 06/08/2026 18:55:40.70] Exit code: 0 (Python: py) 
+[Mon 06/08/2026 18:57:06.45] Exit code: 0 (Python: py) 
+[Mon 06/08/2026 18:59:04.66] Exit code: 0 (Python: py) 
+[Tue 06/09/2026  8:08:04.38] Exit code: 0 (Python: py) 
+[Tue 06/09/2026  8:10:01.26] Exit code: 0 (Python: py) 
+[Tue 06/09/2026  8:11:00.82] Exit code: 0 (Python: py) 
+[Tue 06/09/2026  8:19:01.15] Exit code: 0 (Python: py) 
+[Tue 06/09/2026 17:00:02.43] Exit code: 0 (Python: py) 
+[Wed 06/10/2026  8:19:05.03] Exit code: 0 (Python: py) 
+[Wed 06/10/2026 17:00:05.12] Exit code: 0 (Python: py) 
+[Thu 06/11/2026  8:19:04.99] Exit code: 0 (Python: py) 
+[Thu 06/11/2026 17:00:04.64] Exit code: 0 (Python: py) 
+[Fri 06/12/2026  8:19:04.73] Exit code: 0 (Python: py) 
+[Fri 06/12/2026 16:13:17.02] Exit code: 0 (Python: py) 
+[Fri 06/12/2026 16:14:33.43] Exit code: 0 (Python: py) 
+[Fri 06/12/2026 16:15:43.52] Exit code: 0 (Python: py) 
+[Fri 06/12/2026 16:16:45.46] Exit code: 0 (Python: py) 
+ 
+============================================================ 
+[Fri 06/12/2026 16:22:35.36] START run_backup.bat 
+[Fri 06/12/2026 16:22:35.39] [OK] Tim thay Python: py launcher 
+[Fri 06/12/2026 16:22:35.39] [RUN] py scripts\backup_winscp.py 
+[2026-06-12 16:22:35] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-12 16:22:35] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-12 16:22:35] Thuc thi CMD  : WinSCP.com /command open sftp://testuser:***@sftp.mxv.com.vn ... get -neweronly -filemask=*>=1D
+[2026-06-12 16:22:36] WINSCP DONE. Output tu WinSCP:
+[2026-06-12 16:22:36]   > Searching for host...
+[2026-06-12 16:22:36]   > Connecting to host...
+[2026-06-12 16:22:36]   > Authenticating...
+[2026-06-12 16:22:36]   > Using username "testuser".
+[2026-06-12 16:22:36]   > Authenticating with pre-entered password.
+[2026-06-12 16:22:36]   > Authenticated.
+[2026-06-12 16:22:36]   > Starting the session...
+[2026-06-12 16:22:36]   > Session started.
+[2026-06-12 16:22:36]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-12 16:22:36]   > nhà đầu tư - môi giới - TKGD - MXV.dump |            0 B |    0.0 KB/s | binary |   0%
+[2026-06-12 16:22:36] END - Hoan tat dong bo WinSCP.
+[Fri 06/12/2026 16:22:36.79] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/12/2026 16:23:06.94] START run_backup.bat 
+[Fri 06/12/2026 16:23:06.97] [OK] Tim thay Python: py launcher 
+[Fri 06/12/2026 16:23:06.97] [RUN] py scripts\backup_winscp.py 
+[2026-06-12 16:23:07] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-12 16:23:07] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-12 16:23:07] Thuc thi CMD  : WinSCP.com /command open sftp://testuser:***@sftp.mxv.com.vn ... get -neweronly -filemask=*>=1D
+[2026-06-12 16:23:08] WINSCP DONE. Output tu WinSCP:
+[2026-06-12 16:23:08]   > Searching for host...
+[2026-06-12 16:23:08]   > Connecting to host...
+[2026-06-12 16:23:08]   > Authenticating...
+[2026-06-12 16:23:08]   > Using username "testuser".
+[2026-06-12 16:23:08]   > Authenticating with pre-entered password.
+[2026-06-12 16:23:08]   > Authenticated.
+[2026-06-12 16:23:08]   > Starting the session...
+[2026-06-12 16:23:08]   > Session started.
+[2026-06-12 16:23:08]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-12 16:23:08]   > nhà đầu tư - môi giới - TKGD - MXV.dump |            0 B |    0.0 KB/s | binary |   0%
+[2026-06-12 16:23:08] END - Hoan tat dong bo WinSCP.
+[Fri 06/12/2026 16:23:08.02] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/12/2026 16:29:55.07] START run_backup.bat 
+[Fri 06/12/2026 16:29:55.10] [OK] Tim thay Python: py launcher 
+[Fri 06/12/2026 16:29:55.11] [RUN] py scripts\backup_winscp.py 
+[2026-06-12 16:29:55] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-12 16:29:55] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-12 16:29:55] Thuc thi CMD  : WinSCP.com /command open sftp://testuser:***@sftp.mxv.com.vn ... get -neweronly -filemask=*>=1D
+[2026-06-12 16:29:56] WINSCP DONE. Output tu WinSCP:
+[2026-06-12 16:29:56]   > Searching for host...
+[2026-06-12 16:29:56]   > Connecting to host...
+[2026-06-12 16:29:56]   > Authenticating...
+[2026-06-12 16:29:56]   > Using username "testuser".
+[2026-06-12 16:29:56]   > Authenticating with pre-entered password.
+[2026-06-12 16:29:56]   > Authenticated.
+[2026-06-12 16:29:56]   > Starting the session...
+[2026-06-12 16:29:56]   > Session started.
+[2026-06-12 16:29:56]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-12 16:29:56]   > nhà đầu tư - môi giới - TKGD - MXV.dump |            0 B |    0.0 KB/s | binary |   0%
+[2026-06-12 16:29:56] END - Hoan tat dong bo WinSCP.
+[Fri 06/12/2026 16:29:56.01] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/12/2026 16:52:18.21] START run_backup.bat 
+[Fri 06/12/2026 16:52:18.25] [OK] Tim thay Python: py launcher 
+[Fri 06/12/2026 16:52:18.25] [RUN] py scripts\backup_winscp.py 
+[2026-06-12 16:52:18] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-12 16:52:18] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-12 16:52:18] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-12 16:52:18] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -filemask=*>=1D
+[2026-06-12 16:52:18] Local dir     : C:\POC\BACKUP~2
+[2026-06-12 16:52:18] Remote dir    : /data/
+[2026-06-12 16:59:34] WINSCP LOI (Exit Code: 1)
+[2026-06-12 16:59:34] [WinSCP stdout]:
+[2026-06-12 16:59:34]   > Searching for host...
+[2026-06-12 16:59:34]   > Host "C" does not exist.
+[2026-06-12 16:59:34]   > winscp>
+[2026-06-12 16:59:34] END - Hoan tat dong bo WinSCP.
+[Fri 06/12/2026 16:59:34.14] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/12/2026 17:00:01.59] START run_backup.bat 
+[Fri 06/12/2026 17:00:01.62] [OK] Tim thay Python: py launcher 
+[Fri 06/12/2026 17:00:01.63] [RUN] py scripts\backup_winscp.py 
+[2026-06-12 17:00:01] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-12 17:00:01] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-12 17:00:01] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-12 17:00:01] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -filemask=*>=1D
+[2026-06-12 17:00:01] Local dir     : C:\POC\BACKUP~2\
+[2026-06-12 17:00:01] Remote dir    : /data/*
+[2026-06-12 17:00:01] WINSCP Output:
+[2026-06-12 17:00:01]   > batch           abort
+[2026-06-12 17:00:01]   > confirm         off
+[2026-06-12 17:00:01]   > Searching for host...
+[2026-06-12 17:00:01]   > Connecting to host...
+[2026-06-12 17:00:02]   > Authenticating...
+[2026-06-12 17:00:02]   > Using username "testuser".
+[2026-06-12 17:00:02]   > Authenticating with pre-entered password.
+[2026-06-12 17:00:02]   > Authenticated.
+[2026-06-12 17:00:02]   > Starting the session...
+[2026-06-12 17:00:02]   > Session started.
+[2026-06-12 17:00:02]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-12 17:00:02]   > nhà đầu tư - môi giới - TKGD - MXV.dump |            0 B |    0.0 KB/s | binary |   0%
+[2026-06-12 17:00:03]   > tao ra mot cong getaway api cung ca.log |            0 B |    0.0 KB/s | binary |   0%
+[2026-06-12 17:00:03] WINSCP DONE.
+[2026-06-12 17:00:03] END - Hoan tat dong bo WinSCP.
+[Fri 06/12/2026 17:00:03.08] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Sat 06/13/2026 17:00:01.75] START run_backup.bat 
+[Sat 06/13/2026 17:00:02.02] [OK] Tim thay Python: py launcher 
+[Sat 06/13/2026 17:00:02.02] [RUN] py scripts\backup_winscp.py 
+[2026-06-13 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-13 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-13 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-13 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-13 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-13 17:00:02] Remote dir    : /data/*
+[2026-06-13 17:00:02] WINSCP Output:
+[2026-06-13 17:00:02]   > batch           abort
+[2026-06-13 17:00:02]   > confirm         off
+[2026-06-13 17:00:02]   > Searching for host...
+[2026-06-13 17:00:03]   > Connecting to host...
+[2026-06-13 17:00:03]   > Authenticating...
+[2026-06-13 17:00:03]   > Using username "testuser".
+[2026-06-13 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-13 17:00:04]   > Authenticated.
+[2026-06-13 17:00:04]   > Starting the session...
+[2026-06-13 17:00:05]   > Session started.
+[2026-06-13 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-13 17:00:05] WINSCP DONE.
+[2026-06-13 17:00:05] END - Hoan tat dong bo WinSCP.
+[Sat 06/13/2026 17:00:05.14] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Mon 06/15/2026  8:08:29.16] START run_backup.bat 
+[Mon 06/15/2026  8:08:29.29] [OK] Tim thay Python: py launcher 
+[Mon 06/15/2026  8:08:29.29] [RUN] py scripts\backup_winscp.py 
+[2026-06-15 08:08:29] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-15 08:08:29] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-15 08:08:29] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-15 08:08:29] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-15 08:08:29] Local dir     : C:\POC\BACKUP~2\
+[2026-06-15 08:08:29] Remote dir    : /data/*
+[2026-06-15 08:08:29] WINSCP Output:
+[2026-06-15 08:08:30]   > batch           abort
+[2026-06-15 08:08:30]   > confirm         off
+[2026-06-15 08:08:30]   > Searching for host...
+[2026-06-15 08:08:33]   > Connecting to host...
+[2026-06-15 08:08:33]   > Authenticating...
+[2026-06-15 08:08:33]   > Using username "testuser".
+[2026-06-15 08:08:33]   > Authenticating with pre-entered password.
+[2026-06-15 08:08:34] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Mon 06/15/2026  8:19:01.99] START run_backup.bat 
+[Mon 06/15/2026  8:19:02.03] [OK] Tim thay Python: py launcher 
+[Mon 06/15/2026  8:19:02.03] [RUN] py scripts\backup_winscp.py 
+[2026-06-15 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-15 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-15 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-15 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-15 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-15 08:19:02] Remote dir    : /data/*
+[2026-06-15 08:19:02] WINSCP Output:
+[2026-06-15 08:19:02]   > batch           abort
+[2026-06-15 08:19:02]   > confirm         off
+[2026-06-15 08:19:02]   > Searching for host...
+[2026-06-15 08:19:02]   > Connecting to host...
+[2026-06-15 08:19:02]   > Authenticating...
+[2026-06-15 08:19:02]   > Using username "testuser".
+[2026-06-15 08:19:02]   > Authenticating with pre-entered password.
+[2026-06-15 08:19:04] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Mon 06/15/2026 17:00:02.41] START run_backup.bat 
+[Mon 06/15/2026 17:00:02.93] [OK] Tim thay Python: py launcher 
+[Mon 06/15/2026 17:00:02.94] [RUN] py scripts\backup_winscp.py 
+[2026-06-15 17:00:03] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-15 17:00:03] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-15 17:00:03] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-15 17:00:03] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-15 17:00:03] Local dir     : C:\POC\BACKUP~2\
+[2026-06-15 17:00:03] Remote dir    : /data/*
+[2026-06-15 17:00:03] WINSCP Output:
+[2026-06-15 17:00:04]   > batch           abort
+[2026-06-15 17:00:04]   > confirm         off
+[2026-06-15 17:00:04]   > Searching for host...
+[2026-06-15 17:00:04]   > Connecting to host...
+[2026-06-15 17:00:04]   > Authenticating...
+[2026-06-15 17:00:04]   > Using username "testuser".
+[2026-06-15 17:00:04]   > Authenticating with pre-entered password.
+[2026-06-15 17:00:05]   > Authenticated.
+[2026-06-15 17:00:05]   > Starting the session...
+[2026-06-15 17:00:05]   > Session started.
+[2026-06-15 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-15 17:00:06] WINSCP DONE.
+[2026-06-15 17:00:06] END - Hoan tat dong bo WinSCP.
+[Mon 06/15/2026 17:00:06.17] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 06/16/2026  8:19:02.20] START run_backup.bat 
+[Tue 06/16/2026  8:19:02.45] [OK] Tim thay Python: py launcher 
+[Tue 06/16/2026  8:19:02.46] [RUN] py scripts\backup_winscp.py 
+[2026-06-16 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-16 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-16 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-16 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-16 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-16 08:19:02] Remote dir    : /data/*
+[2026-06-16 08:19:02] WINSCP Output:
+[2026-06-16 08:19:03]   > batch           abort
+[2026-06-16 08:19:03]   > confirm         off
+[2026-06-16 08:19:03]   > Searching for host...
+[2026-06-16 08:19:03]   > Connecting to host...
+[2026-06-16 08:19:03]   > Authenticating...
+[2026-06-16 08:19:03]   > Using username "testuser".
+[2026-06-16 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-16 08:19:04] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Tue 06/16/2026 17:00:02.16] START run_backup.bat 
+[Tue 06/16/2026 17:00:02.44] [OK] Tim thay Python: py launcher 
+[Tue 06/16/2026 17:00:02.44] [RUN] py scripts\backup_winscp.py 
+[2026-06-16 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-16 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-16 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-16 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-16 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-16 17:00:02] Remote dir    : /data/*
+[2026-06-16 17:00:02] WINSCP Output:
+[2026-06-16 17:00:03]   > batch           abort
+[2026-06-16 17:00:03]   > confirm         off
+[2026-06-16 17:00:03]   > Searching for host...
+[2026-06-16 17:00:03]   > Connecting to host...
+[2026-06-16 17:00:03]   > Authenticating...
+[2026-06-16 17:00:03]   > Using username "testuser".
+[2026-06-16 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-16 17:00:04]   > Authenticated.
+[2026-06-16 17:00:04]   > Starting the session...
+[2026-06-16 17:00:04]   > Session started.
+[2026-06-16 17:00:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-16 17:00:04] WINSCP DONE.
+[2026-06-16 17:00:04] END - Hoan tat dong bo WinSCP.
+[Tue 06/16/2026 17:00:04.85] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 06/17/2026  8:19:02.12] START run_backup.bat 
+[Wed 06/17/2026  8:19:02.35] [OK] Tim thay Python: py launcher 
+[Wed 06/17/2026  8:19:02.36] [RUN] py scripts\backup_winscp.py 
+[2026-06-17 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-17 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-17 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-17 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-17 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-17 08:19:02] Remote dir    : /data/*
+[2026-06-17 08:19:02] WINSCP Output:
+[2026-06-17 08:19:03]   > batch           abort
+[2026-06-17 08:19:03]   > confirm         off
+[2026-06-17 08:19:03]   > Searching for host...
+[2026-06-17 08:19:03]   > Connecting to host...
+[2026-06-17 08:19:03]   > Authenticating...
+[2026-06-17 08:19:03]   > Using username "testuser".
+[2026-06-17 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-17 08:19:05]   > Authenticated.
+[2026-06-17 08:19:05]   > Starting the session...
+[2026-06-17 08:19:05]   > Session started.
+[2026-06-17 08:19:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-17 08:19:05] WINSCP DONE.
+[2026-06-17 08:19:05] END - Hoan tat dong bo WinSCP.
+[Wed 06/17/2026  8:19:05.74] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 06/17/2026 17:00:02.35] START run_backup.bat 
+[Wed 06/17/2026 17:00:02.66] [OK] Tim thay Python: py launcher 
+[Wed 06/17/2026 17:00:02.67] [RUN] py scripts\backup_winscp.py 
+[2026-06-17 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-17 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-17 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-17 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-17 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-17 17:00:02] Remote dir    : /data/*
+[2026-06-17 17:00:03] WINSCP Output:
+[2026-06-17 17:00:03]   > batch           abort
+[2026-06-17 17:00:03]   > confirm         off
+[2026-06-17 17:00:03]   > Searching for host...
+[2026-06-17 17:00:03]   > Connecting to host...
+[2026-06-17 17:00:03]   > Authenticating...
+[2026-06-17 17:00:03]   > Using username "testuser".
+[2026-06-17 17:00:04]   > Authenticating with pre-entered password.
+[2026-06-17 17:00:05]   > Authenticated.
+[2026-06-17 17:00:05]   > Starting the session...
+[2026-06-17 17:00:05]   > Session started.
+[2026-06-17 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-17 17:00:05] WINSCP DONE.
+[2026-06-17 17:00:05] END - Hoan tat dong bo WinSCP.
+[Wed 06/17/2026 17:00:05.77] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Thu 06/18/2026  8:19:02.21] START run_backup.bat 
+[Thu 06/18/2026  8:19:02.44] [OK] Tim thay Python: py launcher 
+[Thu 06/18/2026  8:19:02.44] [RUN] py scripts\backup_winscp.py 
+[2026-06-18 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-18 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-18 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-18 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-18 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-18 08:19:02] Remote dir    : /data/*
+[2026-06-18 08:19:02] WINSCP Output:
+[2026-06-18 08:19:03]   > batch           abort
+[2026-06-18 08:19:03]   > confirm         off
+[2026-06-18 08:19:03]   > Searching for host...
+[2026-06-18 08:19:03]   > Connecting to host...
+[2026-06-18 08:19:04]   > Authenticating...
+[2026-06-18 08:19:04]   > Using username "testuser".
+[2026-06-18 08:19:04]   > Authenticating with pre-entered password.
+[2026-06-18 08:19:05]   > Authenticated.
+[2026-06-18 08:19:05]   > Starting the session...
+[2026-06-18 08:19:05]   > Session started.
+[2026-06-18 08:19:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-18 08:19:06] WINSCP DONE.
+[2026-06-18 08:19:06] END - Hoan tat dong bo WinSCP.
+[Thu 06/18/2026  8:19:06.02] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Thu 06/18/2026 17:00:02.19] START run_backup.bat 
+[Thu 06/18/2026 17:00:02.33] [OK] Tim thay Python: py launcher 
+[Thu 06/18/2026 17:00:02.33] [RUN] py scripts\backup_winscp.py 
+[2026-06-18 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-18 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-18 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-18 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-18 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-18 17:00:02] Remote dir    : /data/*
+[2026-06-18 17:00:02] WINSCP Output:
+[2026-06-18 17:00:03]   > batch           abort
+[2026-06-18 17:00:03]   > confirm         off
+[2026-06-18 17:00:03]   > Searching for host...
+[2026-06-18 17:00:03]   > Connecting to host...
+[2026-06-18 17:00:03]   > Authenticating...
+[2026-06-18 17:00:03]   > Using username "testuser".
+[2026-06-18 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-18 17:00:05]   > Authenticated.
+[2026-06-18 17:00:05]   > Starting the session...
+[2026-06-18 17:00:05]   > Session started.
+[2026-06-18 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-18 17:00:05] WINSCP DONE.
+[2026-06-18 17:00:05] END - Hoan tat dong bo WinSCP.
+[Thu 06/18/2026 17:00:05.24] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/19/2026  8:19:01.70] START run_backup.bat 
+[Fri 06/19/2026  8:19:01.83] [OK] Tim thay Python: py launcher 
+[Fri 06/19/2026  8:19:01.83] [RUN] py scripts\backup_winscp.py 
+[2026-06-19 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-19 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-19 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-19 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-19 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-19 08:19:02] Remote dir    : /data/*
+[2026-06-19 08:19:02] WINSCP Output:
+[2026-06-19 08:19:02]   > batch           abort
+[2026-06-19 08:19:02]   > confirm         off
+[2026-06-19 08:19:02]   > Searching for host...
+[2026-06-19 08:19:02]   > Connecting to host...
+[2026-06-19 08:19:02]   > Authenticating...
+[2026-06-19 08:19:03]   > Using username "testuser".
+[2026-06-19 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-19 08:19:04]   > Authenticated.
+[2026-06-19 08:19:04]   > Starting the session...
+[2026-06-19 08:19:04]   > Session started.
+[2026-06-19 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-19 08:19:04] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Fri 06/19/2026 17:00:02.59] START run_backup.bat 
+[Fri 06/19/2026 17:00:02.77] [OK] Tim thay Python: py launcher 
+[Fri 06/19/2026 17:00:02.77] [RUN] py scripts\backup_winscp.py 
+[2026-06-19 17:00:03] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-19 17:00:03] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-19 17:00:03] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-19 17:00:03] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-19 17:00:03] Local dir     : C:\POC\BACKUP~2\
+[2026-06-19 17:00:03] Remote dir    : /data/*
+[2026-06-19 17:00:03] WINSCP Output:
+[2026-06-19 17:00:03]   > batch           abort
+[2026-06-19 17:00:03]   > confirm         off
+[2026-06-19 17:00:03]   > Searching for host...
+[2026-06-19 17:00:03]   > Connecting to host...
+[2026-06-19 17:00:03] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Sat 06/20/2026 17:00:05.48] START run_backup.bat 
+ 
+============================================================ 
+[Mon 06/22/2026  8:08:43.18] START run_backup.bat 
+[Mon 06/22/2026  8:08:43.32] [OK] Tim thay Python: py launcher 
+[Mon 06/22/2026  8:08:43.32] [RUN] py scripts\backup_winscp.py 
+[2026-06-22 08:08:43] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-22 08:08:43] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-22 08:08:43] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-22 08:08:43] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-22 08:08:43] Local dir     : C:\POC\BACKUP~2\
+[2026-06-22 08:08:43] Remote dir    : /data/*
+[2026-06-22 08:08:43] WINSCP Output:
+[2026-06-22 08:08:44]   > batch           abort
+[2026-06-22 08:08:44]   > confirm         off
+[2026-06-22 08:08:44]   > Searching for host...
+[2026-06-22 08:08:44]   > Connecting to host...
+[2026-06-22 08:08:44]   > Authenticating...
+[2026-06-22 08:08:44]   > Using username "testuser".
+[2026-06-22 08:08:44] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Mon 06/22/2026  8:19:01.65] START run_backup.bat 
+[Mon 06/22/2026  8:19:01.68] [OK] Tim thay Python: py launcher 
+[Mon 06/22/2026  8:19:01.68] [RUN] py scripts\backup_winscp.py 
+[2026-06-22 08:19:01] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-22 08:19:01] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-22 08:19:01] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-22 08:19:01] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-22 08:19:01] Local dir     : C:\POC\BACKUP~2\
+[2026-06-22 08:19:01] Remote dir    : /data/*
+[2026-06-22 08:19:01] WINSCP Output:
+[2026-06-22 08:19:01]   > batch           abort
+[2026-06-22 08:19:01]   > confirm         off
+[2026-06-22 08:19:01]   > Searching for host...
+[2026-06-22 08:19:02]   > Connecting to host...
+[2026-06-22 08:19:02]   > Authenticating...
+[2026-06-22 08:19:02]   > Using username "testuser".
+[2026-06-22 08:19:02]   > Authenticating with pre-entered password.
+[2026-06-22 08:19:04]   > Authenticated.
+[2026-06-22 08:19:04]   > Starting the session...
+[2026-06-22 08:19:04]   > Session started.
+[2026-06-22 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-22 08:19:04] WINSCP DONE.
+[2026-06-22 08:19:04] END - Hoan tat dong bo WinSCP.
+[Mon 06/22/2026  8:19:04.66] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Mon 06/22/2026 17:00:02.08] START run_backup.bat 
+[Mon 06/22/2026 17:00:02.33] [OK] Tim thay Python: py launcher 
+[Mon 06/22/2026 17:00:02.33] [RUN] py scripts\backup_winscp.py 
+[2026-06-22 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-22 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-22 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-22 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-22 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-22 17:00:02] Remote dir    : /data/*
+[2026-06-22 17:00:02] WINSCP Output:
+[2026-06-22 17:00:03]   > batch           abort
+[2026-06-22 17:00:03]   > confirm         off
+[2026-06-22 17:00:03]   > Searching for host...
+[2026-06-22 17:00:03]   > Connecting to host...
+[2026-06-22 17:00:03]   > Authenticating...
+[2026-06-22 17:00:03]   > Using username "testuser".
+[2026-06-22 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-22 17:00:04]   > Authenticated.
+[2026-06-22 17:00:04]   > Starting the session...
+[2026-06-22 17:00:04]   > Session started.
+[2026-06-22 17:00:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-22 17:00:04] WINSCP DONE.
+[2026-06-22 17:00:04] END - Hoan tat dong bo WinSCP.
+[Mon 06/22/2026 17:00:04.83] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 06/23/2026  8:19:02.23] START run_backup.bat 
+[Tue 06/23/2026  8:19:02.42] [OK] Tim thay Python: py launcher 
+[Tue 06/23/2026  8:19:02.43] [RUN] py scripts\backup_winscp.py 
+[2026-06-23 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-23 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-23 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-23 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-23 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-23 08:19:02] Remote dir    : /data/*
+[2026-06-23 08:19:02] WINSCP Output:
+[2026-06-23 08:19:03]   > batch           abort
+[2026-06-23 08:19:03]   > confirm         off
+[2026-06-23 08:19:03]   > Searching for host...
+[2026-06-23 08:19:03]   > Connecting to host...
+[2026-06-23 08:19:03]   > Authenticating...
+[2026-06-23 08:19:03]   > Using username "testuser".
+[2026-06-23 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-23 08:19:04]   > Authenticated.
+[2026-06-23 08:19:04]   > Starting the session...
+[2026-06-23 08:19:04]   > Session started.
+[2026-06-23 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-23 08:19:04] WINSCP DONE.
+[2026-06-23 08:19:04] END - Hoan tat dong bo WinSCP.
+[Tue 06/23/2026  8:19:04.63] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 06/23/2026 17:00:02.24] START run_backup.bat 
+[Tue 06/23/2026 17:00:02.39] [OK] Tim thay Python: py launcher 
+[Tue 06/23/2026 17:00:02.39] [RUN] py scripts\backup_winscp.py 
+[2026-06-23 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-23 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-23 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-23 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-23 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-23 17:00:02] Remote dir    : /data/*
+[2026-06-23 17:00:02] WINSCP Output:
+[2026-06-23 17:00:03]   > batch           abort
+[2026-06-23 17:00:03]   > confirm         off
+[2026-06-23 17:00:03]   > Searching for host...
+[2026-06-23 17:00:03]   > Connecting to host...
+[2026-06-23 17:00:03]   > Authenticating...
+[2026-06-23 17:00:03]   > Using username "testuser".
+[2026-06-23 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-23 17:00:05]   > Authenticated.
+[2026-06-23 17:00:05]   > Starting the session...
+[2026-06-23 17:00:05]   > Session started.
+[2026-06-23 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-23 17:00:05] WINSCP DONE.
+[2026-06-23 17:00:05] END - Hoan tat dong bo WinSCP.
+[Tue 06/23/2026 17:00:05.71] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 06/24/2026  8:19:02.25] START run_backup.bat 
+[Wed 06/24/2026  8:19:02.29] [OK] Tim thay Python: py launcher 
+[Wed 06/24/2026  8:19:02.30] [RUN] py scripts\backup_winscp.py 
+[2026-06-24 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-24 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-24 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-24 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-24 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-24 08:19:02] Remote dir    : /data/*
+[2026-06-24 08:19:02] WINSCP Output:
+[2026-06-24 08:19:02]   > batch           abort
+[2026-06-24 08:19:02]   > confirm         off
+[2026-06-24 08:19:02]   > Searching for host...
+[2026-06-24 08:19:02]   > Connecting to host...
+[2026-06-24 08:19:03]   > Authenticating...
+[2026-06-24 08:19:03]   > Using username "testuser".
+[2026-06-24 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-24 08:19:04]   > Authenticated.
+[2026-06-24 08:19:04]   > Starting the session...
+[2026-06-24 08:19:04]   > Session started.
+[2026-06-24 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-24 08:19:04] WINSCP DONE.
+[2026-06-24 08:19:04] END - Hoan tat dong bo WinSCP.
+[Wed 06/24/2026  8:19:04.72] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 06/24/2026 17:00:02.15] START run_backup.bat 
+[Wed 06/24/2026 17:00:02.42] [OK] Tim thay Python: py launcher 
+[Wed 06/24/2026 17:00:02.42] [RUN] py scripts\backup_winscp.py 
+[2026-06-24 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-24 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-24 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-24 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-24 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-24 17:00:02] Remote dir    : /data/*
+[2026-06-24 17:00:02] WINSCP Output:
+[2026-06-24 17:00:03]   > batch           abort
+[2026-06-24 17:00:03]   > confirm         off
+[2026-06-24 17:00:03]   > Searching for host...
+[2026-06-24 17:00:03]   > Connecting to host...
+[2026-06-24 17:00:03]   > Authenticating...
+[2026-06-24 17:00:03]   > Using username "testuser".
+[2026-06-24 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-24 17:00:04]   > Authenticated.
+[2026-06-24 17:00:04]   > Starting the session...
+[2026-06-24 17:00:04]   > Session started.
+[2026-06-24 17:00:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-24 17:00:05] WINSCP DONE.
+[2026-06-24 17:00:05] END - Hoan tat dong bo WinSCP.
+[Wed 06/24/2026 17:00:05.11] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Thu 06/25/2026  8:19:02.24] START run_backup.bat 
+[Thu 06/25/2026  8:19:02.29] [OK] Tim thay Python: py launcher 
+[Thu 06/25/2026  8:19:02.29] [RUN] py scripts\backup_winscp.py 
+[2026-06-25 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-25 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-25 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-25 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-25 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-25 08:19:02] Remote dir    : /data/*
+[2026-06-25 08:19:02] WINSCP Output:
+[2026-06-25 08:19:02]   > batch           abort
+[2026-06-25 08:19:02]   > confirm         off
+[2026-06-25 08:19:02]   > Searching for host...
+[2026-06-25 08:19:03]   > Connecting to host...
+[2026-06-25 08:19:03]   > Authenticating...
+[2026-06-25 08:19:03]   > Using username "testuser".
+[2026-06-25 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-25 08:19:03] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Thu 06/25/2026 17:00:02.19] START run_backup.bat 
+[Thu 06/25/2026 17:00:02.50] [OK] Tim thay Python: py launcher 
+[Thu 06/25/2026 17:00:02.50] [RUN] py scripts\backup_winscp.py 
+[2026-06-25 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-25 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-25 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-25 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-25 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-25 17:00:02] Remote dir    : /data/*
+[2026-06-25 17:00:02] WINSCP Output:
+[2026-06-25 17:00:03]   > batch           abort
+[2026-06-25 17:00:03]   > confirm         off
+[2026-06-25 17:00:03]   > Searching for host...
+[2026-06-25 17:00:03]   > Connecting to host...
+[2026-06-25 17:00:03]   > Authenticating...
+[2026-06-25 17:00:03]   > Using username "testuser".
+[2026-06-25 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-25 17:00:05]   > Authenticated.
+[2026-06-25 17:00:05]   > Starting the session...
+[2026-06-25 17:00:05]   > Session started.
+[2026-06-25 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-25 17:00:05] WINSCP DONE.
+[2026-06-25 17:00:05] END - Hoan tat dong bo WinSCP.
+[Thu 06/25/2026 17:00:05.40] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/26/2026  8:19:02.34] START run_backup.bat 
+[Fri 06/26/2026  8:19:02.63] [OK] Tim thay Python: py launcher 
+[Fri 06/26/2026  8:19:02.63] [RUN] py scripts\backup_winscp.py 
+[2026-06-26 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-26 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-26 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-26 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-26 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-26 08:19:02] Remote dir    : /data/*
+[2026-06-26 08:19:03] WINSCP Output:
+[2026-06-26 08:19:03]   > batch           abort
+[2026-06-26 08:19:03]   > confirm         off
+[2026-06-26 08:19:03]   > Searching for host...
+[2026-06-26 08:19:03]   > Connecting to host...
+[2026-06-26 08:19:04]   > Authenticating...
+[2026-06-26 08:19:04]   > Using username "testuser".
+[2026-06-26 08:19:04]   > Authenticating with pre-entered password.
+[2026-06-26 08:19:05]   > Authenticated.
+[2026-06-26 08:19:05]   > Starting the session...
+[2026-06-26 08:19:05]   > Session started.
+[2026-06-26 08:19:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-26 08:19:05] WINSCP DONE.
+[2026-06-26 08:19:05] END - Hoan tat dong bo WinSCP.
+[Fri 06/26/2026  8:19:05.90] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Fri 06/26/2026 17:00:02.41] START run_backup.bat 
+[Fri 06/26/2026 17:00:02.81] [OK] Tim thay Python: py launcher 
+[Fri 06/26/2026 17:00:02.81] [RUN] py scripts\backup_winscp.py 
+[2026-06-26 17:00:03] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-26 17:00:03] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-26 17:00:03] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-26 17:00:03] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-26 17:00:03] Local dir     : C:\POC\BACKUP~2\
+[2026-06-26 17:00:03] Remote dir    : /data/*
+[2026-06-26 17:00:03] WINSCP Output:
+[2026-06-26 17:00:04]   > batch           abort
+[2026-06-26 17:00:04]   > confirm         off
+[2026-06-26 17:00:04]   > Searching for host...
+[2026-06-26 17:00:04]   > Connecting to host...
+[2026-06-26 17:00:04]   > Authenticating...
+[2026-06-26 17:00:04]   > Using username "testuser".
+[2026-06-26 17:00:04]   > Authenticating with pre-entered password.
+[2026-06-26 17:00:05]   > Authenticated.
+[2026-06-26 17:00:05]   > Starting the session...
+[2026-06-26 17:00:06]   > Session started.
+[2026-06-26 17:00:06]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-26 17:00:06] WINSCP DONE.
+[2026-06-26 17:00:06] END - Hoan tat dong bo WinSCP.
+[Fri 06/26/2026 17:00:06.15] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Sat 06/27/2026 17:00:02.14] START run_backup.bat 
+[Sat 06/27/2026 17:00:02.40] [OK] Tim thay Python: py launcher 
+[Sat 06/27/2026 17:00:02.40] [RUN] py scripts\backup_winscp.py 
+[2026-06-27 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-27 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-27 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-27 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-27 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-27 17:00:02] Remote dir    : /data/*
+[2026-06-27 17:00:02] WINSCP Output:
+[2026-06-27 17:00:03]   > batch           abort
+[2026-06-27 17:00:03]   > confirm         off
+[2026-06-27 17:00:03]   > Searching for host...
+[2026-06-27 17:00:03]   > Connecting to host...
+[2026-06-27 17:00:03]   > Authenticating...
+[2026-06-27 17:00:03]   > Using username "testuser".
+[2026-06-27 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-27 17:00:04]   > Authenticated.
+[2026-06-27 17:00:04]   > Starting the session...
+[2026-06-27 17:00:05]   > Session started.
+[2026-06-27 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-27 17:00:05] WINSCP DONE.
+[2026-06-27 17:00:05] END - Hoan tat dong bo WinSCP.
+[Sat 06/27/2026 17:00:05.13] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Sun 06/28/2026  8:19:02.10] START run_backup.bat 
+[Sun 06/28/2026  8:19:02.13] [OK] Tim thay Python: py launcher 
+[Sun 06/28/2026  8:19:02.14] [RUN] py scripts\backup_winscp.py 
+[2026-06-28 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-28 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-28 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-28 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-28 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-28 08:19:02] Remote dir    : /data/*
+[2026-06-28 08:19:02] WINSCP Output:
+[2026-06-28 08:19:02]   > batch           abort
+[2026-06-28 08:19:02]   > confirm         off
+[2026-06-28 08:19:02]   > Searching for host...
+[2026-06-28 08:19:02]   > Connecting to host...
+[2026-06-28 08:19:02]   > Authenticating...
+[2026-06-28 08:19:02]   > Using username "testuser".
+[2026-06-28 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-28 08:19:04]   > Authenticated.
+[2026-06-28 08:19:04]   > Starting the session...
+[2026-06-28 08:19:04]   > Session started.
+[2026-06-28 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-28 08:19:04] WINSCP DONE.
+[2026-06-28 08:19:04] END - Hoan tat dong bo WinSCP.
+[Sun 06/28/2026  8:19:05.00] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Sun 06/28/2026 17:00:02.13] START run_backup.bat 
+[Sun 06/28/2026 17:00:02.30] [OK] Tim thay Python: py launcher 
+[Sun 06/28/2026 17:00:02.30] [RUN] py scripts\backup_winscp.py 
+[2026-06-28 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-28 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-28 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-28 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-28 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-28 17:00:02] Remote dir    : /data/*
+[2026-06-28 17:00:02] WINSCP Output:
+[2026-06-28 17:00:03]   > batch           abort
+[2026-06-28 17:00:03]   > confirm         off
+[2026-06-28 17:00:03]   > Searching for host...
+[2026-06-28 17:00:03]   > Connecting to host...
+[2026-06-28 17:00:03]   > Authenticating...
+[2026-06-28 17:00:03]   > Using username "testuser".
+[2026-06-28 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-28 17:00:04]   > Authenticated.
+[2026-06-28 17:00:04]   > Starting the session...
+[2026-06-28 17:00:04]   > Session started.
+[2026-06-28 17:00:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-28 17:00:05] WINSCP DONE.
+[2026-06-28 17:00:05] END - Hoan tat dong bo WinSCP.
+[Sun 06/28/2026 17:00:05.03] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Mon 06/29/2026  8:19:02.09] START run_backup.bat 
+[Mon 06/29/2026  8:19:02.24] [OK] Tim thay Python: py launcher 
+[Mon 06/29/2026  8:19:02.24] [RUN] py scripts\backup_winscp.py 
+[2026-06-29 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-29 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-29 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-29 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-29 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-29 08:19:02] Remote dir    : /data/*
+[2026-06-29 08:19:02] WINSCP Output:
+[2026-06-29 08:19:02]   > batch           abort
+[2026-06-29 08:19:02]   > confirm         off
+[2026-06-29 08:19:02]   > Searching for host...
+[2026-06-29 08:19:03]   > Connecting to host...
+[2026-06-29 08:19:03]   > Authenticating...
+[2026-06-29 08:19:03]   > Using username "testuser".
+[2026-06-29 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-29 08:19:05]   > Authenticated.
+[2026-06-29 08:19:05]   > Starting the session...
+[2026-06-29 08:19:05]   > Session started.
+[2026-06-29 08:19:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-29 08:19:05] WINSCP DONE.
+[2026-06-29 08:19:05] END - Hoan tat dong bo WinSCP.
+[Mon 06/29/2026  8:19:05.21] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Mon 06/29/2026 17:00:01.89] START run_backup.bat 
+[Mon 06/29/2026 17:00:02.10] [OK] Tim thay Python: py launcher 
+[Mon 06/29/2026 17:00:02.10] [RUN] py scripts\backup_winscp.py 
+[2026-06-29 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-29 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-29 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-29 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-29 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-29 17:00:02] Remote dir    : /data/*
+[2026-06-29 17:00:02] WINSCP Output:
+[2026-06-29 17:00:02]   > batch           abort
+[2026-06-29 17:00:02]   > confirm         off
+[2026-06-29 17:00:02]   > Searching for host...
+[2026-06-29 17:00:03]   > Connecting to host...
+[2026-06-29 17:00:03]   > Authenticating...
+[2026-06-29 17:00:03]   > Using username "testuser".
+[2026-06-29 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-29 17:00:04]   > Authenticated.
+[2026-06-29 17:00:04]   > Starting the session...
+[2026-06-29 17:00:04]   > Session started.
+[2026-06-29 17:00:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-29 17:00:04] WINSCP DONE.
+[2026-06-29 17:00:04] END - Hoan tat dong bo WinSCP.
+[Mon 06/29/2026 17:00:04.82] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 06/30/2026  8:19:01.81] START run_backup.bat 
+[Tue 06/30/2026  8:19:02.00] [OK] Tim thay Python: py launcher 
+[Tue 06/30/2026  8:19:02.00] [RUN] py scripts\backup_winscp.py 
+[2026-06-30 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-30 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-30 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-30 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-30 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-30 08:19:02] Remote dir    : /data/*
+[2026-06-30 08:19:02] WINSCP Output:
+[2026-06-30 08:19:02]   > batch           abort
+[2026-06-30 08:19:02]   > confirm         off
+[2026-06-30 08:19:02]   > Searching for host...
+[2026-06-30 08:19:02]   > Connecting to host...
+[2026-06-30 08:19:03]   > Authenticating...
+[2026-06-30 08:19:03]   > Using username "testuser".
+[2026-06-30 08:19:03]   > Authenticating with pre-entered password.
+[2026-06-30 08:19:04]   > Authenticated.
+[2026-06-30 08:19:04]   > Starting the session...
+[2026-06-30 08:19:04]   > Session started.
+[2026-06-30 08:19:04]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-30 08:19:05] WINSCP DONE.
+[2026-06-30 08:19:05] END - Hoan tat dong bo WinSCP.
+[Tue 06/30/2026  8:19:05.05] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 06/30/2026 17:00:02.24] START run_backup.bat 
+[Tue 06/30/2026 17:00:02.41] [OK] Tim thay Python: py launcher 
+[Tue 06/30/2026 17:00:02.41] [RUN] py scripts\backup_winscp.py 
+[2026-06-30 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-06-30 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-06-30 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-06-30 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-06-30 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-06-30 17:00:02] Remote dir    : /data/*
+[2026-06-30 17:00:02] WINSCP Output:
+[2026-06-30 17:00:03]   > batch           abort
+[2026-06-30 17:00:03]   > confirm         off
+[2026-06-30 17:00:03]   > Searching for host...
+[2026-06-30 17:00:03]   > Connecting to host...
+[2026-06-30 17:00:03]   > Authenticating...
+[2026-06-30 17:00:03]   > Using username "testuser".
+[2026-06-30 17:00:03]   > Authenticating with pre-entered password.
+[2026-06-30 17:00:05]   > Authenticated.
+[2026-06-30 17:00:05]   > Starting the session...
+[2026-06-30 17:00:05]   > Session started.
+[2026-06-30 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-06-30 17:00:05] WINSCP DONE.
+[2026-06-30 17:00:05] END - Hoan tat dong bo WinSCP.
+[Tue 06/30/2026 17:00:05.43] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 07/01/2026  8:19:02.15] START run_backup.bat 
+[Wed 07/01/2026  8:19:02.35] [OK] Tim thay Python: py launcher 
+[Wed 07/01/2026  8:19:02.35] [RUN] py scripts\backup_winscp.py 
+[2026-07-01 08:19:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-01 08:19:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-01 08:19:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-01 08:19:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-01 08:19:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-01 08:19:02] Remote dir    : /data/*
+[2026-07-01 08:19:02] WINSCP Output:
+[2026-07-01 08:19:03]   > batch           abort
+[2026-07-01 08:19:03]   > confirm         off
+[2026-07-01 08:19:03]   > Searching for host...
+[2026-07-01 08:19:03]   > Connecting to host...
+[2026-07-01 08:19:03]   > Authenticating...
+[2026-07-01 08:19:03]   > Using username "testuser".
+[2026-07-01 08:19:03]   > Authenticating with pre-entered password.
+[2026-07-01 08:19:05]   > Authenticated.
+[2026-07-01 08:19:05]   > Starting the session...
+[2026-07-01 08:19:05]   > Session started.
+[2026-07-01 08:19:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-01 08:19:05] WINSCP DONE.
+[2026-07-01 08:19:05] END - Hoan tat dong bo WinSCP.
+[Wed 07/01/2026  8:19:05.64] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 07/01/2026 17:00:02.24] START run_backup.bat 
+[Wed 07/01/2026 17:00:02.59] [OK] Tim thay Python: py launcher 
+[Wed 07/01/2026 17:00:02.60] [RUN] py scripts\backup_winscp.py 
+[2026-07-01 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-01 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-01 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-01 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-01 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-01 17:00:02] Remote dir    : /data/*
+[2026-07-01 17:00:03] WINSCP Output:
+[2026-07-01 17:00:03]   > batch           abort
+[2026-07-01 17:00:03]   > confirm         off
+[2026-07-01 17:00:03]   > Searching for host...
+[2026-07-01 17:00:03]   > Connecting to host...
+[2026-07-01 17:00:03]   > Authenticating...
+[2026-07-01 17:00:03]   > Using username "testuser".
+[2026-07-01 17:00:03]   > Authenticating with pre-entered password.
+[2026-07-01 17:00:05]   > Authenticated.
+[2026-07-01 17:00:05]   > Starting the session...
+[2026-07-01 17:00:05]   > Session started.
+[2026-07-01 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-01 17:00:05] WINSCP DONE.
+[2026-07-01 17:00:05] END - Hoan tat dong bo WinSCP.
+[Wed 07/01/2026 17:00:05.28] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Thu 07/02/2026  8:19:02.27] START run_backup.bat 
+[Thu 07/02/2026  8:19:02.71] [OK] Tim thay Python: py launcher 
+[Thu 07/02/2026  8:19:02.71] [RUN] py scripts\backup_winscp.py 
+[2026-07-02 08:19:03] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-02 08:19:03] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-02 08:19:03] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-02 08:19:03] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-02 08:19:03] Local dir     : C:\POC\BACKUP~2\
+[2026-07-02 08:19:03] Remote dir    : /data/*
+[2026-07-02 08:19:03] WINSCP Output:
+[2026-07-02 08:19:03]   > batch           abort
+[2026-07-02 08:19:03]   > confirm         off
+[2026-07-02 08:19:03]   > Searching for host...
+[2026-07-02 08:19:03]   > Connecting to host...
+[2026-07-02 08:19:04]   > Authenticating...
+[2026-07-02 08:19:04]   > Using username "testuser".
+[2026-07-02 08:19:04]   > Authenticating with pre-entered password.
+[2026-07-02 08:19:04] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Thu 07/02/2026 17:00:02.20] START run_backup.bat 
+[Thu 07/02/2026 17:00:02.46] [OK] Tim thay Python: py launcher 
+[Thu 07/02/2026 17:00:02.47] [RUN] py scripts\backup_winscp.py 
+[2026-07-02 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-02 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-02 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-02 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-02 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-02 17:00:02] Remote dir    : /data/*
+[2026-07-02 17:00:02] WINSCP Output:
+[2026-07-02 17:00:03]   > batch           abort
+[2026-07-02 17:00:03]   > confirm         off
+[2026-07-02 17:00:03]   > Searching for host...
+[2026-07-02 17:00:03]   > Connecting to host...
+[2026-07-02 17:00:03]   > Authenticating...
+[2026-07-02 17:00:03]   > Using username "testuser".
+[2026-07-02 17:00:03]   > Authenticating with pre-entered password.
+[2026-07-02 17:00:04] WINSCP LOI (Exit Code: 3221225786)
+ 
+============================================================ 
+[Fri 07/03/2026 17:00:02.27] START run_backup.bat 
+[Fri 07/03/2026 17:00:02.62] [OK] Tim thay Python: py launcher 
+[Fri 07/03/2026 17:00:02.62] [RUN] py scripts\backup_winscp.py 
+[2026-07-03 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-03 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-03 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-03 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-03 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-03 17:00:02] Remote dir    : /data/*
+[2026-07-03 17:00:03] WINSCP Output:
+[2026-07-03 17:00:03]   > batch           abort
+[2026-07-03 17:00:03]   > confirm         off
+[2026-07-03 17:00:03]   > Searching for host...
+[2026-07-03 17:00:03]   > Connecting to host...
+[2026-07-03 17:00:04]   > Authenticating...
+[2026-07-03 17:00:04]   > Using username "testuser".
+[2026-07-03 17:00:04]   > Authenticating with pre-entered password.
+[2026-07-03 17:00:05]   > Authenticated.
+[2026-07-03 17:00:05]   > Starting the session...
+[2026-07-03 17:00:05]   > Session started.
+[2026-07-03 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-03 17:00:06] WINSCP DONE.
+[2026-07-03 17:00:06] END - Hoan tat dong bo WinSCP.
+[Fri 07/03/2026 17:00:06.74] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Sat 07/04/2026 17:00:01.87] START run_backup.bat 
+[Sat 07/04/2026 17:00:02.15] [OK] Tim thay Python: py launcher 
+[Sat 07/04/2026 17:00:02.15] [RUN] py scripts\backup_winscp.py 
+[2026-07-04 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-04 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-04 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-04 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-04 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-04 17:00:02] Remote dir    : /data/*
+[2026-07-04 17:00:02] WINSCP Output:
+[2026-07-04 17:00:03]   > batch           abort
+[2026-07-04 17:00:03]   > confirm         off
+[2026-07-04 17:00:03]   > Searching for host...
+^C 
+============================================================ 
+[Mon 07/06/2026  8:11:47.22] START run_backup.bat 
+[Mon 07/06/2026  8:11:47.44] [OK] Tim thay Python: py launcher 
+[Mon 07/06/2026  8:11:47.44] [RUN] py scripts\backup_winscp.py 
+[2026-07-06 08:11:47] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-06 08:11:47] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-06 08:11:47] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-06 08:11:47] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-06 08:11:47] Local dir     : C:\POC\BACKUP~2\
+[2026-07-06 08:11:47] Remote dir    : /data/*
+[2026-07-06 08:11:47] WINSCP Output:
+[2026-07-06 08:11:48]   > batch           abort
+[2026-07-06 08:11:48]   > confirm         off
+[2026-07-06 08:11:48]   > Searching for host...
+[2026-07-06 08:11:48]   > Connecting to host...
+[2026-07-06 08:11:49]   > Authenticating...
+[2026-07-06 08:11:49]   > Using username "testuser".
+[2026-07-06 08:11:49]   > Authenticating with pre-entered password.
+[2026-07-06 08:11:51]   > Authenticated.
+[2026-07-06 08:11:51]   > Starting the session...
+[2026-07-06 08:11:51]   > Session started.
+[2026-07-06 08:11:51]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-06 08:11:51] WINSCP DONE.
+[2026-07-06 08:11:51] END - Hoan tat dong bo WinSCP.
+[Mon 07/06/2026  8:11:51.35] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Mon 07/06/2026 17:00:02.17] START run_backup.bat 
+[Mon 07/06/2026 17:00:02.38] [OK] Tim thay Python: py launcher 
+[Mon 07/06/2026 17:00:02.38] [RUN] py scripts\backup_winscp.py 
+[2026-07-06 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-06 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-06 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-06 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-06 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-06 17:00:02] Remote dir    : /data/*
+[2026-07-06 17:00:02] WINSCP Output:
+[2026-07-06 17:00:03]   > batch           abort
+[2026-07-06 17:00:03]   > confirm         off
+[2026-07-06 17:00:03]   > Searching for host...
+[2026-07-06 17:00:03]   > Connecting to host...
+[2026-07-06 17:00:03]   > Authenticating...
+[2026-07-06 17:00:03]   > Using username "testuser".
+[2026-07-06 17:00:03]   > Authenticating with pre-entered password.
+[2026-07-06 17:00:04]   > Authenticated.
+[2026-07-06 17:00:04]   > Starting the session...
+[2026-07-06 17:00:05]   > Session started.
+[2026-07-06 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-06 17:00:05] WINSCP DONE.
+[2026-07-06 17:00:05] END - Hoan tat dong bo WinSCP.
+[Mon 07/06/2026 17:00:05.32] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Tue 07/07/2026 17:00:02.34] START run_backup.bat 
+[Tue 07/07/2026 17:00:02.59] [OK] Tim thay Python: py launcher 
+[Tue 07/07/2026 17:00:02.59] [RUN] py scripts\backup_winscp.py 
+[2026-07-07 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-07 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-07 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-07 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-07 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-07 17:00:02] Remote dir    : /data/*
+[2026-07-07 17:00:02] WINSCP Output:
+[2026-07-07 17:00:03]   > batch           abort
+[2026-07-07 17:00:03]   > confirm         off
+[2026-07-07 17:00:03]   > Searching for host...
+[2026-07-07 17:00:03]   > Connecting to host...
+[2026-07-07 17:00:04]   > Authenticating...
+[2026-07-07 17:00:04]   > Using username "testuser".
+[2026-07-07 17:00:04]   > Authenticating with pre-entered password.
+[2026-07-07 17:00:05]   > Authenticated.
+[2026-07-07 17:00:05]   > Starting the session...
+[2026-07-07 17:00:05]   > Session started.
+[2026-07-07 17:00:05]   > Active session: [1] testuser@sftp.mxv.com.vn
+[2026-07-07 17:00:06] WINSCP DONE.
+[2026-07-07 17:00:06] END - Hoan tat dong bo WinSCP.
+[Tue 07/07/2026 17:00:06.29] [PASS] Hoan thanh. Exit code: 0 
+============================================================ 
+ 
+============================================================ 
+[Wed 07/08/2026 17:00:02.05] START run_backup.bat 
+[Wed 07/08/2026 17:00:02.27] [OK] Tim thay Python: py launcher 
+[Wed 07/08/2026 17:00:02.27] [RUN] py scripts\backup_winscp.py 
+[2026-07-08 17:00:02] START - Chay Backup qua WinSCP CMD (Theo yeu cau Leader)
+[2026-07-08 17:00:02] Tim thay WinSCP: [Cach 1 - Thu muc mac dinh] C:\Users\hiepth\AppData\Local\Programs\WinSCP\WinSCP.com
+[2026-07-08 17:00:02] Duong dan local co Unicode -> da chuyen: C:\POC\backup_level2 => C:\POC\BACKUP~2
+[2026-07-08 17:00:02] Thuc thi CMD  : WinSCP.com /script [temp] open sftp://testuser:***@sftp.mxv.com.vn:2231 ... get -neweronly -speed=204800 -filemask="*.dump>=1D;*.log>=1D"
+[2026-07-08 17:00:02] Local dir     : C:\POC\BACKUP~2\
+[2026-07-08 17:00:02] Remote dir    : /data/*
+[2026-07-08 17:00:02] WINSCP Output:
+[2026-07-08 17:00:03]   > batch           abort
+[2026-07-08 17:00:03]   > confirm         off
+[2026-07-08 17:00:03]   > Searching for host...
+[2026-07-08 17:00:03]   > Connecting to host...
+[2026-07-08 17:00:03]   > Authenticating...
+[2026-07-08 17:00:03]   > Using username "testuser".
+[2026-07-08 17:00:03]   > Authenticating with pre-entered password.

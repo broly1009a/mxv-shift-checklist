@@ -1,0 +1,6 @@
+﻿option batch abort
+option confirm off
+option speed 5000
+open sftp://testuser:Test@2o26@sftp.mxv.com.vn:2231/ -hostkey=*
+get -neweronly -filemask="*.dump<200M>=1D;*.log<200M>=1D" /data/* C:\POC\BACKUP~2\
+exit

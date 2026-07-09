@@ -177,6 +177,8 @@ export class ReconciliationController {
         const result = await this.reconciliationService.checkEODCQG({
           qltkgd: fileBuffers.qltkgd,
           accountsBalances: fileBuffers.accountsBalances,
+          qltkgdName: files?.qltkgd?.[0]?.originalname,
+          accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
         }, usdRate);
 
         const hasDiscrepancy = result.length > 0;
@@ -206,42 +208,34 @@ export class ReconciliationController {
         };
       }
 
-      // Case B: M-System EOD Calculation check (if eod and tttt are uploaded)
-      if (fileBuffers.eod) {
-        if (!fileBuffers.qltkgd) {
-          throw new BadRequestException('File QLTKGD.xlsx là bắt buộc để đối chiếu số dư EOD.');
-        }
-        if (!fileBuffers.tttt) {
-          throw new BadRequestException('File TTTT.xlsx là bắt buộc để đối chiếu số dư EOD.');
-        }
-
+      // Case B: M-System EOD Check (if qltkgd is uploaded and accountsBalances is not)
+      if (fileBuffers.qltkgd && !fileBuffers.accountsBalances) {
         const result = await this.reconciliationService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
           tttt: fileBuffers.tttt,
+          qltkgdName: files?.qltkgd?.[0]?.originalname,
+          eodName: files?.eod?.[0]?.originalname,
+          ttttName: files?.tttt?.[0]?.originalname,
         });
 
-        const hasDiscrepancy = result.mismatchedEOD.length > 0;
+        const negativeIMRAccCount = result.negativeIMRAcc.length;
+        const negativeBalanceAccsCount = result.negativeBalanceAccs?.length || 0;
+        const hasDiscrepancy = negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0;
         const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
 
-        let note = `[ĐỐI CHIẾU EOD TỰ ĐỘNG]\n`;
-        note += `• Số tài khoản lệch số dư (>= 1,000đ): ${result.mismatchedEOD.length}\n`;
-        note += `• Phát hiện tài khoản âm ký quỹ mới: ${result.negativeIMRAcc.length}\n`;
-        
-        if (result.mismatchedEOD.length > 0) {
-          note += `⚠️ Danh sách tài khoản lệch:\n`;
-          result.mismatchedEOD.slice(0, 10).forEach(r => {
-            note += `  - TK ${r.maTKGD}: Tính toán ${r.calculatedBalance.toLocaleString()}đ vs EOD ${r.eodBalance.toLocaleString()}đ (Lệch: ${r.differ.toLocaleString()}đ)\n`;
-          });
-          if (result.mismatchedEOD.length > 10) {
-            note += `  ... và ${result.mismatchedEOD.length - 10} tài khoản khác.\n`;
-          }
-        } else {
-          note += `✓ Số dư khớp hoàn toàn giữa M-System và báo cáo EOD.\n`;
-        }
+        let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
+        note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
+        note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
 
-        if (result.negativeIMRAcc.length > 0) {
-          note += `🚨 Tài khoản âm ký quỹ khả dụng mới: ${result.negativeIMRAcc.join(', ')}\n`;
+        if (negativeBalanceAccsCount > 0) {
+          note += `🚨 Tài khoản âm số dư hiện tại: ${result.negativeBalanceAccs?.join(', ')}\n`;
+        }
+        if (negativeIMRAccCount > 0) {
+          note += `🚨 Tài khoản âm ký quỹ khả dụng: ${result.negativeIMRAcc.join(', ')}\n`;
+        }
+        if (!hasDiscrepancy) {
+          note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
         }
 
         await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
@@ -249,7 +243,7 @@ export class ReconciliationController {
         return {
           success: !hasDiscrepancy,
           type: 'EOD',
-          message: hasDiscrepancy ? 'Đối chiếu EOD có chênh lệch.' : 'Đối chiếu EOD khớp hoàn toàn.',
+          message: hasDiscrepancy ? 'Phát hiện tài khoản âm ký quỹ/âm số dư.' : 'Không phát hiện tài khoản âm ký quỹ.',
           result,
         };
       }
@@ -258,6 +252,47 @@ export class ReconciliationController {
     } catch (error: any) {
       this.logger.error(`Lỗi đối chiếu EOD/CQG: ${error.message}`, error.stack);
       throw new BadRequestException(`Lỗi khi xử lý file đối chiếu EOD/CQG: ${error.message}`);
+    }
+  }
+
+  @Post('negative-margin')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'qltkgd', maxCount: 1 },
+      { name: 'eod', maxCount: 1 },
+    ]),
+  )
+  async checkNegativeMargin(
+    @UploadedFiles()
+    files: {
+      qltkgd?: any[];
+      eod?: any[];
+    },
+  ) {
+    const fileBuffers = {
+      qltkgd: files?.qltkgd?.[0]?.buffer,
+      eod: files?.eod?.[0]?.buffer,
+    };
+
+    if (!fileBuffers.qltkgd) {
+      throw new BadRequestException('File QLTKGD.xlsx là bắt buộc.');
+    }
+
+    try {
+      const result = await this.reconciliationService.checkNegativeMargin({
+        qltkgd: fileBuffers.qltkgd,
+        eod: fileBuffers.eod,
+        qltkgdName: files?.qltkgd?.[0]?.originalname,
+        eodName: files?.eod?.[0]?.originalname,
+      });
+      return {
+        success: true,
+        message: 'Lọc tài khoản âm ký quỹ thành công.',
+        result,
+      };
+    } catch (error: any) {
+      this.logger.error(`Lỗi lọc tài khoản âm ký quỹ: ${error.message}`, error.stack);
+      throw new BadRequestException(`Lỗi khi xử lý file: ${error.message}`);
     }
   }
 
@@ -358,12 +393,9 @@ export class ReconciliationController {
     // 2. EOD Check
     try {
       const qltkgd = readIfExists('QLTKGD', 'xlsx');
-      const tttt = readIfExists('TTTT', 'xlsx');
       const eod = readIfExists('eod', 'csv');
       if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
-      if (!tttt) throw new Error('Thiếu file TTTT.xlsx');
-      if (!eod) throw new Error('Thiếu file eod.*.csv');
-      results.eod = await this.reconciliationService.checkEOD({ qltkgd, tttt, eod });
+      results.eod = await this.reconciliationService.checkEOD({ qltkgd, eod: eod || undefined });
     } catch (err: any) {
       errors.eod = err.message;
     }
@@ -405,8 +437,8 @@ export class ReconciliationController {
 
     try {
       const qltkgd = fs.readFileSync(downloadedFiles.qltkgdPath);
-      const tttt = fs.readFileSync(downloadedFiles.ttttPath);
-      const eod = fs.readFileSync(downloadedFiles.eodPath);
+      const tttt = downloadedFiles.ttttPath && fs.existsSync(downloadedFiles.ttttPath) ? fs.readFileSync(downloadedFiles.ttttPath) : undefined;
+      const eod = downloadedFiles.eodPath && fs.existsSync(downloadedFiles.eodPath) ? fs.readFileSync(downloadedFiles.eodPath) : undefined;
       results.eod = await this.reconciliationService.checkEOD({ qltkgd, tttt, eod });
     } catch (err: any) {
       errors.eod = err.message;
@@ -498,12 +530,15 @@ export class ReconciliationController {
     }
 
     // 2. EOD Check
-    if (fileBuffers.qltkgd && fileBuffers.eod && fileBuffers.tttt) {
+    if (fileBuffers.qltkgd && !fileBuffers.accountsBalances) {
       try {
         results.eod = await this.reconciliationService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
           tttt: fileBuffers.tttt,
+          qltkgdName: files?.qltkgd?.[0]?.originalname,
+          eodName: files?.eod?.[0]?.originalname,
+          ttttName: files?.tttt?.[0]?.originalname,
         });
       } catch (err: any) {
         errors.eod = err.message;
@@ -516,6 +551,8 @@ export class ReconciliationController {
         results.cqg = await this.reconciliationService.checkEODCQG({
           qltkgd: fileBuffers.qltkgd,
           accountsBalances: fileBuffers.accountsBalances,
+          qltkgdName: files?.qltkgd?.[0]?.originalname,
+          accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
         }, usdRate);
       } catch (err: any) {
         errors.cqg = err.message;
@@ -525,7 +562,7 @@ export class ReconciliationController {
     const hasAnyResults = Object.keys(results).length > 0;
     if (!hasAnyResults && Object.keys(errors).length === 0) {
       throw new BadRequestException(
-        'Vui lòng tải lên tối thiểu file DSGD (cho KLGD), hoặc QLTKGD+EOD+TTTT (cho EOD), hoặc QLTKGD+Accounts_Balances (cho CQG).',
+        'Vui lòng tải lên tối thiểu file DSGD (cho KLGD), hoặc QLTKGD (cho EOD), hoặc QLTKGD+Accounts_Balances (cho CQG).',
       );
     }
 

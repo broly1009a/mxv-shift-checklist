@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Download } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -87,17 +87,10 @@ export default function ReconciliationModal({
         toast.error('File QLTKGD.xlsx là bắt buộc!');
         return;
       }
-      if (!files.tttt) {
-        toast.error('File TTTT.xlsx là bắt buộc!');
-        return;
-      }
-      if (!files.eod) {
-        toast.error('File eod.csv là bắt buộc!');
-        return;
-      }
       formData.append('qltkgd', files.qltkgd);
-      formData.append('tttt', files.tttt);
-      formData.append('eod', files.eod);
+      if (files.eod) {
+        formData.append('eod', files.eod);
+      }
       endpoint = `${API_BASE_URL}/reconciliation/upload-eod`;
     } else if (mode === 'CQG') {
       if (!files.qltkgd) {
@@ -145,9 +138,9 @@ export default function ReconciliationModal({
       const data = await res.json();
       setResult(data.result);
       if (data.success) {
-        toast.success('Đối chiếu thành công: Dữ liệu khớp hoàn toàn!');
+        toast.success(mode === 'EOD' ? 'Đối chiếu EOD thành công: Không phát hiện tài khoản âm!' : 'Đối chiếu thành công: Dữ liệu khớp hoàn toàn!');
       } else {
-        toast.error('Đối chiếu hoàn thành: Phát hiện chênh lệch dữ liệu!');
+        toast.error(mode === 'EOD' ? 'Đối chiếu EOD hoàn thành: Phát hiện tài khoản âm ký quỹ/âm số dư!' : 'Đối chiếu hoàn thành: Phát hiện chênh lệch dữ liệu!');
       }
       onSuccess();
     } catch (err: any) {
@@ -155,6 +148,21 @@ export default function ReconciliationModal({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadExcel = () => {
+    if (!result || !result.excelBase64) return;
+    const binaryStr = window.atob(result.excelBase64);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = 'NegativeAccounts.xlsx';
+    link.click();
   };
 
   const renderFileDropzone = (key: string, label: string, required = false) => {
@@ -209,7 +217,7 @@ export default function ReconciliationModal({
 
   const getRunButtonDisabled = () => {
     if (loading) return true;
-    if (mode === 'EOD') return !files.qltkgd || !files.tttt || !files.eod;
+    if (mode === 'EOD') return !files.qltkgd;
     if (mode === 'CQG') return !files.qltkgd || !files.accountsBalances;
     return !files.dsgd;
   };
@@ -337,12 +345,11 @@ export default function ReconciliationModal({
           {mode === 'EOD' && (
             <div>
               <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                Chọn File Đối Chiếu Số Dư EOD
+                Chọn File Lọc Tài Khoản Âm Ký Quỹ
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
                 {renderFileDropzone('qltkgd', 'File QLTKGD.xlsx', true)}
-                {renderFileDropzone('tttt', 'File TTTT.xlsx', true)}
-                {renderFileDropzone('eod', 'File eod.csv', true)}
+                {renderFileDropzone('eod', 'File eod.csv (Tùy chọn)')}
               </div>
             </div>
           )}
@@ -519,38 +526,44 @@ export default function ReconciliationModal({
               {resultType === 'EOD' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {result.mismatchedEOD.length > 0 ? (
-                      <>
-                        <AlertTriangle color="var(--color-critical)" size={18} />
-                        Kết Quả EOD: Phát hiện chênh lệch dữ liệu
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 color="var(--color-primary)" size={18} />
-                        Kết Quả EOD: Số dư khớp hoàn toàn
-                      </>
-                    )}
+                    <CheckCircle2 color="var(--color-primary)" size={18} />
+                    Kết Quả Lọc: Hoàn thành kiểm tra tài khoản âm ký quỹ
                   </h3>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div style={{ padding: '12px', background: 'rgba(128,128,128,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>TÀI KHOẢN LỆCH SỐ DƯ EOD</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: result.mismatchedEOD.length > 0 ? 'var(--color-critical)' : 'var(--color-primary)' }}>
-                        {result.mismatchedEOD.length} tài khoản
+                    <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.02)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '4px' }}>TÀI KHOẢN ÂM SỐ DƯ TKKQ HIỆN TẠI (QLTKGD)</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ef4444' }}>
+                        {result.negativeBalanceAccs?.length || 0} tài khoản
                       </div>
                     </div>
                     <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.02)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '4px' }}>TÀI KHOẢN ÂM KÝ QUỸ (NEGATIVE IMR)</div>
+                      <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '4px' }}>TÀI KHOẢN ÂM KÝ QUỸ KHẢ DỤNG (EOD IMR)</div>
                       <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ef4444' }}>
-                        {result.negativeIMRAcc.length} tài khoản
+                        {result.negativeIMRAcc?.length || 0} tài khoản
                       </div>
                     </div>
                   </div>
 
-                  {result.negativeIMRAcc.length > 0 && (
+                  {result.negativeBalanceAccs?.length > 0 && (
                     <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                       <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <AlertTriangle size={14} /> Danh sách tài khoản âm ký quỹ khả dụng mới:
+                        <AlertTriangle size={14} /> Danh sách tài khoản âm số dư hiện tại (QLTKGD):
+                      </h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {result.negativeBalanceAccs.map((acc: string) => (
+                          <span key={acc} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                            {acc}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {result.negativeIMRAcc?.length > 0 && (
+                    <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} /> Danh sách tài khoản âm ký quỹ khả dụng (EOD):
                       </h4>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {result.negativeIMRAcc.map((acc: string) => (
@@ -562,40 +575,29 @@ export default function ReconciliationModal({
                     </div>
                   )}
 
-                  {result.mismatchedEOD.length > 0 ? (
-                    <div>
-                      <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <AlertTriangle size={14} color="var(--color-critical)" />
-                        Danh sách tài khoản lệch số dư EOD chi tiết (Chênh lệch {'>'}= 1,000 VNĐ)
-                      </h4>
-                      <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
-                          <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
-                            <tr>
-                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Mã TKGD</th>
-                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Số dư Tính toán</th>
-                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Số dư EOD thực tế</th>
-                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Chênh lệch</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {result.mismatchedEOD.map((m: any, idx: number) => (
-                              <tr key={idx} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--color-accent)' }}>{m.maTKGD}</td>
-                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.calculatedBalance.toLocaleString()} VNĐ</td>
-                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.eodBalance.toLocaleString()} VNĐ</td>
-                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-critical)', fontWeight: 700 }}>
-                                  {m.differ.toLocaleString()} VNĐ
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: 'var(--color-primary)', fontSize: '0.8rem' }}>
-                      <CheckCircle2 size={16} /> Không phát hiện lệch số dư EOD. Tất cả tài khoản khớp 100%!
+                  {result.excelBase64 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        onClick={handleDownloadExcel}
+                        className="btn btn-primary"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '12px 20px',
+                          fontSize: '0.85rem',
+                          width: '100%',
+                          background: 'var(--color-primary)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Download size={16} /> Tải file Excel NegativeAccounts.xlsx
+                      </button>
                     </div>
                   )}
                 </div>

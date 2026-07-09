@@ -58,6 +58,29 @@ export class ReconciliationService {
   };
 
   /**
+   * Helper to find a header index in a case-insensitive, accent-insensitive, and alias-friendly way.
+   */
+  private findHeaderIndex(headers: string[], target: string, aliases: string[] = []): number {
+    const normalize = (str: string): string => {
+      if (!str) return '';
+      return String(str)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove accents/diacritics
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const normTarget = normalize(target);
+    const normAliases = aliases.map(a => normalize(a));
+
+    return headers.findIndex(h => {
+      const normH = normalize(h);
+      return normH === normTarget || normAliases.includes(normH);
+    });
+  }
+
+  /**
    * Helper to convert LME symbols based on trading date.
    */
   convertLMESymbol(symbol: string, date: Date, holidays: string[] = []): string {
@@ -598,7 +621,14 @@ export class ReconciliationService {
    * EOD Calculation and Balance Reconciliation (CheckEOD)
    */
   async checkEOD(
-    files: { qltkgd: Buffer; eod: Buffer; tttt: Buffer },
+    files: {
+      qltkgd: Buffer;
+      eod?: Buffer;
+      tttt?: Buffer;
+      qltkgdName?: string;
+      eodName?: string;
+      ttttName?: string;
+    },
     exchangeRates?: {
       usdLoss: number;
       usdGain: number;
@@ -609,22 +639,15 @@ export class ReconciliationService {
     }
   ): Promise<{
     negativeIMRAcc: string[];
+    negativeBalanceAccs?: string[];
     mismatchedEOD: Array<{
       maTKGD: string;
       calculatedBalance: number;
       eodBalance: number;
       differ: number;
     }>;
+    excelBase64?: string;
   }> {
-    const rates = exchangeRates || {
-      usdLoss: 25220,
-      usdGain: 25220,
-      jpyLoss: 3,
-      jpyGain: 4,
-      myrLoss: 1,
-      myrGain: 2,
-    };
-
     // 1. Parse QLTKGD.xlsx
     const qltkgdWorkbook = XLSX.read(files.qltkgd, { type: 'buffer' });
     const qltkgdSheet = qltkgdWorkbook.Sheets[qltkgdWorkbook.SheetNames[0]];
@@ -633,196 +656,87 @@ export class ReconciliationService {
     if (qltkgdRows.length < 2) throw new Error('File QLTKGD.xlsx rỗng');
 
     const qltkgdHeader = qltkgdRows[0].map(h => String(h || '').trim());
-    const maTKGDIdx = qltkgdHeader.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
-    const soDuTKKQDauNgayIdx = qltkgdHeader.findIndex(h => h === 'Số dư TKKQ đầu ngày' || h.includes('đầu ngày'));
-    const nopRutTrongPhienIdx = qltkgdHeader.findIndex(h => h === 'Nộp rút trong phiên' || h.includes('Nộp rút'));
-    const phiGiaoDichIdx = qltkgdHeader.findIndex(h => h === 'Phí giao dịch' || h.includes('Phí giao dịch'));
-    const phiQuyenChonIdx = qltkgdHeader.findIndex(h => h === 'Phí quyền chọn' || h.includes('Phí quyền chọn'));
-    const phiDVThanhToanIdx = qltkgdHeader.findIndex(h => h === 'Phí dịch vụ thanh toán (VND)' || h === 'Thuế/Phí' || h === 'Thuế / Phí' || h.includes('Thanh toán') || h.includes('Thuế/Phí'));
+    const maTKGDIdx = this.findHeaderIndex(qltkgdHeader, 'Mã TKGD', ['Mã tài khoản', 'Mã TK', 'Tai khoan', 'TKGD', 'Investor Code', 'InvestorCode', 'Account Number', 'Account']);
+    const soDuTKKQHienTaiIdx = this.findHeaderIndex(qltkgdHeader, 'Số dư TKKQ hiện tại', ['Số dư TKKQ cuối ngày', 'Số dư hiện tại', 'Số dư cuối ngày', 'Số dư TKKQ', 'TKKQ hiện tại', 'TKKQ cuối ngày']);
 
-    if (maTKGDIdx === -1 || soDuTKKQDauNgayIdx === -1 || nopRutTrongPhienIdx === -1 || phiGiaoDichIdx === -1 || phiQuyenChonIdx === -1 || phiDVThanhToanIdx === -1) {
-      throw new Error(`Thiếu cột bắt buộc trong QLTKGD.xlsx (tìm thấy: maTKGD:${maTKGDIdx}, đầu ngày:${soDuTKKQDauNgayIdx}, nộp rút:${nopRutTrongPhienIdx}, phí GD:${phiGiaoDichIdx}, phí QC:${phiQuyenChonIdx}, phí DVTT:${phiDVThanhToanIdx})`);
+    const qltkgdName = files.qltkgdName || 'QLTKGD.xlsx';
+    if (maTKGDIdx === -1 || soDuTKKQHienTaiIdx === -1) {
+      const missing = [];
+      if (maTKGDIdx === -1) missing.push('Mã TKGD');
+      if (soDuTKKQHienTaiIdx === -1) missing.push('Số dư TKKQ hiện tại / cuối ngày');
+      throw new Error(`${qltkgdName} không hợp lệ vì thiếu các cột: ${missing.join(', ')}. Vui lòng kiểm tra lại xem đúng file không. Các cột hiện có trong file: [${qltkgdHeader.slice(0, 15).join(', ')}...]`);
     }
 
-    const qltkgdDataMap = new Map<string, {
-      soDuTKKQDauNgay: number;
-      nopRutTrongPhien: number;
-      phiGiaoDich: number;
-      phiQuyenChon: number;
-      phiDVThanhToan: number;
-      laiLoUSD: number;
-      laiLoJPY: number;
-      laiLoMYR: number;
-    }>();
-
+    const negativeBalanceAccs: string[] = [];
+    const negativeRows: any[][] = [qltkgdRows[0]]; // Include the header as the first row
     for (let i = 1; i < qltkgdRows.length; i++) {
       const row = qltkgdRows[i];
       if (!row || row.length === 0) continue;
       const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const balanceVal = parseFloat(row[soDuTKKQHienTaiIdx]);
       if (!maTKGD) continue;
 
-      qltkgdDataMap.set(maTKGD, {
-        soDuTKKQDauNgay: parseFloat(row[soDuTKKQDauNgayIdx]) || 0,
-        nopRutTrongPhien: parseFloat(row[nopRutTrongPhienIdx]) || 0,
-        phiGiaoDich: parseFloat(row[phiGiaoDichIdx]) || 0,
-        phiQuyenChon: parseFloat(row[phiQuyenChonIdx]) || 0,
-        phiDVThanhToan: parseFloat(row[phiDVThanhToanIdx]) || 0,
-        laiLoUSD: 0,
-        laiLoJPY: 0,
-        laiLoMYR: 0,
-      });
-    }
-
-    // 2. Parse EOD CSV file (eod.csv)
-    const eodWorkbook = XLSX.read(files.eod, { type: 'buffer' });
-    const eodSheet = eodWorkbook.Sheets[eodWorkbook.SheetNames[0]];
-    if (!eodSheet) throw new Error('Không tìm thấy dữ liệu trong eod.csv');
-    const eodRows = XLSX.utils.sheet_to_json(eodSheet, { header: 1 }) as any[][];
-    if (eodRows.length < 2) throw new Error('File eod.csv rỗng');
-
-    const eodHeader = eodRows[0].map(h => String(h || '').trim());
-    const investorCodeIdx = eodHeader.findIndex(h => h.toLowerCase() === 'investorcode');
-    const initialRequiredMarginIdx = eodHeader.findIndex(h => h.toLowerCase() === 'initialrequiredmargin');
-    const estimatedProfitVNDIdx = eodHeader.findIndex(h => h.toLowerCase() === 'estimatedprofitvnd');
-    const optionsEstimatedProfitVNDIdx = eodHeader.findIndex(h => h.toLowerCase() === 'optionsestimatedprofitvnd');
-    const netMarginIdx = eodHeader.findIndex(h => h.toLowerCase() === 'netmargin');
-    const availableMarginIdx = eodHeader.findIndex(h => h.toLowerCase() === 'availablemargin');
-    const additionalMarginIdx = eodHeader.findIndex(h => h.toLowerCase() === 'additionalmargin');
-    const eodBalanceIdx = eodHeader.findIndex(h => h.toLowerCase() === 'eodbalance');
-
-    if (investorCodeIdx === -1 || eodBalanceIdx === -1) {
-      throw new Error('Thiếu cột bắt buộc trong eod.csv (investorCode hoặc eodBalance)');
+      if (!isNaN(balanceVal) && balanceVal < 0) {
+        negativeBalanceAccs.push(maTKGD);
+        negativeRows.push(row);
+      }
     }
 
     const negativeIMRAcc: string[] = [];
-    const eodBalanceMap = new Map<string, number>();
 
-    for (let i = 1; i < eodRows.length; i++) {
-      const row = eodRows[i];
-      if (!row || row.length === 0) continue;
-      const investorCode = String(row[investorCodeIdx] || '').trim();
-      if (!investorCode) continue;
+    // 2. Parse EOD CSV file (eod.csv) if provided
+    if (files.eod) {
+      const eodWorkbook = XLSX.read(files.eod, { type: 'buffer' });
+      const eodSheet = eodWorkbook.Sheets[eodWorkbook.SheetNames[0]];
+      if (eodSheet) {
+        const eodRows = XLSX.utils.sheet_to_json(eodSheet, { header: 1 }) as any[][];
+        if (eodRows.length >= 2) {
+          const eodHeader = eodRows[0].map(h => String(h || '').trim());
+          const investorCodeIdx = this.findHeaderIndex(eodHeader, 'InvestorCode', ['Investor Code', 'investor_code']);
+          const initialRequiredMarginIdx = this.findHeaderIndex(eodHeader, 'InitialRequiredMargin', ['Initial Required Margin', 'initial_required_margin']);
+          const estimatedProfitVNDIdx = this.findHeaderIndex(eodHeader, 'EstimatedProfitVND', ['Estimated Profit VND', 'estimated_profit_vnd']);
+          const optionsEstimatedProfitVNDIdx = this.findHeaderIndex(eodHeader, 'OptionsEstimatedProfitVND', ['Options Estimated Profit VND', 'options_estimated_profit_vnd']);
+          const netMarginIdx = this.findHeaderIndex(eodHeader, 'NetMargin', ['Net Margin', 'net_margin']);
+          const availableMarginIdx = this.findHeaderIndex(eodHeader, 'AvailableMargin', ['Available Margin', 'available_margin']);
+          const additionalMarginIdx = this.findHeaderIndex(eodHeader, 'AdditionalMargin', ['Additional Margin', 'additional_margin']);
 
-      const initialRequiredMargin = parseFloat(row[initialRequiredMarginIdx]) || 0;
-      const estimatedProfitVND = parseFloat(row[estimatedProfitVNDIdx]) || 0;
-      const optionsEstimatedProfitVND = parseFloat(row[optionsEstimatedProfitVNDIdx]) || 0;
-      const netMargin = parseFloat(row[netMarginIdx]) || 0;
-      const availableMargin = parseFloat(row[availableMarginIdx]) || 0;
-      const additionalMargin = parseFloat(row[additionalMarginIdx]) || 0;
-      const eodBalance = parseFloat(row[eodBalanceIdx]) || 0;
+          const eodName = files.eodName || 'eod.csv';
+          if (investorCodeIdx === -1) {
+            throw new Error(`${eodName} không hợp lệ vì thiếu cột: InvestorCode. Vui lòng kiểm tra lại xem đúng file không. Các cột hiện có: [${eodHeader.slice(0, 15).join(', ')}...]`);
+          }
 
-      eodBalanceMap.set(investorCode, eodBalance);
+          for (let i = 1; i < eodRows.length; i++) {
+            const row = eodRows[i];
+            if (!row || row.length === 0) continue;
+            const investorCode = String(row[investorCodeIdx] || '').trim();
+            if (!investorCode) continue;
 
-      if (initialRequiredMargin === 0 && estimatedProfitVND === 0 && optionsEstimatedProfitVND === 0 && netMargin === availableMargin && availableMargin < 0 && additionalMargin > 0) {
-        negativeIMRAcc.push(investorCode);
-      }
-    }
+            const initialRequiredMargin = initialRequiredMarginIdx !== -1 ? (parseFloat(row[initialRequiredMarginIdx]) || 0) : 0;
+            const estimatedProfitVND = estimatedProfitVNDIdx !== -1 ? (parseFloat(row[estimatedProfitVNDIdx]) || 0) : 0;
+            const optionsEstimatedProfitVND = optionsEstimatedProfitVNDIdx !== -1 ? (parseFloat(row[optionsEstimatedProfitVNDIdx]) || 0) : 0;
+            const netMargin = netMarginIdx !== -1 ? (parseFloat(row[netMarginIdx]) || 0) : 0;
+            const availableMargin = availableMarginIdx !== -1 ? (parseFloat(row[availableMarginIdx]) || 0) : 0;
+            const additionalMargin = additionalMarginIdx !== -1 ? (parseFloat(row[additionalMarginIdx]) || 0) : 0;
 
-    // 3. Parse TTTT.xlsx and map realized Profit/Loss
-    const ttttWorkbook = XLSX.read(files.tttt, { type: 'buffer' });
-    const ttttSheet = ttttWorkbook.Sheets[ttttWorkbook.SheetNames[0]];
-    if (!ttttSheet) throw new Error('Không tìm thấy sheet nào trong TTTT.xlsx');
-    const ttttRows = XLSX.utils.sheet_to_json(ttttSheet, { header: 1 }) as any[][];
-    if (ttttRows.length >= 2) {
-      const ttttHeader = ttttRows[0].map(h => String(h || '').trim());
-      const ttttMaTKGDIdx = ttttHeader.indexOf('Mã TKGD');
-      const ttttMaHDIdx = ttttHeader.indexOf('Mã HĐ');
-      const ttttTongLaiLoIdx = ttttHeader.indexOf('Lãi lỗ thực tế');
-
-      if (ttttMaTKGDIdx === -1 || ttttMaHDIdx === -1 || ttttTongLaiLoIdx === -1) {
-        throw new Error('Thiếu cột bắt buộc trong TTTT.xlsx (Mã TKGD, Mã HĐ, Lãi lỗ thực tế)');
-      }
-
-      const statics = this.loadStatics();
-
-      for (let i = 1; i < ttttRows.length; i++) {
-        const row = ttttRows[i];
-        if (!row || row.length === 0) continue;
-
-        const maTKGD = String(row[ttttMaTKGDIdx] || '').trim();
-        const maHD = String(row[ttttMaHDIdx] || '').trim();
-        const tongLaiLo = parseFloat(row[ttttTongLaiLoIdx]);
-
-        if (!maTKGD || !maHD || isNaN(tongLaiLo)) continue;
-
-        const client = qltkgdDataMap.get(maTKGD);
-        if (client) {
-          let comCode = '';
-          const lmeCodeKeys = Object.keys(statics.LMECode || {});
-          const matchedLMEKey = lmeCodeKeys.find(key => maHD.startsWith(statics.LMECode[key]));
-          if (matchedLMEKey) {
-            comCode = statics.LMECode[matchedLMEKey];
-          } else {
-            const monthCodeIndex = maHD.length - 3;
-            if (monthCodeIndex >= 0) {
-              comCode = maHD.substring(0, monthCodeIndex);
-            } else {
-              comCode = maHD;
+            if (initialRequiredMargin === 0 && estimatedProfitVND === 0 && optionsEstimatedProfitVND === 0 && netMargin === availableMargin && availableMargin < 0 && additionalMargin > 0) {
+              negativeIMRAcc.push(investorCode);
             }
           }
-
-          const commodity = statics.Commodity?.find((comm: any) => comm.MaHangHoa === comCode);
-          const loaiTyGia = commodity ? commodity.LoaiTyGia : 'USD/VND';
-
-          if (loaiTyGia === 'JPY/VND') {
-            client.laiLoJPY += tongLaiLo;
-          } else if (loaiTyGia === 'MYR/VND') {
-            client.laiLoMYR += tongLaiLo;
-          } else {
-            client.laiLoUSD += tongLaiLo;
-          }
         }
       }
     }
 
-    // 4. Calculate EOD balances and perform check
-    const mismatchedEOD: Array<{
-      maTKGD: string;
-      calculatedBalance: number;
-      eodBalance: number;
-      differ: number;
-    }> = [];
-
-    for (const [maTKGD, client] of qltkgdDataMap.entries()) {
-      let tyGiaUSD = rates.usdGain;
-      let tyGiaJPY = rates.jpyGain;
-      let tyGiaMYR = rates.myrGain;
-
-      if (client.phiQuyenChon + client.laiLoUSD < 0) {
-        tyGiaUSD = rates.usdLoss;
-      }
-      if (client.laiLoJPY < 0) {
-        tyGiaJPY = rates.jpyLoss;
-      }
-      if (client.laiLoMYR < 0) {
-        tyGiaMYR = rates.myrLoss;
-      }
-
-      const calculatedBalance = client.soDuTKKQDauNgay
-        + client.nopRutTrongPhien
-        - client.phiGiaoDich
-        - client.phiDVThanhToan
-        + (client.phiQuyenChon + client.laiLoUSD) * tyGiaUSD
-        + client.laiLoJPY * tyGiaJPY
-        + client.laiLoMYR * tyGiaMYR;
-
-      const eodBalance = eodBalanceMap.get(maTKGD);
-      if (eodBalance !== undefined) {
-        const differ = Math.abs(eodBalance - calculatedBalance);
-        if (differ >= 1000) {
-          mismatchedEOD.push({
-            maTKGD,
-            calculatedBalance,
-            eodBalance,
-            differ,
-          });
-        }
-      }
-    }
+    // 3. Generate new workbook containing negative current balance rows
+    const newSheet = XLSX.utils.aoa_to_sheet(negativeRows);
+    const newWorkbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Negative Balance Accounts');
+    const excelBuffer = XLSX.write(newWorkbook, { type: 'buffer', bookType: 'xlsx' });
 
     return {
       negativeIMRAcc,
-      mismatchedEOD,
+      negativeBalanceAccs,
+      mismatchedEOD: [],
+      excelBase64: excelBuffer.toString('base64'),
     };
   }
 
@@ -830,7 +744,12 @@ export class ReconciliationService {
    * CQG EOD Balance Reconciliation (CheckEODCQG)
    */
   async checkEODCQG(
-    files: { qltkgd: Buffer; accountsBalances: Buffer },
+    files: {
+      qltkgd: Buffer;
+      accountsBalances: Buffer;
+      qltkgdName?: string;
+      accountsBalancesName?: string;
+    },
     usdExchangeRate: number = 25220
   ): Promise<
     Array<{
@@ -850,13 +769,17 @@ export class ReconciliationService {
     if (qltkgdRows.length < 2) throw new Error('File QLTKGD.xlsx rỗng');
 
     const qltkgdHeader = qltkgdRows[0].map(h => String(h || '').trim());
-    const maTKGDIdx = qltkgdHeader.indexOf('Mã TKGD');
-    const laiLoChoDaoHanIdx = qltkgdHeader.indexOf('Lãi lỗ thực tế chờ đáo hạn');
-    const laiLoThucTeFuturesVNDIdx = qltkgdHeader.indexOf('Lãi lỗ thực tế Futures (VND)');
-    const soDuTKKQHienTaiIdx = qltkgdHeader.indexOf('Số dư TKKQ hiện tại');
+    const maTKGDIdx = this.findHeaderIndex(qltkgdHeader, 'Mã TKGD', ['Mã tài khoản', 'Mã TK', 'Tai khoan', 'TKGD', 'Investor Code', 'InvestorCode', 'Account Number', 'Account']);
+    const laiLoChoDaoHanIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế chờ đáo hạn', ['Chờ đáo hạn', 'Cho dao han', 'Lai lo cho dao han', 'Lãi lỗ chờ đáo hạn']);
+    const laiLoThucTeFuturesVNDIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (VND)', ['Lãi lỗ thực tế Futures', 'Lãi lỗ Futures', 'Lai lo thuc te Futures', 'Lai lo Futures']);
+    const soDuTKKQHienTaiIdx = this.findHeaderIndex(qltkgdHeader, 'Số dư TKKQ hiện tại', ['Số dư TKKQ cuối ngày', 'Số dư hiện tại', 'Số dư cuối ngày', 'Số dư TKKQ', 'TKKQ hiện tại', 'TKKQ cuối ngày']);
 
-    if (maTKGDIdx === -1) {
-      throw new Error('Thiếu cột "Mã TKGD" trong QLTKGD.xlsx');
+    const qltkgdName = files.qltkgdName || 'QLTKGD.xlsx';
+    if (maTKGDIdx === -1 || soDuTKKQHienTaiIdx === -1) {
+      const missing = [];
+      if (maTKGDIdx === -1) missing.push('Mã TKGD');
+      if (soDuTKKQHienTaiIdx === -1) missing.push('Số dư TKKQ hiện tại / cuối ngày');
+      throw new Error(`${qltkgdName} không hợp lệ vì thiếu các cột: ${missing.join(', ')}. Vui lòng kiểm tra lại xem đúng file không. Các cột hiện có: [${qltkgdHeader.slice(0, 15).join(', ')}...]`);
     }
 
     const qltkgdDataMap = new Map<string, {
@@ -886,12 +809,16 @@ export class ReconciliationService {
     if (asRows.length < 2) throw new Error('File Accounts_Balances.xlsx rỗng');
 
     const asHeader = asRows[0].map(h => String(h || '').trim());
-    const accountNumberIdx = asHeader.indexOf('Account Number');
-    const endCashBalanceIdx = asHeader.indexOf('End Cash Balance');
-    const recordDescriptionIdx = asHeader.indexOf('Record Description');
+    const accountNumberIdx = this.findHeaderIndex(asHeader, 'Account Number', ['Account', 'Tài khoản', 'Mã TKGD', 'Tai khoan']);
+    const endCashBalanceIdx = this.findHeaderIndex(asHeader, 'End Cash Balance', ['Cash Balance', 'Balance', 'Số dư', 'Số dư cuối ngày', 'So du']);
+    const recordDescriptionIdx = this.findHeaderIndex(asHeader, 'Record Description', ['Description', 'Mô tả', 'Mo ta']);
 
+    const asName = files.accountsBalancesName || 'Accounts_Balances.xlsx';
     if (accountNumberIdx === -1 || endCashBalanceIdx === -1) {
-      throw new Error('Thiếu cột "Account Number" hoặc "End Cash Balance" trong Accounts_Balances.xlsx');
+      const missing = [];
+      if (accountNumberIdx === -1) missing.push('Account Number');
+      if (endCashBalanceIdx === -1) missing.push('End Cash Balance');
+      throw new Error(`${asName} không hợp lệ vì thiếu các cột: ${missing.join(', ')}. Vui lòng kiểm tra lại xem đúng file không. Các cột hiện có: [${asHeader.slice(0, 15).join(', ')}...]`);
     }
 
     const cqgBalanceMap = new Map<string, number>();
@@ -986,6 +913,110 @@ export class ReconciliationService {
 
     return result;
   }
+
+  /**
+   * Filter negative margin accounts and generate NegativeAccounts.xlsx buffer
+   */
+  async checkNegativeMargin(
+    files: {
+      qltkgd: Buffer;
+      eod?: Buffer;
+      qltkgdName?: string;
+      eodName?: string;
+    }
+  ): Promise<{
+    negativeBalanceAccs: string[];
+    negativeIMRAcc: string[];
+    excelBase64: string;
+  }> {
+    // 1. Parse QLTKGD.xlsx
+    const qltkgdWorkbook = XLSX.read(files.qltkgd, { type: 'buffer' });
+    const qltkgdSheet = qltkgdWorkbook.Sheets[qltkgdWorkbook.SheetNames[0]];
+    if (!qltkgdSheet) throw new Error('Không tìm thấy sheet nào trong QLTKGD.xlsx');
+    const qltkgdRows = XLSX.utils.sheet_to_json(qltkgdSheet, { header: 1 }) as any[][];
+    if (qltkgdRows.length < 2) throw new Error('File QLTKGD.xlsx rỗng');
+
+    const qltkgdHeader = qltkgdRows[0].map(h => String(h || '').trim());
+    const maTKGDIdx = this.findHeaderIndex(qltkgdHeader, 'Mã TKGD', ['Mã tài khoản', 'Mã TK', 'Tai khoan', 'TKGD', 'Investor Code', 'InvestorCode', 'Account Number', 'Account']);
+    const soDuTKKQHienTaiIdx = this.findHeaderIndex(qltkgdHeader, 'Số dư TKKQ hiện tại', ['Số dư TKKQ cuối ngày', 'Số dư hiện tại', 'Số dư cuối ngày', 'Số dư TKKQ', 'TKKQ hiện tại', 'TKKQ cuối ngày']);
+
+    const qltkgdName = files.qltkgdName || 'QLTKGD.xlsx';
+    if (maTKGDIdx === -1 || soDuTKKQHienTaiIdx === -1) {
+      const missing = [];
+      if (maTKGDIdx === -1) missing.push('Mã TKGD');
+      if (soDuTKKQHienTaiIdx === -1) missing.push('Số dư TKKQ hiện tại / cuối ngày');
+      throw new Error(`${qltkgdName} không hợp lệ vì thiếu các cột: ${missing.join(', ')}. Vui lòng kiểm tra lại xem đúng file không. Các cột hiện có: [${qltkgdHeader.slice(0, 15).join(', ')}...]`);
+    }
+
+    const negativeBalanceAccs: string[] = [];
+    const negativeRows: any[][] = [qltkgdRows[0]]; // Include the header as the first row
+
+    for (let i = 1; i < qltkgdRows.length; i++) {
+      const row = qltkgdRows[i];
+      if (!row || row.length === 0) continue;
+      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const balanceVal = parseFloat(row[soDuTKKQHienTaiIdx]);
+      if (!maTKGD) continue;
+
+      if (!isNaN(balanceVal) && balanceVal < 0) {
+        negativeBalanceAccs.push(maTKGD);
+        negativeRows.push(row);
+      }
+    }
+
+    // 2. Parse EOD CSV file (eod.csv) if provided
+    const negativeIMRAcc: string[] = [];
+    if (files.eod) {
+      const eodWorkbook = XLSX.read(files.eod, { type: 'buffer' });
+      const eodSheet = eodWorkbook.Sheets[eodWorkbook.SheetNames[0]];
+      if (eodSheet) {
+        const eodRows = XLSX.utils.sheet_to_json(eodSheet, { header: 1 }) as any[][];
+        if (eodRows.length >= 2) {
+          const eodHeader = eodRows[0].map(h => String(h || '').trim());
+          const investorCodeIdx = this.findHeaderIndex(eodHeader, 'InvestorCode', ['Investor Code', 'investor_code']);
+          const initialRequiredMarginIdx = this.findHeaderIndex(eodHeader, 'InitialRequiredMargin', ['Initial Required Margin', 'initial_required_margin']);
+          const estimatedProfitVNDIdx = this.findHeaderIndex(eodHeader, 'EstimatedProfitVND', ['Estimated Profit VND', 'estimated_profit_vnd']);
+          const optionsEstimatedProfitVNDIdx = this.findHeaderIndex(eodHeader, 'OptionsEstimatedProfitVND', ['Options Estimated Profit VND', 'options_estimated_profit_vnd']);
+          const netMarginIdx = this.findHeaderIndex(eodHeader, 'NetMargin', ['Net Margin', 'net_margin']);
+          const availableMarginIdx = this.findHeaderIndex(eodHeader, 'AvailableMargin', ['Available Margin', 'available_margin']);
+          const additionalMarginIdx = this.findHeaderIndex(eodHeader, 'AdditionalMargin', ['Additional Margin', 'additional_margin']);
+
+          if (investorCodeIdx !== -1) {
+            for (let i = 1; i < eodRows.length; i++) {
+              const row = eodRows[i];
+              if (!row || row.length === 0) continue;
+              const investorCode = String(row[investorCodeIdx] || '').trim();
+              if (!investorCode) continue;
+
+              const initialRequiredMargin = initialRequiredMarginIdx !== -1 ? (parseFloat(row[initialRequiredMarginIdx]) || 0) : 0;
+              const estimatedProfitVND = estimatedProfitVNDIdx !== -1 ? (parseFloat(row[estimatedProfitVNDIdx]) || 0) : 0;
+              const optionsEstimatedProfitVND = optionsEstimatedProfitVNDIdx !== -1 ? (parseFloat(row[optionsEstimatedProfitVNDIdx]) || 0) : 0;
+              const netMargin = netMarginIdx !== -1 ? (parseFloat(row[netMarginIdx]) || 0) : 0;
+              const availableMargin = availableMarginIdx !== -1 ? (parseFloat(row[availableMarginIdx]) || 0) : 0;
+              const additionalMargin = additionalMarginIdx !== -1 ? (parseFloat(row[additionalMarginIdx]) || 0) : 0;
+
+              if (initialRequiredMargin === 0 && estimatedProfitVND === 0 && optionsEstimatedProfitVND === 0 && netMargin === availableMargin && availableMargin < 0 && additionalMargin > 0) {
+                negativeIMRAcc.push(investorCode);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Generate new workbook containing negative current balance rows
+    const newSheet = XLSX.utils.aoa_to_sheet(negativeRows);
+    const newWorkbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Negative Balance Accounts');
+    const excelBuffer = XLSX.write(newWorkbook, { type: 'buffer', bookType: 'xlsx' });
+
+    return {
+      negativeBalanceAccs,
+      negativeIMRAcc,
+      excelBase64: excelBuffer.toString('base64'),
+    };
+  }
 }
+
 
 

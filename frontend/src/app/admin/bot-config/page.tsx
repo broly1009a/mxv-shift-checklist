@@ -178,10 +178,16 @@ export default function AdminBotConfigPage() {
 
   // Excel Macro Lot Consolidation state
   const [macroLotPath, setMacroLotPath] = useState('');
+  const [macroLotScriptPath, setMacroLotScriptPath] = useState('');
   const [pythonExe, setPythonExe] = useState('python');
   const [targetRoot, setTargetRoot] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong');
   const [savingMacroConfig, setSavingMacroConfig] = useState(false);
   const [triggeringMacroLot, setTriggeringMacroLot] = useState(false);
+
+  const [macroValuePath, setMacroValuePath] = useState('');
+  const [macroValueScriptPath, setMacroValueScriptPath] = useState('');
+  const [savingValueMacroConfig, setSavingValueMacroConfig] = useState(false);
+  const [triggeringMacroValue, setTriggeringMacroValue] = useState(false);
 
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
@@ -269,8 +275,19 @@ export default function AdminBotConfigPage() {
       if (macroRes.ok) {
         const macroData = await macroRes.json();
         if (macroData.macroPath) setMacroLotPath(macroData.macroPath);
+        if (macroData.scriptPath) setMacroLotScriptPath(macroData.scriptPath);
         if (macroData.pythonExe) setPythonExe(macroData.pythonExe);
         if (macroData.targetRoot) setTargetRoot(macroData.targetRoot);
+      }
+
+      // Fetch Macro Value config
+      const macroValueRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/macro-value/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (macroValueRes.ok) {
+        const macroValueData = await macroValueRes.json();
+        if (macroValueData.macroPath) setMacroValuePath(macroValueData.macroPath);
+        if (macroValueData.scriptPath) setMacroValueScriptPath(macroValueData.scriptPath);
       }
     } catch (err) {
       console.error(err);
@@ -476,7 +493,7 @@ export default function AdminBotConfigPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ macroPath: macroLotPath, pythonExe, targetRoot }),
+        body: JSON.stringify({ macroPath: macroLotPath, scriptPath: macroLotScriptPath, pythonExe, targetRoot }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
@@ -509,6 +526,54 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi khởi chạy macro', { id: toastId });
     } finally {
       setTriggeringMacroLot(false);
+    }
+  };
+
+  // Save Macro Value config
+  const handleSaveMacroValueConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingValueMacroConfig(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/macro-value/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ macroPath: macroValuePath, scriptPath: macroValueScriptPath }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success(data.message || 'Đã lưu cấu hình macro Excel giá trị thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingValueMacroConfig(false);
+    }
+  };
+
+  // Trigger Excel Macro Value execution
+  const handleTriggerValueMacro = async () => {
+    if (!token) return;
+    setTriggeringMacroValue(true);
+    const toastId = toast.loading('Đang khởi tạo job chạy Excel Macro Giá trị...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-value-macro`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job chạy Excel Macro Giá trị thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy macro', { id: toastId });
+    } finally {
+      setTriggeringMacroValue(false);
     }
   };
 
@@ -2121,6 +2186,23 @@ export default function AdminBotConfigPage() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Đường dẫn script Python (.py)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={macroLotScriptPath}
+                      onChange={(e) => setMacroLotScriptPath(e.target.value)}
+                      placeholder="C:\POC\scripts\run_lot_macro.py"
+                      style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.82rem' }}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Hệ thống sẽ tự động tìm trong thư mục project nếu để trống.
+                    </span>
+                  </div>
+
+                  {/* <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                       Đường dẫn executable Python (Mặc định: python)
                     </label>
                     <input
@@ -2131,9 +2213,9 @@ export default function AdminBotConfigPage() {
                       placeholder="python hoặc C:\...\python.exe"
                       style={{ padding: '12px' }}
                     />
-                  </div>
+                  </div> */}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {/* <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                       Thư mục đích lưu trữ báo cáo (Mặc định: M:\Quanlygiaodich\Tai lieu hoat dong)
                     </label>
@@ -2145,7 +2227,7 @@ export default function AdminBotConfigPage() {
                       placeholder="M:\Quanlygiaodich\Tai lieu hoat dong"
                       style={{ padding: '12px' }}
                     />
-                  </div>
+                  </div> */}
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button
@@ -2184,6 +2266,86 @@ export default function AdminBotConfigPage() {
                   >
                     <Play size={16} className={triggeringMacroLot ? 'animate-pulse' : ''} />
                     {triggeringMacroLot ? 'Đang chạy Macro...' : '🤖 Chạy Excel Macro'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chạy Excel Macro Thống Kê Giá Trị Box */}
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <BarChart2 size={20} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Chạy Excel Macro Thống Kê Giá Trị</h3>
+                </div>
+
+                <form onSubmit={handleSaveMacroValueConfig} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Đường dẫn file Excel Macro (.xlsm)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={macroValuePath}
+                      onChange={(e) => setMacroValuePath(e.target.value)}
+                      placeholder="C:\...\Macro thong ke gia tri giao dich có ACM.xlsm"
+                      style={{ padding: '12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Đường dẫn script Python (.py)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={macroValueScriptPath}
+                      onChange={(e) => setMacroValueScriptPath(e.target.value)}
+                      placeholder="C:\POC\scripts\run_value_macro.py"
+                      style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.82rem' }}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Hệ thống sẽ tự động tìm trong thư mục project nếu để trống.
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="submit"
+                      disabled={savingValueMacroConfig}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <Save size={14} /> {savingValueMacroConfig ? 'Đang lưu...' : 'Lưu Cấu Hình Macro'}
+                    </button>
+                  </div>
+                </form>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '8px', border: '1px dashed rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Chạy thống kê giá trị giao dịch</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Sau khi hoàn thành tải backup MS Futures, CQG Futures, ACM và chạy số lot, chạy macro giá trị để tự động tổng hợp giá trị giao dịch LME, Spread, Options, ACM và tạo báo cáo xuất ra Excel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTriggerValueMacro}
+                    disabled={triggeringMacroValue}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
+                  >
+                    <Play size={16} className={triggeringMacroValue ? 'animate-pulse' : ''} />
+                    {triggeringMacroValue ? 'Đang chạy Macro...' : '🤖 Chạy Excel Macro'}
                   </button>
                 </div>
               </div>
@@ -2240,7 +2402,9 @@ export default function AdminBotConfigPage() {
                                       ? '🤖 Tải Báo Cáo Tự Doanh ACM'
                                       : job.jobType === 'RUN_LOT_MACRO'
                                         ? '📊 Chạy Excel Macro Số Lot'
-                                        : job.jobType}
+                                        : job.jobType === 'RUN_VALUE_MACRO'
+                                          ? '📊 Chạy Excel Macro Giá Trị'
+                                          : job.jobType}
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               {job.status === 'COMPLETED' && job.jobType === 'RPA_DOWNLOAD_REPORTS' && (

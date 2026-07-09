@@ -149,6 +149,8 @@ export class BotJobQueueService implements OnModuleInit {
         await this.handleFileAuditAcmJob(job);
       } else if (job.jobType === 'RUN_LOT_MACRO') {
         await this.handleRunLotMacroJob(job);
+      } else if (job.jobType === 'RUN_VALUE_MACRO') {
+        await this.handleRunValueMacroJob(job);
       } else {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
@@ -764,7 +766,20 @@ export class BotJobQueueService implements OnModuleInit {
       'python'
     );
 
-    const scriptPath = path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
+    // Đường dẫn script Python động: ưu tiên payload -> settings -> tương đối project -> fallback C:\POC\scripts
+    const defaultLotScriptPath = (() => {
+      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_lot_macro.py');
+      const relPath2 = path.join(process.cwd(), 'scripts', 'run_lot_macro.py');
+      if (fs.existsSync(relPath)) return relPath;
+      if (fs.existsSync(relPath2)) return relPath2;
+      return path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
+    })();
+
+    const scriptPath = payload.scriptPath
+      || await this.settingsService.getSetting(
+        'bot_lot_script_path',
+        defaultLotScriptPath
+      );
 
 
     // Chaining save calls to prevent Mongoose ParallelSaveError
@@ -846,6 +861,158 @@ export class BotJobQueueService implements OnModuleInit {
 
       child.on('close', async (code: number | null) => {
 
+        // Wait for any pending logs to finish saving to the database
+        await savePromise;
+        
+        if (code === 0) {
+          if (finalJsonStr) {
+            try {
+              const parsed = JSON.parse(finalJsonStr);
+              if (parsed.success) {
+                log('✅ Macro hoàn tất thành công.');
+                if (parsed.warnings && parsed.warnings.length > 0) {
+                  savePayloadField('warnings', parsed.warnings);
+                }
+                await safeSave();
+                resolve();
+              } else {
+                reject(new Error(parsed.error || 'Lỗi không xác định từ Script Python'));
+              }
+            } catch (err: any) {
+              reject(new Error(`Không thể phân tích kết quả JSON từ script: ${err.message}`));
+            }
+          } else {
+            resolve();
+          }
+        } else {
+          reject(new Error(`Script Python kết thúc với mã lỗi: ${code}`));
+        }
+      });
+
+      child.on('error', async (err: Error) => {
+        await savePromise;
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Xử lý Job RUN_VALUE_MACRO: Gọi script Python điều phối Excel.
+   */
+  private async handleRunValueMacroJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
+    if (!targetDateStr) {
+      throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
+    }
+
+    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
+      ? path.join(process.cwd(), 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm')
+      : path.join(process.cwd(), '..', 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm');
+
+    const macroPath = payload.macroPath
+      || await this.settingsService.getSetting(
+        'bot_macro_value_path',
+        defaultMacroPath
+      );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python'
+    );
+
+    // Đường dẫn script Python động: ưu tiên theo thứ tự: payload -> settings -> tương đối project -> fallback C:\POC\scripts
+    const defaultScriptPath = (() => {
+      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_value_macro.py');
+      const relPath2 = path.join(process.cwd(), 'scripts', 'run_value_macro.py');
+      if (fs.existsSync(relPath)) return relPath;
+      if (fs.existsSync(relPath2)) return relPath2;
+      return path.join('C:', 'POC', 'scripts', 'run_value_macro.py');
+    })();
+
+    const scriptPath = payload.scriptPath
+      || await this.settingsService.getSetting(
+        'bot_value_script_path',
+        defaultScriptPath
+      );
+
+    // Chaining save calls to prevent Mongoose ParallelSaveError
+    let savePromise: Promise<any> = Promise.resolve();
+    const safeSave = () => {
+      savePromise = savePromise.then(() => job.save()).catch((err) => {
+        this.logger.error(`Error saving bot job in handleRunValueMacroJob: ${err.message}`);
+      });
+      return savePromise;
+    };
+
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(`Bắt đầu chạy Macro thống kê giá trị cho ngày: ${targetDateStr}`);
+    log(`Python Executable: ${pythonExe}`);
+    log(`Script Python: ${scriptPath}`);
+    log(`File Macro Excel: ${macroPath}`);
+
+    await safeSave();
+
+    const { spawn } = require('child_process');
+    const child = spawn(pythonExe, [
+      scriptPath,
+      macroPath,
+    ]);
+
+    let finalJsonStr = '';
+
+    const savePayloadField = (key: string, val: any) => {
+      if (job.payload instanceof Map) {
+        job.payload.set(key, val);
+      } else {
+        if (!job.payload) job.payload = {};
+        job.payload[key] = val;
+      }
+    };
+
+    return new Promise<void>((resolve, reject) => {
+      child.stdout.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) {
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              finalJsonStr = trimmed;
+            } else if (trimmed.startsWith('[VBA WARNING]')) {
+              log(`⚠️ ${trimmed}`);
+              const warningText = trimmed.substring('[VBA WARNING]'.length).trim();
+              
+              let currentWarnings = [];
+              if (job.payload instanceof Map) {
+                currentWarnings = job.payload.get('warnings') || [];
+              } else {
+                currentWarnings = job.payload?.warnings || [];
+              }
+              if (!currentWarnings.includes(warningText)) {
+                currentWarnings.push(warningText);
+                savePayloadField('warnings', currentWarnings);
+              }
+            } else if (trimmed.startsWith('[VBA RUNTIME ERROR]')) {
+              log(`❌ ${trimmed}`);
+            } else {
+              log(`  > ${trimmed}`);
+            }
+          }
+        }
+        safeSave();
+      });
+
+      child.stderr.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        log(`  > [Stderr] ${text.trim()}`);
+        safeSave();
+      });
+
+      child.on('close', async (code: number | null) => {
         // Wait for any pending logs to finish saving to the database
         await savePromise;
         
