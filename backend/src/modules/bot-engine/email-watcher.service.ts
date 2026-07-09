@@ -77,6 +77,7 @@ export class EmailWatcherService {
       const emails = mailData.value || [];
 
       // 5. Scan emails for subject, sender, and success condition
+      // 5. Scan emails for subject, sender, and success condition
       for (const email of emails) {
         const subjectMatch = !filterSubject || email.subject.toLowerCase().includes(filterSubject.toLowerCase());
         const senderMatch = !filterSender || email.sender?.emailAddress?.address.toLowerCase() === filterSender.toLowerCase();
@@ -86,9 +87,26 @@ export class EmailWatcherService {
           const conditionMatch = !condition || bodyContent.includes(condition.toLowerCase());
 
           if (conditionMatch) {
+            let downloadMsg = '';
+            const rawDownloadDir = await this.settingsService.getSetting('m365_download_directory', '');
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              try {
+                const downloaded = await this.downloadAttachments(accessToken, watcherEmail, email.id, downloadDir);
+                if (downloaded.length > 0) {
+                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map(p => path.basename(p)).join(', ')}`;
+                } else {
+                  downloadMsg = `. Không tìm thấy file đính kèm nào để tải.`;
+                }
+              } catch (dlErr: any) {
+                downloadMsg = `. Lỗi khi tải file đính kèm: ${dlErr.message}`;
+                this.logger.error(`Error downloading attachments for email ${email.id}: ${dlErr.message}`);
+              }
+            }
+
             return {
               success: true,
-              message: `Tìm thấy email khớp: Subject: "${email.subject}", Sender: "${email.sender?.emailAddress?.address}"`,
+              message: `Tìm thấy email khớp: Subject: "${email.subject}", Sender: "${email.sender?.emailAddress?.address}"${downloadMsg}`,
             };
           }
         }
@@ -108,9 +126,66 @@ export class EmailWatcherService {
   }
 
   /**
+   * Helper to download attachments from MS Graph API.
+   */
+  async downloadAttachments(
+    accessToken: string,
+    watcherEmail: string,
+    messageId: string,
+    downloadDir: string,
+  ): Promise<string[]> {
+    const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages/${messageId}/attachments`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch attachments: ${res.statusText}`);
+    }
+
+    const data = await res.json() as any;
+    const attachments = data.value || [];
+    const downloadedFiles: string[] = [];
+
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    for (const attachment of attachments) {
+      if (attachment['@odata.type'] === '#microsoft.graph.fileAttachment' && attachment.contentBytes) {
+        const filePath = path.join(downloadDir, attachment.name);
+        const buffer = Buffer.from(attachment.contentBytes, 'base64');
+        fs.writeFileSync(filePath, buffer);
+        downloadedFiles.push(filePath);
+        this.logger.log(`Tải file đính kèm thành công: ${filePath}`);
+      }
+    }
+
+    return downloadedFiles;
+  }
+
+  /**
+   * Formats dynamic placeholders in download folder path.
+   */
+  private formatDownloadDir(rawDir: string): string {
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
+    const yyyy = today.getUTCFullYear().toString();
+    const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+    const dd = today.getUTCDate().toString().padStart(2, '0');
+
+    return rawDir
+      .replace(/\${YYYY}/g, yyyy)
+      .replace(/\${MM}/g, mm)
+      .replace(/\${DD}/g, dd)
+      .replace(/\${yyyy}/g, yyyy)
+      .replace(/\${mm}/g, mm)
+      .replace(/\${dd}/g, dd);
+  }
+
+  /**
    * Helper to check mock email from mock data file.
    */
-  private checkMockEmail(subject: string, sender: string, condition: string): { success: boolean; message: string } {
+  private async checkMockEmail(subject: string, sender: string, condition: string): Promise<{ success: boolean; message: string }> {
     const mockFilePath = path.join(__dirname, 'mock-emails.json');
     if (!fs.existsSync(mockFilePath)) {
       // Create empty mock file if it doesn't exist
@@ -144,9 +219,33 @@ export class EmailWatcherService {
           const conditionMatch = !condition || bodyContent.includes(condition.toLowerCase());
 
           if (conditionMatch) {
+            let downloadMsg = '';
+            const rawDownloadDir = await this.settingsService.getSetting('m365_download_directory', '');
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              if (!fs.existsSync(downloadDir)) {
+                fs.mkdirSync(downloadDir, { recursive: true });
+              }
+
+              // Create simulated files depending on the type of email
+              let fileName = '';
+              let fileContent = '';
+              if (email.subject.toLowerCase().includes('eod') || email.subject.toLowerCase().includes('đối chiếu')) {
+                fileName = `EOD_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                fileContent = 'Mock Excel EOD Content\nAccount,InitialMargin\nTK001,-50000\nTK002,150000\nTK003,-12000\nTK004,-450000';
+              } else {
+                fileName = `Job_Snapshot_${new Date().toISOString().split('T')[0]}.txt`;
+                fileContent = 'Job Snapshot SUCCESS\nAll databases are backup ready.';
+              }
+
+              const filePath = path.join(downloadDir, fileName);
+              fs.writeFileSync(filePath, fileContent, 'utf8');
+              downloadMsg = `. [Mô Phỏng] Đã sinh file đính kèm: ${fileName} tại ${downloadDir}`;
+            }
+
             return {
               success: true,
-              message: `[Mô Phỏng] Tìm thấy email: "${email.subject}" từ "${email.sender}"`,
+              message: `[Mô Phỏng] Tìm thấy email: "${email.subject}" từ "${email.sender}"${downloadMsg}`,
             };
           }
         }

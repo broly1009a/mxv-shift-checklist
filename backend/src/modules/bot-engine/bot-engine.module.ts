@@ -12,6 +12,7 @@ import { GttCheckerService } from './gtt-checker.service';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
 import { CqgSyncService } from './cqg-sync.service';
+import { PostEodHandlerService } from './post-eod-handler.service';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { CqgSyncService } from './cqg-sync.service';
     GttCheckerService,
     BotJobQueueService,
     CqgSyncService,
+    PostEodHandlerService,
     BotEngineService,
   ],
   controllers: [
@@ -40,6 +42,7 @@ import { CqgSyncService } from './cqg-sync.service';
     RpaDownloaderService,
     GttCheckerService,
     CqgSyncService,
+    PostEodHandlerService,
   ],
 })
 export class BotEngineModule {}
