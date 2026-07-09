@@ -784,11 +784,7 @@ export class BotJobQueueService implements OnModuleInit {
     log(`Bắt đầu chạy Macro thống kê số lot cho ngày: ${targetDateStr}`);
     log(`Python Executable: ${pythonExe}`);
     log(`Script Python: ${scriptPath}`);
-    log(`File Macro Excel gốc: ${macroPath}`);
-    log(`File Macro chạy tạm: ${tempMacroPath}`);
-    log(`Thư mục Backup MS: ${backupMs}`);
-    log(`Thư mục Backup CQG: ${backupCqg}`);
-    log(`Thư mục đích lưu báo cáo (targetRoot): ${targetRoot}`);
+    log(`File Macro Excel: ${macroPath}`);
 
     await safeSave();
 
@@ -879,11 +875,6 @@ export class BotJobQueueService implements OnModuleInit {
       });
 
       child.on('error', async (err: Error) => {
-        try {
-          if (fs.existsSync(tempMacroPath)) {
-            fs.unlinkSync(tempMacroPath);
-          }
-        } catch {}
         await savePromise;
         reject(err);
       });
