@@ -13,13 +13,15 @@ export class EmailWatcherService {
    * Check if email condition is met for a given task configuration.
    */
   async checkEmailTask(target: string, condition: string): Promise<{ success: boolean; message: string }> {
-    // 1. Resolve Target parameters (e.g. Subject, Sender)
+    // 1. Resolve Target parameters (e.g. Subject, Sender, and optional custom downloadDir)
     let filterSubject = '';
     let filterSender = '';
+    let customDownloadDir = '';
     try {
       const parsedTarget = JSON.parse(target);
       filterSubject = parsedTarget.subject || '';
       filterSender = parsedTarget.sender || '';
+      customDownloadDir = parsedTarget.downloadDir || '';
     } catch {
       filterSubject = target; // Fallback to raw string
     }
@@ -34,7 +36,7 @@ export class EmailWatcherService {
 
     if (isSimulation) {
       this.logger.debug(`[Simulation] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`);
-      return this.checkMockEmail(filterSubject, filterSender, condition);
+      return this.checkMockEmail(filterSubject, filterSender, condition, customDownloadDir);
     }
 
     try {
@@ -77,7 +79,6 @@ export class EmailWatcherService {
       const emails = mailData.value || [];
 
       // 5. Scan emails for subject, sender, and success condition
-      // 5. Scan emails for subject, sender, and success condition
       for (const email of emails) {
         const subjectMatch = !filterSubject || email.subject.toLowerCase().includes(filterSubject.toLowerCase());
         const senderMatch = !filterSender || email.sender?.emailAddress?.address.toLowerCase() === filterSender.toLowerCase();
@@ -88,7 +89,7 @@ export class EmailWatcherService {
 
           if (conditionMatch) {
             let downloadMsg = '';
-            const rawDownloadDir = await this.settingsService.getSetting('m365_download_directory', '');
+            const rawDownloadDir = customDownloadDir || (await this.settingsService.getSetting('m365_download_directory', ''));
             if (rawDownloadDir) {
               const downloadDir = this.formatDownloadDir(rawDownloadDir);
               try {
@@ -185,7 +186,7 @@ export class EmailWatcherService {
   /**
    * Helper to check mock email from mock data file.
    */
-  private async checkMockEmail(subject: string, sender: string, condition: string): Promise<{ success: boolean; message: string }> {
+  private async checkMockEmail(subject: string, sender: string, condition: string, customDownloadDir?: string): Promise<{ success: boolean; message: string }> {
     const mockFilePath = path.join(__dirname, 'mock-emails.json');
     if (!fs.existsSync(mockFilePath)) {
       // Create empty mock file if it doesn't exist
@@ -220,7 +221,7 @@ export class EmailWatcherService {
 
           if (conditionMatch) {
             let downloadMsg = '';
-            const rawDownloadDir = await this.settingsService.getSetting('m365_download_directory', '');
+            const rawDownloadDir = customDownloadDir || (await this.settingsService.getSetting('m365_download_directory', ''));
             if (rawDownloadDir) {
               const downloadDir = this.formatDownloadDir(rawDownloadDir);
               if (!fs.existsSync(downloadDir)) {
