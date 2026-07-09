@@ -1,4 +1,10 @@
-# Thư mục chứa các script Python phân tích tạm thời (research/debug)
-# Không commit lên git
-*.pyc
-__pycache__/
+# ============================================================
+# Thư mục này chứa các script Python tạm thời dùng để
+# phân tích cấu trúc file macro Excel và VBA code.
+#
+# KHÔNG commit các file này lên git.
+# Thư mục này đã được ignore từ root .gitignore.
+# ============================================================
+*
+!.gitignore
+!README.md

@@ -176,6 +176,13 @@ export default function AdminBotConfigPage() {
   const [captchaText, setCaptchaText] = useState('');
   const [submittingCaptcha, setSubmittingCaptcha] = useState(false);
 
+  // Excel Macro Lot Consolidation state
+  const [macroLotPath, setMacroLotPath] = useState('');
+  const [pythonExe, setPythonExe] = useState('python');
+  const [targetRoot, setTargetRoot] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong');
+  const [savingMacroConfig, setSavingMacroConfig] = useState(false);
+  const [triggeringMacroLot, setTriggeringMacroLot] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -253,6 +260,17 @@ export default function AdminBotConfigPage() {
         if (backupAcmData.backupPath) {
           setBackupPathAcm(backupAcmData.backupPath);
         }
+      }
+
+      // Fetch Macro Lot config
+      const macroRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/macro-lot/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (macroRes.ok) {
+        const macroData = await macroRes.json();
+        if (macroData.macroPath) setMacroLotPath(macroData.macroPath);
+        if (macroData.pythonExe) setPythonExe(macroData.pythonExe);
+        if (macroData.targetRoot) setTargetRoot(macroData.targetRoot);
       }
     } catch (err) {
       console.error(err);
@@ -443,6 +461,54 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi khởi chạy bot recovery', { id: toastId });
     } finally {
       setTriggeringAuditMs(false);
+    }
+  };
+
+  // Save Macro Lot config
+  const handleSaveMacroLotConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingMacroConfig(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/macro-lot/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ macroPath: macroLotPath, pythonExe, targetRoot }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success(data.message || 'Đã lưu cấu hình macro Excel thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingMacroConfig(false);
+    }
+  };
+
+  // Trigger Excel Macro execution
+  const handleTriggerLotMacro = async () => {
+    if (!token) return;
+    setTriggeringMacroLot(true);
+    const toastId = toast.loading('Đang khởi tạo job chạy Excel Macro...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-lot-macro`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job chạy Excel Macro thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy macro', { id: toastId });
+    } finally {
+      setTriggeringMacroLot(false);
     }
   };
 
@@ -2030,6 +2096,97 @@ export default function AdminBotConfigPage() {
                   </div>
                 )}
               </div>
+
+              {/* Chạy Excel Macro Thống Kê Số Lot Box */}
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <BarChart2 size={20} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Chạy Excel Macro Thống Kê Số Lot</h3>
+                </div>
+
+                <form onSubmit={handleSaveMacroLotConfig} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Đường dẫn file Excel Macro (.xlsm)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={macroLotPath}
+                      onChange={(e) => setMacroLotPath(e.target.value)}
+                      placeholder="C:\...\Macro thong ke so lot giao dich có ACM.xlsm"
+                      style={{ padding: '12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Đường dẫn executable Python (Mặc định: python)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={pythonExe}
+                      onChange={(e) => setPythonExe(e.target.value)}
+                      placeholder="python hoặc C:\...\python.exe"
+                      style={{ padding: '12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Thư mục đích lưu trữ báo cáo (Mặc định: M:\Quanlygiaodich\Tai lieu hoat dong)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={targetRoot}
+                      onChange={(e) => setTargetRoot(e.target.value)}
+                      placeholder="M:\Quanlygiaodich\Tai lieu hoat dong"
+                      style={{ padding: '12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="submit"
+                      disabled={savingMacroConfig}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <Save size={14} /> {savingMacroConfig ? 'Đang lưu...' : 'Lưu Cấu Hình Macro'}
+                    </button>
+                  </div>
+                </form>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '8px', border: '1px dashed rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Chạy thống kê số lot giao dịch</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Sau khi hoàn thành tải backup MS Futures, CQG Futures và ACM, chạy macro để tự động tổng hợp số lot giao dịch LME, Options, ACM và tạo báo cáo xuất ra Excel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTriggerLotMacro}
+                    disabled={triggeringMacroLot}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
+                  >
+                    <Play size={16} className={triggeringMacroLot ? 'animate-pulse' : ''} />
+                    {triggeringMacroLot ? 'Đang chạy Macro...' : '🤖 Chạy Excel Macro'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Right: Job Queue Logs */}
@@ -2081,7 +2238,9 @@ export default function AdminBotConfigPage() {
                                     ? 'Kiểm Tra & Ghép File CQG'
                                     : job.jobType === 'FILE_AUDIT_ACM'
                                       ? '🤖 Tải Báo Cáo Tự Doanh ACM'
-                                      : job.jobType}
+                                      : job.jobType === 'RUN_LOT_MACRO'
+                                        ? '📊 Chạy Excel Macro Số Lot'
+                                        : job.jobType}
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               {job.status === 'COMPLETED' && job.jobType === 'RPA_DOWNLOAD_REPORTS' && (

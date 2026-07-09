@@ -76,3 +76,5 @@ temp/
 *.html
 !backend/src/
 
+# Python research/analysis scripts (temporary, not for production)
+backend/analysis/

@@ -1,0 +1,1761 @@
+=== Module: ThisWorkbook.cls ===
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet1.cls ===
+Attribute VB_Name = "Sheet1"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Module1.bas ===
+Attribute VB_Name = "Module1"
+Sub tong_hop()
+    Dim twb, nwb As Workbook
+    Dim str1, str2, str3, str4, str5 As Range
+    Set twb = ThisWorkbook
+    Set str1 = twb.Sheets("sheet2").Range("A5")
+    Set str2 = twb.Sheets("sheet2").Range("A13")
+    Set str3 = twb.Sheets("sheet2").Range("A10")
+    Set str4 = twb.Sheets("sheet2").Range("A14")
+    Set str5 = twb.Sheets("sheet2").Range("A11")
+    
+    
+    Dim gdt As Workbook
+    
+    Dim link1 As Range
+    Set link1 = twb.Sheets("sheet2").Range("A9")
+    
+    
+    Set gdt = Workbooks.Open(link1)
+    Set nwb = Workbooks.Open(str1)
+        
+    Dim lr1, lr2 As Long
+        lr1 = nwb.Sheets("sheet1").Cells(Rows.Count, 1).End(xlUp).Row
+        lr2 = gdt.Sheets("sheet1").Cells(Rows.Count, 1).End(xlUp).Row
+        nwb.Sheets("sheet1").Range("A2:V" & lr1).Copy gdt.Sheets("sheet1").Cells(lr2 + 1, 1)
+        gdt.Sheets("sheet1").Activate
+           
+        gdt.Sheets("sheet1").Range(Cells(lr2 + 1, 23), Cells(lr2 + lr1 - 1, 23)) = twb.Sheets("sheet1").Range("N3")
+        gdt.Sheets("sheet1").Range(Cells(lr2 + 1, 23), Cells(lr2 + lr1 - 1, 23)).NumberFormat = "mm/dd/yyyy"
+ 
+    
+    
+    
+    
+    twb.Sheets("sheet1").Range("A1:M500").Clear
+    twb.Sheets("sheet1").Range("AX1:BF500").Clear
+    'copy dsgd fu,spr,lme
+ 
+    twb.Sheets("DSGD").Cells.Clear
+    On Error Resume Next
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=4, Criteria1:="<>**-A*"
+    On Error GoTo 0
+    Dim num As Long
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    twb.Sheets("DSGD").Cells.Clear
+    nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+    twb.Sheets("DSGD").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    On Error Resume Next
+    nwb.ActiveSheet.UsedRange.AutoFilter
+    On Error GoTo 0
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=4, Criteria1:="*-A*"
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    twb.Sheets("ACM").Cells.Clear
+    If num > 1 Then
+        nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    nwb.ActiveSheet.UsedRange.AutoFilter
+    nwb.Close False
+    On Error Resume Next
+    twb.Sheets("ACM").UsedRange.AutoFilter field:=4, Criteria1:="<>999**"
+    On Error GoTo 0
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("ACM").Range("B:B"))
+    twb.Sheets("DSGD ACM").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("ACM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    On Error Resume Next
+    twb.Sheets("ACM").UsedRange.AutoFilter
+    On Error GoTo 0
+    On Error Resume Next
+    twb.Sheets("ACM").UsedRange.AutoFilter field:=4, Criteria1:="999*"
+    On Error GoTo 0
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("ACM").Range("B:B"))
+    twb.Sheets("Test ACM").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("ACM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("Test ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    On Error Resume Next
+    twb.Sheets("ACM").UsedRange.AutoFilter
+    On Error GoTo 0
+    twb.Sheets("DSGD").Activate
+    
+    twb.Sheets("DSGD").UsedRange.AutoFilter field:=4, Criteria1:="*-S"
+    
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").UsedRange.AutoFilter
+    
+    
+    twb.Sheets("DSGD").UsedRange.AutoFilter field:=4, Criteria1:="*-L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").UsedRange.AutoFilter
+    
+    
+    twb.Sheets("DSGD").UsedRange.AutoFilter field:=6, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").UsedRange.AutoFilter
+    
+    
+    
+    
+    
+    'copy fr fu,spr,lme
+    Set nwb = Workbooks.Open(str2)
+    twb.Sheets("FR").Cells.Clear
+    nwb.ActiveSheet.Cells.Copy twb.Sheets("FR").Range("A1")
+    nwb.Close False
+    num = twb.Sheets("FR").Cells(Rows.Count, 1).End(xlUp).Row
+    twb.Sheets("FR").Range("I2").Formula = "=VALUE(F2)"
+    twb.Sheets("FR").Range("I2:I" & num).FillDown
+    twb.Sheets("FR").Range("A1:I1").AutoFilter field:=1, Criteria1:="*S"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("FR").Range("A:A"))
+    twb.Sheets("FR Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("FR").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("FR Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("FR").UsedRange.AutoFilter
+    
+    twb.Sheets("FR").Range("A1:I1").AutoFilter field:=1, Criteria1:="*L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("FR").Range("A:A"))
+    twb.Sheets("FR LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("FR").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("FR LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("FR").UsedRange.AutoFilter
+    
+    twb.Sheets("FR").Range("A1:I1").AutoFilter field:=3, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("FR").Range("A:A"))
+    twb.Sheets("FR Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("FR").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("FR Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("FR").UsedRange.AutoFilter
+    'copy TTM fu,spr,lme
+    Set nwb = Workbooks.Open(str3)
+    twb.Sheets("TTM").Cells.Clear
+    On Error Resume Next
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=8, Criteria1:="<>**-A*"
+    On Error GoTo 0
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    If num > 1 Then
+        nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    On Error Resume Next
+    nwb.ActiveSheet.UsedRange.AutoFilter
+    On Error GoTo 0
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=8, Criteria1:="*-A*"
+    twb.Sheets("TTM-ACM").Cells.Clear
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    If num > 1 Then
+        nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM-ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    nwb.ActiveSheet.UsedRange.AutoFilter
+    
+   
+    nwb.Close False
+    On Error Resume Next
+    twb.Sheets("TTM-ACM").UsedRange.AutoFilter field:=8, Criteria1:="<>999*"
+    On Error GoTo 0
+    twb.Sheets("TTM ACM").Cells.Clear
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTM-ACM").Range("B:B"))
+    If num > 1 Then
+        twb.Sheets("TTM-ACM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    On Error Resume Next
+    twb.Sheets("TTM-ACM").UsedRange.AutoFilter
+    On Error GoTo 0
+    twb.Sheets("TTM").UsedRange.AutoFilter field:=8, Criteria1:="*-S"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTM").Range("B:B"))
+    twb.Sheets("TTM Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTM").UsedRange.AutoFilter
+    
+    twb.Sheets("TTM").UsedRange.AutoFilter field:=8, Criteria1:="*-L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTM").Range("B:B"))
+    twb.Sheets("TTM LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTM").UsedRange.AutoFilter
+    
+    
+    
+    twb.Sheets("TTM").UsedRange.AutoFilter field:=10, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTM").Range("B:B"))
+    twb.Sheets("TTM Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTM Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTM").UsedRange.AutoFilter
+    
+    'copy op fu,spr,lme
+    Set nwb = Workbooks.Open(str4)
+    twb.Sheets("OP").Cells.Clear
+    twb.Sheets("PS").Cells.Clear
+    nwb.Sheets("Sheet1").Cells.Copy twb.Sheets("OP").Range("A1")
+    
+    nwb.Close False
+    
+    Dim str7 As Range
+    Set str7 = twb.Sheets("sheet2").Range("A158")
+    Set nwb = Workbooks.Open(str7)
+    
+    nwb.Sheets("Sheet1").Cells.Copy twb.Sheets("PS").Range("A1")
+    nwb.Close False
+    Dim lr As Long
+    lr = twb.Sheets("OP").Cells(Rows.Count, 1).End(xlUp).Row
+    
+    num = twb.Sheets("OP").Cells(Rows.Count, 1).End(xlUp).Row
+    twb.Sheets("OP").Range("I2").Formula = "=IF(D2="""",0,VALUE(D2))+IF(E2="""",0,VALUE(E2))"
+    twb.Sheets("OP").Range("I2:I" & num).FillDown
+    twb.Sheets("OP").Range("A1:I1").AutoFilter field:=1, Criteria1:="*S"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("OP").Range("A:A"))
+    twb.Sheets("OP Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("OP").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("OP Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("OP").UsedRange.AutoFilter
+    
+    twb.Sheets("OP").Range("A1:I1").AutoFilter field:=1, Criteria1:="*L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("OP").Range("A:A"))
+    twb.Sheets("OP LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("OP").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("OP LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("OP").UsedRange.AutoFilter
+    
+    
+    twb.Sheets("OP").Range("A1:I1").AutoFilter field:=3, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("OP").Range("F:F"))
+    twb.Sheets("OP Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("OP").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("OP Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("OP").UsedRange.AutoFilter
+    
+    
+    lr = twb.Sheets("PS").Cells(Rows.Count, 2).End(xlUp).Row
+    
+    twb.Sheets("PS").Range("I2").Formula = "=IF(E2="""",0,VALUE(E2))"
+    twb.Sheets("PS").Range("I2:I" & lr).FillDown
+    
+    twb.Sheets("PS").Range("A1:I1").AutoFilter field:=1, Criteria1:="*S"
+  
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("PS").Range("A:A"))
+    twb.Sheets("PS Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("PS").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("PS Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("PS").UsedRange.AutoFilter
+ 
+    twb.Sheets("PS").Range("A1:I1").AutoFilter field:=1, Criteria1:="*L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("PS").Range("A:A"))
+    twb.Sheets("PS LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("PS").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("PS LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("PS").UsedRange.AutoFilter
+    
+    twb.Sheets("PS").Range("A1:H1").AutoFilter field:=4, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("PS").Range("A:A"))
+    twb.Sheets("PS Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("PS").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("PS Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("PS").UsedRange.AutoFilter
+   
+    
+    'cop tttt fu,spr,lme
+    Dim dk As Range
+    Dim lk As Range
+    Set lk = twb.Sheets("sheet2").Range("A76")
+    Set dk = twb.Sheets("sheet2").Range("C3")
+    Set nwb = Workbooks.Open(str5)
+    twb.Sheets("TTTT").Cells.Clear
+    On Error Resume Next
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=8, Criteria1:="<>**-A*"
+    On Error GoTo 0
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    If num > 1 Then
+        nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=8, Criteria1:="*-A*"
+    twb.Sheets("TTTT-ACM").Cells.Clear
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("B:B"))
+    If num > 1 Then
+        nwb.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT-ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    nwb.ActiveSheet.UsedRange.AutoFilter
+     nwb.Close False
+    On Error Resume Next
+    twb.Sheets("TTTT-ACM").UsedRange.AutoFilter field:=8, Criteria1:="<>999*"
+    On Error GoTo 0
+    
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTTT-ACM").Range("B:B"))
+    twb.Sheets("TTTT ACM").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTTT-ACM").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+   
+   
+    
+    
+    
+    lr = twb.Sheets("TTTT").Cells(Rows.Count, 1).End(xlUp).Row
+    Set nwb = Workbooks.Open(lk)
+    nwb.ActiveSheet.UsedRange.AutoFilter field:=25, Criteria1:=twb.Sheets("sheet2").Range("A77")
+    num = Application.WorksheetFunction.Subtotal(103, nwb.ActiveSheet.Range("A:A"))
+    Dim dongcuoi As Long
+    dongcuoi = nwb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+    If num > 1 Then
+        dongcuoi = nwb.ActiveSheet.Cells(Rows.Count, 1).End(xlUp).Row
+        nwb.ActiveSheet.Range("A2:Y" & dongcuoi).SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT").Cells(lr + 1, 1).PasteSpecial xlPasteValuesAndNumberFormats
+     End If
+    Application.CutCopyMode = False
+    nwb.Close False
+    Application.CutCopyMode = True
+    
+    twb.Sheets("TTTT").UsedRange.AutoFilter field:=8, Criteria1:="*-S"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTTT").Range("A:A"))
+    twb.Sheets("TTTT Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTTT").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTTT").UsedRange.AutoFilter
+    
+    twb.Sheets("TTTT").UsedRange.AutoFilter field:=8, Criteria1:="*-L"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTTT").Range("A:A"))
+    twb.Sheets("TTTT LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTTT").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTTT").UsedRange.AutoFilter
+    
+    
+    
+    
+    twb.Sheets("TTTT").Range("G2").Formula = "=RIGHT(J2,3)"
+    twb.Sheets("TTTT").Range("G2:G" & lr).FillDown
+     twb.Sheets("TTTT").UsedRange.AutoFilter field:=8, Criteria1:="*-L"
+     twb.Sheets("TTTT").UsedRange.AutoFilter field:=7, Criteria1:=dk
+     
+  
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTTT").Range("A:A"))
+    twb.Sheets("LME Expired").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTTT").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("LME Expired").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+        
+    End If
+    twb.Sheets("TTTT").UsedRange.AutoFilter
+    
+    twb.Sheets("TTTT").UsedRange.AutoFilter field:=10, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, twb.Sheets("TTTT").Range("A:A"))
+    twb.Sheets("TTTT Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("TTTT").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("TTTT Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("TTTT").UsedRange.AutoFilter
+    
+    
+    
+    
+    
+    lr = twb.Sheets("DSGD").Cells(Rows.Count, 1).End(xlUp).Row
+    twb.Sheets("DSGD").Activate
+    Columns("D:D").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("D2").Formula = "=LEFT(E2,3)"
+    Range("D2:D" & lr).FillDown
+    Range("D2" & ":" & "D" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+
+    Columns("G:G").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("G2").Formula = "=VLOOKUP(IF(RIGHT(E2,1)=""L"",LEFT(H2,3),LEFT(H2,FIND(""2"",H2)-2)),HH!A:C,2,0)"
+    
+    Range("G2" & ":" & "G" & lr).FillDown
+    Range("G2" & ":" & "G" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+
+' Doi code
+    Range("G1").Select
+    ActiveCell.FormulaR1C1 = "SP"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "TVKD"
+    Columns("N:O").Insert Shift:=xlToRight
+    Sheets("DSGD").Range("N1") = "KLM"
+    Sheets("DSGD").Range("N2").Formula = "=if(M2=""BUY"",Q2,"""")"
+    Sheets("DSGD").Range("N2:N" & lr).FillDown
+    Sheets("DSGD").Range("O1") = "KLB"
+    Sheets("DSGD").Range("O2").Formula = "=if(M2=""SELL"",Q2,"""")"
+    Sheets("DSGD").Range("O2:O" & lr).FillDown
+'Pivottable
+    Sheets("DSGD").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R2C2", TableName:="PivotTable7", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(2, 2).Select
+        With ActiveSheet.PivotTables("PivotTable7").PivotFields("SP")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable7").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable7").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable7").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable7").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable7").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable7").PivotFields("KLB"), "Sum of KLB", xlSum
+    
+    Sheets("DSGD").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R2C6", TableName:="PivotTable8", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(2, 6).Select
+        With ActiveSheet.PivotTables("PivotTable8").PivotFields("TVKD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable8").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable8").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable8").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable8").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable8").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable8").PivotFields("KLB"), "Sum of KLB", xlSum
+    Range("C3").Select
+    ActiveSheet.PivotTables("PivotTable7").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable7").PivotFields("SP")
+        .PivotItems("(blank)").Visible = False
+    End With
+    Range("G3").Select
+    ActiveSheet.PivotTables("PivotTable8").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable8").PivotFields("TVKD")
+        .PivotItems("(blank)").Visible = False
+    End With
+'Total
+    Sheets("sheet1").Select
+    Range("E3").Formula = "=Sum(C3:D3)"
+    lr = twb.Sheets("sheet1").Cells(Rows.Count, 2).End(xlUp).Row
+    Range("E3:E" & lr).FillDown
+    Range("I3").Formula = "=sum(G3:H3)"
+    lr = twb.Sheets("sheet1").Cells(Rows.Count, 6).End(xlUp).Row
+    Range("I3:I" & lr).FillDown
+'tong hop spread
+    lr = ThisWorkbook.Sheets("DSGD Spread").Cells(Rows.Count, 1).End(xlUp).Row
+If lr > 1 Then
+    Sheets("DSGD Spread").Select
+    Columns("G:G").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("G2").Formula = "=LEFT(F2,len(F2)-3)"
+    If lr > 2 Then
+    Range("G2" & ":" & "G" & lr).FillDown
+    Range("G2" & ":" & "G" & lr).Select
+    Else: Range("G2").Select
+    End If
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+
+' Doi code
+    Range("G1").Select
+    ActiveCell.FormulaR1C1 = "SP"
+    Range("D1").EntireColumn.Insert
+    Range("D1").Value = "TVKD"
+    Range("D2").Formula = "=left(E2,3)"
+    If lr > 2 Then
+    Range("D2:D" & lr).FillDown
+    End If
+    Columns("N:O").Insert Shift:=xlToRight
+    Sheets("DSGD Spread").Range("N1") = "KLM"
+    Sheets("DSGD Spread").Range("N2").Formula = "=if(M2=""BUY"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD Spread").Range("N2:N" & lr).FillDown
+    End If
+    Sheets("DSGD Spread").Range("O1") = "KLB"
+    Sheets("DSGD Spread").Range("O2").Formula = "=if(M2=""SELL"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD Spread").Range("O2:O" & lr).FillDown
+    End If
+'Pivottable
+    Sheets("DSGD Spread").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD Spread!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R5C10", TableName:="PivotTable9", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(5, 10).Select
+        With ActiveSheet.PivotTables("PivotTable9").PivotFields("SP")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable9").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable9").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable9").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable9").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable9").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable9").PivotFields("KLB"), "Sum of KLB", xlSum
+    
+    Sheets("DSGD Spread").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD Spread!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R35C10", TableName:="PivotTable10", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(35, 10).Select
+        With ActiveSheet.PivotTables("PivotTable10").PivotFields("TVKD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable10").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable10").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable10").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable10").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable10").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable10").PivotFields("KLB"), "Sum of KLB", xlSum
+    Range("C3").Select
+    ActiveSheet.PivotTables("PivotTable9").NullString = "0"
+    Range("K36").Select
+    ActiveSheet.PivotTables("PivotTable10").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable10").PivotFields("TVKD")
+        .PivotItems("(blank)").Visible = False
+    End With
+'Total
+    Sheets("sheet1").Select
+    Range("M6").Formula = "=Sum(K6:L6)"
+    Range("M6:M34").FillDown
+    Range("M36").Formula = "=sum(K36:L36)"
+    Range("M36:M100").FillDown
+End If
+    
+'tong hop ACM
+    lr = ThisWorkbook.Sheets("DSGD ACM").Cells(Rows.Count, 1).End(xlUp).Row
+If lr > 1 Then
+    Sheets("DSGD ACM").Select
+    Columns("G:G").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("G2").Formula = "=LEFT(F2,len(F2)-3)"
+    If lr > 2 Then
+    Range("G2" & ":" & "G" & lr).FillDown
+    Range("G2" & ":" & "G" & lr).Select
+    Else: Range("G2").Select
+    End If
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+
+
+' Doi code
+    Range("G1").Select
+    ActiveCell.FormulaR1C1 = "SP"
+    Range("D1").EntireColumn.Insert
+    Range("D1").Value = "TVKD"
+    Range("D2").Formula = "=left(E2,3)"
+    If lr > 2 Then
+    Range("D2:D" & lr).FillDown
+    End If
+    Columns("N:O").Insert Shift:=xlToRight
+    Sheets("DSGD ACM").Range("N1") = "KLM"
+    Sheets("DSGD ACM").Range("N2").Formula = "=if(M2=""BUY"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD ACM").Range("N2:N" & lr).FillDown
+    End If
+    Sheets("DSGD ACM").Range("O1") = "KLB"
+    Sheets("DSGD ACM").Range("O2").Formula = "=if(M2=""SELL"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD ACM").Range("O2:O" & lr).FillDown
+    End If
+'Pivottable
+    Sheets("DSGD ACM").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD ACM!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R7C50", TableName:="PivotTable11", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(7, 50).Select
+        With ActiveSheet.PivotTables("PivotTable11").PivotFields("SP")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable11").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable11").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable11").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable11").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable11").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable11").PivotFields("KLB"), "Sum of KLB", xlSum
+    
+    Sheets("DSGD ACM").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD ACM!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R7C55", TableName:="PivotTable13", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(7, 55).Select
+        With ActiveSheet.PivotTables("PivotTable13").PivotFields("TVKD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable13").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable13").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable13").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable13").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable13").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable13").PivotFields("KLB"), "Sum of KLB", xlSum
+    Range("AY8").Select
+    ActiveSheet.PivotTables("PivotTable11").NullString = "0"
+    Range("BD8").Select
+    ActiveSheet.PivotTables("PivotTable13").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable13").PivotFields("TVKD")
+        .PivotItems("(blank)").Visible = False
+    End With
+'Total
+    Sheets("sheet1").Select
+    Range("BA8").Formula = "=Sum(AY8:AZ8)"
+    
+    Range("BA8:BA12").FillDown
+    
+    Range("BF8").Formula = "=sum(BD8:BE8)"
+    lr = twb.Sheets("sheet1").Cells(Rows.Count, 57).End(xlUp).Row
+    If lr > 8 Then
+    Range("BF8:BF" & lr).FillDown
+    End If
+End If
+    
+End Sub
+Sub baocao()
+    Dim twb, nwb As Workbook
+    Dim str As Range
+    Set twb = ThisWorkbook
+    Set str = twb.Sheets("sheet2").Range("A22")
+    Set nwb = Workbooks.Open(str)
+    Dim ws As Worksheet
+    Set ws = nwb.Sheets(Sheets.Count)
+    Dim i As Long
+    i = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), ws.Columns("B:B"), 0)
+    ws.Cells(i, 6) = Application.WorksheetFunction.Sum(twb.Sheets("DSGD Spread").Columns("Q:Q"))
+    ws.Cells(i, 9) = Application.WorksheetFunction.Sum(twb.Sheets("DSGD LME").Columns("M:M"))
+    ws.Cells(i, 12) = Application.WorksheetFunction.Sum(twb.Sheets("DSGD Options").Columns("M:M"))
+    ws.Cells(i, 3) = Application.WorksheetFunction.Sum(twb.Sheets("DSGD").Columns("Q:Q")) - ws.Cells(i, 9).Value - ws.Cells(i, 6).Value - ws.Cells(i, 12).Value
+    ws.Cells(i, 20) = Application.WorksheetFunction.Sum(twb.Sheets("FR Spread").Columns("I:I"))
+    ws.Cells(i, 23) = Application.WorksheetFunction.Sum(twb.Sheets("FR LME").Columns("I:I"))
+    ws.Cells(i, 26) = Application.WorksheetFunction.Sum(twb.Sheets("FR Options").Columns("I:I"))
+    Dim dc As Long
+    dc = twb.Sheets("FR").Cells(Rows.Count, 1).End(xlUp).Row - 2
+    twb.Sheets("FR").Range("J2").Formula = "=left(C2,Len(C2)-3)"
+    twb.Sheets("FR").Range("J2:J" & dc).FillDown
+    twb.Sheets("FR").Range("K2").Formula = "=IF(VALUE(B2)<1,VALUE(Sheet1!$N$3),IF(AND(VALUE(B2)>VALUE(Sheet2!$X$4),VALUE(B2)<VALUE(Sheet2!$X$2)),VALUE(Sheet2!$A$15),DATE(YEAR(B2),MONTH(B2),DAY(B2))))"
+    twb.Sheets("FR").Range("K:K").NumberFormat = "mm/dd/yyyy"
+    twb.Sheets("FR").Range("K2:K" & dc).FillDown
+Dim k1, k2, k3, r1, s1, qo, qp, bm, mpo As Long
+    k = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "TRU", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A15"))
+    k1 = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "TRU", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A28"))
+    k2 = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "TRU", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A32"))
+    k3 = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "TRU", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A34"))
+    L = Application.WorksheetFunction.SumIf(twb.Sheets("FR").Range("A:A"), ThisWorkbook.Sheets("Sheet2").Range("A18"), twb.Sheets("FR").Range("I:I"))
+    r = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "FEF", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A15"))
+    r1 = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "FEF", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A28"))
+    s = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "ZFT", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A15"))
+    s1 = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "ZFT", twb.Sheets("FR").Range("K:K"), ThisWorkbook.Sheets("sheet2").Range("A28"))
+   Dim dk As Currency
+     dk = ThisWorkbook.Sheets("sheet2").Range("Y1")
+    twb.Sheets("FR").Range("L2").Formula = "=IF(VALUE(B2)-TIME(6,0,0)<0,VALUE(B2)+TODAY(),IF(VALUE(B2)>1,VALUE(B2),VALUE(B2)+VALUE(Sheet1!$N$3)))"
+    twb.Sheets("FR").Range("L2:L" & dc).FillDown
+
+    qo = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "QO", twb.Sheets("FR").Range("L:L"), "<" & dk)
+    qp = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "QP", twb.Sheets("FR").Range("L:L"), "<" & dk)
+    bm = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "BM", twb.Sheets("FR").Range("L:L"), "<" & dk)
+    mpo = Application.WorksheetFunction.SumIfs(twb.Sheets("FR").Range("I:I"), twb.Sheets("FR").Range("J:J"), "MPO", twb.Sheets("FR").Range("L:L"), "<" & dk)
+    ws.Cells(i, 17) = Application.WorksheetFunction.Sum(twb.Sheets("FR").Columns("I:I")) - k - k1 - k2 - k3 - L - r - r1 - s - s1 - qo - qp - bm - mpo - ws.Cells(i, 20).Value - ws.Cells(i, 23).Value - ws.Cells(i, 26).Value
+    ThisWorkbook.Sheets("sheet2").Range("k1").Value = k
+    ThisWorkbook.Sheets("sheet2").Range("k2").Value = k1
+    ThisWorkbook.Sheets("sheet2").Range("k3").Value = k2
+    ThisWorkbook.Sheets("sheet2").Range("k4").Value = k3
+    ThisWorkbook.Sheets("sheet2").Range("l1").Value = L
+    ThisWorkbook.Sheets("sheet2").Range("r1").Value = r
+    ThisWorkbook.Sheets("sheet2").Range("r2").Value = r1
+    ThisWorkbook.Sheets("sheet2").Range("s1").Value = s
+    ThisWorkbook.Sheets("sheet2").Range("s2").Value = s1
+    ThisWorkbook.Sheets("sheet2").Range("t1").Value = qo
+    ThisWorkbook.Sheets("sheet2").Range("u1").Value = qp
+    ThisWorkbook.Sheets("sheet2").Range("v1").Value = bm
+    ThisWorkbook.Sheets("sheet2").Range("w1").Value = mpo
+    ws.Cells(i, 31) = ThisWorkbook.Sheets("sheet2").Range("A21")
+    
+    ws.Cells(i, 8) = Application.WorksheetFunction.Sum(twb.Sheets("TTM Spread").Columns("N:O"))
+    ws.Cells(i, 11) = Application.WorksheetFunction.Sum(twb.Sheets("TTM LME").Columns("N:O"))
+    ws.Cells(i, 14) = Application.WorksheetFunction.Sum(twb.Sheets("TTM Options").Columns("N:O"))
+    ws.Cells(i, 5) = Application.WorksheetFunction.Sum(twb.Sheets("TTM").Columns("N:O")) - ws.Cells(i, 8).Value - ws.Cells(i, 11).Value - ws.Cells(i, 14).Value
+    ws.Cells(i, 22) = Application.WorksheetFunction.Sum(twb.Sheets("OP Spread").Columns("I:I")) / 2
+    ws.Cells(i, 25) = Application.WorksheetFunction.Sum(twb.Sheets("OP LME").Columns("I:I")) / 2
+    ws.Cells(i, 28) = Application.WorksheetFunction.Sum(twb.Sheets("OP Options").Columns("I:I"))
+    ws.Cells(i, 19) = Application.WorksheetFunction.Sum(twb.Sheets("OP").Columns("I:I")) / 2 - ws.Cells(i, 22).Value - ws.Cells(i, 25).Value - ws.Cells(i, 28).Value
+    
+    
+    ws.Cells(i, 7) = Application.WorksheetFunction.Sum(twb.Sheets("TTTT Spread").Columns("P:P"))
+    ws.Cells(i, 10) = Application.WorksheetFunction.Sum(twb.Sheets("TTTT LME").Columns("P:P")) - Application.WorksheetFunction.Sum(twb.Sheets("LME Expired").Columns("P:P"))
+    ws.Cells(i, 13) = Application.WorksheetFunction.Sum(twb.Sheets("TTTT Options").Columns("P:P"))
+    ws.Cells(i, 4) = Application.WorksheetFunction.Sum(twb.Sheets("TTTT").Columns("P:P")) - ws.Cells(i, 7).Value - ws.Cells(i, 10).Value - ws.Cells(i, 13).Value
+        
+    ws.Cells(i, 21) = Application.WorksheetFunction.Sum(twb.Sheets("PS Spread").Columns("I:I"))
+    
+    ws.Cells(i, 24) = Application.WorksheetFunction.Sum(twb.Sheets("PS LME").Columns("I:I")) - Application.WorksheetFunction.Sum(twb.Sheets("LME Expired").Columns("I:I"))
+   
+    ws.Cells(i, 27) = Application.WorksheetFunction.Sum(twb.Sheets("PS Options").Columns("I:I"))
+    
+    ws.Cells(i, 18) = Application.WorksheetFunction.Sum(twb.Sheets("PS").Columns("I:I")) / 2 - ws.Cells(i, 27) - ws.Cells(i, 24) - ws.Cells(i, 21)
+    
+    If ws.Cells(i, 3) <> ws.Cells(i, 17) Then
+    MsgBox "Sai khoi luong giao dich Product"
+    ws.Cells(i, 3).Interior.ColorIndex = 35
+    ws.Cells(i, 17).Interior.ColorIndex = 35
+End If
+If ws.Cells(i, 4) <> ws.Cells(i, 18) Then
+    MsgBox "Sai tat toan Product"
+    ws.Cells(i, 4).Interior.ColorIndex = 36
+    ws.Cells(i, 18).Interior.ColorIndex = 36
+End If
+If ws.Cells(i, 5) <> ws.Cells(i, 19) Then
+    MsgBox "Sai trang thai mo Product"
+    ws.Cells(i, 5).Interior.ColorIndex = 37
+    ws.Cells(i, 19).Interior.ColorIndex = 37
+End If
+If ws.Cells(i, 6) <> ws.Cells(i, 20) Then
+    MsgBox "Sai khoi luong giao dich Spread"
+    ws.Cells(i, 6).Interior.ColorIndex = 38
+    ws.Cells(i, 20).Interior.ColorIndex = 38
+End If
+If ws.Cells(i, 7) <> ws.Cells(i, 21) Then
+    MsgBox "Sai tat toan Spread"
+    ws.Cells(i, 7).Interior.ColorIndex = 39
+    ws.Cells(i, 21).Interior.ColorIndex = 39
+End If
+If ws.Cells(i, 8) <> ws.Cells(i, 22) Then
+    MsgBox "Sai trang thai mo Spread"
+    ws.Cells(i, 8).Interior.ColorIndex = 40
+    ws.Cells(i, 19).Interior.ColorIndex = 40
+End If
+
+
+If ws.Cells(i, 9) <> ws.Cells(i, 23) Then
+    MsgBox "Sai khoi luong giao dich LME"
+    ws.Cells(i, 9).Interior.ColorIndex = 38
+    ws.Cells(i, 23).Interior.ColorIndex = 38
+End If
+If ws.Cells(i, 10) <> ws.Cells(i, 24) Then
+    MsgBox "Sai tat toan LME"
+    ws.Cells(i, 10).Interior.ColorIndex = 39
+    ws.Cells(i, 24).Interior.ColorIndex = 39
+End If
+If ws.Cells(i, 11) <> ws.Cells(i, 25) Then
+    MsgBox "Sai trang thai mo LME"
+    ws.Cells(i, 11).Interior.ColorIndex = 40
+    ws.Cells(i, 25).Interior.ColorIndex = 40
+End If
+
+
+If ws.Cells(i, 12) <> ws.Cells(i, 26) Then
+    MsgBox "Sai khoi luong giao dich Options"
+    ws.Cells(i, 12).Interior.ColorIndex = 38
+    ws.Cells(i, 26).Interior.ColorIndex = 38
+End If
+If ws.Cells(i, 13) <> ws.Cells(i, 27) Then
+    MsgBox "Sai tat toan Options"
+    ws.Cells(i, 13).Interior.ColorIndex = 39
+    ws.Cells(i, 27).Interior.ColorIndex = 39
+End If
+If ws.Cells(i, 14) <> ws.Cells(i, 28) Then
+    MsgBox "Sai trang thai mo Options"
+    ws.Cells(i, 14).Interior.ColorIndex = 40
+    ws.Cells(i, 28).Interior.ColorIndex = 40
+End If
+
+Dim str6 As Range
+Set str6 = twb.Sheets("sheet3").Range("A22")
+Set nwb = Workbooks.Open(str6)
+Dim n, j As Long
+n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("T:T")) + 7
+i = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+    ThisWorkbook.Sheets("sheet1").Range("W9:W" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(i, 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("T9:T" & n).Copy
+    ws.Cells(i, 33).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    p = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("AB:AB")) + 7
+    ThisWorkbook.Sheets("sheet1").Range("AC9:AC17").Copy
+    nwb.Sheets(Sheets.Count).Cells(i, n - 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("AB9:AB" & p).Copy
+    ws.Cells(i, 27 + n).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+Dim str7 As Range
+Set str7 = twb.Sheets("sheet2").Range("A200")
+Set nwb = Workbooks.Open(str7)
+i = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+Dim t As Long
+ t = ws.Cells(Rows.Count, 15).End(xlUp).Row
+ ThisWorkbook.Sheets("Sheet1").Range("AD11") = ws.Cells(t, 15).Value
+ nwb.Activate
+ nwb.Sheets(Sheets.Count).Cells(i, 3) = Application.WorksheetFunction.Sum(twb.Sheets("DSGD ACM").Columns("Q:Q"))
+ nwb.Sheets(Sheets.Count).Cells(i, 5) = Application.WorksheetFunction.Sum(twb.Sheets("TTM ACM").Columns("N:O"))
+ nwb.Sheets(Sheets.Count).Cells(i, 4) = Application.WorksheetFunction.Sum(twb.Sheets("TTTT ACM").Columns("P:P"))
+ twb.Sheets("Sheet2").Range("AF3") = Application.WorksheetFunction.Sum(twb.Sheets("Test ACM").Columns("M:M"))
+ nwb.Sheets(Sheets.Count).Cells(i, 9) = twb.Sheets("Sheet2").Range("AF4")
+ n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("BS:BS")) + 7
+ ThisWorkbook.Sheets("sheet1").Range("BS9:BS" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(i, 11).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("BL8:BL10").Copy
+    nwb.Sheets(Sheets.Count).Cells(i, n + 5).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+nwb.Activate
+t = nwb.Sheets(Sheets.Count).Cells(Rows.Count, 3).End(xlUp).Row
+ThisWorkbook.Sheets("Sheet1").Range("BM8") = nwb.Sheets(Sheets.Count).Cells(t, 3).Value
+ ThisWorkbook.Sheets("Sheet1").Range("AF4").Formula = "=Sheet2!A56&TEXT(N3,""dd/mm"")&"" - ""&TEXT(Sheet1!AB71,""###,###0"")&"" lot - ""&Text(Sheet1!AD9,""###,###0"")&"" lot ""&Sheet2!A54&"" - ""& Text(Sheet1!AB59,""###,###0"")&"" lot ""& Sheet2!A58&"" - ""&Text(Sheet1!AB60,""###,###0"")&"" lot ""&Sheet2!A59&"" - ""&Text(Sheet1!AB61,""###,###0"")&"" lot ""&Sheet2!A60&"" - ""&Sheet1!AB33&"" lot LRC - ""&Text(Sheet1!AC52,""###,###0"")&"" lot Spread - ""&Text(Sheet1!AD10,""###,###0"")&"" lot LME - ""&Text(Sheet1!AD13,""###,###0"")&"" lot Options - ""&Sheet2!A55&"" ""&TEXT(Sheet1!AD11,""###,###0"")&Sheet2!A57"
+ThisWorkbook.Sheets("Sheet1").Range("AF4").Clear
+
+
+End Sub
+Sub tonghoplme()
+    Dim twb, nwb As Workbook
+    Set twb = ThisWorkbook
+    Dim str As Range
+    Dim lr, dc As Long
+    Dim n, j As Long
+    
+    Set str = twb.Sheets("sheet2").Range("A78")
+    twb.Sheets("Sheet1").Range("AL8:AO10000").Clear
+    
+    twb.Sheets("DSGD LME").Activate
+    lr = twb.Sheets("DSGD LME").Cells(Rows.Count, 1).End(xlUp).Row
+If lr > 1 Then
+    Columns("D:D").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("D2").Formula = "=LEFT(E2,3)"
+    If lr > 2 Then
+    Range("D2:D" & lr).FillDown
+    Range("D2" & ":" & "D" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    End If
+
+    Columns("G:G").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("G2").Formula = "=IF(RIGHT(E2)=""L"",LEFT(H2,3),LEFT(H2,LEN(H2)-3))"
+    If lr > 2 Then
+    
+    Range("G2" & ":" & "G" & lr).FillDown
+    Range("G2" & ":" & "G" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    End If
+
+' Doi code
+    Range("G1").Select
+    ActiveCell.FormulaR1C1 = "SP"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "TVKD"
+    Columns("N:O").Insert Shift:=xlToRight
+    Sheets("DSGD LME").Range("N1") = "KLM"
+    Sheets("DSGD LME").Range("N2").Formula = "=if(M2=""BUY"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD LME").Range("N2:N" & lr).FillDown
+    End If
+    Sheets("DSGD LME").Range("O1") = "KLB"
+    Sheets("DSGD LME").Range("O2").Formula = "=if(M2=""SELL"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD LME").Range("O2:O" & lr).FillDown
+    End If
+    
+    Sheets("DSGD LME").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD LME!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R8C38", TableName:="PivotTable2", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(8, 38).Select
+        With ActiveSheet.PivotTables("PivotTable2").PivotFields("TVKD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable2").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable2").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable2").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable2").PivotFields("KLB"), "Sum of KLB", xlSum
+    
+    Range("AM9").Select
+    ActiveSheet.PivotTables("PivotTable2").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("TVKD")
+        .PivotItems("(blank)").Visible = False
+    End With
+    
+'Total
+   
+    Range("AO9").Formula = "=Sum(AM9:AN9)"
+    dc = twb.Sheets("sheet1").Cells(Rows.Count, 38).End(xlUp).Row
+    If dc > 10 Then
+    Range("AO9:AO" & dc).FillDown
+    End If
+
+Set nwb = Workbooks.Open(str)
+
+n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("AJ:AJ")) + 7
+j = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+ThisWorkbook.Sheets("sheet1").Range("AJ9:AJ" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(j, 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("AB67:AB75").Copy
+    nwb.Sheets(Sheets.Count).Cells(j, n - 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+
+Else
+    Set nwb = Workbooks.Open(str)
+
+    n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("AJ:AJ")) + 7
+    j = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+    ThisWorkbook.Sheets("sheet1").Range("AJ9:AJ" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(j, 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("AB67:AB75").Copy
+    nwb.Sheets(Sheets.Count).Cells(j, n - 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+
+End If
+    
+    
+End Sub
+
+Sub tonghop_options()
+    Dim twb, nwb As Workbook
+    Set twb = ThisWorkbook
+    Dim str As Range
+    Dim lr, dc As Long
+    Dim n, j As Long
+    
+    Set str = twb.Sheets("sheet2").Range("A82")
+    twb.Sheets("Sheet1").Range("AW23:AZ10000").Clear
+    
+    twb.Sheets("DSGD Options").Activate
+    lr = twb.Sheets("DSGD Options").Cells(Rows.Count, 1).End(xlUp).Row
+If lr > 1 Then
+    Columns("D:D").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("D2").Formula = "=LEFT(E2,3)"
+    If lr > 2 Then
+    Range("D2:D" & lr).FillDown
+    Range("D2" & ":" & "D" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    End If
+
+    Columns("G:G").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("G2").Formula = "=IF(RIGHT(E2)=""L"",LEFT(H2,3),LEFT(H2,FIND(""2"",H2)-2))"
+    If lr > 2 Then
+    
+    Range("G2" & ":" & "G" & lr).FillDown
+    Range("G2" & ":" & "G" & lr).Select
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    End If
+
+' Doi code
+    Range("G1").Select
+    ActiveCell.FormulaR1C1 = "SP"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "TVKD"
+    Columns("N:O").Insert Shift:=xlToRight
+    Sheets("DSGD Options").Range("N1") = "KLM"
+    Sheets("DSGD Options").Range("N2").Formula = "=if(M2=""BUY"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD Options").Range("N2:N" & lr).FillDown
+    End If
+    Sheets("DSGD Options").Range("O1") = "KLB"
+    Sheets("DSGD Options").Range("O2").Formula = "=if(M2=""SELL"",Q2,"""")"
+    If lr > 2 Then
+    Sheets("DSGD Options").Range("O2:O" & lr).FillDown
+    End If
+    
+    Sheets("DSGD Options").Select
+    Range("D1:O1").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD Options!R1C4:R1048576C15", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R23C49", TableName:="PivotTable3", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(23, 49).Select
+        With ActiveSheet.PivotTables("PivotTable3").PivotFields("TVKD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With ActiveSheet.PivotTables("PivotTable3").PivotFields("KLB")
+        .Orientation = xlRowField
+        .Position = 2
+    End With
+    With ActiveSheet.PivotTables("PivotTable3").PivotFields("KLM")
+        .Orientation = xlRowField
+        .Position = 3
+    End With
+    ActiveSheet.PivotTables("PivotTable3").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable3").PivotFields("KLM"), "Sum of KLM", xlSum
+    ActiveSheet.PivotTables("PivotTable3").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable3").PivotFields("KLB"), "Sum of KLB", xlSum
+    
+    Range("AX24").Select
+    ActiveSheet.PivotTables("PivotTable3").NullString = "0"
+    With ActiveSheet.PivotTables("PivotTable3").PivotFields("TVKD")
+        .PivotItems("(blank)").Visible = False
+    End With
+    
+'Total
+   
+    Range("AZ24").Formula = "=Sum(AX24:AY24)"
+    dc = twb.Sheets("sheet1").Cells(Rows.Count, 49).End(xlUp).Row
+    If dc > 10 Then
+    Range("AZ24:AZ" & dc).FillDown
+    End If
+
+Set nwb = Workbooks.Open(str)
+
+n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("AJ:AJ")) + 7
+j = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+ThisWorkbook.Sheets("sheet1").Range("AU9:AU" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(j, 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("AE9:AE24").Copy
+    nwb.Sheets(Sheets.Count).Cells(j, n - 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+
+Else
+    Set nwb = Workbooks.Open(str)
+
+    n = Application.WorksheetFunction.Count(ThisWorkbook.Sheets("sheet1").Range("AU:AU")) + 7
+    j = Application.WorksheetFunction.Match(ThisWorkbook.Sheets("Sheet1").Range("N3"), nwb.Sheets(Sheets.Count).Columns("B:B"), 0)
+    ThisWorkbook.Sheets("sheet1").Range("AU9:AU" & n).Copy
+    nwb.Sheets(Sheets.Count).Cells(j, 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ThisWorkbook.Sheets("sheet1").Range("AE9:AE24").Copy
+    nwb.Sheets(Sheets.Count).Cells(j, n - 3).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+
+End If
+    
+
+End Sub
+Sub copyfile()
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    Call tong_hop
+    Call baocao
+    Call tonghoplme
+    Call tonghop_options
+    ThisWorkbook.Sheets("sheet1").Activate
+    
+    ThisWorkbook.Sheets("sheet1").Range("R3").Select
+    ThisWorkbook.Sheets("Sheet1").Range("R3") = ThisWorkbook.Sheets("Sheet2").Range("AF1").Value
+    ThisWorkbook.Sheets("Sheet1").Range("R4") = ThisWorkbook.Sheets("Sheet2").Range("AF2").Value
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    
+    
+End Sub
+
+Sub DSTKGD_Options()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+
+Dim FSO As Object
+         Set FSO = CreateObject("Scripting.FileSystemObject")
+    Dim twb, nwb, nwb1, nwb2 As Workbook
+        Set twb = ThisWorkbook
+    Dim sour, des, fd As Range
+        Set sour = twb.Sheets("sheet2").Range("A100")
+        Set des = twb.Sheets("sheet2").Range("A101")
+        Set fd = twb.Sheets("sheet2").Range("A102")
+    If FSO.FolderExists(fd) = False Then
+    MsgBox "khong ton tai thu muc nguon"
+    Exit Sub
+    End If
+    FSO.copyfile sour, des
+    Set FSO = Nothing
+    
+    Dim str As Range
+    Dim lr, lr1 As Long
+    Set str = twb.Sheets("sheet2").Range("A103")
+    Set nwb1 = Workbooks.Open(str)
+    
+    nwb1.ActiveSheet.UsedRange.AutoFilter field:=4, Criteria1:=twb.Sheets("sheet2").Range("A104") & "*"
+    twb.Sheets("DSTKGD Options").Cells.Clear
+    Application.DisplayAlerts = False
+    nwb1.ActiveSheet.Cells.SpecialCells(xlCellTypeVisible).Copy
+    twb.Sheets("DSTKGD Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    nwb1.Close False
+
+    
+    Dim str2 As Range
+    Set str2 = twb.Sheets("sheet2").Range("A105")
+    twb.Sheets("DSTKGD Futures").Cells.Clear
+    Set nwb2 = Workbooks.Open(str2)
+    nwb2.ActiveSheet.Cells.Copy
+    twb.Sheets("DSTKGD Futures").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    nwb2.Close False
+    Application.DisplayAlerts = True
+    lr = twb.Sheets("DSTKGD Options").Cells(Rows.Count, 1).End(xlUp).Row
+    If lr > 1 Then
+    twb.Sheets("DSTKGD Options").Range("G2") = "= MID(D2,FIND(""- "",D2)-12,11)"
+    twb.Sheets("DSTKGD Options").Range("H2") = "=VLOOKUP(G2,'DSTKGD Futures'!H:L,2,0)"
+    twb.Sheets("DSTKGD Options").Range("I2") = "=VLOOKUP(G2,'DSTKGD Futures'!H:L,5,0)"
+    Else: Application.DisplayAlerts = False
+          Set nwb = Workbooks.Open(des)
+          Application.DisplayAlerts = True
+          Exit Sub
+    End If
+    If lr > 2 Then
+    twb.Sheets("DSTKGD Options").Range("G2:I" & lr).FillDown
+    End If
+    Application.DisplayAlerts = False
+    Set nwb = Workbooks.Open(des)
+    Application.DisplayAlerts = True
+    lr1 = nwb.Sheets("sheet1").Cells(Rows.Count, 1).End(xlUp).Row
+    
+    If lr > 2 Then
+    twb.Sheets("DSTKGD Options").Range("G2:I" & lr).Copy
+    nwb.Sheets("Sheet1").Cells(lr1 + 1, 3).PasteSpecial xlPasteValuesAndNumberFormats
+    twb.Sheets("DSTKGD Options").Range("E2:E" & lr).Copy
+    nwb.Sheets("Sheet1").Cells(lr1 + 1, 6).PasteSpecial xlPasteValuesAndNumberFormats
+    
+    Else:
+    twb.Sheets("DSTKGD Options").Range("G2:I2").Copy
+    nwb.Sheets("Sheet1").Cells(lr1 + 1, 3).PasteSpecial xlPasteValuesAndNumberFormats
+    twb.Sheets("DSTKGD Options").Range("E2").Copy
+    nwb.Sheets("Sheet1").Cells(lr1 + 1, 6).PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    
+    
+    nwb.Sheets("Sheet1").Range(Cells(lr1 + 1, 7), Cells(lr1 + lr - 1, 7)) = Application.WorksheetFunction.Text(twb.Sheets("Sheet1").Range("N3"), "dd/mm/yyyy")
+    nwb.Sheets("Sheet1").Range("B2:B" & lr1 + lr - 1).FillDown
+    
+    
+    Dim d As Long
+    d = twb.Sheets("DSTKGD Futures").Cells(Rows.Count, 1).End(xlUp).Row
+    Dim i As Long
+    For i = lr1 + 1 To lr1 + lr - 1
+        nwb.Sheets("Sheet1").Cells(i, 1) = nwb.Sheets("Sheet1").Cells(i - 1, 1) + 1
+    Next i
+    nwb.Sheets("Sheet1").Range("A1").Select
+Application.EnableEvents = True
+Application.ScreenUpdating = True
+    
+End Sub
+
+
+
+=== Module: Sheet2.cls ===
+Attribute VB_Name = "Sheet2"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet3.cls ===
+Attribute VB_Name = "Sheet3"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet4.cls ===
+Attribute VB_Name = "Sheet4"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet5.cls ===
+Attribute VB_Name = "Sheet5"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet6.cls ===
+Attribute VB_Name = "Sheet6"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet7.cls ===
+Attribute VB_Name = "Sheet7"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet8.cls ===
+Attribute VB_Name = "Sheet8"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet9.cls ===
+Attribute VB_Name = "Sheet9"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet10.cls ===
+Attribute VB_Name = "Sheet10"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet11.cls ===
+Attribute VB_Name = "Sheet11"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet12.cls ===
+Attribute VB_Name = "Sheet12"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet14.cls ===
+Attribute VB_Name = "Sheet14"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet15.cls ===
+Attribute VB_Name = "Sheet15"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet16.cls ===
+Attribute VB_Name = "Sheet16"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet18.cls ===
+Attribute VB_Name = "Sheet18"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet19.cls ===
+Attribute VB_Name = "Sheet19"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet20.cls ===
+Attribute VB_Name = "Sheet20"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet21.cls ===
+Attribute VB_Name = "Sheet21"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet22.cls ===
+Attribute VB_Name = "Sheet22"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet23.cls ===
+Attribute VB_Name = "Sheet23"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet13.cls ===
+Attribute VB_Name = "Sheet13"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Module2.bas ===
+Attribute VB_Name = "Module2"
+Sub Macro1()
+Attribute Macro1.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Macro1 Macro
+'
+
+'
+    Application.CutCopyMode = False
+    Application.CutCopyMode = False
+    Range("G6").Select
+End Sub
+Sub Macro2()
+Attribute Macro2.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Macro2 Macro
+'
+
+'
+    Columns("E:Q").Select
+    Application.CutCopyMode = False
+    Sheets("Sheet1").Select
+    Range("AK6:AO27").Select
+    Selection.ClearContents
+    Range("AL8").Select
+    Sheets("DSGD LME").Select
+    Application.CutCopyMode = False
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD LME!R1C6:R1048576C17", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R8C38", TableName:="PivotTable2", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(8, 38).Select
+    With ActiveSheet.PivotTables("PivotTable2")
+        .ColumnGrand = True
+        .HasAutoFormat = True
+        .DisplayErrorString = False
+        .DisplayNullString = True
+        .EnableDrilldown = True
+        .ErrorString = ""
+        .MergeLabels = False
+        .NullString = ""
+        .PageFieldOrder = 2
+        .PageFieldWrapCount = 0
+        .PreserveFormatting = True
+        .RowGrand = True
+        .SaveData = True
+        .PrintTitles = False
+        .RepeatItemsOnEachPrintedPage = True
+        .TotalsAnnotation = False
+        .CompactRowIndent = 1
+        .InGridDropZones = False
+        .DisplayFieldCaptions = True
+        .DisplayMemberPropertyTooltips = False
+        .DisplayContextTooltips = True
+        .ShowDrillIndicators = True
+        .PrintDrillIndicators = False
+        .AllowMultipleFilters = False
+        .SortUsingCustomLists = True
+        .FieldListSortAscending = False
+        .ShowValuesRow = False
+        .CalculatedMembersInFilters = False
+        .RowAxisLayout xlCompactRow
+    End With
+    With ActiveSheet.PivotTables("PivotTable2").PivotCache
+        .RefreshOnFileOpen = False
+        .MissingItemsLimit = xlMissingItemsDefault
+    End With
+    ActiveSheet.PivotTables("PivotTable2").RepeatAllLabels xlRepeatLabels
+    ActiveWorkbook.ShowPivotTableFieldList = True
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("Mã TKGD")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+End Sub
+
+
+=== Module: Sheet17.cls ===
+Attribute VB_Name = "Sheet17"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet24.cls ===
+Attribute VB_Name = "Sheet24"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet25.cls ===
+Attribute VB_Name = "Sheet25"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet26.cls ===
+Attribute VB_Name = "Sheet26"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet27.cls ===
+Attribute VB_Name = "Sheet27"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet28.cls ===
+Attribute VB_Name = "Sheet28"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet29.cls ===
+Attribute VB_Name = "Sheet29"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet30.cls ===
+Attribute VB_Name = "Sheet30"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet31.cls ===
+Attribute VB_Name = "Sheet31"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet32.cls ===
+Attribute VB_Name = "Sheet32"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet33.cls ===
+Attribute VB_Name = "Sheet33"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet34.cls ===
+Attribute VB_Name = "Sheet34"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet35.cls ===
+Attribute VB_Name = "Sheet35"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet36.cls ===
+Attribute VB_Name = "Sheet36"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet37.cls ===
+Attribute VB_Name = "Sheet37"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet38.cls ===
+Attribute VB_Name = "Sheet38"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== Module: Sheet39.cls ===
+Attribute VB_Name = "Sheet39"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+

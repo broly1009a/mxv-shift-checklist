@@ -114,11 +114,36 @@ Chúng ta gom nhóm các chức năng thành 4 phân kỳ triển khai độc l�
 
 ---
 
+### Phân kỳ 5: Tự động hóa Macro Thống kê số lot (ACM & CQG)
+
+#### 1. Cơ chế chạy Macro Excel chạy ngầm (Headless Excel COM Automation)
+- **Giải pháp:** Sử dụng Python `win32com.client` để gọi trực tiếp file Macro Excel thực tế trên Windows Server.
+- **Xử lý chặn hộp thoại (MsgBox Blocking):** Macro gốc gọi các lệnh `MsgBox "Sai..."` khi phát hiện lệch khối lượng. Khi chạy ngầm (headlessly), các hộp thoại này sẽ khóa tiến trình Excel. Chúng ta sẽ ghi đè hàm `MsgBox` bằng cách khai báo một custom function trong file VBA của Excel chuyển hướng cảnh báo ghi vào file text hoặc một ô cố định (ví dụ `Sheet1!AA1`) thay vì hiện popup.
+- **Script điều phối Python (`run_lot_macro.py`):**
+  - Nhận tham số ngày hiệu lực `YYYY-MM-DD`.
+  - Cập nhật ngày này vào ô `Sheet1!N3`.
+  - Kích hoạt Macro `copyfile`.
+  - Đọc kết quả đối chiếu chéo cuối cùng và trả về lỗi nếu có lệch số liệu.
+
+#### 2. Tích hợp Backend & Frontend
+- **Backend:**
+  - Thêm API `POST /api/v1/bot-engine/run-lot-macro` nhận `{ targetDate: string }`.
+  - Thêm Job Type `RUN_LOT_MACRO` vào `BotJobQueueService` để thực thi script Python, ghi nhận log và cập nhật trạng thái kết quả.
+- **Frontend:**
+  - Thiết kế nút **"📊 Chạy Macro Thống kê số lot (ACM/CQG)"** tại giao diện cấu hình Bot.
+  - Cho phép người dùng chọn Ngày phiên báo cáo (mặc định là ngày hôm nay).
+  - Stream logs thời gian thực của tiến trình chạy và hiển thị cảnh báo màu đỏ/vàng rõ ràng nếu phát hiện lệch số liệu đối chiếu chéo.
+
+---
+
 ## Verification Plan
 
 ### Automated Tests
 - Kiểm thử đơn vị (Unit Test) cho hàm quy đổi tỷ giá lãi/lỗ đảm bảo tính toán khớp từng đồng với Excel gốc.
 - Chạy kiểm thử tự động so sánh kết quả xuất Excel đối chiếu giữa web mới và tool C# với cùng 1 bộ dữ liệu đầu vào.
+- Chạy thử nghiệm script Python `run_lot_macro.py` với tham số ngày cụ thể và kiểm tra kết quả ghi đè file `Thong ke so lot giao dich 2026.xlsx`.
 
 ### Manual Verification
 - Vận hành song song hệ thống Web và bộ công cụ WinForms cũ trong 2 tuần tiếp theo trước khi thực hiện ngắt kết nối các desktop tool.
+- Nhấp nút trên giao diện Web, đối chiếu file xuất ra `Thong ke so lot giao dich 2026.xlsx` đảm bảo khớp hoàn toàn dữ liệu khi chạy macro bằng tay.
+

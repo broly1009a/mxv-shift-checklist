@@ -9,11 +9,19 @@ async function run() {
         await client.connect();
         const db = client.db('mxv_shift_checklist');
 
-        console.log("Fetching first document...");
-        const doc = await db.collection('system_logs').findOne();
-        console.log("Document:", doc);
-
-        console.log("Done!");
+        console.log("Fetching recent RUN_LOT_MACRO bot jobs...");
+        const jobs = await db.collection('bot_jobs').find({ jobType: 'RUN_LOT_MACRO' }).sort({ createdAt: -1 }).limit(5).toArray();
+        for (const job of jobs) {
+            console.log("------------------------");
+            console.log("Job ID:", job._id);
+            console.log("Status:", job.status);
+            console.log("Payload:", JSON.stringify(job.payload));
+            console.log("Logs count:", job.logs ? job.logs.length : 0);
+            if (job.logs) {
+                console.log("Last 5 Logs:");
+                job.logs.slice(-5).forEach(l => console.log("  ", l));
+            }
+        }
     } catch (err) {
         console.error("Error:", err);
     } finally {

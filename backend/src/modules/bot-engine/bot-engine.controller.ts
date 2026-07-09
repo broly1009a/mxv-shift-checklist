@@ -772,4 +772,117 @@ export class BotEngineController {
       throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
     }
   }
+
+  // =========================================================================
+  // MACRO LOT CONSOLIDATION ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Lấy cấu hình chạy Excel Macro thống kê số lot.
+   */
+  @Get('macro-lot/config')
+  async getMacroLotConfig() {
+    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
+      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
+      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
+
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_lot_path',
+      defaultMacroPath
+    );
+    const backupMs = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+    );
+    const backupCqg = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+    );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python'
+    );
+    const targetRoot = await this.settingsService.getSetting(
+      'bot_lot_macro_target_root',
+      'M:\\Quanlygiaodich\\Tai lieu hoat dong'
+    );
+    return { macroPath, backupMs, backupCqg, pythonExe, targetRoot };
+  }
+
+  /**
+   * Lưu cấu hình Excel Macro thống kê số lot.
+   */
+  @Post('macro-lot/config')
+  async saveMacroLotConfig(
+    @Body('macroPath') macroPath?: string,
+    @Body('pythonExe') pythonExe?: string,
+    @Body('targetRoot') targetRoot?: string,
+  ) {
+    if (macroPath !== undefined) {
+      await this.settingsService.setSetting('bot_macro_lot_path', macroPath.trim());
+    }
+    if (pythonExe !== undefined) {
+      await this.settingsService.setSetting('bot_python_path', pythonExe.trim());
+    }
+    if (targetRoot !== undefined) {
+      await this.settingsService.setSetting('bot_lot_macro_target_root', targetRoot.trim());
+    }
+    return { success: true, message: 'Đã cập nhật cấu hình chạy Excel Macro thống kê số lot.' };
+  }
+
+  /**
+   * Kích hoạt job chạy Excel Macro thống kê số lot.
+   */
+  @Post('trigger-lot-macro')
+  async triggerLotMacro(@Body('targetDate') targetDateStr?: string) {
+    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
+      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
+      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
+
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_lot_path',
+      defaultMacroPath
+    );
+    const backupPathMs = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+    );
+    const backupPathCqg = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+    );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python'
+    );
+    const targetRoot = await this.settingsService.getSetting(
+      'bot_lot_macro_target_root',
+      'M:\\Quanlygiaodich\\Tai lieu hoat dong'
+    );
+
+    let targetDate = new Date();
+    if (targetDateStr) {
+      targetDate = new Date(targetDateStr);
+    }
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
+
+    const job = await this.jobQueueService.enqueue('RUN_LOT_MACRO', {
+      targetDate: formattedDate,
+      macroPath,
+      backupPathMs,
+      backupPathCqg,
+      targetRoot,
+      pythonExe,
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu chạy Excel Macro thống kê số lot vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
 }

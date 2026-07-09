@@ -147,6 +147,8 @@ export class BotJobQueueService implements OnModuleInit {
         await this.handleFileAuditCqgJob(job);
       } else if (job.jobType === 'FILE_AUDIT_ACM') {
         await this.handleFileAuditAcmJob(job);
+      } else if (job.jobType === 'RUN_LOT_MACRO') {
+        await this.handleRunLotMacroJob(job);
       } else {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
@@ -228,8 +230,9 @@ export class BotJobQueueService implements OnModuleInit {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const targets: string[] = job.payload?.targets || ['NKTTHT', 'NR', 'QLTKGD', 'DSGD'];
-    const sessionDay: string = job.payload?.sessionDay;
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targets: string[] = payload.targets || ['NKTTHT', 'NR', 'QLTKGD', 'DSGD'];
+    const sessionDay: string = payload.sessionDay;
 
     job.logs.push(`[${new Date().toISOString()}] Reports to download: ${targets.join(', ')}`);
     await job.save();
@@ -358,10 +361,11 @@ export class BotJobQueueService implements OnModuleInit {
    * 2. If any missing → login M-System → download only missing files
    */
   private async handleFileAuditMsJob(job: BotJob) {
-    const targetDateStr = job.payload?.targetDate;
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDateStr = payload.targetDate;
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
 
-    const msBackupBase = job.payload?.backupPath
+    const msBackupBase = payload.backupPath
       || await this.settingsService.getSetting('bot_backup_path_ms', 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
 
     const year = targetDate.getFullYear().toString();
@@ -429,7 +433,8 @@ export class BotJobQueueService implements OnModuleInit {
    * Runs the CqgSyncService autoMergeMissingFiles to scan and consolidate CQG backup files.
    */
   private async handleFileAuditCqgJob(job: BotJob) {
-    const targetDate = job.payload?.targetDate ? new Date(job.payload.targetDate) : new Date();
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDate = payload.targetDate ? new Date(payload.targetDate) : new Date();
     const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
 
     job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra file backup CQG tại thư mục: ${fullPath}`);
@@ -624,7 +629,8 @@ export class BotJobQueueService implements OnModuleInit {
    * Xử lý Job FILE_AUDIT_ACM.
    */
   private async handleFileAuditAcmJob(job: BotJob) {
-    const targetDateStr = job.payload?.targetDate;
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDateStr = payload.targetDate;
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
 
     const acmBackupBase = await this.getAcmBackupBase();
@@ -666,8 +672,9 @@ export class BotJobQueueService implements OnModuleInit {
           }, 5 * 60 * 1000);
 
           job.status = 'AWAITING_CAPTCHA';
+          const currentPayload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
           job.payload = {
-            ...job.payload,
+            ...currentPayload,
             captchaImage: base64Img,
           };
           job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
@@ -716,5 +723,170 @@ export class BotJobQueueService implements OnModuleInit {
         throw err;
       }
     }
+  }
+
+  /**
+   * Xử lý Job RUN_LOT_MACRO: Gọi script Python điều phối Excel headlessly.
+   */
+  private async handleRunLotMacroJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
+    if (!targetDateStr) {
+      throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
+    }
+
+    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
+      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
+      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
+
+    const macroPath = payload.macroPath
+      || await this.settingsService.getSetting(
+        'bot_macro_lot_path',
+        defaultMacroPath
+      );
+    const backupMs = payload.backupPathMs
+      || await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+      );
+    const backupCqg = payload.backupPathCqg
+      || await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+      );
+    const targetRoot = payload.targetRoot
+      || await this.settingsService.getSetting(
+        'bot_lot_macro_target_root',
+        'M:\\Quanlygiaodich\\Tai lieu hoat dong'
+      );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python'
+    );
+
+    const scriptPath = path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
+
+
+    // Chaining save calls to prevent Mongoose ParallelSaveError
+    let savePromise: Promise<any> = Promise.resolve();
+    const safeSave = () => {
+      savePromise = savePromise.then(() => job.save()).catch((err) => {
+        this.logger.error(`Error saving bot job in handleRunLotMacroJob: ${err.message}`);
+      });
+      return savePromise;
+    };
+
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(`Bắt đầu chạy Macro thống kê số lot cho ngày: ${targetDateStr}`);
+    log(`Python Executable: ${pythonExe}`);
+    log(`Script Python: ${scriptPath}`);
+    log(`File Macro Excel gốc: ${macroPath}`);
+    log(`File Macro chạy tạm: ${tempMacroPath}`);
+    log(`Thư mục Backup MS: ${backupMs}`);
+    log(`Thư mục Backup CQG: ${backupCqg}`);
+    log(`Thư mục đích lưu báo cáo (targetRoot): ${targetRoot}`);
+
+    await safeSave();
+
+    const { spawn } = require('child_process');
+    const child = spawn(pythonExe, [
+      scriptPath,
+      macroPath,
+    ]);
+
+    let finalJsonStr = '';
+
+    const savePayloadField = (key: string, val: any) => {
+      if (job.payload instanceof Map) {
+        job.payload.set(key, val);
+      } else {
+        if (!job.payload) job.payload = {};
+        job.payload[key] = val;
+      }
+    };
+
+    return new Promise<void>((resolve, reject) => {
+      child.stdout.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) {
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              finalJsonStr = trimmed;
+            } else if (trimmed.startsWith('[VBA WARNING]')) {
+              log(`⚠️ ${trimmed}`);
+              const warningText = trimmed.substring('[VBA WARNING]'.length).trim();
+              
+              let currentWarnings = [];
+              if (job.payload instanceof Map) {
+                currentWarnings = job.payload.get('warnings') || [];
+              } else {
+                currentWarnings = job.payload?.warnings || [];
+              }
+              if (!currentWarnings.includes(warningText)) {
+                currentWarnings.push(warningText);
+                savePayloadField('warnings', currentWarnings);
+              }
+            } else if (trimmed.startsWith('[VBA RUNTIME ERROR]')) {
+              log(`❌ ${trimmed}`);
+            } else {
+              log(`  > ${trimmed}`);
+            }
+          }
+        }
+        safeSave();
+      });
+
+      child.stderr.on('data', (data: any) => {
+        const text = data.toString('utf8');
+        log(`  > [Stderr] ${text.trim()}`);
+        safeSave();
+      });
+
+      child.on('close', async (code: number | null) => {
+
+        // Wait for any pending logs to finish saving to the database
+        await savePromise;
+        
+        if (code === 0) {
+          if (finalJsonStr) {
+            try {
+              const parsed = JSON.parse(finalJsonStr);
+              if (parsed.success) {
+                log('✅ Macro hoàn tất thành công.');
+                if (parsed.warnings && parsed.warnings.length > 0) {
+                  savePayloadField('warnings', parsed.warnings);
+                }
+                await safeSave();
+                resolve();
+              } else {
+                reject(new Error(parsed.error || 'Lỗi không xác định từ Script Python'));
+              }
+            } catch (err: any) {
+              reject(new Error(`Không thể phân tích kết quả JSON từ script: ${err.message}`));
+            }
+          } else {
+            resolve();
+          }
+        } else {
+          reject(new Error(`Script Python kết thúc với mã lỗi: ${code}`));
+        }
+      });
+
+      child.on('error', async (err: Error) => {
+        try {
+          if (fs.existsSync(tempMacroPath)) {
+            fs.unlinkSync(tempMacroPath);
+          }
+        } catch {}
+        await savePromise;
+        reject(err);
+      });
+    });
   }
 }
