@@ -73,6 +73,24 @@ export default function AdminBotConfigPage() {
   const [acmSftpRemoteDir, setAcmSftpRemoteDir] = useState('/data/');
   const [showAcmSftpPassword, setShowAcmSftpPassword] = useState(false);
 
+  // CQG CAST credentials
+  const [castUrl, setCastUrl] = useState('https://www.cqgtrader.com/CAST/Logon/Logon.asp');
+  const [castUsername, setCastUsername] = useState('');
+  const [castPassword, setCastPassword] = useState('');
+  const [showCastPassword, setShowCastPassword] = useState(false);
+
+  // CPP credentials
+  const [cppUrl, setCppUrl] = useState('');
+  const [cppUsername, setCppUsername] = useState('');
+  const [cppPassword, setCppPassword] = useState('');
+  const [showCppPassword, setShowCppPassword] = useState(false);
+
+  // CE credentials
+  const [ceUrl, setCeUrl] = useState('');
+  const [ceUsername, setCeUsername] = useState('');
+  const [cePassword, setCePassword] = useState('');
+  const [showCePassword, setShowCePassword] = useState(false);
+
   // UI state
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);
   const [showMsystemPin, setShowMsystemPin] = useState(false);
@@ -233,6 +251,21 @@ export default function AdminBotConfigPage() {
           setAcmSftpPassword(data.acm.sftpPassword || '');
           setAcmSftpRemoteDir(data.acm.sftpRemoteDir || '/data/');
         }
+        if (data.cast) {
+          setCastUrl(data.cast.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp');
+          setCastUsername(data.cast.username || '');
+          setCastPassword(data.cast.password || '');
+        }
+        if (data.cpp) {
+          setCppUrl(data.cpp.url || '');
+          setCppUsername(data.cpp.username || '');
+          setCppPassword(data.cpp.password || '');
+        }
+        if (data.ce) {
+          setCeUrl(data.ce.url || '');
+          setCeUsername(data.ce.username || '');
+          setCePassword(data.ce.password || '');
+        }
       }
 
       // Fetch Backup MS path
@@ -392,6 +425,21 @@ export default function AdminBotConfigPage() {
             sftpUsername: acmSftpUsername.trim(),
             sftpPassword: acmSftpPassword,
             sftpRemoteDir: acmSftpRemoteDir.trim(),
+          },
+          cast: {
+            url: castUrl.trim(),
+            username: castUsername.trim(),
+            password: castPassword,
+          },
+          cpp: {
+            url: cppUrl.trim(),
+            username: cppUsername.trim(),
+            password: cppPassword,
+          },
+          ce: {
+            url: ceUrl.trim(),
+            username: ceUsername.trim(),
+            password: cePassword,
           },
         }),
       });
@@ -1772,6 +1820,202 @@ export default function AdminBotConfigPage() {
                           value={acmSftpRemoteDir}
                           onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
                         />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CQG CAST Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Globe size={20} color="#f59e0b" />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản CQG CAST</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>Dùng để tự động tải Accounts_Balances.xlsx phục vụ kiểm tra SOD</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URL CQG CAST</label>
+                      <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type="url"
+                          id="cast-url"
+                          className="form-input"
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://www.cqgtrader.com/CAST/Logon/Logon.asp"
+                          value={castUrl}
+                          onChange={(e) => setCastUrl(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tên đăng nhập CAST</label>
+                        <input
+                          type="text"
+                          id="cast-username"
+                          className="form-input"
+                          placeholder="Nhập username CAST..."
+                          value={castUsername}
+                          onChange={(e) => setCastUsername(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mật khẩu CAST</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showCastPassword ? 'text' : 'password'}
+                            id="cast-password"
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Nhập mật khẩu..."
+                            value={castPassword}
+                            onChange={(e) => setCastPassword(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCastPassword(!showCastPassword)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showCastPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', fontSize: '0.8rem', color: '#f59e0b' }}>
+                      💡 Script sẽ tự bypass cảnh báo IE Mode bằng cách inject mock <code>localeinfoproviderObj</code> + IE11 User-Agent
+                    </div>
+                  </div>
+                </div>
+
+                {/* CPP Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Globe size={20} color="#8b5cf6" />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản CPP</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>Dùng để đăng nhập và thực hiện kiểm tra MM / CPP tự động</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URL CPP</label>
+                      <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type="url"
+                          id="cpp-url"
+                          className="form-input"
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://cpp.mxv.com.vn/..."
+                          value={cppUrl}
+                          onChange={(e) => setCppUrl(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tên đăng nhập CPP</label>
+                        <input
+                          type="text"
+                          id="cpp-username"
+                          className="form-input"
+                          placeholder="Nhập username CPP..."
+                          value={cppUsername}
+                          onChange={(e) => setCppUsername(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mật khẩu CPP</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showCppPassword ? 'text' : 'password'}
+                            id="cpp-password"
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Nhập mật khẩu..."
+                            value={cppPassword}
+                            onChange={(e) => setCppPassword(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCppPassword(!showCppPassword)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showCppPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CE Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Globe size={20} color="#06b6d4" />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tài Khoản CE</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>Dùng để đăng nhập và thực hiện kiểm tra CE / EOD tự động</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URL CE</label>
+                      <div style={{ position: 'relative' }}>
+                        <Globe size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
+                        <input
+                          type="url"
+                          id="ce-url"
+                          className="form-input"
+                          style={{ paddingLeft: '40px' }}
+                          placeholder="https://ce.mxv.com.vn/..."
+                          value={ceUrl}
+                          onChange={(e) => setCeUrl(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tên đăng nhập CE</label>
+                        <input
+                          type="text"
+                          id="ce-username"
+                          className="form-input"
+                          placeholder="Nhập username CE..."
+                          value={ceUsername}
+                          onChange={(e) => setCeUsername(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mật khẩu CE</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showCePassword ? 'text' : 'password'}
+                            id="ce-password"
+                            className="form-input"
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Nhập mật khẩu..."
+                            value={cePassword}
+                            onChange={(e) => setCePassword(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCePassword(!showCePassword)}
+                            style={{ position: 'absolute', right: '12px', top: '14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            {showCePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
