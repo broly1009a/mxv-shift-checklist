@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -38,10 +38,12 @@ const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
 ];
 
 @Injectable()
-export class BotJobQueueService implements OnModuleInit {
+export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
   private isProcessing = false;
   private readonly captchaResolvers = new Map<string, (captcha: string) => void>();
+  private queueInterval: NodeJS.Timeout;
+  private cleanupInterval: NodeJS.Timeout;
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
@@ -57,20 +59,30 @@ export class BotJobQueueService implements OnModuleInit {
     });
 
     // Khởi chạy vòng lặp worker ngầm mỗi 10 giây
-    setInterval(() => {
+    this.queueInterval = setInterval(() => {
       this.processQueue().catch((err) => {
         this.logger.error(`Error in background queue loop: ${err.message}`, err.stack);
       });
     }, 10000);
 
     // Chạy dọn dẹp định kỳ mỗi 5 phút một lần
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       this.cleanupStuckJobs().catch((err) => {
         this.logger.error(`Lỗi khi dọn dẹp định kỳ các Job bị treo: ${err.message}`);
       });
     }, 5 * 60 * 1000);
 
     this.logger.log('Background BotJob queue worker initialized (polling every 10s).');
+  }
+
+  onModuleDestroy() {
+    if (this.queueInterval) {
+      clearInterval(this.queueInterval);
+    }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    this.logger.log('Background BotJob queue worker stopped.');
   }
 
   /**
