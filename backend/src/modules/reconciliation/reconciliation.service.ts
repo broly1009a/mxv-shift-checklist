@@ -513,7 +513,7 @@ export class ReconciliationService {
 
     // DSGD calculations
     dsgdData.forEach(gd => {
-      if (gd.maTKGD.endsWith('A')) {
+      if (gd.maTKGD.toUpperCase().endsWith('A')) {
         totalACM += gd.klGiaoDich;
       } else {
         totalDSGD += gd.klGiaoDich;
@@ -566,7 +566,7 @@ export class ReconciliationService {
 
     // Find DSGD rows not in FR
     dsgdData.forEach(gd => {
-      if (gd.maTKGD.endsWith('A')) return;
+      if (gd.maTKGD.toUpperCase().endsWith('A')) return;
       const existsInFR = frData.some(fr => fr.combinedKey === gd.combinedKey);
       if (!existsInFR) {
         mismatchedTrades.push({
@@ -584,7 +584,7 @@ export class ReconciliationService {
 
     // Find ACM Nano rows not in MSystem
     nanoData.forEach(gd => {
-      const existsInDSGD = dsgdData.some(row => row.maTKGD.endsWith('A') && row.maLenh === gd.maGD);
+      const existsInDSGD = dsgdData.some(row => row.maTKGD.toUpperCase().endsWith('A') && row.maLenh === gd.maGD);
       if (!existsInDSGD) {
         mismatchedTrades.push({
           source: 'ACM',
@@ -601,7 +601,7 @@ export class ReconciliationService {
 
     // Find MSystem ACM rows not in Nano
     dsgdData.forEach(gd => {
-      if (!gd.maTKGD.endsWith('A')) return;
+      if (!gd.maTKGD.toUpperCase().endsWith('A')) return;
       const existsInNano = nanoData.some(row => row.maGD === gd.maLenh);
       if (!existsInNano) {
         mismatchedTrades.push({
@@ -643,7 +643,7 @@ export class ReconciliationService {
 
       const allAccounts = Array.from(new Set([...Object.keys(ttmSummary), ...Object.keys(opSummary)]));
       allAccounts.forEach(acc => {
-        if (acc.endsWith('A')) return; // Skip ACM
+        if (acc.toUpperCase().endsWith('A')) return; // Skip ACM
 
         const ttmVal = ttmSummary[acc] || 0;
         const opVal = opSummary[acc] || 0;
@@ -1256,7 +1256,7 @@ export class ReconciliationService {
     let totalACM_MS = 0;
     let totalCQG_MS = 0;
     dsgdData.forEach(gd => {
-      if (gd.maTKGD.endsWith('A')) {
+      if (gd.maTKGD.toUpperCase().endsWith('A')) {
         totalACM_MS += gd.klGiaoDich;
       } else {
         totalCQG_MS += gd.klGiaoDich;
@@ -1310,7 +1310,7 @@ export class ReconciliationService {
 
     // Find DSGD rows not in FR (excluding ACM trades)
     dsgdData.forEach(gd => {
-      if (gd.maTKGD.endsWith('A')) return;
+      if (gd.maTKGD.toUpperCase().endsWith('A')) return;
       const existsInFR = frData.some(fr => fr.combinedKey === gd.combinedKey);
       if (!existsInFR) {
         mismatchedTrades.push({
@@ -1333,6 +1333,9 @@ export class ReconciliationService {
     // Group MS positions by Account + Symbol
     const msSummary = new Map<string, { account: string; symbol: string; position: number }>();
     ttttList.forEach(item => {
+      // Filter out self-trading (ACM) accounts ending with 'A' or 'a' (like -A, -a, etc.)
+      if (item.account.toUpperCase().endsWith('A')) return;
+
       const key = `${item.account}_${item.symbol}`;
       const existing = msSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
       existing.position += item.position;
