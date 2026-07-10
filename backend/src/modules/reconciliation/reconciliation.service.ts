@@ -32,6 +32,21 @@ export interface CheckKLGDResult {
 export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name);
 
+  private parseCqgNumber(val: any): number {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return val;
+    const str = String(val).trim();
+    if (!str) return 0;
+
+    let normalized = str;
+    if (str.includes(',')) {
+      normalized = str.replace(/\./g, '').replace(/,/g, '.');
+    }
+
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
   // Mappings for LME symbols (from statics.json)
   private readonly LME_CODE_MAP: Record<string, string> = {
     LALZ: 'AHD',
@@ -259,8 +274,8 @@ export class ReconciliationService {
       const ord = String(row[ordIdx] || '').trim();
       const account = String(row[accountIdx] || '').trim();
       const symbol = String(row[symbolIdx] || '').trim();
-      const qty = parseFloat(row[qtyIdx]) || 0;
-      const fillPVal = parseFloat(row[fillPIdx]) || 0;
+      const qty = this.parseCqgNumber(row[qtyIdx]);
+      const fillPVal = this.parseCqgNumber(row[fillPIdx]);
       const time = timeIdx !== -1 ? String(row[timeIdx] || '').trim() : '';
 
       if (!ord || !account || !symbol) continue;
@@ -419,8 +434,8 @@ export class ReconciliationService {
 
       const account = String(row[accountIdx] || '').trim();
       const symbol = String(row[symbolIdx] || '').trim();
-      const lValue = parseFloat(row[lIdx]) || 0;
-      const sValue = parseFloat(row[sIdx]) || 0;
+      const lValue = this.parseCqgNumber(row[lIdx]);
+      const sValue = this.parseCqgNumber(row[sIdx]);
 
       if (!symbol) continue;
 
@@ -907,8 +922,7 @@ export class ReconciliationService {
       }
 
       const account = String(row[accountNumberIdx] || '').trim();
-      let balanceStr = String(row[endCashBalanceIdx] || '').trim().replace(/,/g, '');
-      const balance = parseFloat(balanceStr) || 0;
+      const balance = this.parseCqgNumber(row[endCashBalanceIdx]);
 
       if (!account) continue;
 
@@ -1162,7 +1176,11 @@ export class ReconciliationService {
   /**
    * Parse PS.xlsx for Position reconciliation
    */
-  private parsePSForRecon(buffer: Buffer): { account: string; symbol: string; position: number }[] {
+  private parsePSForRecon(
+    buffer: Buffer,
+    tradingDate: Date,
+    holidays: string[] = [],
+  ): { account: string; symbol: string; position: number }[] {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     if (!sheet) return [];
@@ -1184,8 +1202,8 @@ export class ReconciliationService {
       const row = rows[i];
       if (!row || row.length === 0) continue;
       let account = String(row[finalAccIdx] || '').trim();
-      const symbol = String(row[finalSymIdx] || '').trim();
-      const position = parseFloat(row[finalPosIdx]) || 0;
+      let symbol = String(row[finalSymIdx] || '').trim();
+      const position = this.parseCqgNumber(row[finalPosIdx]);
       if (!account || !symbol) continue;
 
       // adjust account suffix
@@ -1193,6 +1211,9 @@ export class ReconciliationService {
         .replace(/L$/i, '-L')
         .replace(/S$/i, '-S')
         .replace(/--/g, '-');
+
+      // convert LME symbols
+      symbol = this.convertLMESymbol(symbol, tradingDate, holidays);
 
       result.push({ account, symbol, position });
     }
@@ -1328,7 +1349,7 @@ export class ReconciliationService {
 
     // 6. Compare Net Positions (Check 2: TTTT.xlsx vs PS.xlsx)
     const ttttList = this.parseTTTTForRecon(files.tttt);
-    const psList = this.parsePSForRecon(files.cqgPs);
+    const psList = this.parsePSForRecon(files.cqgPs, tradingDate, holidays);
 
     // Group MS positions by Account + Symbol
     const msSummary = new Map<string, { account: string; symbol: string; position: number }>();
