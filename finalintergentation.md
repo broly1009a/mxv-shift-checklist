@@ -40,3 +40,36 @@ reconciliationService.checkEOD/SOD/KLGD()
         ▼
 Email alert kết quả
 Kết luận: Phần lớn là nối dây giữa những thứ đã có, không phải xây mới. Khi bạn muốn làm, chỉ cần nói tôi bắt đầu từ module nào (schedule, UI cấu hình, hay file-finder) là được.
+
+
+
+
+
+
+
+Có đủ thông tin rồi. Câu trả lời thực tế:
+
+Đánh giá thực tế: 1 ngày KHÔNG đủ, cần 2–3 ngày làm việc
+Tại sao?
+Tin vui: @nestjs/schedule đã cài sẵn (line 41 package.json) nhưng chưa được sử dụng. BotJobQueueService.enqueue() đã hoàn thiện (line 91). Tức là scaffold hạ tầng đã có ~60%.
+
+Khó hơn dự kiến vì:
+
+Ngày 1 (~8 tiếng)
+├── Viết SchedulerService + đăng ký @Cron theo config DB     ~3h
+├── Thêm handler 'DOWNLOAD_CAST' + 'AUTO_CHECK_SOD' vào
+│   processQueue() của BotJobQueueService                     ~2h
+├── Hàm readLatestFileInDir(folder, pattern) tự tìm file     ~1h
+└── Test từng bước: cron → enqueue → job chạy               ~2h
+Ngày 2 (~8 tiếng)
+├── Admin UI: toggle enable/disable, set giờ, thư mục       ~3h
+├── Lưu schedule config vào DB (SystemSettings)              ~1h
+├── Nối thêm 3 check còn lại (KLGD, PreEOD, EOD)            ~2h
+└── Email alert sau mỗi check                               ~2h
+Ngày 3 (nếu cần)
+└── Fix bugs, test end-to-end với dữ liệu thực               ~4h
+Điều kiện để rút ngắn xuống 1.5 ngày
+✅ CAST script test pass trước (cần credentials)
+✅ Xác nhận email service dùng cái có sẵn của IT Tool hay viết mới
+✅ Chỉ làm SOD + KLGD trước, để PreEOD/EOD sau
+Kết luận: Khi nào bạn muốn bắt đầu, nói tôi để làm lần lượt — bắt đầu từ SchedulerService + processQueue handler trước sẽ nhanh nhất.
