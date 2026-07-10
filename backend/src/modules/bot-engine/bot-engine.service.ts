@@ -8,6 +8,11 @@ import { EmailWatcherService } from './email-watcher.service';
 import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
 import { BotJobQueueService } from './bot-job-queue.service';
+import { PostEodHandlerService } from './post-eod-handler.service';
+import { TelegramService } from '../telegram/telegram.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class BotEngineService {
@@ -21,6 +26,9 @@ export class BotEngineService {
     private readonly fileWatcherService: FileWatcherService,
     private readonly apiWatcherService: ApiWatcherService,
     private readonly botJobQueueService: BotJobQueueService,
+    private readonly postEodHandlerService: PostEodHandlerService,
+    private readonly telegramService: TelegramService,
+    private readonly settingsService: SystemSettingsService,
   ) {}
 
   /**
@@ -114,6 +122,67 @@ export class BotEngineService {
 
           if (checkType === 'EMAIL_PARSE') {
             checkResult = await this.emailWatcherService.checkEmailTask(target, condition);
+            
+            // Post-EOD processing logic for Negative Margin Accounts Check
+            if (checkResult.success) {
+              const isEodTask = task.taskId.toLowerCase().includes('eod') || 
+                                task.taskNameSnapshot.toLowerCase().includes('eod') || 
+                                target.toLowerCase().includes('eod') ||
+                                target.toLowerCase().includes('đối chiếu') ||
+                                target.toLowerCase().includes('snapshot');
+
+              if (isEodTask) {
+                const rawDownloadDir = await this.settingsService.getSetting('m365_download_directory', '');
+                if (rawDownloadDir) {
+                  const today = new Date(Date.now() + 7 * 60 * 60 * 1000);
+                  const yyyy = today.getUTCFullYear().toString();
+                  const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+                  const dd = today.getUTCDate().toString().padStart(2, '0');
+                  const downloadDir = rawDownloadDir
+                    .replace(/\${YYYY}/g, yyyy)
+                    .replace(/\${MM}/g, mm)
+                    .replace(/\${DD}/g, dd)
+                    .replace(/\${yyyy}/g, yyyy)
+                    .replace(/\${mm}/g, mm)
+                    .replace(/\${dd}/g, dd);
+
+                  if (fs.existsSync(downloadDir)) {
+                    const files = fs.readdirSync(downloadDir);
+                    const eodFiles = files.filter(f => f.toLowerCase().endsWith('.xlsx') || f.toLowerCase().endsWith('.xls') || f.toLowerCase().endsWith('.csv'));
+                    
+                    if (eodFiles.length > 0) {
+                      this.logger.log(`[Post-EOD] Quét các file EOD tại ${downloadDir} để tìm tài khoản âm ký quỹ...`);
+                      let allNegativeAccounts: any[] = [];
+                      for (const file of eodFiles) {
+                        const filePath = path.join(downloadDir, file);
+                        const negatives = await this.postEodHandlerService.scanNegativeMarginAccounts(filePath);
+                        allNegativeAccounts = [...allNegativeAccounts, ...negatives];
+                      }
+
+                      if (allNegativeAccounts.length > 0) {
+                        const count = allNegativeAccounts.length;
+                        const detailsList = allNegativeAccounts.map(a => `• Tài khoản: <b>${a.account}</b> | Số dư ký quỹ: <font color="red"><b>${a.margin.toLocaleString()}</b></font>`).join('\n');
+                        
+                        // Construct Telegram Alert
+                        const alertMsg = `⚠️ <b>[CẢNH BÁO KÝ QUỸ ĐẦU NGÀY - POST EOD]</b>\n` +
+                          `Phát hiện <b>${count} tài khoản bị âm ký quỹ đầu ngày</b> sau phiên EOD:\n\n` +
+                          `${detailsList}\n\n` +
+                          `Đề nghị bộ phận trực ca vận hành kiểm tra và xử lý theo quy trình!`;
+
+                        // Send alert via Telegram
+                        await this.telegramService.sendMessage(alertMsg);
+                        this.logger.warn(`[Post-EOD] Đã phát hiện ${count} tài khoản âm ký quỹ đầu ngày. Đã gửi cảnh báo Telegram.`);
+
+                        // Append to checkResult message for Web UI representation
+                        checkResult.message += `. ⚠️ CẢNH BÁO: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}`;
+                      } else {
+                        checkResult.message += `. ✅ Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`;
+                      }
+                    }
+                  }
+                }
+              }
+            }
           } else if (checkType === 'FILE_EXISTS') {
             // Fallback to target if fileLocation is not set
             const filePath = task.fileLocationSnapshot || target;
