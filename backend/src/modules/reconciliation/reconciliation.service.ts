@@ -329,7 +329,7 @@ export class ReconciliationService {
     const header = rows[1].map(h => String(h || '').trim());
     const accountIdx = header.indexOf('Account');
     const symbolIdx = header.indexOf('Symbol');
-    
+
     // Find L and S columns
     let lIdx = header.findIndex(h => h === 'L' || h.startsWith('L (') || h.startsWith('('));
     let sIdx = header.findIndex(h => h === 'S' || h.startsWith('S (') || h.startsWith('S('));
@@ -372,18 +372,18 @@ export class ReconciliationService {
     if (rows.length < 2) return [];
 
     const header = rows[0].map(h => String(h || '').trim());
-    
+
     // Support all variations of headers
     const maTKGDIdx = header.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
     const maHDIdx = header.findIndex(h => h === 'Mã HĐ' || h === 'Mã hợp đồng');
-    
-    const tongMuaIdx = header.findIndex(h => 
+
+    const tongMuaIdx = header.findIndex(h =>
       h === 'KL Mua' || h === 'Tổng KL Mua' || h === 'Tổng mua' || h === 'Tổng KL mua'
     );
-    const tongBanIdx = header.findIndex(h => 
+    const tongBanIdx = header.findIndex(h =>
       h === 'KL Bán' || h === 'Tổng KL Bán' || h === 'Tổng bán' || h === 'Tổng KL bán'
     );
-    const giaKhopIdx = header.findIndex(h => 
+    const giaKhopIdx = header.findIndex(h =>
       h === 'Giá TB' || h === 'Giá khớp' || h === 'Giá trung bình'
     );
 
@@ -425,7 +425,7 @@ export class ReconciliationService {
   ): Promise<CheckKLGDResult> {
     const dsgdData = files.dsgd ? this.parseDSGD(files.dsgd) : [];
     const nanoData = files.nano ? this.parseNano(files.nano) : [];
-    
+
     // Parse and merge FR files
     const frData: any[] = [];
     if (files.fr1) frData.push(...this.parseFR(files.fr1, tradingDate, holidays));
@@ -1116,9 +1116,9 @@ export class ReconciliationService {
 
       // adjust account suffix
       account = account.replace(/F$/i, '')
-                       .replace(/L$/i, '-L')
-                       .replace(/S$/i, '-S')
-                       .replace(/--/g, '-');
+        .replace(/L$/i, '-L')
+        .replace(/S$/i, '-S')
+        .replace(/--/g, '-');
 
       result.push({ account, symbol, position });
     }
@@ -1138,7 +1138,6 @@ export class ReconciliationService {
     holidays: string[] = [],
   ): Promise<{
     passed: boolean;
-    warnings: string[];
     totals: {
       totalACM_MS: number;
       totalACM_Straits: number;
@@ -1165,8 +1164,6 @@ export class ReconciliationService {
       differ: number;
     }>;
   }> {
-    const warnings: string[] = [];
-
     // 1. Calculate expected T-1 date relative to tradingDate
     const d = new Date(tradingDate);
     d.setDate(d.getDate() - 1);
@@ -1175,9 +1172,9 @@ export class ReconciliationService {
     }
     const expectedDateStr = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`;
 
-    // Validate filename date suffix for acmTrades - WARNING only, not error
+    // Validate filename date suffix for acmTrades
     if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
-      warnings.push(`⚠️ Tên file ACM (${acmTradesName}) không khớp ngày T-1 dự kiến (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Có thể do ngày nghỉ lễ hoặc chọn nhầm file. Vui lòng xác nhận lại.`);
+      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Vui lòng kiểm tra lại.`);
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
@@ -1311,7 +1308,6 @@ export class ReconciliationService {
 
     return {
       passed,
-      warnings,
       totals: {
         totalACM_MS,
         totalACM_Straits,
