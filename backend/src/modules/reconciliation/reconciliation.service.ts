@@ -200,24 +200,59 @@ export class ReconciliationService {
     if (!sheet) return [];
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-    if (rows.length < 3) return [];
+    if (rows.length < 2) return [];
 
-    // Header is on row index 1 (row 2 in Excel)
-    const header = rows[1].map(h => String(h || '').trim());
-    const ordIdx = header.indexOf('Ord #');
-    const accountIdx = header.indexOf('Account');
-    const symbolIdx = header.indexOf('Symbol');
-    const qtyIdx = header.indexOf('Qty');
-    const fillPIdx = header.indexOf('Fill P');
-    const timeIdx = header.indexOf('Time');
+    let headerRowIdx = 1; // Default fallback to row index 1 (row 2 in Excel)
+    let ordIdx = -1;
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let qtyIdx = -1;
+    let fillPIdx = -1;
+    let timeIdx = -1;
+
+    // Scan first 5 rows to locate the header row dynamically
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+      
+      const tempOrdIdx = this.findHeaderIndex(rowHeaders, 'Ord #', ['ord', 'ord #', 'order', 'order #', 'order number']);
+      const tempAccountIdx = this.findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      const tempSymbolIdx = this.findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      const tempQtyIdx = this.findHeaderIndex(rowHeaders, 'Qty', ['qty', 'quantity', 'kl', 'khối lượng', 'volume', 'qty.']);
+      const tempFillPIdx = this.findHeaderIndex(rowHeaders, 'Fill P', ['fill p', 'fill price', 'gia khop', 'giá khớp', 'fill_p', 'fillpx', 'fill px']);
+      const tempTimeIdx = this.findHeaderIndex(rowHeaders, 'Time', ['time', 'thoi gian', 'ngày giờ', 'ngay gio']);
+
+      if (tempOrdIdx !== -1 && tempAccountIdx !== -1 && tempSymbolIdx !== -1 && tempQtyIdx !== -1 && tempFillPIdx !== -1) {
+        headerRowIdx = r;
+        ordIdx = tempOrdIdx;
+        accountIdx = tempAccountIdx;
+        symbolIdx = tempSymbolIdx;
+        qtyIdx = tempQtyIdx;
+        fillPIdx = tempFillPIdx;
+        timeIdx = tempTimeIdx;
+        break;
+      }
+    }
+
+    // Fallback search if not found dynamically
+    if (ordIdx === -1 || accountIdx === -1 || symbolIdx === -1 || qtyIdx === -1 || fillPIdx === -1) {
+      const fallbackHeader = rows[1] ? rows[1].map(h => String(h || '').trim()) : [];
+      ordIdx = this.findHeaderIndex(fallbackHeader, 'Ord #', ['ord', 'ord #', 'order', 'order #', 'order number']);
+      accountIdx = this.findHeaderIndex(fallbackHeader, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      symbolIdx = this.findHeaderIndex(fallbackHeader, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      qtyIdx = this.findHeaderIndex(fallbackHeader, 'Qty', ['qty', 'quantity', 'kl', 'khối lượng', 'volume', 'qty.']);
+      fillPIdx = this.findHeaderIndex(fallbackHeader, 'Fill P', ['fill p', 'fill price', 'gia khop', 'giá khớp', 'fill_p', 'fillpx', 'fill px']);
+      timeIdx = this.findHeaderIndex(fallbackHeader, 'Time', ['time', 'thoi gian', 'ngày giờ', 'ngay gio']);
+    }
 
     if (ordIdx === -1 || accountIdx === -1 || symbolIdx === -1 || qtyIdx === -1 || fillPIdx === -1) {
       throw new Error('Thiếu cột bắt buộc trong file CQG FR (Ord #, Account, Symbol, Qty, Fill P)');
     }
 
     const result = [];
-    // Data starts at row index 2 (row 3 in Excel)
-    for (let i = 2; i < rows.length; i++) {
+    // Data starts after header row
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
@@ -323,23 +358,62 @@ export class ReconciliationService {
     if (!sheet) return [];
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-    if (rows.length < 3) return [];
+    if (rows.length < 2) return [];
 
-    // Header is on row index 1 (row 2 in Excel)
-    const header = rows[1].map(h => String(h || '').trim());
-    const accountIdx = header.indexOf('Account');
-    const symbolIdx = header.indexOf('Symbol');
+    let headerRowIdx = 1;
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let lIdx = -1;
+    let sIdx = -1;
 
-    // Find L and S columns
-    let lIdx = header.findIndex(h => h === 'L' || h.startsWith('L (') || h.startsWith('('));
-    let sIdx = header.findIndex(h => h === 'S' || h.startsWith('S (') || h.startsWith('S('));
+    // Scan first 5 rows to locate the header row dynamically
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+
+      const tempAccountIdx = this.findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      const tempSymbolIdx = this.findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      
+      let tempLIdx = rowHeaders.findIndex(h => {
+        const norm = h.toLowerCase().trim();
+        return norm === 'l' || norm.startsWith('l (') || norm.startsWith('(');
+      });
+      let tempSIdx = rowHeaders.findIndex(h => {
+        const norm = h.toLowerCase().trim();
+        return norm === 's' || norm.startsWith('s (') || norm.startsWith('s(');
+      });
+
+      if (tempAccountIdx !== -1 && tempSymbolIdx !== -1 && tempLIdx !== -1 && tempSIdx !== -1) {
+        headerRowIdx = r;
+        accountIdx = tempAccountIdx;
+        symbolIdx = tempSymbolIdx;
+        lIdx = tempLIdx;
+        sIdx = tempSIdx;
+        break;
+      }
+    }
+
+    if (accountIdx === -1 || symbolIdx === -1 || lIdx === -1 || sIdx === -1) {
+      const fallbackHeader = rows[1] ? rows[1].map(h => String(h || '').trim()) : [];
+      accountIdx = this.findHeaderIndex(fallbackHeader, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      symbolIdx = this.findHeaderIndex(fallbackHeader, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      lIdx = fallbackHeader.findIndex(h => {
+        const norm = h.toLowerCase().trim();
+        return norm === 'l' || norm.startsWith('l (') || norm.startsWith('(');
+      });
+      sIdx = fallbackHeader.findIndex(h => {
+        const norm = h.toLowerCase().trim();
+        return norm === 's' || norm.startsWith('s (') || norm.startsWith('s(');
+      });
+    }
 
     if (accountIdx === -1 || symbolIdx === -1 || lIdx === -1 || sIdx === -1) {
       throw new Error('Thiếu cột bắt buộc trong file OP (Account, Symbol, L, S)');
     }
 
     const result = [];
-    for (let i = 2; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
