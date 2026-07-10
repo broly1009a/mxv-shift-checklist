@@ -58,6 +58,8 @@ export default function ReconciliationModal({
     return today.toISOString().split('T')[0];
   });
 
+  const [sessionStart, setSessionStart] = useState<string>('06:00');
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [resultType, setResultType] = useState<'KLGD' | 'EOD' | 'CQG' | 'PRE_EOD'>('KLGD');
@@ -84,6 +86,7 @@ export default function ReconciliationModal({
     formData.append('shiftLogId', shiftLogId);
     formData.append('taskId', taskId);
     formData.append('tradingDate', tradingDate);
+    formData.append('sessionStart', sessionStart);
 
     let endpoint = `${API_BASE_URL}/reconciliation/upload-klgd`;
 
@@ -318,7 +321,7 @@ export default function ReconciliationModal({
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Form input row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mode === 'CQG' ? '1fr 1fr' : '1fr 1fr 1.5fr', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Ngày phiên giao dịch</label>
               <input 
@@ -329,6 +332,19 @@ export default function ReconciliationModal({
                 style={{ height: '38px', fontSize: '0.85rem' }}
               />
             </div>
+
+            {mode !== 'CQG' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Giờ bắt đầu phiên</label>
+                <input 
+                  type="time" 
+                  value={sessionStart}
+                  onChange={(e) => setSessionStart(e.target.value)}
+                  className="form-input"
+                  style={{ height: '38px', fontSize: '0.85rem' }}
+                />
+              </div>
+            )}
             
             {mode === 'CQG' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

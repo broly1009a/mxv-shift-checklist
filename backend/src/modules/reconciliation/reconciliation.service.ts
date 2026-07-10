@@ -47,6 +47,64 @@ export class ReconciliationService {
     return isNaN(parsed) ? 0 : parsed;
   }
 
+  private parseCqgDateTime(timeStr: string, defaultDate: Date): Date | null {
+    if (!timeStr) return null;
+    timeStr = timeStr.trim();
+
+    // Check if it has a date part (contains '/' or '-')
+    if (timeStr.includes('/') || timeStr.includes('-')) {
+      const parts = timeStr.split(/\s+/);
+      const datePart = parts[0];
+      const timePart = parts[1] || '00:00:00';
+
+      const dateSep = datePart.includes('/') ? '/' : '-';
+      const dateBits = datePart.split(dateSep).map(Number);
+      if (dateBits.length < 3) return null;
+
+      let year = 0;
+      let month = 0;
+      let day = 0;
+
+      if (dateBits[0] > 31) {
+        // YYYY-MM-DD
+        year = dateBits[0];
+        month = dateBits[1];
+        day = dateBits[2];
+      } else {
+        // MM/DD/YY or MM/DD/YYYY (CQG US export format)
+        month = dateBits[0];
+        day = dateBits[1];
+        year = dateBits[2];
+      }
+
+      if (year < 100) {
+        year += 2000;
+      }
+
+      const timeBits = timePart.split(':');
+      const hours = Number(timeBits[0]) || 0;
+      const minutes = Number(timeBits[1]) || 0;
+      const secondsVal = parseFloat(timeBits[2] || '0') || 0;
+      const seconds = Math.floor(secondsVal);
+      const ms = Math.round((secondsVal - seconds) * 1000);
+
+      return new Date(year, month - 1, day, hours, minutes, seconds, ms);
+    } else {
+      // Time only: combine with defaultDate (keeping defaultDate's year, month, day)
+      const timeBits = timeStr.split(':');
+      if (timeBits.length < 2) return null;
+      const hours = Number(timeBits[0]) || 0;
+      const minutes = Number(timeBits[1]) || 0;
+      const secondsVal = parseFloat(timeBits[2] || '0') || 0;
+      const seconds = Math.floor(secondsVal);
+      const ms = Math.round((secondsVal - seconds) * 1000);
+
+      const result = new Date(defaultDate);
+      result.setHours(hours, minutes, seconds, ms);
+      return result;
+    }
+  }
+
   // Mappings for LME symbols (from statics.json)
   private readonly LME_CODE_MAP: Record<string, string> = {
     LALZ: 'AHD',
@@ -510,15 +568,97 @@ export class ReconciliationService {
   async checkKLGD(
     files: { dsgd?: Buffer; fr1?: Buffer; fr2?: Buffer; nano?: Buffer; ttm?: Buffer; op1?: Buffer; op2?: Buffer },
     tradingDate: Date,
-    holidays: string[] = []
+    holidays: string[] = [],
+    sessionStartStr: string = '06:00'
   ): Promise<CheckKLGDResult> {
-    const dsgdData = files.dsgd ? this.parseDSGD(files.dsgd) : [];
-    const nanoData = files.nano ? this.parseNano(files.nano) : [];
+    const rawDsgdData = files.dsgd ? this.parseDSGD(files.dsgd) : [];
+    const rawNanoData = files.nano ? this.parseNano(files.nano) : [];
 
     // Parse and merge FR files
-    const frData: any[] = [];
-    if (files.fr1) frData.push(...this.parseFR(files.fr1, tradingDate, holidays));
-    if (files.fr2) frData.push(...this.parseFR(files.fr2, tradingDate, holidays));
+    const rawFrData: any[] = [];
+    if (files.fr1) rawFrData.push(...this.parseFR(files.fr1, tradingDate, holidays));
+    if (files.fr2) rawFrData.push(...this.parseFR(files.fr2, tradingDate, holidays));
+
+    // Calculate time bounds: sessionStart and checkTime
+    let sessionStart = new Date(tradingDate);
+    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+
+    const isPastDateOrDateOnly =
+      (tradingDate.getHours() === 0 && tradingDate.getMinutes() === 0 && tradingDate.getSeconds() === 0) ||
+      (tradingDate.getUTCHours() === 0 && tradingDate.getUTCMinutes() === 0 && tradingDate.getUTCSeconds() === 0);
+
+    let checkTime: Date;
+    if (isPastDateOrDateOnly) {
+      // Historical check or date-only upload: include the entire 24h session window
+      sessionStart.setHours(sHour, sMin, 0, 0);
+      checkTime = new Date(sessionStart);
+      checkTime.setDate(checkTime.getDate() + 1);
+    } else {
+      // Live check: mimic the C# tool logic
+      checkTime = new Date(tradingDate);
+      sessionStart.setHours(sHour, sMin, 0, 0);
+      if (checkTime < sessionStart) {
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+    }
+
+    // Filter DSGD data
+    const dsgdData = rawDsgdData.filter(gd => {
+      if (!gd.ngayGio) return true;
+      const parts = gd.ngayGio.split(/\s+/);
+      const dateParts = parts[0].split('-');
+      const timeParts = (parts[1] || '00:00:00').split(':');
+      if (dateParts.length < 3) return true;
+      const d = Number(dateParts[0]);
+      const m = Number(dateParts[1]);
+      const y = Number(dateParts[2]);
+      const hr = Number(timeParts[0]) || 0;
+      const min = Number(timeParts[1]) || 0;
+      const secVal = parseFloat(timeParts[2] || '0') || 0;
+      const sec = Math.floor(secVal);
+      const ms = Math.round((secVal - sec) * 1000);
+      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      return tradeTime <= checkTime;
+    });
+
+    // Filter Nano data
+    const nanoData = rawNanoData.filter(gd => {
+      if (!gd.ngayGio) return true;
+      const parts = gd.ngayGio.split(/\s+/);
+      const dateStr = parts[0];
+      let y = 0, m = 0, d = 0;
+      if (dateStr.includes('-')) {
+        const bits = dateStr.split('-');
+        y = Number(bits[0]);
+        m = Number(bits[1]);
+        d = Number(bits[2]);
+      } else if (dateStr.length === 8) {
+        y = Number(dateStr.substring(0, 4));
+        m = Number(dateStr.substring(4, 6));
+        d = Number(dateStr.substring(6, 8));
+      } else {
+        return true;
+      }
+      const timeParts = (parts[1] || '00:00:00').split(':');
+      const hr = Number(timeParts[0]) || 0;
+      const min = Number(timeParts[1]) || 0;
+      const secVal = parseFloat(timeParts[2] || '0') || 0;
+      const sec = Math.floor(secVal);
+      const ms = Math.round((secVal - sec) * 1000);
+      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      return tradeTime <= checkTime;
+    });
+
+    // Filter CQG data using parseCqgDateTime
+    const frData = rawFrData.filter(fr => {
+      if (!fr.time) return true;
+      const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
+      if (!tradeTime) return true;
+      return tradeTime >= sessionStart && tradeTime <= checkTime;
+    });
 
     // Calculate totals
     let totalDSGD = 0;
@@ -1231,6 +1371,7 @@ export class ReconciliationService {
     acmTradesName: string,
     tradingDate: Date,
     holidays: string[] = [],
+    sessionStartStr: string = '06:00',
   ): Promise<{
     passed: boolean;
     totals: {
@@ -1272,8 +1413,50 @@ export class ReconciliationService {
       throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Vui lòng kiểm tra lại.`);
     }
 
+    // Calculate time bounds: sessionStart and checkTime
+    let sessionStart = new Date(tradingDate);
+    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+
+    const isPastDateOrDateOnly =
+      (tradingDate.getHours() === 0 && tradingDate.getMinutes() === 0 && tradingDate.getSeconds() === 0) ||
+      (tradingDate.getUTCHours() === 0 && tradingDate.getUTCMinutes() === 0 && tradingDate.getUTCSeconds() === 0);
+
+    let checkTime: Date;
+    if (isPastDateOrDateOnly) {
+      sessionStart.setHours(sHour, sMin, 0, 0);
+      checkTime = new Date(sessionStart);
+      checkTime.setDate(checkTime.getDate() + 1);
+    } else {
+      checkTime = new Date(tradingDate);
+      sessionStart.setHours(sHour, sMin, 0, 0);
+      if (checkTime < sessionStart) {
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+    }
+
     // 2. Parse DSGD and separate into ACM and CQG trades
-    const dsgdData = this.parseDSGD(files.dsgd);
+    const rawDsgdData = this.parseDSGD(files.dsgd);
+    const dsgdData = rawDsgdData.filter(gd => {
+      if (!gd.ngayGio) return true;
+      const parts = gd.ngayGio.split(/\s+/);
+      const dateParts = parts[0].split('-');
+      const timeParts = (parts[1] || '00:00:00').split(':');
+      if (dateParts.length < 3) return true;
+      const d = Number(dateParts[0]);
+      const m = Number(dateParts[1]);
+      const y = Number(dateParts[2]);
+      const hr = Number(timeParts[0]) || 0;
+      const min = Number(timeParts[1]) || 0;
+      const secVal = parseFloat(timeParts[2] || '0') || 0;
+      const sec = Math.floor(secVal);
+      const ms = Math.round((secVal - sec) * 1000);
+      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      return tradeTime <= checkTime;
+    });
+
     let totalACM_MS = 0;
     let totalCQG_MS = 0;
     dsgdData.forEach(gd => {
@@ -1290,7 +1473,14 @@ export class ReconciliationService {
     const differACM = Math.abs(totalACM_MS - totalACM_Straits);
 
     // 4. Parse CQG FR.xlsx and filter out ZWAZCE
-    const frData = this.parseFR(files.cqgFr, tradingDate, holidays);
+    const rawFrData = this.parseFR(files.cqgFr, tradingDate, holidays);
+    const frData = rawFrData.filter(fr => {
+      if (!fr.time) return true;
+      const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
+      if (!tradeTime) return true;
+      return tradeTime >= sessionStart && tradeTime <= checkTime;
+    });
+
     let totalCQG_FR = 0;
     frData.forEach(fr => {
       if (fr.symbol !== 'ZWAZCE') {

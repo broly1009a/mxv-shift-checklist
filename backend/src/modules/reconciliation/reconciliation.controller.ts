@@ -50,6 +50,7 @@ export class ReconciliationController {
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
     @Body('tradingDate') tradingDateStr?: string,
+    @Body('sessionStart') sessionStartStr?: string,
   ) {
     if (!shiftLogId || !taskId) {
       throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
@@ -72,7 +73,7 @@ export class ReconciliationController {
     }
 
     try {
-      const result = await this.reconciliationService.checkKLGD(fileBuffers, tradingDate);
+      const result = await this.reconciliationService.checkKLGD(fileBuffers, tradingDate, [], sessionStartStr || '06:00');
 
       const systemUser = {
         id: '000000000000000000000000',
@@ -349,6 +350,7 @@ export class ReconciliationController {
   async runTestFromLocalFiles(
     @Body('samplePath') samplePath: string,
     @Body('usdRate') usdRateRaw?: number,
+    @Body('sessionStart') sessionStartStr?: string,
   ) {
     if (!samplePath) {
       throw new BadRequestException('Vui lòng cung cấp đường dẫn thư mục (samplePath).');
@@ -385,7 +387,7 @@ export class ReconciliationController {
         op2: readIfExists('OP2', 'xlsx') || undefined,
         ttm: readIfExists('TTM', 'xlsx') || undefined,
       };
-      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date());
+      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '06:00');
     } catch (err: any) {
       errors.klgd = err.message;
     }
@@ -490,6 +492,7 @@ export class ReconciliationController {
     },
     @Body('usdRate') usdRateStr?: string,
     @Body('tradingDate') tradingDateStr?: string,
+    @Body('sessionStart') sessionStartStr?: string,
   ) {
     const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
     const tradingDate = tradingDateStr ? new Date(tradingDateStr) : new Date();
@@ -523,7 +526,7 @@ export class ReconciliationController {
           op1: fileBuffers.op1,
           op2: fileBuffers.op2,
         };
-        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate);
+        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate, [], sessionStartStr || '06:00');
       } catch (err: any) {
         errors.klgd = err.message;
       }
@@ -596,6 +599,7 @@ export class ReconciliationController {
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
     @Body('tradingDate') tradingDateStr?: string,
+    @Body('sessionStart') sessionStartStr?: string,
   ) {
     if (!shiftLogId || !taskId) {
       throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
@@ -633,6 +637,8 @@ export class ReconciliationController {
         fileBuffers as any,
         acmTradesName,
         tradingDate,
+        [],
+        sessionStartStr || '06:00',
       );
 
       const systemUser = {
