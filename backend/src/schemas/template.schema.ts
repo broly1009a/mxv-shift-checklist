@@ -79,6 +79,9 @@ export class TaskItem {
   @Prop({ required: false, type: [String], default: [] })
   dependsOnTaskIds?: string[];
 
+  @Prop({ required: false, type: String, default: null })
+  parentTaskId?: string | null;
+
   @Prop({ required: false, type: String, enum: ['FIXED_TIME', 'DYNAMIC_AFTER_TASK'], default: 'FIXED_TIME' })
   slaType?: string;
 }

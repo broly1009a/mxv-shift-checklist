@@ -28,7 +28,11 @@
     "test:reconcile-local": "ts-node src/test-reconcile-local-files.ts",
     "test:cqg-login": "ts-node src/test-cqg-login.ts",
     "test:cqg-qss": "ts-node src/test-cqg-qss.ts",
-    "test:cast-download": "ts-node src/test-cast-download.ts"
+    "test:cast-download": "ts-node src/test-cast-download.ts",
+    "test:parent-child": "ts-node src/test-parent-child-tasks.ts",
+    "test:scheduler": "ts-node src/test-dynamic-scheduler.ts",
+    "test:email-sod": "ts-node src/test-email-sod.ts",
+    "test:all-emails": "ts-node src/test-all-emails.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

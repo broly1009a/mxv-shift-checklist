@@ -38,6 +38,7 @@ export class BotEngineController {
     const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
     const cqgRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
     const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
+    const castRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
 
     let msystem = { url: 'https://msystem.mxv.vn/', username: '', password: '', pin: '' };
     let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '' };
@@ -55,6 +56,7 @@ export class BotEngineController {
       sftpRemoteDir: '',
       sftpFileExtensions: '',
     };
+    let cast = { url: 'https://www.cqgtrader.com/CAST/Logon/Logon.asp', username: '', password: '' };
 
     if (msystemRaw) {
       try {
@@ -99,7 +101,24 @@ export class BotEngineController {
       } catch (err) {}
     }
 
-    return { msystem, cqg, acm };
+    if (castRaw) {
+      try {
+        const decrypted = JSON.parse(decrypt(castRaw));
+        cast = {
+          url: decrypted.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+          username: decrypted.username || '',
+          password: decrypted.password ? '********' : '',
+        };
+      } catch (err) {}
+    }
+
+    const schedulerConfigRaw = await this.settingsService.getSetting('bot_scheduler_config', '[]');
+    let schedulerConfig = [];
+    try {
+      schedulerConfig = JSON.parse(schedulerConfigRaw);
+    } catch (e) {}
+
+    return { msystem, cqg, acm, cast, schedulerConfig };
   }
 
   /**
@@ -107,7 +126,11 @@ export class BotEngineController {
    */
   @Post('config')
   async saveConfig(@Body() body: any) {
-    const { msystem, cqg, acm } = body;
+    const { msystem, cqg, acm, cast, schedulerConfig } = body;
+
+    if (schedulerConfig) {
+      await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(schedulerConfig, null, 2));
+    }
 
     if (msystem) {
       const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
@@ -173,6 +196,24 @@ export class BotEngineController {
       await this.settingsService.setSetting('bot_credentials_acm', encrypt(JSON.stringify(mergedAcm)));
     }
 
+    if (cast) {
+      const castRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
+      let currentCast: any = {};
+      if (castRaw) {
+        try {
+          currentCast = JSON.parse(decrypt(castRaw));
+        } catch (err) {}
+      }
+
+      const mergedCast = {
+        url: cast.url || currentCast.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+        username: cast.username !== undefined ? cast.username : currentCast.username,
+        password: cast.password && cast.password !== '********' ? cast.password : currentCast.password,
+      };
+
+      await this.settingsService.setSetting('bot_credentials_cast', encrypt(JSON.stringify(mergedCast)));
+    }
+
     return { success: true, message: 'Cấu hình tài khoản robot đã được cập nhật thành công.' };
   }
 
@@ -211,16 +252,27 @@ export class BotEngineController {
       targets = [targetStr];
     }
 
-    // Force enqueue a fresh RPA job
-    const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+    const checkType = task.botCheckTypeSnapshot || 'RPA_DOWNLOAD';
+    let jobType = 'RPA_DOWNLOAD_REPORTS';
+    const payload: any = {
       taskId: task.taskId,
       shiftLogId: log._id.toString(),
-      targets,
       sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
       maxAttempts: 1, // Only 1 attempt for manual trigger
-    });
+    };
 
-    return { success: true, message: 'Đã đưa yêu cầu chạy RPA tải báo cáo vào hàng đợi.', jobId: job._id };
+    if (checkType === 'RPA_DOWNLOAD_CAST') {
+      jobType = 'DOWNLOAD_CAST';
+    } else if (checkType === 'AUTO_CHECK_SOD') {
+      jobType = 'AUTO_CHECK_SOD';
+    } else {
+      payload.targets = targets;
+    }
+
+    // Force enqueue a fresh RPA job
+    const job = await this.jobQueueService.enqueue(jobType, payload);
+
+    return { success: true, message: `Đã đưa yêu cầu chạy tác vụ ${jobType} vào hàng đợi.`, jobId: job._id };
   }
 
   /**
@@ -284,6 +336,42 @@ export class BotEngineController {
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm ACM thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Triggers a CQG CAST balance report download job.
+   */
+  @Post('trigger-cast-download')
+  async triggerCastDownload() {
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CAST', {
+      maxAttempts: 1,
+    });
+    return { success: true, message: 'Đã đưa yêu cầu tải báo cáo CQG CAST vào hàng đợi.', jobId: job._id };
+  }
+
+  /**
+   * Performs an instant trial login and download to verify CQG CAST configuration.
+   */
+  @Post('test-connection-cast')
+  async testConnectionCast() {
+    const tempDir = path.join(process.cwd(), 'temp', 'test-connection-cast');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const testFile = path.join(tempDir, `test_cast_${Date.now()}.xlsx`);
+
+    try {
+      await this.rpaService.downloadCastBalances(testFile);
+      if (fs.existsSync(testFile)) {
+        fs.unlinkSync(testFile);
+      }
+      return { success: true, message: 'Kết nối thử nghiệm CQG CAST thành công! Robot đăng nhập và tải file thử nghiệm hoàn tất.' };
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CQG CAST thất bại: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
       );
     }

@@ -229,7 +229,7 @@ async function main() {
     // Chờ navigate ra khỏi trang login (tối đa 30 giây)
     try {
       await page.waitForNavigation({
-        url: url => !url.includes('Logon'),
+        url: url => !url.href.includes('Logon'),
         timeout: 30000,
       });
       log(`✅ Đã navigate sang: ${page.url()}`);

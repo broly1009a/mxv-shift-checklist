@@ -108,6 +108,9 @@ export class ShiftLogDetail {
   @Prop({ required: false, type: String, default: '' })
   recurrenceGroupIdSnapshot?: string;
 
+  @Prop({ required: false, type: String, default: null })
+  parentTaskIdSnapshot?: string | null;
+
   @Prop({ required: false, type: String, enum: ['FIXED_TIME', 'DYNAMIC_AFTER_TASK'], default: 'FIXED_TIME' })
   slaTypeSnapshot?: string;
 }

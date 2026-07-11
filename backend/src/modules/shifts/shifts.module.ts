@@ -13,6 +13,7 @@ import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { IncidentsModule } from '../incidents/incidents.module';
 import { AuthModule } from '../auth/auth.module';
+import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from '../auth/auth.module';
     SystemLogsModule,
     forwardRef(() => IncidentsModule),
     AuthModule,
+    MarginCheckerModule,
   ],
 
   providers: [ShiftsService, ShiftsGateway, TelegramService],

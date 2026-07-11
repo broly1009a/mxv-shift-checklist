@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as XLSX from 'xlsx';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { TelegramService } from '../telegram/telegram.service';
+import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 
 export interface CheckKLGDResult {
   totals: {
@@ -31,6 +34,12 @@ export interface CheckKLGDResult {
 @Injectable()
 export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name);
+
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    private readonly telegramService: TelegramService,
+    private readonly marginCheckerService: MarginCheckerService,
+  ) {}
 
   private parseCqgNumber(val: any): number {
     if (val === undefined || val === null) return 0;
@@ -961,6 +970,34 @@ export class ReconciliationService {
     XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Negative Balance Accounts');
     const excelBuffer = XLSX.write(newWorkbook, { type: 'buffer', bookType: 'xlsx' });
 
+    // Gửi email báo cáo tài khoản âm ký quỹ
+    try {
+      const emailConfig = await this.marginCheckerService.loadConfig();
+      const mailSettings = emailConfig.negativeMarginReport || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (mailSettings.isSendWarning && (negativeBalanceAccs.length > 0 || negativeIMRAcc.length > 0)) {
+        const subject = `🚨 [MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
+        const htmlBody = this.buildNegativeMarginEmailHtml(negativeBalanceAccs, negativeIMRAcc);
+        const attachments = [{
+          filename: `NegativeAccounts_${new Date().toISOString().split('T')[0]}.xlsx`,
+          content: Buffer.from(excelBuffer),
+        }];
+        const emailResult = await this.marginCheckerService.sendEmailNotification(
+          emailConfig,
+          mailSettings.email,
+          subject,
+          htmlBody,
+          attachments
+        );
+        if (emailResult.success) {
+          this.logger.log(`Đã gửi email báo cáo tài khoản âm ký quỹ thành công: ${emailResult.messageId}`);
+        } else {
+          this.logger.error(`Không thể gửi email báo cáo tài khoản âm ký quỹ: ${emailResult.error}`);
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Lỗi gửi email báo cáo tài khoản âm ký quỹ: ${err.message}`);
+    }
+
     return {
       negativeIMRAcc,
       negativeBalanceAccs,
@@ -1139,6 +1176,30 @@ export class ReconciliationService {
       }
     }
 
+    // Gửi email báo cáo đối chiếu EOD
+    try {
+      const emailConfig = await this.marginCheckerService.loadConfig();
+      const mailSettings = emailConfig.eodCheck || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (mailSettings.isSendWarning) {
+        const passed = result.length === 0;
+        const subject = `[MXV EOD CHECK] Báo cáo đối chiếu số dư cuối ngày CQG vs M-System - ${passed ? 'KHỚP' : 'LỆCH'}`;
+        const htmlBody = this.buildEodEmailHtml(passed, result, usdExchangeRate);
+        const emailResult = await this.marginCheckerService.sendEmailNotification(
+          emailConfig,
+          mailSettings.email,
+          subject,
+          htmlBody
+        );
+        if (emailResult.success) {
+          this.logger.log(`Đã gửi email báo cáo EOD thành công: ${emailResult.messageId}`);
+        } else {
+          this.logger.error(`Không thể gửi email báo cáo EOD: ${emailResult.error}`);
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Lỗi gửi email báo cáo EOD: ${err.message}`);
+    }
+
     return result;
   }
 
@@ -1237,6 +1298,34 @@ export class ReconciliationService {
     const newWorkbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Negative Balance Accounts');
     const excelBuffer = XLSX.write(newWorkbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Gửi email báo cáo tài khoản âm ký quỹ
+    try {
+      const emailConfig = await this.marginCheckerService.loadConfig();
+      const mailSettings = emailConfig.negativeMarginReport || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (mailSettings.isSendWarning && (negativeBalanceAccs.length > 0 || negativeIMRAcc.length > 0)) {
+        const subject = `🚨 [MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
+        const htmlBody = this.buildNegativeMarginEmailHtml(negativeBalanceAccs, negativeIMRAcc);
+        const attachments = [{
+          filename: `NegativeAccounts_${new Date().toISOString().split('T')[0]}.xlsx`,
+          content: Buffer.from(excelBuffer),
+        }];
+        const emailResult = await this.marginCheckerService.sendEmailNotification(
+          emailConfig,
+          mailSettings.email,
+          subject,
+          htmlBody,
+          attachments
+        );
+        if (emailResult.success) {
+          this.logger.log(`Đã gửi email báo cáo tài khoản âm ký quỹ thành công: ${emailResult.messageId}`);
+        } else {
+          this.logger.error(`Không thể gửi email báo cáo tài khoản âm ký quỹ: ${emailResult.error}`);
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Lỗi gửi email báo cáo tài khoản âm ký quỹ: ${err.message}`);
+    }
 
     return {
       negativeBalanceAccs,
@@ -1594,6 +1683,36 @@ export class ReconciliationService {
 
     const passed = differACM === 0 && differCQG === 0 && mismatchedTrades.length === 0 && mismatchedPositions.length === 0;
 
+    // Gửi email báo cáo đối chiếu Pre-EOD
+    try {
+      const emailConfig = await this.marginCheckerService.loadConfig();
+      const mailSettings = emailConfig.preEodCheck || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (mailSettings.isSendWarning) {
+        const subject = `[MXV PRE-EOD CHECK] Báo cáo đối chiếu Khối lượng & Vị thế cuối ngày - ${passed ? 'KHỚP' : 'LỆCH'}`;
+        const htmlBody = this.buildPreEodEmailHtml(passed, {
+          totalACM_MS,
+          totalACM_Straits,
+          differACM,
+          totalCQG_MS,
+          totalCQG_FR,
+          differCQG,
+        }, mismatchedTrades, mismatchedPositions);
+        const emailResult = await this.marginCheckerService.sendEmailNotification(
+          emailConfig,
+          mailSettings.email,
+          subject,
+          htmlBody
+        );
+        if (emailResult.success) {
+          this.logger.log(`Đã gửi email báo cáo Pre-EOD thành công: ${emailResult.messageId}`);
+        } else {
+          this.logger.error(`Không thể gửi email báo cáo Pre-EOD: ${emailResult.error}`);
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Lỗi gửi email Pre-EOD: ${err.message}`);
+    }
+
     return {
       passed,
       totals: {
@@ -1608,7 +1727,633 @@ export class ReconciliationService {
       mismatchedPositions,
     };
   }
+
+  private findLatestFile(dirPath: string, pattern: RegExp): string | null {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      if (!fs.existsSync(dirPath)) return null;
+
+      const files = fs.readdirSync(dirPath);
+      const matches = files
+        .filter((f: string) => pattern.test(f))
+        .map((f: string) => {
+          const fullPath = path.join(dirPath, f);
+          const stat = fs.statSync(fullPath);
+          return { name: f, fullPath, mtime: stat.mtimeMs };
+        });
+
+      if (matches.length === 0) return null;
+      matches.sort((a: any, b: any) => b.mtime - a.mtime);
+      return matches[0].fullPath;
+    } catch (err) {
+      this.logger.error(`Lỗi khi tìm file mới nhất trong ${dirPath}:`, err);
+      return null;
+    }
+  }
+
+  async runAutoCheckSOD(tradingDate: Date): Promise<any> {
+    const fs = require('fs');
+    const path = require('path');
+
+    // 1. Tìm file Accounts_Balances mới nhất trong temp/cast-downloads
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    const accountsBalancesPath = this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
+
+    if (!accountsBalancesPath) {
+      throw new Error(`Không tìm thấy file Accounts_Balances trong thư mục ${castDownloadsDir}`);
+    }
+
+    // 2. Tìm file QLTKGD.xlsx mới nhất của ngày tradingDate
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(msBackupBase, subFolder);
+
+    const qltkgdPath = path.join(dailyPath, 'QLTKGD.xlsx');
+    if (!fs.existsSync(qltkgdPath)) {
+      throw new Error(`Không tìm thấy file QLTKGD.xlsx của ngày ${day}/${month}/${year} tại: ${qltkgdPath}`);
+    }
+
+    this.logger.log(`Bắt đầu chạy đối chiếu SOD tự động:`);
+    this.logger.log(`- File QLTKGD: ${qltkgdPath}`);
+    this.logger.log(`- File Accounts_Balances: ${accountsBalancesPath}`);
+
+    // 3. Thực hiện đối chiếu CQG Balance (dùng hàm checkEODCQG)
+    const qltkgdBuffer = fs.readFileSync(qltkgdPath);
+    const accountsBalancesBuffer = fs.readFileSync(accountsBalancesPath);
+    const emailConfig = await this.marginCheckerService.loadConfig();
+    const differThreshold = emailConfig?.sodCheck?.differThreshold !== undefined ? emailConfig.sodCheck.differThreshold : 100;
+    const isSendWarning = emailConfig?.sodCheck?.isSendWarning !== false;
+
+    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+    const usdRate = parseFloat(usdRateStr) || 25220;
+
+    const discrepancies = await this.checkEODCQG({
+      qltkgd: qltkgdBuffer,
+      accountsBalances: accountsBalancesBuffer,
+      qltkgdName: 'QLTKGD.xlsx',
+      accountsBalancesName: path.basename(accountsBalancesPath),
+    }, usdRate);
+
+    const significantDiscrepancies = discrepancies.filter(d => d.differ > differThreshold);
+    const hasDiscrepancy = significantDiscrepancies.length > 0;
+    
+    // Soạn tin nhắn Telegram
+    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU SOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    telegramMsg += `• Trạng thái: ${hasDiscrepancy ? '🚨 <b>PHÁT HIỆN LỆCH SỐ DƯ</b>' : `✓ Khớp hoàn toàn (sai số &lt; $${differThreshold})`}\n`;
+    telegramMsg += `• File QLTKGD: <code>${path.basename(qltkgdPath)}</code>\n`;
+    telegramMsg += `• File CQG CAST: <code>${path.basename(accountsBalancesPath)}</code>\n`;
+    telegramMsg += `• Tỷ giá USD áp dụng: <code>${usdRate} VND</code>\n`;
+
+    if (hasDiscrepancy) {
+      telegramMsg += `\n⚠️ <b>Danh sách tài khoản lệch (> $${differThreshold}):</b>\n`;
+      significantDiscrepancies.slice(0, 15).forEach((d) => {
+        telegramMsg += `- <b>TK ${d.maTKGD}</b>: MS <code>$${d.calculatedBalance}</code> vs CQG <code>$${d.cqgBalance}</code> (Lệch: <b>$${d.differ.toFixed(2)}</b>)\n`;
+      });
+      if (significantDiscrepancies.length > 15) {
+        telegramMsg += `- ... và <i>${significantDiscrepancies.length - 15} tài khoản khác</i>.\n`;
+      }
+    } else {
+      telegramMsg += `\n✓ Số dư khớp hoàn hảo giữa M-System và CQG CAST.`;
+    }
+
+    this.logger.log(`Gửi tin nhắn cảnh báo Telegram: ${hasDiscrepancy ? 'LỆCH' : 'KHỚP'}`);
+    await this.telegramService.sendMessage(telegramMsg);
+
+    // 4. Gửi báo cáo Email qua SMTP (Kế thừa từ MarginCheckerService)
+    try {
+      if (!isSendWarning) {
+        this.logger.log(`Gửi email báo cáo SOD đã bị tắt trong cấu hình.`);
+      } else {
+        let toEmails = emailConfig?.sodCheck?.email || emailConfig?.marginOnOrder?.email || ['it.support@mxv.vn'];
+        
+        const customEmailsStr = await this.settingsService.getSetting('sod_email_recipients', '');
+        if (customEmailsStr) {
+          toEmails = customEmailsStr.split(',').map((e: string) => e.trim()).filter(Boolean);
+        }
+
+        this.logger.log(`Bắt đầu soạn và gửi email báo cáo SOD đến: ${toEmails.join(', ')}`);
+        
+        const statusText = hasDiscrepancy ? '🚨 PHÁT HIỆN LỆCH SỐ DƯ' : `✓ Khớp Hoàn Toàn (Sai số < $${differThreshold})`;
+        const statusClass = hasDiscrepancy ? 'status-diff' : 'status-match';
+
+        let discrepanciesRowsHtml = '';
+      if (hasDiscrepancy) {
+        significantDiscrepancies.forEach((d) => {
+          discrepanciesRowsHtml += `
+            <tr>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${d.maTKGD}</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">$${d.calculatedBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">$${d.cqgBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; color: #b82c1c; font-family: monospace;">$${d.differ.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        });
+      } else {
+        discrepanciesRowsHtml = `
+          <tr>
+            <td colspan="4" style="padding: 20px; text-align: center; color: #1f7a28; background-color: #f0fdf4; font-weight: bold;">
+              ✓ Không có chênh lệch nào được phát hiện giữa hai hệ thống.
+            </td>
+          </tr>
+        `;
+      }
+
+      const emailHtmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Báo cáo đối chiếu số dư đầu ngày (SOD)</title>
+        </head>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333333; background-color: #f4f6f9; margin: 0; padding: 20px;">
+          <div style="max-width: 700px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e1e4e8;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #1f4068, #162447); color: #ffffff; padding: 30px 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;">BÁO CÁO ĐỐI CHIẾU SỐ DƯ ĐẦU NGÀY (SOD)</h1>
+              <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.85;">Hệ thống tự động thực hiện đối chiếu CQG CAST vs M-System</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 30px 25px;">
+              <!-- Status Badge -->
+              <div style="margin-bottom: 25px;">
+                <span class="${statusClass}">
+                  ${statusText}
+                </span>
+              </div>
+              
+              <!-- Info Block Table (Outlook Compatible) -->
+              <table style="width: 100%; background-color: #f8fafc; border-radius: 6px; padding: 15px; border: 1px solid #edf2f7; border-collapse: separate; margin-bottom: 25px;">
+                <tr>
+                  <td style="width: 50%; padding: 5px; border: none; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">File QLTKGD (M-System):</div>
+                    <div style="font-size: 13px; font-family: monospace; font-weight: bold; color: #0f172a; margin-top: 2px;">${path.basename(qltkgdPath)}</div>
+                  </td>
+                  <td style="width: 50%; padding: 5px; border: none; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">File CQG CAST (Balance):</div>
+                    <div style="font-size: 13px; font-family: monospace; font-weight: bold; color: #0f172a; margin-top: 2px;">${path.basename(accountsBalancesPath)}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px; border: none; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Tỷ giá USD áp dụng:</div>
+                    <div style="font-size: 13px; font-family: monospace; font-weight: bold; color: #0f172a; margin-top: 2px;">${usdRate.toLocaleString('vi-VN')} VND</div>
+                  </td>
+                  <td style="padding: 5px; border: none; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Thời gian đối chiếu:</div>
+                    <div style="font-size: 13px; font-family: monospace; font-weight: bold; color: #0f172a; margin-top: 2px;">${day}/${month}/${year} ${new Date().toLocaleTimeString('vi-VN')}</div>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Table Title -->
+              <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #1e293b; border-left: 4px solid #1f4068; padding-left: 10px;">Chi tiết chênh lệch số dư</h3>
+              
+              <!-- Discrepancy Table -->
+              <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px 10px; text-align: left; color: #475569; font-weight: 600;">Mã TKGD</th>
+                    <th style="padding: 12px 10px; text-align: right; color: #475569; font-weight: 600;">Số dư M-System (USD)</th>
+                    <th style="padding: 12px 10px; text-align: right; color: #475569; font-weight: 600;">Số dư CQG CAST (USD)</th>
+                    <th style="padding: 12px 10px; text-align: right; color: #475569; font-weight: 600;">Chênh lệch (USD)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${discrepanciesRowsHtml}
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 20px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #edf2f7;">
+              Hệ thống Đối Chiếu Tự Động MXV - Vui lòng không trả lời email này.<br>
+              Hỗ trợ kỹ thuật: <a href="mailto:it.support@mxv.vn" style="color: #1f4068; text-decoration: none;">it.support@mxv.vn</a>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Apply CSS rules inline for email clients compatibility
+      const formattedHtml = emailHtmlBody
+        .replace(/class="status-match"/g, 'style="display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; text-transform: uppercase; background-color: #e3f9e5; color: #1f7a28; border: 1px solid #c2f0c5;"')
+        .replace(/class="status-diff"/g, 'style="display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; text-transform: uppercase; background-color: #ffe8e6; color: #b82c1c; border: 1px solid #ffd0cc;"');
+
+      const emailSubject = `[ĐỐI CHIẾU SOD] Kết quả đối chiếu số dư đầu ngày ${day}/${month}/${year}`;
+      
+      const emailResult = await this.marginCheckerService.sendEmailNotification(
+        emailConfig,
+        toEmails,
+        emailSubject,
+        formattedHtml
+      );
+      
+      if (emailResult.success) {
+        this.logger.log(`Đã gửi email báo cáo SOD thành công: ${emailResult.messageId}`);
+      } else {
+        this.logger.error(`Không thể gửi email báo cáo SOD: ${emailResult.error}`);
+      }
+      }
+    } catch (emailErr: any) {
+      this.logger.error(`Lỗi trong quá trình tạo/gửi email báo cáo SOD: ${emailErr.message}`);
+    }
+
+    return {
+      success: !hasDiscrepancy,
+      discrepancies: significantDiscrepancies,
+      usdRate,
+      qltkgdPath,
+      accountsBalancesPath,
+    };
+  }
+
+  private buildPreEodEmailHtml(
+    passed: boolean,
+    totals: any,
+    mismatchedTrades: any[],
+    mismatchedPositions: any[],
+  ): string {
+    const statusColor = passed ? '#2e7d32' : '#c62828';
+    const statusText = passed ? 'KHỚP HOÀN TOÀN' : 'CÓ CHÊNH LỆCH';
+    
+    let tradesRows = '';
+    if (mismatchedTrades.length > 0) {
+      tradesRows = mismatchedTrades.map((t, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${t.source}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${t.maLenh || '-'}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${t.maTKGD}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${t.maHD}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${t.giaKhop.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">${t.klGiaoDich.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; color: #c62828;">${t.reason}</td>
+        </tr>
+      `).join('');
+    } else {
+      tradesRows = `<tr><td colspan="8" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không phát hiện chênh lệch khớp lệnh.</td></tr>`;
+    }
+
+    let positionsRows = '';
+    if (mismatchedPositions.length > 0) {
+      positionsRows = mismatchedPositions.map((p, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${p.account}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${p.symbol}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${p.msPosition.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${p.cqgPosition.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: #c62828;">${p.differ.toLocaleString()}</td>
+        </tr>
+      `).join('');
+    } else {
+      positionsRows = `<tr><td colspan="6" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không phát hiện chênh lệch vị thế.</td></tr>`;
+    }
+
+    return `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+          <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid ${statusColor};">
+            <div style="padding: 20px;">
+              <h2 style="color: ${statusColor}; margin-top: 0;">Báo Cáo Đối Chiếu Pre-EOD (Khớp Lệnh & Vị Thế)</h2>
+              <p>Hệ thống vừa thực hiện kiểm tra đối chiếu cuối ngày (Pre-EOD) tự động.</p>
+              
+              <div style="background-color: ${passed ? '#e8f5e9' : '#ffebee'}; border-left: 4px solid ${statusColor}; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <span style="font-weight: bold; color: ${statusColor};">Kết quả: ${statusText}</span>
+              </div>
+
+              <h3>1. Tổng Hợp Khối Lượng Giao Dịch</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hạng mục đối chiếu</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">M-System (Vô số)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Đối tác (Straits/CQG)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Khối lượng ACM (Straits)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalACM_MS.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalACM_Straits.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: ${totals.differACM > 0 ? '#c62828' : '#2e7d32'};">${totals.differACM.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Khối lượng CQG (FR)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalCQG_MS.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalCQG_FR.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: ${totals.differCQG > 0 ? '#c62828' : '#2e7d32'};">${totals.differCQG.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3>2. Chi Tiết Lệnh Lệch (Nếu Có)</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nguồn</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã Lệnh</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã TKGD</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã HĐ</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Giá</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">KL</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Lý do</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tradesRows}
+                </tbody>
+              </table>
+
+              <h3>3. Chi Tiết Lệch Vị Thế Net (Nếu Có)</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã TKGD</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã HĐ</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Vị thế M-System</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Vị thế CQG</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${positionsRows}
+                </tbody>
+              </table>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+              Đây là email tự động từ hệ thống MXV Shift Checklist.
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  private buildEodEmailHtml(
+    passed: boolean,
+    mismatches: any[],
+    usdRate: number,
+  ): string {
+    const statusColor = passed ? '#2e7d32' : '#c62828';
+    const statusText = passed ? 'KHỚP HOÀN TOÀN' : 'CÓ CHÊNH LỆCH';
+    
+    let mismatchRows = '';
+    if (mismatches.length > 0) {
+      mismatchRows = mismatches.map((m, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${m.maTKGD}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${m.calculatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${m.cqgBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: #c62828;">${m.differ.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">
+            ${!m.inMS ? '<span style="color: #c62828;">Chỉ có bên CQG</span>' : ''}
+            ${!m.inCQG ? '<span style="color: #c62828;">Chỉ có bên M-System</span>' : ''}
+            ${m.inMS && m.inCQG ? '<span style="color: #e65100;">Lệch số dư</span>' : ''}
+          </td>
+        </tr>
+      `).join('');
+    } else {
+      mismatchRows = `<tr><td colspan="6" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không phát hiện chênh lệch số dư EOD giữa M-System và CQG.</td></tr>`;
+    }
+
+    return `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+          <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid ${statusColor};">
+            <div style="padding: 20px;">
+              <h2 style="color: ${statusColor}; margin-top: 0;">Báo Cáo Đối Chiếu Số Dư EOD (M-System vs CQG)</h2>
+              <p>Hệ thống vừa thực hiện kiểm tra đối chiếu số dư cuối ngày (EOD) tự động.</p>
+              
+              <div style="background-color: ${passed ? '#e8f5e9' : '#ffebee'}; border-left: 4px solid ${statusColor}; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <span style="font-weight: bold; color: ${statusColor};">Kết quả: ${statusText} (Tỷ giá USD sử dụng: ${usdRate.toLocaleString()} VND)</span>
+              </div>
+
+              <h3>Chi Tiết Tài Khoản Lệch Số Dư EOD (> $100)</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã TKGD</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Số dư tính toán (USD)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Số dư CQG (USD)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Chênh lệch (USD)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${mismatchRows}
+                </tbody>
+              </table>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+              Đây là email tự động từ hệ thống MXV Shift Checklist.
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  private buildNegativeMarginEmailHtml(
+    negativeBalances: string[],
+    negativeIMR: string[],
+  ): string {
+    const total = negativeBalances.length + negativeIMR.length;
+    
+    let balanceRows = '';
+    if (negativeBalances.length > 0) {
+      balanceRows = negativeBalances.map((acc, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; color: #c62828;">${acc}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; color: #c62828;">Âm số dư tài khoản hiện tại</td>
+        </tr>
+      `).join('');
+    } else {
+      balanceRows = `<tr><td colspan="3" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không có tài khoản âm số dư hiện tại.</td></tr>`;
+    }
+
+    let imrRows = '';
+    if (negativeIMR.length > 0) {
+      imrRows = negativeIMR.map((acc, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; color: #c62828;">${acc}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; color: #c62828;">Âm ký quỹ khả dụng đầu ngày (IMR < 0)</td>
+        </tr>
+      `).join('');
+    } else {
+      imrRows = `<tr><td colspan="3" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không có tài khoản âm ký quỹ khả dụng (IMR).</td></tr>`;
+    }
+
+    return `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+          <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
+            <div style="padding: 20px;">
+              <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Tài Khoản Âm Ký Quỹ Đầu Ngày (Post-EOD)</h2>
+              <p>Phát hiện tổng cộng <b>${total} tài khoản bị âm ký quỹ hoặc âm số dư</b> đầu ngày sau phiên EOD.</p>
+              
+              <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #c62828; font-weight: bold;">
+                Chú ý: Vui lòng xem danh sách tài khoản chi tiết trong file Excel đính kèm (NegativeAccounts.xlsx).
+              </div>
+
+              <h3>1. Tài Khoản Âm Số Dư TKKQ Hiện Tại (${negativeBalances.length})</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 60px;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã TKGD</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mô tả lỗi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${balanceRows}
+                </tbody>
+              </table>
+
+              <h3>2. Tài Khoản Âm Ký Quy Khả Dụng CQG (${negativeIMR.length})</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 60px;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mã TKGD</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mô tả lỗi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${imrRows}
+                </tbody>
+              </table>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+              Đây là email tự động từ hệ thống MXV Shift Checklist.
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
+    const fs = require('fs');
+    const path = require('path');
+
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(msBackupBase, subFolder);
+
+    const dsgdPath = path.join(dailyPath, 'DSGD.xlsx');
+    const ttttPath = path.join(dailyPath, 'TTTT.xlsx');
+    
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    
+    const acmTradesPath = this.findLatestFile(dailyPath, /Straits/i) || this.findLatestFile(castDownloadsDir, /Straits/i);
+    const cqgFrPath = this.findLatestFile(dailyPath, /FR/i) || this.findLatestFile(castDownloadsDir, /FR/i);
+    const cqgPsPath = this.findLatestFile(dailyPath, /Positions/i) || this.findLatestFile(castDownloadsDir, /Positions/i);
+
+    if (!fs.existsSync(dsgdPath)) throw new Error(`Thiếu file DSGD.xlsx tại ${dsgdPath}`);
+    if (!fs.existsSync(ttttPath)) throw new Error(`Thiếu file TTTT.xlsx tại ${ttttPath}`);
+    if (!acmTradesPath) throw new Error('Không tìm thấy file ACM Trades/Straits');
+    if (!cqgFrPath) throw new Error('Không tìm thấy file CQG FR');
+    if (!cqgPsPath) throw new Error('Không tìm thấy file CQG Positions');
+
+    const result = await this.checkPreEOD({
+      dsgd: fs.readFileSync(dsgdPath),
+      acmTrades: fs.readFileSync(acmTradesPath),
+      cqgFr: fs.readFileSync(cqgFrPath),
+      tttt: fs.readFileSync(ttttPath),
+      cqgPs: fs.readFileSync(cqgPsPath),
+    }, path.basename(acmTradesPath), tradingDate);
+
+    // Gửi Telegram alert
+    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '🚨 <b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
+    telegramMsg += `• ACM (M-System vs Straits): MS <code>${result.totals.totalACM_MS}</code> vs Partner <code>${result.totals.totalACM_Straits}</code> (Lệch: <b>${result.totals.differACM}</b>)\n`;
+    telegramMsg += `• CQG (M-System vs CQG): MS <code>${result.totals.totalCQG_MS}</code> vs Partner <code>${result.totals.totalCQG_FR}</code> (Lệch: <b>${result.totals.differCQG}</b>)\n`;
+    telegramMsg += `• Số lượng lệnh lệch: <b>${result.mismatchedTrades.length}</b>\n`;
+    telegramMsg += `• Số vị thế net lệch: <b>${result.mismatchedPositions.length}</b>\n`;
+
+    await this.telegramService.sendMessage(telegramMsg);
+
+    return result;
+  }
+
+  async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
+    const fs = require('fs');
+    const path = require('path');
+
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(msBackupBase, subFolder);
+
+    const qltkgdPath = path.join(dailyPath, 'QLTKGD.xlsx');
+    
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    const eodPath = this.findLatestFile(dailyPath, /eod/i) || this.findLatestFile(castDownloadsDir, /eod/i);
+    const accountsBalancesPath = this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i) || this.findLatestFile(dailyPath, /Accounts_Balances/i);
+
+    if (!fs.existsSync(qltkgdPath)) throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
+    if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx');
+    if (!accountsBalancesPath) throw new Error('Không tìm thấy file Accounts_Balances.xlsx');
+
+    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+    const usdRate = parseFloat(usdRateStr) || 25220;
+
+    // Chạy check EOD (Negative Margin)
+    const eodResult = await this.checkEOD({
+      qltkgd: fs.readFileSync(qltkgdPath),
+      eod: fs.readFileSync(eodPath),
+    });
+
+    // Chạy check EOD CQG (Balance Reconciliation)
+    const cqgResult = await this.checkEODCQG({
+      qltkgd: fs.readFileSync(qltkgdPath),
+      accountsBalances: fs.readFileSync(accountsBalancesPath),
+    }, usdRate);
+
+    // Gửi Telegram alert
+    const negativeBalanceAccs = eodResult?.negativeBalanceAccs || [];
+    const negativeIMRAcc = eodResult?.negativeIMRAcc || [];
+    const totalNegative = negativeBalanceAccs.length + negativeIMRAcc.length;
+    const totalMismatched = cqgResult ? cqgResult.length : 0;
+    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    telegramMsg += `• Trạng thái: ${(totalNegative === 0 && totalMismatched === 0) ? '✓ Khớp hoàn toàn & Không có tài khoản âm' : '🚨 <b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
+    telegramMsg += `• Tài khoản âm số dư hiện tại: <b>${negativeBalanceAccs.length}</b>\n`;
+    telegramMsg += `• Tài khoản âm ký quỹ khả dụng (IMR): <b>${negativeIMRAcc.length}</b>\n`;
+    telegramMsg += `• Số tài khoản lệch số dư EOD: <b>${totalMismatched}</b>\n`;
+
+    await this.telegramService.sendMessage(telegramMsg);
+
+    return { eodResult, cqgResult };
+  }
 }
+
 
 
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -7,6 +7,7 @@ import { BotJob } from '../../schemas/bot-job.schema';
 import { RpaDownloaderService } from './rpa-downloader.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { CqgSyncService } from './cqg-sync.service';
+import { ReconciliationService } from '../reconciliation/reconciliation.service';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -50,6 +51,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
     private readonly cqgSyncService: CqgSyncService,
+    @Inject(forwardRef(() => ReconciliationService))
+    private readonly reconciliationService: ReconciliationService,
   ) {}
 
   onModuleInit() {
@@ -153,6 +156,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     try {
       if (job.jobType === 'RPA_DOWNLOAD_REPORTS') {
         await this.handleRpaDownloadJob(job);
+      } else if (job.jobType === 'DOWNLOAD_CAST') {
+        await this.handleDownloadCastJob(job);
+      } else if (job.jobType === 'AUTO_CHECK_SOD') {
+        await this.handleAutoCheckSodJob(job);
+      } else if (job.jobType === 'CHECK_PRE_EOD') {
+        await this.handleCheckPreEodJob(job);
+      } else if (job.jobType === 'CHECK_EOD_MM') {
+        await this.handleCheckEodMmJob(job);
       } else if (job.jobType === 'FILE_AUDIT_MS') {
         await this.handleFileAuditMsJob(job);
       } else if (job.jobType === 'FILE_AUDIT_CQG') {
@@ -183,6 +194,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       } else {
         job.status = 'FAILED';
         job.logs.push(`[${new Date().toISOString()}] Job failed permanently (exhausted attempts).`);
+        // Gửi email cảnh báo lỗi vận hành khi job thất bại vĩnh viễn
+        await this.sendOperationalFailureAlert(job, errorMsg).catch((emailErr) => {
+          this.logger.error(`Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`);
+        });
       }
       await job.save();
     } finally {
@@ -1058,5 +1073,222 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         reject(err);
       });
     });
+  }
+
+  private async handleDownloadCastJob(job: BotJob) {
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    if (!fs.existsSync(castDownloadsDir)) {
+      fs.mkdirSync(castDownloadsDir, { recursive: true });
+    }
+
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const dateStr = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0].replace(/-/g, '');
+    const filename = `Accounts_Balances_${dateStr}_${Date.now()}.xlsx`;
+    const destFile = path.join(castDownloadsDir, filename);
+
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy bot RPA CQG CAST để tải báo cáo số dư...`);
+    job.logs.push(`[${new Date().toISOString()}] Đường dẫn lưu file dự kiến: ${destFile}`);
+    await job.save();
+
+    try {
+      await this.rpaDownloaderService.downloadCastBalances(destFile);
+      job.logs.push(`[${new Date().toISOString()}] Đã tải thành công file CAST về: ${destFile}`);
+      
+      payload.downloadedFile = destFile;
+      job.payload = payload;
+      await job.save();
+    } catch (err: any) {
+      job.logs.push(`[${new Date().toISOString()}] Lỗi trong quá trình chạy RPA CQG CAST: ${err.message}`);
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async handleAutoCheckSodJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra đối chiếu SOD tự động ngày ${dateStr}...`);
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckSOD(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu SOD.`);
+      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.success ? 'KHỚP' : 'LỆCH'}`);
+      
+      payload.result = result;
+      job.payload = payload;
+      await job.save();
+      
+      if (!result.success) {
+        throw new Error(`Phát hiện chênh lệch số dư tài khoản (> $100) giữa M-System và CQG CAST. Vui lòng kiểm tra báo cáo.`);
+      }
+    } catch (err: any) {
+      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu SOD tự động: ${err.message}`);
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async handleCheckPreEodJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`);
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckPreEOD(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
+      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+      payload.result = result;
+      job.payload = payload;
+      await job.save();
+
+      if (!result.passed) {
+        throw new Error(`Phát hiện chênh lệch khớp lệnh hoặc vị thế cuối ngày (Pre-EOD). Vui lòng kiểm tra báo cáo.`);
+      }
+    } catch (err: any) {
+      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu Pre-EOD tự động: ${err.message}`);
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async handleCheckEodMmJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD tự động ngày ${dateStr}...`);
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckEodMm(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD.`);
+      payload.result = result;
+      job.payload = payload;
+      await job.save();
+
+      const totalNegative = result.eodResult.negativeBalanceAccs.length + result.eodResult.negativeIMRAcc.length;
+      const totalMismatched = result.cqgResult.length;
+      if (totalNegative > 0 || totalMismatched > 0) {
+        throw new Error(`Phát hiện bất thường EOD: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatched} tài khoản lệch số dư EOD CQG.`);
+      }
+    } catch (err: any) {
+      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu EOD tự động: ${err.message}`);
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async sendOperationalFailureAlert(job: BotJob, errorMsg: string) {
+    try {
+      const configStr = await this.settingsService.getSetting('margin_checker_config', '{}');
+      const config = JSON.parse(configStr);
+      const mailSettings = config.opFailureAlert || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (!mailSettings.isSendWarning) return;
+
+      const smtp = config.smtp || {
+        host: 'smtp.office365.com',
+        port: 587,
+        user: 'it.support@mxv.vn',
+        pass: 'OFmng239',
+        senderEmail: 'it.support@mxv.vn',
+        senderName: 'MXV IT Support',
+      };
+
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+        tls: {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false,
+        },
+      });
+
+      const payloadStr = JSON.stringify(job.payload instanceof Map ? Object.fromEntries(job.payload) : job.payload, null, 2);
+      const lastLogs = job.logs.slice(-20).join('\n');
+
+      const subject = `🚨 [MXV BOT FAILURE ALERT] Lỗi Vận Hành Bot Ngầm: ${job.jobType}`;
+      const htmlBody = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+            <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
+              <div style="padding: 20px;">
+                <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Lỗi Vận Hành Bot Ngầm (RPA/Scheduler)</h2>
+                <p>Một background job của hệ thống đã thất bại vĩnh viễn sau khi thử lại tối đa <b>${job.maxAttempts} lần</b>.</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; width: 150px; background-color: #f8f9fa;">Mã Job (ID)</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${job._id}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Loại Job</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #c62828;">${job.jobType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Số lượt thử</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${job.attempts}/${job.maxAttempts}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Thời gian tạo</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${job.createdAt || new Date()}</td>
+                  </tr>
+                </table>
+
+                <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #c62828;">
+                  <strong>Chi tiết lỗi:</strong><br/>
+                  <span style="font-family: monospace; white-space: pre-wrap;">${errorMsg}</span>
+                </div>
+
+                <h3>Payload của Job</h3>
+                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${payloadStr}</pre>
+
+                <h3>20 Dòng Logs Cuối Cùng của Job</h3>
+                <pre style="background-color: #212121; color: #fff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${lastLogs}</pre>
+              </div>
+              <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+                Đây là email tự động từ hệ thống MXV Shift Checklist.
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await transporter.sendMail({
+        from: `"${smtp.senderName}" <${smtp.senderEmail}>`,
+        to: mailSettings.email.join(', '),
+        subject,
+        html: htmlBody,
+      });
+
+      this.logger.log(`Đã gửi email cảnh báo lỗi vận hành cho job ${job.jobType} thành công.`);
+    } catch (err: any) {
+      this.logger.error(`Không thể gửi email cảnh báo lỗi vận hành cho job ${job.jobType}: ${err.message}`);
+    }
   }
 }

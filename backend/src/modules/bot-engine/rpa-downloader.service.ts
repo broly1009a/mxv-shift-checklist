@@ -1523,5 +1523,225 @@ export class RpaDownloaderService {
       });
     });
   }
+
+  /**
+   * Tự động đăng nhập CQG CAST và tải Accounts_Balances.xlsx
+   */
+  async downloadCastBalances(destFile: string): Promise<string> {
+    // 1. Fetch credentials
+    const credentialsRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
+    if (!credentialsRaw) {
+      throw new Error('Chưa cấu hình tài khoản CQG CAST trong cài đặt hệ thống.');
+    }
+
+    let credentials: any;
+    try {
+      credentials = JSON.parse(decrypt(credentialsRaw));
+    } catch (err) {
+      throw new Error('Không thể giải mã cấu hình tài khoản CQG CAST. Vui lòng cấu hình lại.');
+    }
+
+    const castUrl = credentials.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp';
+    const { username, password } = credentials;
+    const fcm = credentials.fcm || 'MXV';
+    const currency = credentials.currency || 'USD';
+    const desc = credentials.desc || 'current';
+
+    if (!username || !password) {
+      throw new Error('Thông tin đăng nhập CQG CAST (username, password) không đầy đủ.');
+    }
+
+    const executablePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    };
+    if (executablePath) {
+      launchOptions.executablePath = executablePath;
+    }
+
+    this.logger.log('Starting Playwright session for CQG CAST...');
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      // Dùng User-Agent IE11 để tránh cảnh báo trình duyệt của CAST
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko',
+    });
+
+    // Mock localeinfoproviderObj (ActiveX) để bypass lỗi crash ActiveX
+    const IE_MOCK_SCRIPT = `
+      if (typeof window.localeinfoproviderObj === 'undefined') {
+        window.localeinfoproviderObj = {
+          ShortDateFormat:   'MM/dd/yyyy',
+          TimeFormat:        'hh:mm:ss tt',
+          DecimalPoint:      '.',
+          ThousandSeparator: ',',
+          DigitsGrouping:    '3;0',
+          DigitsAfterDecimal: 2
+        };
+      }
+      if (typeof window.event === 'undefined') {
+        Object.defineProperty(window, 'event', {
+          get: function() { return { keyCode: 0 }; },
+          configurable: true
+        });
+      }
+    `;
+    await context.addInitScript(IE_MOCK_SCRIPT);
+
+    const page = await context.newPage();
+    page.setDefaultTimeout(45000);
+
+    try {
+      this.logger.log(`Navigating to CQG CAST at ${castUrl}...`);
+      await page.goto(castUrl, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+
+      // Điền thông tin đăng nhập
+      await page.locator('#userNameInput').fill(username);
+      await page.locator('#passwordInput').fill(password);
+      await page.waitForTimeout(500);
+
+      // Chờ Logon.js.asp load xong để gọi doLogon()
+      await page.waitForFunction(() => typeof (window as any).doLogon === 'function', { timeout: 10000 });
+      await page.evaluate(() => {
+        (window as any).doLogon();
+      });
+
+      // Chờ chuyển hướng sau đăng nhập
+      try {
+        await page.waitForNavigation({
+          url: url => !url.href.includes('Logon'),
+          timeout: 30000,
+        });
+      } catch {
+        await page.waitForTimeout(5000);
+      }
+
+      const afterUrl = page.url();
+      if (afterUrl.toLowerCase().includes('logon')) {
+        const statusText = await page.locator('#logonStatus').textContent({ timeout: 2000 }).catch(() => '');
+        throw new Error(`Đăng nhập CQG CAST thất bại. Status: ${statusText || 'không xác định'}`);
+      }
+
+      this.logger.log('Đăng nhập CQG CAST thành công!');
+      await page.waitForTimeout(2000);
+
+      // Điều hướng đến Reporting Tool
+      this.logger.log('Navigating to Reporting Tool...');
+      const allFrames = page.frames();
+      let navFrame: any = null;
+      for (const frame of allFrames) {
+        const rtLink = frame.locator('a:has-text("Reporting Tool")');
+        if (await rtLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+          navFrame = frame;
+          break;
+        }
+      }
+
+      if (navFrame) {
+        const reportsExpand = navFrame.locator('a:has-text("Reports")').first();
+        if (await reportsExpand.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await reportsExpand.click();
+          await page.waitForTimeout(1000);
+        }
+        await navFrame.locator('a:has-text("Reporting Tool")').click();
+      } else {
+        const castBase = new URL(castUrl).origin;
+        await page.goto(`${castBase}/CAST/ReportingTool/ReportingTool.asp`, { timeout: 20000 }).catch(() => {});
+      }
+
+      await page.waitForTimeout(3000);
+
+      // Tìm main frame chứa form
+      const frames2 = page.frames();
+      let mainFrame: any = page;
+      for (const frame of frames2) {
+        const cnt = await frame.locator('select').count().catch(() => 0);
+        if (cnt > 0) {
+          mainFrame = frame;
+          break;
+        }
+      }
+
+      // Chọn template
+      const templateSelect = mainFrame.locator('select').first();
+      await templateSelect.waitFor({ state: 'visible', timeout: 15000 });
+      const options = await templateSelect.locator('option').allTextContents();
+
+      const targetOption = options.find((o: string) =>
+        o.includes('Accounts: Balances') || o.includes('Accounts:Balances')
+      );
+      if (!targetOption) {
+        throw new Error(`Không tìm thấy "Accounts: Balances". Options: ${options.join(', ')}`);
+      }
+      await templateSelect.selectOption({ label: targetOption });
+      await page.waitForTimeout(3000);
+
+      // Điền bộ lọc FCM, Currency, Record Description
+      const setFilterRow = async (frame: any, colName: string, operation: string, val: string) => {
+        const row = frame.locator('tr').filter({ hasText: colName }).first();
+        if (!await row.isVisible({ timeout: 3000 }).catch(() => false)) {
+          return;
+        }
+        const opSel = row.locator('select').first();
+        if (await opSel.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await opSel.selectOption({ label: operation });
+          await frame.waitForTimeout(200);
+        }
+        const valIn = row.locator('input[type="text"]').first();
+        if (await valIn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await valIn.fill(val);
+        }
+      };
+
+      await setFilterRow(mainFrame, 'FCM', 'Equals', fcm);
+      await setFilterRow(mainFrame, 'Currency', 'Like', currency);
+      await setFilterRow(mainFrame, 'Record Description', 'Like', desc);
+      await page.waitForTimeout(1000);
+
+      // Click Create Report và chờ download
+      this.logger.log('Clicking Create Report and waiting for download...');
+      const downloadPromise = context.waitForEvent('download', { timeout: 120000 });
+
+      let clicked = false;
+      for (const sel of ['input[value="Create Report"]', 'button:has-text("Create Report")', 'input[type="submit"]']) {
+        const btn = mainFrame.locator(sel).first();
+        if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await btn.click();
+          clicked = true;
+          break;
+        }
+      }
+
+      if (!clicked) {
+        throw new Error('Không tìm thấy nút Create Report');
+      }
+
+      const download = await downloadPromise;
+      await download.saveAs(destFile);
+      this.logger.log(`Tải file CAST thành công về: ${destFile}`);
+      return destFile;
+
+    } catch (err: any) {
+      this.logger.error(`Lỗi tải báo cáo CQG CAST: ${err.message}`);
+      // Lưu screenshot debug
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug', 'cast');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({ path: path.join(debugDir, `error-${ts}.png`), fullPage: true }).catch(() => {});
+      } catch {}
+      throw err;
+    } finally {
+      await browser.close();
+    }
+  }
 }
 

@@ -221,6 +221,44 @@ export class BotEngineService {
                 checkResult = { success: false, message: 'Đang chạy RPA tải file báo cáo từ M-System...' };
               }
             }
+          } else if (checkType === 'RPA_DOWNLOAD_CAST') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            if (!existingJob) {
+              await this.botJobQueueService.enqueue('DOWNLOAD_CAST', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu tải báo cáo CQG CAST Balances...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                checkResult = { success: true, message: 'Tải báo cáo CQG CAST Balances thành công.' };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
+                checkResult = { success: false, message: `Tải CAST thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang tải báo cáo CQG CAST Balances...' };
+              }
+            }
+          } else if (checkType === 'AUTO_CHECK_SOD') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            if (!existingJob) {
+              await this.botJobQueueService.enqueue('AUTO_CHECK_SOD', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu đối chiếu SOD...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                checkResult = { success: true, message: 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.' };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện chênh lệch số dư';
+                checkResult = { success: false, message: `Đối chiếu SOD thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang thực hiện đối chiếu số dư đầu ngày SOD...' };
+              }
+            }
           }
 
           // 6. Handle verification outcomes

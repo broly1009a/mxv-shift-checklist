@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -16,9 +17,12 @@ import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
 import { IncidentsService } from '../incidents/incidents.service';
 import { AccessControlService } from '../auth/access-control.service';
+import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 
 @Injectable()
 export class ShiftsService {
+  private readonly logger = new Logger(ShiftsService.name);
+
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(ChecklistTemplate.name)
@@ -30,6 +34,7 @@ export class ShiftsService {
     @Inject(forwardRef(() => IncidentsService))
     private readonly incidentsService: IncidentsService,
     private readonly accessControlService: AccessControlService,
+    private readonly marginCheckerService: MarginCheckerService,
   ) { }
 
   private validateScope(
@@ -136,6 +141,7 @@ export class ShiftsService {
       exceptionCodeSnapshot: task.exceptionCode || '',
       frequencyMinutesSnapshot: task.frequencyMinutes || null,
       recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
+      parentTaskIdSnapshot: (task as any).parentTaskId || null,
       slaTypeSnapshot: (task as any).slaType || 'FIXED_TIME',
     }));
 
@@ -327,6 +333,7 @@ export class ShiftsService {
     status: string,
     user: any,
     note?: string,
+    isInternal = false,
   ): Promise<ShiftLog> {
     const validStatuses = ['PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'];
     if (!validStatuses.includes(status)) {
@@ -360,6 +367,13 @@ export class ShiftsService {
     if (!task) {
       throw new NotFoundException(
         'Không tìm thấy tác vụ tương ứng trong ca trực',
+      );
+    }
+
+    const isParentTask = log.details.some((d) => d.parentTaskIdSnapshot === taskId);
+    if (isParentTask && !isInternal) {
+      throw new BadRequestException(
+        `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
       );
     }
 
@@ -574,6 +588,41 @@ export class ShiftsService {
       );
     }
 
+    // Auto-update parent task if it exists
+    if (task.parentTaskIdSnapshot) {
+      const parentId = task.parentTaskIdSnapshot;
+      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
+      if (latestLog) {
+        const parentTask = latestLog.details.find((d) => d.taskId === parentId);
+        if (parentTask) {
+          const siblings = latestLog.details.filter((d) => d.parentTaskIdSnapshot === parentId);
+          const allSiblingsChecked = siblings.every((d) => d.isChecked);
+
+          if (allSiblingsChecked && !parentTask.isChecked) {
+            const resLog = await this.updateTaskStatus(
+              shiftLogId,
+              parentId,
+              'PASSED',
+              user,
+              'Tự động hoàn thành theo các tác vụ con',
+              true,
+            );
+            return resLog;
+          } else if (!allSiblingsChecked && parentTask.isChecked) {
+            const resLog = await this.updateTaskStatus(
+              shiftLogId,
+              parentId,
+              'PENDING',
+              user,
+              'Hủy hoàn thành tự động do có tác vụ con chưa hoàn tất',
+              true,
+            );
+            return resLog;
+          }
+        }
+      }
+    }
+
     return result;
   }
 
@@ -700,7 +749,109 @@ export class ShiftsService {
 
     await this.telegramService.sendMessage(telMsg);
 
+    // Gửi email báo cáo bàn giao ca trực
+    this.sendShiftHandoverEmail(result).catch((emailErr) => {
+      this.logger.error(`Lỗi khi gọi sendShiftHandoverEmail: ${emailErr.message}`);
+    });
+
     return result;
+  }
+
+  private async sendShiftHandoverEmail(logResult: ShiftLog) {
+    try {
+      const config = await this.marginCheckerService.loadConfig();
+      const mailSettings = config.shiftHandoverReport || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (!mailSettings.isSendWarning) return;
+
+      const templateTitle = (logResult.templateId as any)?.title || 'Ca vận hành';
+      const shiftDate = logResult.shiftDate;
+      const closedBy = (logResult.closedBy as any)?.fullName || 'Nhân sự vận hành';
+      const completedCount = logResult.details.filter((d) => d.isChecked).length;
+      const totalCount = logResult.details.length;
+      
+      const subject = `[MXV SHIFT HANDOVER] Báo cáo bàn giao ca trực: ${templateTitle} - Ngày ${shiftDate}`;
+      
+      const detailsRows = logResult.details.map((d, idx) => {
+        const statusText = d.isChecked ? 'HOÀN THÀNH' : (d.status === 'FAILED' ? 'LỖI' : 'CHƯA LÀM');
+        const statusColor = d.isChecked ? '#2e7d32' : (d.status === 'FAILED' ? '#c62828' : '#e65100');
+        const updatedBy = (d.updatedBy as any)?.fullName || '-';
+        return `
+          <tr>
+            <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${d.taskId}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${d.taskNameSnapshot}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; color: ${statusColor};">${statusText}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${updatedBy}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; font-style: italic;">${d.note || '-'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const htmlBody = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+            <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #1e3a8a;">
+              <div style="padding: 20px;">
+                <h2 style="color: #1e3a8a; margin-top: 0;">Báo Cáo Bàn Giao Ca Trực</h2>
+                <p>Hệ thống ghi nhận ca trực đã hoàn thành và được chốt khóa sổ.</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; width: 180px; background-color: #f8f9fa;">Ca trực</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${templateTitle}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Ngày trực</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${shiftDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Người chốt ca</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${closedBy}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Thời gian chốt</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${logResult.closedAt ? new Date(logResult.closedAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Tỷ lệ hoàn thành</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #2e7d32;">${completedCount}/${totalCount} tác vụ (${logResult.progressPercentage}%)</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Ghi chú bàn giao</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-style: italic;">${logResult.handoverNote || 'Không có ghi chú.'}</td>
+                  </tr>
+                </table>
+
+                <h3>Chi Tiết Tác Vụ Checklist</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <thead>
+                    <tr style="background-color: #f8f9fa;">
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 40px;">STT</th>
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 100px;">Mã Tác Vụ</th>
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Tên Tác Vụ</th>
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">Trạng Thế</th>
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">Người Thực Hiện</th>
+                      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Ghi Chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${detailsRows}
+                  </tbody>
+                </table>
+              </div>
+              <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+                Đây là email tự động từ hệ thống MXV Shift Checklist.
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await this.marginCheckerService.sendEmailNotification(config, mailSettings.email, subject, htmlBody);
+      this.logger.log(`Đã gửi email báo cáo bàn giao ca trực thành công.`);
+    } catch (err: any) {
+      this.logger.error(`Không thể gửi email báo cáo bàn giao ca trực: ${err.message}`);
+    }
   }
 
   async getHistory(

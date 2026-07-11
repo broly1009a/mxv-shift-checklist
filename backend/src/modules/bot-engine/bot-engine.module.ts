@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
@@ -13,6 +13,8 @@ import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
 import { CqgSyncService } from './cqg-sync.service';
 import { PostEodHandlerService } from './post-eod-handler.service';
+import { ReconciliationModule } from '../reconciliation/reconciliation.module';
+import { SchedulerService } from './scheduler.service';
 
 @Module({
   imports: [
@@ -21,6 +23,7 @@ import { PostEodHandlerService } from './post-eod-handler.service';
       { name: BotJob.name, schema: BotJobSchema },
     ]),
     ShiftsModule,
+    forwardRef(() => ReconciliationModule),
   ],
   providers: [
     EmailWatcherService,
@@ -32,6 +35,7 @@ import { PostEodHandlerService } from './post-eod-handler.service';
     CqgSyncService,
     PostEodHandlerService,
     BotEngineService,
+    SchedulerService,
   ],
   controllers: [
     BotEngineController,
@@ -43,6 +47,7 @@ import { PostEodHandlerService } from './post-eod-handler.service';
     GttCheckerService,
     CqgSyncService,
     PostEodHandlerService,
+    SchedulerService,
   ],
 })
 export class BotEngineModule {}

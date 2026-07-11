@@ -1,55 +1,58 @@
-# Walkthrough: Tích hợp Microsoft Graph API & Quét tài khoản âm ký quỹ Post-EOD
+# Walkthrough - Tích Hợp CQG CAST & SOD Reconciliation
 
-Hệ thống đã được bổ sung thành công khả năng tự động hóa đối với các tác vụ email sau phiên EOD (Post-EOD) và gửi cảnh báo khi phát hiện tài khoản bị âm ký quỹ đầu ngày.
+Quy trình tự động hóa đối chiếu số dư đầu ngày (SOD) và tải báo cáo CQG CAST đã được tích hợp thành công vào backend job queue, engine checklist ca trực và giao diện quản lý Admin UI.
+
+## Các Thay Đổi Đã Thực Hiện
+
+### 1. Backend
+
+*   **`ReconciliationService` (`reconciliation.service.ts`)**:
+    *   Tích hợp `SystemSettingsService` và `TelegramService`.
+    *   Xây dựng helper `findLatestFile(dir, pattern)` để tìm file Excel mới nhất tải về tự động.
+    *   Xây dựng hàm nghiệp vụ `runAutoCheckSOD()` để tự động đọc file `QLTKGD.xlsx` (M-System) và `Accounts_Balances.xlsx` (CQG), tiến hành đối chiếu số dư, lưu kết quả và gửi thông báo Telegram.
+*   **`BotJobQueueService` (`bot-job-queue.service.ts`)**:
+    *   Bổ sung 2 job handlers mới: `DOWNLOAD_CAST` và `AUTO_CHECK_SOD`.
+    *   Gọi `RpaDownloaderService.downloadCastBalances()` để tải báo cáo CQG CAST qua Playwright.
+    *   Gọi `ReconciliationService.runAutoCheckSOD()` để chạy đối chiếu và cập nhật trạng thái checklist task.
+*   **`BotEngineService` (`bot-engine.service.ts`)**:
+    *   Tự động enqueue các job tương ứng khi checklist ca trực có task `RPA_DOWNLOAD_CAST` hoặc `AUTO_CHECK_SOD` đến giờ cấu hình (`botTriggerTimeSnapshot`).
+*   **`SchedulerService` [NEW] (`scheduler.service.ts`)**:
+    *   Lập lịch chạy ngầm bằng `@Cron` mỗi phút một lần.
+    *   Đọc cấu hình JSON từ DB (`bot_scheduler_config`).
+    *   Tự động đưa job `DOWNLOAD_CAST` và `AUTO_CHECK_SOD` vào hàng đợi khi đúng giờ cấu hình và tự động liên kết với task chưa hoàn thành trong ca trực đang hoạt động (PENDING).
+*   **`BotEngineController` (`bot-engine.controller.ts`)**:
+    *   Mở rộng endpoint cấu hình `GET /config` và `POST /config` để hỗ trợ load/save cấu hình lập lịch `schedulerConfig`.
+    *   Mở rộng endpoint kích hoạt thủ công `POST /trigger/:shiftLogId/:taskId` để enqueue chính xác job `DOWNLOAD_CAST` hoặc `AUTO_CHECK_SOD` thay vì chỉ `RPA_DOWNLOAD_REPORTS`.
+*   **`BotEngineModule` (`bot-engine.module.ts`)**:
+    *   Khai báo và exports `SchedulerService`.
+
+### 2. Frontend
+
+*   **Admin Bot Config Page (`frontend/src/app/admin/bot-config/page.tsx`)**:
+    *   Tích hợp load/save cấu hình `schedulerConfig` từ backend.
+    *   Bổ sung panel giao diện **Lập Lịch Tự Động (Scheduler)** bằng ngôn ngữ thiết kế glassmorphic, hỗ trợ cấu hình giờ chạy (`time`) và nút kích hoạt (`enabled`) cho từng tác vụ check ngầm.
 
 ---
 
-## Các thay đổi đã thực hiện
+## Kết Quả Kiểm Thử & Xác Minh
 
-### 1. Nâng cấp bộ quét Email ([EmailWatcherService](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts))
-*   Bổ sung phương thức `downloadAttachments` để kết nối tới Microsoft Graph API tải trực tiếp file đính kèm từ email.
-*   Hỗ trợ cấu hình thư mục lưu trữ động thông qua tham số `m365_download_directory` (chấp nhận các biến ngày tháng như `${yyyy}`, `${mm}`, `${dd}`).
-*   Cập nhật cơ chế mô phỏng (Simulation Mode) để tự sinh file dữ liệu mẫu khi quét email mô phỏng, giúp việc kiểm thử ngoại tuyến diễn ra trơn tru.
+### 1. Build & Compile Verification
+Cả 2 workspace đã được build thành công không lỗi:
+*   **Backend Build**: Thành công (Exit code: 0).
+*   **Frontend Build**: Thành công (Exit code: 0).
 
-### 2. Phát triển bộ phân tích file báo cáo ([PostEodHandlerService](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/bot-engine/post-eod-handler.service.ts))
-*   Hỗ trợ đọc và phân tích dữ liệu cả 2 định dạng file: **Excel (`.xlsx`, `.xls`)** và **CSV**.
-*   Thiết kế cơ chế tự động tìm cột (Header Matching) thông minh dựa trên từ khóa tiếng Việt/tiếng Anh (như *tài khoản, account, ký quỹ đầu ngày, initial margin, available margin*...).
-*   Quét và trả về danh sách các tài khoản có số dư ký quỹ bị âm (`< 0`).
+### 2. Manual Verification Plan (UAT / Production)
 
-### 3. Tích hợp luồng và cảnh báo tự động ([BotEngineService](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts))
-*   Tự động phát hiện các tác vụ liên quan đến EOD/Đối chiếu sau khi xác nhận email thành công.
-*   Quét các file báo cáo EOD được tải về thư mục cấu hình, phát hiện tài khoản âm ký quỹ.
-*   Gửi thông báo cảnh báo trực tiếp qua **Telegram Bot** và cập nhật ghi chú kết quả hiển thị trên giao diện Web Checklist của ca trực.
-
-### 4. Kịch bản kiểm thử tự động ([test-post-eod.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/test-post-eod.ts))
-*   Tạo kịch bản kiểm thử độc lập giúp khởi chạy NestJS, mock email, tự sinh file đính kèm báo cáo EOD chứa các dòng dữ liệu âm ký quỹ, phân tích và khẳng định kết quả chính xác 100%.
-
----
-
-## Kết quả kiểm thử
-
-Đã chạy `npm run test:post-eod` thành công với log chi tiết:
-```text
-Cấu hình m365_download_directory: D:\sontayweb\mxv-shift-checklist\backend\temp\test_eod_downloads
-
---- BƯỚC 1: Quét Email và Tải file đính kèm ---
-Đã ghi mock email vào: D:\sontayweb\mxv-shift-checklist\backend\src\modules\bot-engine\mock-emails.json
-[Simulation] Checking mock email for Subject: "đối chiếu", Sender: "backoffice@mxv.vn"
-Kết quả check email: {
-  success: true,
-  message: '[Mô Phỏng] Tìm thấy email: "Báo cáo chênh lệch KLGD CQG vs M-System - Đối chiếu EOD" từ "backoffice@mxv.vn". [Mô Phỏng] Đã sinh file đính kèm: EOD_report_2026-07-09.xlsx tại D:\\sontayweb\\mxv-shift-checklist\\backend\\temp\\test_eod_downloads'
-}
-
---- BƯỚC 2: Kiểm tra file đính kèm đã lưu trữ ---
-Các file có trong thư mục: [ 'EOD_report_2026-07-09.xlsx' ]
-
---- BƯỚC 3: Đọc file EOD quét tài khoản âm ký quỹ ---
-[PostEodHandlerService] Could not find exact headers in Excel. Using fallback columns: Account = 0, Margin = 1
-Danh sách tài khoản âm ký quỹ phát hiện được: [
-  { account: 'TK001', margin: -50000 },
-  { account: 'TK003', margin: -12000 },
-  { account: 'TK004', margin: -450000 }
-]
-
-✅ KIỂM THỬ POST-EOD HOÀN TẤT THÀNH CÔNG VỚI KẾT QUẢ CHÍNH XÁC!
-```
+Để kiểm thử quy trình này trên môi trường UAT:
+1.  **Cấu hình credentials**:
+    *   Đăng nhập tài khoản Admin, truy cập `/admin/bot-config`.
+    *   Nhập thông tin tài khoản tại mục **Tài Khoản CQG CAST** (Username, Password, FCM, Currency, Record Description).
+    *   Bật các tác vụ trong mục **Lập Lịch Tự Động (Scheduler)** và chỉnh giờ chạy gần thời điểm hiện tại để test.
+    *   Nhấn **Lưu Cấu Hình Credentials** để lưu.
+2.  **Tạo ca trực**:
+    *   Tạo một ca trực mới có checklist chứa 2 tác vụ có Check Type là `RPA_DOWNLOAD_CAST` và `AUTO_CHECK_SOD`.
+3.  **Kích hoạt & Theo dõi**:
+    *   Chờ đến giờ cấu hình hoặc bấm nút **Kích hoạt chạy Bot (Robot Run)** thủ công trên Checklist UI.
+    *   Theo dõi logs hiển thị trong panel **Bot Jobs** tại giao diện `/admin/bot-config`.
+    *   Xác nhận file `Accounts_Balances.xlsx` được tải về thư mục `temp/cast-downloads/`.
+    *   Xác nhận tin nhắn thông báo Telegram gửi về nhóm vận hành với thông tin đối chiếu số dư đầu ngày (SOD).

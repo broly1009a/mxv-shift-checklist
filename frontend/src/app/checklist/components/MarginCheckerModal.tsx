@@ -61,6 +61,18 @@ export default function MarginCheckerModal({
       email: [],
       telegramChatId: '',
     },
+    sodCheck: {
+      isSendWarning: true,
+      email: [],
+      telegramChatId: '',
+      differThreshold: 100,
+    },
+    preEodCheck: { isSendWarning: true, email: [], telegramChatId: '' },
+    eodCheck: { isSendWarning: true, email: [], telegramChatId: '' },
+    negativeMarginReport: { isSendWarning: true, email: [], telegramChatId: '' },
+    opFailureAlert: { isSendWarning: true, email: [], telegramChatId: '' },
+    shiftHandoverReport: { isSendWarning: true, email: [], telegramChatId: '' },
+    securityAudit: { isSendWarning: true, email: [], telegramChatId: '' },
     smtp: {
       host: 'smtp.office365.com',
       port: 587,
@@ -74,11 +86,162 @@ export default function MarginCheckerModal({
   const [emailInputs, setEmailInputs] = useState({
     onOrder: '',
     change: '',
+    sod: '',
+    preEod: '',
+    eod: '',
+    negativeMargin: '',
+    opFailure: '',
+    shiftHandover: '',
+    securityAudit: '',
   });
 
   // Result States
   const [onOrderResult, setOnOrderResult] = useState<any>(null);
   const [changeResult, setChangeResult] = useState<any>(null);
+
+  const renderConfigSection = (
+    title: string,
+    configKey: string,
+    inputKey: keyof typeof emailInputs
+  ) => {
+    const secConfig = config[configKey] || { isSendWarning: true, email: [], telegramChatId: '' };
+    const emailInputValue = emailInputs[inputKey];
+
+    return (
+      <div className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)' }}>
+        <h3
+          style={{
+            margin: '0 0 16px 0',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '8px',
+          }}
+        >
+          {title}
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Kích hoạt gửi báo cáo/cảnh báo</span>
+            <input
+              type="checkbox"
+              checked={secConfig.isSendWarning}
+              onChange={e => {
+                const checked = e.target.checked;
+                setConfig((prev: any) => ({
+                  ...prev,
+                  [configKey]: { ...prev[configKey], isSendWarning: checked },
+                }));
+              }}
+            />
+          </div>
+
+          <div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+              Telegram Chat ID nhận tin
+            </span>
+            <input
+              type="text"
+              value={secConfig.telegramChatId || ''}
+              onChange={e => {
+                const val = e.target.value;
+                setConfig((prev: any) => ({
+                  ...prev,
+                  [configKey]: { ...prev[configKey], telegramChatId: val },
+                }));
+              }}
+              placeholder="Nhập chat ID Telegram"
+              style={{
+                width: '100%',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                fontSize: '0.8rem',
+              }}
+            />
+          </div>
+
+          <div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+              Email nhận báo cáo/cảnh báo
+            </span>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input
+                type="email"
+                value={emailInputValue}
+                onChange={e => setEmailInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
+                placeholder="Thêm email nhận tin"
+                style={{
+                  flex: 1,
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.8rem',
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (emailInputValue && !secConfig.email.includes(emailInputValue)) {
+                    setConfig((prev: any) => ({
+                      ...prev,
+                      [configKey]: {
+                        ...prev[configKey],
+                        email: [...prev[configKey].email, emailInputValue],
+                      },
+                    }));
+                    setEmailInputs(prev => ({ ...prev, [inputKey]: '' }));
+                  }
+                }}
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+              >
+                Thêm
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {(secConfig.email || []).map((email: string, index: number) => (
+                <span
+                  key={index}
+                  style={{
+                    fontSize: '0.75rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-color)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {email}
+                  <button
+                    onClick={() => {
+                      setConfig((prev: any) => ({
+                        ...prev,
+                        [configKey]: {
+                          ...prev[configKey],
+                          email: prev[configKey].email.filter((e: string) => e !== email),
+                        },
+                      }));
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-critical)', padding: 0 }}
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -93,6 +256,24 @@ export default function MarginCheckerModal({
       });
       if (res.ok) {
         const data = await res.json();
+        if (!data.sodCheck) {
+          data.sodCheck = {
+            isSendWarning: true,
+            email: data.marginOnOrder?.email || [],
+            telegramChatId: data.marginOnOrder?.telegramChatId || '',
+            differThreshold: 100,
+          };
+        }
+        const sections = ['preEodCheck', 'eodCheck', 'negativeMarginReport', 'opFailureAlert', 'shiftHandoverReport', 'securityAudit'];
+        sections.forEach(sec => {
+          if (!data[sec]) {
+            data[sec] = {
+              isSendWarning: true,
+              email: data.marginOnOrder?.email || [],
+              telegramChatId: data.marginOnOrder?.telegramChatId || '',
+            };
+          }
+        });
         setConfig(data);
       }
     } catch (err: any) {
@@ -713,7 +894,7 @@ export default function MarginCheckerModal({
 
           {activeTab === 'config' && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px', marginBottom: '24px' }}>
                 {/* On Order Config */}
                 <div className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)' }}>
                   <h3
@@ -1006,6 +1187,172 @@ export default function MarginCheckerModal({
                     </div>
                   </div>
                 </div>
+
+                {/* SOD Config */}
+                <div className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)' }}>
+                  <h3
+                    style={{
+                      margin: '0 0 16px 0',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      borderBottom: '1px solid var(--border-color)',
+                      paddingBottom: '8px',
+                    }}
+                  >
+                    Đối chiếu số dư đầu ngày (SOD)
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ngưỡng chênh lệch ($)</span>
+                      <input
+                        type="number"
+                        value={config.sodCheck?.differThreshold ?? 100}
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setConfig((prev: any) => ({
+                            ...prev,
+                            sodCheck: { ...prev.sodCheck, differThreshold: val },
+                          }));
+                        }}
+                        style={{
+                          width: '80px',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '4px 8px',
+                          fontSize: '0.8rem',
+                          textAlign: 'right',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Kích hoạt gửi cảnh báo</span>
+                      <input
+                        type="checkbox"
+                        checked={config.sodCheck?.isSendWarning ?? true}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setConfig((prev: any) => ({
+                            ...prev,
+                            sodCheck: { ...prev.sodCheck, isSendWarning: checked },
+                          }));
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Telegram Chat ID nhận cảnh báo
+                      </span>
+                      <input
+                        type="text"
+                        value={config.sodCheck?.telegramChatId ?? ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({
+                            ...prev,
+                            sodCheck: { ...prev.sodCheck, telegramChatId: val },
+                          }));
+                        }}
+                        placeholder="Nhập chat ID Telegram"
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Email người nhận cảnh báo
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <input
+                          type="email"
+                          value={emailInputs.sod}
+                          onChange={e => setEmailInputs(prev => ({ ...prev, sod: e.target.value }))}
+                          placeholder="Thêm email nhận tin"
+                          style={{
+                            flex: 1,
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-primary)',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '0.8rem',
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (emailInputs.sod && !config.sodCheck.email.includes(emailInputs.sod)) {
+                              setConfig((prev: any) => ({
+                                ...prev,
+                                sodCheck: {
+                                  ...prev.sodCheck,
+                                  email: [...prev.sodCheck.email, emailInputs.sod],
+                                },
+                              }));
+                              setEmailInputs(prev => ({ ...prev, sod: '' }));
+                            }
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                        >
+                          Thêm
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {(config.sodCheck?.email || []).map((email: string, index: number) => (
+                          <span
+                            key={index}
+                            style={{
+                              fontSize: '0.75rem',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid var(--border-color)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {email}
+                            <button
+                              onClick={() => {
+                                setConfig((prev: any) => ({
+                                  ...prev,
+                                  sodCheck: {
+                                    ...prev.sodCheck,
+                                    email: prev.sodCheck.email.filter((e: string) => e !== email),
+                                  },
+                                }));
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-critical)', padding: 0 }}
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {renderConfigSection('Đối chiếu trước EOD (Pre-EOD Check)', 'preEodCheck', 'preEod')}
+                {renderConfigSection('Đối chiếu sau EOD (EOD Check)', 'eodCheck', 'eod')}
+                {renderConfigSection('Báo cáo Âm ký quỹ đầu ngày (Negative Margin Report)', 'negativeMarginReport', 'negativeMargin')}
+                {renderConfigSection('Cảnh báo Lỗi vận hành Bot ngầm (Bot Failure Alert)', 'opFailureAlert', 'opFailure')}
+                {renderConfigSection('Báo cáo Bàn giao ca trực (Shift Handover Report)', 'shiftHandoverReport', 'shiftHandover')}
+                {renderConfigSection('Cảnh báo Thay đổi Cấu hình (Security/Config Change Audit)', 'securityAudit', 'securityAudit')}
               </div>
 
               {/* SMTP configuration */}

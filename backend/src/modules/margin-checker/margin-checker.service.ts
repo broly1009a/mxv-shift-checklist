@@ -30,6 +30,42 @@ export class MarginCheckerService {
         email: ['it.support@mxv.vn'],
         telegramChatId: '',
       },
+      sodCheck: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+        differThreshold: 100,
+      },
+      preEodCheck: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
+      eodCheck: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
+      negativeMarginReport: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
+      opFailureAlert: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
+      shiftHandoverReport: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
+      securityAudit: {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+        telegramChatId: '',
+      },
       smtp: {
         host: 'smtp.office365.com',
         port: 587,
@@ -45,7 +81,61 @@ export class MarginCheckerService {
       defaultVal,
     );
     try {
-      return JSON.parse(configStr);
+      const parsed = JSON.parse(configStr);
+      const fallbackEmails = parsed.marginOnOrder?.email || ['it.support@mxv.vn'];
+      const fallbackChatId = parsed.marginOnOrder?.telegramChatId || '';
+
+      if (!parsed.sodCheck) {
+        parsed.sodCheck = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+          differThreshold: 100,
+        };
+      }
+      if (!parsed.preEodCheck) {
+        parsed.preEodCheck = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      if (!parsed.eodCheck) {
+        parsed.eodCheck = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      if (!parsed.negativeMarginReport) {
+        parsed.negativeMarginReport = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      if (!parsed.opFailureAlert) {
+        parsed.opFailureAlert = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      if (!parsed.shiftHandoverReport) {
+        parsed.shiftHandoverReport = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      if (!parsed.securityAudit) {
+        parsed.securityAudit = {
+          isSendWarning: true,
+          email: fallbackEmails,
+          telegramChatId: fallbackChatId,
+        };
+      }
+      return parsed;
     } catch (err) {
       return JSON.parse(defaultVal);
     }

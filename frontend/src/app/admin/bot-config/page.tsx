@@ -25,6 +25,7 @@ import {
   BarChart2,
   Download,
   Settings,
+  Clock,
 } from 'lucide-react';
 
 interface BotConfig {
@@ -90,6 +91,9 @@ export default function AdminBotConfigPage() {
   const [ceUsername, setCeUsername] = useState('');
   const [cePassword, setCePassword] = useState('');
   const [showCePassword, setShowCePassword] = useState(false);
+
+  // Scheduler state
+  const [schedulerConfig, setSchedulerConfig] = useState<any[]>([]);
 
   // UI state
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);
@@ -266,6 +270,9 @@ export default function AdminBotConfigPage() {
           setCeUsername(data.ce.username || '');
           setCePassword(data.ce.password || '');
         }
+        if (data.schedulerConfig) {
+          setSchedulerConfig(data.schedulerConfig);
+        }
       }
 
       // Fetch Backup MS path
@@ -441,6 +448,7 @@ export default function AdminBotConfigPage() {
             username: ceUsername.trim(),
             password: cePassword,
           },
+          schedulerConfig,
         }),
       });
 
@@ -2018,6 +2026,77 @@ export default function AdminBotConfigPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Scheduler Config Box */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <Clock size={20} color="var(--color-primary)" />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Lập Lịch Tự Động (Scheduler)</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>Cấu hình thời gian kích hoạt tự động các tác vụ check ngầm trong ngày</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {schedulerConfig.map((task, idx) => (
+                      <div
+                        key={task.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--border-color)',
+                          padding: '16px',
+                          borderRadius: '8px',
+                          flexWrap: 'wrap',
+                          gap: '12px'
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{task.name}</h4>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Mã Job: <code>{task.jobType}</code></span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Giờ chạy:</span>
+                            <input
+                              type="time"
+                              className="form-input"
+                              style={{ width: '120px', padding: '6px 10px', fontSize: '0.85rem' }}
+                              value={task.time}
+                              onChange={(e) => {
+                                const updated = [...schedulerConfig];
+                                updated[idx] = { ...updated[idx], time: e.target.value };
+                                setSchedulerConfig(updated);
+                              }}
+                            />
+                          </div>
+
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                            <input
+                              type="checkbox"
+                              checked={task.enabled}
+                              onChange={(e) => {
+                                const updated = [...schedulerConfig];
+                                updated[idx] = { ...updated[idx], enabled: e.target.checked };
+                                setSchedulerConfig(updated);
+                              }}
+                            />
+                            Kích hoạt
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {schedulerConfig.length === 0 && (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px' }}>
+                        Không có tác vụ lập lịch nào được cấu hình.
+                      </div>
+                    )}
                   </div>
                 </div>
 
