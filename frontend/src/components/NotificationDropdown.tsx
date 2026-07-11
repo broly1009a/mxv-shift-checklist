@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { io } from 'socket.io-client';
+import { toast } from 'react-hot-toast';
 
 export default function NotificationDropdown() {
   const { token } = useAuth();
@@ -113,6 +114,80 @@ export default function NotificationDropdown() {
     fetchCountRef.current = fetchUnreadCount;
   }, [fetchUnreadCount]);
 
+  const lastActivityIdRef = useRef<string | null>(null);
+
+  const checkForNewActivity = useCallback(async (shouldToast: boolean = true) => {
+    if (!token) return;
+    try {
+      const now = new Date();
+      const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      const todayStr = vietnamTime.toISOString().split('T')[0];
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/activity?date=${todayStr}&limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const latest = data[0];
+          const latestId = latest.id || latest._id || latest.createdAt;
+          if (lastActivityIdRef.current && lastActivityIdRef.current !== latestId && shouldToast) {
+            let title = 'Cập nhật hệ thống';
+            if (latest.type === 'TASK_UPDATED') {
+              title = 'Cập nhật tác vụ';
+            } else if (latest.type === 'JOB_GENERATED') {
+              title = 'Khởi tạo ca trực';
+            }
+
+            // Play synthesized notification sound
+            try {
+              const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioContext) {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35); // Fade out
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+              }
+            } catch (err) {
+              console.warn('Failed to play synthesized sound:', err);
+            }
+            
+            toast((t) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>🔔 {title}</span>
+                <span style={{ fontSize: '0.8rem', opacity: 0.9, color: 'var(--text-secondary)' }}>{latest.message}</span>
+              </div>
+            ), {
+              duration: 5000,
+            });
+          }
+          lastActivityIdRef.current = latestId;
+        }
+      }
+    } catch (err) {
+      console.warn('Error checking for new activity:', err);
+    }
+  }, [token]);
+
+  const checkForNewActivityRef = useRef(checkForNewActivity);
+  useEffect(() => {
+    checkForNewActivityRef.current = checkForNewActivity;
+  }, [checkForNewActivity]);
+
   useEffect(() => {
     if (showNotifications) {
       fetchRef.current();
@@ -125,6 +200,7 @@ export default function NotificationDropdown() {
       // Only fetch the unread count initially to show the badge.
       // The activity list will only be fetched when the user opens the dropdown tray.
       fetchCountRef.current();
+      checkForNewActivityRef.current(false);
     }
   }, [token]);
 
@@ -144,6 +220,7 @@ export default function NotificationDropdown() {
       console.log('Notification update event received via WS:', payload);
       // Always update the badge count
       fetchCountRef.current();
+      checkForNewActivityRef.current(true);
       // Only update the list of activities if the notification tray is currently open
       if (showNotificationsRef.current) {
         fetchRef.current();

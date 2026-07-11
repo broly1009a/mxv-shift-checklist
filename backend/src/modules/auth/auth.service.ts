@@ -8,7 +8,11 @@ import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { User } from '../../schemas/user.schema';
+import { Department } from '../../schemas/department.schema';
+import { Division } from '../../schemas/division.schema';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +20,8 @@ export class AuthService {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Department.name) private readonly departmentModel: Model<Department>,
+    @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
     private readonly jwtService: JwtService,
   ) {
     // Periodically clean up expired exchange codes (every 5 minutes)
@@ -185,22 +191,65 @@ export class AuthService {
       return user;
     }
 
-    // User does not exist - create automatically in pending status
+    // User does not exist - read mapping config to see if we should auto-assign
+    let autoAssignedUser: any = null;
+    try {
+      const configPath = path.join(process.cwd(), 'sso-auto-assign.config.json');
+      if (fs.existsSync(configPath)) {
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        const matched = configData.find((item: any) => item.email.toLowerCase() === email.toLowerCase());
+        if (matched) {
+          let divisionId = null;
+          let departmentId = null;
+
+          if (matched.divisionCode) {
+            const div = await this.divisionModel.findOne({ code: matched.divisionCode }).exec();
+            if (div) divisionId = div._id;
+          }
+          if (matched.departmentCode) {
+            const dept = await this.departmentModel.findOne({ code: matched.departmentCode }).exec();
+            if (dept) departmentId = dept._id;
+          }
+
+          autoAssignedUser = {
+            role: matched.role || 'STAFF',
+            divisionId,
+            departmentId,
+            fullName: matched.fullName || fullName,
+            isActive: true // Activated immediately!
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error loading sso-auto-assign.config.json:', err);
+    }
+
+    // User does not exist - create automatically
     const dummyHash = await bcrypt.hash(process.env.DUMMY_SSO_PASS || 'dummy_sso_pass_2026', 10);
     const isInitialAdmin = username === 'admin_sso' && process.env.NODE_ENV !== 'production';
 
     const newUser = new this.userModel({
       username,
       passwordHash: dummyHash,
-      fullName:
-        fullName ||
-        `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
-      departmentId: null, // Waiting for admin assignment
-      role: isInitialAdmin ? 'ADMIN' : 'STAFF',
-      isActive: isInitialAdmin ? true : false, // Initial admin is active, others wait for admin approval
+      fullName: autoAssignedUser
+        ? autoAssignedUser.fullName
+        : (fullName || `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`),
+      departmentId: autoAssignedUser ? autoAssignedUser.departmentId : null,
+      divisionId: autoAssignedUser ? autoAssignedUser.divisionId : null,
+      role: autoAssignedUser ? autoAssignedUser.role : (isInitialAdmin ? 'ADMIN' : 'STAFF'),
+      isActive: autoAssignedUser ? true : (isInitialAdmin ? true : false),
     });
 
     await newUser.save();
+
+    if (autoAssignedUser) {
+      // Return the created user directly (no need to throw wait exception since isActive = true)
+      return this.userModel
+        .findById(newUser._id)
+        .populate('departmentId')
+        .populate('divisionId')
+        .exec();
+    }
 
     throw new UnauthorizedException(
       'Tài khoản đã được tạo tự động từ Microsoft 365 và đang chờ Admin kích hoạt, gán phòng ban.',
