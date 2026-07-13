@@ -10,6 +10,16 @@ export default function NotificationDropdown() {
   const { token } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifyRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up debounce timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Dynamic system activities for notifications
   const [activities, setActivities] = useState<any[]>([]);
@@ -161,6 +171,11 @@ export default function NotificationDropdown() {
 
                 osc.start();
                 osc.stop(ctx.currentTime + 0.4);
+
+                // Close AudioContext to release system audio resources after sound finishes
+                setTimeout(() => {
+                  ctx.close().catch((e) => console.warn('Failed to close AudioContext:', e));
+                }, 500);
               }
             } catch (err) {
               console.warn('Failed to play synthesized sound:', err);
@@ -220,11 +235,18 @@ export default function NotificationDropdown() {
       console.log('Notification update event received via WS:', payload);
       // Always update the badge count
       fetchCountRef.current();
-      checkForNewActivityRef.current(true);
-      // Only update the list of activities if the notification tray is currently open
-      if (showNotificationsRef.current) {
-        fetchRef.current();
+
+      // Debounce checking and toasting for new activity
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
+      debounceTimerRef.current = setTimeout(() => {
+        checkForNewActivityRef.current(true);
+        // Only update the list of activities if the notification tray is currently open
+        if (showNotificationsRef.current) {
+          fetchRef.current();
+        }
+      }, 300);
     };
 
     socket.on('dashboard-updated', handleUpdateEvent);
@@ -234,6 +256,9 @@ export default function NotificationDropdown() {
 
     return () => {
       socket.disconnect();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, [token]);
 

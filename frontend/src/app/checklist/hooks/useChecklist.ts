@@ -362,7 +362,7 @@ export function useChecklist() {
       }
 
       if (data?.auditLog) {
-        setAuditLogs(prev => [data.auditLog!, ...prev]);
+        setAuditLogs(prev => [data.auditLog!, ...prev].slice(0, 100));
       }
     });
 
@@ -383,7 +383,7 @@ export function useChecklist() {
       }
 
       if (data?.auditLog) {
-        setAuditLogs(prev => [data.auditLog!, ...prev]);
+        setAuditLogs(prev => [data.auditLog!, ...prev].slice(0, 100));
       }
     });
 
