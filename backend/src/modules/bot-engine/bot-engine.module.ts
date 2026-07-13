@@ -16,6 +16,8 @@ import { PostEodHandlerService } from './post-eod-handler.service';
 import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
 
+import { OmsWatcherService } from './oms-watcher.service';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -36,6 +38,7 @@ import { SchedulerService } from './scheduler.service';
     PostEodHandlerService,
     BotEngineService,
     SchedulerService,
+    OmsWatcherService,
   ],
   controllers: [
     BotEngineController,
@@ -48,6 +51,7 @@ import { SchedulerService } from './scheduler.service';
     CqgSyncService,
     PostEodHandlerService,
     SchedulerService,
+    OmsWatcherService,
   ],
 })
 export class BotEngineModule {}

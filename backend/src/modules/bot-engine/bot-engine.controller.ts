@@ -14,6 +14,7 @@ import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
 import { CqgSyncService } from './cqg-sync.service';
+import { OmsWatcherService } from './oms-watcher.service';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -26,6 +27,7 @@ export class BotEngineController {
     private readonly rpaService: RpaDownloaderService,
     private readonly gttService: GttCheckerService,
     private readonly cqgSyncService: CqgSyncService,
+    private readonly omsWatcherService: OmsWatcherService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
   ) {}
@@ -39,6 +41,8 @@ export class BotEngineController {
     const cqgRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
     const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
     const castRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
+    const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
 
     let msystem = { url: 'https://msystem.mxv.vn/', username: '', password: '', pin: '' };
     let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '' };
@@ -57,6 +61,8 @@ export class BotEngineController {
       sftpFileExtensions: '',
     };
     let cast = { url: 'https://www.cqgtrader.com/CAST/Logon/Logon.asp', username: '', password: '' };
+    let ccp = { url: 'https://uat-coreccp.mxv.com.vn/', username: '', password: '' };
+    let ce = { url: 'https://uat-corece.mxv.com.vn/', username: '', password: '' };
 
     if (msystemRaw) {
       try {
@@ -112,13 +118,35 @@ export class BotEngineController {
       } catch (err) {}
     }
 
+    if (ccpRaw) {
+      try {
+        const decrypted = JSON.parse(decrypt(ccpRaw));
+        ccp = {
+          url: decrypted.url || 'https://uat-coreccp.mxv.com.vn/',
+          username: decrypted.username || '',
+          password: decrypted.password ? '********' : '',
+        };
+      } catch (err) {}
+    }
+
+    if (ceRaw) {
+      try {
+        const decrypted = JSON.parse(decrypt(ceRaw));
+        ce = {
+          url: decrypted.url || 'https://uat-corece.mxv.com.vn/',
+          username: decrypted.username || '',
+          password: decrypted.password ? '********' : '',
+        };
+      } catch (err) {}
+    }
+
     const schedulerConfigRaw = await this.settingsService.getSetting('bot_scheduler_config', '[]');
     let schedulerConfig = [];
     try {
       schedulerConfig = JSON.parse(schedulerConfigRaw);
     } catch (e) {}
 
-    return { msystem, cqg, acm, cast, schedulerConfig };
+    return { msystem, cqg, acm, cast, ccp, cpp: ccp, ce, schedulerConfig };
   }
 
   /**
@@ -126,7 +154,8 @@ export class BotEngineController {
    */
   @Post('config')
   async saveConfig(@Body() body: any) {
-    const { msystem, cqg, acm, cast, schedulerConfig } = body;
+    const { msystem, cqg, acm, cast, ccp, cpp, ce, schedulerConfig } = body;
+    const targetCcp = ccp || cpp;
 
     if (schedulerConfig) {
       await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(schedulerConfig, null, 2));
@@ -214,6 +243,42 @@ export class BotEngineController {
       await this.settingsService.setSetting('bot_credentials_cast', encrypt(JSON.stringify(mergedCast)));
     }
 
+    if (targetCcp) {
+      const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+      let currentCcp: any = {};
+      if (ccpRaw) {
+        try {
+          currentCcp = JSON.parse(decrypt(ccpRaw));
+        } catch (err) {}
+      }
+
+      const mergedCcp = {
+        url: targetCcp.url || currentCcp.url || 'https://uat-coreccp.mxv.com.vn/',
+        username: targetCcp.username !== undefined ? targetCcp.username : currentCcp.username,
+        password: targetCcp.password && targetCcp.password !== '********' ? targetCcp.password : currentCcp.password,
+      };
+
+      await this.settingsService.setSetting('bot_credentials_ccp', encrypt(JSON.stringify(mergedCcp)));
+    }
+
+    if (ce) {
+      const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+      let currentCe: any = {};
+      if (ceRaw) {
+        try {
+          currentCe = JSON.parse(decrypt(ceRaw));
+        } catch (err) {}
+      }
+
+      const mergedCe = {
+        url: ce.url || currentCe.url || 'https://uat-corece.mxv.com.vn/',
+        username: ce.username !== undefined ? ce.username : currentCe.username,
+        password: ce.password && ce.password !== '********' ? ce.password : currentCe.password,
+      };
+
+      await this.settingsService.setSetting('bot_credentials_ce', encrypt(JSON.stringify(mergedCe)));
+    }
+
     return { success: true, message: 'Cấu hình tài khoản robot đã được cập nhật thành công.' };
   }
 
@@ -273,6 +338,77 @@ export class BotEngineController {
     const job = await this.jobQueueService.enqueue(jobType, payload);
 
     return { success: true, message: `Đã đưa yêu cầu chạy tác vụ ${jobType} vào hàng đợi.`, jobId: job._id };
+  }
+
+  /**
+   * Manually trigger the EOD/MM OMS check for ops_open_02
+   */
+  @Post('trigger-oms-check/:shiftLogId/:taskId')
+  async triggerOmsCheck(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string
+  ) {
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+    }
+
+    // Set task status to WAITING (checking)
+    await this.shiftLogModel.updateOne(
+      { _id: shiftLogId, 'details.taskId': taskId },
+      {
+        $set: {
+          'details.$.status': 'WAITING',
+          'details.$.resultNote': 'Đang bắt đầu kích hoạt kiểm tra OMS tự động (Playwright)...',
+        },
+      }
+    );
+
+    // Run the check asynchronously
+    (async () => {
+      try {
+        const result = await this.omsWatcherService.checkOmsStatus();
+        const status = result?.success ? 'PASSED' : 'FAILED';
+        const resultNoteStr = JSON.stringify({
+          message: result?.message || 'Không có phản hồi.',
+          timestamp: new Date().toISOString(),
+          data: result?.data || null
+        });
+
+        await this.shiftLogModel.updateOne(
+          { _id: shiftLogId, 'details.taskId': taskId },
+          {
+            $set: {
+              'details.$.status': status,
+              'details.$.resultNote': resultNoteStr,
+              'details.$.isChecked': result?.success || false,
+              'details.$.checkedAt': new Date(),
+            },
+          }
+        );
+      } catch (err: any) {
+        await this.shiftLogModel.updateOne(
+          { _id: shiftLogId, 'details.taskId': taskId },
+          {
+            $set: {
+              'details.$.status': 'FAILED',
+              'details.$.resultNote': JSON.stringify({
+                message: `Lỗi kích hoạt bot: ${err.message}`,
+                timestamp: new Date().toISOString(),
+                data: null
+              }),
+            },
+          }
+        );
+      }
+    })();
+
+    return { success: true, message: 'Đã kích hoạt quét kiểm tra OMS CCP/CE trong nền.' };
   }
 
   /**
@@ -374,6 +510,36 @@ export class BotEngineController {
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CQG CAST thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant trial login to CCP to verify credentials.
+   */
+  @Post('test-connection-ccp')
+  async testConnectionCCP() {
+    try {
+      return await this.omsWatcherService.testConnection('ccp');
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CCP thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant trial login to CE to verify credentials.
+   */
+  @Post('test-connection-ce')
+  async testConnectionCE() {
+    try {
+      return await this.omsWatcherService.testConnection('ce');
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CE thất bại: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
       );
     }

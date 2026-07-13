@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { OmsWatcherService } from './oms-watcher.service';
 
 @Injectable()
 export class ApiWatcherService {
   private readonly logger = new Logger(ApiWatcherService.name);
+
+  constructor(private readonly omsWatcherService: OmsWatcherService) {}
 
   /**
    * Check if HTTP API target condition is met.
@@ -26,6 +29,25 @@ export class ApiWatcherService {
     if (isSimulation) {
       this.logger.debug(`[Simulation] Checking mock API for URL: "${url}"`);
       return this.checkMockApi(url, condition);
+    }
+
+    if (url === 'http://cqg.mxv.vn/api/oms/status') {
+      this.logger.log('Executing real Playwright check for OMS EOD & MM status...');
+      const checkResult = await this.omsWatcherService.checkOmsStatus();
+      if (!checkResult) {
+        return {
+          success: false,
+          message: 'Lỗi: Không nhận được kết quả từ OmsWatcherService.',
+        };
+      }
+      return {
+        success: checkResult.success,
+        message: JSON.stringify({
+          message: checkResult.message,
+          timestamp: new Date().toISOString(),
+          data: checkResult.data
+        }),
+      };
     }
 
     try {
@@ -93,6 +115,21 @@ export class ApiWatcherService {
         url: 'http://cqg.mxv.vn/api/status',
         status: 200,
         body: { connection: 'ACTIVE', latencyMs: 15 },
+      },
+      {
+        url: 'http://cqg.mxv.vn/api/oms/status',
+        status: 200,
+        body: {
+          status: 'EOD_COMPLETED',
+          ccp: {
+            eod: { status: 'COMPLETED', time: '05:30:00', date: '13/07/2026' },
+            mm: { totalOrders: 12, activeAccounts: ['699C555555M', '605C000204M'], status: 'OK' }
+          },
+          ce: {
+            eod: { status: 'COMPLETED', time: '05:30:00', date: '13/07/2026' },
+            mm: { totalOrders: 8, activeAccounts: ['699C555555M'], status: 'OK' }
+          }
+        },
       }
     ];
 
@@ -116,6 +153,17 @@ export class ApiWatcherService {
             message: `[Mô Phỏng] Phản hồi API không khớp điều kiện: "${condition}"`,
           };
         }
+      }
+
+      if (url.includes('http://cqg.mxv.vn/api/oms/status')) {
+        return {
+          success: true,
+          message: JSON.stringify({
+            message: '✅ [Mô Phỏng] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
+            timestamp: new Date().toISOString(),
+            data: match.body
+          })
+        };
       }
 
       return {

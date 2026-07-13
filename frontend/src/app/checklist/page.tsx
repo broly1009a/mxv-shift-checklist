@@ -28,6 +28,7 @@ import ReconciliationModal from './components/ReconciliationModal';
 import MarginCheckerModal from './components/MarginCheckerModal';
 import CcpStatisticsModal from './components/CcpStatisticsModal';
 import TradingReportModal from './components/TradingReportModal';
+import OmsStatusModal from './components/OmsStatusModal';
 
 function ChecklistWorksheet() {
   const {
@@ -82,13 +83,16 @@ function ChecklistWorksheet() {
     filteredDetails,
     focusedTaskIdRef,
     togglingTaskIds,
+    loadLogDetail,
   } = useChecklist();
 
   const [isReconModalOpen, setIsReconModalOpen] = React.useState(false);
   const [isMarginModalOpen, setIsMarginModalOpen] = React.useState(false);
   const [isCcpModalOpen, setIsCcpModalOpen] = React.useState(false);
   const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
+  const [isOmsModalOpen, setIsOmsModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
+  const [omsTaskId, setOmsTaskId] = React.useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -533,6 +537,10 @@ function ChecklistWorksheet() {
             onOpenMarginChecker={() => setIsMarginModalOpen(true)}
             onOpenCcpStatistics={() => setIsCcpModalOpen(true)}
             onOpenTradingReport={() => setIsTradingReportModalOpen(true)}
+            onOpenOmsStatus={(tid) => {
+              setOmsTaskId(tid);
+              setIsOmsModalOpen(true);
+            }}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -621,6 +629,22 @@ function ChecklistWorksheet() {
           isOpen={isTradingReportModalOpen}
           onClose={() => setIsTradingReportModalOpen(false)}
           token={token || ''}
+        />
+      )}
+
+      {isOmsModalOpen && log && (
+        <OmsStatusModal
+          isOpen={isOmsModalOpen}
+          onClose={() => setIsOmsModalOpen(false)}
+          token={token || ''}
+          shiftLogId={log._id}
+          taskId={omsTaskId}
+          taskName={log.details?.find(d => d.taskId === omsTaskId)?.taskNameSnapshot || ''}
+          resultNote={log.details?.find(d => d.taskId === omsTaskId)?.resultNote || ''}
+          status={log.details?.find(d => d.taskId === omsTaskId)?.status || 'PENDING'}
+          onTaskUpdated={() => {
+            loadLogDetail(log._id);
+          }}
         />
       )}
 

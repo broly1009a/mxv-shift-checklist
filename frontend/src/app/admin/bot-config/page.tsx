@@ -107,6 +107,8 @@ export default function AdminBotConfigPage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [testingCqgConnection, setTestingCqgConnection] = useState(false);
   const [testingAcmConnection, setTestingAcmConnection] = useState(false);
+  const [testingCppConnection, setTestingCppConnection] = useState(false);
+  const [testingCeConnection, setTestingCeConnection] = useState(false);
 
   // GTT Check state
   const [gttFile, setGttFile] = useState<File | null>(null);
@@ -915,6 +917,58 @@ export default function AdminBotConfigPage() {
     }
   };
 
+  // Test CCP connection
+  const handleTestCppConnection = async () => {
+    if (!token) return;
+    setTestingCppConnection(true);
+    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CCP...');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/test-connection-ccp`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Đăng nhập thử nghiệm CCP thất bại');
+      }
+
+      toast.success(data.message || 'Kết nối CCP thành công!', { id: toastId });
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm CCP thất bại', { id: toastId });
+    } finally {
+      setTestingCppConnection(false);
+    }
+  };
+
+  // Test CE connection
+  const handleTestCeConnection = async () => {
+    if (!token) return;
+    setTestingCeConnection(true);
+    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CE...');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/test-connection-ce`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Đăng nhập thử nghiệm CE thất bại');
+      }
+
+      toast.success(data.message || 'Kết nối CE thành công!', { id: toastId });
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm CE thất bại', { id: toastId });
+    } finally {
+      setTestingCeConnection(false);
+    }
+  };
+
   // Upload GTT.xlsx file
   const handleUploadGtt = async () => {
     if (!token || !gttFile) return;
@@ -1450,7 +1504,7 @@ export default function AdminBotConfigPage() {
             <button
               type="button"
               onClick={handleTestConnection}
-              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || testingCppConnection || testingCeConnection || loadingConfig}
               className="btn btn-secondary"
               style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
@@ -1459,7 +1513,7 @@ export default function AdminBotConfigPage() {
             <button
               type="button"
               onClick={handleTestCqgConnection}
-              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || testingCppConnection || testingCeConnection || loadingConfig}
               className="btn btn-secondary"
               style={{
                 padding: '12px 20px',
@@ -1476,7 +1530,7 @@ export default function AdminBotConfigPage() {
             <button
               type="button"
               onClick={handleTestAcmConnection}
-              disabled={testingConnection || testingCqgConnection || testingAcmConnection || loadingConfig}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || testingCppConnection || testingCeConnection || loadingConfig}
               className="btn btn-secondary"
               style={{
                 padding: '12px 20px',
@@ -1489,6 +1543,40 @@ export default function AdminBotConfigPage() {
               }}
             >
               <Play size={16} /> Test Đăng Nhập ACM
+            </button>
+            <button
+              type="button"
+              onClick={handleTestCppConnection}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || testingCppConnection || testingCeConnection || loadingConfig}
+              className="btn btn-secondary"
+              style={{
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              <Play size={16} /> Test Đăng Nhập CCP
+            </button>
+            <button
+              type="button"
+              onClick={handleTestCeConnection}
+              disabled={testingConnection || testingCqgConnection || testingAcmConnection || testingCppConnection || testingCeConnection || loadingConfig}
+              className="btn btn-secondary"
+              style={{
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              <Play size={16} /> Test Đăng Nhập CE
             </button>
           </div>
         </div>

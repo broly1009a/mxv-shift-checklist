@@ -95,6 +95,7 @@ interface TaskTableProps {
   onOpenMarginChecker: () => void;
   onOpenCcpStatistics: () => void;
   onOpenTradingReport: () => void;
+  onOpenOmsStatus: (taskId: string) => void;
   togglingTaskIds: Set<string>;
 }
 
@@ -124,6 +125,7 @@ export default function TaskTable({
   onOpenMarginChecker,
   onOpenCcpStatistics,
   onOpenTradingReport,
+  onOpenOmsStatus,
   togglingTaskIds
 }: TaskTableProps) {
 
@@ -483,6 +485,32 @@ export default function TaskTable({
                         >
                           <FileSpreadsheet size={12} />
                           Báo cáo Giao dịch
+                        </button>
+                      )}
+
+                      {/* OMS Status Button */}
+                      {(item.taskId === 'ops_open_02' ||
+                        item.taskNameSnapshot.toUpperCase().includes('EOD OMS') ||
+                        item.taskNameSnapshot.toUpperCase().includes('OMS EOD') ||
+                        item.taskNameSnapshot.toUpperCase().includes('OMS STATUS')) && !isCompleted && (
+                        <button
+                          onClick={() => onOpenOmsStatus(item.taskId)}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            marginLeft: '4px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(236, 72, 153, 0.08)',
+                            color: '#ec4899',
+                            border: '1px solid rgba(236, 72, 153, 0.2)',
+                          }}
+                        >
+                          <Cpu size={12} />
+                          OMS Status
                         </button>
                       )}
                     </div>
