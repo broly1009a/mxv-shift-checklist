@@ -6,31 +6,22 @@ Quy trình tự động hóa đối chiếu số dư đầu ngày (SOD) và tả
 
 ### 1. Backend
 
-*   **`ReconciliationService` (`reconciliation.service.ts`)**:
-    *   Tích hợp `SystemSettingsService` và `TelegramService`.
-    *   Xây dựng helper `findLatestFile(dir, pattern)` để tìm file Excel mới nhất tải về tự động.
-    *   Xây dựng hàm nghiệp vụ `runAutoCheckSOD()` để tự động đọc file `QLTKGD.xlsx` (M-System) và `Accounts_Balances.xlsx` (CQG), tiến hành đối chiếu số dư, lưu kết quả và gửi thông báo Telegram.
+*   **`RpaDownloaderService` (`rpa-downloader.service.ts`)**:
+    *   Cập nhật hàm `downloadCastBalances` để kế thừa toàn bộ logic mô phỏng IE11 và ActiveX từ file test (`test-cast-download.ts`).
+    *   Sử dụng route-interception để lọc sạch whitespace/BOM từ XML/XSL/ASP phản hồi từ máy chủ nhằm tránh lỗi parser của Chrome.
+    *   Tự động điền các bộ lọc: FCM (Equals "MXV"), Currency (Like "USD"), Record Description (Like "current") thông qua evaluate JS để đảm bảo độ tin cậy của Select2 và form events.
 *   **`BotJobQueueService` (`bot-job-queue.service.ts`)**:
-    *   Bổ sung 2 job handlers mới: `DOWNLOAD_CAST` và `AUTO_CHECK_SOD`.
-    *   Gọi `RpaDownloaderService.downloadCastBalances()` để tải báo cáo CQG CAST qua Playwright.
-    *   Gọi `ReconciliationService.runAutoCheckSOD()` để chạy đối chiếu và cập nhật trạng thái checklist task.
-*   **`BotEngineService` (`bot-engine.service.ts`)**:
-    *   Tự động enqueue các job tương ứng khi checklist ca trực có task `RPA_DOWNLOAD_CAST` hoặc `AUTO_CHECK_SOD` đến giờ cấu hình (`botTriggerTimeSnapshot`).
-*   **`SchedulerService` [NEW] (`scheduler.service.ts`)**:
-    *   Lập lịch chạy ngầm bằng `@Cron` mỗi phút một lần.
-    *   Đọc cấu hình JSON từ DB (`bot_scheduler_config`).
-    *   Tự động đưa job `DOWNLOAD_CAST` và `AUTO_CHECK_SOD` vào hàng đợi khi đúng giờ cấu hình và tự động liên kết với task chưa hoàn thành trong ca trực đang hoạt động (PENDING).
+    *   Cập nhật `handleDownloadCastJob` để trích xuất tham số `backupPath` từ job payload.
+    *   Sau khi bot tải file thành công, nếu có `backupPath`, hệ thống sẽ tự động tạo thư mục (nếu chưa có), copy file báo cáo đã tải và đổi tên thành `Accounts_Balances.xlsx` tại thư mục backup chỉ định.
 *   **`BotEngineController` (`bot-engine.controller.ts`)**:
-    *   Mở rộng endpoint cấu hình `GET /config` và `POST /config` để hỗ trợ load/save cấu hình lập lịch `schedulerConfig`.
-    *   Mở rộng endpoint kích hoạt thủ công `POST /trigger/:shiftLogId/:taskId` để enqueue chính xác job `DOWNLOAD_CAST` hoặc `AUTO_CHECK_SOD` thay vì chỉ `RPA_DOWNLOAD_REPORTS`.
-*   **`BotEngineModule` (`bot-engine.module.ts`)**:
-    *   Khai báo và exports `SchedulerService`.
+    *   Cập nhật endpoint `POST /api/v1/bot-engine/trigger-cast-download` để nhận `backupPath` từ request body và đưa vào payload của job `DOWNLOAD_CAST`.
 
 ### 2. Frontend
 
 *   **Admin Bot Config Page (`frontend/src/app/admin/bot-config/page.tsx`)**:
-    *   Tích hợp load/save cấu hình `schedulerConfig` từ backend.
-    *   Bổ sung panel giao diện **Lập Lịch Tự Động (Scheduler)** bằng ngôn ngữ thiết kế glassmorphic, hỗ trợ cấu hình giờ chạy (`time`) và nút kích hoạt (`enabled`) cho từng tác vụ check ngầm.
+    *   Thêm state `backupPathCast` được đồng bộ mặc định với đường dẫn backup MS khi tải trang cấu hình.
+    *   Thêm trường nhập liệu đường dẫn thư mục backup MS và nút bấm **"Tải Báo Cáo & Đổi Tên"** thủ công trực tiếp trong panel **Tài Khoản CQG CAST**.
+    *   Khi bấm nút, client sẽ trigger endpoint backend để enqueue job tải và lưu trữ trực tiếp vào thư mục backup được chỉ định.
 
 ---
 
@@ -49,10 +40,8 @@ Cả 2 workspace đã được build thành công không lỗi:
     *   Nhập thông tin tài khoản tại mục **Tài Khoản CQG CAST** (Username, Password, FCM, Currency, Record Description).
     *   Bật các tác vụ trong mục **Lập Lịch Tự Động (Scheduler)** và chỉnh giờ chạy gần thời điểm hiện tại để test.
     *   Nhấn **Lưu Cấu Hình Credentials** để lưu.
-2.  **Tạo ca trực**:
-    *   Tạo một ca trực mới có checklist chứa 2 tác vụ có Check Type là `RPA_DOWNLOAD_CAST` và `AUTO_CHECK_SOD`.
-3.  **Kích hoạt & Theo dõi**:
-    *   Chờ đến giờ cấu hình hoặc bấm nút **Kích hoạt chạy Bot (Robot Run)** thủ công trên Checklist UI.
-    *   Theo dõi logs hiển thị trong panel **Bot Jobs** tại giao diện `/admin/bot-config`.
-    *   Xác nhận file `Accounts_Balances.xlsx` được tải về thư mục `temp/cast-downloads/`.
-    *   Xác nhận tin nhắn thông báo Telegram gửi về nhóm vận hành với thông tin đối chiếu số dư đầu ngày (SOD).
+2.  **Chạy thủ công qua UI**:
+    *   Kiểm tra trường nhập **Thư mục Backup MS để lưu file (Accounts_Balances.xlsx)** trong panel **Tài Khoản CQG CAST**.
+    *   Nhấn nút **Tải Báo Cáo & Đổi Tên**.
+    *   Theo dõi logs trong danh sách công việc ở panel bên phải.
+    *   Xác nhận file `Accounts_Balances.xlsx` xuất hiện tại thư mục đích và nội dung chính xác.

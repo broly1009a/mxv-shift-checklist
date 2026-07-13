@@ -211,6 +211,10 @@ export default function AdminBotConfigPage() {
   const [savingValueMacroConfig, setSavingValueMacroConfig] = useState(false);
   const [triggeringMacroValue, setTriggeringMacroValue] = useState(false);
 
+  // CQG CAST download trigger state
+  const [backupPathCast, setBackupPathCast] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+  const [triggeringCastDownload, setTriggeringCastDownload] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -283,6 +287,7 @@ export default function AdminBotConfigPage() {
         const backupData = await backupRes.json();
         if (backupData.backupPath) {
           setBackupPathMs(backupData.backupPath);
+          setBackupPathCast(backupData.backupPath);
         }
       }
 
@@ -801,6 +806,34 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi gửi captcha', { id: toastId });
     } finally {
       setSubmittingCaptcha(false);
+    }
+  };
+
+  // Trigger CQG CAST report download
+  const handleTriggerCastDownload = async () => {
+    if (!token) return;
+    setTriggeringCastDownload(true);
+    const toastId = toast.loading('Đang khởi tạo job tải báo cáo CQG CAST...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-cast-download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ backupPath: backupPathCast }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      toast.success('Đã xếp hàng job tự động tải báo cáo CQG CAST thành công!', { id: toastId });
+      if (data.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId]);
+      }
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi chạy bot CQG CAST', { id: toastId });
+    } finally {
+      setTriggeringCastDownload(false);
     }
   };
 
@@ -1897,6 +1930,41 @@ export default function AdminBotConfigPage() {
 
                     <div style={{ padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', fontSize: '0.8rem', color: '#f59e0b' }}>
                       💡 Script sẽ tự bypass cảnh báo IE Mode bằng cách inject mock <code>localeinfoproviderObj</code> + IE11 User-Agent
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Thư mục Backup MS để lưu file (Accounts_Balances.xlsx)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Nhập đường dẫn thư mục backup MS..."
+                        value={backupPathCast}
+                        onChange={(e) => setBackupPathCast(e.target.value)}
+                        style={{ marginBottom: '12px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleTriggerCastDownload}
+                        disabled={triggeringCastDownload}
+                        className="btn"
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          fontWeight: 600,
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          border: 'none',
+                          color: '#fff',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)',
+                          cursor: 'pointer',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <Download size={16} /> {triggeringCastDownload ? 'Đang chạy Bot tải...' : 'Tải Báo Cáo & Đổi Tên'}
+                      </button>
                     </div>
                   </div>
                 </div>

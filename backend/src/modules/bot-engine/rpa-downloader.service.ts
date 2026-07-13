@@ -1572,29 +1572,128 @@ export class RpaDownloaderService {
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko',
     });
 
-    // Mock localeinfoproviderObj (ActiveX) để bypass lỗi crash ActiveX
-    const IE_MOCK_SCRIPT = `
-      if (typeof window.localeinfoproviderObj === 'undefined') {
-        window.localeinfoproviderObj = {
-          ShortDateFormat:   'MM/dd/yyyy',
-          TimeFormat:        'hh:mm:ss tt',
-          DecimalPoint:      '.',
-          ThousandSeparator: ',',
-          DigitsGrouping:    '3;0',
-          DigitsAfterDecimal: 2
-        };
-      }
-      if (typeof window.event === 'undefined') {
-        Object.defineProperty(window, 'event', {
-          get: function() { return { keyCode: 0 }; },
-          configurable: true
-        });
-      }
-    `;
-    await context.addInitScript(IE_MOCK_SCRIPT);
+    // Register Mock Script
+    await context.addInitScript({ content: IE_MOCK_SCRIPT });
 
     const page = await context.newPage();
     page.setDefaultTimeout(45000);
+
+    // Pipe browser console messages and errors to NestJS logger
+    page.on('console', msg => {
+      this.logger.log(`[CAST-Browser] [${msg.type()}] ${msg.text()}`);
+    });
+    page.on('pageerror', err => {
+      this.logger.error(`[CAST-BrowserError] ${err.message}`);
+    });
+
+    let searchFrameXmlText = '';
+    let userIndexXmlText = '';
+
+    // Intercept XML/XSL/ASP requests to clean leading whitespace/BOM characters before the browser engine parses them
+    await page.route('**/*', async route => {
+      const request = route.request();
+      const url = request.url().toLowerCase();
+      
+      const isAsp = url.includes('.asp') && !url.includes('.aspx');
+      if (url.includes('.xml') || url.includes('.xsl') || isAsp) {
+        try {
+          const response = await route.fetch();
+          const contentType = (response.headers()['content-type'] || '').toLowerCase();
+          
+          if (contentType.includes('xml') || contentType.includes('xsl') || contentType.includes('text') || isAsp) {
+            const rawBody = await response.text();
+            let cleanedBody = rawBody.replace(/^\s+/, '').trimStart();
+            
+            if (url.includes('searchframe.xml.asp')) {
+              searchFrameXmlText = cleanedBody;
+            }
+            if (url.includes('userindex.asp') && !url.includes('userindex.xsl.asp') && !url.includes('userindex.js.asp')) {
+              userIndexXmlText = cleanedBody;
+            }
+
+            // Translate obsolete Microsoft WD-xsl to standard W3C XSLT 1.0
+            if (url.includes('.xsl') || cleanedBody.includes('http://www.w3.org/TR/WD-xsl')) {
+              cleanedBody = cleanedBody.replace(/http:\/\/www\.w3\.org\/TR\/WD-xsl/g, 'http://www.w3.org/1999/XSL/Transform');
+              // Fix legacy WD-xsl style node/attribute test .[@attr='val'] -> @attr='val'
+              cleanedBody = cleanedBody.replace(/\.\[@([^\]]+)\]/g, '@$1');
+            }
+
+            // Inject the source XML text of SearchFrame.xml.asp into SearchFrame.xsl.asp
+            if (url.includes('searchframe.xsl.asp') && searchFrameXmlText) {
+              const b64 = Buffer.from(searchFrameXmlText).toString('base64');
+              cleanedBody = cleanedBody.replace(
+                `<script type='text/javascript' src='/CAST/Script/DataScripts.js.asp'></script>`,
+                `<script type='text/javascript'>window.__originalXMLText = atob('${b64}');</script>\n<script type='text/javascript' src='/CAST/Script/DataScripts.js.asp'></script>`
+              );
+            }
+
+            // Inject the source XML text of UserIndex.xml.asp into UserIndex.xsl.asp
+            if (url.includes('userindex.xsl.asp') && userIndexXmlText) {
+              const b64 = Buffer.from(userIndexXmlText).toString('base64');
+              cleanedBody = cleanedBody.replace(
+                /<script\s+language=["']JScript["']\s+src=["']UserIndex\.js\.asp\?language=EN["']\s+charset=["']UTF-8["']>/i,
+                `<SCRIPT TYPE="text/javascript">window.__originalXMLText = atob('${b64}');</SCRIPT>\n<SCRIPT LANGUAGE="JScript" SRC="UserIndex.js.asp?language=EN" charset="UTF-8">`
+              );
+            }
+            
+            if (url.includes('userindex.js.asp')) {
+              // Fix event handler parameter
+              cleanedBody = cleanedBody.replace(/function anonymous\s*\(\s*\)/g, 'function anonymous(event)');
+              
+              // Fix jumpToLink event srcElement resolution
+              cleanedBody = cleanedBody.replace(
+                /if\s*\(\s*obj\s*==\s*null\s*\)\s*\r?\n?\s*obj\s*=\s*event\.srcElement\s*;/g,
+                `var event = window.event;
+                if (obj == null) obj = event ? (event.srcElement || event.target) : null;
+                if (!obj) return;`
+              );
+              
+              // Add null guards to all obj.tagName and obj.pageLink checks
+              cleanedBody = cleanedBody.replace(/if\s*\(\s*obj\.tagName/g, 'if (obj && obj.tagName');
+              cleanedBody = cleanedBody.replace(/if\s*\(\s*event\s*!=\s*null/g, 'if (typeof event !== "undefined" && event != null');
+
+              // Fix IE document.all(id) -> document.getElementById(id)
+              cleanedBody = cleanedBody.replace(
+                /dataFrameLink\.document\.all\(([^)]+)\)/g,
+                'dataFrameLink.document.getElementById($1)'
+              );
+
+              // Fix &amp; literal check
+              cleanedBody = cleanedBody.replace(
+                /obj\.pageLink\.slice\(-5\) == "&amp;"/g,
+                '(obj.pageLink.slice(-5) === "&amp;" || obj.pageLink.slice(-1) === "&")'
+              );
+
+              // Wrap searchFrameLink.show() in try/catch
+              cleanedBody = cleanedBody.replace(
+                /searchFrameLink\.show\(/g,
+                'try { searchFrameLink.show('
+              );
+              cleanedBody = cleanedBody.replace(
+                /(searchFrameLink\.show\([^;]+;)/g,
+                '$1 } catch(e) { console.warn("[IE-MOCK] searchFrameLink.show failed:", e.message); }'
+              );
+            }
+
+            await route.fulfill({
+              response,
+              body: cleanedBody,
+              headers: {
+                ...response.headers(),
+                'content-type': url.includes('xsl') ? 'text/xml' : response.headers()['content-type']
+              }
+            });
+            return;
+          }
+        } catch (e: any) {
+          if (!e.message.includes('disposed') && !e.message.includes('closed')) {
+            this.logger.error(`[XML-ROUTE-ERROR] Failed to clean ${request.url()}: ${e.message}`);
+          }
+        }
+      }
+      
+      await route.continue().catch(() => {});
+    });
 
     try {
       this.logger.log(`Navigating to CQG CAST at ${castUrl}...`);
@@ -1613,123 +1712,257 @@ export class RpaDownloaderService {
       });
 
       // Chờ chuyển hướng sau đăng nhập
-      try {
-        await page.waitForNavigation({
-          url: url => !url.href.includes('Logon'),
-          timeout: 30000,
-        });
-      } catch {
-        await page.waitForTimeout(5000);
-      }
-
-      const afterUrl = page.url();
-      if (afterUrl.toLowerCase().includes('logon')) {
-        const statusText = await page.locator('#logonStatus').textContent({ timeout: 2000 }).catch(() => '');
-        throw new Error(`Đăng nhập CQG CAST thất bại. Status: ${statusText || 'không xác định'}`);
-      }
-
+      this.logger.log('Waiting for login redirect to CastMain.asp...');
+      await page.waitForURL('**/CastMain.asp', { timeout: 30000 });
       this.logger.log('Đăng nhập CQG CAST thành công!');
-      await page.waitForTimeout(2000);
+      
+      // Đợi thêm 5 giây để frameset và menu XML tải hoàn toàn
+      await page.waitForTimeout(5000);
 
-      // Điều hướng đến Reporting Tool
-      this.logger.log('Navigating to Reporting Tool...');
+      // Tìm frame userIndex (menu frame bên trái)
       const allFrames = page.frames();
-      let navFrame: any = null;
-      for (const frame of allFrames) {
-        const rtLink = frame.locator('a:has-text("Reporting Tool")');
-        if (await rtLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-          navFrame = frame;
-          break;
+      let userIndexFrame = allFrames.find(f => f.name() === 'userIndex' || f.url().includes('UserIndex.asp'));
+      if (!userIndexFrame) {
+        for (const f of allFrames) {
+          const childFrames = f.childFrames();
+          const found = childFrames.find(cf => cf.name() === 'userIndex' || cf.url().includes('UserIndex.asp'));
+          if (found) { userIndexFrame = found; break; }
         }
       }
 
-      if (navFrame) {
-        const reportsExpand = navFrame.locator('a:has-text("Reports")').first();
-        if (await reportsExpand.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await reportsExpand.click();
-          await page.waitForTimeout(1000);
-        }
-        await navFrame.locator('a:has-text("Reporting Tool")').click();
+      if (userIndexFrame) {
+        this.logger.log(`Found userIndex frame: ${userIndexFrame.url()}`);
+
+        // Tìm span LEAFITEM "Reporting Tool" và navigate dataFrame trực tiếp
+        const result = await userIndexFrame.evaluate(() => {
+          const spans = Array.from(document.querySelectorAll('span.LEAFITEM'));
+          const target = spans.find(s => s.textContent && s.textContent.trim() === 'Reporting Tool');
+          if (!target) {
+            return { found: false };
+          }
+          const pageLink = (target as any).getAttribute('pageLink') || (target as any).pageLink;
+          const win = window as any;
+          
+          try {
+            const df = win.parent && win.parent.parent && win.parent.parent.innerFrame && win.parent.parent.innerFrame.dataFrame;
+            if (df) {
+              df.location.href = pageLink;
+              return { found: true, pageLink, navigated: true };
+            }
+          } catch(e: any) {
+            return { found: true, pageLink, navigated: false, error: e.message };
+          }
+          return { found: true, pageLink, navigated: false };
+        });
+
+        this.logger.log(`Reporting Tool link evaluation result: ${JSON.stringify(result)}`);
+        await page.waitForTimeout(3000);
       } else {
+        this.logger.warn('Could not find userIndex frame, falling back to direct navigation...');
         const castBase = new URL(castUrl).origin;
         await page.goto(`${castBase}/CAST/ReportingTool/ReportingTool.asp`, { timeout: 20000 }).catch(() => {});
       }
 
-      await page.waitForTimeout(3000);
-
       // Tìm main frame chứa form
-      const frames2 = page.frames();
-      let mainFrame: any = page;
-      for (const frame of frames2) {
-        const cnt = await frame.locator('select').count().catch(() => 0);
-        if (cnt > 0) {
-          mainFrame = frame;
-          break;
-        }
+      let dataFrame = page.frames().find(f => f.name() === 'dataFrame' || f.url().includes('ReportingTool'));
+      if (!dataFrame) {
+        await page.waitForTimeout(2000);
+        dataFrame = page.frames().find(f => f.name() === 'dataFrame' || f.url().includes('ReportingTool'));
       }
 
-      // Chọn template
-      const templateSelect = mainFrame.locator('select').first();
-      await templateSelect.waitFor({ state: 'visible', timeout: 15000 });
-      const options = await templateSelect.locator('option').allTextContents();
+      if (dataFrame) {
+        this.logger.log(`Target dataFrame found: ${dataFrame.url()}`);
+        await dataFrame.waitForLoadState('domcontentloaded');
+        await page.waitForTimeout(2000);
 
-      const targetOption = options.find((o: string) =>
-        o.includes('Accounts: Balances') || o.includes('Accounts:Balances')
-      );
-      if (!targetOption) {
-        throw new Error(`Không tìm thấy "Accounts: Balances". Options: ${options.join(', ')}`);
+        // Chọn template "Accounts: Balances"
+        const selectResult = await dataFrame.evaluate(() => {
+          const doc = document as any;
+          const win = window as any;
+
+          // Tìm template dropdown
+          const templateSelect = doc.getElementById('ctl00_mainContent_ddlTemplates') ||
+            doc.querySelector('select[name*="Template"]') ||
+            doc.querySelector('select[id*="Template"]') ||
+            Array.from(doc.querySelectorAll('select')).find((s: any) =>
+              Array.from(s.options).some((o: any) => o.text.includes('Balances'))
+            );
+
+          if (!templateSelect) {
+            return { error: 'Template select not found' };
+          }
+
+          // Tìm option có text "Balances"
+          const balancesOption = Array.from(templateSelect.options).find((o: any) =>
+            o.text.includes('Balances')
+          ) as any;
+
+          if (!balancesOption) {
+            return { error: 'Balances option not found' };
+          }
+
+          // Chọn template
+          templateSelect.value = balancesOption.value;
+
+          // Tìm hidden selectedReport field
+          const selectedReport = doc.getElementById('ctl00_mainContent_selectedReport') ||
+            doc.querySelector('input[name*="selectedReport"]');
+
+          // Gọi reportTemplateChanged để trigger postback
+          if (typeof win.reportTemplateChanged === 'function') {
+            win.reportTemplateChanged(templateSelect, selectedReport || { value: '' });
+            return { triggered: 'reportTemplateChanged', value: balancesOption.value };
+          }
+
+          templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          return { triggered: 'change event', value: balancesOption.value };
+        });
+
+        this.logger.log(`Template selection result: ${JSON.stringify(selectResult)}`);
+
+        if (selectResult && !selectResult.error && selectResult.triggered) {
+          this.logger.log('Waiting for postback/reload after selecting template...');
+          try {
+            await dataFrame.waitForNavigation({ timeout: 15000, waitUntil: 'domcontentloaded' });
+          } catch(e) {
+            await page.waitForTimeout(3000);
+          }
+        }
+
+        // Lấy lại dataFrame sau reload
+        dataFrame = page.frames().find(f => f.name() === 'dataFrame' || f.url().includes('ReportingTool')) || dataFrame;
+        await page.waitForTimeout(2000);
+
+        // Điền các bộ lọc và click saveButton
+        this.logger.log(`Injecting filters: FCM=${fcm}, Currency=${currency}, Record Description=${desc}`);
+        await dataFrame.evaluate(({ fcmVal, curVal, descVal }) => {
+          const win = window as any;
+          const doc = document;
+          const $ = win.jQuery;
+
+          // Polyfill / Mock cho biến global cblist$ của ASP.NET WebForms
+          doc.querySelectorAll('select[onchange]').forEach(sel => {
+            const onchangeAttr = sel.getAttribute('onchange') || '';
+            const match = onchangeAttr.match(/cblist\$\d+/);
+            if (match) {
+              const varName = match[0];
+              if (!(varName in win)) {
+                const row = sel.closest('tr');
+                const cbContainer = row ? row.querySelector('[data-js="dictionary-checkboxes"]') : null;
+                win[varName] = cbContainer || {};
+                console.log(`[FILTER-PATCH] Defined dummy global for ${varName}`);
+              }
+            }
+          });
+
+          // Helper to set select value
+          const setSelectValue = (row: any, value: string) => {
+            const select = row.querySelector('[data-js="filter-operation"] select');
+            if (select) {
+              select.value = value;
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          };
+
+          // 1. FCM -> MXV
+          const fcmRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const nameEl = tr.querySelector('[data-js="name"]');
+            return nameEl && nameEl.textContent.trim() === 'FCM';
+          });
+          if (fcmRow) {
+            const mxvCheckbox = Array.from(fcmRow.querySelectorAll('input[type="checkbox"]')).find(cb => {
+              const label = cb.closest('label') || cb.parentElement;
+              return label && label.textContent.trim().toUpperCase() === fcmVal.toUpperCase();
+            }) as HTMLInputElement;
+
+            if (mxvCheckbox) {
+              mxvCheckbox.checked = true;
+              mxvCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+              
+              try {
+                const select2El = fcmRow.querySelector('select[data-js="dictionary"]');
+                if (select2El && $) {
+                  const val = mxvCheckbox.id;
+                  let opt = Array.from((select2El as HTMLSelectElement).options).find(o => o.value === val);
+                  if (!opt) {
+                    opt = doc.createElement('option');
+                    opt.value = val;
+                    opt.text = fcmVal;
+                    select2El.appendChild(opt);
+                  }
+                  opt.selected = true;
+                  $(select2El).val([val]).trigger('change');
+                }
+              } catch (e) {}
+            }
+            setSelectValue(fcmRow, "2"); // Equals (2)
+          }
+
+          // 2. Currency -> USD
+          const currencyRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const nameEl = tr.querySelector('[data-js="name"]');
+            return nameEl && nameEl.textContent.trim() === 'Currency';
+          });
+          if (currencyRow) {
+            const input = currencyRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+            if (input) {
+              input.value = curVal;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            setSelectValue(currencyRow, "1"); // Like (1)
+          }
+
+          // 3. Record Description -> current
+          const rdRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const nameEl = tr.querySelector('[data-js="name"]');
+            return nameEl && nameEl.textContent.trim() === 'Record Description';
+          });
+          if (rdRow) {
+            const input = rdRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+            if (input) {
+              input.value = descVal;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            setSelectValue(rdRow, "1"); // Like (1)
+          }
+
+          // Override checkPage to bypass validations and trigger report generation
+          win.checkPage = function() {
+            const rows = document.getElementsByName('reportDetailName');
+            let hasSelected = false;
+            for (let i = 0; i < rows.length; i++) {
+              const cb = rows[i].children[1]?.firstElementChild as HTMLInputElement;
+              if (cb && cb.checked) { hasSelected = true; break; }
+            }
+            if (!hasSelected) { alert('No selected fields'); return false; }
+            try {
+              if (typeof win.removeHiddenSortOrderDDLs === 'function') win.removeHiddenSortOrderDDLs();
+              if (typeof win.unformatAllLocalFilterValues === 'function') win.unformatAllLocalFilterValues(rows);
+              if (typeof win.startWaitingForDownload === 'function') win.startWaitingForDownload();
+            } catch(e) {}
+            return true;
+          };
+        }, { fcmVal: fcm, curVal: currency, descVal: desc });
+
+        await page.waitForTimeout(1000);
+
+        // Click saveButton (Create Report) and wait for download
+        this.logger.log('Clicking saveButton and waiting for download...');
+        const downloadPromise = page.waitForEvent('download', { timeout: 120000 });
+        await dataFrame.locator('#saveButton').click({ timeout: 10000 });
+
+        const download = await downloadPromise;
+        await download.saveAs(destFile);
+        this.logger.log(`Tải file CAST thành công về: ${destFile}`);
+        return destFile;
+      } else {
+        throw new Error('Không tìm thấy frame Reporting Tool/dataFrame');
       }
-      await templateSelect.selectOption({ label: targetOption });
-      await page.waitForTimeout(3000);
-
-      // Điền bộ lọc FCM, Currency, Record Description
-      const setFilterRow = async (frame: any, colName: string, operation: string, val: string) => {
-        const row = frame.locator('tr').filter({ hasText: colName }).first();
-        if (!await row.isVisible({ timeout: 3000 }).catch(() => false)) {
-          return;
-        }
-        const opSel = row.locator('select').first();
-        if (await opSel.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await opSel.selectOption({ label: operation });
-          await frame.waitForTimeout(200);
-        }
-        const valIn = row.locator('input[type="text"]').first();
-        if (await valIn.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await valIn.fill(val);
-        }
-      };
-
-      await setFilterRow(mainFrame, 'FCM', 'Equals', fcm);
-      await setFilterRow(mainFrame, 'Currency', 'Like', currency);
-      await setFilterRow(mainFrame, 'Record Description', 'Like', desc);
-      await page.waitForTimeout(1000);
-
-      // Click Create Report và chờ download
-      this.logger.log('Clicking Create Report and waiting for download...');
-      const downloadPromise = context.waitForEvent('download', { timeout: 120000 });
-
-      let clicked = false;
-      for (const sel of ['input[value="Create Report"]', 'button:has-text("Create Report")', 'input[type="submit"]']) {
-        const btn = mainFrame.locator(sel).first();
-        if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await btn.click();
-          clicked = true;
-          break;
-        }
-      }
-
-      if (!clicked) {
-        throw new Error('Không tìm thấy nút Create Report');
-      }
-
-      const download = await downloadPromise;
-      await download.saveAs(destFile);
-      this.logger.log(`Tải file CAST thành công về: ${destFile}`);
-      return destFile;
-
     } catch (err: any) {
       this.logger.error(`Lỗi tải báo cáo CQG CAST: ${err.message}`);
-      // Lưu screenshot debug
+      // Capture screenshot for debug
       try {
         const debugDir = path.join(process.cwd(), 'temp', 'debug', 'cast');
         if (!fs.existsSync(debugDir)) {
@@ -1744,4 +1977,557 @@ export class RpaDownloaderService {
     }
   }
 }
+
+// IE Mock Script to make modern browsers behave like IE11
+const IE_MOCK_SCRIPT = `
+  // Mock localeinfoproviderObj (IE ActiveX COM object)
+  Object.defineProperty(window, 'localeinfoproviderObj', {
+    value: {
+      ShortDateFormat:   'MM/dd/yyyy',
+      TimeFormat:        'hh:mm:ss tt',
+      DecimalPoint:      '.',
+      ThousandSeparator: ',',
+      DigitsGrouping:    '3;0',
+      DigitsAfterDecimal: 2
+    },
+    writable: true,
+    configurable: true
+  });
+
+  // Mock window.event (IE-specific global event object) to track active events
+  (function() {
+    let currentEvent = null;
+
+    function wrapEvent(e) {
+      if (!e) return { keyCode: 0, srcElement: null, cancelBubble: false };
+      if (e.__ieWrapped) return e;
+      return new Proxy(e, {
+        get: function(target, prop) {
+          if (prop === '__ieWrapped') return true;
+          if (prop === 'srcElement') return target.target || target.srcElement || null;
+          if (prop === 'cancelBubble') return target.cancelBubble || false;
+          if (prop === 'returnValue') return target.returnValue !== undefined ? target.returnValue : true;
+          if (prop === 'fromElement') return target.relatedTarget || null;
+          if (prop === 'toElement') return target.target || null;
+          var val = target[prop];
+          return typeof val === 'function' ? val.bind(target) : val;
+        },
+        set: function(target, prop, value) {
+          if (prop === 'cancelBubble' && value) {
+            target.stopPropagation && target.stopPropagation();
+          }
+          if (prop === 'returnValue' && value === false) {
+            target.preventDefault && target.preventDefault();
+          }
+          target[prop] = value;
+          return true;
+        }
+      });
+    }
+
+    Object.defineProperty(window, 'event', {
+      get: function() { return wrapEvent(currentEvent); },
+      set: function(val) { currentEvent = val; },
+      configurable: true
+    });
+    const updateEvent = (e) => { currentEvent = e; };
+    const eventTypes = ['click', 'mouseover', 'mouseout', 'keydown', 'keyup', 'mousedown', 'mouseup', 'contextmenu'];
+    for (const type of eventTypes) {
+      window.addEventListener(type, updateEvent, true);
+    }
+  })();
+
+  // Mock HTMLFrameElement/HTMLIFrameElement document property for IE compatibility
+  if (window.HTMLFrameElement && !('document' in window.HTMLFrameElement.prototype)) {
+    Object.defineProperty(window.HTMLFrameElement.prototype, 'document', {
+      get: function() {
+        try {
+          return this.contentDocument || (this.contentWindow ? this.contentWindow.document : null);
+        } catch (e) {
+          return null;
+        }
+      },
+      configurable: true
+    });
+  }
+  if (window.HTMLIFrameElement && !('document' in window.HTMLIFrameElement.prototype)) {
+    Object.defineProperty(window.HTMLIFrameElement.prototype, 'document', {
+      get: function() {
+        try {
+          return this.contentDocument || (this.contentWindow ? this.contentWindow.document : null);
+        } catch (e) {
+          return null;
+        }
+      },
+      configurable: true
+    });
+  }
+
+  // Emulate IE case-insensitive frame access on Window objects
+  if (typeof window.Window !== 'undefined' && window.Window.prototype) {
+    const frameNames = ['searchFrame', 'innerFrame', 'dataFrame', 'masthead', 'userIndex'];
+    frameNames.forEach(name => {
+      if (!(name in window.Window.prototype)) {
+        Object.defineProperty(window.Window.prototype, name, {
+          get: function() {
+            const lowerName = name.toLowerCase();
+            try {
+              for (let i = 0; i < this.frames.length; i++) {
+                const f = this.frames[i];
+                if (f && f.name && f.name.toLowerCase() === lowerName) {
+                  return f;
+                }
+              }
+            } catch (e) {}
+            try {
+              const el = this.document.getElementById(name) || this.document.getElementsByName(name)[0];
+              if (el) {
+                return el.contentWindow || el;
+              }
+            } catch (e) {}
+            return undefined;
+          },
+          configurable: true
+        });
+      }
+    });
+  }
+
+  // Override document.getElementById to emulate IE's behavior of matching 'name' when 'id' is not found
+  const originalGetElementById = document.getElementById;
+  document.getElementById = function(id) {
+    let el = originalGetElementById.call(document, id);
+    if (!el) {
+      const elements = document.getElementsByName(id);
+      if (elements.length > 0) {
+        el = elements[0];
+      }
+    }
+    return el;
+  };
+
+  // Override document.getElementsByName to emulate IE's behavior of matching by 'id' as well
+  const originalGetElementsByName = document.getElementsByName;
+  document.getElementsByName = function(name) {
+    const list = Array.from(originalGetElementsByName.call(document, name));
+    const byId = Array.from(document.querySelectorAll('[id="' + name + '"]'));
+    const merged = [...list];
+    for (var i = 0; i < byId.length; i++) {
+      var el = byId[i];
+      if (merged.indexOf(el) === -1) {
+        merged.push(el);
+      }
+    }
+    merged.item = function(index) {
+      return merged[index];
+    };
+    return merged;
+  };
+
+  // Mock ActiveXObject for modern browsers to support XML parsing and HTTP requests
+  if (typeof window.ActiveXObject === 'undefined') {
+    window.ActiveXObject = function(progId) {
+      console.log('[IE-MOCK] ActiveXObject instantiated:', progId);
+      var prog = progId.toLowerCase();
+      if (prog.indexOf('xmlhttp') >= 0) {
+        return new XMLHttpRequest();
+      }
+      if (prog.indexOf('xmldom') >= 0) {
+        var doc = document.implementation.createDocument('', '', null);
+        
+        doc.parseError = {
+          errorCode: 0,
+          reason: '',
+          filepos: 0,
+          line: 0,
+          linepos: 0,
+          srcText: '',
+          url: ''
+        };
+
+        doc.load = function(url) {
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, false);
+            xhr.send();
+            var trimmedXml = xhr.responseText.replace(/^\s+/, '').trimStart();
+            var parser = new DOMParser();
+            var parsedDoc = parser.parseFromString(trimmedXml, 'text/xml');
+            
+            var parseErrorEl = parsedDoc.querySelector('parsererror');
+            if (parseErrorEl) {
+              doc.parseError.errorCode = -1;
+              doc.parseError.reason = parseErrorEl.textContent;
+              return false;
+            }
+            
+            while (doc.firstChild) {
+              doc.removeChild(doc.firstChild);
+            }
+            if (parsedDoc.documentElement) {
+              var importedNode = doc.importNode(parsedDoc.documentElement, true);
+              doc.appendChild(importedNode);
+            }
+            doc.parseError.errorCode = 0;
+            return true;
+          } catch (e) {
+            doc.parseError.errorCode = -1;
+            doc.parseError.reason = e.message;
+            return false;
+          }
+        };
+
+        doc.loadXML = function(xmlString) {
+          try {
+            var trimmedXml = xmlString.replace(/^\s+/, '').trimStart();
+            var parser = new DOMParser();
+            var parsedDoc = parser.parseFromString(trimmedXml, 'text/xml');
+            
+            var parseErrorEl = parsedDoc.querySelector('parsererror');
+            if (parseErrorEl) {
+              doc.parseError.errorCode = -1;
+              doc.parseError.reason = parseErrorEl.textContent;
+              return false;
+            }
+            
+            while (doc.firstChild) {
+              doc.removeChild(doc.firstChild);
+            }
+            if (parsedDoc.documentElement) {
+              var importedNode = doc.importNode(parsedDoc.documentElement, true);
+              doc.appendChild(importedNode);
+            }
+            doc.parseError.errorCode = 0;
+            return true;
+          } catch (e) {
+            doc.parseError.errorCode = -1;
+            doc.parseError.reason = e.message;
+            return false;
+          }
+        };
+
+        Object.defineProperty(doc, 'xml', {
+          get: function() {
+            return new XMLSerializer().serializeToString(doc);
+          }
+        });
+
+        doc.selectSingleNode = function(xpath) {
+          try {
+            var result = doc.evaluate(xpath, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            return result.singleNodeValue;
+          } catch (e) { return null; }
+        };
+
+        doc.selectNodes = function(xpath) {
+          try {
+            var result = doc.evaluate(xpath, doc, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+            var nodes = [];
+            var n = result.iterateNext();
+            while (n) { nodes.push(n); n = result.iterateNext(); }
+            nodes.item = function(i) { return nodes[i]; };
+            return nodes;
+          } catch (e) { return []; }
+        };
+
+        return doc;
+      }
+      return {};
+    };
+  }
+
+  // Emulate IE's Node.xml property
+  if (!('xml' in Node.prototype)) {
+    Object.defineProperty(Node.prototype, 'xml', {
+      get: function() {
+        return new XMLSerializer().serializeToString(this);
+      },
+      configurable: true
+    });
+  }
+
+  // Emulate IE's Node.text property
+  if (!('text' in Element.prototype)) {
+    Object.defineProperty(Element.prototype, 'text', {
+      get: function() { return this.textContent; },
+      set: function(val) { this.textContent = val; },
+      configurable: true
+    });
+  }
+  if (!('text' in Attr.prototype)) {
+    Object.defineProperty(Attr.prototype, 'text', {
+      get: function() { return this.value; },
+      set: function(val) { this.value = val; },
+      configurable: true
+    });
+  }
+
+  // Emulate selectSingleNode / selectNodes on elements
+  if (!Element.prototype.selectSingleNode) {
+    Element.prototype.selectSingleNode = function(xpath) {
+      try {
+        var doc = this.ownerDocument || this;
+        var result = doc.evaluate(xpath, this, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        return result.singleNodeValue;
+      } catch (e) { return null; }
+    };
+  }
+  if (!Element.prototype.selectNodes) {
+    Element.prototype.selectNodes = function(xpath) {
+      try {
+        var doc = this.ownerDocument || this;
+        var result = doc.evaluate(xpath, this, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+        var nodes = [];
+        var n = result.iterateNext();
+        while (n) { nodes.push(n); n = result.iterateNext(); }
+        nodes.item = function(i) { return nodes[i]; };
+        return nodes;
+      } catch (e) { return []; }
+    };
+  }
+
+  // Emulate selectSingleNode / selectNodes on Document
+  if (!Document.prototype.selectSingleNode) {
+    Document.prototype.selectSingleNode = function(xpath) {
+      try {
+        var result = this.evaluate(xpath, this, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        return result.singleNodeValue;
+      } catch (e) { return null; }
+    };
+  }
+  if (!Document.prototype.selectNodes) {
+    Document.prototype.selectNodes = function(xpath) {
+      try {
+        var result = this.evaluate(xpath, this, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+        var nodes = [];
+        var n = result.iterateNext();
+        while (n) { nodes.push(n); n = result.iterateNext(); }
+        nodes.item = function(i) { return nodes[i]; };
+        return nodes;
+      } catch (e) { return []; }
+    };
+  }
+
+  // Emulate transformNode on Document and Element using XSLTProcessor
+  const mockTransformNode = function(xsltDoc) {
+    try {
+      if (!xsltDoc) return "";
+      const processor = new XSLTProcessor();
+      processor.importStylesheet(xsltDoc);
+      const resultDoc = processor.transformToDocument(this);
+      if (!resultDoc) return "";
+      return new XMLSerializer().serializeToString(resultDoc);
+    } catch (e) {
+      return "";
+    }
+  };
+
+  if (typeof Document !== 'undefined' && !Document.prototype.transformNode) {
+    Document.prototype.transformNode = mockTransformNode;
+  }
+  if (typeof Element !== 'undefined' && !Element.prototype.transformNode) {
+    Element.prototype.transformNode = mockTransformNode;
+  }
+
+  // Override XMLHttpRequest.prototype.responseXML to handle leading whitespace/BOM in server XML responses
+  var originalResponseXML = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseXML').get;
+  Object.defineProperty(XMLHttpRequest.prototype, 'responseXML', {
+    get: function() {
+      var doc = originalResponseXML.call(this);
+      if (doc && doc.querySelector('parsererror')) {
+        try {
+          var rawText = this.responseText;
+          var trimmed = rawText.replace(/^\s+/, '');
+          var parser = new DOMParser();
+          var newDoc = parser.parseFromString(trimmed, 'text/xml');
+          if (!newDoc.querySelector('parsererror')) {
+            return newDoc;
+          }
+        } catch (e) {}
+      }
+      return doc;
+    },
+    configurable: true
+  });
+
+  // Emulate IE's whitespace-ignoring DOM traversal behavior
+  if (typeof Node !== 'undefined') {
+    var descFirstChild = Object.getOwnPropertyDescriptor(Node.prototype, 'firstChild');
+    if (descFirstChild) {
+      Object.defineProperty(Node.prototype, 'firstChild', {
+        get: function() {
+          var node = descFirstChild.get.call(this);
+          while (node && node.nodeType === 3 && !/\S/.test(node.nodeValue)) {
+            node = node.nextSibling;
+          }
+          return node;
+        },
+        configurable: true
+      });
+    }
+
+    var descLastChild = Object.getOwnPropertyDescriptor(Node.prototype, 'lastChild');
+    if (descLastChild) {
+      Object.defineProperty(Node.prototype, 'lastChild', {
+        get: function() {
+          var node = descLastChild.get.call(this);
+          while (node && node.nodeType === 3 && !/\S/.test(node.nodeValue)) {
+            node = node.previousSibling;
+          }
+          return node;
+        },
+        configurable: true
+      });
+    }
+
+    var descNextSibling = Object.getOwnPropertyDescriptor(Node.prototype, 'nextSibling');
+    if (descNextSibling) {
+      Object.defineProperty(Node.prototype, 'nextSibling', {
+        get: function() {
+          var node = descNextSibling.get.call(this);
+          while (node && node.nodeType === 3 && !/\S/.test(node.nodeValue)) {
+            node = descNextSibling.get.call(node);
+          }
+          return node;
+        },
+        configurable: true
+      });
+    }
+
+    var descPreviousSibling = Object.getOwnPropertyDescriptor(Node.prototype, 'previousSibling');
+    if (descPreviousSibling) {
+      Object.defineProperty(Node.prototype, 'previousSibling', {
+        get: function() {
+          var node = descPreviousSibling.get.call(this);
+          while (node && node.nodeType === 3 && !/\S/.test(node.nodeValue)) {
+            node = descPreviousSibling.get.call(node);
+          }
+          return node;
+        },
+        configurable: true
+      });
+    }
+
+    // Polyfill IE filters collection for transition effect compatibility
+    Object.defineProperty(Element.prototype, 'filters', {
+      get: function() {
+        const self = this;
+        return {
+          item: function(name) {
+            if (name.indexOf('Alpha') !== -1) {
+              return {
+                get opacity() {
+                  return parseFloat(self.style.opacity || '1') * 100;
+                },
+                set opacity(val) {
+                  self.style.opacity = (Number(val) / 100).toString();
+                }
+              };
+            }
+            return { opacity: 100 };
+          }
+        };
+      },
+      configurable: true
+    });
+
+    // Inject standard CSS opacity rules to hide the utility/help menus by default
+    function injectOpacityStyles() {
+      if (document.getElementById('ie-mock-filter-styles')) return;
+      const style = document.createElement('style');
+      style.id = 'ie-mock-filter-styles';
+      style.textContent = '.masthead-utility-ifrm, .masthead-help-ifrm,' +
+        '#utilityMenuSearchID, #utilityMenuDataID, #helpMenuSearchID, #helpMenuDataID {' +
+        'opacity: 0; }';
+      (document.head || document.documentElement).appendChild(style);
+    }
+    if (document.head || document.documentElement) {
+      injectOpacityStyles();
+    } else {
+      document.addEventListener('DOMContentLoaded', injectOpacityStyles);
+    }
+  }
+
+  // Emulate IE's callable HTML collections: collection(index)
+  function makeCallableCollection(collection) {
+    if (!collection) return collection;
+    var callable = function(index) {
+      return collection.item(index) || collection[index];
+    };
+    for (var i = 0; i < collection.length; i++) {
+      (function(idx) {
+        Object.defineProperty(callable, idx, {
+          get: function() { return collection[idx]; },
+          enumerable: true,
+          configurable: true
+        });
+      })(i);
+    }
+    Object.defineProperty(callable, 'length', {
+      get: function() { return collection.length; },
+      configurable: true
+    });
+    callable.item = function(index) {
+      return collection.item(index);
+    };
+    for (var prop in collection) {
+      if (isNaN(prop) && !(prop in callable)) {
+        try {
+          (function(p) {
+            Object.defineProperty(callable, p, {
+              get: function() { return collection[p]; },
+              configurable: true
+            });
+          })(prop);
+        } catch (e) {}
+      }
+    }
+    return callable;
+  }
+
+  if (typeof HTMLTableElement !== 'undefined') {
+    var descRows = Object.getOwnPropertyDescriptor(HTMLTableElement.prototype, 'rows');
+    if (descRows) {
+      Object.defineProperty(HTMLTableElement.prototype, 'rows', {
+        get: function() { return makeCallableCollection(descRows.get.call(this)); },
+        configurable: true
+      });
+    }
+  }
+  if (typeof HTMLTableRowElement !== 'undefined') {
+    var descCells = Object.getOwnPropertyDescriptor(HTMLTableRowElement.prototype, 'cells');
+    if (descCells) {
+      Object.defineProperty(HTMLTableRowElement.prototype, 'cells', {
+        get: function() { return makeCallableCollection(descCells.get.call(this)); },
+        configurable: true
+      });
+    }
+  }
+  if (typeof HTMLSelectElement !== 'undefined') {
+    var descOptions = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'options');
+    if (descOptions) {
+      Object.defineProperty(HTMLSelectElement.prototype, 'options', {
+        get: function() { return makeCallableCollection(descOptions.get.call(this)); },
+        configurable: true
+      });
+    }
+  }
+  if (typeof Element !== 'undefined') {
+    const ieCustomAttrs = ['pageLink', 'iscentraldb', 'selectedids', 'hiddenfieldid', 'columntype', 'selectedReport'];
+    ieCustomAttrs.forEach(function(attr) {
+      if (!(attr in Element.prototype)) {
+        Object.defineProperty(Element.prototype, attr, {
+          get: function() {
+            return this.getAttribute(attr) || undefined;
+          },
+          set: function(val) {
+            this.setAttribute(attr, val);
+          },
+          configurable: true
+        });
+      }
+    });
+  }
+`;
+
 

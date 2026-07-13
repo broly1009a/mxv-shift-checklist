@@ -1097,6 +1097,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       payload.downloadedFile = destFile;
       job.payload = payload;
       await job.save();
+
+      // Check if custom backup path is provided to copy and rename the file
+      const customBackupPath = payload.backupPath;
+      if (customBackupPath) {
+        job.logs.push(`[${new Date().toISOString()}] Đang copy và đổi tên file sang thư mục backup: ${customBackupPath}`);
+        await job.save();
+        
+        if (!fs.existsSync(customBackupPath)) {
+          fs.mkdirSync(customBackupPath, { recursive: true });
+        }
+        
+        const targetBackupFile = path.join(customBackupPath, 'Accounts_Balances.xlsx');
+        fs.copyFileSync(destFile, targetBackupFile);
+        
+        job.logs.push(`[${new Date().toISOString()}] ✅ Đã copy và đổi tên thành công: ${targetBackupFile}`);
+        await job.save();
+      }
     } catch (err: any) {
       job.logs.push(`[${new Date().toISOString()}] Lỗi trong quá trình chạy RPA CQG CAST: ${err.message}`);
       await job.save();

@@ -341,13 +341,11 @@ export class BotEngineController {
     }
   }
 
-  /**
-   * Triggers a CQG CAST balance report download job.
-   */
   @Post('trigger-cast-download')
-  async triggerCastDownload() {
+  async triggerCastDownload(@Body('backupPath') backupPath?: string) {
     const job = await this.jobQueueService.enqueue('DOWNLOAD_CAST', {
       maxAttempts: 1,
+      backupPath: backupPath || '',
     });
     return { success: true, message: 'Đã đưa yêu cầu tải báo cáo CQG CAST vào hàng đợi.', jobId: job._id };
   }
