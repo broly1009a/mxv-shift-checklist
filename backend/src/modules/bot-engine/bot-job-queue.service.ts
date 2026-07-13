@@ -1099,8 +1099,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await job.save();
 
       // Check if custom backup path is provided to copy and rename the file
-      const customBackupPath = payload.backupPath;
+      let customBackupPath = payload.backupPath;
       if (customBackupPath) {
+        // Lấy ngày cần chạy (mặc định là ngày hôm nay nếu không truyền targetDate)
+        const targetDateStr = payload.targetDate;
+        const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        
+        // Ghép thêm thư mục ngày vào đường dẫn backup gốc
+        customBackupPath = path.join(customBackupPath, subFolder);
+
         job.logs.push(`[${new Date().toISOString()}] Đang copy và đổi tên file sang thư mục backup: ${customBackupPath}`);
         await job.save();
         

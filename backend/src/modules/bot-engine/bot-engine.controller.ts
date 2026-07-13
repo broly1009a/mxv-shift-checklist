@@ -342,10 +342,14 @@ export class BotEngineController {
   }
 
   @Post('trigger-cast-download')
-  async triggerCastDownload(@Body('backupPath') backupPath?: string) {
+  async triggerCastDownload(
+    @Body('backupPath') backupPath?: string,
+    @Body('targetDate') targetDate?: string,
+  ) {
     const job = await this.jobQueueService.enqueue('DOWNLOAD_CAST', {
       maxAttempts: 1,
       backupPath: backupPath || '',
+      targetDate: targetDate || '',
     });
     return { success: true, message: 'Đã đưa yêu cầu tải báo cáo CQG CAST vào hàng đợi.', jobId: job._id };
   }

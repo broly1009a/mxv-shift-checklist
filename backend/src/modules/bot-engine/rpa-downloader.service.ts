@@ -15,6 +15,9 @@ export class RpaDownloaderService {
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
    */
   private getChromeExecutablePath(): string | null {
+    if (process.platform !== 'win32') {
+      return null;
+    }
     // Relative to backend working directory: ../it-tool-src/operate-transaction-app/Chrome/chrome-win/chrome.exe
     const bundledPath = path.join(
       process.cwd(),
