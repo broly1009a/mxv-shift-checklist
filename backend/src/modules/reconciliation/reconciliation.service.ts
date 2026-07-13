@@ -1126,41 +1126,28 @@ export class ReconciliationService {
       inCQG: boolean;
     }> = [];
 
-    const allKeys = new Set([...qltkgdDataMap.keys(), ...cqgBalanceMap.keys()]);
-
-    for (const maTKGD of allKeys) {
+    for (const maTKGD of cqgBalanceMap.keys()) {
       if (maTKGD.startsWith('999') || maTKGD.startsWith('050') || !/^\d/.test(maTKGD)) {
         continue;
       }
 
       const qltkgdRow = qltkgdDataMap.get(maTKGD);
-      const cqgBalance = cqgBalanceMap.get(maTKGD);
+      const cqgBalance = cqgBalanceMap.get(maTKGD) ?? 0;
 
       if (qltkgdRow) {
         const calculated = (qltkgdRow.soDuTKKQHienTai + qltkgdRow.choDaoHan - qltkgdRow.laiLoVND) / usdExchangeRate;
         const roundedCalc = Math.round(calculated * 100) / 100;
-
-        if (cqgBalance !== undefined) {
-          const roundedCQG = Math.round(cqgBalance * 100) / 100;
-          const differ = Math.abs(roundedCalc - roundedCQG);
-          if (differ > 100) {
-            result.push({
-              maTKGD,
-              calculatedBalance: roundedCalc,
-              cqgBalance: roundedCQG,
-              differ,
-              inMS: true,
-              inCQG: true,
-            });
-          }
-        } else {
+        const roundedCQG = Math.round(cqgBalance * 100) / 100;
+        const differ = Math.abs(roundedCalc - roundedCQG);
+        
+        if (differ > 100) {
           result.push({
             maTKGD,
             calculatedBalance: roundedCalc,
-            cqgBalance: 0,
-            differ: roundedCalc,
+            cqgBalance: roundedCQG,
+            differ,
             inMS: true,
-            inCQG: false,
+            inCQG: true,
           });
         }
       } else if (cqgBalance !== undefined) {
