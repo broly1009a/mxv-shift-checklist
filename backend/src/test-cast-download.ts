@@ -1069,7 +1069,6 @@ async function main() {
             });
             if (fcmRow) {
               console.log('[FILTER-PATCH] Tìm thấy FCM row');
-              setSelectValue(fcmRow, "2");
 
               // Tìm checkbox MXV
               const mxvCheckbox = Array.from(fcmRow.querySelectorAll('input[type="checkbox"]')).find(cb => {
@@ -1082,11 +1081,12 @@ async function main() {
                 mxvCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
                 console.log('[FILTER-PATCH] Đã check MXV checkbox:', mxvCheckbox.id);
                 
+                // Đồng bộ với Select2 sử dụng ID chính xác làm option value
                 try {
                   const select2El = fcmRow.querySelector('select[data-js="dictionary"]');
                   if (select2El && $) {
-                    const val = mxvCheckbox.value || mxvCheckbox.id.split('$').pop() || '';
-                    let opt = Array.from((select2El as HTMLSelectElement).options).find(o => o.text === 'MXV');
+                    const val = mxvCheckbox.id; // Dùng ID chính xác (cb$26400$4641) để đồng bộ với select2
+                    let opt = Array.from((select2El as HTMLSelectElement).options).find(o => o.value === val);
                     if (!opt) {
                       opt = doc.createElement('option');
                       opt.value = val;
@@ -1095,7 +1095,7 @@ async function main() {
                     }
                     opt.selected = true;
                     $(select2El).val([val]).trigger('change');
-                    console.log('[FILTER-PATCH] Đã đồng bộ Select2 cho FCM: MXV');
+                    console.log('[FILTER-PATCH] Đã đồng bộ Select2 cho FCM: MXV với value:', val);
                   }
                 } catch (e: any) {
                   console.warn('[FILTER-PATCH] Lỗi đồng bộ Select2:', e.message);
@@ -1103,6 +1103,9 @@ async function main() {
               } else {
                 console.error('[FILTER-PATCH] Không tìm thấy checkbox MXV!');
               }
+
+              // Thiết lập filter operation thành Equals (2)
+              setSelectValue(fcmRow, "2");
             } else {
               console.error('[FILTER-PATCH] Không tìm thấy FCM row!');
             }
@@ -1114,7 +1117,6 @@ async function main() {
             });
             if (currencyRow) {
               console.log('[FILTER-PATCH] Tìm thấy Currency row');
-              setSelectValue(currencyRow, "2");
 
               const input = currencyRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
               if (input) {
@@ -1125,6 +1127,9 @@ async function main() {
               } else {
                 console.error('[FILTER-PATCH] Không tìm thấy input text cho Currency!');
               }
+
+              // Set select value to Like (1) AFTER setting input value
+              setSelectValue(currencyRow, "1");
             } else {
               console.error('[FILTER-PATCH] Không tìm thấy Currency row!');
             }
@@ -1136,7 +1141,6 @@ async function main() {
             });
             if (rdRow) {
               console.log('[FILTER-PATCH] Tìm thấy Record Description row');
-              setSelectValue(rdRow, "2");
 
               const input = rdRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
               if (input) {
@@ -1147,11 +1151,14 @@ async function main() {
               } else {
                 console.error('[FILTER-PATCH] Không tìm thấy input text cho Record Description!');
               }
+
+              // Set select value to Like (1) AFTER setting input value
+              setSelectValue(rdRow, "1");
             } else {
               console.error('[FILTER-PATCH] Không tìm thấy Record Description row!');
             }
 
-            // Patch checkPage
+            // Patch checkPage with submission logging
             win.checkPage = function() {
               const rows = document.getElementsByName('reportDetailName');
               let hasSelected = false;
@@ -1163,8 +1170,41 @@ async function main() {
               try {
                 if (typeof win.removeHiddenSortOrderDDLs === 'function') win.removeHiddenSortOrderDDLs();
                 if (typeof win.unformatAllLocalFilterValues === 'function') win.unformatAllLocalFilterValues(rows);
+
+                // LOG THE VALUES AFTER UNFORMATTING!
+                console.log('[SUBMIT-LOG] Trạng thái ngay trước khi submit:');
+                const logFcmRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'FCM');
+                if (logFcmRow) {
+                  const cb = logFcmRow.querySelector('input[type="checkbox"]');
+                  console.log('[SUBMIT-LOG] FCM MXV Checkbox checked:', cb ? (cb as any).checked : 'not found');
+                  const select = logFcmRow.querySelector('[data-js="filter-operation"] select') as any;
+                  console.log('[SUBMIT-LOG] FCM Filter Operation value:', select ? select.value : 'not found');
+                }
+                
+                const logCurRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'Currency');
+                if (logCurRow) {
+                  const input = logCurRow.querySelector('[data-js="value"] input[type="text"]') as any;
+                  console.log('[SUBMIT-LOG] Currency Value:', input ? input.value : 'not found');
+                  const select = logCurRow.querySelector('[data-js="filter-operation"] select') as any;
+                  console.log('[SUBMIT-LOG] Currency Filter Operation value:', select ? select.value : 'not found');
+                  const hidden = document.getElementById(input?.getAttribute('hiddenFieldID')) as any;
+                  console.log('[SUBMIT-LOG] Currency Hidden Value:', hidden ? hidden.value : 'not found');
+                }
+
+                const logRdRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'Record Description');
+                if (logRdRow) {
+                  const input = logRdRow.querySelector('[data-js="value"] input[type="text"]') as any;
+                  console.log('[SUBMIT-LOG] Record Description Value:', input ? input.value : 'not found');
+                  const select = logRdRow.querySelector('[data-js="filter-operation"] select') as any;
+                  console.log('[SUBMIT-LOG] Record Description Filter Operation value:', select ? select.value : 'not found');
+                  const hidden = document.getElementById(input?.getAttribute('hiddenFieldID')) as any;
+                  console.log('[SUBMIT-LOG] Record Description Hidden Value:', hidden ? hidden.value : 'not found');
+                }
+
                 if (typeof win.startWaitingForDownload === 'function') win.startWaitingForDownload();
-              } catch(e) {}
+              } catch(e: any) {
+                console.error('[SUBMIT-LOG] Error in overridden checkPage:', e.message);
+              }
               return true;
             };
           });
