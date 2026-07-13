@@ -1,8 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
+import { decrypt } from '../bot-engine/utils/crypto';
+import { chromium } from 'playwright-core';
 
 export interface CheckKLGDResult {
   totals: {
@@ -1778,8 +1782,15 @@ export class ReconciliationService {
     const differThreshold = emailConfig?.sodCheck?.differThreshold !== undefined ? emailConfig.sodCheck.differThreshold : 100;
     const isSendWarning = emailConfig?.sodCheck?.isSendWarning !== false;
 
-    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
-    const usdRate = parseFloat(usdRateStr) || 25220;
+    let usdRate = 25220;
+    try {
+      this.logger.log('Đang tự động đồng bộ tỷ giá USD từ M-System...');
+      usdRate = await this.syncUsdRateFromMSystem();
+    } catch (err) {
+      this.logger.warn(`Không thể đồng bộ tỷ giá USD tự động (sẽ sử dụng tỷ giá cũ): ${err.message}`);
+      const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+      usdRate = parseFloat(usdRateStr) || 25220;
+    }
 
     const discrepancies = await this.checkEODCQG({
       qltkgd: qltkgdBuffer,
@@ -2309,8 +2320,15 @@ export class ReconciliationService {
     if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx');
     if (!accountsBalancesPath) throw new Error('Không tìm thấy file Accounts_Balances.xlsx');
 
-    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
-    const usdRate = parseFloat(usdRateStr) || 25220;
+    let usdRate = 25220;
+    try {
+      this.logger.log('Đang tự động đồng bộ tỷ giá USD từ M-System...');
+      usdRate = await this.syncUsdRateFromMSystem();
+    } catch (err) {
+      this.logger.warn(`Không thể đồng bộ tỷ giá USD tự động (sẽ sử dụng tỷ giá cũ): ${err.message}`);
+      const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+      usdRate = parseFloat(usdRateStr) || 25220;
+    }
 
     // Chạy check EOD (Negative Margin)
     const eodResult = await this.checkEOD({
@@ -2338,6 +2356,178 @@ export class ReconciliationService {
     await this.telegramService.sendMessage(telegramMsg);
 
     return { eodResult, cqgResult };
+  }
+
+  /**
+   * Helper to retrieve Chrome executable path.
+   */
+  private getChromeExecutablePath(): string | null {
+    const bundledPath = path.join(
+      process.cwd(),
+      '..',
+      'it-tool-src',
+      'operate-transaction-app',
+      'Chrome',
+      'chrome-win',
+      'chrome.exe'
+    );
+
+    if (fs.existsSync(bundledPath)) {
+      this.logger.log(`Using bundled Chrome binary at: ${bundledPath}`);
+      return bundledPath;
+    }
+
+    this.logger.warn(`Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`);
+    return null;
+  }
+
+  /**
+   * Tự động đăng nhập M-System và đồng bộ tỷ giá USD/VND hiện tại
+   */
+  async syncUsdRateFromMSystem(): Promise<number> {
+    this.logger.log('Khởi động bot đồng bộ tỷ giá USD từ M-System...');
+
+    let msUrl = 'https://msadmin.mxv.com.vn/';
+    let msUser = process.env.MS_USER || '';
+    let msPass = process.env.MS_PASSWORD || '';
+    let msPin = process.env.MS_PIN || '';
+
+    const credentialsRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
+    if (credentialsRaw) {
+      try {
+        const credentials = JSON.parse(decrypt(credentialsRaw));
+        if (credentials.url) msUrl = credentials.url;
+        if (credentials.username) msUser = credentials.username;
+        if (credentials.password) msPass = credentials.password;
+        if (credentials.pin) msPin = credentials.pin;
+      } catch (err) {
+        this.logger.warn('Không thể giải mã cấu hình M-System từ DB, dùng biến môi trường.');
+      }
+    }
+
+    if (!msUser || !msPass || !msPin) {
+      throw new Error('Cấu hình tài khoản M-System không đầy đủ (username, password, pin). Vui lòng cấu hình qua Admin UI hoặc file .env');
+    }
+
+    const chromePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
+    if (chromePath) {
+      launchOptions.executablePath = chromePath;
+    }
+
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+
+    try {
+      this.logger.log(`Đi tới trang M-System: ${msUrl}...`);
+      await page.goto(msUrl);
+      await page.waitForTimeout(2000);
+
+      this.logger.log('Nhập tài khoản và mật khẩu...');
+      await page.waitForSelector('input[name="username"]', { state: 'visible' });
+      await page.fill('input[name="username"]', msUser);
+      await page.fill('input[name="password"]', msPass);
+      await page.waitForTimeout(500);
+
+      this.logger.log('Nhấn nút Đăng nhập...');
+      await page.click('button.btn-primary');
+      await page.waitForTimeout(2000);
+
+      this.logger.log('Đang đợi bảng nhập mã PIN ảo hiển thị...');
+      let pinSelectorVisible = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+        if (pinSelectorVisible) break;
+        this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
+        await page.click('button.btn-primary').catch(() => { });
+        await page.waitForTimeout(2000);
+      }
+
+      await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
+      this.logger.log('Đang tự động click mã PIN ảo...');
+      const pinDigits = msPin.split('');
+      for (const digit of pinDigits) {
+        const digitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
+        await page.waitForSelector(digitSelector, { state: 'visible' });
+        await page.click(digitSelector);
+        await page.waitForTimeout(500);
+      }
+
+      this.logger.log('Xác thực đăng nhập...');
+      await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => { });
+      await page.waitForTimeout(3000);
+      this.logger.log('🎉 Đăng nhập M-System thành công! Đang chuyển hướng tới trang tỷ giá...');
+
+      const exchangeRateUrl = `${msUrl.split('#')[0]}#/currencyManagement/exchangeRate`;
+      await page.goto(exchangeRateUrl);
+      await page.waitForTimeout(5000); // Đợi bảng tải dữ liệu
+
+      // Trích xuất tỷ giá USD/VND
+      const rateText = await page.evaluate(() => {
+        // 1. Thử tìm theo cấu trúc ag-Grid (M-System mới dùng ag-Grid)
+        const agRows = Array.from(document.querySelectorAll('[role="row"]'));
+        for (const row of agRows) {
+          const baseCell = row.querySelector('[col-id="monetaryBase"]');
+          const counterCell = row.querySelector('[col-id="counterCurrency"]');
+          const rateCell = row.querySelector('[col-id="exchangeRate"]');
+          
+          if (baseCell && counterCell && rateCell) {
+            const baseVal = (baseCell.textContent || '').trim();
+            const counterVal = (counterCell.textContent || '').trim();
+            if (baseVal === 'USD' && counterVal === 'VND') {
+              return (rateCell.textContent || '').trim();
+            }
+          }
+        }
+
+        // 2. Fallback sang cấu trúc table HTML thông thường
+        const rows = Array.from(document.querySelectorAll('tr'));
+        for (const row of rows) {
+          const cells = Array.from(row.querySelectorAll('td'));
+          if (cells.length >= 4) {
+            const baseCurrency = (cells[1].innerText || cells[1].textContent || '').trim();
+            const quoteCurrency = (cells[2].innerText || cells[2].textContent || '').trim();
+            if (baseCurrency === 'USD' && quoteCurrency === 'VND') {
+              return (cells[3].innerText || cells[3].textContent || '').trim();
+            }
+          }
+        }
+        return null;
+      });
+
+      if (!rateText) {
+        throw new Error('Không tìm thấy dòng tỷ giá USD/VND trong bảng quản lý tỷ giá.');
+      }
+
+      const rate = parseFloat(rateText.replace(/,/g, ''));
+      if (isNaN(rate) || rate <= 0) {
+        throw new Error(`Giá trị tỷ giá tìm thấy không hợp lệ: ${rateText}`);
+      }
+
+      this.logger.log(`Tìm thấy tỷ giá USD/VND trên M-System: ${rate} VND. Đang cập nhật vào hệ thống...`);
+      await this.settingsService.setSetting('usd_exchange_rate', rate.toString());
+      return rate;
+    } finally {
+      await browser.close();
+    }
+  }
+
+  async getCurrentUsdRate(): Promise<number> {
+    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+    return parseFloat(usdRateStr) || 25220;
+  }
+
+  async saveUsdRate(rate: number): Promise<void> {
+    const current = await this.getCurrentUsdRate();
+    if (current !== rate) {
+      this.logger.log(`Tỷ giá mới (${rate}) khác tỷ giá hiện tại (${current}). Đang cập nhật vào cấu hình...`);
+      await this.settingsService.setSetting('usd_exchange_rate', rate.toString());
+    }
   }
 }
 

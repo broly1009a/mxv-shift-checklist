@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Download, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -52,6 +52,61 @@ export default function ReconciliationModal({
   });
 
   const [usdRate, setUsdRate] = useState<number>(25220);
+  const [syncingRate, setSyncingRate] = useState<boolean>(false);
+
+  const handleSyncUsdRate = async () => {
+    setSyncingRate(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/reconciliation/sync-usd-rate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Lỗi đồng bộ tỷ giá');
+      }
+
+      const data = await response.json();
+      if (data.success && data.rate) {
+        setUsdRate(data.rate);
+        toast.success(`Đồng bộ tỷ giá USD thành công: ${data.rate.toLocaleString('vi-VN')} VND`);
+      } else {
+        throw new Error('Không nhận được tỷ giá từ server');
+      }
+    } catch (error: any) {
+      console.error('Error syncing exchange rate:', error);
+      toast.error(`Lỗi đồng bộ tỷ giá: ${error.message}`);
+    } finally {
+      setSyncingRate(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchUsdRate = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/reconciliation/usd-rate`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.rate) {
+              setUsdRate(data.rate);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching stored USD rate:', error);
+        }
+      };
+      fetchUsdRate();
+    }
+  }, [isOpen, token]);
   
   const [tradingDate, setTradingDate] = useState<string>(() => {
     const today = new Date();
@@ -349,13 +404,39 @@ export default function ReconciliationModal({
             {mode === 'CQG' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Tỷ giá USD/VND đối chiếu</label>
-                <input 
-                  type="number" 
-                  value={usdRate}
-                  onChange={(e) => setUsdRate(parseFloat(e.target.value) || 0)}
-                  className="form-input"
-                  style={{ height: '38px', fontSize: '0.85rem' }}
-                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="number" 
+                    value={usdRate}
+                    onChange={(e) => setUsdRate(parseFloat(e.target.value) || 0)}
+                    className="form-input"
+                    style={{ height: '38px', fontSize: '0.85rem', flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSyncUsdRate}
+                    disabled={syncingRate}
+                    style={{
+                      height: '38px',
+                      padding: '0 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      opacity: syncingRate ? 0.6 : 1
+                    }}
+                  >
+                    <RefreshCw size={14} className={syncingRate ? 'animate-spin' : ''} />
+                    {syncingRate ? 'Đang đồng bộ...' : 'Đồng bộ'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>

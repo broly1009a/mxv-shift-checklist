@@ -495,6 +495,9 @@ export class ReconciliationController {
     @Body('sessionStart') sessionStartStr?: string,
   ) {
     const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    if (usdRateStr && !isNaN(usdRate)) {
+      await this.reconciliationService.saveUsdRate(usdRate);
+    }
     const tradingDate = tradingDateStr ? new Date(tradingDateStr) : new Date();
 
     const results: Record<string, any> = {};
@@ -683,6 +686,26 @@ export class ReconciliationController {
       };
     } catch (err: any) {
       throw new BadRequestException(err.message);
+    }
+  }
+
+  @Post('sync-usd-rate')
+  async syncUsdRate() {
+    try {
+      const rate = await this.reconciliationService.syncUsdRateFromMSystem();
+      return { success: true, rate };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể đồng bộ tỷ giá: ${err.message}`);
+    }
+  }
+
+  @Get('usd-rate')
+  async getUsdRate() {
+    try {
+      const rate = await this.reconciliationService.getCurrentUsdRate();
+      return { success: true, rate };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể lấy tỷ giá: ${err.message}`);
     }
   }
 }
