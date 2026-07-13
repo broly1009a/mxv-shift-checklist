@@ -20,10 +20,14 @@ export default function NotificationDropdown() {
       }
     };
   }, []);
-
   // Dynamic system activities for notifications
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const activitiesLengthRef = useRef(0);
+  useEffect(() => {
+    activitiesLengthRef.current = activities.length;
+  }, [activities]);
+
   const [lastClearedTime, setLastClearedTime] = useState<string | null>(null);
   const [lastReadTime, setLastReadTime] = useState<string | null>(null);
   const [lastAcknowledgedTime, setLastAcknowledgedTime] = useState<string | null>(null);
@@ -61,10 +65,12 @@ export default function NotificationDropdown() {
 
   const isLoadingRef = useRef(false);
 
-  const fetchActivities = useCallback(async () => {
+  const fetchActivities = useCallback(async (silent = false) => {
     if (!token || isLoadingRef.current) return;
     isLoadingRef.current = true;
-    setLoadingActivities(true);
+    if (!silent) {
+      setLoadingActivities(true);
+    }
     try {
       const now = new Date();
       const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
@@ -83,7 +89,9 @@ export default function NotificationDropdown() {
       console.warn('Error fetching header activities:', err);
     } finally {
       isLoadingRef.current = false;
-      setLoadingActivities(false);
+      if (!silent) {
+        setLoadingActivities(false);
+      }
     }
   }, [token]);
 
@@ -205,7 +213,7 @@ export default function NotificationDropdown() {
 
   useEffect(() => {
     if (showNotifications) {
-      fetchRef.current();
+      fetchRef.current(activitiesLengthRef.current > 0);
     }
   }, [showNotifications]);
 
@@ -244,7 +252,7 @@ export default function NotificationDropdown() {
         checkForNewActivityRef.current(true);
         // Only update the list of activities if the notification tray is currently open
         if (showNotificationsRef.current) {
-          fetchRef.current();
+          fetchRef.current(true);
         }
       }, 300);
     };
@@ -353,6 +361,21 @@ export default function NotificationDropdown() {
           flexDirection: 'column',
           gap: '12px'
         }}>
+          <style>{`
+            @keyframes notificationSlideIn {
+              from {
+                opacity: 0;
+                transform: translateY(-8px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            .notification-item {
+              animation: notificationSlideIn 0.3s ease-out;
+            }
+          `}</style>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Thông báo mới</span>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -395,7 +418,8 @@ export default function NotificationDropdown() {
 
                 return (
                   <div 
-                    key={act.id || idx} 
+                    key={act.id || act._id || act.createdAt || idx} 
+                    className="notification-item"
                     style={{ 
                       fontSize: '0.8rem', 
                       paddingBottom: isLast ? '0' : '8px', 
