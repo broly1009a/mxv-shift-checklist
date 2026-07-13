@@ -148,6 +148,26 @@ const IE_MOCK_SCRIPT = `
     return el;
   };
 
+  // Override document.getElementsByName to emulate IE's behavior of matching by 'id' as well
+  const originalGetElementsByName = document.getElementsByName;
+  document.getElementsByName = function(name) {
+    const list = Array.from(originalGetElementsByName.call(document, name));
+    // Find elements with matching id attribute
+    const byId = Array.from(document.querySelectorAll('[id="' + name + '"]'));
+    const merged = [...list];
+    for (var i = 0; i < byId.length; i++) {
+      var el = byId[i];
+      if (merged.indexOf(el) === -1) {
+        merged.push(el);
+      }
+    }
+    // Implement standard collection structure
+    merged.item = function(index) {
+      return merged[index];
+    };
+    return merged;
+  };
+
   // Mock ActiveXObject for modern browsers to support XML parsing and HTTP requests
   if (typeof window.ActiveXObject === 'undefined') {
     window.ActiveXObject = function(progId) {
@@ -483,6 +503,22 @@ const IE_MOCK_SCRIPT = `
       });
     }
   }
+  if (typeof Element !== 'undefined') {
+    const ieCustomAttrs = ['pageLink', 'iscentraldb', 'selectedids', 'hiddenfieldid', 'columntype', 'selectedReport'];
+    ieCustomAttrs.forEach(function(attr) {
+      if (!(attr in Element.prototype)) {
+        Object.defineProperty(Element.prototype, attr, {
+          get: function() {
+            return this.getAttribute(attr) || undefined;
+          },
+          set: function(val) {
+            this.setAttribute(attr, val);
+          },
+          configurable: true
+        });
+      }
+    });
+  }
 
   // Emulate IE's whitespace-ignoring DOM traversal behavior
   if (typeof Node !== 'undefined') {
@@ -636,12 +672,13 @@ async function main() {
     const request = route.request();
     const url = request.url().toLowerCase();
     
-    if (url.includes('.xml') || url.includes('.xsl') || url.includes('.asp')) {
+    const isAsp = url.includes('.asp') && !url.includes('.aspx');
+    if (url.includes('.xml') || url.includes('.xsl') || isAsp) {
       try {
         const response = await route.fetch();
         const contentType = (response.headers()['content-type'] || '').toLowerCase();
         
-        if (contentType.includes('xml') || contentType.includes('xsl') || contentType.includes('text') || url.includes('.asp')) {
+        if (contentType.includes('xml') || contentType.includes('xsl') || contentType.includes('text') || isAsp) {
           const rawBody = await response.text();
           let cleanedBody = rawBody.replace(/^\s+/, '').trimStart();
           
@@ -992,9 +1029,129 @@ async function main() {
           };
           page.on('response', responseHandler);
 
-          // Patch checkPage và click saveButton
+          // Patch checkPage, điền các bộ lọc và click saveButton
           await dataFrame.evaluate(() => {
             const win = window as any;
+            const doc = document;
+            const $ = win.jQuery;
+
+            // Polyfill / Mock cho biến global cblist$ của ASP.NET WebForms để tránh lỗi ReferenceError khi dispatch change event
+            doc.querySelectorAll('select[onchange]').forEach(sel => {
+              const onchangeAttr = sel.getAttribute('onchange') || '';
+              const match = onchangeAttr.match(/cblist\$\d+/);
+              if (match) {
+                const varName = match[0];
+                if (!(varName in win)) {
+                  const row = sel.closest('tr');
+                  const cbContainer = row ? row.querySelector('[data-js="dictionary-checkboxes"]') : null;
+                  win[varName] = cbContainer || {};
+                  console.log(`[FILTER-PATCH] Defined dummy global for ${varName}`);
+                }
+              }
+            });
+
+            console.log('[FILTER-PATCH] Bắt đầu điền filter...');
+
+            // Helper to set select value
+            const setSelectValue = (row: any, value: string) => {
+              const select = row.querySelector('[data-js="filter-operation"] select');
+              if (select) {
+                select.value = value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`[FILTER-PATCH] Đã đặt filter operation thành ${value}`);
+              }
+            };
+
+            // 1. FCM -> MXV
+            const fcmRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+              const nameEl = tr.querySelector('[data-js="name"]');
+              return nameEl && nameEl.textContent.trim() === 'FCM';
+            });
+            if (fcmRow) {
+              console.log('[FILTER-PATCH] Tìm thấy FCM row');
+              setSelectValue(fcmRow, "2");
+
+              // Tìm checkbox MXV
+              const mxvCheckbox = Array.from(fcmRow.querySelectorAll('input[type="checkbox"]')).find(cb => {
+                const label = cb.closest('label') || cb.parentElement;
+                return label && label.textContent.trim().toUpperCase() === 'MXV';
+              }) as HTMLInputElement;
+
+              if (mxvCheckbox) {
+                mxvCheckbox.checked = true;
+                mxvCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[FILTER-PATCH] Đã check MXV checkbox:', mxvCheckbox.id);
+                
+                try {
+                  const select2El = fcmRow.querySelector('select[data-js="dictionary"]');
+                  if (select2El && $) {
+                    const val = mxvCheckbox.value || mxvCheckbox.id.split('$').pop() || '';
+                    let opt = Array.from((select2El as HTMLSelectElement).options).find(o => o.text === 'MXV');
+                    if (!opt) {
+                      opt = doc.createElement('option');
+                      opt.value = val;
+                      opt.text = 'MXV';
+                      select2El.appendChild(opt);
+                    }
+                    opt.selected = true;
+                    $(select2El).val([val]).trigger('change');
+                    console.log('[FILTER-PATCH] Đã đồng bộ Select2 cho FCM: MXV');
+                  }
+                } catch (e: any) {
+                  console.warn('[FILTER-PATCH] Lỗi đồng bộ Select2:', e.message);
+                }
+              } else {
+                console.error('[FILTER-PATCH] Không tìm thấy checkbox MXV!');
+              }
+            } else {
+              console.error('[FILTER-PATCH] Không tìm thấy FCM row!');
+            }
+
+            // 2. Currency -> USD
+            const currencyRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+              const nameEl = tr.querySelector('[data-js="name"]');
+              return nameEl && nameEl.textContent.trim() === 'Currency';
+            });
+            if (currencyRow) {
+              console.log('[FILTER-PATCH] Tìm thấy Currency row');
+              setSelectValue(currencyRow, "2");
+
+              const input = currencyRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+              if (input) {
+                input.value = 'USD';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[FILTER-PATCH] Đã điền Currency: USD');
+              } else {
+                console.error('[FILTER-PATCH] Không tìm thấy input text cho Currency!');
+              }
+            } else {
+              console.error('[FILTER-PATCH] Không tìm thấy Currency row!');
+            }
+
+            // 3. Record Description -> current
+            const rdRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+              const nameEl = tr.querySelector('[data-js="name"]');
+              return nameEl && nameEl.textContent.trim() === 'Record Description';
+            });
+            if (rdRow) {
+              console.log('[FILTER-PATCH] Tìm thấy Record Description row');
+              setSelectValue(rdRow, "2");
+
+              const input = rdRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+              if (input) {
+                input.value = 'current';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[FILTER-PATCH] Đã điền Record Description: current');
+              } else {
+                console.error('[FILTER-PATCH] Không tìm thấy input text cho Record Description!');
+              }
+            } else {
+              console.error('[FILTER-PATCH] Không tìm thấy Record Description row!');
+            }
+
+            // Patch checkPage
             win.checkPage = function() {
               const rows = document.getElementsByName('reportDetailName');
               let hasSelected = false;
