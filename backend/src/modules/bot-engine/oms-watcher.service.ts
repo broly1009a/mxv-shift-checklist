@@ -8,8 +8,13 @@ import * as fs from 'fs';
 @Injectable()
 export class OmsWatcherService {
   private readonly logger = new Logger(OmsWatcherService.name);
+  private isChecking = false;
 
   constructor(private readonly settingsService: SystemSettingsService) {}
+
+  isRunning(): boolean {
+    return this.isChecking;
+  }
 
   /**
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
@@ -52,8 +57,14 @@ export class OmsWatcherService {
       };
     };
   } | null> {
-    const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true';
-    if (isSimulation) {
+    if (this.isChecking) {
+      this.logger.warn('OMS status check is already running. Skipping.');
+      return null;
+    }
+    this.isChecking = true;
+    try {
+      const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true';
+      if (isSimulation) {
       const vnTime = new Date(Date.now() + 7 * 60 * 60 * 1000);
       const todayStr = `${String(vnTime.getDate()).padStart(2, '0')}/${String(vnTime.getMonth() + 1).padStart(2, '0')}/${vnTime.getFullYear()}`;
       return {
@@ -105,8 +116,10 @@ export class OmsWatcherService {
       };
     }
 
-    const ccpUrl = ccpCreds.url || 'https://uat-coreccp.mxv.com.vn';
-    const ceUrl = ceCreds.url || 'https://uat-coreexchange.mxv.com.vn';
+    let ccpUrl = ccpCreds.url || 'https://uat-coreccp.mxv.com.vn';
+    ccpUrl = ccpUrl.replace(/\/login\/?$/, '').replace(/\/$/, '');
+    let ceUrl = ceCreds.url || 'https://uat-coreexchange.mxv.com.vn';
+    ceUrl = ceUrl.replace(/\/login\/?$/, '').replace(/\/$/, '');
 
     // 2. Launch Browser
     const executablePath = this.getChromeExecutablePath();
@@ -217,6 +230,8 @@ export class OmsWatcherService {
         message: `Lỗi tự động hóa Playwright: ${err.message}`,
         data: resultData,
       };
+    } finally {
+      this.isChecking = false;
     }
   }
 
@@ -266,8 +281,19 @@ export class OmsWatcherService {
       await page.waitForTimeout(1000); // UI stabilization
 
       // Get system date in DD/MM/YYYY format (Vietnam time)
-      const vnTime = new Date(Date.now() + 7 * 60 * 60 * 1000);
+      const now = new Date();
+      const targetTimezoneOffset = -420; // Asia/Ho_Chi_Minh is UTC+7
+      const systemTimezoneOffset = now.getTimezoneOffset();
+      const vnTime = new Date(now.getTime() + (systemTimezoneOffset - targetTimezoneOffset) * 60 * 1000);
       const todayStr = `${String(vnTime.getDate()).padStart(2, '0')}/${String(vnTime.getMonth() + 1).padStart(2, '0')}/${vnTime.getFullYear()}`;
+
+      // Calculate T-1 date:
+      const tMinus1 = new Date(vnTime);
+      tMinus1.setDate(tMinus1.getDate() - 1);
+      if (tMinus1.getDay() === 0) { // Sunday -> roll back to Saturday
+        tMinus1.setDate(tMinus1.getDate() - 1);
+      }
+      const targetStr = `${String(tMinus1.getDate()).padStart(2, '0')}/${String(tMinus1.getMonth() + 1).padStart(2, '0')}/${tMinus1.getFullYear()}`;
 
       // Scrape rows with column-id attributes
       const rows = await page.$$eval('table tbody tr', (trs) => {
@@ -293,15 +319,16 @@ export class OmsWatcherService {
         const startTime = firstRow['START_TIME'] || '';
         const endTime = firstRow['END_TIME'] || '';
 
-        // EOD runs on current day or matches target date
+        // EOD runs on current day or previous trading day T-1
         const isCompleted = status.includes('Đã hoàn thành') || status.toLowerCase().includes('completed') || status.toLowerCase().includes('success');
-        const runsToday = startTime.includes(todayStr) || endTime.includes(todayStr) || sysDate === todayStr;
+        const runsTodayOrT1 = startTime.includes(todayStr) || endTime.includes(todayStr) || sysDate === todayStr ||
+                              startTime.includes(targetStr) || endTime.includes(targetStr) || sysDate === targetStr;
 
         return {
           status,
           time: startTime || endTime,
           date: sysDate || todayStr,
-          success: isCompleted && runsToday,
+          success: isCompleted && runsTodayOrT1,
         };
       }
 
@@ -349,8 +376,19 @@ export class OmsWatcherService {
         return { totalOrders: 0, activeAccounts: [], status: 'NO_ORDERS', success: false };
       }
 
-      const vnTime = new Date(Date.now() + 7 * 60 * 60 * 1000);
+      const now = new Date();
+      const targetTimezoneOffset = -420; // Asia/Ho_Chi_Minh is UTC+7
+      const systemTimezoneOffset = now.getTimezoneOffset();
+      const vnTime = new Date(now.getTime() + (systemTimezoneOffset - targetTimezoneOffset) * 60 * 1000);
       const todayStr = `${String(vnTime.getDate()).padStart(2, '0')}/${String(vnTime.getMonth() + 1).padStart(2, '0')}/${vnTime.getFullYear()}`;
+
+      // Calculate T-1 date:
+      const tMinus1 = new Date(vnTime);
+      tMinus1.setDate(tMinus1.getDate() - 1);
+      if (tMinus1.getDay() === 0) { // Sunday -> roll back to Saturday
+        tMinus1.setDate(tMinus1.getDate() - 1);
+      }
+      const targetStr = `${String(tMinus1.getDate()).padStart(2, '0')}/${String(tMinus1.getMonth() + 1).padStart(2, '0')}/${tMinus1.getFullYear()}`;
 
       const activeAccounts = new Set<string>();
       let todayOrdersCount = 0;
@@ -359,8 +397,9 @@ export class OmsWatcherService {
         const sessionDate = row['SESSION_DATE'] || row['TXDATE'] || '';
         const matchTime = row['MATCHTIME'] || row['TRANSACTTIME'] || '';
 
-        // Match date is today
-        const matchesDate = sessionDate.includes(todayStr) || matchTime.includes(todayStr);
+        // Match date is today or T-1
+        const matchesDate = sessionDate.includes(todayStr) || matchTime.includes(todayStr) ||
+                            sessionDate.includes(targetStr) || matchTime.includes(targetStr);
 
         if (matchesDate) {
           if (isCe) {

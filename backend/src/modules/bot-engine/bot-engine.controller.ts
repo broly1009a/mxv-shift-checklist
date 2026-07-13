@@ -348,6 +348,10 @@ export class BotEngineController {
     @Param('shiftLogId') shiftLogId: string,
     @Param('taskId') taskId: string
   ) {
+    if (this.omsWatcherService.isRunning()) {
+      throw new HttpException('Hệ thống đang chạy một phiên kiểm tra OMS khác. Vui lòng đợi.', HttpStatus.CONFLICT);
+    }
+
     const log = await this.shiftLogModel.findById(shiftLogId).exec();
     if (!log) {
       throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);

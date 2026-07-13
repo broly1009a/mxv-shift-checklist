@@ -62,7 +62,7 @@ export default function OmsStatusModal({
   const handleTriggerCheck = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -71,7 +71,8 @@ export default function OmsStatusModal({
       });
 
       if (!res.ok) {
-        throw new Error('Không thể kích hoạt bot kiểm tra');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể kích hoạt bot kiểm tra');
       }
 
       toast.success('Đã kích hoạt quét OMS (CCP/CE) trong nền.');
@@ -388,7 +389,7 @@ export default function OmsStatusModal({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Đang chạy quét...
+                  {status === 'WAITING' ? 'Đang chạy quét (RPA)...' : 'Đang kích hoạt...'}
                 </>
               ) : (
                 <>

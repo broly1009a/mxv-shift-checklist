@@ -45,3 +45,20 @@ Cả 2 workspace đã được build thành công không lỗi:
     *   Nhấn nút **Tải Báo Cáo & Đổi Tên**.
     *   Theo dõi logs trong danh sách công việc ở panel bên phải.
     *   Xác nhận file `Accounts_Balances.xlsx` xuất hiện tại thư mục đích và nội dung chính xác.
+
+---
+
+## Cập Nhật Mới: Tự Động Hóa Xác Minh OMS (EOD & MM) & Chống Spam Lệnh Chạy
+
+### 1. Sửa Logic Ngày Kiểm Tra T-1 (Ngày Giao Dịch Gần Nhất)
+*   **Bù trừ múi giờ hệ thống (Timezone Offset Shift)**: Khắc phục lỗi cộng lệch múi giờ trên các máy chủ cục bộ chạy múi giờ Việt Nam (`GMT+7`) bằng cách lấy offset thực tế `getTimezoneOffset()` để tính toán. Đảm bảo bot luôn xác định chuẩn xác ngày hôm nay (`13/07/2026`) và ngày T-1 (`11/07/2026` - thứ Bảy sau khi lùi qua ngày Chủ Nhật).
+*   **Mở rộng phạm vi đối khớp**: Cả chức năng kiểm tra EOD và kiểm tra lệnh Market Maker (MM) đều được điều chỉnh để chấp nhận dữ liệu khớp thuộc ngày hôm nay **hoặc** ngày T-1. Từ đó loại bỏ hoàn toàn các lỗi cảnh báo giả lập khi các hệ thống chạy EOD lệch giờ.
+
+### 2. Ngăn Chặn Rung/Spam Nút Rerun ("Chạy lại kiểm tra (RPA)")
+*   **Backend Concurrency Lock**:
+    *   Thêm cờ hiệu trạng thái `isChecking` trong `OmsWatcherService` để theo dõi tiến trình chạy Playwright.
+    *   Trong `BotEngineController`, chặn các yêu cầu trigger thủ công mới bằng cách ném ra ngoại lệ `HttpStatus.CONFLICT` (409) với thông điệp: *"Hệ thống đang chạy một phiên kiểm tra OMS khác. Vui lòng đợi."* nếu dịch vụ đang bận.
+*   **Frontend Error Propagation**:
+    *   Cập nhật hàm `handleTriggerCheck` trong `OmsStatusModal.tsx` để đọc chính xác thông điệp lỗi dạng JSON từ API trả về.
+    *   Hiển thị thông báo chi tiết qua `toast.error(err.message)` khi user cố tình spam nút hoặc khi hệ thống đang xử lý tác vụ nền bận.
+
