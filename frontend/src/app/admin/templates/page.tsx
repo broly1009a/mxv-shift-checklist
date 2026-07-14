@@ -487,10 +487,11 @@ export default function AdminTemplatesPage() {
   const handleDeleteTask = (taskId: string) => {
     if (!selectedTemplate) return;
     const updatedTasks = selectedTemplate.tasks.filter(t => t.taskId !== taskId);
-    // Recalculate sortOrders
+    // Recalculate sortOrders and clean up references to the deleted task
     const sorted = updatedTasks.map((t, idx) => ({
       ...t,
-      sortOrder: idx + 1
+      sortOrder: idx + 1,
+      parentTaskId: t.parentTaskId === taskId ? null : t.parentTaskId
     }));
     setSelectedTemplate({
       ...selectedTemplate,
@@ -935,7 +936,11 @@ export default function AdminTemplatesPage() {
                             flexDirection: 'column',
                             gap: '6px'
                           }} className="custom-scrollbar">
-                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId).map(t => {
+                            {selectedTemplate.tasks?.filter(t => 
+                              t.taskId !== editingTaskId && 
+                              (!newParentTaskId || t.taskId !== newParentTaskId) &&
+                              (!editingTaskId || t.parentTaskId !== editingTaskId)
+                            ).map(t => {
                               const isChecked = newDependsOnTaskIds.includes(t.taskId);
                               return (
                                 <label key={t.taskId} style={{
@@ -1085,181 +1090,219 @@ export default function AdminTemplatesPage() {
                   {selectedTemplate.tasks?.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>Không có tác vụ nào trong mẫu này.</div>
                   ) : (
-                    selectedTemplate.tasks.map((task, index) => {
-                      const isDragged = draggedIndex === index;
-                      const isOver = dragOverIndex === index;
+                    (() => {
+                      const renderedTaskIds = new Set<string>();
+                      const elements: React.ReactNode[] = [];
 
-                      return (
-                        <div 
-                          key={task.taskId}
-                          draggable={isAdmin}
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e, index)}
-                          onDrop={(e) => handleDrop(e, index)}
-                          onDragEnd={handleDragEnd}
-                          onDragLeave={handleDragLeave}
-                          style={{
-                            padding: '16px',
-                            borderRadius: '8px',
-                            background: isDragged ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.01)',
-                            border: isOver 
-                              ? '1px dashed var(--color-primary)' 
-                              : isDragged 
-                                ? '1px solid rgba(59, 130, 246, 0.3)' 
-                                : '1px solid var(--border-color)',
-                            opacity: isDragged ? 0.6 : 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px',
-                            transition: 'all 0.2s ease',
-                            cursor: isAdmin ? 'grab' : 'default'
-                          }}
-                        >
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '16px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                      const renderTaskItem = (task: Task, index: number, isSubtask = false) => {
+                        const isDragged = draggedIndex === index;
+                        const isOver = dragOverIndex === index;
+
+                        return (
+                          <div 
+                            key={task.taskId}
+                            draggable={isAdmin}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDrop={(e) => handleDrop(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragLeave={handleDragLeave}
+                            style={{
+                              padding: isSubtask ? '12px 16px' : '16px',
+                              borderRadius: '8px',
+                              background: isDragged 
+                                ? 'rgba(59, 130, 246, 0.05)' 
+                                : isSubtask 
+                                  ? 'rgba(139, 92, 246, 0.015)' 
+                                  : 'rgba(255,255,255,0.01)',
+                              border: isOver 
+                                ? '1px dashed var(--color-primary)' 
+                                : isDragged 
+                                  ? '1px solid rgba(59, 130, 246, 0.3)' 
+                                  : isSubtask 
+                                    ? '1px dashed rgba(139, 92, 246, 0.15)' 
+                                    : '1px solid var(--border-color)',
+                              marginLeft: isSubtask ? '32px' : '0px',
+                              borderLeft: isSubtask ? '3px solid #8b5cf6' : undefined,
+                              opacity: isDragged ? 0.6 : 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px',
+                              transition: 'all 0.2s ease',
+                              cursor: isAdmin ? 'grab' : 'default'
+                            }}
+                          >
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '16px'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                                {isAdmin && (
+                                  <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)', cursor: 'grab' }}>
+                                    <GripVertical size={18} />
+                                  </div>
+                                )}
+                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                  #{index + 1}
+                                </span>
+                                <div style={{ flex: 1 }}>
+                                  <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                    {task.taskName}
+                                  </p>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    <span>Mã: <strong>{task.taskId}</strong></span>
+                                    {task.parentTaskId && (
+                                      <>
+                                        <span>•</span>
+                                        <span style={{ color: '#8b5cf6', fontWeight: 600 }}>
+                                          Con của: <strong>{task.parentTaskId}</strong>
+                                        </span>
+                                      </>
+                                    )}
+                                    <span>•</span>
+                                    <span>Ưu tiên: {getPriorityBadge(task.priority)}</span>
+                                    {task.deadline && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Hạn chót: <strong style={{ color: '#ef4444' }}>{task.deadline}</strong></span>
+                                      </>
+                                    )}
+                                    {task.isBotCheck && (
+                                      <>
+                                        <span>•</span>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ec4899', fontWeight: 600 }}>
+                                          <Cpu size={12} /> Bot Check: {task.botCheckType} ({task.botTriggerTime})
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Reordering and Actions */}
                               {isAdmin && (
-                                <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)', cursor: 'grab' }}>
-                                  <GripVertical size={18} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditTask(task)}
+                                    title="Chỉnh sửa tác vụ"
+                                    style={{ padding: '6px', background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveTask(index, 'up')}
+                                    disabled={index === 0}
+                                    style={{ padding: '6px', background: 'transparent', border: 'none', color: index === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === 0 ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    <ArrowUp size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveTask(index, 'down')}
+                                    disabled={index === selectedTemplate.tasks.length - 1}
+                                    style={{ padding: '6px', background: 'transparent', border: 'none', color: index === selectedTemplate.tasks.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === selectedTemplate.tasks.length - 1 ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    <ArrowDown size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTask(task.taskId)}
+                                    title="Xóa tác vụ"
+                                    style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
                               )}
-                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                #{index + 1}
-                              </span>
-                              <div style={{ flex: 1 }}>
-                              <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {task.taskName}
+                            </div>
+
+                            {/* Extra fields snapshot view */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem', paddingLeft: '72px' }}>
+                              {task.functionUrl && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Link2 size={12} /> URL: {task.functionUrl}
+                                </span>
+                              )}
+                              {task.urdReference && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <FileText size={12} /> URD: {task.urdReference}
+                                </span>
+                              )}
+                              {task.fileLocation && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <FileText size={12} /> File: {task.fileLocation}
+                                </span>
+                              )}
+                              {task.timetable && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Clock size={12} /> Khung giờ: {task.timetable}
+                                </span>
+                              )}
+                              {task.isBotCheck && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.06)', color: '#ec4899', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <Cpu size={12} /> Bot Check {task.botTriggerTime ? `(${task.botTriggerTime})` : ''}
+                                </span>
+                              )}
+                              {task.slaType && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
+                                  SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
+                                </span>
+                              )}
+                              {task.triggerTime && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                                  Bắt đầu: {task.triggerTime}
+                                </span>
+                              )}
+                              {task.slaDeadline && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
+                                  Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
+                                </span>
+                              )}
+                              {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
+                                  Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
+                                </span>
+                              )}
+                            </div>
+                            {task.actionDescription && (
+                              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '72px', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.4 }}>
+                                Mô tả: {task.actionDescription}
                               </p>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                <span>Mã: <strong>{task.taskId}</strong></span>
-                                {task.parentTaskId && (
-                                  <>
-                                    <span>•</span>
-                                    <span style={{ color: '#8b5cf6', fontWeight: 600 }}>
-                                      Con của: <strong>{task.parentTaskId}</strong>
-                                    </span>
-                                  </>
-                                )}
-                                <span>•</span>
-                                <span>Ưu tiên: {getPriorityBadge(task.priority)}</span>
-                                {task.deadline && (
-                                  <>
-                                    <span>•</span>
-                                    <span>Hạn chót: <strong style={{ color: '#ef4444' }}>{task.deadline}</strong></span>
-                                  </>
-                                )}
-                                {task.isBotCheck && (
-                                  <>
-                                    <span>•</span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ec4899', fontWeight: 600 }}>
-                                      <Cpu size={12} /> Bot Check: {task.botCheckType} ({task.botTriggerTime})
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                            )}
                           </div>
+                        );
+                      };
 
-                          {/* Reordering and Actions */}
-                          {isAdmin && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditTask(task)}
-                                title="Chỉnh sửa tác vụ"
-                                style={{ padding: '6px', background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMoveTask(index, 'up')}
-                                disabled={index === 0}
-                                style={{ padding: '6px', background: 'transparent', border: 'none', color: index === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === 0 ? 'not-allowed' : 'pointer' }}
-                              >
-                                <ArrowUp size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMoveTask(index, 'down')}
-                                disabled={index === selectedTemplate.tasks.length - 1}
-                                style={{ padding: '6px', background: 'transparent', border: 'none', color: index === selectedTemplate.tasks.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)', cursor: index === selectedTemplate.tasks.length - 1 ? 'not-allowed' : 'pointer' }}
-                              >
-                                <ArrowDown size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteTask(task.taskId)}
-                                title="Xóa tác vụ"
-                                style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                      // Separate top level tasks
+                      const topLevelTasks = selectedTemplate.tasks.filter(t => !t.parentTaskId);
+                      topLevelTasks.forEach(parentTask => {
+                        const parentIdx = selectedTemplate.tasks.findIndex(t => t.taskId === parentTask.taskId);
+                        elements.push(renderTaskItem(parentTask, parentIdx, false));
+                        renderedTaskIds.add(parentTask.taskId);
 
-                        {/* Extra fields snapshot view */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem', paddingLeft: '72px' }}>
-                          {task.functionUrl && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
-                              <Link2 size={12} /> URL: {task.functionUrl}
-                            </span>
-                          )}
-                          {task.urdReference && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
-                              <FileText size={12} /> URD: {task.urdReference}
-                            </span>
-                          )}
-                          {task.fileLocation && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
-                              <FileText size={12} /> File: {task.fileLocation}
-                            </span>
-                          )}
-                          {task.timetable && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
-                              <Clock size={12} /> Khung giờ: {task.timetable}
-                            </span>
-                          )}
-                          {task.isBotCheck && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.06)', color: '#ec4899', padding: '2px 8px', borderRadius: '4px' }}>
-                              <Cpu size={12} /> Bot Check {task.botTriggerTime ? `(${task.botTriggerTime})` : ''}
-                            </span>
-                          )}
-                          {task.slaType && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
-                              SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
-                            </span>
-                          )}
-                          {task.triggerTime && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
-                              Bắt đầu: {task.triggerTime}
-                            </span>
-                          )}
-                          {task.slaDeadline && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
-                              Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
-                            </span>
-                          )}
-                          {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
-                              Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
-                            </span>
-                          )}
-                        </div>
-                        {task.actionDescription && (
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '72px', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.4 }}>
-                            Mô tả: {task.actionDescription}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+                        // Find children
+                        const children = selectedTemplate.tasks.filter(t => t.parentTaskId === parentTask.taskId);
+                        children.forEach(childTask => {
+                          const childIdx = selectedTemplate.tasks.findIndex(t => t.taskId === childTask.taskId);
+                          elements.push(renderTaskItem(childTask, childIdx, true));
+                          renderedTaskIds.add(childTask.taskId);
+                        });
+                      });
+
+                      // Fallback for remaining tasks
+                      selectedTemplate.tasks.forEach((task, idx) => {
+                        if (!renderedTaskIds.has(task.taskId)) {
+                          elements.push(renderTaskItem(task, idx, !!task.parentTaskId));
+                        }
+                      });
+
+                      return elements;
+                    })()
+                  )}
                 </div>
               </div>
             </div>

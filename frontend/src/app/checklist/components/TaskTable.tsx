@@ -156,6 +156,23 @@ export default function TaskTable({
     return map;
   }, [log.details]);
 
+  const hasInitializedExpansionRef = React.useRef(false);
+
+  // Auto-expand parent tasks with incomplete, failed, or needs attention subtasks on mount
+  React.useEffect(() => {
+    if (log.details && log.details.length > 0 && !hasInitializedExpansionRef.current) {
+      const initialExpanded = new Set<string>();
+      Object.entries(childrenMap).forEach(([pid, children]) => {
+        const hasIncomplete = children.some(c => !c.isChecked || c.status === 'FAILED' || c.status === 'NEEDS_ATTENTION');
+        if (hasIncomplete) {
+          initialExpanded.add(pid);
+        }
+      });
+      setExpandedParents(initialExpanded);
+      hasInitializedExpansionRef.current = true;
+    }
+  }, [log.details, childrenMap]);
+
   // IDs that are children (to skip rendering them standalone)
   const childIds = useMemo(() => {
     const ids = new Set<string>();
@@ -342,7 +359,7 @@ export default function TaskTable({
                         {/* Has-children badge */}
                         {hasChildren && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', borderRadius: '5px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
-                            <ChevronDown size={10} /> {children.length} tác vụ con
+                            <ChevronDown size={10} /> {children.filter(c => c.isChecked).length}/{children.length} tác vụ con hoàn thành
                           </span>
                         )}
                         <span>[{item.taskId}] {item.taskNameSnapshot}</span>
