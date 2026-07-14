@@ -5,6 +5,7 @@ import { MarginChangeRequestsService } from './margin-change-requests.service';
 import { MarginChangeRequestsController } from './margin-change-requests.controller';
 import { ShiftsModule } from '../shifts/shifts.module';
 import { AuthModule } from '../auth/auth.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AuthModule } from '../auth/auth.module';
     ]),
     forwardRef(() => ShiftsModule),
     AuthModule,
+    SystemSettingsModule,
   ],
 
   providers: [MarginChangeRequestsService],

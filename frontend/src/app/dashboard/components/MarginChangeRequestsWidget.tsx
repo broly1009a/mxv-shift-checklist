@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { GripVertical, ClipboardList, Check, X, ShieldAlert, Plus } from 'lucide-react';
+import { GripVertical, ClipboardList, Check, X, ShieldAlert, Plus, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 
 interface UserSnapshot {
@@ -51,6 +51,39 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
 
   // Rejection state
   const [rejectionReason, setRejectionReason] = useState<string>('');
+
+  // Scan state
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+
+  const handleScanDecision = async () => {
+    if (!token) return;
+    setIsScanning(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests/scan-decision`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Lỗi quét quyết định ký quỹ');
+      }
+
+      const result = await res.json();
+      alert(
+        `Quét thành công!\n- File quyết định: ${result.fileName}\n- Hiệu lực: ${result.effectiveSession}\n- Trích xuất: ${result.totalExtracted} mặt hàng\n- Đã tạo: ${result.totalCreated} bản ghi chờ duyệt.`,
+      );
+      fetchRequests();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Lỗi xảy ra trong quá trình quét quyết định.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const fetchRequests = async () => {
     if (!token) return;
@@ -232,13 +265,15 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
   // Helper checking checker privileges
   const canApprove = (req: MarginChangeRequest) => {
     if (!currentUser) return false;
-    const isMaker = (req.createdBy._id || (req.createdBy as any).id || '').toString() === (currentUser.id || currentUser._id || '').toString();
+    const isMaker = req.createdBy
+      ? (req.createdBy._id || (req.createdBy as any).id || '').toString() === (currentUser.id || currentUser._id || '').toString()
+      : false;
     const isCheckerRole = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'].includes(currentUser.role || '');
     return !isMaker && isCheckerRole;
   };
 
   const isMakerUser = (req: MarginChangeRequest) => {
-    if (!currentUser) return false;
+    if (!currentUser || !req.createdBy) return false;
     return (req.createdBy._id || (req.createdBy as any).id || '').toString() === (currentUser.id || currentUser._id || '').toString();
   };
 
@@ -252,13 +287,48 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
         <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
           <ClipboardList size={18} color="var(--color-primary)" /> Phê duyệt Ký Quỹ (Maker-Checker)
         </h3>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary"
-          style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', height: '32px' }}
-        >
-          <Plus size={14} /> Tạo yêu cầu
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {isScanning && (
+            <style dangerouslySetInnerHTML={{ __html: `
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+              .spin-icon {
+                animation: spin 1s linear infinite;
+              }
+            `}} />
+          )}
+          <button
+            onClick={handleScanDecision}
+            disabled={isScanning}
+            className="btn"
+            style={{ 
+              padding: '6px 12px', 
+              fontSize: '0.78rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              height: '32px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              cursor: isScanning ? 'not-allowed' : 'pointer',
+              opacity: isScanning ? 0.7 : 1
+            }}
+          >
+            <RefreshCw size={14} className={isScanning ? 'spin-icon' : ''} />
+            {isScanning ? 'Đang quét...' : 'Tự động quét QĐ'}
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary"
+            style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', height: '32px' }}
+          >
+            <Plus size={14} /> Tạo yêu cầu
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -335,7 +405,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
 
                 {req.status === 'APPROVED' && req.approvedBy && (
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', alignSelf: 'flex-end' }}>
-                    Checker duyệt: <strong style={{ color: 'var(--text-secondary)' }}>{req.approvedBy.fullName}</strong>
+                    Checker duyệt: <strong style={{ color: 'var(--text-secondary)' }}>{req.approvedBy?.fullName || req.approvedBy?.username || 'Hệ thống'}</strong>
                   </div>
                 )}
 

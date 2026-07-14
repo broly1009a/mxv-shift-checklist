@@ -217,6 +217,10 @@ export default function AdminBotConfigPage() {
   const [backupPathCast, setBackupPathCast] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
   const [triggeringCastDownload, setTriggeringCastDownload] = useState(false);
 
+  // Margin Decision folder path state
+  const [marginDecisionPath, setMarginDecisionPath] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Quyết định - Thông báo\\2. QĐ ban hành mức ký quỹ');
+  const [savingMarginPath, setSavingMarginPath] = useState(false);
+
   // Derived selected job
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
@@ -335,6 +339,17 @@ export default function AdminBotConfigPage() {
         const macroValueData = await macroValueRes.json();
         if (macroValueData.macroPath) setMacroValuePath(macroValueData.macroPath);
         if (macroValueData.scriptPath) setMacroValueScriptPath(macroValueData.scriptPath);
+      }
+
+      // Fetch Margin Decision folder path setting
+      const marginRes = await fetch(`${API_BASE_URL}/api/v1/system-settings/margin_decision_folder_path`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (marginRes.ok) {
+        const marginData = await marginRes.json();
+        if (marginData.value) {
+          setMarginDecisionPath(marginData.value);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -732,6 +747,33 @@ export default function AdminBotConfigPage() {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
       setSavingBackupPathAcm(false);
+    }
+  };
+
+  // Save Margin Decision folder path
+  const handleSaveMarginPathConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingMarginPath(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          key: 'margin_decision_folder_path',
+          value: marginDecisionPath,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      toast.success('Đã lưu đường dẫn thư mục Quyết định Ký quỹ thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi lưu cấu hình');
+    } finally {
+      setSavingMarginPath(false);
     }
   };
 
@@ -2639,6 +2681,40 @@ export default function AdminBotConfigPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Cấu hình Thư mục Quyết định Ký quỹ Box */}
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <Settings size={20} color="#10b981" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cấu Hình Thư Mục Quyết Định Ký Quỹ</h3>
+                </div>
+
+                <form onSubmit={handleSaveMarginPathConfig} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '280px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Đường dẫn thư mục chứa file QĐ thay đổi ký quỹ (.docx)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Quyết định - Thông báo\2. QĐ ban hành mức ký quỹ"
+                      value={marginDecisionPath}
+                      onChange={(e) => setMarginDecisionPath(e.target.value)}
+                      required
+                      style={{ padding: '12px' }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={savingMarginPath}
+                    className="btn btn-primary"
+                    style={{ padding: '12px 20px', fontSize: '0.85rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Save size={16} />
+                    {savingMarginPath ? 'Đang lưu...' : 'Lưu đường dẫn'}
+                  </button>
+                </form>
               </div>
 
               {/* Chạy Excel Macro Thống Kê Số Lot Box */}

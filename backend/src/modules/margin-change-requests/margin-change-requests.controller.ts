@@ -18,6 +18,11 @@ export class MarginChangeRequestsController {
     );
   }
 
+  @Post('scan-decision')
+  async scanDecision(@Request() req: any) {
+    return this.marginChangeRequestsService.scanDecisionDocument(req.user);
+  }
+
   @Get()
   async list(@Request() req: any, @Query('status') status?: string) {
     return this.marginChangeRequestsService.listRequests(req.user, status);
