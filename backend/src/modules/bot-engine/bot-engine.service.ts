@@ -73,7 +73,7 @@ export class BotEngineService {
           }
 
           // 2. Enforce Dependency ordering (maker-checker sequential pipeline)
-          if (task.dependsOnTaskIdsSnapshot && task.dependsOnTaskIdsSnapshot.length > 0) {
+          if (task.status === 'PENDING' && task.dependsOnTaskIdsSnapshot && task.dependsOnTaskIdsSnapshot.length > 0) {
             const hasUnmetDeps = task.dependsOnTaskIdsSnapshot.some(depId => {
               const depTask = log.details.find(t => t.taskId === depId);
               return depTask && !depTask.isChecked;
@@ -86,7 +86,7 @@ export class BotEngineService {
 
           // 3. Enforce Trigger Time
           const nowVN = new Date(Date.now() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
-          if (task.botTriggerTimeSnapshot) {
+          if (task.status === 'PENDING' && task.botTriggerTimeSnapshot) {
             const [trigH, trigM] = task.botTriggerTimeSnapshot.split(':').map(Number);
             const currH = nowVN.getUTCHours();
             const currM = nowVN.getUTCMinutes();
@@ -208,7 +208,7 @@ export class BotEngineService {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
                 targets,
-                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+                sessionDay: log.shiftDate,
               });
               checkResult = { success: false, message: 'Đang bắt đầu tác vụ RPA tải file báo cáo...' };
             } else {
@@ -227,7 +227,7 @@ export class BotEngineService {
               await this.botJobQueueService.enqueue('DOWNLOAD_CAST', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
-                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+                sessionDay: log.shiftDate,
               });
               checkResult = { success: false, message: 'Đang bắt đầu tải báo cáo CQG CAST Balances...' };
             } else {
@@ -246,7 +246,7 @@ export class BotEngineService {
               await this.botJobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
-                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+                sessionDay: log.shiftDate,
               });
               checkResult = { success: false, message: 'Đang bắt đầu xác minh gửi email sao kê...' };
             } else {
@@ -311,7 +311,7 @@ export class BotEngineService {
               await this.botJobQueueService.enqueue('AUTO_CHECK_SOD', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
-                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+                sessionDay: log.shiftDate,
               });
               checkResult = { success: false, message: 'Đang bắt đầu đối chiếu SOD...' };
             } else {

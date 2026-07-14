@@ -68,6 +68,9 @@ export class SystemSettingsService {
           ciphers: 'SSLv3',
           rejectUnauthorized: false,
         },
+        connectionTimeout: 10000, // 10s
+        greetingTimeout: 10000,   // 10s
+        socketTimeout: 15000,     // 15s
       });
 
       const subject = `⚠️ [MXV SECURITY AUDIT] Cảnh báo Thay đổi Cấu hình Hệ thống Quan trọng`;

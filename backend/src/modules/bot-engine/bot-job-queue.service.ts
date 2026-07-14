@@ -372,7 +372,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] Đang đăng nhập và tải báo cáo gửi email từ M-System Admin...`);
       await job.save();
 
-      const filePath = await this.rpaDownloaderService.downloadEmailHistoryReport(tempDir);
+      const filePath = await this.rpaDownloaderService.downloadEmailHistoryReport(tempDir, sessionDay);
       job.logs.push(`[${new Date().toISOString()}] Đã tải file lịch sử gửi email thành công: ${path.basename(filePath)}`);
       await job.save();
 
@@ -1372,6 +1372,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           ciphers: 'SSLv3',
           rejectUnauthorized: false,
         },
+        connectionTimeout: 10000, // 10s
+        greetingTimeout: 10000,   // 10s
+        socketTimeout: 15000,     // 15s
       });
 
       const payloadStr = JSON.stringify(job.payload instanceof Map ? Object.fromEntries(job.payload) : job.payload, null, 2);

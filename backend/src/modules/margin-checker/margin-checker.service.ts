@@ -243,6 +243,9 @@ export class MarginCheckerService {
           ciphers: 'SSLv3',
           rejectUnauthorized: false,
         },
+        connectionTimeout: 10000, // 10s
+        greetingTimeout: 10000,   // 10s
+        socketTimeout: 15000,     // 15s
       });
 
       const info = await transporter.sendMail({

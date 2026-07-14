@@ -39,6 +39,84 @@ export class RpaDownloaderService {
   }
 
   /**
+   * Helper to scan page for Ant Design or Bootstrap/custom login errors.
+   */
+  private async checkForLoginErrors(page: Page): Promise<string | null> {
+    try {
+      // 1. Check Ant Design notification message
+      const noticeDesc = page.locator('.ant-notification-notice-description, .ant-notification-notice-message');
+      const count = await noticeDesc.count().catch(() => 0);
+      if (count > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const text = await noticeDesc.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) {
+          return `Thông báo lỗi hệ thống: ${textList.join(' | ')}`;
+        }
+      }
+
+      // 2. Check Ant Design message alert
+      const msgContent = page.locator('.ant-message-custom-content, .ant-message');
+      const msgCount = await msgContent.count().catch(() => 0);
+      if (msgCount > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < msgCount; i++) {
+          const text = await msgContent.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) {
+          return `Thông báo từ trang web: ${textList.join(' | ')}`;
+        }
+      }
+
+      // 3. Check inline form explain errors (username/password validation)
+      const formExplain = page.locator('.ant-form-item-explain-error');
+      const explainCount = await formExplain.count().catch(() => 0);
+      if (explainCount > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < explainCount; i++) {
+          const text = await formExplain.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) {
+          return `Lỗi nhập liệu form: ${textList.join(' | ')}`;
+        }
+      }
+
+      // 4. General alert components
+      const alerts = page.locator('.ant-alert-message, .ant-alert-description');
+      const alertCount = await alerts.count().catch(() => 0);
+      if (alertCount > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < alertCount; i++) {
+          const text = await alerts.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) {
+          return `Cảnh báo: ${textList.join(' | ')}`;
+        }
+      }
+
+      // 5. Bootstrap/General login error alert
+      const generalAlerts = page.locator('.alert-danger, .error-message, #error-msg');
+      const genAlertCount = await generalAlerts.count().catch(() => 0);
+      if (genAlertCount > 0) {
+        const text = await generalAlerts.first().innerText().catch(() => '');
+        if (text.trim()) {
+          return `Lỗi đăng nhập: ${text.trim()}`;
+        }
+      }
+
+      return null;
+    } catch (e: any) {
+      this.logger.error(`Lỗi khi quét thông tin lỗi đăng nhập trên trang: ${e.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Launches browser and logs in to M-System. Returns the browser and authenticated page.
    */
   async loginMSystem(downloadDir: string, overrideUrl?: string): Promise<{ browser: Browser; page: Page }> {
@@ -68,7 +146,7 @@ export class RpaDownloaderService {
       // Playwright 1.49+: headless:true tự động dùng New Headless Chrome
       // (headless:'new' đã bị xóa khỏi API, không còn dùng được)
       // New Headless: không cần màn hình (chạy được trên server) + khó bị anti-bot hơn old headless
-      headless: true,
+      headless: process.env.HEADLESS_BOT !== 'false',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -126,9 +204,22 @@ export class RpaDownloaderService {
       for (let attempt = 1; attempt <= 3; attempt++) {
         pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
         if (pinSelectorVisible) break;
+
+        const loginError = await this.checkForLoginErrors(page);
+        if (loginError) {
+          throw new Error(`Đăng nhập thất bại. ${loginError}`);
+        }
+
         this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
         await page.click('button.btn-primary').catch(() => { });
         await page.waitForTimeout(2000);
+      }
+
+      if (!pinSelectorVisible) {
+        const loginError = await this.checkForLoginErrors(page);
+        if (loginError) {
+          throw new Error(`Đăng nhập thất bại. ${loginError}`);
+        }
       }
 
       await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
@@ -160,6 +251,14 @@ export class RpaDownloaderService {
     } catch (err: any) {
       this.logger.error(`Đăng nhập MSystem thất bại: ${err.message}`);
 
+      let extractedError = '';
+      try {
+        if (page && !page.isClosed()) {
+          const loginErr = await this.checkForLoginErrors(page);
+          if (loginErr) extractedError = ` | Chi tiết từ web: ${loginErr}`;
+        }
+      } catch {}
+
       // Ghi nhận file log và ảnh chụp lỗi để debug
       try {
         const debugDir = path.join(process.cwd(), 'temp', 'debug');
@@ -171,11 +270,11 @@ export class RpaDownloaderService {
         const pngPath = path.join(debugDir, `error-screenshot-${timestamp}.png`);
         const htmlPath = path.join(debugDir, `error-page-${timestamp}.html`);
 
-        const logContent = `Time: ${new Date().toISOString()}\nURL: ${msystemUrl}\nUsername: ${username}\nError: ${err.message}\nStack: ${err.stack}\n`;
+        const logContent = `Time: ${new Date().toISOString()}\nURL: ${msystemUrl}\nUsername: ${username}\nError: ${err.message}${extractedError}\nStack: ${err.stack}\n`;
         fs.writeFileSync(txtPath, logContent, 'utf8');
 
         if (page && !page.isClosed()) {
-          await page.screenshot({ path: pngPath, fullPage: true }).catch(() => { });
+          await page.screenshot({ path: pngPath, fullPage: true, timeout: 5000 }).catch(() => { });
           const html = await page.content().catch(() => '');
           if (html) {
             fs.writeFileSync(htmlPath, html, 'utf8');
@@ -186,8 +285,10 @@ export class RpaDownloaderService {
         this.logger.error(`Không thể tạo file log lỗi debug: ${logErr.message}`);
       }
 
-      await browser.close();
-      throw err;
+      try {
+        await browser.close();
+      } catch {}
+      throw new Error(`${err.message}${extractedError}`);
     }
   }
 
@@ -866,7 +967,7 @@ export class RpaDownloaderService {
    * Navigates to M-System Admin automaticEmailSMSConfig, selects 'Danh sách gửi EMAIL' tab,
    * clicks Export Excel, and returns the downloaded file path.
    */
-  async downloadEmailHistoryReport(downloadDir: string): Promise<string> {
+  async downloadEmailHistoryReport(downloadDir: string, targetDate?: string): Promise<string> {
     const adminUrl = 'https://msadmin.mxv.com.vn/';
     const { browser, page } = await this.loginMSystem(downloadDir, adminUrl);
 
@@ -881,8 +982,83 @@ export class RpaDownloaderService {
       await tabSelector.click();
       await page.waitForTimeout(3000);
 
+      /*
+      // NOTE: Tạm thời đóng phần tự động lọc ngày (RangePicker) để đồng bộ với các tác vụ khác.
+      // Do nghiệp vụ rất ít khi quên đóng ca (hoặc có gửi bù thì đối soát thủ công).
+      // Khi cần mở lại đối chiếu lịch sử ca cũ tự động, chỉ cần uncomment đoạn code dưới đây.
+      if (targetDate) {
+        this.logger.log(`Checking if date filtering is needed for targetDate: ${targetDate}`);
+        let formattedDate = '';
+        if (targetDate.includes('-')) {
+          const parts = targetDate.split('-');
+          if (parts.length === 3) {
+            formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+
+        if (formattedDate) {
+          this.logger.log(`Filtering by date: ${formattedDate}`);
+          
+          const startInput = page.locator('.ant-tabs-tabpane-active input[placeholder="Ngày bắt đầu"]').first();
+          const endInput = page.locator('.ant-tabs-tabpane-active input[placeholder="Ngày kết thúc"]').first();
+
+          if (await startInput.isVisible().catch(() => false) && await endInput.isVisible().catch(() => false)) {
+            this.logger.log('Detected Ant Design RangePicker (Ngày bắt đầu -> Ngày kết thúc)');
+            
+            this.logger.log(`Filling Start Date: ${formattedDate}`);
+            await startInput.click().catch(() => {});
+            await page.keyboard.press('Control+A').catch(() => {});
+            await page.keyboard.press('Backspace').catch(() => {});
+            await page.keyboard.type(formattedDate).catch(() => {});
+            await page.keyboard.press('Enter').catch(() => {});
+            await page.waitForTimeout(500);
+
+            this.logger.log(`Filling End Date: ${formattedDate}`);
+            await endInput.click().catch(() => {});
+            await page.keyboard.press('Control+A').catch(() => {});
+            await page.keyboard.press('Backspace').catch(() => {});
+            await page.keyboard.type(formattedDate).catch(() => {});
+            await page.keyboard.press('Enter').catch(() => {});
+            await page.keyboard.press('Escape').catch(() => {});
+            
+            this.logger.log('Waiting 3s for filter query to reload table...');
+            await page.waitForTimeout(3000);
+          } else {
+            const dateInputs = page.locator('.ant-tabs-tabpane-active .ant-picker input, .ant-tabs-tabpane-active .ant-calendar-picker input');
+            const inputCount = await dateInputs.count().catch(() => 0);
+
+            if (inputCount > 0) {
+              for (let i = 0; i < inputCount; i++) {
+                const input = dateInputs.nth(i);
+                if (await input.isVisible().catch(() => false)) {
+                  await input.click().catch(() => {});
+                  await page.keyboard.press('Control+A').catch(() => {});
+                  await page.keyboard.press('Backspace').catch(() => {});
+                  await page.keyboard.type(formattedDate).catch(() => {});
+                  await page.keyboard.press('Enter').catch(() => {});
+                  await page.waitForTimeout(500);
+                }
+              }
+
+              const searchBtn = page.locator('.ant-tabs-tabpane-active button').filter({ hasText: /Tìm kiếm|Tìm|Search/i }).first();
+              if (await searchBtn.isVisible().catch(() => false)) {
+                this.logger.log('Clicking Search button...');
+                await searchBtn.click();
+                await page.waitForTimeout(3000);
+              }
+            } else {
+              this.logger.log('No date inputs found in the active tab pane.');
+            }
+          }
+        }
+      }
+      */
+
       this.logger.log('Locating Export button...');
       const possibleExportSelectors = [
+        "button:has(i.fa-file-csv)",
+        "button.btn-ghost-primary:has(i.fa-file-csv)",
+        "button.ladda-button:has(i.fa-file-csv)",
         "xpath=//button[contains(., 'Xuất excel')]",
         "xpath=//button[contains(., 'Xuất file')]",
         "xpath=//button[contains(., 'Xuất')]",

@@ -322,7 +322,7 @@ export class BotEngineController {
     const payload: any = {
       taskId: task.taskId,
       shiftLogId: log._id.toString(),
-      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+      sessionDay: log.shiftDate,
       maxAttempts: 1, // Only 1 attempt for manual trigger
     };
 
@@ -450,6 +450,10 @@ export class BotEngineController {
         $set: {
           'details.$.status': 'WAITING',
           'details.$.resultNote': 'Đang bắt đầu kích hoạt xác minh gửi email sao kê tự động...',
+          'details.$.isBotCheckSnapshot': true,
+          'details.$.botCheckTypeSnapshot': 'EMAIL_STATUS_CHECK',
+          'details.$.botTriggerTimeSnapshot': '07:30',
+          'details.$.slaDeadlineSnapshot': '08:00',
         },
       }
     );
@@ -457,7 +461,7 @@ export class BotEngineController {
     await this.jobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
       taskId,
       shiftLogId,
-      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+      sessionDay: log.shiftDate,
       maxAttempts: 1,
     });
 

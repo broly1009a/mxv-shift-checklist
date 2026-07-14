@@ -32,7 +32,8 @@
     "test:parent-child": "ts-node src/test-parent-child-tasks.ts",
     "test:scheduler": "ts-node src/test-dynamic-scheduler.ts",
     "test:email-sod": "ts-node src/test-email-sod.ts",
-    "test:all-emails": "ts-node src/test-all-emails.ts"
+    "test:all-emails": "ts-node src/test-all-emails.ts",
+    "test:email-filter": "ts-node src/test-email-filter.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
