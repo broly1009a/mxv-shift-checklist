@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Lock,
   Unlock,
@@ -10,6 +10,7 @@ import {
   FileText,
   Cpu,
   ChevronDown,
+  ChevronRight,
   MessageSquare,
   Save,
   Plus,
@@ -20,7 +21,9 @@ import {
   SkipForward,
   AlertTriangle,
   FileSpreadsheet,
-  ShieldAlert
+  ShieldAlert,
+  Bot,
+  UserCheck
 } from 'lucide-react';
 import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
 
@@ -129,6 +132,43 @@ export default function TaskTable({
   togglingTaskIds
 }: TaskTableProps) {
 
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+
+  const toggleParent = (taskId: string) => {
+    setExpandedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  // Build parent→children map from full log.details
+  const childrenMap = useMemo(() => {
+    const map: Record<string, TaskDetail[]> = {};
+    (log.details || []).forEach(d => {
+      const pid = (d as any).parentTaskIdSnapshot;
+      if (pid) {
+        if (!map[pid]) map[pid] = [];
+        map[pid].push(d);
+      }
+    });
+    return map;
+  }, [log.details]);
+
+  // IDs that are children (to skip rendering them standalone)
+  const childIds = useMemo(() => {
+    const ids = new Set<string>();
+    Object.values(childrenMap).flat().forEach(d => ids.add(d.taskId));
+    return ids;
+  }, [childrenMap]);
+
+  // Only show parent tasks (or standalone tasks without parentTaskId) in the main list
+  const parentDetails = useMemo(() =>
+    filteredDetails.filter(d => !childIds.has(d.taskId)),
+    [filteredDetails, childIds]
+  );
+
   const getPriorityBadge = (p: string) => {
     switch (p) {
       case 'LOW': return <span className="badge badge-low">Thấp</span>;
@@ -220,12 +260,16 @@ export default function TaskTable({
 
       {/* Checklist tasks mapping */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {filteredDetails.length === 0 ? (
+        {parentDetails.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
             Không tìm thấy tác vụ phù hợp với bộ lọc.
           </div>
         ) : (
-          filteredDetails.map((item) => {
+          parentDetails.map((item) => {
+            const children = childrenMap[item.taskId] || [];
+            const hasChildren = children.length > 0;
+            const isExpanded = expandedParents.has(item.taskId);
+            const isBotOnly = item.isBotCheckSnapshot && !hasChildren;
             const isSaving = savingTaskId === item.taskId;
             const isToggling = togglingTaskIds.has(item.taskId);
             const currentStatus = item.status || 'PENDING';
@@ -233,29 +277,40 @@ export default function TaskTable({
             const StatusIcon = currentStatusConfig.icon;
             const locked = isTaskLocked(item);
             return (
-              <div key={item.taskId} className="glass-panel animate-fade-in" style={{
+              <div key={item.taskId} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div className="glass-panel" style={{
                 padding: '16px',
-                borderRadius: '12px',
-                background: item.isChecked ? 'rgba(16, 185, 129, 0.012)' : 'var(--bg-app)',
-                borderLeft: item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
+                borderRadius: hasChildren ? '12px 12px 0 0' : '12px',
+                background: isBotOnly
+                  ? 'rgba(236,72,153,0.03)'
+                  : item.isChecked ? 'rgba(16, 185, 129, 0.012)' : 'var(--bg-app)',
+                borderLeft: isBotOnly
+                  ? '4px solid #ec4899'
+                  : hasChildren
+                    ? '4px solid #8b5cf6'
+                    : item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
                 transition: 'all 0.2s ease',
                 opacity: isToggling ? 0.6 : 1,
-                pointerEvents: isToggling ? 'none' : 'auto'
-              }}>
+                pointerEvents: isToggling ? 'none' : 'auto',
+                cursor: hasChildren ? 'pointer' : 'default',
+              }}
+              onClick={hasChildren ? () => toggleParent(item.taskId) : undefined}
+              >
 
                 {/* Checkbox and task information row */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }} onClick={e => hasChildren && e.stopPropagation()}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    {locked ? (
+                    {/* Expand arrow for parent tasks */}
+                    {hasChildren ? (
+                      <span style={{ marginTop: '3px', flexShrink: 0, color: '#8b5cf6' }}>
+                        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      </span>
+                    ) : locked ? (
                       <span title="Bị khóa do phụ thuộc tác vụ chưa hoàn thành">
-                        <Lock
-                          size={18}
-                          color="#ef4444"
-                          style={{ marginTop: '3px', flexShrink: 0 }}
-                        />
+                        <Lock size={18} color="#ef4444" style={{ marginTop: '3px', flexShrink: 0 }} />
                       </span>
                     ) : (
                       <input
@@ -263,10 +318,9 @@ export default function TaskTable({
                         checked={item.isChecked}
                         onChange={() => handleToggle(item.taskId, item.isChecked)}
                         disabled={isCompleted || isSaving || isToggling}
+                        onClick={e => e.stopPropagation()}
                         style={{
-                          width: '18px',
-                          height: '18px',
-                          marginTop: '3px',
+                          width: '18px', height: '18px', marginTop: '3px',
                           cursor: (isCompleted || isToggling) ? 'not-allowed' : 'pointer',
                           accentColor: 'var(--color-primary)'
                         }}
@@ -274,15 +328,24 @@ export default function TaskTable({
                     )}
                     <div>
                       <p style={{
-                        fontSize: '0.92rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        lineHeight: '1.4',
-                        textDecoration: item.isChecked ? 'line-through' : 'none',
-                        opacity: item.isChecked ? 0.65 : 1,
-                        margin: 0
+                        fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)',
+                        lineHeight: '1.4', textDecoration: item.isChecked ? 'line-through' : 'none',
+                        opacity: item.isChecked ? 0.65 : 1, margin: 0,
+                        display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'
                       }}>
-                        [{item.taskId}] {item.taskNameSnapshot}
+                        {/* Bot 100% badge */}
+                        {isBotOnly && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(236,72,153,0.12)', color: '#ec4899', borderRadius: '5px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                            <Cpu size={10} /> BOT 100%
+                          </span>
+                        )}
+                        {/* Has-children badge */}
+                        {hasChildren && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', borderRadius: '5px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                            <ChevronDown size={10} /> {children.length} tác vụ con
+                          </span>
+                        )}
+                        <span>[{item.taskId}] {item.taskNameSnapshot}</span>
                       </p>
 
                       {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
@@ -656,6 +719,104 @@ export default function TaskTable({
                   )}
                 </div>
 
+              </div>
+
+              {/* Sub-tasks accordion */}
+              {hasChildren && isExpanded && (
+                <div style={{
+                  display: 'flex', flexDirection: 'column', gap: '6px',
+                  background: 'rgba(139,92,246,0.03)', borderRadius: '0 0 12px 12px',
+                  border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
+                  padding: '8px 12px 12px 12px'
+                }}>
+                  {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map(child => {
+                    const isBot = child.isBotCheckSnapshot;
+                    const cStatus = child.status || 'PENDING';
+                    const cConfig = STATUS_CONFIGS[cStatus] || STATUS_CONFIGS.PENDING;
+                    const CIcon = cConfig.icon;
+                    const cSaving = savingTaskId === child.taskId;
+                    const cToggling = togglingTaskIds.has(child.taskId);
+                    return (
+                      <div key={child.taskId} style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 12px', borderRadius: '8px',
+                        background: child.isChecked
+                          ? 'rgba(16,185,129,0.05)'
+                          : isBot ? 'rgba(236,72,153,0.04)' : 'rgba(255,255,255,0.03)',
+                        border: child.isChecked
+                          ? '1px solid rgba(16,185,129,0.15)'
+                          : isBot ? '1px solid rgba(236,72,153,0.15)' : '1px solid var(--border-color)',
+                        opacity: cToggling ? 0.6 : 1,
+                        transition: 'all 0.2s'
+                      }}>
+                        {/* Bot or Maker indicator */}
+                        {isBot ? (
+                          <span title="Bot tự động check" style={{ flexShrink: 0 }}>
+                            <Cpu size={15} color={child.isChecked ? '#10b981' : '#ec4899'} />
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={child.isChecked}
+                            onChange={() => handleToggle(child.taskId, child.isChecked)}
+                            disabled={isCompleted || cSaving || cToggling}
+                            style={{
+                              width: '16px', height: '16px', flexShrink: 0,
+                              cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
+                              accentColor: 'var(--color-primary)'
+                            }}
+                          />
+                        )}
+                        <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: child.isChecked ? 'line-through' : 'none', opacity: child.isChecked ? 0.6 : 1 }}>
+                          {child.taskNameSnapshot}
+                        </span>
+                        {/* Bot/Maker role badge */}
+                        {isBot ? (
+                          <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(236,72,153,0.1)', color:'#ec4899', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
+                            <Cpu size={9}/> Bot
+                          </span>
+                        ) : (
+                          <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(59,130,246,0.1)', color:'#3b82f6', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
+                            <UserCheck size={9}/> Maker
+                          </span>
+                        )}
+                        {/* Sub-task status */}
+                        <span style={{ display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600, color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px', border:`1px solid ${cConfig.borderColor}`, flexShrink:0 }}>
+                          <CIcon size={11}/> {cConfig.label}
+                        </span>
+                        {/* Status dropdown for Maker sub-tasks */}
+                        {!isBot && !isCompleted && (
+                          <button
+                            onClick={() => setOpenStatusDropdownTaskId(openStatusDropdownTaskId === child.taskId ? null : child.taskId)}
+                            disabled={isCompleted || cSaving || cToggling}
+                            style={{ background:'transparent', border:'1px solid var(--border-color)', borderRadius:'6px', padding:'2px 6px', cursor:'pointer', flexShrink:0 }}
+                            title="Đổi trạng thái"
+                          >
+                            <ChevronDown size={12} color="var(--text-muted)" />
+                          </button>
+                        )}
+                        {openStatusDropdownTaskId === child.taskId && (
+                          <>
+                            <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={() => setOpenStatusDropdownTaskId(null)} />
+                            <div style={{ position:'absolute', right:0, background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:'10px', boxShadow:'var(--glass-shadow)', zIndex:1000, minWidth:'160px', padding:'4px', display:'flex', flexDirection:'column' }}>
+                              {Object.entries(STATUS_CONFIGS).map(([sk, sc]) => {
+                                const OI = sc.icon;
+                                return (
+                                  <button key={sk} onClick={() => { handleStatusChange(child.taskId, sk); setOpenStatusDropdownTaskId(null); }}
+                                    style={{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', fontSize:'0.76rem', fontWeight:600, color:sc.color, background:'transparent', border:'none', borderRadius:'6px', width:'100%', textAlign:'left', cursor:'pointer' }}
+                                    className="status-option-hover">
+                                    <OI size={13}/> {sc.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               </div>
             );
           })

@@ -48,6 +48,7 @@ interface Task {
   slaType?: 'FIXED_TIME' | 'DYNAMIC_AFTER_TASK';
   actionDescription?: string;
   dependsOnTaskIds?: string[];
+  parentTaskId?: string | null;
 }
 
 interface Template {
@@ -102,6 +103,7 @@ export default function AdminTemplatesPage() {
   const [newSlaDeadline, setNewSlaDeadline] = useState('');
   const [newActionDescription, setNewActionDescription] = useState('');
   const [newDependsOnTaskIds, setNewDependsOnTaskIds] = useState<string[]>([]);
+  const [newParentTaskId, setNewParentTaskId] = useState<string>('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [isTaskFormExpanded, setIsTaskFormExpanded] = useState(false);
   
@@ -212,6 +214,7 @@ export default function AdminTemplatesPage() {
     setNewSlaDeadline('');
     setNewActionDescription('');
     setNewDependsOnTaskIds([]);
+    setNewParentTaskId('');
   };
 
   const handleStartEditTask = (task: Task) => {
@@ -236,6 +239,7 @@ export default function AdminTemplatesPage() {
     setNewSlaDeadline(task.slaDeadline || '');
     setNewActionDescription(task.actionDescription || '');
     setNewDependsOnTaskIds(task.dependsOnTaskIds || []);
+    setNewParentTaskId(task.parentTaskId || '');
   };
 
   const handleCancelEditTask = () => {
@@ -260,6 +264,7 @@ export default function AdminTemplatesPage() {
     setNewSlaDeadline('');
     setNewActionDescription('');
     setNewDependsOnTaskIds([]);
+    setNewParentTaskId('');
   };
 
   // ─── Template CRUD Modals ───────────────────────────────────────────────────
@@ -404,7 +409,8 @@ export default function AdminTemplatesPage() {
             triggerTime: newTriggerTime.trim() || undefined,
             slaDeadline: newSlaDeadline.trim() || undefined,
             actionDescription: newActionDescription.trim() || undefined,
-            dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined
+            dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined,
+            parentTaskId: newParentTaskId || null
           };
         }
          return t;
@@ -445,7 +451,8 @@ export default function AdminTemplatesPage() {
       triggerTime: newTriggerTime.trim() || undefined,
       slaDeadline: newSlaDeadline.trim() || undefined,
       actionDescription: newActionDescription.trim() || undefined,
-      dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined
+      dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined,
+      parentTaskId: newParentTaskId || null
     }; 
 
     const updatedTasks = [...selectedTemplate.tasks, newTask];
@@ -474,6 +481,7 @@ export default function AdminTemplatesPage() {
     setNewSlaDeadline('');
     setNewActionDescription('');
     setNewDependsOnTaskIds([]);
+    setNewParentTaskId('');
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -865,6 +873,22 @@ export default function AdminTemplatesPage() {
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
                         <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
+                          <select
+                            className="form-input"
+                            value={newParentTaskId}
+                            onChange={(e) => setNewParentTaskId(e.target.value)}
+                            style={{ background: 'var(--bg-app)', width: '100%' }}
+                          >
+                            <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
+                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
+                              <option key={t.taskId} value={t.taskId}>
+                                {t.taskName} ({t.taskId})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
                           <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
                           <select
                             className="form-input"
@@ -1112,6 +1136,14 @@ export default function AdminTemplatesPage() {
                               </p>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                 <span>Mã: <strong>{task.taskId}</strong></span>
+                                {task.parentTaskId && (
+                                  <>
+                                    <span>•</span>
+                                    <span style={{ color: '#8b5cf6', fontWeight: 600 }}>
+                                      Con của: <strong>{task.parentTaskId}</strong>
+                                    </span>
+                                  </>
+                                )}
                                 <span>•</span>
                                 <span>Ưu tiên: {getPriorityBadge(task.priority)}</span>
                                 {task.deadline && (
