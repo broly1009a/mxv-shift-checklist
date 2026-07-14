@@ -230,6 +230,7 @@ export class OmsWatcherService {
         message: `Lỗi tự động hóa Playwright: ${err.message}`,
         data: resultData,
       };
+    }
     } finally {
       this.isChecking = false;
     }
