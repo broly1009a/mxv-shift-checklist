@@ -488,8 +488,9 @@ export default function TaskTable({
                         </button>
                       )}
 
-                      {/* OMS Status Button */}
+                      {/* OMS Status & Email Status Button */}
                       {(item.taskId === 'ops_open_02' ||
+                        item.taskId === 'ops_open_07' ||
                         item.taskNameSnapshot.toUpperCase().includes('EOD OMS') ||
                         item.taskNameSnapshot.toUpperCase().includes('OMS EOD') ||
                         item.taskNameSnapshot.toUpperCase().includes('OMS STATUS')) && !isCompleted && (
@@ -504,13 +505,22 @@ export default function TaskTable({
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
-                            background: 'rgba(236, 72, 153, 0.08)',
-                            color: '#ec4899',
-                            border: '1px solid rgba(236, 72, 153, 0.2)',
+                            background: item.taskId === 'ops_open_07' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(236, 72, 153, 0.08)',
+                            color: item.taskId === 'ops_open_07' ? '#3b82f6' : '#ec4899',
+                            border: item.taskId === 'ops_open_07' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(236, 72, 153, 0.2)',
                           }}
                         >
-                          <Cpu size={12} />
-                          OMS Status
+                          {item.taskId === 'ops_open_07' ? (
+                            <>
+                              <MessageSquare size={12} />
+                              Xác minh Email
+                            </>
+                          ) : (
+                            <>
+                              <Cpu size={12} />
+                              OMS Status
+                            </>
+                          )}
                         </button>
                       )}
                     </div>

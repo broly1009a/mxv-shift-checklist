@@ -416,6 +416,55 @@ export class BotEngineController {
   }
 
   /**
+   * Manually trigger the M-System Email History Verification for ops_open_07
+   */
+  @Post('trigger-email-check/:shiftLogId/:taskId')
+  async triggerEmailCheck(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string
+  ) {
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+    }
+
+    const existingJob = await this.botJobModel.findOne({
+      shiftLogId,
+      taskId,
+      jobType: 'VERIFY_EMAIL_STATUS',
+      status: { $in: ['PENDING', 'PROCESSING'] }
+    }).exec();
+
+    if (existingJob) {
+      throw new HttpException('Hệ thống đang chạy xác minh email cho tác vụ này. Vui lòng đợi.', HttpStatus.CONFLICT);
+    }
+
+    await this.shiftLogModel.updateOne(
+      { _id: shiftLogId, 'details.taskId': taskId },
+      {
+        $set: {
+          'details.$.status': 'WAITING',
+          'details.$.resultNote': 'Đang bắt đầu kích hoạt xác minh gửi email sao kê tự động...',
+        },
+      }
+    );
+
+    await this.jobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
+      taskId,
+      shiftLogId,
+      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+      maxAttempts: 1,
+    });
+
+    return { success: true, message: 'Đã kích hoạt xác minh email sao kê tự động.' };
+  }
+
+  /**
    * Performs an instant headless trial login to M-System to verify configurations.
    */
   @Post('test-connection')

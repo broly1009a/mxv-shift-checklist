@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Play, AlertCircle, CheckCircle2, XCircle, Clock, Database, RefreshCw, Terminal, Copy } from 'lucide-react';
+import { X, Play, AlertCircle, CheckCircle2, XCircle, Clock, Database, RefreshCw, Terminal, Copy, MessageSquare } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -62,7 +62,11 @@ export default function OmsStatusModal({
   const handleTriggerCheck = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`, {
+      const endpoint = taskId === 'ops_open_07'
+        ? `${API_BASE_URL}/api/v1/bot-engine/trigger-email-check/${shiftLogId}/${taskId}`
+        : `${API_BASE_URL}/api/v1/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -75,7 +79,7 @@ export default function OmsStatusModal({
         throw new Error(errorData.message || 'Không thể kích hoạt bot kiểm tra');
       }
 
-      toast.success('Đã kích hoạt quét OMS (CCP/CE) trong nền.');
+      toast.success(taskId === 'ops_open_07' ? 'Đã kích hoạt xác minh email sao kê trong nền.' : 'Đã kích hoạt quét OMS (CCP/CE) trong nền.');
       if (onTaskUpdated) {
         onTaskUpdated();
       }
@@ -101,6 +105,7 @@ export default function OmsStatusModal({
   // Extracted system details
   const ccpData = parsedNote?.data?.ccp;
   const ceData = parsedNote?.data?.ce;
+  const emailData = taskId === 'ops_open_07' ? parsedNote?.data : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -109,10 +114,14 @@ export default function OmsStatusModal({
         {/* Header */}
         <div className="px-6 py-4 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Database className="text-pink-500 animate-pulse" size={24} />
+            <Database className={`${taskId === 'ops_open_07' ? 'text-blue-500' : 'text-pink-500'} animate-pulse`} size={24} />
             <div>
               <h2 className="text-lg font-bold text-slate-100">{taskName}</h2>
-              <p className="text-xs text-slate-400">Kiểm tra kết quả EOD & Lệnh MM tự động qua Playwright (05h00)</p>
+              <p className="text-xs text-slate-400">
+                {taskId === 'ops_open_07' 
+                  ? 'Xác minh lịch sử gửi email sao kê tự động qua Playwright (07h00)'
+                  : 'Kiểm tra kết quả EOD & Lệnh MM tự động qua Playwright (05h00)'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors">
@@ -160,18 +169,22 @@ export default function OmsStatusModal({
             onClick={() => setActiveTab('status')}
             className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'status'
-                ? 'border-pink-500 text-pink-400 bg-pink-500/5'
+                ? taskId === 'ops_open_07'
+                  ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                  : 'border-pink-500 text-pink-400 bg-pink-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Database size={16} />
-            Bảng Trạng thái EOD & MM
+            {taskId === 'ops_open_07' ? 'Bảng Trạng thái Gửi Email' : 'Bảng Trạng thái EOD & MM'}
           </button>
           <button
             onClick={() => setActiveTab('logs')}
             className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'logs'
-                ? 'border-pink-500 text-pink-400 bg-pink-500/5'
+                ? taskId === 'ops_open_07'
+                  ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                  : 'border-pink-500 text-pink-400 bg-pink-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -186,7 +199,7 @@ export default function OmsStatusModal({
             <div className="space-y-6">
               
               {/* Message from bot check */}
-              {parsedNote?.message && (
+              {parsedNote?.message && !parsedNote.message.startsWith('{') && (
                 <div className={`p-4 border rounded-lg flex items-start gap-3 ${
                   status === 'PASSED' 
                     ? 'bg-emerald-950/20 border-emerald-900/50 text-emerald-200' 
@@ -202,8 +215,46 @@ export default function OmsStatusModal({
                 </div>
               )}
 
+              {/* Email Verification Card */}
+              {taskId === 'ops_open_07' && emailData ? (
+                <div className="bg-slate-950/30 border border-slate-800 rounded-xl overflow-hidden shadow-lg p-5 space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <span className="font-bold text-slate-200 text-sm tracking-wide">KẾT QUẢ GỬI EMAIL SAO KÊ</span>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                      emailData.failedCount === 0
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                    }`}>
+                      {emailData.failedCount === 0 ? 'Thành công' : 'Lỗi gửi'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-900/60 p-4 rounded-lg border border-slate-800 text-center">
+                      <p className="text-xs text-slate-400 font-medium">TỔNG SỐ EMAIL ĐÃ GỬI</p>
+                      <p className="text-2xl font-black text-slate-100 mt-1">{emailData.totalCount ?? 0}</p>
+                    </div>
+                    <div className="bg-slate-900/60 p-4 rounded-lg border border-slate-800 text-center">
+                      <p className="text-xs text-slate-400 font-medium">SỐ EMAIL THẤT BẠI</p>
+                      <p className={`text-2xl font-black mt-1 ${emailData.failedCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {emailData.failedCount ?? 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {emailData.failedCount > 0 && emailData.failedList && (
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Danh sách email gửi thất bại</span>
+                      <div className="bg-rose-950/10 border border-rose-900/30 rounded-lg p-4 text-xs text-rose-300 font-mono leading-relaxed break-all">
+                        {emailData.failedList}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               {/* CCP and CE Systems side-by-side dashboard */}
-              {(ccpData || ceData) ? (
+              {taskId !== 'ops_open_07' && (ccpData || ceData) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
                   {/* CCP Card */}
@@ -219,57 +270,44 @@ export default function OmsStatusModal({
                       </span>
                     </div>
 
-                    <div className="p-4 space-y-4">
-                      {/* EOD Check section */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trạng thái EOD</span>
-                        <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
-                          <div>
-                            <p className="text-xs text-slate-400">Ngày chạy EOD: <strong className="text-slate-250">{ccpData?.eod?.date || 'N/A'}</strong></p>
-                            <p className="text-xs text-slate-400 mt-0.5">Thời gian: <strong className="text-slate-250">{ccpData?.eod?.time || 'N/A'}</strong></p>
-                          </div>
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
-                            ccpData?.eod?.status === 'COMPLETED'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {ccpData?.eod?.status === 'COMPLETED' ? 'Đã thành công' : ccpData?.eod?.status || 'Chưa hoàn thành'}
-                          </span>
+                    <div className="p-5 space-y-4">
+                      {/* EOD Check */}
+                      <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400">Trạng thái EOD</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Bản ghi quét: {ccpData?.eod?.totalRecords ?? 0}</p>
                         </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded border ${
+                          ccpData?.eod?.success
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}>
+                          {ccpData?.eod?.success ? 'HOÀN TẤT' : 'CHƯA CHỐT'}
+                        </span>
                       </div>
 
-                      {/* MM check section */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trạng thái Lệnh MM</span>
-                        <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-400">Tổng số lệnh MM:</span>
-                            <span className="text-sm font-extrabold text-pink-400">{ccpData?.mm?.totalOrders ?? 0}</span>
+                      {/* MM Order Check */}
+                      <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4">
+                        <div className="flex justify-between items-center border-b border-slate-800/50 pb-2.5">
+                          <p className="text-xs font-semibold text-slate-400">Khớp Lệnh Market Maker</p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            ccpData?.mm?.success
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'bg-rose-500/10 text-rose-400'
+                          }`}>
+                            {ccpData?.mm?.success ? 'ĐẠT YÊU CẦU' : 'LỖI'}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mt-3 text-center">
+                          <div className="bg-slate-900/60 p-2 rounded">
+                            <p className="text-[10px] text-slate-500 font-medium">Lệnh Active</p>
+                            <p className="text-sm font-black text-slate-300 mt-0.5">{ccpData?.mm?.activeOrdersCount ?? 0}</p>
                           </div>
-
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-400">Trạng thái lệnh:</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                              ccpData?.mm?.status === 'OK'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {ccpData?.mm?.status === 'OK' ? 'OK (Đã lên lệnh)' : ccpData?.mm?.status || 'Không tìm thấy'}
-                            </span>
+                          <div className="bg-slate-900/60 p-2 rounded">
+                            <p className="text-[10px] text-slate-500 font-medium">Lệnh Khớp</p>
+                            <p className="text-sm font-black text-slate-300 mt-0.5">{ccpData?.mm?.filledOrdersCount ?? 0}</p>
                           </div>
-
-                          {ccpData?.mm?.activeAccounts && ccpData.mm.activeAccounts.length > 0 && (
-                            <div className="pt-2 border-t border-slate-800/80">
-                              <p className="text-[10px] text-slate-400 font-semibold mb-1.5 uppercase">Tài khoản MM đã đặt lệnh:</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {ccpData.mm.activeAccounts.map((acc: string) => (
-                                  <span key={acc} className="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
-                                    {acc}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -278,7 +316,7 @@ export default function OmsStatusModal({
                   {/* CE Card */}
                   <div className="bg-slate-950/30 border border-slate-800 rounded-xl overflow-hidden shadow-lg transition-transform hover:-translate-y-0.5">
                     <div className="px-4 py-3 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
-                      <span className="font-bold text-slate-200 text-sm tracking-wide">CỔNG KHỚP LỆNH (CE)</span>
+                      <span className="font-bold text-slate-200 text-sm tracking-wide">CỔNG BÙ TRỪ (CE)</span>
                       <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                         ceData?.eod?.success && ceData?.mm?.success
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -288,68 +326,61 @@ export default function OmsStatusModal({
                       </span>
                     </div>
 
-                    <div className="p-4 space-y-4">
-                      {/* EOD Check section */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trạng thái EOD</span>
-                        <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
-                          <div>
-                            <p className="text-xs text-slate-400">Ngày chạy EOD: <strong className="text-slate-250">{ceData?.eod?.date || 'N/A'}</strong></p>
-                            <p className="text-xs text-slate-400 mt-0.5">Thời gian: <strong className="text-slate-250">{ceData?.eod?.time || 'N/A'}</strong></p>
-                          </div>
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
-                            ceData?.eod?.status === 'COMPLETED'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {ceData?.eod?.status === 'COMPLETED' ? 'Đã thành công' : ceData?.eod?.status || 'Chưa hoàn thành'}
-                          </span>
+                    <div className="p-5 space-y-4">
+                      {/* EOD Check */}
+                      <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400">Trạng thái EOD</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Bản ghi quét: {ceData?.eod?.totalRecords ?? 0}</p>
                         </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded border ${
+                          ceData?.eod?.success
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}>
+                          {ceData?.eod?.success ? 'HOÀN TẤT' : 'CHƯA CHỐT'}
+                        </span>
                       </div>
 
-                      {/* MM check section */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trạng thái Lệnh MM</span>
-                        <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-400">Tổng số lệnh MM:</span>
-                            <span className="text-sm font-extrabold text-pink-400">{ceData?.mm?.totalOrders ?? 0}</span>
+                      {/* MM Order Check */}
+                      <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4">
+                        <div className="flex justify-between items-center border-b border-slate-800/50 pb-2.5">
+                          <p className="text-xs font-semibold text-slate-400">Khớp Lệnh Market Maker</p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            ceData?.mm?.success
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'bg-rose-500/10 text-rose-400'
+                          }`}>
+                            {ceData?.mm?.success ? 'ĐẠT YÊU CẦU' : 'LỖI'}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mt-3 text-center">
+                          <div className="bg-slate-900/60 p-2 rounded">
+                            <p className="text-[10px] text-slate-500 font-medium">Lệnh Active</p>
+                            <p className="text-sm font-black text-slate-300 mt-0.5">{ceData?.mm?.activeOrdersCount ?? 0}</p>
                           </div>
-
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-400">Trạng thái lệnh:</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                              ceData?.mm?.status === 'OK'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {ceData?.mm?.status === 'OK' ? 'OK (Đã lên lệnh)' : ceData?.mm?.status || 'Không tìm thấy'}
-                            </span>
+                          <div className="bg-slate-900/60 p-2 rounded">
+                            <p className="text-[10px] text-slate-500 font-medium">Lệnh Khớp</p>
+                            <p className="text-sm font-black text-slate-300 mt-0.5">{ceData?.mm?.filledOrdersCount ?? 0}</p>
                           </div>
-
-                          {ceData?.mm?.activeAccounts && ceData.mm.activeAccounts.length > 0 && (
-                            <div className="pt-2 border-t border-slate-800/80">
-                              <p className="text-[10px] text-slate-400 font-semibold mb-1.5 uppercase">Tài khoản MM đã đặt lệnh:</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {ceData.mm.activeAccounts.map((acc: string) => (
-                                  <span key={acc} className="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
-                                    {acc}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
                   </div>
 
                 </div>
-              ) : (
+              ) : taskId === 'ops_open_07' && emailData ? null : (
                 <div className="py-12 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/10">
                   <AlertCircle className="text-slate-500 mb-3" size={32} />
-                  <p className="text-sm text-slate-300 font-semibold">Chưa có thông tin phân tích kết quả OMS</p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">Hãy nhấn nút "Chạy lại kiểm tra" ở dưới để kích hoạt robot quét dữ liệu.</p>
+                  <p className="text-sm text-slate-300 font-semibold">
+                    {taskId === 'ops_open_07' ? 'Chưa có thông tin phân tích kết quả gửi email' : 'Chưa có thông tin phân tích kết quả OMS'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
+                    {taskId === 'ops_open_07' 
+                      ? 'Hãy nhấn nút "Chạy lại kiểm tra" ở dưới để kích hoạt robot quét lịch sử gửi email.'
+                      : 'Hãy nhấn nút "Chạy lại kiểm tra" ở dưới để kích hoạt robot quét dữ liệu.'}
+                  </p>
                 </div>
               )}
             </div>
@@ -374,14 +405,22 @@ export default function OmsStatusModal({
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800 flex justify-between items-center">
           <div className="text-xs text-slate-400">
-            {status === 'WAITING' ? 'Đang cập nhật trạng thái liên tục...' : 'Hệ thống tự động quét EOD lúc 05h00 hàng ngày.'}
+            {status === 'WAITING' 
+              ? 'Đang cập nhật trạng thái liên tục...' 
+              : taskId === 'ops_open_07'
+              ? 'Hệ thống tự động xác minh lúc 07h00 hàng ngày.'
+              : 'Hệ thống tự động quét EOD lúc 05h00 hàng ngày.'}
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={handleTriggerCheck}
               disabled={loading || status === 'WAITING'}
-              className="px-5 py-2.5 bg-pink-600 hover:bg-pink-500 active:bg-pink-700 disabled:opacity-50 text-slate-100 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+              className={`px-5 py-2.5 disabled:opacity-50 text-slate-100 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] ${
+                taskId === 'ops_open_07'
+                  ? 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'
+                  : 'bg-pink-600 hover:bg-pink-500 active:bg-pink-700'
+              }`}
             >
               {loading || status === 'WAITING' ? (
                 <>

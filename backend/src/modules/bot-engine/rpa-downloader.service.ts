@@ -41,7 +41,7 @@ export class RpaDownloaderService {
   /**
    * Launches browser and logs in to M-System. Returns the browser and authenticated page.
    */
-  async loginMSystem(downloadDir: string): Promise<{ browser: Browser; page: Page }> {
+  async loginMSystem(downloadDir: string, overrideUrl?: string): Promise<{ browser: Browser; page: Page }> {
     // 1. Fetch credentials
     const credentialsRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
     if (!credentialsRaw) {
@@ -55,7 +55,7 @@ export class RpaDownloaderService {
       throw new Error('Không thể giải mã cấu hình tài khoản M-System. Vui lòng cấu hình lại.');
     }
 
-    const msystemUrl = credentials.url || 'https://msystem.mxv.vn/';
+    const msystemUrl = overrideUrl || credentials.url || 'https://msystem.mxv.vn/';
     const { username, password, pin } = credentials;
 
     if (!username || !password || !pin) {
@@ -146,10 +146,14 @@ export class RpaDownloaderService {
 
       // 5. Verify Successful Login
       this.logger.log('Verifying login success...');
-      await page.waitForSelector('xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]', {
-        state: 'visible',
-        timeout: 15000,
-      });
+      if (overrideUrl) {
+        await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => {});
+      } else {
+        await page.waitForSelector('xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]', {
+          state: 'visible',
+          timeout: 15000,
+        });
+      }
 
       this.logger.log('Login M-System SUCCESSFUL.');
       return { browser, page };
@@ -855,6 +859,84 @@ export class RpaDownloaderService {
     } catch (err: any) {
       await browser.close();
       throw new Error(`downloadMarketCsv thất bại: ${err.message}`);
+    }
+  }
+
+  /**
+   * Navigates to M-System Admin automaticEmailSMSConfig, selects 'Danh sách gửi EMAIL' tab,
+   * clicks Export Excel, and returns the downloaded file path.
+   */
+  async downloadEmailHistoryReport(downloadDir: string): Promise<string> {
+    const adminUrl = 'https://msadmin.mxv.com.vn/';
+    const { browser, page } = await this.loginMSystem(downloadDir, adminUrl);
+
+    try {
+      this.logger.log('Navigating to automaticEmailSMSConfig page...');
+      await page.goto('https://msadmin.mxv.com.vn/#/systemManagement/automaticEmailSMSConfig');
+      await page.waitForTimeout(3000);
+
+      this.logger.log('Selecting Tab: Danh sách gửi EMAIL...');
+      const tabSelector = page.locator('.ant-tabs-tab-btn').filter({ hasText: /Danh sách gửi EMAIL/i }).first();
+      await tabSelector.waitFor({ state: 'visible', timeout: 10000 });
+      await tabSelector.click();
+      await page.waitForTimeout(3000);
+
+      this.logger.log('Locating Export button...');
+      const possibleExportSelectors = [
+        "xpath=//button[contains(., 'Xuất excel')]",
+        "xpath=//button[contains(., 'Xuất file')]",
+        "xpath=//button[contains(., 'Xuất')]",
+        "xpath=//button[contains(., 'Export')]",
+        "button.ant-btn-primary:has-text('Xuất')",
+        "button:has-text('Xuất')",
+        "button:has-text('Export')"
+      ];
+
+      let exportBtn = null;
+      for (const sel of possibleExportSelectors) {
+        const btn = page.locator(sel).first();
+        if (await btn.isVisible().catch(() => false)) {
+          exportBtn = btn;
+          this.logger.log(`Found Export button with selector: ${sel}`);
+          break;
+        }
+      }
+
+      if (!exportBtn) {
+        const panelBtn = page.locator('.ant-tabs-tabpane-active button').first();
+        if (await panelBtn.isVisible().catch(() => false)) {
+          exportBtn = panelBtn;
+          this.logger.log('Found fallback button in active tab panel.');
+        }
+      }
+
+      if (!exportBtn) {
+        throw new Error('Không tìm thấy nút Xuất Excel trên màn hình Danh sách gửi EMAIL.');
+      }
+
+      this.logger.log('Clicking Export button and waiting for download...');
+      const filePath = path.join(downloadDir, `lich-su-gui-email-sms-${Date.now()}.xlsx`);
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: 30000 }),
+        exportBtn.click()
+      ]);
+
+      await download.saveAs(filePath);
+      this.logger.log(`Downloaded email history report to: ${filePath}`);
+      return filePath;
+    } catch (err: any) {
+      this.logger.error(`Lỗi tải báo cáo lịch sử email: ${err.message}`);
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({ path: path.join(debugDir, `email-history-err-${ts}.png`), fullPage: true }).catch(() => {});
+        const html = await page.content().catch(() => '');
+        fs.writeFileSync(path.join(debugDir, `email-history-err-${ts}.html`), html, 'utf8');
+      } catch (logErr) {}
+      throw err;
+    } finally {
+      await browser.close();
     }
   }
 

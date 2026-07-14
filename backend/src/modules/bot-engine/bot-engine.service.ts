@@ -240,6 +240,71 @@ export class BotEngineService {
                 checkResult = { success: false, message: 'Đang tải báo cáo CQG CAST Balances...' };
               }
             }
+          } else if (checkType === 'EMAIL_STATUS_CHECK') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            if (!existingJob) {
+              await this.botJobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu xác minh gửi email sao kê...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const jobPayload = existingJob.payload instanceof Map ? Object.fromEntries(existingJob.payload) : (existingJob.payload || {});
+                const failedCount = jobPayload.failedCount || 0;
+                const totalCount = jobPayload.totalCount || 0;
+                const failedList = jobPayload.failedList || '';
+                
+                const checkData = {
+                  success: failedCount === 0,
+                  message: failedCount === 0 
+                    ? `Tất cả email sao kê đã được gửi thành công (${totalCount} email).`
+                    : `Phát hiện ${failedCount} email gửi thất bại trên tổng số ${totalCount} email.`,
+                  data: {
+                    totalCount,
+                    failedCount,
+                    failedList,
+                    timestamp: new Date().toISOString()
+                  }
+                };
+
+                if (failedCount > 0) {
+                  checkResult = {
+                    success: false,
+                    message: JSON.stringify(checkData)
+                  };
+                  (checkResult as any).forceFailed = true;
+                } else {
+                  checkResult = {
+                    success: true,
+                    message: JSON.stringify(checkData)
+                  };
+                }
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
+                const checkData = {
+                  success: false,
+                  message: `RPA xác minh email thất bại: ${lastLog}`,
+                  data: {
+                    totalCount: 0,
+                    failedCount: 0,
+                    failedList: '',
+                    timestamp: new Date().toISOString()
+                  }
+                };
+                checkResult = {
+                  success: false,
+                  message: JSON.stringify(checkData)
+                };
+                (checkResult as any).forceFailed = true;
+              } else {
+                checkResult = {
+                  success: false,
+                  message: 'Đang chạy RPA Playwright xác minh trạng thái gửi email sao kê...'
+                };
+              }
+            }
           } else if (checkType === 'AUTO_CHECK_SOD') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
             if (!existingJob) {
@@ -293,14 +358,16 @@ export class BotEngineService {
               }
             }
 
-            if (isOverdue) {
-              this.logger.warn(`[Bot] Task [${task.taskId}] failed and breached SLA. Transitioning to FAILED state.`);
+            if (isOverdue || (checkResult as any).forceFailed) {
+              this.logger.warn(`[Bot] Task [${task.taskId}] failed immediately or breached SLA. Transitioning to FAILED state.`);
               await this.shiftsService.updateTaskStatus(
                 log._id.toString(),
                 task.taskId,
                 'FAILED',
                 systemUser,
-                `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`
+                (checkResult as any).forceFailed
+                  ? checkResult.message
+                  : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`
               );
             } else {
               // Update status note with retry logs
@@ -310,7 +377,9 @@ export class BotEngineService {
                 task.taskId,
                 'WAITING',
                 systemUser,
-                `[Quét tự động lúc ${formattedTime}]: ${checkResult.message}`
+                checkResult.message.startsWith('{')
+                  ? checkResult.message
+                  : `[Quét tự động lúc ${formattedTime}]: ${checkResult.message}`
               );
             }
           }
