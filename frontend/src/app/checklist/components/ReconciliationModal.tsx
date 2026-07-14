@@ -27,10 +27,31 @@ export default function ReconciliationModal({
   // Determine mode based on taskId and taskName
   const taskNameUpper = taskName.toUpperCase();
   const taskIdUpper = taskId.toUpperCase();
-  const isCQGMode = taskNameUpper.includes('CQG') || taskIdUpper.includes('CQG');
-  const isEODMode = (taskNameUpper.includes('EOD') || taskIdUpper.includes('EOD')) && !isCQGMode && taskIdUpper !== 'TASK_CHECK_EOD';
-  const isPreEODMode = taskIdUpper === 'TASK_CHECK_EOD';
-  const mode: 'KLGD' | 'EOD' | 'CQG' | 'PRE_EOD' = isPreEODMode ? 'PRE_EOD' : (isCQGMode ? 'CQG' : (isEODMode ? 'EOD' : 'KLGD'));
+  
+  let mode: 'KLGD' | 'EOD' | 'CQG' | 'PRE_EOD' = 'KLGD';
+  
+  if (taskIdUpper === 'TASK_CHECK_KLGD') {
+    mode = 'KLGD';
+  } else if (taskIdUpper === 'TASK_CHECK_EOD') {
+    mode = 'PRE_EOD';
+  } else if (taskIdUpper === 'TASK_CHECK_CQG') {
+    mode = 'CQG';
+  } else {
+    const isCQGMode = taskNameUpper.includes('CQG') || taskIdUpper.includes('CQG');
+    const isEODMode = (taskNameUpper.includes('EOD') || taskIdUpper.includes('EOD')) && !isCQGMode;
+    const isPreEODMode = taskIdUpper.includes('PRE_EOD') || taskNameUpper.includes('PRE_EOD');
+    
+    if (isPreEODMode) {
+      mode = 'PRE_EOD';
+    } else if (isCQGMode) {
+      mode = 'CQG';
+    } else if (isEODMode) {
+      mode = 'EOD';
+    } else {
+      mode = 'KLGD';
+    }
+  }
+
 
   const [files, setFiles] = useState<Record<string, File | null>>({
     dsgd: null,
