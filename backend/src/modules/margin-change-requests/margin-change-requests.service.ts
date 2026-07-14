@@ -7,6 +7,7 @@ import { MarginChangeRequest } from '../../schemas/margin-change-request.schema'
 import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { AccessControlService } from '../auth/access-control.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { ShiftsService } from '../shifts/shifts.service';
 
 @Injectable()
 export class MarginChangeRequestsService {
@@ -17,6 +18,8 @@ export class MarginChangeRequestsService {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly accessControlService: AccessControlService,
     private readonly systemSettingsService: SystemSettingsService,
+    @Inject(forwardRef(() => ShiftsService))
+    private readonly shiftsService: ShiftsService,
   ) {}
 
   async createRequest(
@@ -132,6 +135,9 @@ export class MarginChangeRequestsService {
       });
     }
 
+    // Auto-update checklist task status
+    await this.checkAndUpdateChecklistTask(checkerUser);
+
     return saved;
   }
 
@@ -198,6 +204,9 @@ export class MarginChangeRequestsService {
       });
     }
 
+    // Auto-update checklist task status
+    await this.checkAndUpdateChecklistTask(checkerUser);
+
     return saved;
   }
 
@@ -223,8 +232,31 @@ export class MarginChangeRequestsService {
       }
     }
 
+    // Format shiftDate to check against filenames
+    let shiftDateStr = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+    let activeShift: any = null;
+    try {
+      const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
+      activeShift = activeShifts.find(s => s.status === 'PENDING');
+      if (activeShift) {
+        shiftDateStr = activeShift.shiftDate;
+      }
+    } catch (err) {
+      console.error('Error fetching active shifts for date matching:', err);
+    }
+
+    const yyyyMMdd_dot = shiftDateStr.replace(/-/g, '.'); // e.g. "2026.07.10"
+    const yyyyMMdd_dash = shiftDateStr; // e.g. "2026-07-10"
+    const parts = shiftDateStr.split('-');
+    const ddMMmmyyyy_dot = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : ''; // e.g. "10.07.2026"
+
     const files = fs.readdirSync(targetDir)
       .filter(file => file.endsWith('.docx') && !file.startsWith('~$'))
+      .filter(file => {
+        return (yyyyMMdd_dot && file.includes(yyyyMMdd_dot)) || 
+               (yyyyMMdd_dash && file.includes(yyyyMMdd_dash)) || 
+               (ddMMmmyyyy_dot && file.includes(ddMMmmyyyy_dot));
+      })
       .map(file => {
         const filePath = path.join(targetDir, file);
         const stat = fs.statSync(filePath);
@@ -233,7 +265,33 @@ export class MarginChangeRequestsService {
       .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
     if (files.length === 0) {
-      throw new BadRequestException(`Không tìm thấy file quyết định ký quỹ (.docx) nào trong: ${targetDir}`);
+      if (activeShift) {
+        try {
+          const task = activeShift.details.find((d: any) => d.taskId === 'ops_during_01');
+          if (task && activeShift.status === 'PENDING') {
+            const noteText = `[Tự động] Không tìm thấy quyết định thay đổi ký quỹ cho ngày ${shiftDateStr}. Mức ký quỹ giữ nguyên.`;
+            await this.shiftsService.updateTaskStatus(
+              activeShift._id.toString(),
+              'ops_during_01',
+              'PASSED',
+              user,
+              noteText
+            );
+          }
+        } catch (shiftErr) {
+          console.error('Error updating checklist task when no file found:', shiftErr);
+        }
+      }
+
+      return {
+        success: true,
+        message: `Không tìm thấy file quyết định ký quỹ nào khớp với ngày ${shiftDateStr} trong thư mục. Mức ký quỹ giữ nguyên.`,
+        fileName: null,
+        effectiveSession: null,
+        totalExtracted: 0,
+        totalCreated: 0,
+        requests: []
+      };
     }
 
     const latestDocx = files[0].filePath;
@@ -316,6 +374,37 @@ export class MarginChangeRequestsService {
             });
           }
 
+          // Update checklist task if there is an active shift log
+          try {
+            const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
+            for (const shift of activeShifts) {
+              const task = shift.details.find((d: any) => d.taskId === 'ops_during_01');
+              if (task && shift.status === 'PENDING') {
+                const summaryLines = [
+                  `[Tự động] Đã quét quyết định: "${path.basename(latestDocx)}"`,
+                  `Hiệu lực: ${parsed.effectiveSession}`,
+                  `Phát hiện ${changes.length} mặt hàng thay đổi mức ký quỹ.`,
+                  createdRequests.length > 0
+                    ? `Đã tự động tạo mới ${createdRequests.length} yêu cầu thay đổi ký quỹ chờ duyệt.`
+                    : `Không có yêu cầu thay đổi mới nào cần tạo.`
+                ];
+                const noteText = summaryLines.join('\n');
+                const taskStatus = createdRequests.length > 0 ? 'WAITING' : 'PASSED';
+                
+                await this.shiftsService.updateTaskStatus(
+                  shift._id.toString(),
+                  'ops_during_01',
+                  taskStatus,
+                  user,
+                  noteText
+                );
+                break; 
+              }
+            }
+          } catch (shiftErr) {
+            console.error('Error updating checklist task ops_during_01:', shiftErr);
+          }
+
           resolve({
             success: true,
             fileName: path.basename(latestDocx),
@@ -329,5 +418,44 @@ export class MarginChangeRequestsService {
         }
       });
     });
+  }
+
+  private async checkAndUpdateChecklistTask(user: any): Promise<void> {
+    try {
+      const pendingCount = await this.requestModel.countDocuments({
+        taskId: 'ops_during_01',
+        status: 'PENDING_APPROVAL',
+      });
+
+      if (pendingCount === 0) {
+        const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
+        for (const shift of activeShifts) {
+          const task = shift.details.find((d: any) => d.taskId === 'ops_during_01');
+          if (task && shift.status === 'PENDING') {
+            const rejectedCount = await this.requestModel.countDocuments({
+              taskId: 'ops_during_01',
+              status: 'REJECTED',
+            });
+
+            const taskStatus = rejectedCount > 0 ? 'NEEDS_ATTENTION' : 'PASSED';
+            
+            const currentNote = task.resultNote || '';
+            const appendNote = `\n[Tự động] Tất cả yêu cầu thay đổi ký quỹ đã được xử lý (Duyệt thành công, Từ chối: ${rejectedCount}).`;
+            const noteText = currentNote.includes('[Tự động] Tất cả yêu cầu') ? currentNote : (currentNote + appendNote);
+
+            await this.shiftsService.updateTaskStatus(
+              shift._id.toString(),
+              'ops_during_01',
+              taskStatus,
+              user,
+              noteText
+            );
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error in checkAndUpdateChecklistTask:', err);
+    }
   }
 }

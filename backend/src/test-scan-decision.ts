@@ -21,6 +21,10 @@ async function testScanDecision() {
     };
 
     console.log('--- BẮT ĐẦU CHẠY THỬ QUÉT QUYẾT ĐỊNH KÝ QUỸ ---');
+    const settingsService = appContext.get(require('./modules/system-settings/system-settings.service').SystemSettingsService);
+    const folderPath = await settingsService.getSetting('margin_decision_folder_path', '');
+    console.log('margin_decision_folder_path setting value:', folderPath);
+
     const result = await service.scanDecisionDocument(mockUser);
     
     console.log('✅ KẾT QUẢ QUÉT THÀNH CÔNG:');
