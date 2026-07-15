@@ -8,9 +8,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
-from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush, QPainterPath
+from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication, QWidgetAction, QWidget, QHBoxLayout, QLabel
+from PyQt6.QtCore import Qt, QRectF
 
 if TYPE_CHECKING:
     from agent_core import AgentCore
@@ -43,6 +43,84 @@ def _load_icon(name: str, fallback_color: str, fallback_letter: str = "M") -> QI
     if path.exists():
         return QIcon(str(path))
     return _make_circle_icon(fallback_color, fallback_letter)
+
+
+def _draw_menu_icon(icon_type: str, color_str: str = "#0f172a") -> QIcon:
+    """Draw clean, modern vector icons for the tray menu programmatically."""
+    icon = QIcon()
+    
+    # We will build a normal state and active/hover state
+    states = [
+        (color_str, QIcon.Mode.Normal, QIcon.State.Off),
+        ("#1CAEE6", QIcon.Mode.Active, QIcon.State.On),
+        ("#1CAEE6", QIcon.Mode.Selected, QIcon.State.On),
+    ]
+    
+    for c, mode, state in states:
+        pix = QPixmap(24, 24)
+        pix.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        pen = QPen(QColor(c))
+        pen.setWidthF(2.0)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        
+        if icon_type == "gear":
+            # Clean settings cog wheel
+            painter.drawEllipse(QRectF(8, 8, 8, 8))
+            painter.translate(12, 12)
+            for _ in range(8):
+                painter.drawLine(0, -5, 0, -7)
+                painter.rotate(45)
+                
+        elif icon_type == "play":
+            # Play triangle
+            painter.setBrush(QColor(c))
+            path = QPainterPath()
+            path.moveTo(9, 7)
+            path.lineTo(17, 12)
+            path.lineTo(9, 17)
+            path.closeSubpath()
+            painter.drawPath(path)
+            
+        elif icon_type == "stop":
+            # Stop square
+            painter.setBrush(QColor(c))
+            painter.drawRoundedRect(QRectF(8, 8, 8, 8), 1.5, 1.5)
+            
+        elif icon_type == "logs":
+            # Clipboard / Document outline
+            painter.drawRoundedRect(QRectF(7, 6, 10, 12), 2, 2)
+            painter.drawLine(10, 10, 14, 10)
+            painter.drawLine(10, 13, 14, 13)
+            
+        elif icon_type == "restart":
+            # Circular arrow
+            painter.drawArc(QRectF(7, 7, 10, 10), 45 * 16, 270 * 16)
+            painter.drawLine(14, 7, 17, 7)
+            painter.drawLine(17, 7, 17, 10)
+            
+        elif icon_type == "quit":
+            # X mark
+            painter.drawLine(8, 8, 16, 16)
+            painter.drawLine(16, 8, 8, 16)
+            
+        elif icon_type == "update":
+            # Globe/Upload
+            painter.drawEllipse(QRectF(7, 7, 10, 10))
+            painter.drawLine(12, 5, 12, 12)
+            painter.drawLine(10, 7, 12, 5)
+            painter.drawLine(14, 7, 12, 5)
+            
+        painter.end()
+        icon.addPixmap(pix, mode, state)
+        
+    return icon
 
 
 class TrayIcon(QSystemTrayIcon):
@@ -98,7 +176,7 @@ class TrayIcon(QSystemTrayIcon):
                     if "Thoát" in a.text():
                         before_action = a
                         break
-                self._act_update = menu.addAction(f"🌐  Cập nhật v{version}...")
+                self._act_update = menu.addAction(_draw_menu_icon("update"), f"Cập nhật v{version}...")
                 if before_action:
                     menu.insertAction(before_action, self._act_update)
                 self._act_update.triggered.connect(self._on_trigger_update)
@@ -117,34 +195,78 @@ class TrayIcon(QSystemTrayIcon):
 
     def _build_menu(self) -> None:
         menu = QMenu()
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 6px 28px 6px 28px;
+                color: #0f172a;
+            }
+            QMenu::item:selected {
+                background-color: #eaf8fe;
+                color: #1CAEE6;
+            }
+            QMenu::item:disabled {
+                color: #94a3b8;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #cbd5e1;
+                margin: 4px 0px;
+            }
+        """)
 
-        # Header (non-clickable label)
-        title_action = menu.addAction("⚙ MXV RPA Agent v1.0")
-        title_action.setEnabled(False)
+        # Header (non-clickable custom widget action)
+        header_action = QWidgetAction(menu)
+        header_widget = QWidget()
+        header_widget.setObjectName("MenuHeaderWidget")
+        header_widget.setStyleSheet("background-color: transparent;")
+        
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(10, 8, 10, 8)
+        header_layout.setSpacing(10)
+        
+        icon_lbl = QLabel()
+        logo_pix = QPixmap(str(ASSETS / "icon_base.png"))
+        if not logo_pix.isNull():
+            icon_lbl.setPixmap(logo_pix.scaled(18, 18, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        
+        text_lbl = QLabel("MXV RPA Agent v1.0")
+        text_lbl.setStyleSheet("color: #1CAEE6; font-weight: bold; font-size: 10pt; font-family: 'Segoe UI'; background: transparent;")
+        
+        header_layout.addWidget(icon_lbl)
+        header_layout.addWidget(text_lbl)
+        header_layout.addStretch()
+        
+        header_action.setDefaultWidget(header_widget)
+        menu.addAction(header_action)
         menu.addSeparator()
 
         # Start / Stop
-        self._act_start = menu.addAction("▶  Bắt đầu Agent")
-        self._act_stop  = menu.addAction("⏹  Dừng Agent")
+        self._act_start = menu.addAction(_draw_menu_icon("play"), "Bắt đầu Agent")
+        self._act_stop  = menu.addAction(_draw_menu_icon("stop"), "Dừng Agent")
         self._act_start.triggered.connect(self._on_start)
         self._act_stop.triggered.connect(self._on_stop)
         self._act_stop.setEnabled(False)   # initially stopped
         menu.addSeparator()
 
         # Windows
-        act_settings = menu.addAction("⚙  Cài đặt...")
-        act_logs     = menu.addAction("📋  Xem Logs...")
+        act_settings = menu.addAction(_draw_menu_icon("gear"), "Cài đặt...")
+        act_logs     = menu.addAction(_draw_menu_icon("logs"), "Xem Logs...")
         act_settings.triggered.connect(self._open_settings)
         act_logs.triggered.connect(self._open_logs)
         menu.addSeparator()
 
         # Restart
-        act_restart = menu.addAction("🔄  Khởi động lại Agent")
+        act_restart = menu.addAction(_draw_menu_icon("restart"), "Khởi động lại Agent")
         act_restart.triggered.connect(self._on_restart)
         menu.addSeparator()
 
         # Quit
-        act_quit = menu.addAction("❌  Thoát")
+        act_quit = menu.addAction(_draw_menu_icon("quit"), "Thoát")
         act_quit.triggered.connect(self._on_quit)
 
         self.setContextMenu(menu)
