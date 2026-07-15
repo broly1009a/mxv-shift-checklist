@@ -11,6 +11,7 @@ import { RpaDownloaderService } from './rpa-downloader.service';
 import { GttCheckerService } from './gtt-checker.service';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
+import { AgentController } from './bot-engine.controller';
 import { CqgSyncService } from './cqg-sync.service';
 import { PostEodHandlerService } from './post-eod-handler.service';
 import { ReconciliationModule } from '../reconciliation/reconciliation.module';
@@ -44,6 +45,7 @@ import { OmsWatcherService } from './oms-watcher.service';
   ],
   controllers: [
     BotEngineController,
+    AgentController,
   ],
   exports: [
     BotEngineService,

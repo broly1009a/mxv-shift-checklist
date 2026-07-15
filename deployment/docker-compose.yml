@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: mxv-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mxv-network
+
+  backend:
+    build:
+      context: ../
+      dockerfile: deployment/Dockerfile.backend
+    container_name: mxv-backend
+    restart: always
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/checklist
+      - PORT=3001
+      - JWT_SECRET=change_me_to_a_secure_random_string_123456
+      - TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+      - RPA_AGENT_MODE=remote
+      - RPA_AGENT_API_KEY=mxv_rpa_secure_agent_key_2026
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_temp:/app/temp
+    depends_on:
+      - mongodb
+    networks:
+      - mxv-network
+
+  frontend:
+    build:
+      context: ../
+      dockerfile: deployment/Dockerfile.frontend
+      args:
+        - NEXT_PUBLIC_API_URL=/api
+    container_name: mxv-frontend
+    restart: always
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - TZ=Asia/Ho_Chi_Minh
+    depends_on:
+      - backend
+    networks:
+      - mxv-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: mxv-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - mxv-network
+
+volumes:
+  mongo_data:
+  backend_uploads:
+  backend_temp:
+
+networks:
+  mxv-network:
+    driver: bridge

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpException, HttpStatus, UploadedFile, UseInterceptors, Logger, Res, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, HttpException, HttpStatus, UploadedFile, UseInterceptors, Logger, Res, Query, Headers } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -1491,5 +1491,162 @@ export class BotEngineController {
       message: 'Đã đưa yêu cầu chạy Excel Macro thống kê giá trị vào hàng đợi.',
       jobId: job._id,
     };
+  }
+}
+
+// ─── RPA Agent API Controller (secured by API Key, no JWT) ───────────────────
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+
+@Controller('api/v1/bot-engine/agent')
+export class AgentController {
+  private readonly logger = new Logger('AgentController');
+  private agentStatus: { hostname: string; platform: string; lastSeen: Date } | null = null;
+
+  constructor(
+    @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
+  ) {}
+
+  private validateKey(headers: Record<string, string>) {
+    const key = headers['x-agent-api-key'];
+    const expected = process.env.RPA_AGENT_API_KEY;
+    if (!expected || key !== expected) {
+      throw new HttpException('Unauthorized: Invalid Agent API Key', HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  // POST /api/v1/bot-engine/agent/heartbeat
+  @Post('heartbeat')
+  async heartbeat(@Headers() headers: Record<string, string>, @Body() body: any) {
+    this.validateKey(headers);
+    this.agentStatus = {
+      hostname: body.hostname || 'unknown',
+      platform: body.platform || 'unknown',
+      lastSeen: new Date(),
+    };
+    this.logger.log(`Heartbeat from ${body.hostname}`);
+    return { ok: true };
+  }
+
+  // GET /api/v1/bot-engine/agent/status
+  @Get('status')
+  async status(@Headers() headers: Record<string, string>) {
+    this.validateKey(headers);
+    if (!this.agentStatus) return { online: false };
+    const diffMs = Date.now() - this.agentStatus.lastSeen.getTime();
+    const online = diffMs < 60_000; // 60s timeout
+    return { online, ...this.agentStatus, lastSeenMs: diffMs };
+  }
+
+  // GET /api/v1/bot-engine/agent/poll
+  @Get('poll')
+  async poll(@Headers() headers: Record<string, string>) {
+    this.validateKey(headers);
+    const REMOTE_JOB_TYPES = [
+      'RUN_LOT_MACRO', 'RUN_VALUE_MACRO',
+      'RPA_DOWNLOAD_REPORTS', 'DOWNLOAD_CAST',
+      'FILE_AUDIT_MS', 'FILE_AUDIT_CQG', 'FILE_AUDIT_ACM',
+    ];
+    const job = await this.botJobModel
+      .findOne({ status: 'PENDING', jobType: { $in: REMOTE_JOB_TYPES } })
+      .sort({ createdAt: 1 })
+      .exec();
+    return { job: job || null };
+  }
+
+  // POST /api/v1/bot-engine/agent/jobs/:id/start
+  @Post('jobs/:id/start')
+  async start(@Headers() headers: Record<string, string>, @Param('id') id: string) {
+    this.validateKey(headers);
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+    job.status = 'PROCESSING';
+    job.attempts = (job.attempts || 0) + 1;
+    job.logs.push(`[${new Date().toISOString()}] Agent picked up job.`);
+    await job.save();
+    return { ok: true };
+  }
+
+  // POST /api/v1/bot-engine/agent/jobs/:id/log
+  @Post('jobs/:id/log')
+  async appendLog(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { message: string }) {
+    this.validateKey(headers);
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+    job.logs.push(`[${new Date().toISOString()}] [Agent] ${body.message}`);
+    await job.save();
+    return { ok: true };
+  }
+
+  // POST /api/v1/bot-engine/agent/jobs/:id/complete
+  @Post('jobs/:id/complete')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: (req: Express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+        const dir = path.join(process.cwd(), 'uploads', 'agent-results');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      filename: (_req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => cb(null, `${Date.now()}_${file.originalname}`),
+    }),
+  }))
+  async complete(
+    @Headers() headers: Record<string, string>,
+    @Param('id') id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    this.validateKey(headers);
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+    job.status = 'COMPLETED';
+    const now = new Date().toISOString();
+    job.logs.push(`[${now}] Job completed by Agent.`);
+    if (file) {
+      const p = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+      p.agentUploadedFile = file.path;
+      job.payload = p;
+      job.logs.push(`[${now}] File uploaded: ${file.originalname} -> ${file.path}`);
+    }
+    await job.save();
+    this.logger.log(`Job ${id} marked COMPLETED by agent. File: ${file?.path || 'none'}`);
+    return { ok: true };
+  }
+
+  // POST /api/v1/bot-engine/agent/jobs/:id/fail
+  @Post('jobs/:id/fail')
+  async fail(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { error: string }) {
+    this.validateKey(headers);
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+    job.status = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
+    job.logs.push(`[${new Date().toISOString()}] [Agent] FAILED: ${body.error}`);
+    await job.save();
+    this.logger.warn(`Job ${id} failed by agent: ${body.error}`);
+    return { ok: true };
+  }
+
+  // POST /api/v1/bot-engine/agent/jobs/:id/captcha
+  @Post('jobs/:id/captcha')
+  async captcha(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { captchaImage?: string; captchaText?: string }) {
+    this.validateKey(headers);
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+    const p = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    if (body.captchaImage) {
+      // Agent uploads captcha image for UI to display
+      p.captchaImage = body.captchaImage;
+      job.status = 'AWAITING_CAPTCHA';
+      job.logs.push(`[${new Date().toISOString()}] Captcha required. Waiting for user input.`);
+    }
+    if (body.captchaText) {
+      // UI submits captcha text for agent to retrieve
+      p.captchaText = body.captchaText;
+      p.captchaImage = undefined;
+      job.status = 'PROCESSING';
+      job.logs.push(`[${new Date().toISOString()}] Captcha submitted by user.`);
+    }
+    job.payload = p;
+    await job.save();
+    return { ok: true, captchaText: p.captchaText || null };
   }
 }

@@ -1,0 +1,14 @@
+{
+  "backend_url": "http://localhost:3001",
+  "api_key": "mxv_rpa_secure_agent_key_2026",
+  "polling_interval": 5,
+  "heartbeat_interval": 10,
+  "workspace_path": "d:\\sontayweb\\mxv-shift-checklist",
+  "paths": {
+    "cast_downloads": "d:\\sontayweb\\mxv-shift-checklist\\backend\\temp\\cast-downloads",
+    "acm_backup": "C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\ACM",
+    "ms_backup_futures": "C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures",
+    "lot_macro_path": "d:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke so lot giao dich có ACM\\Macro thong ke so lot giao dich có ACM.xlsm",
+    "value_macro_path": "d:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm"
+  }
+}

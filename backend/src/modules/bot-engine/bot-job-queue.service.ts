@@ -134,14 +134,34 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Main worker loop to process PENDING jobs.
+   * In RPA_AGENT_MODE=remote, Windows-only jobs are left PENDING for the
+   * Windows RPA Agent to poll and execute. Only pure-compute jobs (reconciliation)
+   * are handled directly on the Linux server.
    */
   private async processQueue() {
     if (this.isProcessing) {
       return;
     }
 
+    // ── Remote-mode: skip Windows-only jobs ──────────────────────────────────
+    const isRemoteMode = process.env.RPA_AGENT_MODE === 'remote';
+    const WINDOWS_ONLY_JOB_TYPES = [
+      'RUN_LOT_MACRO',
+      'RUN_VALUE_MACRO',
+      'RPA_DOWNLOAD_REPORTS',
+      'DOWNLOAD_CAST',
+      'FILE_AUDIT_MS',
+      'FILE_AUDIT_CQG',
+      'FILE_AUDIT_ACM',
+    ];
+
+    // Build the query filter based on mode
+    const jobFilter = isRemoteMode
+      ? { status: 'PENDING', jobType: { $nin: WINDOWS_ONLY_JOB_TYPES } }
+      : { status: 'PENDING' };
+
     // Fetch next PENDING job
-    const job = await this.botJobModel.findOne({ status: 'PENDING' }).sort({ createdAt: 1 }).exec();
+    const job = await this.botJobModel.findOne(jobFilter).sort({ createdAt: 1 }).exec();
     if (!job) {
       return;
     }
@@ -208,6 +228,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       this.isProcessing = false;
     }
   }
+
 
   private getReportFileName(target: string): string {
     switch (target) {
