@@ -35,6 +35,9 @@ export class ReconciliationController {
       { name: 'ttm', maxCount: 1 },
       { name: 'op1', maxCount: 1 },
       { name: 'op2', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'ps1', maxCount: 1 },
+      { name: 'ps2', maxCount: 1 },
     ]),
   )
   async uploadAndReconcile(
@@ -47,6 +50,9 @@ export class ReconciliationController {
       ttm?: any[];
       op1?: any[];
       op2?: any[];
+      tttt?: any[];
+      ps1?: any[];
+      ps2?: any[];
     },
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
@@ -67,6 +73,9 @@ export class ReconciliationController {
       ttm: files?.ttm?.[0]?.buffer,
       op1: files?.op1?.[0]?.buffer,
       op2: files?.op2?.[0]?.buffer,
+      tttt: files?.tttt?.[0]?.buffer,
+      ps1: files?.ps1?.[0]?.buffer,
+      ps2: files?.ps2?.[0]?.buffer,
     };
 
     if (!fileBuffers.dsgd) {
@@ -87,7 +96,9 @@ export class ReconciliationController {
         result.totals.differ > 0 ||
         result.totals.differACM > 0 ||
         result.mismatchedTrades.length > 0 ||
-        result.mismatchedTTM.length > 0;
+        result.mismatchedTTM.length > 0 ||
+        (result.totals.differTTTT !== undefined && result.totals.differTTTT > 0) ||
+        (result.mismatchedTTTT && result.mismatchedTTTT.length > 0);
 
       const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
       
@@ -95,6 +106,10 @@ export class ReconciliationController {
       note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalDSGD} vs ${result.totals.totalFR} lot (Chênh lệch: ${result.totals.differ} lot)\n`;
       note += `• Khớp lệnh tự doanh (MS vs ACM): ${result.totals.totalACM} vs ${result.totals.totalNano} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       
+      if (result.totals.totalTTTT !== undefined) {
+        note += `• Khớp lệnh tất toán (TTTT vs PS): ${result.totals.totalTTTT} vs ${result.totals.totalPS} lot (Chênh lệch: ${result.totals.differTTTT} lot)\n`;
+      }
+
       if (result.mismatchedTrades.length > 0) {
         note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach(m => {
@@ -111,6 +126,13 @@ export class ReconciliationController {
         note += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
         result.mismatchedTTM.slice(0, 10).forEach(m => {
           note += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
+        });
+      }
+
+      if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
+        note += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
+        result.mismatchedTTTT.slice(0, 10).forEach(m => {
+          note += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
       }
 

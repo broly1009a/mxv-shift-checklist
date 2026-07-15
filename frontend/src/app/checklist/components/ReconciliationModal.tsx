@@ -69,7 +69,10 @@ export default function ReconciliationModal({
     // Pre-EOD files
     acmTrades: null,
     cqgFr: null,
-    cqgPs: null
+    cqgPs: null,
+    // TTTT / PS files for KLGD
+    ps1: null,
+    ps2: null
   });
 
   const [usdRate, setUsdRate] = useState<number>(25220);
@@ -242,7 +245,7 @@ export default function ReconciliationModal({
         return;
       }
       Object.entries(files).forEach(([key, file]) => {
-        if (file && ['dsgd', 'fr1', 'fr2', 'nano', 'ttm', 'op1', 'op2'].includes(key)) {
+        if (file && ['dsgd', 'fr1', 'fr2', 'nano', 'ttm', 'op1', 'op2', 'tttt', 'ps1', 'ps2'].includes(key)) {
           formData.append(key, file);
         }
       });
@@ -551,6 +554,19 @@ export default function ReconciliationModal({
                   {renderFileDropzone('op2', 'File CQG (OP2.xlsx)')}
                 </div>
               </div>
+
+              <div style={{ borderTop: '1px dashed var(--border-color)', margin: '4px 0' }}></div>
+
+              <div>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
+                  3. Chọn File Đối Chiếu Khớp Lệnh Thanh Toán (TTTT) (Tùy chọn)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
+                  {renderFileDropzone('tttt', 'File M-System (TTTT.xlsx)')}
+                  {renderFileDropzone('ps1', 'File CQG (PS1.xlsx)')}
+                  {renderFileDropzone('ps2', 'File CQG (PS2.xlsx)')}
+                </div>
+              </div>
             </>
           )}
 
@@ -618,7 +634,12 @@ export default function ReconciliationModal({
               {resultType === 'KLGD' && (
                 <>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {result.totals.differ > 0 || result.totals.differACM > 0 || result.mismatchedTrades.length > 0 || result.mismatchedTTM.length > 0 ? (
+                    {result.totals.differ > 0 ||
+                    result.totals.differACM > 0 ||
+                    result.mismatchedTrades.length > 0 ||
+                    result.mismatchedTTM.length > 0 ||
+                    (result.totals.differTTTT !== undefined && result.totals.differTTTT > 0) ||
+                    (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) ? (
                       <>
                         <AlertTriangle color="var(--color-critical)" size={18} />
                         Kết Quả: Phát hiện chênh lệch dữ liệu
@@ -651,8 +672,21 @@ export default function ReconciliationModal({
                     </div>
                   </div>
 
+                  {result.totals.totalTTTT !== undefined && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                      <div style={{ padding: '10px', background: 'rgba(128,128,128,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>TỔNG LOT TẤT TOÁN M-SYSTEM (TTTT)</div>
+                        <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>{result.totals.totalTTTT}</div>
+                      </div>
+                      <div style={{ padding: '10px', background: 'rgba(128,128,128,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>TỔNG LOT PS CQG (S VALUE)</div>
+                        <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>{result.totals.totalPS}</div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Differences row */}
-                  <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600, color: result.totals.differ > 0 ? 'var(--color-critical)' : 'var(--color-primary)' }}>
                       <span>Chênh lệch MS vs CQG:</span>
                       <strong>{result.totals.differ} lot</strong>
@@ -661,6 +695,12 @@ export default function ReconciliationModal({
                       <span>Chênh lệch ACM vs Nano:</span>
                       <strong>{result.totals.differACM} lot</strong>
                     </div>
+                    {result.totals.differTTTT !== undefined && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600, color: result.totals.differTTTT > 0 ? 'var(--color-critical)' : 'var(--color-primary)' }}>
+                        <span>Chênh lệch TTTT vs PS:</span>
+                        <strong>{result.totals.differTTTT} lot</strong>
+                      </div>
+                    )}
                   </div>
 
                   {/* Detail mismatch tables */}
@@ -702,7 +742,7 @@ export default function ReconciliationModal({
                   )}
 
                   {result.mismatchedTTM.length > 0 && (
-                    <div>
+                    <div style={{ marginBottom: '16px' }}>
                       <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách chênh lệch Trạng Thái Mở (TTM) tài khoản ({result.mismatchedTTM.length})
@@ -723,6 +763,37 @@ export default function ReconciliationModal({
                                 <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--color-accent)' }}>{m.maTKGD}</td>
                                 <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.ttmValue}</td>
                                 <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.opValue}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-critical)', fontWeight: 700 }}>{m.differ}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {result.mismatchedTTTT && result.mismatchedTTTT.length > 0 && (
+                    <div>
+                      <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} color="var(--color-critical)" />
+                        Danh sách chênh lệch Khớp Lệnh Thanh Toán (TTTT vs PS) tài khoản ({result.mismatchedTTTT.length})
+                      </h4>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                          <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
+                            <tr>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Tài khoản</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Tổng Lot TTTT M-System</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Tổng Lot PS CQG</th>
+                              <th style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>Chênh lệch</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {result.mismatchedTTTT.map((m: any, idx: number) => (
+                              <tr key={idx} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--color-accent)' }}>{m.maTKGD}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.ttttValue}</td>
+                                <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{m.psValue}</td>
                                 <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--color-critical)', fontWeight: 700 }}>{m.differ}</td>
                               </tr>
                             ))}

@@ -18,6 +18,9 @@ export interface CheckKLGDResult {
     totalNano: number;
     differ: number;
     differACM: number;
+    totalTTTT?: number;
+    totalPS?: number;
+    differTTTT?: number;
   };
   mismatchedTrades: Array<{
     source: 'MSystem' | 'CQG' | 'ACM' | 'Nano';
@@ -33,6 +36,12 @@ export interface CheckKLGDResult {
     maTKGD: string;
     ttmValue: number;
     opValue: number;
+    differ: number;
+  }>;
+  mismatchedTTTT?: Array<{
+    maTKGD: string;
+    ttttValue: number;
+    psValue: number;
     differ: number;
   }>;
 }
@@ -557,8 +566,17 @@ export class ReconciliationService {
 
       if (!symbol) continue;
 
+      let accountRaw = account;
+      if (accountRaw.endsWith('L') || accountRaw.endsWith('l')) {
+        accountRaw = accountRaw.slice(0, -1) + '-L';
+      } else if (accountRaw.endsWith('S') || accountRaw.endsWith('s')) {
+        accountRaw = accountRaw.slice(0, -1) + '-S';
+      } else if (accountRaw.endsWith('F') || accountRaw.endsWith('f')) {
+        accountRaw = accountRaw.slice(0, -1);
+      }
+
       result.push({
-        account,
+        account: accountRaw,
         symbol,
         lValue,
         sValue,
@@ -622,11 +640,69 @@ export class ReconciliationService {
     return result;
   }
 
+  parseTTTTForVolume(buffer: Buffer): any[] {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return [];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map(h => String(h || '').trim());
+
+    const maTKGDIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
+    const tongMuaIdx = this.findHeaderIndex(header, 'KL Mua', ['Tổng KL Mua', 'Tổng mua', 'KL mua']);
+    const tongBanIdx = this.findHeaderIndex(header, 'KL Bán', ['Tổng KL Bán', 'Tổng bán', 'KL bán']);
+
+    // fallbacks
+    const finalAccIdx = maTKGDIdx !== -1 ? maTKGDIdx : 7;
+    const finalSymIdx = maHDIdx !== -1 ? maHDIdx : 9;
+    const finalMuaIdx = tongMuaIdx !== -1 ? tongMuaIdx : 15;
+    const finalBanIdx = tongBanIdx !== -1 ? tongBanIdx : 16;
+
+    const result = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const maTKGD = String(row[finalAccIdx] || '').trim();
+      const maHD = String(row[finalSymIdx] || '').trim();
+      const tongMua = parseFloat(row[finalMuaIdx]) || 0;
+      const tongBan = parseFloat(row[finalBanIdx]) || 0;
+
+      if (!maTKGD || !maHD) continue;
+
+      result.push({
+        maTKGD,
+        maHD,
+        tongMua,
+        tongBan,
+      });
+    }
+    return result;
+  }
+
+  parsePSForVolume(buffer: Buffer): any[] {
+    return this.parseOP(buffer);
+  }
+
   /**
    * Match Trade Volumes (CheckKLGD)
    */
   async checkKLGD(
-    files: { dsgd?: Buffer; fr1?: Buffer; fr2?: Buffer; nano?: Buffer; ttm?: Buffer; op1?: Buffer; op2?: Buffer },
+    files: {
+      dsgd?: Buffer;
+      fr1?: Buffer;
+      fr2?: Buffer;
+      nano?: Buffer;
+      ttm?: Buffer;
+      op1?: Buffer;
+      op2?: Buffer;
+      tttt?: Buffer;
+      ps1?: Buffer;
+      ps2?: Buffer;
+    },
     tradingDate: Date,
     holidays: string[] = [],
     sessionStartStr: string = '05:00'
@@ -880,6 +956,55 @@ export class ReconciliationService {
       });
     }
 
+    // --- III. TTTT vs PS (Closed Trades Matching) ---
+    let totalTTTT = 0;
+    let totalPS = 0;
+    const mismatchedTTTT: Array<{
+      maTKGD: string;
+      ttttValue: number;
+      psValue: number;
+      differ: number;
+    }> = [];
+
+    if (files.tttt && (files.ps1 || files.ps2)) {
+      const ttttData = this.parseTTTTForVolume(files.tttt).filter(t => !this.isIgnoredCommodity(t.maHD));
+      const psData: any[] = [];
+      if (files.ps1) psData.push(...this.parsePSForVolume(files.ps1));
+      if (files.ps2) psData.push(...this.parsePSForVolume(files.ps2));
+      const filteredPsData = psData.filter(p => !this.isIgnoredCommodity(p.symbol));
+
+      const ttttSummary: Record<string, number> = {};
+      ttttData.forEach(t => {
+        if (!t.maTKGD.toUpperCase().endsWith('A')) {
+          totalTTTT += t.tongBan;
+          ttttSummary[t.maTKGD] = (ttttSummary[t.maTKGD] || 0) + t.tongBan;
+        }
+      });
+
+      const psSummary: Record<string, number> = {};
+      filteredPsData.forEach(p => {
+        totalPS += p.sValue;
+        psSummary[p.account] = (psSummary[p.account] || 0) + p.sValue;
+      });
+
+      const allTtttAccounts = Array.from(new Set([...Object.keys(ttttSummary), ...Object.keys(psSummary)]));
+      allTtttAccounts.forEach(acc => {
+        if (acc.toUpperCase().endsWith('A')) return; // Skip ACM
+
+        const ttttVal = ttttSummary[acc] || 0;
+        const psVal = psSummary[acc] || 0;
+
+        if (Math.abs(ttttVal - psVal) > 0) {
+          mismatchedTTTT.push({
+            maTKGD: acc,
+            ttttValue: ttttVal,
+            psValue: psVal,
+            differ: Math.abs(ttttVal - psVal),
+          });
+        }
+      });
+    }
+
     return {
       totals: {
         totalDSGD,
@@ -888,9 +1013,13 @@ export class ReconciliationService {
         totalNano,
         differ,
         differACM,
+        totalTTTT: files.tttt ? totalTTTT : undefined,
+        totalPS: files.tttt ? totalPS : undefined,
+        differTTTT: files.tttt ? Math.abs(totalTTTT - totalPS) : undefined,
       },
       mismatchedTrades,
       mismatchedTTM,
+      mismatchedTTTT: files.tttt ? mismatchedTTTT : undefined,
     };
   }
 
