@@ -10,5 +10,8 @@
     "ms_backup_futures": "C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures",
     "lot_macro_path": "d:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke so lot giao dich có ACM\\Macro thong ke so lot giao dich có ACM.xlsm",
     "value_macro_path": "d:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm"
-  }
+  },
+  "start_minimized": true,
+  "enable_notifications": true,
+  "notification_duration": 10
 }

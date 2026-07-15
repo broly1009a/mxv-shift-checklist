@@ -524,14 +524,14 @@ class SettingsWindow(QDialog):
         if self._core.is_running:
             self._core.reload_config()
 
-        QMessageBox.information(self, "Đã lưu", "✅ Cài đặt đã được lưu và áp dụng.")
+        QMessageBox.information(self, "Đã lưu", "Cài đặt đã được lưu và áp dụng.")
         self.close()
 
     def _test_connection(self) -> None:
         url = self._url_edit.text().strip().rstrip("/")
         key = self._key_edit.text().strip()
         if not url or not key:
-            self._test_label.setText("⚠ Nhập URL và API Key trước")
+            self._test_label.setText("Nhập URL và API Key trước")
             return
         try:
             import requests
@@ -542,15 +542,15 @@ class SettingsWindow(QDialog):
             )
             if r.status_code == 200:
                 data = r.json()
-                online_str = "Online ✓" if data.get("online") else "Agent chưa khởi động"
+                online_str = "Online" if data.get("online") else "Agent chưa khởi động"
                 self._test_label.setStyleSheet("color: green;")
-                self._test_label.setText(f"✅ Kết nối OK — {online_str}")
+                self._test_label.setText(f"Kết nối OK — {online_str}")
             else:
                 self._test_label.setStyleSheet("color: red;")
-                self._test_label.setText(f"❌ HTTP {r.status_code}")
+                self._test_label.setText(f"HTTP {r.status_code}")
         except Exception as e:
             self._test_label.setStyleSheet("color: red;")
-            self._test_label.setText(f"❌ {str(e)[:60]}")
+            self._test_label.setText(f"{str(e)[:60]}")
 
     def _browse_file(self, edit: QLineEdit, ext: str) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Chọn file", "", ext)

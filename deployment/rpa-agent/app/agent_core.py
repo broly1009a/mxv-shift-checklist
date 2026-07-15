@@ -298,11 +298,19 @@ class AgentWorker(QObject):
             self._fail_job(job_id, "RUN_VALUE_MACRO", "Script kết thúc với lỗi")
 
     def _handle_delegated_nestjs_job(self, job_id: str, job_type: str, payload: dict) -> None:
-        if not self._workspace_path:
-            self._fail_job(job_id, job_type, "Thiếu cấu hình workspace_path trong config.json để chạy job NestJS")
-            return
+        workspace = self._workspace_path
+        if not workspace:
+            candidate_pkg = Path(sys.executable).parent
+            candidate_dev = BASE_DIR.parent
+            if (candidate_pkg / "backend").exists():
+                workspace = str(candidate_pkg)
+            elif (candidate_dev / "backend").exists():
+                workspace = str(candidate_dev)
+            else:
+                self._fail_job(job_id, job_type, "Thiếu cấu hình workspace_path và không tìm thấy thư mục backend mặc định")
+                return
 
-        backend_dir = os.path.join(self._workspace_path, "backend")
+        backend_dir = os.path.join(workspace, "backend")
         dist_script = os.path.join(backend_dir, "dist", "scripts", "run-job-cli.js")
         if os.path.exists(dist_script):
             cmd = ["node", "dist/scripts/run-job-cli.js", job_id]
