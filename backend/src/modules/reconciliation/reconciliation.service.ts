@@ -199,6 +199,12 @@ export class ReconciliationService {
     });
   }
 
+  isIgnoredCommodity(symbol: string): boolean {
+    if (!symbol) return false;
+    const upper = symbol.toUpperCase();
+    return ['TRU', 'ZFT', 'FEF', 'MPO'].some(ignored => upper.startsWith(ignored));
+  }
+
   /**
    * Helper to convert LME symbols based on trading date.
    */
@@ -664,6 +670,7 @@ export class ReconciliationService {
 
     // Filter DSGD data
     const dsgdData = rawDsgdData.filter(gd => {
+      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateParts = parts[0].split('-');
@@ -683,6 +690,7 @@ export class ReconciliationService {
 
     // Filter Nano data
     const nanoData = rawNanoData.filter(gd => {
+      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateStr = parts[0];
@@ -711,6 +719,7 @@ export class ReconciliationService {
 
     // Filter CQG data using parseCqgDateTime
     const frData = rawFrData.filter(fr => {
+      if (this.isIgnoredCommodity(fr.symbol)) return false;
       if (!fr.time) return true;
       const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
@@ -1592,6 +1601,7 @@ export class ReconciliationService {
     // 2. Parse DSGD and separate into ACM and CQG trades
     const rawDsgdData = this.parseDSGD(files.dsgd);
     const dsgdData = rawDsgdData.filter(gd => {
+      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateParts = parts[0].split('-');
@@ -1627,6 +1637,7 @@ export class ReconciliationService {
     // 4. Parse CQG FR.xlsx and filter out ZWAZCE
     const rawFrData = this.parseFR(files.cqgFr, tradingDate, holidays);
     const frData = rawFrData.filter(fr => {
+      if (this.isIgnoredCommodity(fr.symbol)) return false;
       if (!fr.time) return true;
       const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
@@ -1698,6 +1709,7 @@ export class ReconciliationService {
     ttttList.forEach(item => {
       // Filter out self-trading (ACM) accounts ending with 'A' or 'a' (like -A, -a, etc.)
       if (item.account.toUpperCase().endsWith('A')) return;
+      if (this.isIgnoredCommodity(item.symbol)) return;
 
       const key = `${item.account}_${item.symbol}`;
       const existing = msSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
@@ -1708,6 +1720,7 @@ export class ReconciliationService {
     // Group CQG positions by Account + Symbol
     const cqgSummary = new Map<string, { account: string; symbol: string; position: number }>();
     psList.forEach(item => {
+      if (this.isIgnoredCommodity(item.symbol)) return;
       const key = `${item.account}_${item.symbol}`;
       const existing = cqgSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
       existing.position += item.position;
