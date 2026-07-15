@@ -652,8 +652,8 @@ export class ReconciliationService {
 
     const maTKGDIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
     const maHDIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
-    const tongMuaIdx = this.findHeaderIndex(header, 'KL Mua', ['Tổng KL Mua', 'Tổng mua', 'KL mua']);
-    const tongBanIdx = this.findHeaderIndex(header, 'KL Bán', ['Tổng KL Bán', 'Tổng bán', 'KL bán']);
+    const tongMuaIdx = this.findHeaderIndex(header, 'KL Mua', ['KL mua']);
+    const tongBanIdx = this.findHeaderIndex(header, 'KL Bán', ['KL bán']);
 
     // fallbacks
     const finalAccIdx = maTKGDIdx !== -1 ? maTKGDIdx : 7;
