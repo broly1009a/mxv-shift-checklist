@@ -57,13 +57,26 @@ export class ReconciliationService {
     if (!str) return 0;
 
     let normalized = str;
-    if (str.includes(',')) {
-      normalized = str.replace(/\./g, '').replace(/,/g, '.');
+    const lastComma = str.lastIndexOf(',');
+    const lastDot = str.lastIndexOf('.');
+
+    if (lastComma !== -1 && lastDot !== -1) {
+      if (lastDot < lastComma) {
+        // Vietnamese/European format: -26.960,00 -> remove dots, replace comma with dot
+        normalized = str.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        // US format: -26,960.00 -> remove commas
+        normalized = str.replace(/,/g, '');
+      }
+    } else if (lastComma !== -1) {
+      // Only comma: replace with dot
+      normalized = str.replace(/,/g, '.');
     }
 
     const parsed = parseFloat(normalized);
     return isNaN(parsed) ? 0 : parsed;
   }
+
 
   private parseCqgDateTime(timeStr: string, defaultDate: Date): Date | null {
     if (!timeStr) return null;
@@ -89,9 +102,24 @@ export class ReconciliationService {
         month = dateBits[1];
         day = dateBits[2];
       } else {
-        // MM/DD/YY or MM/DD/YYYY (CQG US export format)
-        month = dateBits[0];
-        day = dateBits[1];
+        // Dynamic detection of MM/DD/YY vs DD/MM/YY based on defaultDate (tradingDate) month
+        const targetMonth = defaultDate.getMonth() + 1;
+        const bit0 = dateBits[0];
+        const bit1 = dateBits[1];
+        
+        if (bit1 === targetMonth || bit1 === targetMonth - 1 || (targetMonth === 1 && bit1 === 12)) {
+          // Assume bit1 is Month and bit0 is Day (DD/MM/YY)
+          day = bit0;
+          month = bit1;
+        } else if (bit0 === targetMonth || bit0 === targetMonth - 1 || (targetMonth === 1 && bit0 === 12)) {
+          // Assume bit0 is Month and bit1 is Day (MM/DD/YY)
+          month = bit0;
+          day = bit1;
+        } else {
+          // Fallback to MM/DD/YY (standard CQG US export format)
+          month = bit0;
+          day = bit1;
+        }
         year = dateBits[2];
       }
 
@@ -366,7 +394,15 @@ export class ReconciliationService {
         accountRaw = accountRaw.slice(0, -1);
       }
 
-      const symbolRaw = this.convertLMESymbol(symbol, date, holidays);
+      let tradeDate = date;
+      if (time) {
+        const parsedTime = this.parseCqgDateTime(time, date);
+        if (parsedTime) {
+          tradeDate = parsedTime;
+        }
+      }
+
+      const symbolRaw = this.convertLMESymbol(symbol, tradeDate, holidays);
 
       result.push({
         ord,
@@ -1519,20 +1555,25 @@ export class ReconciliationService {
     }
 
     // Calculate time bounds: sessionStart and checkTime
-    let sessionStart = new Date(tradingDate);
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
 
     const isPastDateOrDateOnly =
       (tradingDate.getHours() === 0 && tradingDate.getMinutes() === 0 && tradingDate.getSeconds() === 0) ||
       (tradingDate.getUTCHours() === 0 && tradingDate.getUTCMinutes() === 0 && tradingDate.getUTCSeconds() === 0);
 
+    let sessionStart: Date;
     let checkTime: Date;
     if (isPastDateOrDateOnly) {
+      // Session start is T-1 date at 06:00
+      sessionStart = new Date(d);
       sessionStart.setHours(sHour, sMin, 0, 0);
-      checkTime = new Date(sessionStart);
-      checkTime.setDate(checkTime.getDate() + 1);
+      
+      // checkTime is tradingDate (checking date) at 06:00
+      checkTime = new Date(tradingDate);
+      checkTime.setHours(sHour, sMin, 0, 0);
     } else {
       checkTime = new Date(tradingDate);
+      sessionStart = new Date(tradingDate);
       sessionStart.setHours(sHour, sMin, 0, 0);
       if (checkTime < sessionStart) {
         sessionStart.setDate(sessionStart.getDate() - 1);
@@ -1559,7 +1600,7 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= checkTime;
     });
 
     let totalACM_MS = 0;
