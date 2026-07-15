@@ -15,6 +15,7 @@ import { CqgSyncService } from './cqg-sync.service';
 import { PostEodHandlerService } from './post-eod-handler.service';
 import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { OmsWatcherService } from './oms-watcher.service';
 
@@ -26,6 +27,7 @@ import { OmsWatcherService } from './oms-watcher.service';
     ]),
     ShiftsModule,
     forwardRef(() => ReconciliationModule),
+    NotificationsModule,
   ],
   providers: [
     EmailWatcherService,
@@ -45,6 +47,7 @@ import { OmsWatcherService } from './oms-watcher.service';
   ],
   exports: [
     BotEngineService,
+    EmailWatcherService,
     BotJobQueueService,
     RpaDownloaderService,
     GttCheckerService,

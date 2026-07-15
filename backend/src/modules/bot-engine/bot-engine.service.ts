@@ -11,8 +11,11 @@ import { BotJobQueueService } from './bot-job-queue.service';
 import { PostEodHandlerService } from './post-eod-handler.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { TeamsNotifierService, ExpiringContract } from '../notifications/teams-notifier.service';
+import { RpaDownloaderService } from './rpa-downloader.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class BotEngineService {
@@ -29,6 +32,8 @@ export class BotEngineService {
     private readonly postEodHandlerService: PostEodHandlerService,
     private readonly telegramService: TelegramService,
     private readonly settingsService: SystemSettingsService,
+    private readonly teamsNotifierService: TeamsNotifierService,
+    private readonly rpaDownloaderService: RpaDownloaderService,
   ) {}
 
   /**
@@ -324,6 +329,114 @@ export class BotEngineService {
                 checkResult = { success: false, message: 'Đang thực hiện đối chiếu số dư đầu ngày SOD...' };
               }
             }
+          } else if (checkType === 'NOTIFY_MATURITY') {
+            try {
+              let expiringContracts: ExpiringContract[] = [];
+              const email = await this.emailWatcherService.getLatestEmail('Thông báo tất toán hợp đồng', 'daonguyen@mxv.vn');
+              if (email) {
+                expiringContracts = this.parseMaturityEmail(email.body);
+              } else {
+                // TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email thật thành công
+                const fallbackPath = path.join(process.cwd(), 'temp', 'downloads', 'mail.txt');
+                if (fs.existsSync(fallbackPath)) {
+                  const fallbackContent = fs.readFileSync(fallbackPath, 'utf8');
+                  expiringContracts = this.parseEmailText(fallbackContent);
+                  this.logger.log(`Using fallback mock email content from: ${fallbackPath} (${expiringContracts.length} contracts)`);
+                }
+              }
+
+              if (expiringContracts.length === 0) {
+                checkResult = { success: false, message: 'Chưa nhận được email Thông báo tất toán hợp đồng từ daonguyen@mxv.vn và không tìm thấy tệp mock fallback.' };
+              } else {
+                  const today = new Date(Date.now() + 7 * 60 * 60 * 1000);
+                  const yyyy = today.getUTCFullYear().toString();
+                  const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+                  const dd = today.getUTCDate().toString().padStart(2, '0');
+                  const dateStr = `${yyyy}-${mm}-${dd}`;
+                  const todayStr = `${dd}/${mm}/${yyyy}`;
+
+                  // Filter contracts for today
+                  const todayContracts = expiringContracts.filter(c => c.deadline.includes(todayStr));
+                  if (todayContracts.length === 0) {
+                    checkResult = { success: true, message: `Không có hợp đồng nào đến hạn tất toán trong ngày hôm nay (${todayStr}).` };
+                  } else {
+                    const tempDir = path.join(process.cwd(), 'temp', 'reconciliation', dateStr);
+                    if (!fs.existsSync(tempDir)) {
+                      fs.mkdirSync(tempDir, { recursive: true });
+                    }
+
+                    const openPosPath = path.join(tempDir, 'open_positions.xlsx');
+                    const pendingOrdersPath = path.join(tempDir, 'pending_orders.xlsx');
+
+                    const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true';
+                    if (isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+                      const mockDir = path.dirname(openPosPath);
+                      if (!fs.existsSync(mockDir)) {
+                        fs.mkdirSync(mockDir, { recursive: true });
+                      }
+
+                      // Generate mock open_positions
+                      const opWorkbook = XLSX.utils.book_new();
+                      const opRows = [
+                        ['STT', 'Mã thành viên', 'Tên thành viên', 'Số HĐ', 'Tên khách hàng', 'SĐT', 'Email', 'Mã TKGD', 'Tên tài khoản', 'Mã HĐ', 'Tên hợp đồng', 'KL Mua', 'KL Bán', 'Giá khớp', 'Giá TT', 'Ký quỹ y/c', 'Lãi lỗ thực tế', 'Lãi lỗ ròng'],
+                        [1, '003', 'Gia Cát Lợi', '003001', 'Nguyễn Văn A', '', '', '003C111111', 'Nguyễn Văn A', 'TRUN26', 'Cao su RSS3 7/26', 5, 0, 0, 0, 0, 0, 0],
+                        [2, '003', 'Gia Cát Lợi', '003002', 'Trần Thị B', '', '', '003C222222', 'Trần Thị B', 'ZFTQ26', 'Cao su TSR20 8/26', 0, 10, 0, 0, 0, 0, 0]
+                      ];
+                      const opSheet = XLSX.utils.aoa_to_sheet(opRows);
+                      XLSX.utils.book_append_sheet(opWorkbook, opSheet, 'Sheet1');
+                      XLSX.writeFile(opWorkbook, openPosPath);
+
+                      // Generate mock pending_orders
+                      const poWorkbook = XLSX.utils.book_new();
+                      const poRows = [
+                        ['STT', 'Mã lệnh', 'Mã TV', 'Mã TKGD', 'Mã ĐV', 'Mã HĐ', 'Mã hàng hóa', 'Kỳ hạn', 'Lệnh', 'Chiều mua bán', 'KL đặt lệnh', 'KL khớp', 'Giá giới hạn', 'Trạng thái'],
+                        [1, 'L001', '003', '003C111111', '003', 'TRUN26', 'TRU', '7/26', 'LMT', 'BUY', 2, 0, 100, 'Đang chờ khớp'],
+                        [2, 'L002', '003', '003C222222', '003', 'ZFTQ26', 'ZFT', '8/26', 'LMT', 'SELL', 3, 0, 200, 'Đang chờ khớp']
+                      ];
+                      const poSheet = XLSX.utils.aoa_to_sheet(poRows);
+                      XLSX.utils.book_append_sheet(poWorkbook, poSheet, 'Sheet1');
+                      XLSX.writeFile(poWorkbook, pendingOrdersPath);
+
+                      this.logger.log(`Generated simulated open_positions.xlsx and pending_orders.xlsx files at: ${mockDir}`);
+                    }
+
+                    // If files do not exist and not in simulation, use RPA to download them
+                    if (!isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+                      this.logger.log('M-System reports not found locally. Triggering Playwright RPA download...');
+                      const { browser, page } = await this.rpaDownloaderService.loginMSystem(tempDir);
+                      try {
+                        if (!fs.existsSync(openPosPath)) {
+                          this.logger.log('Downloading Trạng thái mở (open_positions.xlsx)...');
+                          await this.rpaDownloaderService.downloadTTM(page, openPosPath);
+                        }
+                        if (!fs.existsSync(pendingOrdersPath)) {
+                          this.logger.log('Downloading Lệnh chờ khớp (pending_orders.xlsx)...');
+                          await this.rpaDownloaderService.downloadDSLCK(page, pendingOrdersPath);
+                        }
+                      } finally {
+                        await browser.close().catch(() => {});
+                      }
+                    }
+
+                    if (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath)) {
+                      checkResult = { success: false, message: 'Thiếu file báo cáo open_positions.xlsx hoặc pending_orders.xlsx để đối chiếu vị thế.' };
+                    } else {
+                      const openPosBuffer = fs.readFileSync(openPosPath);
+                      const pendingOrdersBuffer = fs.readFileSync(pendingOrdersPath);
+                      
+                      const res = await this.teamsNotifierService.checkMaturityAndNotifyFromMSystem(
+                        openPosBuffer,
+                        pendingOrdersBuffer,
+                        expiringContracts,
+                        'Bot NOTIFY_MATURITY task'
+                      );
+                      checkResult = res;
+                    }
+                  }
+                }
+            } catch (err: any) {
+              checkResult = { success: false, message: `Lỗi tính mốc đáo hạn & gửi thông báo: ${err.message}` };
+            }
           }
 
           // 6. Handle verification outcomes
@@ -390,6 +503,130 @@ export class BotEngineService {
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Parse HTML email body to extract list of expiring contracts and details
+   */
+  public parseMaturityEmail(htmlBody: string): ExpiringContract[] {
+    const contracts: ExpiringContract[] = [];
+    try {
+      const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      const thRegex = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+
+      trRegex.lastIndex = 0;
+      tdRegex.lastIndex = 0;
+      thRegex.lastIndex = 0;
+
+      const parts = htmlBody.split(/<table[^>]*>/gi);
+      for (let i = 1; i < parts.length; i++) {
+        const precedingText = parts[i - 1].toLowerCase();
+        const tableContent = parts[i].split(/<\/table>/gi)[0];
+
+        let side: 'BUY' | 'SELL' = 'BUY';
+        if (precedingText.includes('bán') || precedingText.includes('ngày giao dịch cuối cùng')) {
+          side = 'SELL';
+        }
+
+        const rows: string[] = [];
+        let match;
+        while ((match = trRegex.exec(tableContent)) !== null) {
+          rows.push(match[1]);
+        }
+
+        if (rows.length === 0) continue;
+        const headerCols: string[] = [];
+        let thMatch;
+        const headerRow = rows[0];
+        while ((thMatch = thRegex.exec(headerRow)) !== null) {
+          headerCols.push(thMatch[1].replace(/<[^>]*>/g, '').trim().toLowerCase());
+        }
+        if (headerCols.length === 0) {
+          let tdMatch;
+          while ((tdMatch = tdRegex.exec(headerRow)) !== null) {
+            headerCols.push(tdMatch[1].replace(/<[^>]*>/g, '').trim().toLowerCase());
+          }
+        }
+
+        const contractCodeIdx = headerCols.findIndex(h => h.includes('mã hợp đồng') || h.includes('mã hđ') || h.includes('contract'));
+        const contractNameIdx = headerCols.findIndex(h => h.includes('tên hợp đồng') || h.includes('name'));
+        const targetDateIdx = headerCols.findIndex(h => h.includes('ngày thông báo') || h.includes('ngày giao dịch') || h.includes('date'));
+        const deadlineIdx = headerCols.findIndex(h => h.includes('thời gian') || h.includes('hạn tất toán') || h.includes('deadline') || h.includes('trước'));
+
+        for (let r = 1; r < rows.length; r++) {
+          const cells: string[] = [];
+          let tdMatch;
+          tdRegex.lastIndex = 0;
+          while ((tdMatch = tdRegex.exec(rows[r])) !== null) {
+            cells.push(tdMatch[1].replace(/<[^>]*>/g, '').trim());
+          }
+
+          if (cells.length > 0) {
+            const contractCode = cells[contractCodeIdx !== -1 ? contractCodeIdx : 1] || '';
+            const contractName = cells[contractNameIdx !== -1 ? contractNameIdx : 2] || '';
+            const targetDate = cells[targetDateIdx !== -1 ? targetDateIdx : 3] || '';
+            const deadline = cells[deadlineIdx !== -1 ? deadlineIdx : 4] || '';
+
+            if (contractCode && contractCode !== 'Mã Hợp đồng') {
+              contracts.push({
+                contractCode: contractCode.trim(),
+                contractName: contractName.trim(),
+                targetDate: targetDate.trim(),
+                deadline: deadline.trim(),
+                side
+              });
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error parsing maturity email HTML: ${err.message}`);
+    }
+    return contracts;
+  }
+
+  /**
+   * Parse plain text email body to extract list of expiring contracts and details
+   */
+  public parseEmailText(content: string): ExpiringContract[] {
+    const lines = content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    const contracts: ExpiringContract[] = [];
+    let currentSide: 'BUY' | 'SELL' = 'BUY';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (line.includes('Đối với Vị thế mở mua') || line.includes('Ngày thông báo đầu tiên')) {
+        currentSide = 'BUY';
+        continue;
+      }
+      if (line.includes('Đối với Vị thế mở bán') || line.includes('Ngày giao dịch cuối cùng')) {
+        currentSide = 'SELL';
+        continue;
+      }
+
+      // A contract row starts with STT (digit) followed by contract code
+      if (/^\d+$/.test(line) && i + 4 < lines.length) {
+        const contractCode = lines[i + 1];
+        const contractName = lines[i + 2];
+        const targetDate = lines[i + 3];
+        const deadline = lines[i + 4];
+
+        if (/^[A-Z0-9]{4,10}$/.test(contractCode) && targetDate.includes('/')) {
+          contracts.push({
+            contractCode,
+            contractName,
+            targetDate,
+            deadline,
+            side: currentSide
+          });
+          i += 4;
+        }
+      }
+    }
+
+    return contracts;
   }
 }
 

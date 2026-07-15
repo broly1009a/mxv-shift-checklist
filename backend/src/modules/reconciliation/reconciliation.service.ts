@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,6 +7,8 @@ import { TelegramService } from '../telegram/telegram.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import { decrypt } from '../bot-engine/utils/crypto';
 import { chromium } from 'playwright-core';
+import { TeamsNotifierService } from '../notifications/teams-notifier.service';
+import { EmailWatcherService } from '../bot-engine/email-watcher.service';
 
 export interface CheckKLGDResult {
   totals: {
@@ -43,6 +45,9 @@ export class ReconciliationService {
     private readonly settingsService: SystemSettingsService,
     private readonly telegramService: TelegramService,
     private readonly marginCheckerService: MarginCheckerService,
+    private readonly teamsNotifierService: TeamsNotifierService,
+    @Inject(forwardRef(() => EmailWatcherService))
+    private readonly emailWatcherService: EmailWatcherService,
   ) {}
 
   private parseCqgNumber(val: any): number {
@@ -1000,6 +1005,26 @@ export class ReconciliationService {
       }
     } catch (err: any) {
       this.logger.error(`Lỗi gửi email báo cáo tài khoản âm ký quỹ: ${err.message}`);
+    }
+
+    // Hook: check contract maturity notifications if tttt file is provided
+    if (files.tttt) {
+      try {
+        const email = await this.emailWatcherService.getLatestEmail('Thông báo tất toán hợp đồng', 'daonguyen@mxv.vn');
+        if (email) {
+          const expiringContracts = this.teamsNotifierService.parseMaturityEmail(email.body);
+          if (expiringContracts.length > 0) {
+            await this.teamsNotifierService.checkMaturityAndNotifyFromFiles(
+              files.qltkgd,
+              files.tttt,
+              expiringContracts,
+              'EOD Manual Upload Trigger'
+            );
+          }
+        }
+      } catch (err: any) {
+        this.logger.error(`Lỗi khi chạy đối chiếu đáo hạn tự động trong EOD: ${err.message}`);
+      }
     }
 
     return {

@@ -12,6 +12,9 @@ async function main() {
   console.log('Connected!\n');
 
   const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection failed');
+  }
 
   // 1. Departments
   const depts = await db.collection('departments').find({}).toArray();

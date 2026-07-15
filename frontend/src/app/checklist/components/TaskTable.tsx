@@ -23,7 +23,8 @@ import {
   FileSpreadsheet,
   ShieldAlert,
   Bot,
-  UserCheck
+  UserCheck,
+  Copy
 } from 'lucide-react';
 import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
 
@@ -99,6 +100,7 @@ interface TaskTableProps {
   onOpenCcpStatistics: () => void;
   onOpenTradingReport: () => void;
   onOpenOmsStatus: (taskId: string) => void;
+  onOpenMaturityTemplates?: () => void;
   togglingTaskIds: Set<string>;
 }
 
@@ -129,6 +131,7 @@ export default function TaskTable({
   onOpenCcpStatistics,
   onOpenTradingReport,
   onOpenOmsStatus,
+  onOpenMaturityTemplates,
   togglingTaskIds
 }: TaskTableProps) {
 
@@ -601,6 +604,32 @@ export default function TaskTable({
                               OMS Status
                             </>
                           )}
+                        </button>
+                      )}
+
+                      {/* Maturity Message Templates Button */}
+                      {(item.taskId === 'ops_during_05' ||
+                        item.taskId.toUpperCase().includes('MATURITY') ||
+                        item.taskNameSnapshot.toUpperCase().includes('TẤT TOÁN HỢP ĐỒNG') ||
+                        item.taskNameSnapshot.toUpperCase().includes('THÔNG BÁO ĐÁO HẠN')) && !isCompleted && (
+                        <button
+                          onClick={onOpenMaturityTemplates}
+                          className="btn btn-secondary animate-fade-in"
+                          style={{
+                            marginTop: '8px',
+                            marginLeft: '4px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(99, 102, 241, 0.08)',
+                            color: '#6366f1',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                          }}
+                        >
+                          <Copy size={12} />
+                          Mẫu tin nhắn
                         </button>
                       )}
                     </div>

@@ -4,7 +4,9 @@ import { NotificationChannel, NotificationChannelSchema } from '../../schemas/no
 import { NotificationRule, NotificationRuleSchema } from '../../schemas/notification-rule.schema';
 import { NotificationLog, NotificationLogSchema } from '../../schemas/notification-log.schema';
 import { NotificationsService } from './notifications.service';
+import { TeamsNotifierService } from './teams-notifier.service';
 import { NotificationsController } from './notifications.controller';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -13,9 +15,10 @@ import { NotificationsController } from './notifications.controller';
       { name: NotificationRule.name, schema: NotificationRuleSchema },
       { name: NotificationLog.name, schema: NotificationLogSchema },
     ]),
+    SystemSettingsModule,
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
-  exports: [NotificationsService],
+  providers: [NotificationsService, TeamsNotifierService],
+  exports: [NotificationsService, TeamsNotifierService],
 })
 export class NotificationsModule {}

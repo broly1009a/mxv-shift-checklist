@@ -260,4 +260,93 @@ export class EmailWatcherService {
       message: `[Mô Phỏng] Không tìm thấy mock email khớp cho: Subject "${subject}" từ "${sender}"`,
     };
   }
+
+  /**
+   * Fetch the latest matching email from MS Graph API or Mock Emails
+   */
+  async getLatestEmail(subject: string, sender: string): Promise<{ subject: string; sender: string; body: string } | null> {
+    const clientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
+    const clientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
+    const tenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
+    const watcherEmail = (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+
+    const isSimulation = !clientId || !clientSecret || !tenantId || !watcherEmail || process.env.SIMULATE_BOT_CHECKS === 'true';
+
+    if (isSimulation) {
+      const mockFilePath = path.join(__dirname, 'mock-emails.json');
+      if (fs.existsSync(mockFilePath)) {
+        try {
+          const mockData = JSON.parse(fs.readFileSync(mockFilePath, 'utf8'));
+          for (const email of mockData) {
+            const subjectMatch = !subject || email.subject.toLowerCase().includes(subject.toLowerCase());
+            const senderMatch = !sender || email.sender.toLowerCase() === sender.toLowerCase();
+            if (subjectMatch && senderMatch) {
+              return {
+                subject: email.subject,
+                sender: email.sender,
+                body: email.body || '',
+              };
+            }
+          }
+        } catch (err: any) {
+          this.logger.error(`Error reading mock emails: ${err.message}`);
+        }
+      }
+      return null;
+    }
+
+    try {
+      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+      const params = new URLSearchParams();
+      params.append('client_id', clientId);
+      params.append('scope', 'https://graph.microsoft.com/.default');
+      params.append('client_secret', clientSecret);
+      params.append('grant_type', 'client_credentials');
+
+      const tokenRes = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      });
+
+      if (!tokenRes.ok) {
+        throw new Error(`Auth failed: ${tokenRes.statusText}`);
+      }
+
+      const tokenData = await tokenRes.json() as any;
+      const accessToken = tokenData.access_token;
+
+      const timeLimit = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const filter = `receivedDateTime ge ${timeLimit}`;
+      const select = 'subject,sender,body';
+      const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`;
+
+      const mailRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!mailRes.ok) {
+        throw new Error(`Graph API query failed: ${mailRes.statusText}`);
+      }
+
+      const mailData = await mailRes.json() as any;
+      const emails = mailData.value || [];
+
+      for (const email of emails) {
+        const subjectMatch = !subject || email.subject.toLowerCase().includes(subject.toLowerCase());
+        const senderMatch = !sender || email.sender?.emailAddress?.address.toLowerCase() === sender.toLowerCase();
+
+        if (subjectMatch && senderMatch) {
+          return {
+            subject: email.subject,
+            sender: email.sender?.emailAddress?.address || '',
+            body: email.body?.content || email.bodyPreview || '',
+          };
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error in getLatestEmail: ${err.message}`);
+    }
+    return null;
+  }
 }

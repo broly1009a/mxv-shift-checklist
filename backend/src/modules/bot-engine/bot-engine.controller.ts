@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import type { Response } from 'express';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { BotJobQueueService } from './bot-job-queue.service';
@@ -15,6 +16,10 @@ import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
 import { CqgSyncService } from './cqg-sync.service';
 import { OmsWatcherService } from './oms-watcher.service';
+import { BotEngineService } from './bot-engine.service';
+import { EmailWatcherService } from './email-watcher.service';
+import { TeamsNotifierService, ExpiringContract } from '../notifications/teams-notifier.service';
+import { ShiftsService } from '../shifts/shifts.service';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +33,10 @@ export class BotEngineController {
     private readonly gttService: GttCheckerService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly omsWatcherService: OmsWatcherService,
+    private readonly botEngineService: BotEngineService,
+    private readonly emailWatcherService: EmailWatcherService,
+    private readonly teamsNotifierService: TeamsNotifierService,
+    private readonly shiftsService: ShiftsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
   ) {}
@@ -466,6 +475,171 @@ export class BotEngineController {
     });
 
     return { success: true, message: 'Đã kích hoạt xác minh email sao kê tự động.' };
+  }
+
+  /**
+   * Manually trigger the contract maturity check for ops_during_05
+   */
+  @Post('trigger-maturity-check/:shiftLogId/:taskId')
+  async triggerMaturityCheck(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string
+  ) {
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+    }
+
+    // Set task status to WAITING
+    await this.shiftLogModel.updateOne(
+      { _id: shiftLogId, 'details.taskId': taskId },
+      {
+        $set: {
+          'details.$.status': 'WAITING',
+          'details.$.resultNote': 'Đang bắt đầu kích hoạt đối chiếu và gửi thông báo đáo hạn hợp đồng...',
+        },
+      }
+    );
+
+    const systemUser = {
+      id: '000000000000000000000000',
+      fullName: 'Hệ thống tự động (Bot)',
+      username: 'system_bot',
+      role: 'ADMIN',
+    };
+
+    // Run the check asynchronously in the background
+    (async () => {
+      try {
+        let expiringContracts: ExpiringContract[] = [];
+        const email = await this.emailWatcherService.getLatestEmail('Thông báo tất toán hợp đồng', 'daonguyen@mxv.vn');
+        if (email) {
+          expiringContracts = this.botEngineService.parseMaturityEmail(email.body);
+        } else {
+          // TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email thật thành công
+          const fallbackPath = path.join(process.cwd(), 'temp', 'downloads', 'mail.txt');
+          if (fs.existsSync(fallbackPath)) {
+            const fallbackContent = fs.readFileSync(fallbackPath, 'utf8');
+            expiringContracts = this.botEngineService.parseEmailText(fallbackContent);
+            this.logger.log(`Using fallback mock email content from: ${fallbackPath} (${expiringContracts.length} contracts)`);
+          }
+        }
+
+        if (expiringContracts.length === 0) {
+          throw new Error('Chưa nhận được email Thông báo tất toán hợp đồng từ daonguyen@mxv.vn và không tìm thấy tệp mock fallback.');
+        }
+
+        const today = new Date(Date.now() + 7 * 60 * 60 * 1000);
+        const yyyy = today.getUTCFullYear().toString();
+        const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+        const dd = today.getUTCDate().toString().padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        const todayStr = `${dd}/${mm}/${yyyy}`;
+
+        const todayContracts = expiringContracts.filter(c => c.deadline.includes(todayStr));
+        if (todayContracts.length === 0) {
+          const msg = `Không có hợp đồng nào đến hạn tất toán trong ngày hôm nay (${todayStr}).`;
+          await this.shiftsService.updateTaskStatus(
+            shiftLogId,
+            taskId,
+            'PASSED',
+            systemUser,
+            msg
+          );
+          return;
+        }
+
+        const tempDir = path.join(process.cwd(), 'temp', 'reconciliation', dateStr);
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const openPosPath = path.join(tempDir, 'open_positions.xlsx');
+        const pendingOrdersPath = path.join(tempDir, 'pending_orders.xlsx');
+
+        const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true';
+        if (isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+          // Generate mock open_positions
+          const opWorkbook = XLSX.utils.book_new();
+          const opRows = [
+            ['STT', 'Mã thành viên', 'Tên thành viên', 'Số HĐ', 'Tên khách hàng', 'SĐT', 'Email', 'Mã TKGD', 'Tên tài khoản', 'Mã HĐ', 'Tên hợp đồng', 'KL Mua', 'KL Bán', 'Giá khớp', 'Giá TT', 'Ký quỹ y/c', 'Lãi lỗ thực tế', 'Lãi lỗ ròng'],
+            [1, '003', 'Gia Cát Lợi', '003001', 'Nguyễn Văn A', '', '', '003C111111', 'Nguyễn Văn A', 'TRUN26', 'Cao su RSS3 7/26', 5, 0, 0, 0, 0, 0, 0],
+            [2, '003', 'Gia Cát Lợi', '003002', 'Trần Thị B', '', '', '003C222222', 'Trần Thị B', 'ZFTQ26', 'Cao su TSR20 8/26', 0, 10, 0, 0, 0, 0, 0]
+          ];
+          const opSheet = XLSX.utils.aoa_to_sheet(opRows);
+          XLSX.utils.book_append_sheet(opWorkbook, opSheet, 'Sheet1');
+          XLSX.writeFile(opWorkbook, openPosPath);
+
+          // Generate mock pending_orders
+          const poWorkbook = XLSX.utils.book_new();
+          const poRows = [
+            ['STT', 'Mã lệnh', 'Mã TV', 'Mã TKGD', 'Mã ĐV', 'Mã HĐ', 'Mã hàng hóa', 'Kỳ hạn', 'Lệnh', 'Chiều mua bán', 'KL đặt lệnh', 'KL khớp', 'Giá giới hạn', 'Trạng thái'],
+            [1, 'L001', '003', '003C111111', '003', 'TRUN26', 'TRU', '7/26', 'LMT', 'BUY', 2, 0, 100, 'Đang chờ khớp'],
+            [2, 'L002', '003', '003C222222', '003', 'ZFTQ26', 'ZFT', '8/26', 'LMT', 'SELL', 3, 0, 200, 'Đang chờ khớp']
+          ];
+          const poSheet = XLSX.utils.aoa_to_sheet(poRows);
+          XLSX.utils.book_append_sheet(poWorkbook, poSheet, 'Sheet1');
+          XLSX.writeFile(poWorkbook, pendingOrdersPath);
+        }
+
+        // Playwright RPA download if not exists and not in simulation
+        if (!isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+          if (!fs.existsSync(openPosPath)) {
+            const browserInstance = await this.rpaService.loginMSystem(tempDir);
+            try {
+              await this.rpaService.downloadTTM(browserInstance.page, openPosPath);
+            } finally {
+              await browserInstance.browser.close().catch(() => {});
+            }
+          }
+          if (!fs.existsSync(pendingOrdersPath)) {
+            const browserInstance = await this.rpaService.loginMSystem(tempDir);
+            try {
+              await this.rpaService.downloadDSLCK(browserInstance.page, pendingOrdersPath);
+            } finally {
+              await browserInstance.browser.close().catch(() => {});
+            }
+          }
+        }
+
+        if (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath)) {
+          throw new Error('Thiếu file báo cáo open_positions.xlsx hoặc pending_orders.xlsx để đối chiếu.');
+        }
+
+        const openPosBuffer = fs.readFileSync(openPosPath);
+        const pendingOrdersBuffer = fs.readFileSync(pendingOrdersPath);
+        
+        const res = await this.teamsNotifierService.checkMaturityAndNotifyFromMSystem(
+          openPosBuffer,
+          pendingOrdersBuffer,
+          expiringContracts,
+          'Manual trigger check'
+        );
+
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          res.success ? 'PASSED' : 'FAILED',
+          systemUser,
+          res.message
+        );
+      } catch (err: any) {
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          'FAILED',
+          systemUser,
+          `Lỗi đối chiếu đáo hạn: ${err.message}`
+        );
+      }
+    })();
+
+    return { success: true, message: 'Đã kích hoạt quét kiểm tra đáo hạn hợp đồng và gửi tin nhắn.' };
   }
 
   /**

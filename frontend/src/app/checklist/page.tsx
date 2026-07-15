@@ -29,6 +29,7 @@ import MarginCheckerModal from './components/MarginCheckerModal';
 import CcpStatisticsModal from './components/CcpStatisticsModal';
 import TradingReportModal from './components/TradingReportModal';
 import OmsStatusModal from './components/OmsStatusModal';
+import MaturityTemplateModal from './components/MaturityTemplateModal';
 
 function ChecklistWorksheet() {
   const {
@@ -91,6 +92,7 @@ function ChecklistWorksheet() {
   const [isCcpModalOpen, setIsCcpModalOpen] = React.useState(false);
   const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
   const [isOmsModalOpen, setIsOmsModalOpen] = React.useState(false);
+  const [isMaturityModalOpen, setIsMaturityModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
   const [omsTaskId, setOmsTaskId] = React.useState('');
   const router = useRouter();
@@ -541,6 +543,7 @@ function ChecklistWorksheet() {
               setOmsTaskId(tid);
               setIsOmsModalOpen(true);
             }}
+            onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -645,6 +648,16 @@ function ChecklistWorksheet() {
           onTaskUpdated={() => {
             loadLogDetail(log._id);
           }}
+        />
+      )}
+
+      {isMaturityModalOpen && log && (
+        <MaturityTemplateModal
+          isOpen={isMaturityModalOpen}
+          onClose={() => setIsMaturityModalOpen(false)}
+          token={token || ''}
+          shiftLogId={log._id}
+          taskId="ops_during_05"
         />
       )}
 

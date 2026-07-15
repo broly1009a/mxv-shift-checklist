@@ -9,7 +9,7 @@ export class NotificationChannel extends Document {
   @Prop({ required: true, unique: true, index: true })
   code: string;
 
-  @Prop({ required: true, enum: ['TELEGRAM', 'EMAIL', 'WEB'], index: true })
+  @Prop({ required: true, enum: ['TELEGRAM', 'EMAIL', 'WEB', 'TEAMS'], index: true })
   type: string;
 
   @Prop({ required: true, type: Boolean, default: true, index: true })

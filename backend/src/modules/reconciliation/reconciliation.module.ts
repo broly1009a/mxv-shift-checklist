@@ -5,6 +5,7 @@ import { ShiftsModule } from '../shifts/shifts.module';
 import { BotEngineModule } from '../bot-engine/bot-engine.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
     forwardRef(() => BotEngineModule),
     SystemSettingsModule,
     MarginCheckerModule,
+    NotificationsModule,
   ],
   providers: [ReconciliationService],
   controllers: [ReconciliationController],

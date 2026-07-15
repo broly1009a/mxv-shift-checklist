@@ -62,3 +62,35 @@ Cả 2 workspace đã được build thành công không lỗi:
     *   Cập nhật hàm `handleTriggerCheck` trong `OmsStatusModal.tsx` để đọc chính xác thông điệp lỗi dạng JSON từ API trả về.
     *   Hiển thị thông báo chi tiết qua `toast.error(err.message)` khi user cố tình spam nút hoặc khi hệ thống đang xử lý tác vụ nền bận.
 
+---
+
+## Cập Nhật Mới: Tích Hợp Giao Diện Xem và Copy Template Tin Nhắn Đáo Hạn Hợp Đồng Thủ Công (QLGD)
+
+Để hỗ trợ bộ phận QLGD dễ dàng thực hiện gửi thông báo thủ công tới các thành viên có vị thế đáo hạn trước khi chuyển đổi hoàn toàn sang hệ thống tự động, chúng tôi đã phát triển giao diện hiển thị và sao chép nhanh các template tin nhắn được sinh ra từ quy trình đối chiếu đáo hạn.
+
+### 1. Backend
+
+*   **`teams-notifier.service.ts`**:
+    *   Bên cạnh việc xuất file text `teams_manual_messages.txt`, service nay tự động xuất thêm file dữ liệu cấu trúc JSON `teams_manual_messages.json` lưu trữ tại thư mục `/temp/downloads` và thư mục đối chiếu theo ngày `/temp/reconciliation/${YYYY-MM-DD}/`.
+    *   Dữ liệu JSON bao gồm các thông tin chi tiết: mã thành viên, tài khoản, mã hợp đồng, tên hợp đồng, vị thế/lệnh chờ, hạn tất toán và nội dung tin nhắn mẫu được format chuẩn.
+*   **`reconciliation.controller.ts`**:
+    *   Thêm endpoint `GET /reconciliation/maturity-manual-messages?shiftLogId={id}`.
+    *   Endpoint này tự động tìm kiếm ca trực theo `shiftLogId` để lấy ngày làm việc thực tế, định dạng ngày và trả về nội dung của cả hai file: file text thô (`textContent`) và file JSON đã phân tích cấu trúc (`jsonContent`). Có hỗ trợ fallback sang thư mục downloads nếu thư mục ngày chưa kịp khởi tạo dữ liệu.
+
+### 2. Frontend
+
+*   **`MaturityTemplateModal.tsx`**:
+    *   Tạo mới component Modal hiển thị danh sách các tin nhắn đáo hạn bằng phong cách thiết kế kính mờ (glassmorphism) và dark-mode hiện đại.
+    *   **Tab "Mẫu Copy Nhanh (Thành viên)"**:
+        *   Hiển thị danh sách các thẻ (card) tương ứng với từng thành viên và tài khoản.
+        *   Tích hợp thanh tìm kiếm thông minh ở đầu trang giúp lọc nhanh danh sách theo mã thành viên, tài khoản hoặc mã hợp đồng.
+        *   Nút **"Copy tin nhắn"** một chạm (One-click Copy) hỗ trợ sao chép nội dung tin nhắn và hiển thị hiệu ứng chuyển trạng thái màu xanh lá kèm chữ *"Đã copy!"* trong 2 giây.
+    *   **Tab "Xem File Thô (Full Text)"**:
+        *   Hiển thị toàn bộ tệp văn bản raw được xuất ra từ hệ thống đối chiếu.
+        *   Nút **"Sao chép toàn bộ"** giúp copy nhanh tất cả nội dung trong một lần bấm.
+    *   Nút **"Tải lại dữ liệu" (Refresh)** tích hợp ở header để QLGD cập nhật danh sách nóng trực tiếp khi tiến trình đối chiếu vừa chạy xong.
+*   **`TaskTable.tsx`**:
+    *   Thêm nút **"Mẫu tin nhắn"** tại cột hành động dành riêng cho tác vụ kiểm tra đáo hạn hợp đồng `ops_during_05` (Giám sát tất toán hợp đồng). Nút này sử dụng icon `Copy` và tông màu tím Indigo đặc trưng.
+*   **`page.tsx`**:
+    *   Tích hợp modal `MaturityTemplateModal` và liên kết với nút bấm mở từ `TaskTable`.
+

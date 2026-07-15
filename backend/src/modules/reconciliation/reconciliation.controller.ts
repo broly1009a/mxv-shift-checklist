@@ -7,6 +7,7 @@ import {
   Body,
   BadRequestException,
   Logger,
+  Query,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ReconciliationService } from './reconciliation.service';
@@ -707,5 +708,64 @@ export class ReconciliationController {
     } catch (err: any) {
       throw new BadRequestException(`Không thể lấy tỷ giá: ${err.message}`);
     }
+  }
+
+  @Get('maturity-manual-messages')
+  async getMaturityManualMessages(
+    @Query('shiftLogId') shiftLogId: string,
+  ) {
+    if (!shiftLogId) {
+      throw new BadRequestException('Thiếu shiftLogId');
+    }
+    const log = await this.shiftsService.getShiftById(shiftLogId, { role: 'ADMIN' });
+    if (!log) {
+      throw new BadRequestException('Không tìm thấy ca trực');
+    }
+
+    const shiftDate = log.shiftDate; // e.g. "15/07/2026"
+    let formattedDate = '';
+    if (shiftDate && shiftDate.includes('/')) {
+      const [d, m, y] = shiftDate.split('/');
+      formattedDate = `${y}-${m}-${d}`;
+    } else {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      formattedDate = `${yyyy}-${mm}-${dd}`;
+    }
+
+    const nodePath = require('path');
+    const dailyTextPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.txt');
+    const dailyJsonPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.json');
+    const fallbackTextPath = nodePath.join(process.cwd(), 'temp', 'downloads', 'teams_manual_messages.txt');
+    const fallbackJsonPath = nodePath.join(process.cwd(), 'temp', 'downloads', 'teams_manual_messages.json');
+
+    let textContent = '';
+    let jsonContent: any[] = [];
+
+    if (fs.existsSync(dailyTextPath)) {
+      textContent = fs.readFileSync(dailyTextPath, 'utf8');
+    } else if (fs.existsSync(fallbackTextPath)) {
+      textContent = fs.readFileSync(fallbackTextPath, 'utf8');
+    }
+
+    if (fs.existsSync(dailyJsonPath)) {
+      try {
+        jsonContent = JSON.parse(fs.readFileSync(dailyJsonPath, 'utf8'));
+      } catch (e) {}
+    } else if (fs.existsSync(fallbackJsonPath)) {
+      try {
+        jsonContent = JSON.parse(fs.readFileSync(fallbackJsonPath, 'utf8'));
+      } catch (e) {}
+    }
+
+    return {
+      success: true,
+      shiftDate,
+      formattedDate,
+      textContent,
+      jsonContent,
+    };
   }
 }

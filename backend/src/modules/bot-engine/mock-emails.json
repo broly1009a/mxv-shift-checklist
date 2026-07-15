@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "sender": "anhdao@mxv.vn",
+    "subject": "Job Snapshot - THÀNH CÔNG",
+    "body": "Job Snapshot completed successfully on production database.",
+    "receivedDateTime": "2026-07-06T08:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "sender": "backoffice@mxv.vn",
+    "subject": "Báo cáo chênh lệch KLGD CQG vs M-System",
+    "body": "Kết quả đối chiếu khớp lệnh: SUCCESS. Không phát hiện chênh lệch.",
+    "receivedDateTime": "2026-07-06T08:30:00.000Z"
+  },
+  {
+    "id": "3",
+    "sender": "daonguyen@mxv.vn",
+    "subject": "Thông báo tất toán hợp đồng",
+    "body": "<p>Dear all,</p><p>Khối Quản lý Giao dịch gửi thời hạn tất toán:</p><p>Đối với Vị thế mở mua các hợp đồng đến Ngày thông báo đầu tiên:</p><table border=\"1\"><thead><tr><th>STT</th><th>Mã Hợp đồng</th><th>Tên hợp đồng</th><th>Ngày thông báo đầu tiên</th><th>Thời gian phải tất toán đối với vị thế mở mua</th></tr></thead><tbody><tr><td>1</td><td>TRUN26</td><td>Cao su RSS3 7/26</td><td>27/07/2026</td><td>Trước 15:00 ngày 09/07/2026</td></tr><tr><td>2</td><td>MPOQ26</td><td>Dầu cọ thô 8/26</td><td>31/07/2026</td><td>Trước 15:00 ngày 15/07/2026</td></tr><tr><td>3</td><td>ZFTQ26</td><td>Cao su TSR20 8/26</td><td>31/07/2026</td><td>Trước 15:00 ngày 15/07/2026</td></tr></tbody></table><p>Đối với Vị thế mở bán các hợp đồng đến Ngày giao dịch cuối cùng:</p><table border=\"1\"><thead><tr><th>STT</th><th>Mã Hợp đồng</th><th>Tên hợp đồng</th><th>Ngày giao dịch cuối cùng</th><th>Thời gian phải tất toán đối với vị thế mở bán</th></tr></thead><tbody><tr><td>1</td><td>TRUN26</td><td>Cao su RSS3 7/26</td><td>27/07/2026</td><td>Trước 15:00 ngày 09/07/2026</td></tr></tbody></table>",
+    "receivedDateTime": "2026-07-06T15:53:00.000Z"
+  }
+]

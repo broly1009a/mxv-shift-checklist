@@ -31,7 +31,7 @@ interface NotificationChannel {
   _id: string;
   name: string;
   code: string;
-  type: 'TELEGRAM' | 'EMAIL' | 'WEB';
+  type: 'TELEGRAM' | 'EMAIL' | 'WEB' | 'TEAMS';
   isActive: boolean;
   config: Record<string, any>;
 }
@@ -124,7 +124,7 @@ export default function AdminNotificationsPage() {
   // ----------------------------------------------------
   const [channelName, setChannelName] = useState('');
   const [channelCode, setChannelCode] = useState('');
-  const [channelType, setChannelType] = useState<'TELEGRAM' | 'EMAIL' | 'WEB'>('TELEGRAM');
+  const [channelType, setChannelType] = useState<'TELEGRAM' | 'EMAIL' | 'WEB' | 'TEAMS'>('TELEGRAM');
   const [channelIsActive, setChannelIsActive] = useState(true);
   const [channelConfigToken, setChannelConfigToken] = useState('');
   const [channelConfigChatId, setChannelConfigChatId] = useState('');
@@ -132,6 +132,7 @@ export default function AdminNotificationsPage() {
   const [channelConfigSmtpPort, setChannelConfigSmtpPort] = useState('');
   const [channelConfigSenderEmail, setChannelConfigSenderEmail] = useState('');
   const [channelConfigSenderPass, setChannelConfigSenderPass] = useState('');
+  const [channelConfigWebhookUrl, setChannelConfigWebhookUrl] = useState('');
 
   // ----------------------------------------------------
   // RULE FORM STATES
@@ -273,6 +274,7 @@ export default function AdminNotificationsPage() {
     setChannelConfigSmtpPort('');
     setChannelConfigSenderEmail('');
     setChannelConfigSenderPass('');
+    setChannelConfigWebhookUrl('');
     setChannelErrors({});
     setChannelModalOpen(true);
   };
@@ -289,6 +291,7 @@ export default function AdminNotificationsPage() {
     setChannelConfigSmtpPort(channel.config?.smtpPort || '');
     setChannelConfigSenderEmail(channel.config?.senderEmail || '');
     setChannelConfigSenderPass(channel.config?.senderPassword || '');
+    setChannelConfigWebhookUrl(channel.config?.webhookUrl || '');
     setChannelErrors({});
     setChannelModalOpen(true);
   };
@@ -312,6 +315,11 @@ export default function AdminNotificationsPage() {
       if (!channelConfigSmtpHost.trim()) errors.smtpHost = 'SMTP Host không được để trống';
       if (!channelConfigSmtpPort.trim()) errors.smtpPort = 'SMTP Port không được để trống';
       if (!channelConfigSenderEmail.trim()) errors.senderEmail = 'Email người gửi không được để trống';
+    } else if (channelType === 'TEAMS') {
+      if (!channelConfigWebhookUrl.trim()) errors.webhookUrl = 'Webhook URL không được để trống';
+      else if (!/^https?:\/\//.test(channelConfigWebhookUrl.trim())) {
+        errors.webhookUrl = 'Webhook URL phải bắt đầu bằng http:// hoặc https://';
+      }
     }
 
     setChannelErrors(errors);
@@ -332,6 +340,8 @@ export default function AdminNotificationsPage() {
       config.smtpPort = channelConfigSmtpPort.trim();
       config.senderEmail = channelConfigSenderEmail.trim();
       if (channelConfigSenderPass) config.senderPassword = channelConfigSenderPass.trim();
+    } else if (channelType === 'TEAMS') {
+      config.webhookUrl = channelConfigWebhookUrl.trim();
     }
 
     const payload = {
@@ -589,6 +599,7 @@ export default function AdminNotificationsPage() {
     switch (type) {
       case 'TELEGRAM': return <MessageSquare size={16} color="var(--color-primary)" />;
       case 'EMAIL': return <Mail size={16} color="var(--color-accent)" />;
+      case 'TEAMS': return <Bell size={16} color="#3b82f6" />;
       default: return <Globe size={16} color="#10b981" />;
     }
   };
@@ -773,6 +784,14 @@ export default function AdminNotificationsPage() {
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: 'var(--text-muted)' }}>Email gửi:</span>
                                 <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{channel.config?.senderEmail || 'Chưa điền'}</span>
+                              </div>
+                            </>
+                          )}
+                          {channel.type === 'TEAMS' && (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Webhook URL:</span>
+                                <span style={{ fontWeight: 500, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={channel.config?.webhookUrl}>{channel.config?.webhookUrl || 'Chưa điền'}</span>
                               </div>
                             </>
                           )}
@@ -1133,6 +1152,7 @@ export default function AdminNotificationsPage() {
                     <option value="TELEGRAM">Telegram Bot</option>
                     <option value="EMAIL">SMTP Email Gateway</option>
                     <option value="WEB">Web Alerts Dashboard</option>
+                    <option value="TEAMS">Microsoft Teams Webhook</option>
                   </select>
                 </div>
               </div>
@@ -1217,6 +1237,24 @@ export default function AdminNotificationsPage() {
                       value={channelConfigSenderPass}
                       onChange={(e) => setChannelConfigSenderPass(e.target.value)}
                     />
+                  </div>
+                </div>
+              )}
+
+              {channelType === 'TEAMS' && (
+                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cấu hình Microsoft Teams Webhook</h4>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Webhook URL <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="https://m365.webhook.office.com/webhookb2/..."
+                      value={channelConfigWebhookUrl}
+                      onChange={(e) => setChannelConfigWebhookUrl(e.target.value)}
+                      style={{ borderColor: channelErrors.webhookUrl ? '#ef4444' : undefined }}
+                    />
+                    {channelErrors.webhookUrl && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>{channelErrors.webhookUrl}</p>}
                   </div>
                 </div>
               )}
