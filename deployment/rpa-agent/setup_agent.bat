@@ -7,7 +7,7 @@ echo   MXV RPA Agent - Setup Script (Windows)
 echo ================================================
 echo.
 
-:: ── 1. Check Python ──────────────────────────────────────────────────────────
+:: == 1. Check Python ==
 python --version >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Python khong tim thay. Vui long cai Python 3.10+ va them vao PATH.
@@ -17,19 +17,19 @@ if errorlevel 1 (
 echo [OK] Python: 
 python --version
 
-:: ── 2. Create venv if not exists ─────────────────────────────────────────────
+:: == 2. Create venv if not exists ==
 if not exist "%~dp0venv" (
     echo [INFO] Tao virtual environment...
     python -m venv "%~dp0venv"
 )
 
-:: ── 3. Activate venv and install deps ────────────────────────────────────────
+:: == 3. Activate venv and install deps ==
 echo [INFO] Cai dat dependencies...
 call "%~dp0venv\Scripts\activate.bat"
 pip install --quiet --upgrade pip
 pip install --quiet -r "%~dp0requirements.txt"
 
-:: ── 4. Check pywin32 (Windows-only COM support) ───────────────────────────────
+:: == 4. Check pywin32 (Windows-only COM support) ==
 python -c "import win32com.client" >nul 2>&1
 if errorlevel 1 (
     echo [INFO] Cai dat pywin32...
@@ -38,7 +38,7 @@ if errorlevel 1 (
 )
 echo [OK] pywin32 san sang.
 
-:: ── 5. Check config.json ──────────────────────────────────────────────────────
+:: == 5. Check config.json ==
 if not exist "%~dp0config.json" (
     echo [ERROR] Khong tim thay config.json. Vui long tao file config.json truoc.
     pause
@@ -46,21 +46,14 @@ if not exist "%~dp0config.json" (
 )
 echo [OK] config.json ton tai.
 
-:: ── 6. Test connection to backend ────────────────────────────────────────────
+:: == 6. Test connection to backend ==
 echo [INFO] Kiem tra ket noi den Backend Linux...
-python -c "
-import json, requests
-cfg = json.load(open('config.json', encoding='utf-8'))
-url = cfg['backend_url'] + '/api/v1/bot-engine/agent/poll'
-h = {'x-agent-api-key': cfg['api_key']}
-try:
-    r = requests.get(url, headers=h, timeout=5)
-    print('[OK] Ket noi Backend thanh cong. Status:', r.status_code)
-except Exception as e:
-    print('[WARN] Khong the ket noi Backend:', e)
-"
+python -c "import json, requests; cfg = json.load(open('config.json', encoding='utf-8')); url = cfg.get('backend_url', '').rstrip('/') + '/api/v1/bot-engine/agent/poll'; h = {'x-agent-api-key': cfg.get('api_key', '')}; r = requests.get(url, headers=h, timeout=5); print('[OK] Ket noi Backend thanh cong. Status:', r.status_code)" 2>nul
+if errorlevel 1 (
+    echo [WARN] Khong the ket noi Backend. Vui long kiem tra URL / API Key va dam bao Backend dang chay.
+)
 
-:: ── 7. Register as Windows Task Scheduler ────────────────────────────────────
+:: == 7. Register as Windows Task Scheduler ==
 echo.
 set /p REGISTER_TASK=Ban co muon dang ky Agent tu dong chay khi Windows khoi dong? (y/n): 
 if /i "!REGISTER_TASK!"=="y" (
@@ -94,6 +87,6 @@ echo.
 echo ================================================
 echo   Setup hoan tat!
 echo   De chay thu Agent ngay bay gio:
-echo     %~dp0venv\Scripts\python.exe %~dp0agent.py
+echo     %~dp0venv\Scripts\python.exe %~dp0app\main.py
 echo ================================================
 pause

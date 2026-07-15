@@ -75,6 +75,7 @@ Mở Menu chuột phải dưới Tray Icon → Chọn **`⚙ Cấu hình`**.
 #### 3. Tab `🚀 Khởi động` (Startup Settings)
 - Tích chọn **`Tự chạy Agent khi Windows khởi động`** để kích hoạt chế độ tự khởi chạy (ghi trực tiếp vào Registry của Windows `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
 - Tích chọn **`Khởi động ở chế độ tối giản`** để khi khởi chạy, Agent sẽ ẩn ngay xuống tray icon thay vì bật cửa sổ chính lên làm phiền màn hình.
+- Tích chọn **`Hiển thị thông báo màn hình (Windows Toast)`** để nhận/tắt thông báo dạng bóng (toast) của Windows khi công việc bắt đầu, hoàn thành hoặc gặp lỗi.
 
 Click **`💾 Lưu & Áp dụng`** để ghi cấu hình vào file `config.json` và khởi chạy tức thì.
 

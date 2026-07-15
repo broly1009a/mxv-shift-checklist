@@ -184,9 +184,25 @@ class SettingsWindow(QDialog):
 
         self._chk_autostart = QCheckBox("Tự chạy Agent khi Windows khởi động")
         self._chk_minimized = QCheckBox("Khởi động ở chế độ tối giản (chỉ hiện tray)")
+        self._chk_notifications = QCheckBox("Hiển thị thông báo màn hình (Windows Toast)")
+
+        # Duration settings spinbox
+        duration_layout = QHBoxLayout()
+        duration_label = QLabel("Thời gian tự đóng thông báo (giây):")
+        duration_label.setStyleSheet("color: #e4e4e7; font-size: 9.5pt;")
+        self._duration_spin = QSpinBox()
+        self._duration_spin.setRange(3, 60)
+        self._duration_spin.setValue(10)
+        self._duration_spin.setFixedWidth(70)
+        self._duration_spin.setStyleSheet("background-color: #18181b; color: white; border: 1px solid #3f3f46; border-radius: 4px; padding: 2px;")
+        duration_layout.addWidget(duration_label)
+        duration_layout.addWidget(self._duration_spin)
+        duration_layout.addStretch()
 
         layout.addWidget(self._chk_autostart)
         layout.addWidget(self._chk_minimized)
+        layout.addWidget(self._chk_notifications)
+        layout.addLayout(duration_layout)
         layout.addStretch()
 
         note = QLabel("💡 Tự chạy được ghi vào Windows Registry (HKCU\\...\\Run).")
@@ -212,6 +228,8 @@ class SettingsWindow(QDialog):
         self._acm_backup_edit.setText(paths.get("acm_backup", ""))
 
         self._chk_minimized.setChecked(cfg.get("start_minimized", False))
+        self._chk_notifications.setChecked(cfg.get("enable_notifications", True))
+        self._duration_spin.setValue(cfg.get("notification_duration", 10))
         self._chk_autostart.setChecked(self._is_autostart_set())
 
     def _on_save(self) -> None:
@@ -221,6 +239,8 @@ class SettingsWindow(QDialog):
         cfg["polling_interval"] = self._poll_spin.value()
         cfg["heartbeat_interval"] = self._hb_spin.value()
         cfg["start_minimized"] = self._chk_minimized.isChecked()
+        cfg["enable_notifications"] = self._chk_notifications.isChecked()
+        cfg["notification_duration"] = self._duration_spin.value()
         cfg["workspace_path"] = self._workspace_edit.text().strip()
         cfg.setdefault("paths", {})
         cfg["paths"]["lot_macro_path"]    = self._lot_macro_edit.text().strip()

@@ -78,3 +78,15 @@ temp/
 
 # Python research/analysis scripts (temporary, not for production)
 backend/analysis/
+
+# MXV RPA Agent (Python & Packaging)
+deployment/rpa-agent/venv/
+deployment/rpa-agent/build/
+deployment/rpa-agent/dist/
+deployment/rpa-agent/__pycache__/
+deployment/rpa-agent/*.log
+deployment/rpa-agent/config.json
+deployment/rpa-agent/*.exe
+deployment/rpa-agent/Output/
+**/__pycache__/
+*.pyc

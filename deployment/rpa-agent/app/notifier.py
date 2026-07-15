@@ -1,40 +1,33 @@
 """
-notifier.py — Windows Toast Notifications for MXV RPA Agent
-Uses winotify for Windows 10/11 native toast notifications.
+notifier.py — Windows Custom Toast Notifications for MXV RPA Agent
+Uses custom PyQt6 glassmorphic notifications with auto-closing timers.
 """
 
 from __future__ import annotations
-
 from typing import TYPE_CHECKING
-
 from PyQt6.QtCore import QObject, pyqtSlot
+from notifier_widget import ToastManager
 
 if TYPE_CHECKING:
     from agent_core import AgentCore
 
-APP_NAME = "MXV RPA Agent"
+APP_NAME = "MXV RPA"
 
-try:
-    from winotify import Notification, audio
-    _WINOTIFY_AVAILABLE = True
-except ImportError:
-    _WINOTIFY_AVAILABLE = False
-
-
-def _toast(title: str, message: str, icon_path: str = "", duration: str = "short") -> None:
-    if not _WINOTIFY_AVAILABLE:
-        return
+def _toast(title: str, message: str, toast_type: str = "info") -> None:
     try:
-        toast = Notification(
-            app_id=APP_NAME,
+        from agent_core import load_config
+        cfg = load_config()
+        if not cfg.get("enable_notifications", True):
+            return
+        duration = cfg.get("notification_duration", 10)
+        ToastManager.show_toast(
             title=title,
-            msg=message,
-            duration=duration,
-            icon=icon_path or "",
+            message=message,
+            toast_type=toast_type,
+            duration_sec=duration
         )
-        toast.show()
     except Exception:
-        pass  # Notifications are best-effort — never crash the agent
+        pass
 
 
 class Notifier(QObject):
@@ -57,18 +50,18 @@ class Notifier(QObject):
     def _on_job_started(self, job_id: str, job_type: str) -> None:
         label = _job_label(job_type)
         _toast(
-            title=f"📋 {APP_NAME}",
-            message=f"Đang chạy: {label}",
-            icon_path=self._icon,
+            title=f"{APP_NAME} — Đang chạy",
+            message=f"Tác vụ: {label}",
+            toast_type="started"
         )
 
     @pyqtSlot(str, str)
     def _on_job_completed(self, job_id: str, job_type: str) -> None:
         label = _job_label(job_type)
         _toast(
-            title=f"✅ {APP_NAME}",
-            message=f"{label} hoàn thành! Kết quả đã upload lên server.",
-            icon_path=self._icon,
+            title=f"{APP_NAME} — Hoàn thành",
+            message=f"{label} đã hoàn tất và upload lên server.",
+            toast_type="success"
         )
 
     @pyqtSlot(str, str, str)
@@ -76,21 +69,18 @@ class Notifier(QObject):
         label = _job_label(job_type)
         short_error = error[:80] + "..." if len(error) > 80 else error
         _toast(
-            title=f"❌ {APP_NAME} — Lỗi",
+            title=f"{APP_NAME} — Lỗi",
             message=f"{label} thất bại:\n{short_error}",
-            icon_path=self._icon,
-            duration="long",
+            toast_type="failed"
         )
 
     @pyqtSlot(bool)
     def _on_connection_changed(self, online: bool) -> None:
         if not online and self._online:
-            # Only notify on transition online→offline (not on first startup)
             _toast(
-                title=f"⚠ {APP_NAME}",
-                message="Mất kết nối tới Backend Server. Đang thử lại...",
-                icon_path=self._icon,
-                duration="long",
+                title=f"{APP_NAME} — Mất kết nối",
+                message="Mất kết nối tới Core Server. Đang thử lại...",
+                toast_type="failed"
             )
         self._online = online
 
