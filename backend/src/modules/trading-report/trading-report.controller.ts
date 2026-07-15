@@ -107,8 +107,8 @@ export class TradingReportController {
       const outputPath = await this.tradingReportService.processMonthReport(
         files.monthDSGDT.map((f) => f.buffer),
         files.monthDSGDT1.map((f) => f.buffer),
-        startSession || '07:00:00',
-        endSession || '06:00:00',
+        startSession || '05:00:00',
+        endSession || '05:00:00',
         month,
         year,
         reportTypes,

@@ -623,8 +623,11 @@ export class ReconciliationService {
     files: { dsgd?: Buffer; fr1?: Buffer; fr2?: Buffer; nano?: Buffer; ttm?: Buffer; op1?: Buffer; op2?: Buffer },
     tradingDate: Date,
     holidays: string[] = [],
-    sessionStartStr: string = '06:00'
+    sessionStartStr: string = '05:00'
   ): Promise<CheckKLGDResult> {
+    if (sessionStartStr) {
+      await this.settingsService.setSetting('session_start_time', sessionStartStr);
+    }
     const rawDsgdData = files.dsgd ? this.parseDSGD(files.dsgd) : [];
     const rawNanoData = files.nano ? this.parseNano(files.nano) : [];
 
@@ -1512,7 +1515,7 @@ export class ReconciliationService {
     acmTradesName: string,
     tradingDate: Date,
     holidays: string[] = [],
-    sessionStartStr: string = '06:00',
+    sessionStartStr: string = '05:00',
   ): Promise<{
     passed: boolean;
     totals: {
@@ -1541,6 +1544,9 @@ export class ReconciliationService {
       differ: number;
     }>;
   }> {
+    if (sessionStartStr) {
+      await this.settingsService.setSetting('session_start_time', sessionStartStr);
+    }
     // 1. Calculate expected T-1 date relative to tradingDate
     const d = new Date(tradingDate);
     d.setDate(d.getDate() - 1);
@@ -2341,13 +2347,15 @@ export class ReconciliationService {
     if (!cqgFrPath) throw new Error('Không tìm thấy file CQG FR');
     if (!cqgPsPath) throw new Error('Không tìm thấy file CQG Positions');
 
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
+
     const result = await this.checkPreEOD({
       dsgd: fs.readFileSync(dsgdPath),
       acmTrades: fs.readFileSync(acmTradesPath),
       cqgFr: fs.readFileSync(cqgFrPath),
       tttt: fs.readFileSync(ttttPath),
       cqgPs: fs.readFileSync(cqgPsPath),
-    }, path.basename(acmTradesPath), tradingDate);
+    }, path.basename(acmTradesPath), tradingDate, [], sessionStartStr);
 
     // Gửi Telegram alert
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;

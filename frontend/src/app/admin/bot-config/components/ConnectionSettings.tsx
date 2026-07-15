@@ -64,6 +64,10 @@ export default function ConnectionSettings({
   // Scheduler state
   const [schedulerConfig, setSchedulerConfig] = useState<any[]>([]);
 
+  // System parameters states
+  const [sessionStartTime, setSessionStartTime] = useState('05:00');
+  const [usdExchangeRate, setUsdExchangeRate] = useState(25220);
+
   // Password visibility states
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);
   const [showMsystemPin, setShowMsystemPin] = useState(false);
@@ -135,6 +139,12 @@ export default function ConnectionSettings({
         if (data.schedulerConfig) {
           setSchedulerConfig(data.schedulerConfig);
         }
+        if (data.sessionStartTime) {
+          setSessionStartTime(data.sessionStartTime);
+        }
+        if (data.usdExchangeRate) {
+          setUsdExchangeRate(data.usdExchangeRate);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -203,6 +213,8 @@ export default function ConnectionSettings({
             password: cePassword,
           },
           schedulerConfig,
+          sessionStartTime,
+          usdExchangeRate,
         }),
       });
 
@@ -861,6 +873,53 @@ export default function ConnectionSettings({
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* System Parameters Panel */}
+        <div className="glass-panel p-6 flex flex-col gap-4">
+          <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+            <Settings size={18} className="text-emerald-500" />
+            Tham số hệ thống & Phiên giao dịch
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 block mb-1">
+                Giờ bắt đầu phiên mặc định
+              </label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-3 text-zinc-500" size={16} />
+                <input
+                  type="time"
+                  className="form-input pl-10 text-xs py-2"
+                  value={sessionStartTime}
+                  onChange={(e) => setSessionStartTime(e.target.value)}
+                  required
+                />
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
+                Mốc phân chia phiên giao dịch mặc định. Được áp dụng tự động cho Bot chạy trong nền và màn hình checklist khi mở ca.
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 block mb-1">
+                Tỷ giá quy đổi USD/VND mặc định
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-zinc-500 text-xs font-bold font-mono">VND</span>
+                <input
+                  type="number"
+                  className="form-input pl-12 text-xs py-2"
+                  value={usdExchangeRate}
+                  onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
+                Tỷ giá quy đổi được sử dụng cho tính toán chênh lệch số dư tài khoản CQG (Balance Reconciliation) nếu không đồng bộ được từ M-System.
+              </p>
             </div>
           </div>
         </div>

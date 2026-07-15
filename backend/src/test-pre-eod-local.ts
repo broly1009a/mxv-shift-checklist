@@ -31,7 +31,7 @@ async function testPreEod() {
 
     const acmTradesName = 'EOD FO trades_PT Straits Financial Indonesia - 10017890000_06072026.csv';
     const tradingDate = new Date('2026-07-07T00:00:00.000Z');
-    const sessionStartStr = '06:00';
+    const sessionStartStr = '05:00';
 
     console.log('\nRunning checkPreEOD...');
     const result = await reconService.checkPreEOD(

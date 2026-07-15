@@ -18,8 +18,8 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
   // --- Monthly Report State ---
   const [month, setMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(() => new Date().getFullYear());
-  const [startSession, setStartSession] = useState('07:00:00');
-  const [endSession, setEndSession] = useState('06:00:00');
+  const [startSession, setStartSession] = useState('05:00:00');
+  const [endSession, setEndSession] = useState('05:00:00');
   const [monthDSGDT, setMonthDSGDT] = useState<File | null>(null);
   const [monthDSGDT1, setMonthDSGDT1] = useState<File | null>(null);
   const [monthReportTypes, setMonthReportTypes] = useState({

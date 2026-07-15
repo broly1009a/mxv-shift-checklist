@@ -125,7 +125,27 @@ export default function ReconciliationModal({
           console.error('Error fetching stored USD rate:', error);
         }
       };
+
+      const fetchSessionStart = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/system-settings/session_start_time`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.value) {
+              setSessionStart(data.value);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching stored session start time:', error);
+        }
+      };
+
       fetchUsdRate();
+      fetchSessionStart();
     }
   }, [isOpen, token]);
   
@@ -134,7 +154,7 @@ export default function ReconciliationModal({
     return today.toISOString().split('T')[0];
   });
 
-  const [sessionStart, setSessionStart] = useState<string>('06:00');
+  const [sessionStart, setSessionStart] = useState<string>('05:00');
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);

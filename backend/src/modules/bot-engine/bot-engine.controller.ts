@@ -155,7 +155,11 @@ export class BotEngineController {
       schedulerConfig = JSON.parse(schedulerConfigRaw);
     } catch (e) {}
 
-    return { msystem, cqg, acm, cast, ccp, cpp: ccp, ce, schedulerConfig };
+    const sessionStartTime = await this.settingsService.getSetting('session_start_time', '05:00');
+    const usdExchangeRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+    const usdExchangeRate = parseFloat(usdExchangeRateStr) || 25220;
+
+    return { msystem, cqg, acm, cast, ccp, cpp: ccp, ce, schedulerConfig, sessionStartTime, usdExchangeRate };
   }
 
   /**
@@ -163,11 +167,19 @@ export class BotEngineController {
    */
   @Post('config')
   async saveConfig(@Body() body: any) {
-    const { msystem, cqg, acm, cast, ccp, cpp, ce, schedulerConfig } = body;
+    const { msystem, cqg, acm, cast, ccp, cpp, ce, schedulerConfig, sessionStartTime, usdExchangeRate } = body;
     const targetCcp = ccp || cpp;
 
     if (schedulerConfig) {
       await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(schedulerConfig, null, 2));
+    }
+
+    if (sessionStartTime) {
+      await this.settingsService.setSetting('session_start_time', sessionStartTime);
+    }
+
+    if (usdExchangeRate !== undefined) {
+      await this.settingsService.setSetting('usd_exchange_rate', usdExchangeRate.toString());
     }
 
     if (msystem) {

@@ -74,7 +74,7 @@ export class ReconciliationController {
     }
 
     try {
-      const result = await this.reconciliationService.checkKLGD(fileBuffers, tradingDate, [], sessionStartStr || '06:00');
+      const result = await this.reconciliationService.checkKLGD(fileBuffers, tradingDate, [], sessionStartStr || '05:00');
 
       const systemUser = {
         id: '000000000000000000000000',
@@ -388,7 +388,7 @@ export class ReconciliationController {
         op2: readIfExists('OP2', 'xlsx') || undefined,
         ttm: readIfExists('TTM', 'xlsx') || undefined,
       };
-      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '06:00');
+      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '05:00');
     } catch (err: any) {
       errors.klgd = err.message;
     }
@@ -530,7 +530,7 @@ export class ReconciliationController {
           op1: fileBuffers.op1,
           op2: fileBuffers.op2,
         };
-        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate, [], sessionStartStr || '06:00');
+        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate, [], sessionStartStr || '05:00');
       } catch (err: any) {
         errors.klgd = err.message;
       }
@@ -642,7 +642,7 @@ export class ReconciliationController {
         acmTradesName,
         tradingDate,
         [],
-        sessionStartStr || '06:00',
+        sessionStartStr || '05:00',
       );
 
       const systemUser = {
