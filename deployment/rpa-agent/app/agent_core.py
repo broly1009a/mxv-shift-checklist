@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import platform
 import subprocess
@@ -16,10 +17,23 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import psutil
 from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 
 BASE_DIR = Path(__file__).parent.parent  # rpa-agent/
 CONFIG_PATH = BASE_DIR / "config.json"
+LOG_FILE = BASE_DIR / "agent.log"
+
+# ─── File Logger Setup ────────────────────────────────────────────────────────
+logger = logging.getLogger("MXV-Agent")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    # Rotate log file at 5MB, keeping 3 old log files max
+    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
 
 
 # ─── Config helpers ────────────────────────────────────────────────────────────
@@ -46,6 +60,7 @@ class AgentWorker(QObject):
     job_failed = pyqtSignal(str, str, str)       # (job_id, job_type, error)
     connection_changed = pyqtSignal(bool)        # (is_online)
     stats_updated = pyqtSignal(int)             # (jobs_completed_today)
+    update_available = pyqtSignal(str, str)      # (version, download_url)
 
     def __init__(self) -> None:
         super().__init__()
@@ -57,8 +72,11 @@ class AgentWorker(QObject):
         self._heartbeat_interval = 30
         self._paths: dict = {}
         self._is_online = False
+        self._workspace_path = ""
         self._jobs_today = 0
         self._last_heartbeat: Optional[float] = None
+        self._session_token = ""
+        self._token_expire_at = 0.0
 
     def reload_config(self) -> None:
         self._cfg = load_config()
@@ -67,19 +85,80 @@ class AgentWorker(QObject):
         self._poll_interval = self._cfg.get("polling_interval", 5)
         self._heartbeat_interval = self._cfg.get("heartbeat_interval", 30)
         self._paths = self._cfg.get("paths", {})
+        self._workspace_path = self._cfg.get("workspace_path", "")
+        # Reset token on config reload to force handshake login
+        self._session_token = ""
+        self._token_expire_at = 0.0
 
     def _headers(self) -> dict:
-        return {
-            "x-agent-api-key": self._api_key,
-            "Content-Type": "application/json",
-        }
+        headers = {"Content-Type": "application/json"}
+        if self._session_token:
+            headers["Authorization"] = f"Bearer {self._session_token}"
+        else:
+            headers["x-agent-api-key"] = self._api_key
+        return headers
 
     def _log(self, level: str, msg: str) -> None:
         self.log_emitted.emit(level, msg)
+        lvl = getattr(logging, level.upper(), logging.INFO)
+        logger.log(lvl, msg)
+
+    # ── Auth & Process Helpers ────────────────────────────────────────────────
+
+    def _login(self) -> bool:
+        try:
+            import requests
+            url = f"{self._backend_url}/api/v1/bot-engine/agent/login"
+            r = requests.post(url, json={
+                "apiKey": self._api_key,
+                "hostname": platform.node()
+            }, timeout=10)
+            if r.status_code == 200:
+                res = r.json()
+                self._session_token = res.get("token")
+                # Expire token after 1 hour (refresh after 55 mins)
+                self._token_expire_at = time.time() + 3300
+                self._log("INFO", "Handshake thành công. Đã lấy Token phiên động mới.")
+                return True
+            else:
+                self._log("WARNING", f"Handshake thất bại: HTTP {r.status_code}")
+                return False
+        except Exception as e:
+            self._log("WARNING", f"Lỗi Handshake: {e}")
+            return False
+
+    def _ensure_logged_in(self) -> bool:
+        if not self._backend_url or not self._api_key:
+            return False
+        # If token is empty or expiring in less than 60s
+        if not self._session_token or time.time() >= self._token_expire_at - 60:
+            return self._login()
+        return True
+
+    def sweep_orphaned_excel(self) -> None:
+        """Scan running processes and kill orphaned EXCEL.EXE processes to free RAM."""
+        self._log("INFO", "🧹 Đang quét dọn các tiến trình Excel chạy ngầm...")
+        killed_count = 0
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                if proc.info['name'] and proc.info['name'].lower() == 'excel.exe':
+                    proc.terminate()
+                    killed_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        if killed_count > 0:
+            self._log("INFO", f"🧹 Đã diệt {killed_count} tiến trình Excel chạy ẩn thành công.")
+        else:
+            self._log("INFO", "🧹 Không tìm thấy tiến trình Excel chạy ngầm nào.")
 
     # ── HTTP helpers ──────────────────────────────────────────────────────────
 
     def _get(self, path: str) -> Optional[dict]:
+        if path != "/api/v1/bot-engine/agent/login" and not self._ensure_logged_in():
+            if self._is_online:
+                self._is_online = False
+                self.connection_changed.emit(False)
+            return None
         try:
             import requests
             r = requests.get(
@@ -100,10 +179,16 @@ class AgentWorker(QObject):
             return None
 
     def _post(self, path: str, data: dict = None, files=None) -> Optional[dict]:
+        if path != "/api/v1/bot-engine/agent/login" and not self._ensure_logged_in():
+            return None
         try:
             import requests
             if files:
-                h = {"x-agent-api-key": self._api_key}
+                h = {}
+                if self._session_token:
+                    h["Authorization"] = f"Bearer {self._session_token}"
+                else:
+                    h["x-agent-api-key"] = self._api_key
                 r = requests.post(
                     f"{self._backend_url}{path}",
                     headers=h, data=data, files=files, timeout=60,
@@ -212,6 +297,50 @@ class AgentWorker(QObject):
         else:
             self._fail_job(job_id, "RUN_VALUE_MACRO", "Script kết thúc với lỗi")
 
+    def _handle_delegated_nestjs_job(self, job_id: str, job_type: str, payload: dict) -> None:
+        if not self._workspace_path:
+            self._fail_job(job_id, job_type, "Thiếu cấu hình workspace_path trong config.json để chạy job NestJS")
+            return
+
+        backend_dir = os.path.join(self._workspace_path, "backend")
+        dist_script = os.path.join(backend_dir, "dist", "scripts", "run-job-cli.js")
+        if os.path.exists(dist_script):
+            cmd = ["node", "dist/scripts/run-job-cli.js", job_id]
+        else:
+            script_path = os.path.join("src", "scripts", "run-job-cli.ts")
+            cmd = ["npx", "ts-node", script_path, job_id]
+        
+        self._send_log(job_id, f"Ủy quyền chạy job {job_type} cho NestJS CLI: {' '.join(cmd)}")
+        self._log("INFO", f"Đang chạy NestJS job {job_id} trong thư mục: {backend_dir}")
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=backend_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace",
+                shell=True
+            )
+        except Exception as e:
+            self._fail_job(job_id, job_type, f"Không thể khởi chạy NestJS CLI: {e}")
+            return
+
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            self._send_log(job_id, line)
+            self._log("INFO", f"  [NestJS] {line}")
+        proc.wait()
+
+        if proc.returncode == 0:
+            self._jobs_today += 1
+            self.stats_updated.emit(self._jobs_today)
+            self.job_completed.emit(job_id, job_type)
+        else:
+            self.job_failed.emit(job_id, job_type, f"NestJS CLI kết thúc với mã lỗi {proc.returncode}")
+
     def _dispatch(self, job: dict) -> None:
         job_id = str(job["_id"])
         job_type = job["jobType"]
@@ -221,11 +350,17 @@ class AgentWorker(QObject):
         self.job_started.emit(job_id, job_type)
         self._post(f"/api/v1/bot-engine/agent/jobs/{job_id}/start", {})
 
+        # Sweep orphaned Excel processes if executing macro jobs
+        if job_type in ("RUN_LOT_MACRO", "RUN_VALUE_MACRO"):
+            self.sweep_orphaned_excel()
+
         try:
             if job_type == "RUN_LOT_MACRO":
                 self._handle_lot_macro(job_id, payload)
             elif job_type == "RUN_VALUE_MACRO":
                 self._handle_value_macro(job_id, payload)
+            elif job_type in ("RPA_DOWNLOAD_REPORTS", "DOWNLOAD_CAST", "FILE_AUDIT_MS", "FILE_AUDIT_CQG", "FILE_AUDIT_ACM"):
+                self._handle_delegated_nestjs_job(job_id, job_type, payload)
             else:
                 self._fail_job(job_id, job_type, f"Job type '{job_type}' chưa được hỗ trợ trên Agent")
         except Exception as e:
@@ -242,6 +377,18 @@ class AgentWorker(QObject):
         self._log("INFO", f"Backend: {self._backend_url}")
         self._log("INFO", f"Polling: {self._poll_interval}s | Heartbeat: {self._heartbeat_interval}s")
         self._log("INFO", "=" * 50)
+
+        # Initial clean up of Excel processes
+        self.sweep_orphaned_excel()
+
+        # Check version updates
+        version_info = self._get("/api/v1/bot-engine/agent/version")
+        if version_info:
+            latest = version_info.get("latestVersion", "1.0.0")
+            url = version_info.get("downloadUrl", "")
+            if latest != "1.0.0":
+                self._log("WARNING", f"Đã có phiên bản Agent mới: v{latest}. Tải tại: {url}")
+                self.update_available.emit(latest, url)
 
         _last_hb = 0.0
         while not self._stop:
@@ -284,6 +431,7 @@ class AgentCore(QObject):
     job_failed = pyqtSignal(str, str, str)
     connection_changed = pyqtSignal(bool)
     stats_updated = pyqtSignal(int)
+    update_available = pyqtSignal(str, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -309,6 +457,7 @@ class AgentCore(QObject):
         self._worker.job_failed.connect(self.job_failed)
         self._worker.connection_changed.connect(self.connection_changed)
         self._worker.stats_updated.connect(self.stats_updated)
+        self._worker.update_available.connect(self.update_available)
 
         self._thread.started.connect(self._worker.run)
         self._thread.start()

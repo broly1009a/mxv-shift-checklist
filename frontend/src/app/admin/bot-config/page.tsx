@@ -50,6 +50,12 @@ export default function AdminBotConfigPage() {
   const [trackedJobs, setTrackedJobs] = useState<string[]>([]);
   const [captchaText, setCaptchaText] = useState('');
   const [submittingCaptcha, setSubmittingCaptcha] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<{
+    online: boolean;
+    hostname?: string;
+    platform?: string;
+    version?: string;
+  } | null>(null);
 
   // Redirect if user is not ADMIN
   useEffect(() => {
@@ -57,6 +63,22 @@ export default function AdminBotConfigPage() {
       router.push('/dashboard');
     }
   }, [user, router]);
+
+  // Fetch agent status
+  const fetchAgentStatus = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/agent-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAgentStatus(data);
+      }
+    } catch (err) {
+      console.error('Error fetching agent status:', err);
+    }
+  }, [token]);
 
   // Fetch background jobs list
   const fetchJobs = useCallback(async () => {
@@ -130,18 +152,20 @@ export default function AdminBotConfigPage() {
     }
   };
 
-  // Fetch jobs once on mount
+  // Fetch data once on mount
   useEffect(() => {
     fetchJobs();
-  }, [fetchJobs]);
+    fetchAgentStatus();
+  }, [fetchJobs, fetchAgentStatus]);
 
-  // Auto-refresh jobs list every 8 seconds
+  // Auto-refresh list and status every 8 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       fetchJobs();
+      fetchAgentStatus();
     }, 8000);
     return () => clearInterval(timer);
-  }, [fetchJobs]);
+  }, [fetchJobs, fetchAgentStatus]);
 
   // Auto-download zipped reports for completed tracked jobs
   useEffect(() => {
@@ -203,7 +227,41 @@ export default function AdminBotConfigPage() {
               Quản lý tài khoản kết nối các hệ thống, theo dõi tiến trình chạy và cấu hình tự động hóa MXV.
             </p>
           </div>
+
+          {/* Agent Status Badge */}
+          {agentStatus ? (
+            <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border ${
+              agentStatus.online 
+                ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' 
+                : 'bg-rose-950/30 border-rose-800/50 text-rose-300'
+            }`}>
+              <div className="relative flex h-3 w-3">
+                {agentStatus.online && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${
+                  agentStatus.online ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
+                }`}></span>
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] font-black tracking-wider uppercase">
+                  Agent: {agentStatus.online ? 'Online' : 'Offline'}
+                </span>
+                {agentStatus.online && (
+                  <span className="text-[10px] text-zinc-400 font-medium">
+                    {agentStatus.hostname} ({agentStatus.platform})
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-zinc-900 border-zinc-800 text-zinc-400 animate-pulse">
+              <div className="h-3.5 w-3.5 rounded-full border-2 border-t-transparent border-zinc-500 animate-spin"></div>
+              <span className="text-[10px] font-bold">Đang kiểm tra Agent...</span>
+            </div>
+          )}
         </div>
+
 
         {/* Tab Buttons bar */}
         <div className="flex gap-2 border-b border-zinc-800 pb-1 flex-wrap">

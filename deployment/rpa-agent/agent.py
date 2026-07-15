@@ -40,6 +40,7 @@ API_KEY = CFG["api_key"]
 POLL_INTERVAL = CFG.get("polling_interval", 5)
 HEARTBEAT_INTERVAL = CFG.get("heartbeat_interval", 30)
 PATHS = CFG.get("paths", {})
+WORKSPACE_PATH = CFG.get("workspace_path", "")
 
 # Job types handled locally on Windows
 WINDOWS_JOB_TYPES = {
@@ -174,14 +175,49 @@ def handle_run_value_macro(job_id: str, payload: dict):
         complete_job(job_id)
 
 
-def handle_unsupported(job_id: str, job_type: str):
-    """
-    For job types that require Playwright (RPA_DOWNLOAD_REPORTS, DOWNLOAD_CAST,
-    FILE_AUDIT_ACM, FILE_AUDIT_MS, FILE_AUDIT_CQG), the agent delegates back to
-    the embedded NestJS scripts running locally via npx ts-node.
-    This is a placeholder – extend as needed.
-    """
-    fail_job(job_id, f"Job type '{job_type}' chưa được triển khai trên Agent. Cần bổ sung handler.")
+def handle_delegated_nestjs_job(job_id: str, job_type: str):
+    if not WORKSPACE_PATH:
+        fail_job(job_id, "Thiếu cấu hình workspace_path trong config.json để chạy job NestJS")
+        return
+
+    backend_dir = os.path.join(WORKSPACE_PATH, "backend")
+    dist_script = os.path.join(backend_dir, "dist", "scripts", "run-job-cli.js")
+    if os.path.exists(dist_script):
+        cmd = ["node", "dist/scripts/run-job-cli.js", job_id]
+    else:
+        script_path = os.path.join("src", "scripts", "run-job-cli.ts")
+        cmd = ["npx", "ts-node", script_path, job_id]
+    
+    send_log(job_id, f"Ủy quyền chạy job {job_type} cho NestJS CLI: {' '.join(cmd)}")
+    log.info(f"Đang chạy NestJS job {job_id} trong thư mục: {backend_dir}")
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=backend_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=True
+        )
+    except Exception as e:
+        fail_job(job_id, f"Không thể khởi chạy NestJS CLI: {e}")
+        return
+
+    for line in proc.stdout:
+        line = line.strip()
+        if not line:
+            continue
+        send_log(job_id, line)
+        log.info(f"  [NestJS] {line}")
+    proc.wait()
+
+    if proc.returncode == 0:
+        log.info(f"[Job {job_id}] NestJS CLI hoàn thành thành công.")
+    else:
+        fail_job(job_id, f"NestJS CLI kết thúc với mã lỗi {proc.returncode}")
 
 
 # ─── Dispatch ──────────────────────────────────────────────────────────────────
@@ -201,8 +237,10 @@ def dispatch(job: dict):
             handle_run_lot_macro(job_id, payload)
         elif job_type == "RUN_VALUE_MACRO":
             handle_run_value_macro(job_id, payload)
+        elif job_type in ("RPA_DOWNLOAD_REPORTS", "DOWNLOAD_CAST", "FILE_AUDIT_MS", "FILE_AUDIT_CQG", "FILE_AUDIT_ACM"):
+            handle_delegated_nestjs_job(job_id, job_type)
         else:
-            handle_unsupported(job_id, job_type)
+            fail_job(job_id, f"Job type '{job_type}' chưa được hỗ trợ trên Agent")
     except Exception as e:
         fail_job(job_id, str(e))
 

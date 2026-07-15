@@ -152,6 +152,7 @@ class SettingsWindow(QDialog):
         form.setContentsMargins(12, 16, 12, 12)
         form.setSpacing(12)
 
+        self._workspace_edit   = self._path_row(form, "Thư mục Backend NestJS:", file=False)
         self._lot_macro_edit   = self._path_row(form, "Macro Số Lot (.xlsm):",   file=True,  ext="Excel Macro (*.xlsm)")
         self._value_macro_edit = self._path_row(form, "Macro Giá Trị (.xlsm):",  file=True,  ext="Excel Macro (*.xlsm)")
         self._ms_backup_edit   = self._path_row(form, "Thư mục Backup MS:",       file=False)
@@ -203,6 +204,7 @@ class SettingsWindow(QDialog):
         self._poll_spin.setValue(cfg.get("polling_interval", 5))
         self._hb_spin.setValue(cfg.get("heartbeat_interval", 30))
 
+        self._workspace_edit.setText(cfg.get("workspace_path", ""))
         paths = cfg.get("paths", {})
         self._lot_macro_edit.setText(paths.get("lot_macro_path", ""))
         self._value_macro_edit.setText(paths.get("value_macro_path", ""))
@@ -219,6 +221,7 @@ class SettingsWindow(QDialog):
         cfg["polling_interval"] = self._poll_spin.value()
         cfg["heartbeat_interval"] = self._hb_spin.value()
         cfg["start_minimized"] = self._chk_minimized.isChecked()
+        cfg["workspace_path"] = self._workspace_edit.text().strip()
         cfg.setdefault("paths", {})
         cfg["paths"]["lot_macro_path"]    = self._lot_macro_edit.text().strip()
         cfg["paths"]["value_macro_path"]  = self._value_macro_edit.text().strip()

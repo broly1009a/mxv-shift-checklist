@@ -46,6 +46,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly captchaResolvers = new Map<string, (captcha: string) => void>();
   private queueInterval: NodeJS.Timeout;
   private cleanupInterval: NodeJS.Timeout;
+  private healthInterval: NodeJS.Timeout;
+  private wasAgentOnline = false;
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
@@ -77,6 +79,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       });
     }, 5 * 60 * 1000);
 
+    // Kiểm tra kết nối của Agent mỗi 60 giây
+    this.healthInterval = setInterval(() => {
+      this.checkAgentConnectionHealth().catch((err) => {
+        this.logger.error(`Lỗi khi kiểm tra kết nối Agent: ${err.message}`);
+      });
+    }, 60000);
+
     this.logger.log('Background BotJob queue worker initialized (polling every 10s).');
   }
 
@@ -87,7 +96,109 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
+    if (this.healthInterval) {
+      clearInterval(this.healthInterval);
+    }
     this.logger.log('Background BotJob queue worker stopped.');
+  }
+
+  private async checkAgentConnectionHealth() {
+    const { AgentController } = require('./bot-engine.controller');
+    const status = AgentController.agentStatus;
+    if (!status) return;
+
+    const diffMs = Date.now() - status.lastSeen.getTime();
+    const isOnline = diffMs < 180000; // 3 minutes timeout
+
+    if (!isOnline && this.wasAgentOnline) {
+      this.wasAgentOnline = false;
+      this.logger.warn(`Agent offline alert. Sending email...`);
+      await this.sendConnectionAlertEmail(status, false);
+    } else if (isOnline && !this.wasAgentOnline) {
+      this.wasAgentOnline = true;
+      this.logger.log(`Agent online info. Sending email...`);
+      await this.sendConnectionAlertEmail(status, true);
+    }
+  }
+
+  private async sendConnectionAlertEmail(status: { hostname: string; platform: string; lastSeen: Date }, isOnline: boolean) {
+    try {
+      const configStr = await this.settingsService.getSetting('margin_checker_config', '{}');
+      const config = JSON.parse(configStr);
+      const mailSettings = config.opFailureAlert || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      if (!mailSettings.isSendWarning) return;
+
+      const smtp = config.smtp || {
+        host: 'smtp.office365.com',
+        port: 587,
+        user: 'it.support@mxv.vn',
+        pass: 'OFmng239',
+        senderEmail: 'it.support@mxv.vn',
+        senderName: 'MXV IT Support',
+      };
+
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+        tls: {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+
+      const subject = isOnline
+        ? `✅ [MXV RPA AGENT] Kết Nối Đã Được Phục Hồi: ${status.hostname}`
+        : `🚨 [MXV RPA AGENT] Cảnh Báo Mất Kết Nối: ${status.hostname}`;
+
+      const htmlBody = isOnline
+        ? `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #2e7d32;">
+              <div style="padding: 20px;">
+                <h2 style="color: #2e7d32; margin-top: 0;">✅ Khôi Phục Kết Nối RPA Agent</h2>
+                <p>Ứng dụng MXV RPA Agent trên máy <b>${status.hostname}</b> (${status.platform}) đã kết nối lại thành công với hệ thống.</p>
+                <p><b>Thời gian khôi phục:</b> ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        `
+        : `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
+              <div style="padding: 20px;">
+                <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Mất Kết Nối RPA Agent</h2>
+                <p>Hệ thống phát hiện ứng dụng MXV RPA Agent trên máy <b>${status.hostname}</b> (${status.platform}) đã mất kết nối quá 3 phút!</p>
+                <p><b>Lần cuối nhìn thấy hoạt động:</b> ${status.lastSeen.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                <p style="color: #c62828; font-weight: bold;">Đề nghị bộ phận IT check lại máy tính hoặc restart ứng dụng Agent.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        `;
+
+      await transporter.sendMail({
+        from: `"${smtp.senderName}" <${smtp.senderEmail}>`,
+        to: mailSettings.email.join(', '),
+        subject,
+        html: htmlBody,
+      });
+
+      this.logger.log(`Đã gửi email cảnh báo trạng thái Agent (${isOnline ? 'Online' : 'Offline'}) thành công.`);
+    } catch (err: any) {
+      this.logger.error(`Không thể gửi email cảnh báo trạng thái Agent: ${err.message}`);
+    }
   }
 
   /**
@@ -138,6 +249,37 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Windows RPA Agent to poll and execute. Only pure-compute jobs (reconciliation)
    * are handled directly on the Linux server.
    */
+  /**
+   * Chạy trực tiếp một job cụ thể qua CLI hoặc Agent.
+   */
+  public async executeJobDirectly(job: any): Promise<void> {
+    if (job.jobType === 'RPA_DOWNLOAD_REPORTS') {
+      await this.handleRpaDownloadJob(job);
+    } else if (job.jobType === 'DOWNLOAD_CAST') {
+      await this.handleDownloadCastJob(job);
+    } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
+      await this.handleVerifyEmailStatusJob(job);
+    } else if (job.jobType === 'AUTO_CHECK_SOD') {
+      await this.handleAutoCheckSodJob(job);
+    } else if (job.jobType === 'CHECK_PRE_EOD') {
+      await this.handleCheckPreEodJob(job);
+    } else if (job.jobType === 'CHECK_EOD_MM') {
+      await this.handleCheckEodMmJob(job);
+    } else if (job.jobType === 'FILE_AUDIT_MS') {
+      await this.handleFileAuditMsJob(job);
+    } else if (job.jobType === 'FILE_AUDIT_CQG') {
+      await this.handleFileAuditCqgJob(job);
+    } else if (job.jobType === 'FILE_AUDIT_ACM') {
+      await this.handleFileAuditAcmJob(job);
+    } else if (job.jobType === 'RUN_LOT_MACRO') {
+      await this.handleRunLotMacroJob(job);
+    } else if (job.jobType === 'RUN_VALUE_MACRO') {
+      await this.handleRunValueMacroJob(job);
+    } else {
+      throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
+    }
+  }
+
   private async processQueue() {
     if (this.isProcessing) {
       return;

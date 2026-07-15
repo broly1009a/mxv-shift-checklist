@@ -1492,7 +1492,25 @@ export class BotEngineController {
       jobId: job._id,
     };
   }
+
+  /**
+   * Lấy trạng thái liveness của Agent cho Admin Web UI.
+   */
+  @Get('agent-status')
+  async getAgentStatus() {
+    if (!AgentController.agentStatus) return { online: false };
+    const diffMs = Date.now() - AgentController.agentStatus.lastSeen.getTime();
+    const online = diffMs < 60_000; // 60s timeout
+    return {
+      online,
+      hostname: AgentController.agentStatus.hostname,
+      platform: AgentController.agentStatus.platform,
+      lastSeen: AgentController.agentStatus.lastSeen,
+      lastSeenMs: diffMs,
+    };
+  }
 }
+
 
 // ─── RPA Agent API Controller (secured by API Key, no JWT) ───────────────────
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -1501,25 +1519,61 @@ import { diskStorage } from 'multer';
 @Controller('api/v1/bot-engine/agent')
 export class AgentController {
   private readonly logger = new Logger('AgentController');
-  private agentStatus: { hostname: string; platform: string; lastSeen: Date } | null = null;
+  public static agentStatus: { hostname: string; platform: string; lastSeen: Date } | null = null;
+  private static sessionTokens = new Map<string, { hostname: string; expireAt: number }>();
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
   ) {}
 
   private validateKey(headers: Record<string, string>) {
+    // 1. Check dynamic session token
+    const authHeader = headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const session = AgentController.sessionTokens.get(token);
+      if (session && session.expireAt > Date.now()) {
+        return; // Valid session
+      }
+    }
+
+    // 2. Fallback to static API key for backward compatibility or handshake
     const key = headers['x-agent-api-key'];
-    const expected = process.env.RPA_AGENT_API_KEY;
-    if (!expected || key !== expected) {
+    const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
+    if (key && key === expected) {
+      return;
+    }
+
+    throw new HttpException('Unauthorized: Invalid Agent API Key or Session Token', HttpStatus.UNAUTHORIZED);
+  }
+
+  // POST /api/v1/bot-engine/agent/login
+  @Post('login')
+  async login(@Body() body: { apiKey: string; hostname: string }) {
+    const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
+    if (!body.apiKey || body.apiKey !== expected) {
       throw new HttpException('Unauthorized: Invalid Agent API Key', HttpStatus.UNAUTHORIZED);
     }
+    const token = 'sess_' + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+    const expireAt = Date.now() + 60 * 60 * 1000; // 1 hour
+    AgentController.sessionTokens.set(token, { hostname: body.hostname || 'unknown', expireAt });
+    this.logger.log(`Session login successful for agent: ${body.hostname}`);
+    return { token, expireAt: new Date(expireAt).toISOString() };
+  }
+
+  // GET /api/v1/bot-engine/agent/version
+  @Get('version')
+  async version() {
+    const latestVersion = process.env.RPA_AGENT_LATEST_VERSION || '1.0.0';
+    const downloadUrl = process.env.RPA_AGENT_DOWNLOAD_URL || '';
+    return { latestVersion, downloadUrl };
   }
 
   // POST /api/v1/bot-engine/agent/heartbeat
   @Post('heartbeat')
   async heartbeat(@Headers() headers: Record<string, string>, @Body() body: any) {
     this.validateKey(headers);
-    this.agentStatus = {
+    AgentController.agentStatus = {
       hostname: body.hostname || 'unknown',
       platform: body.platform || 'unknown',
       lastSeen: new Date(),
@@ -1532,10 +1586,10 @@ export class AgentController {
   @Get('status')
   async status(@Headers() headers: Record<string, string>) {
     this.validateKey(headers);
-    if (!this.agentStatus) return { online: false };
-    const diffMs = Date.now() - this.agentStatus.lastSeen.getTime();
+    if (!AgentController.agentStatus) return { online: false };
+    const diffMs = Date.now() - AgentController.agentStatus.lastSeen.getTime();
     const online = diffMs < 60_000; // 60s timeout
-    return { online, ...this.agentStatus, lastSeenMs: diffMs };
+    return { online, ...AgentController.agentStatus, lastSeenMs: diffMs };
   }
 
   // GET /api/v1/bot-engine/agent/poll

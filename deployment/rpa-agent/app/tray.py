@@ -73,9 +73,45 @@ class TrayIcon(QSystemTrayIcon):
         self._core.job_completed.connect(self._on_job_completed)
         self._core.job_failed.connect(self._on_job_failed)
         self._core.stats_updated.connect(self._on_stats_updated)
+        self._core.update_available.connect(self._on_update_available)
 
         # Double-click opens settings
         self.activated.connect(self._on_activated)
+        self.messageClicked.connect(self._on_message_clicked)
+
+        self._download_url = ""
+
+    def _on_update_available(self, version: str, download_url: str) -> None:
+        self._download_url = download_url
+        self.showMessage(
+            "MXV RPA Agent Update",
+            f"Đã có phiên bản mới v{version}. Click để tải về.",
+            QIcon(str(ASSETS / "icon_base.png")) if (ASSETS / "icon_base.png").exists() else self.icon(),
+            8000,
+        )
+        if not hasattr(self, "_act_update"):
+            menu = self.contextMenu()
+            if menu:
+                actions = menu.actions()
+                before_action = actions[-1] if actions else None
+                for a in actions:
+                    if "Thoát" in a.text():
+                        before_action = a
+                        break
+                self._act_update = menu.addAction(f"🌐  Cập nhật v{version}...")
+                if before_action:
+                    menu.insertAction(before_action, self._act_update)
+                self._act_update.triggered.connect(self._on_trigger_update)
+
+    def _on_message_clicked(self) -> None:
+        if self._download_url:
+            import webbrowser
+            webbrowser.open(self._download_url)
+
+    def _on_trigger_update(self) -> None:
+        if self._download_url:
+            import webbrowser
+            webbrowser.open(self._download_url)
 
     # ── Menu ──────────────────────────────────────────────────────────────────
 

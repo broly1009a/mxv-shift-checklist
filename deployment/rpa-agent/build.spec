@@ -61,7 +61,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='app/assets/icon_base.png',   # MXV logo as app icon
+    icon='app/assets/icon.ico',   # MXV logo as app icon
     version='file_version_info.txt',   # Optional version info
     onefile=True,                      # Single .exe file
 )

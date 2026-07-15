@@ -1636,7 +1636,13 @@ export class RpaDownloaderService {
   /**
    * Tìm đường dẫn executable WinSCP.com trên hệ thống Windows.
    */
-  private getWinscpPath(log: (msg: string) => void): string {
+  private async getWinscpPath(log: (msg: string) => void): Promise<string> {
+    const customPath = await this.settingsService.getSetting('bot_winscp_path', '');
+    if (customPath && fs.existsSync(customPath)) {
+      log(`Sử dụng WinSCP cấu hình thủ công: ${customPath}`);
+      return customPath;
+    }
+
     const standardPaths = [
       'C:\\Program Files (x86)\\WinSCP\\WinSCP.com',
       'C:\\Program Files\\WinSCP\\WinSCP.com',
@@ -1709,7 +1715,7 @@ export class RpaDownloaderService {
     const sftpPassword = credentials.sftpPassword || 'Test@2o26';
     const sftpRemoteDir = credentials.sftpRemoteDir || '/data/';
 
-    const winscpExe = this.getWinscpPath(log);
+    const winscpExe = await this.getWinscpPath(log);
 
     const remoteSrc = `${sftpRemoteDir.replace(/\/$/, '')}/*`;
     const localDest = `${dailyPath.replace(/\\$/, '')}\\`;
