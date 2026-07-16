@@ -1761,16 +1761,10 @@ export class ReconciliationService {
       }
     }
 
-    // Validate filename date suffix for acmTrades (based on sessionStart's date)
-    const expectedDateStr = `${String(sessionStart.getDate()).padStart(2, '0')}${String(sessionStart.getMonth() + 1).padStart(2, '0')}${sessionStart.getFullYear()}`;
-    const previousBusinessDay = new Date(sessionStart);
-    do {
-      previousBusinessDay.setDate(previousBusinessDay.getDate() - 1);
-    } while (previousBusinessDay.getDay() === 0 || previousBusinessDay.getDay() === 6);
-    const previousBusinessDayStr = `${String(previousBusinessDay.getDate()).padStart(2, '0')}${String(previousBusinessDay.getMonth() + 1).padStart(2, '0')}${previousBusinessDay.getFullYear()}`;
-
-    if (acmTradesName && !acmTradesName.includes(expectedDateStr) && !acmTradesName.includes(previousBusinessDayStr)) {
-      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày đối chiếu (${sessionStart.getDate().toString().padStart(2, '0')}/${(sessionStart.getMonth() + 1).toString().padStart(2, '0')}/${sessionStart.getFullYear()} hoặc ${previousBusinessDay.getDate().toString().padStart(2, '0')}/${(previousBusinessDay.getMonth() + 1).toString().padStart(2, '0')}/${previousBusinessDay.getFullYear()}). Vui lòng kiểm tra lại.`);
+    // Validate filename date suffix for acmTrades (must match the filter `tradingDate` exactly)
+    const expectedDateStr = `${String(tradingDate.getDate()).padStart(2, '0')}${String(tradingDate.getMonth() + 1).padStart(2, '0')}${tradingDate.getFullYear()}`;
+    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
+      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày đối chiếu (${tradingDate.getDate().toString().padStart(2, '0')}/${(tradingDate.getMonth() + 1).toString().padStart(2, '0')}/${tradingDate.getFullYear()}). Vui lòng kiểm tra lại.`);
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
