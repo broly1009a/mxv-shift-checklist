@@ -602,12 +602,8 @@ export class ReconciliationService {
     const maTKGDIdx = header.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
     const maHDIdx = header.findIndex(h => h === 'Mã HĐ' || h === 'Mã hợp đồng');
 
-    const tongMuaIdx = header.findIndex(h =>
-      h === 'KL Mua' || h === 'Tổng KL Mua' || h === 'Tổng mua' || h === 'Tổng KL mua'
-    );
-    const tongBanIdx = header.findIndex(h =>
-      h === 'KL Bán' || h === 'Tổng KL Bán' || h === 'Tổng bán' || h === 'Tổng KL bán'
-    );
+    const tongMuaIdx = header.findIndex(h => h.toLowerCase() === 'kl mua');
+    const tongBanIdx = header.findIndex(h => h.toLowerCase() === 'kl bán');
     const giaKhopIdx = header.findIndex(h =>
       h === 'Giá TB' || h === 'Giá khớp' || h === 'Giá trung bình'
     );
