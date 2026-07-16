@@ -29,13 +29,16 @@ export class ReconciliationController {
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
+      { name: 'fr', maxCount: 1 },
       { name: 'fr1', maxCount: 1 },
       { name: 'fr2', maxCount: 1 },
       { name: 'nano', maxCount: 1 },
       { name: 'ttm', maxCount: 1 },
+      { name: 'op', maxCount: 1 },
       { name: 'op1', maxCount: 1 },
       { name: 'op2', maxCount: 1 },
       { name: 'tttt', maxCount: 1 },
+      { name: 'ps', maxCount: 1 },
       { name: 'ps1', maxCount: 1 },
       { name: 'ps2', maxCount: 1 },
     ]),
@@ -44,13 +47,16 @@ export class ReconciliationController {
     @UploadedFiles()
     files: {
       dsgd?: any[];
+      fr?: any[];
       fr1?: any[];
       fr2?: any[];
       nano?: any[];
       ttm?: any[];
+      op?: any[];
       op1?: any[];
       op2?: any[];
       tttt?: any[];
+      ps?: any[];
       ps1?: any[];
       ps2?: any[];
     },
@@ -67,13 +73,16 @@ export class ReconciliationController {
 
     const fileBuffers = {
       dsgd: files?.dsgd?.[0]?.buffer,
+      fr: files?.fr?.[0]?.buffer,
       fr1: files?.fr1?.[0]?.buffer,
       fr2: files?.fr2?.[0]?.buffer,
       nano: files?.nano?.[0]?.buffer,
       ttm: files?.ttm?.[0]?.buffer,
+      op: files?.op?.[0]?.buffer,
       op1: files?.op1?.[0]?.buffer,
       op2: files?.op2?.[0]?.buffer,
       tttt: files?.tttt?.[0]?.buffer,
+      ps: files?.ps?.[0]?.buffer,
       ps1: files?.ps1?.[0]?.buffer,
       ps2: files?.ps2?.[0]?.buffer,
     };
@@ -404,11 +413,17 @@ export class ReconciliationController {
       if (!dsgd) throw new Error('Thiếu file DSGD.xlsx');
       const klgdFiles = {
         dsgd,
+        fr: readIfExists('FR', 'xlsx') || undefined,
         fr1: readIfExists('FR1', 'xlsx') || undefined,
         fr2: readIfExists('FR2', 'xlsx') || undefined,
+        op: readIfExists('OP', 'xlsx') || undefined,
         op1: readIfExists('OP1', 'xlsx') || undefined,
         op2: readIfExists('OP2', 'xlsx') || undefined,
         ttm: readIfExists('TTM', 'xlsx') || undefined,
+        tttt: readIfExists('TTTT', 'xlsx') || undefined,
+        ps: readIfExists('PS', 'xlsx') || undefined,
+        ps1: readIfExists('PS1', 'xlsx') || undefined,
+        ps2: readIfExists('PS2', 'xlsx') || undefined,
       };
       results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '05:00');
     } catch (err: any) {

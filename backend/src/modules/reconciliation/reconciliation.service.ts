@@ -274,6 +274,17 @@ export class ReconciliationService {
     return `${mapped}D${newDay}${monthCode}${yearShort}`;
   }
 
+  getNormalizedAccount(account: string): string {
+    if (!account) return '';
+    let acc = account.trim();
+    acc = acc.replace(/F$/i, '');
+    acc = acc.replace(/L$/i, '-L');
+    acc = acc.replace(/S$/i, '-S');
+    acc = acc.replace(/--/g, '-');
+    return acc.toUpperCase();
+  }
+
+
   /**
    * Parse M-System DSGD.xlsx
    */
@@ -303,7 +314,7 @@ export class ReconciliationService {
       if (!row || row.length === 0) continue;
 
       const maLenh = String(row[maLenhIdx] || '').trim();
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
       const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
@@ -400,14 +411,7 @@ export class ReconciliationService {
       if (!ord || !account || !symbol) continue;
 
       // Handle account suffix adjustment as in C#
-      let accountRaw = account;
-      if (accountRaw.endsWith('L') || accountRaw.endsWith('l')) {
-        accountRaw = accountRaw.slice(0, -1) + '-L';
-      } else if (accountRaw.endsWith('S') || accountRaw.endsWith('s')) {
-        accountRaw = accountRaw.slice(0, -1) + '-S';
-      } else if (accountRaw.endsWith('F') || accountRaw.endsWith('f')) {
-        accountRaw = accountRaw.slice(0, -1);
-      }
+      const accountRaw = this.getNormalizedAccount(account);
 
       let tradeDate = date;
       if (time) {
@@ -466,7 +470,7 @@ export class ReconciliationService {
       if (!row || row.length === 0) continue;
 
       const maLenh = String(row[maLenhIdx] || '').trim();
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
       const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
@@ -566,14 +570,7 @@ export class ReconciliationService {
 
       if (!symbol) continue;
 
-      let accountRaw = account;
-      if (accountRaw.endsWith('L') || accountRaw.endsWith('l')) {
-        accountRaw = accountRaw.slice(0, -1) + '-L';
-      } else if (accountRaw.endsWith('S') || accountRaw.endsWith('s')) {
-        accountRaw = accountRaw.slice(0, -1) + '-S';
-      } else if (accountRaw.endsWith('F') || accountRaw.endsWith('f')) {
-        accountRaw = accountRaw.slice(0, -1);
-      }
+      const accountRaw = this.getNormalizedAccount(account);
 
       result.push({
         account: accountRaw,
@@ -617,7 +614,7 @@ export class ReconciliationService {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const tongMua = parseFloat(row[tongMuaIdx]) || 0;
       const tongBan = parseFloat(row[tongBanIdx]) || 0;
@@ -662,7 +659,7 @@ export class ReconciliationService {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
-      const maTKGD = String(row[finalAccIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[finalAccIdx] || ''));
       const maHD = String(row[finalSymIdx] || '').trim();
       const tongMua = parseFloat(row[finalMuaIdx]) || 0;
       const tongBan = parseFloat(row[finalBanIdx]) || 0;
@@ -689,13 +686,16 @@ export class ReconciliationService {
   async checkKLGD(
     files: {
       dsgd?: Buffer;
+      fr?: Buffer;
       fr1?: Buffer;
       fr2?: Buffer;
       nano?: Buffer;
       ttm?: Buffer;
+      op?: Buffer;
       op1?: Buffer;
       op2?: Buffer;
       tttt?: Buffer;
+      ps?: Buffer;
       ps1?: Buffer;
       ps2?: Buffer;
     },
@@ -711,6 +711,7 @@ export class ReconciliationService {
 
     // Parse and merge FR files
     const rawFrData: any[] = [];
+    if (files.fr) rawFrData.push(...this.parseFR(files.fr, tradingDate, holidays));
     if (files.fr1) rawFrData.push(...this.parseFR(files.fr1, tradingDate, holidays));
     if (files.fr2) rawFrData.push(...this.parseFR(files.fr2, tradingDate, holidays));
 
@@ -726,6 +727,9 @@ export class ReconciliationService {
     if (isPastDateOrDateOnly) {
       // Historical check or date-only upload: include the entire 24h session window
       sessionStart.setHours(sHour, sMin, 0, 0);
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
       checkTime = new Date(sessionStart);
       checkTime.setDate(checkTime.getDate() + 1);
     } else {
@@ -917,9 +921,10 @@ export class ReconciliationService {
       opValue: number;
       differ: number;
     }> = [];
-    if (files.ttm && (files.op1 || files.op2)) {
+    if (files.ttm && (files.op || files.op1 || files.op2)) {
       const ttmData = this.parseTTM(files.ttm);
       const opData: any[] = [];
+      if (files.op) opData.push(...this.parseOP(files.op));
       if (files.op1) opData.push(...this.parseOP(files.op1));
       if (files.op2) opData.push(...this.parseOP(files.op2));
 
@@ -962,9 +967,10 @@ export class ReconciliationService {
       differ: number;
     }> = [];
 
-    if (files.tttt && (files.ps1 || files.ps2)) {
+    if (files.tttt && (files.ps || files.ps1 || files.ps2)) {
       const ttttData = this.parseTTTTForVolume(files.tttt).filter(t => !this.isIgnoredCommodity(t.maHD));
       const psData: any[] = [];
+      if (files.ps) psData.push(...this.parsePSForVolume(files.ps));
       if (files.ps1) psData.push(...this.parsePSForVolume(files.ps1));
       if (files.ps2) psData.push(...this.parsePSForVolume(files.ps2));
       const filteredPsData = psData.filter(p => !this.isIgnoredCommodity(p.symbol));
@@ -1568,24 +1574,46 @@ export class ReconciliationService {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
     if (rows.length < 2) return [];
 
-    const header = rows[0].map(h => String(h || '').trim());
-    const accountIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
-    const symbolIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
-    const positionIdx = this.findHeaderIndex(header, 'KL ròng', ['Khối lượng ròng', 'Net Position', 'Position', 'Vị thế ròng', 'Trạng thái ròng']);
+    let headerRowIdx = 0;
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let positionIdx = -1;
 
-    // fallback to index if not found (column H is 7, column J is 9, column T is 19)
-    const finalAccIdx = accountIdx !== -1 ? accountIdx : 7;
-    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 9;
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+      const tempAccIdx = this.findHeaderIndex(rowHeaders, 'Mã TKGD', ['mã tài khoản', 'account', 'mã khách hàng', 'mã kh', 'tk']);
+      const tempSymIdx = this.findHeaderIndex(rowHeaders, 'Mã HĐ', ['mã hợp đồng', 'symbol', 'mã hh', 'mã hàng hóa']);
+      const tempPosIdx = this.findHeaderIndex(rowHeaders, 'KL ròng', ['khối lượng ròng', 'net position', 'position', 'vị thế ròng', 'trạng thái ròng', 'lãi lỗ thực tế', 'lãi/lỗ']);
+
+      if (tempAccIdx !== -1 && tempSymIdx !== -1) {
+        headerRowIdx = r;
+        accountIdx = tempAccIdx;
+        symbolIdx = tempSymIdx;
+        if (tempPosIdx !== -1) {
+          positionIdx = tempPosIdx;
+        }
+        break;
+      }
+    }
+
+    if (accountIdx === -1 || symbolIdx === -1) {
+      accountIdx = 7;
+      symbolIdx = 9;
+    }
     const finalPosIdx = positionIdx !== -1 ? positionIdx : 19;
 
     const result = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
-      const account = String(row[finalAccIdx] || '').trim();
-      const symbol = String(row[finalSymIdx] || '').trim();
+      const accountRaw = String(row[accountIdx] || '').trim();
+      const symbol = String(row[symbolIdx] || '').trim();
       const position = parseFloat(row[finalPosIdx]) || 0;
-      if (!account || !symbol) continue;
+      if (!accountRaw || !symbol) continue;
+
+      const account = this.getNormalizedAccount(accountRaw);
       result.push({ account, symbol, position });
     }
     return result;
@@ -1605,32 +1633,47 @@ export class ReconciliationService {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
     if (rows.length < 2) return [];
 
-    const header = rows[0].map(h => String(h || '').trim());
-    const accountIdx = this.findHeaderIndex(header, 'Account', ['Mã TKGD', 'Mã tài khoản']);
-    const symbolIdx = this.findHeaderIndex(header, 'Symbol', ['Mã HĐ', 'Mã hợp đồng']);
-    const positionIdx = this.findHeaderIndex(header, 'Position', ['Net', 'KL ròng', 'Vị thế', 'Trạng thái ròng']);
+    let headerRowIdx = 1; // default fallback to index 1 (row 2 in Excel)
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let positionIdx = -1;
 
-    // fallback to index if not found (column A is 0, column D is 3, column I is 8)
-    const finalAccIdx = accountIdx !== -1 ? accountIdx : 0;
-    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 3;
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+      const tempAccIdx = this.findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      const tempSymIdx = this.findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      const tempPosIdx = this.findHeaderIndex(rowHeaders, 'Position', ['net', 'kl ròng', 'vị thế', 'trạng thái ròng', 'pl', 'profit', 'lỗ']);
+
+      if (tempAccIdx !== -1 && tempSymIdx !== -1) {
+        headerRowIdx = r;
+        accountIdx = tempAccIdx;
+        symbolIdx = tempSymIdx;
+        if (tempPosIdx !== -1) {
+          positionIdx = tempPosIdx;
+        }
+        break;
+      }
+    }
+
+    if (accountIdx === -1 || symbolIdx === -1) {
+      // Fallback index matching C# default values
+      accountIdx = 0;
+      symbolIdx = 3;
+    }
     const finalPosIdx = positionIdx !== -1 ? positionIdx : 8;
 
     const result = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
-      let account = String(row[finalAccIdx] || '').trim();
-      let symbol = String(row[finalSymIdx] || '').trim();
+      const accountRaw = String(row[accountIdx] || '').trim();
+      let symbol = String(row[symbolIdx] || '').trim();
       const position = this.parseCqgNumber(row[finalPosIdx]);
-      if (!account || !symbol) continue;
+      if (!accountRaw || !symbol) continue;
 
-      // adjust account suffix
-      account = account.replace(/F$/i, '')
-        .replace(/L$/i, '-L')
-        .replace(/S$/i, '-S')
-        .replace(/--/g, '-');
-
-      // convert LME symbols
+      const account = this.getNormalizedAccount(accountRaw);
       symbol = this.convertLMESymbol(symbol, tradingDate, holidays);
 
       result.push({ account, symbol, position });

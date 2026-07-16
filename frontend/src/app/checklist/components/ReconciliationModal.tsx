@@ -55,10 +55,12 @@ export default function ReconciliationModal({
 
   const [files, setFiles] = useState<Record<string, File | null>>({
     dsgd: null,
+    fr: null,
     fr1: null,
     fr2: null,
     nano: null,
     ttm: null,
+    op: null,
     op1: null,
     op2: null,
     // EOD / CQG files
@@ -71,6 +73,7 @@ export default function ReconciliationModal({
     cqgFr: null,
     cqgPs: null,
     // TTTT / PS files for KLGD
+    ps: null,
     ps1: null,
     ps2: null
   });
@@ -245,7 +248,7 @@ export default function ReconciliationModal({
         return;
       }
       Object.entries(files).forEach(([key, file]) => {
-        if (file && ['dsgd', 'fr1', 'fr2', 'nano', 'ttm', 'op1', 'op2', 'tttt', 'ps1', 'ps2'].includes(key)) {
+        if (file && ['dsgd', 'fr', 'fr1', 'fr2', 'nano', 'ttm', 'op', 'op1', 'op2', 'tttt', 'ps', 'ps1', 'ps2'].includes(key)) {
           formData.append(key, file);
         }
       });
@@ -536,8 +539,7 @@ export default function ReconciliationModal({
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
                   {renderFileDropzone('dsgd', 'File M-System (DSGD.xlsx)', true)}
-                  {renderFileDropzone('fr1', 'File CQG (FR1.xlsx)')}
-                  {renderFileDropzone('fr2', 'File CQG (FR2.xlsx)')}
+                  {renderFileDropzone('fr', 'File CQG (FR.xlsx)')}
                   {renderFileDropzone('nano', 'File ACM (Nano.xlsx / .xls)')}
                 </div>
               </div>
@@ -550,8 +552,7 @@ export default function ReconciliationModal({
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
                   {renderFileDropzone('ttm', 'File M-System (TTM.xlsx)')}
-                  {renderFileDropzone('op1', 'File CQG (OP1.xlsx)')}
-                  {renderFileDropzone('op2', 'File CQG (OP2.xlsx)')}
+                  {renderFileDropzone('op', 'File CQG (OP.xlsx)')}
                 </div>
               </div>
 
@@ -563,8 +564,7 @@ export default function ReconciliationModal({
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
                   {renderFileDropzone('tttt', 'File M-System (TTTT.xlsx)')}
-                  {renderFileDropzone('ps1', 'File CQG (PS1.xlsx)')}
-                  {renderFileDropzone('ps2', 'File CQG (PS2.xlsx)')}
+                  {renderFileDropzone('ps', 'File CQG (PS.xlsx)')}
                 </div>
               </div>
             </>
