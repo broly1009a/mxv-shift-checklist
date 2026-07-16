@@ -1296,6 +1296,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const result = await this.reconciliationService.runAutoCheckPreEOD(targetDate);
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+      }
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
       job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
       payload.result = result;

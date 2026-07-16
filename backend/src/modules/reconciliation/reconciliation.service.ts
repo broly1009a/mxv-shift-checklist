@@ -748,12 +748,9 @@ export class ReconciliationService {
     }
 
     // Filter DSGD data
-    // DSGD contains all trades in DD-MM-YYYY format for the trading date.
-    // Upper bound = end of tradingDate (23:59:59) for historical checks,
-    // or checkTime (= current time) for live checks.
-    const dsgdUpperBound = isPastDateOrDateOnly
-      ? new Date(tradingDate.getFullYear(), tradingDate.getMonth(), tradingDate.getDate(), 23, 59, 59, 999)
-      : checkTime;
+    // DSGD is filtered from sessionStart to checkTime (session-based rolling window)
+    // to align with CQG session bounds and support DSGD files containing next day trades.
+    const dsgdUpperBound = checkTime;
 
     const dsgdData = rawDsgdData.filter(gd => {
       if (!gd.ngayGio) return true;
@@ -773,7 +770,7 @@ export class ReconciliationService {
       return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
-    // Filter Nano data (same logic as DSGD - Nano uses YYYY-MM-DD or YYYYMMDD format)
+    // Filter Nano data - same logic as DSGD: always end-of-tradingDate
     const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter(gd => {
       if (!gd.ngayGio) return true;
@@ -1728,6 +1725,8 @@ export class ReconciliationService {
       cqgPosition: number;
       differ: number;
     }>;
+    sessionStart?: Date;
+    checkTime?: Date;
   }> {
     if (sessionStartStr) {
       await this.settingsService.setSetting('session_start_time', sessionStartStr);
@@ -1775,11 +1774,10 @@ export class ReconciliationService {
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
-    // DSGD filter: sessionStart → end-of-tradingDate for historical checks
+    // DSGD is filtered from sessionStart to checkTime (session-based rolling window)
+    // to align with CQG session bounds and support DSGD files containing next day trades.
     const rawDsgdData = this.parseDSGD(files.dsgd);
-    const dsgdUpperBound = isPastDateOrDateOnly
-      ? new Date(tradingDate.getFullYear(), tradingDate.getMonth(), tradingDate.getDate(), 23, 59, 59, 999)
-      : checkTime;
+    const dsgdUpperBound = checkTime;
     const dsgdData = rawDsgdData.filter(gd => {
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
@@ -1977,6 +1975,8 @@ export class ReconciliationService {
       },
       mismatchedTrades,
       mismatchedPositions,
+      sessionStart,
+      checkTime,
     };
   }
 
@@ -2548,6 +2548,11 @@ export class ReconciliationService {
 
     // Gửi Telegram alert
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    if (result.sessionStart && result.checkTime) {
+      const startStr = result.sessionStart.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const endStr = result.checkTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      telegramMsg += `• Khoảng thời gian lọc: <code>${startStr}</code> đến <code>${endStr}</code>\n`;
+    }
     telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '🚨 <b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
     telegramMsg += `• ACM (M-System vs Straits): MS <code>${result.totals.totalACM_MS}</code> vs Partner <code>${result.totals.totalACM_Straits}</code> (Lệch: <b>${result.totals.differACM}</b>)\n`;
     telegramMsg += `• CQG (M-System vs CQG): MS <code>${result.totals.totalCQG_MS}</code> vs Partner <code>${result.totals.totalCQG_FR}</code> (Lệch: <b>${result.totals.differCQG}</b>)\n`;

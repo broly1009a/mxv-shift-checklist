@@ -692,6 +692,11 @@ export class ReconciliationController {
       const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
 
       let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+      }
       note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalCQG_MS} vs ${result.totals.totalCQG_FR} lot (Chênh lệch: ${result.totals.differCQG} lot)\n`;
       note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;
