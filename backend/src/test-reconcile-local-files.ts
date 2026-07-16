@@ -12,7 +12,7 @@ async function testLocalReconciliation() {
 
   const sampleDir = path.join(
     process.cwd(),
-    '../it-tool-src/operate-transaction-app/bin/Debug/Download/BackupMS/2025/T08.2025/05.08'
+    '../14.07'
   );
 
   console.log(`\n📂 Thư mục chứa file mẫu: ${sampleDir}`);
@@ -43,14 +43,18 @@ async function testLocalReconciliation() {
       dsgd: readBuffer('DSGD.xlsx'),
       fr1: readBuffer('FR1.xlsx'),
       fr2: readBuffer('FR2.xlsx'),
+      nano: readBuffer('Nano.xls'),
       op1: readBuffer('OP1.xlsx'),
       op2: readBuffer('OP2.xlsx'),
       ttm: readBuffer('TTM.xlsx'),
+      tttt: readBuffer('TTTT.xlsx'),
+      ps1: readBuffer('PS1.xlsx'),
+      ps2: readBuffer('PS2.xlsx'),
     };
 
-    // Assume trading date is 2025-08-05 based on directory
-    const tradingDate = new Date('2025-08-05');
-    const resultKLGD = await reconService.checkKLGD(klgdFiles, tradingDate);
+    // Assume trading date is 2026-07-14 based on directory
+    const tradingDate = new Date('2026-07-14');
+    const resultKLGD = await reconService.checkKLGD(klgdFiles, tradingDate, [], '05:00');
 
     console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU KHỚP LỆNH:');
     console.log(`• Tổng khớp lệnh thường MS:  ${resultKLGD.totals.totalDSGD} lot`);
@@ -59,6 +63,9 @@ async function testLocalReconciliation() {
     console.log(`• Tổng khớp tự doanh MS:      ${resultKLGD.totals.totalACM} lot`);
     console.log(`• Tổng khớp tự doanh Nano:    ${resultKLGD.totals.totalNano} lot`);
     console.log(`• Chênh lệch tự doanh:        ${resultKLGD.totals.differACM} lot`);
+    console.log(`• Tổng TTTT MS:               ${resultKLGD.totals.totalTTTT} lot`);
+    console.log(`• Tổng PS CQG:                ${resultKLGD.totals.totalPS} lot`);
+    console.log(`• Chênh lệch TTTT vs PS:      ${resultKLGD.totals.differTTTT} lot`);
     
     console.log(`• Số giao dịch lệch chi tiết: ${resultKLGD.mismatchedTrades.length}`);
     if (resultKLGD.mismatchedTrades.length > 0) {
@@ -78,6 +85,16 @@ async function testLocalReconciliation() {
       });
     } else {
       console.log('✓ Không có tài khoản lệch TTM.');
+    }
+
+    console.log(`• Số tài khoản chênh lệch TTTT vs PS: ${resultKLGD.mismatchedTTTT ? resultKLGD.mismatchedTTTT.length : 0}`);
+    if (resultKLGD.mismatchedTTTT && resultKLGD.mismatchedTTTT.length > 0) {
+      console.log('⚠️ Danh sách tài khoản lệch TTTT vs PS:');
+      resultKLGD.mismatchedTTTT.forEach((t, i) => {
+        console.log(`  [${i + 1}] TK: ${t.maTKGD} | MS TTTT: ${t.ttttValue} | CQG PS: ${t.psValue} | Lệch: ${t.differ}`);
+      });
+    } else {
+      console.log('✓ Không có tài khoản lệch TTTT vs PS.');
     }
 
   } catch (err: any) {

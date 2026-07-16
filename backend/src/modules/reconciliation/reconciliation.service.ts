@@ -303,6 +303,7 @@ export class ReconciliationService {
     const klGiaoDichIdx = header.indexOf('KL giao dịch');
     const giaKhopIdx = header.indexOf('Giá khớp');
     const ngayGioIdx = header.indexOf('Ngày giờ thực hiện');
+    const maGDIdx = header.indexOf('Mã giao dịch');
 
     if (maLenhIdx === -1 || maTKGDIdx === -1 || maHDIdx === -1 || klGiaoDichIdx === -1 || giaKhopIdx === -1) {
       throw new Error('Thiếu cột bắt buộc trong file DSGD.xlsx (Mã lệnh, Mã TKGD, Mã HĐ, KL giao dịch, Giá khớp)');
@@ -319,6 +320,7 @@ export class ReconciliationService {
       const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
       const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
       const ngayGio = ngayGioIdx !== -1 ? String(row[ngayGioIdx] || '').trim() : '';
+      const maGD = maGDIdx !== -1 ? String(row[maGDIdx] || '').trim() : '';
 
       if (!maLenh || !maTKGD || !maHD) continue;
 
@@ -329,6 +331,7 @@ export class ReconciliationService {
         klGiaoDich,
         giaKhop,
         ngayGio,
+        maGD,
         // Combined key as C# does: {maTKGD}{maHD}{giaKhop}
         combinedKey: `${maTKGD}${maHD}${giaKhop}`,
       });
@@ -725,19 +728,13 @@ export class ReconciliationService {
 
     let checkTime: Date;
     if (isPastDateOrDateOnly) {
-      // Historical check or date-only upload:
-      // checkTime = tradingDate at sessionStart hour (e.g. 07-07 06:00)
-      // sessionStart = previous weekday at sessionStart hour (e.g. 06-07 06:00)
-      // This matches the legacy C# logic: iterate T-1 weekday backwards until not weekend
-      checkTime = new Date(tradingDate);
-      checkTime.setHours(sHour, sMin, 0, 0);
-
-      // Go back one day then skip weekends to find the previous trading session start
-      sessionStart = new Date(checkTime);
-      sessionStart.setDate(sessionStart.getDate() - 1);
+      // Historical check or date-only upload: include the entire 24h session window
+      sessionStart.setHours(sHour, sMin, 0, 0);
       while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
+      checkTime = new Date(sessionStart);
+      checkTime.setDate(checkTime.getDate() + 1);
     } else {
       // Live check: mimic the C# tool logic
       checkTime = new Date(tradingDate);
@@ -751,8 +748,14 @@ export class ReconciliationService {
     }
 
     // Filter DSGD data
+    // DSGD contains all trades in DD-MM-YYYY format for the trading date.
+    // Upper bound = end of tradingDate (23:59:59) for historical checks,
+    // or checkTime (= current time) for live checks.
+    const dsgdUpperBound = isPastDateOrDateOnly
+      ? new Date(tradingDate.getFullYear(), tradingDate.getMonth(), tradingDate.getDate(), 23, 59, 59, 999)
+      : checkTime;
+
     const dsgdData = rawDsgdData.filter(gd => {
-      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateParts = parts[0].split('-');
@@ -767,12 +770,12 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
-    // Filter Nano data
+    // Filter Nano data (same logic as DSGD - Nano uses YYYY-MM-DD or YYYYMMDD format)
+    const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter(gd => {
-      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateStr = parts[0];
@@ -796,12 +799,11 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= nanoUpperBound;
     });
 
     // Filter CQG data using parseCqgDateTime
     const frData = rawFrData.filter(fr => {
-      if (this.isIgnoredCommodity(fr.symbol)) return false;
       if (!fr.time) return true;
       const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
@@ -887,7 +889,7 @@ export class ReconciliationService {
 
     // Find ACM Nano rows not in MSystem
     nanoData.forEach(gd => {
-      const existsInDSGD = dsgdData.some(row => row.maTKGD.toUpperCase().endsWith('A') && row.maLenh === gd.maGD);
+      const existsInDSGD = dsgdData.some(row => row.maTKGD.toUpperCase().endsWith('A') && row.maGD === gd.maGD && row.klGiaoDich === gd.klGiaoDich);
       if (!existsInDSGD) {
         mismatchedTrades.push({
           source: 'ACM',
@@ -905,7 +907,7 @@ export class ReconciliationService {
     // Find MSystem ACM rows not in Nano
     dsgdData.forEach(gd => {
       if (!gd.maTKGD.toUpperCase().endsWith('A')) return;
-      const existsInNano = nanoData.some(row => row.maGD === gd.maLenh);
+      const existsInNano = nanoData.some(row => row.maGD === gd.maGD && row.klGiaoDich === gd.klGiaoDich);
       if (!existsInNano) {
         mismatchedTrades.push({
           source: 'Nano',
@@ -974,12 +976,12 @@ export class ReconciliationService {
     }> = [];
 
     if (files.tttt && (files.ps || files.ps1 || files.ps2)) {
-      const ttttData = this.parseTTTTForVolume(files.tttt).filter(t => !this.isIgnoredCommodity(t.maHD));
+      const ttttData = this.parseTTTTForVolume(files.tttt);
       const psData: any[] = [];
       if (files.ps) psData.push(...this.parsePSForVolume(files.ps));
       if (files.ps1) psData.push(...this.parsePSForVolume(files.ps1));
       if (files.ps2) psData.push(...this.parsePSForVolume(files.ps2));
-      const filteredPsData = psData.filter(p => !this.isIgnoredCommodity(p.symbol));
+      const filteredPsData = psData;
 
       const ttttSummary: Record<string, number> = {};
       ttttData.forEach(t => {
@@ -1773,9 +1775,12 @@ export class ReconciliationService {
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
+    // DSGD filter: sessionStart → end-of-tradingDate for historical checks
     const rawDsgdData = this.parseDSGD(files.dsgd);
+    const dsgdUpperBound = isPastDateOrDateOnly
+      ? new Date(tradingDate.getFullYear(), tradingDate.getMonth(), tradingDate.getDate(), 23, 59, 59, 999)
+      : checkTime;
     const dsgdData = rawDsgdData.filter(gd => {
-      if (this.isIgnoredCommodity(gd.maHD)) return false;
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
       const dateParts = parts[0].split('-');
@@ -1790,7 +1795,7 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime >= sessionStart && tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
     let totalACM_MS = 0;
@@ -1811,7 +1816,6 @@ export class ReconciliationService {
     // 4. Parse CQG FR.xlsx and filter out ZWAZCE
     const rawFrData = this.parseFR(files.cqgFr, tradingDate, holidays);
     const frData = rawFrData.filter(fr => {
-      if (this.isIgnoredCommodity(fr.symbol)) return false;
       if (!fr.time) return true;
       const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
@@ -1883,7 +1887,6 @@ export class ReconciliationService {
     ttttList.forEach(item => {
       // Filter out self-trading (ACM) accounts ending with 'A' or 'a' (like -A, -a, etc.)
       if (item.account.toUpperCase().endsWith('A')) return;
-      if (this.isIgnoredCommodity(item.symbol)) return;
 
       const key = `${item.account}_${item.symbol}`;
       const existing = msSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
@@ -1894,7 +1897,6 @@ export class ReconciliationService {
     // Group CQG positions by Account + Symbol
     const cqgSummary = new Map<string, { account: string; symbol: string; position: number }>();
     psList.forEach(item => {
-      if (this.isIgnoredCommodity(item.symbol)) return;
       const key = `${item.account}_${item.symbol}`;
       const existing = cqgSummary.get(key) || { account: item.account, symbol: item.symbol, position: 0 };
       existing.position += item.position;
