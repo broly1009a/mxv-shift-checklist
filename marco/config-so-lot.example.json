@@ -1,0 +1,39 @@
+{
+  "_comment": "File cấu hình mẫu cho macro-so-lot.ts - Thay thế Sheet2 trong VBA",
+  "ngayGD": "2026-07-16",
+
+  "pathDsgd": "C:/path/to/DSGD_20260716.xlsx",
+  "pathFr": "C:/path/to/FR_20260716.xlsx",
+  "pathTtm": "C:/path/to/TTM_20260716.xlsx",
+  "pathTttt": "C:/path/to/TTTT_20260716.xlsx",
+  "pathOp": "C:/path/to/OP_20260716.xlsx",
+  "pathPs": "C:/path/to/PS_20260716.xlsx",
+  "pathGdt": "C:/path/to/GDT_lichsu.xlsx",
+  "pathOutputHistory": "C:/path/to/output/",
+
+  "_comment_filterLmeKyHan": "Mã kỳ hạn LME đã hết hạn (Sheet2!A77 trong VBA)",
+  "filterMaKyHan": "M26",
+
+  "_comment_truDates": "4 ngày TRU cần trừ khi tính FR Product (Sheet2!A15, A28, A32, A34)",
+  "truDates": [
+    "2026-07-16",
+    "2026-07-15",
+    "2026-07-14",
+    "2026-07-11"
+  ],
+
+  "_comment_fefDates": "2 ngày FEF cần trừ (Sheet2!A15, A28)",
+  "fefDates": [
+    "2026-07-16",
+    "2026-07-15"
+  ],
+
+  "_comment_zftDates": "2 ngày ZFT cần trừ",
+  "zftDates": [
+    "2026-07-16",
+    "2026-07-15"
+  ],
+
+  "_comment_deadline": "Excel date serial deadline cho QO/QP/BM/MPO (Sheet2!Y1)",
+  "deadline": 46218
+}

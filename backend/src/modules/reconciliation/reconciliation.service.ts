@@ -725,13 +725,19 @@ export class ReconciliationService {
 
     let checkTime: Date;
     if (isPastDateOrDateOnly) {
-      // Historical check or date-only upload: include the entire 24h session window
-      sessionStart.setHours(sHour, sMin, 0, 0);
+      // Historical check or date-only upload:
+      // checkTime = tradingDate at sessionStart hour (e.g. 07-07 06:00)
+      // sessionStart = previous weekday at sessionStart hour (e.g. 06-07 06:00)
+      // This matches the legacy C# logic: iterate T-1 weekday backwards until not weekend
+      checkTime = new Date(tradingDate);
+      checkTime.setHours(sHour, sMin, 0, 0);
+
+      // Go back one day then skip weekends to find the previous trading session start
+      sessionStart = new Date(checkTime);
+      sessionStart.setDate(sessionStart.getDate() - 1);
       while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
-      checkTime = new Date(sessionStart);
-      checkTime.setDate(checkTime.getDate() + 1);
     } else {
       // Live check: mimic the C# tool logic
       checkTime = new Date(tradingDate);

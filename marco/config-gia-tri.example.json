@@ -1,0 +1,40 @@
+{
+  "_comment": "File cấu hình mẫu cho macro-gia-tri.ts - Thay thế Sheet2 trong VBA",
+  "ngayGD": "2026-07-16",
+
+  "pathDsgd": "C:/path/to/DSGD_20260716.xlsx",
+  "pathOutput": "C:/path/to/output/",
+
+  "_comment_tyGia": "Tỷ giá USD/VND từ Sheet1!D2, D3, D4 trong VBA",
+  "tyGiaDefault": 25350,
+  "tyGiaTru": 25350,
+  "tyGiaMpo": 25350,
+
+  "_comment_hhLookup": "Bảng tra cứu hàng hóa (từ sheet HH và Hhoa Vlookup trong VBA). Cập nhật theo thực tế.",
+  "hhLookup": [
+    {
+      "maHH": "TRU",
+      "tenHH": "Cao su Việt Nam",
+      "heSo": 1000,
+      "donViQuyDoi": 1
+    },
+    {
+      "maHH": "MPO",
+      "tenHH": "Dầu cọ thô Malaysia",
+      "heSo": 10,
+      "donViQuyDoi": 1
+    },
+    {
+      "maHH": "LCO",
+      "tenHH": "Dầu thô Brent",
+      "heSo": 1,
+      "donViQuyDoi": 1
+    },
+    {
+      "maHH": "FEF",
+      "tenHH": "Thép cuộn",
+      "heSo": 1,
+      "donViQuyDoi": 1
+    }
+  ]
+}
