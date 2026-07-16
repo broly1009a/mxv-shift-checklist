@@ -1731,19 +1731,6 @@ export class ReconciliationService {
     if (sessionStartStr) {
       await this.settingsService.setSetting('session_start_time', sessionStartStr);
     }
-    // 1. Calculate expected T-1 date relative to tradingDate
-    const d = new Date(tradingDate);
-    d.setDate(d.getDate() - 1);
-    while (d.getDay() === 0 || d.getDay() === 6) { // 0 Sunday, 6 Saturday
-      d.setDate(d.getDate() - 1);
-    }
-    const expectedDateStr = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`;
-
-    // Validate filename date suffix for acmTrades
-    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
-      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Vui lòng kiểm tra lại.`);
-    }
-
     // Calculate time bounds: sessionStart and checkTime
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
 
@@ -1751,26 +1738,39 @@ export class ReconciliationService {
       (tradingDate.getHours() === 0 && tradingDate.getMinutes() === 0 && tradingDate.getSeconds() === 0) ||
       (tradingDate.getUTCHours() === 0 && tradingDate.getUTCMinutes() === 0 && tradingDate.getUTCSeconds() === 0);
 
-    let sessionStart: Date;
+    let sessionStart = new Date(tradingDate);
     let checkTime: Date;
+
     if (isPastDateOrDateOnly) {
-      // Session start is T-1 date at 06:00
-      sessionStart = new Date(d);
+      // Historical check or date-only upload: include the entire 24h session window
       sessionStart.setHours(sHour, sMin, 0, 0);
-      
-      // checkTime is tradingDate (checking date) at 06:00
-      checkTime = new Date(tradingDate);
-      checkTime.setHours(sHour, sMin, 0, 0);
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+      checkTime = new Date(sessionStart);
+      checkTime.setDate(checkTime.getDate() + 1);
     } else {
+      // Live check: mimic the C# tool logic
       checkTime = new Date(tradingDate);
-      sessionStart = new Date(tradingDate);
       sessionStart.setHours(sHour, sMin, 0, 0);
       if (checkTime < sessionStart) {
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
-      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
+    }
+
+    // Validate filename date suffix for acmTrades (based on sessionStart's date)
+    const expectedDateStr = `${String(sessionStart.getDate()).padStart(2, '0')}${String(sessionStart.getMonth() + 1).padStart(2, '0')}${sessionStart.getFullYear()}`;
+    const previousBusinessDay = new Date(sessionStart);
+    do {
+      previousBusinessDay.setDate(previousBusinessDay.getDate() - 1);
+    } while (previousBusinessDay.getDay() === 0 || previousBusinessDay.getDay() === 6);
+    const previousBusinessDayStr = `${String(previousBusinessDay.getDate()).padStart(2, '0')}${String(previousBusinessDay.getMonth() + 1).padStart(2, '0')}${previousBusinessDay.getFullYear()}`;
+
+    if (acmTradesName && !acmTradesName.includes(expectedDateStr) && !acmTradesName.includes(previousBusinessDayStr)) {
+      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày đối chiếu (${sessionStart.getDate().toString().padStart(2, '0')}/${(sessionStart.getMonth() + 1).toString().padStart(2, '0')}/${sessionStart.getFullYear()} hoặc ${previousBusinessDay.getDate().toString().padStart(2, '0')}/${(previousBusinessDay.getMonth() + 1).toString().padStart(2, '0')}/${previousBusinessDay.getFullYear()}). Vui lòng kiểm tra lại.`);
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
