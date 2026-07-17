@@ -1,10 +1,14 @@
+hiepth@MXVD01077 MINGW64 ~/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend (maro-value-lot)
+$ npx ts-node src/compare_outputs.ts
+
 === Comparing DSGD T07.2026.xlsx ===
-Sheet Gen: Sheet1 (91580 rows), Sheet Root: Sheet1 (84410 rows)
-[WARN] Could not find row for 16-Jul-2026. GenRow: -1, RootRow: -1
+Sheet Gen: sheet1 (7171 rows), Sheet Root: Sheet1 (84410 rows)
+Found 16-Jul-2026 at Gen Row 2, Root Row 77241
+Total differences in 16-Jul-2026 row: 0
 
 === Comparing Thong ke so lot giao dich 2026 2.xlsx ===
-Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
-Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Sheet Gen: T07.2026 (1048560 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 17, Root Row 16
 Total differences in 16-Jul-2026 row: 0
 
 === Comparing Thong ke so lot giao dich ACM 2026 2.xlsx ===
@@ -26,3 +30,6 @@ Total differences in 16-Jul-2026 row: 0
 Sheet Gen: T07.2026 (224 rows), Sheet Root: T07.2026 (224 rows)
 Found 16-Jul-2026 at Gen Row 16, Root Row 16
 Total differences in 16-Jul-2026 row: 0
+
+hiepth@MXVD01077 MINGW64 ~/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend (maro-value-lot)
+$
