@@ -20,6 +20,14 @@ interface LotStatisticsPanelProps {
   apiBaseUrl: string;
 }
 
+function getPreviousWorkday(d: Date = new Date()): Date {
+  const prev = new Date(d);
+  do {
+    prev.setDate(prev.getDate() - 1);
+  } while (prev.getDay() === 0 || prev.getDay() === 6); // 0 = Sunday, 6 = Saturday
+  return prev;
+}
+
 export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsPanelProps) {
   // Mode Selection: 'folder' (scan server folder) vs 'upload' (upload local files)
   const [runMode, setRunMode] = useState<'folder' | 'upload'>('folder');
@@ -28,8 +36,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
   // Config & Parameters States
   const [ngayGD, setNgayGD] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    const prevWorkday = getPreviousWorkday();
+    return prevWorkday.toISOString().split('T')[0];
   });
   const [truDates, setTruDates] = useState('2026-07-03, 2026-07-02, 2026-07-01, 2026-06-30');
   const [fefDates, setFefDates] = useState('2026-07-03, 2026-07-02');
@@ -76,6 +84,35 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       setBasePathCqg(savedCqg);
     }
   }, []);
+
+  // Automatically compute and sync paths when ngayGD or base paths change
+  useEffect(() => {
+    if (!ngayGD) return;
+    const parts = ngayGD.split('-');
+    if (parts.length !== 3) return;
+    const [year, month, day] = parts;
+    
+    // MS
+    const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
+    const computedMs = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
+    setFolderPathMs(computedMs);
+
+    // CQG
+    const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
+    const computedCqg = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
+    setFolderPathCqg(computedCqg);
+
+    // Cumulative paths auto-computation (inside the daily folder)
+    const lastPartCqgIdx = cleanBaseCqg.lastIndexOf('\\');
+    const parentBaseCqg = lastPartCqgIdx > 0 ? cleanBaseCqg.substring(0, lastPartCqgIdx) : cleanBaseCqg;
+
+    setPathDsgdCumulative(`${computedMs}\\DSGD T${month}.${year}.xlsx`);
+    setPathNormal(`${computedCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`);
+    setPathAcm(`${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`);
+    setPathLme(`${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`);
+    setPathOptions(`${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`);
+    setPathSpread(`${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`);
+  }, [ngayGD, basePathMs, basePathCqg]);
 
   const handleBasePathMsChange = (val: string) => {
     setBasePathMs(val);

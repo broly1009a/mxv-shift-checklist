@@ -59,16 +59,19 @@ async function compareFiles() {
     let rowGenIdx = -1;
     let rowRootIdx = -1;
 
-    for (let r = 5; r <= wsGen.rowCount; r++) {
-      const v = wsGen.getCell(r, 2).value;
+    const dateCol = item.name.startsWith('DSGD') ? 23 : 2;
+    const startRow = item.name.startsWith('DSGD') ? 2 : 5;
+
+    for (let r = startRow; r <= wsGen.rowCount; r++) {
+      const v = wsGen.getCell(r, dateCol).value;
       if (isSameDate(v, targetDate)) {
         rowGenIdx = r;
         break;
       }
     }
 
-    for (let r = 5; r <= wsRoot.rowCount; r++) {
-      const v = wsRoot.getCell(r, 2).value;
+    for (let r = startRow; r <= wsRoot.rowCount; r++) {
+      const v = wsRoot.getCell(r, dateCol).value;
       if (isSameDate(v, targetDate)) {
         rowRootIdx = r;
         break;
@@ -90,7 +93,15 @@ async function compareFiles() {
       const valGen = rowGen.getCell(c).value;
       const valRoot = rowRoot.getCell(c).value;
 
-      // Extract result if formula
+      // Check if a cell is a formula cell
+      const isFormula = (val: any) => {
+        return val && typeof val === 'object' && ('formula' in val || 'sharedFormula' in val);
+      };
+
+      if (isFormula(valGen) || isFormula(valRoot)) {
+        continue; // Skip formula cells because Excel recalculates them when opened
+      }
+
       const cleanVal = (val: any) => {
         if (val && typeof val === 'object' && 'result' in val) return val.result;
         return val;
@@ -99,10 +110,13 @@ async function compareFiles() {
       const cg = cleanVal(valGen);
       const cr = cleanVal(valRoot);
 
-      if (String(cg) !== String(cr)) {
+      const strGen = cg !== null && cg !== undefined ? String(cg).trim() : '';
+      const strRoot = cr !== null && cr !== undefined ? String(cr).trim() : '';
+
+      if (strGen !== strRoot) {
         diffCount++;
-        // Fetch header in row 4
-        const header = wsRoot.getCell(4, c).value;
+        const headerRowIndex = item.name.startsWith('DSGD') ? 1 : 4;
+        const header = wsRoot.getCell(headerRowIndex, c).value;
         console.log(`Col ${c} (${header}): Gen=${JSON.stringify(cg)}, Root=${JSON.stringify(cr)}`);
       }
     }

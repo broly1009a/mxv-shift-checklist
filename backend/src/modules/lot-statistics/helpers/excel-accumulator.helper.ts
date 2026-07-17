@@ -39,7 +39,7 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
       const month = parseInt(match[2], 10) - 1;
       let year = parseInt(match[3], 10);
       if (year < 100) year += 2000;
-      d = new Date(year, month, day);
+      d = new Date(Date.UTC(year, month, day));
     } else {
       const parsed = new Date(str);
       if (!isNaN(parsed.getTime())) {
@@ -49,11 +49,74 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
   }
 
   if (!d || isNaN(d.getTime())) return false;
-  return (
-    d.getFullYear() === targetDate.getFullYear() &&
-    d.getMonth() === targetDate.getMonth() &&
-    d.getDate() === targetDate.getDate()
-  );
+
+  const targetY = targetDate.getUTCFullYear();
+  const targetM = targetDate.getUTCMonth();
+  const targetD = targetDate.getUTCDate();
+
+  const utcMatch = d.getUTCFullYear() === targetY && d.getUTCMonth() === targetM && d.getUTCDate() === targetD;
+  const localMatch = d.getFullYear() === targetY && d.getMonth() === targetM && d.getDate() === targetD;
+
+  return utcMatch || localMatch;
+}
+
+/**
+ * Helper to find or create target row index by scanning until "Tổng" or matching date
+ */
+function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
+  let targetRowIndex = -1;
+  let tongRowIndex = -1;
+
+  for (let r = 5; r <= ws.rowCount; r++) {
+    const sttVal = ws.getCell(r, 1).value;
+    const dateCellVal = ws.getCell(r, 2).value;
+
+    const sttStr = sttVal !== null && sttVal !== undefined ? String(sttVal).trim().toLowerCase() : '';
+    const dateStr = dateCellVal !== null && dateCellVal !== undefined ? String(dateCellVal).trim().toLowerCase() : '';
+
+    if (sttStr === 'tổng' || dateStr === 'tổng') {
+      tongRowIndex = r;
+      break;
+    }
+
+    if (isSameDate(dateCellVal, ngayGD)) {
+      targetRowIndex = r;
+      break;
+    }
+  }
+
+  if (targetRowIndex === -1) {
+    if (tongRowIndex !== -1) {
+      ws.insertRow(tongRowIndex, []);
+      targetRowIndex = tongRowIndex;
+    } else {
+      // Find the last row with content in column 1 or 2
+      let lastContentRow = 4;
+      for (let r = 5; r <= ws.rowCount; r++) {
+        const c1 = ws.getCell(r, 1).value;
+        const c2 = ws.getCell(r, 2).value;
+        if (
+          (c1 !== null && c1 !== undefined && c1 !== '') ||
+          (c2 !== null && c2 !== undefined && c2 !== '')
+        ) {
+          lastContentRow = r;
+        }
+      }
+      targetRowIndex = lastContentRow + 1;
+    }
+
+    // Set STT and Date
+    let maxStt = 0;
+    for (let r = 5; r < targetRowIndex; r++) {
+      const stt = parseInt(String(ws.getCell(r, 1).value || 0), 10);
+      if (stt > maxStt) maxStt = stt;
+    }
+    ws.getCell(targetRowIndex, 1).value = maxStt + 1;
+    ws.getCell(targetRowIndex, 2).value = ngayGD;
+    ws.getCell(targetRowIndex, 2).numFmt = 'yyyy-mm-dd';
+  }
+
+  return targetRowIndex;
 }
 
 /**
@@ -193,26 +256,7 @@ async function updateTvkdTrackerFile(
     ws = wb.worksheets[wb.worksheets.length - 1];
   }
 
-  let targetRowIndex = -1;
-  for (let r = 5; r <= ws.rowCount; r++) {
-    const dateCellVal = ws.getCell(r, 2).value;
-    if (isSameDate(dateCellVal, ngayGD)) {
-      targetRowIndex = r;
-      break;
-    }
-  }
-
-  if (targetRowIndex === -1) {
-    targetRowIndex = ws.rowCount + 1;
-    let maxStt = 0;
-    for (let r = 5; r < targetRowIndex; r++) {
-      const stt = parseInt(String(ws.getCell(r, 1).value || 0), 10);
-      if (stt > maxStt) maxStt = stt;
-    }
-    ws.getCell(targetRowIndex, 1).value = maxStt + 1;
-    ws.getCell(targetRowIndex, 2).value = ngayGD;
-    ws.getCell(targetRowIndex, 2).numFmt = 'yyyy-mm-dd';
-  }
+  const targetRowIndex = findOrCreateTargetRow(ws, ngayGD);
 
   const tvkdLots = aggregateByTvkd(classifiedRows);
 
@@ -281,26 +325,7 @@ async function updateAcmTrackerFile(
     ws = wb.worksheets[wb.worksheets.length - 1];
   }
 
-  let targetRowIndex = -1;
-  for (let r = 5; r <= ws.rowCount; r++) {
-    const dateCellVal = ws.getCell(r, 2).value;
-    if (isSameDate(dateCellVal, ngayGD)) {
-      targetRowIndex = r;
-      break;
-    }
-  }
-
-  if (targetRowIndex === -1) {
-    targetRowIndex = ws.rowCount + 1;
-    let maxStt = 0;
-    for (let r = 5; r < targetRowIndex; r++) {
-      const stt = parseInt(String(ws.getCell(r, 1).value || 0), 10);
-      if (stt > maxStt) maxStt = stt;
-    }
-    ws.getCell(targetRowIndex, 1).value = maxStt + 1;
-    ws.getCell(targetRowIndex, 2).value = ngayGD;
-    ws.getCell(targetRowIndex, 2).numFmt = 'yyyy-mm-dd';
-  }
+  const targetRowIndex = findOrCreateTargetRow(ws, ngayGD);
 
   // Update summary columns
   ws.getCell(targetRowIndex, 3).value = sumDsgdLot(classified.dsgdAcm); // CQG lot
@@ -369,26 +394,7 @@ async function updateNormalTrackerFile(
     ws = wb.worksheets[wb.worksheets.length - 1];
   }
 
-  let targetRowIndex = -1;
-  for (let r = 5; r <= ws.rowCount; r++) {
-    const dateCellVal = ws.getCell(r, 2).value;
-    if (isSameDate(dateCellVal, result.ngayGD)) {
-      targetRowIndex = r;
-      break;
-    }
-  }
-
-  if (targetRowIndex === -1) {
-    targetRowIndex = ws.rowCount + 1;
-    let maxStt = 0;
-    for (let r = 5; r < targetRowIndex; r++) {
-      const stt = parseInt(String(ws.getCell(r, 1).value || 0), 10);
-      if (stt > maxStt) maxStt = stt;
-    }
-    ws.getCell(targetRowIndex, 1).value = maxStt + 1;
-    ws.getCell(targetRowIndex, 2).value = result.ngayGD;
-    ws.getCell(targetRowIndex, 2).numFmt = 'yyyy-mm-dd';
-  }
+  const targetRowIndex = findOrCreateTargetRow(ws, result.ngayGD);
 
   const s = result.summary;
 
@@ -453,7 +459,7 @@ async function updateNormalTrackerFile(
 
   // Update TVKD columns: 33 to 93
   const tvkdLots = aggregateByTvkd(classified.dsgd);
-  const headerRow = ws.getRow(4);
+  const headerRow = ws.getRow(5);
   for (let col = 33; col <= 93; col++) {
     const headerVal = headerRow.getCell(col).value;
     if (headerVal === null || headerVal === undefined) continue;
