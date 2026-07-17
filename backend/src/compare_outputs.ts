@@ -31,7 +31,7 @@ async function compareFiles() {
   const targetDate = new Date(2026, 6, 16); // 16-Jul-2026
 
   const filesToCompare = [
-    { name: 'DSGD T07.2026.xlsx', rootName: 'DSGD T07.2026.xlsx' },
+    { name: 'DSGD T07.2026.xlsx', rootName: 'DSGD T07.2026 root.xlsx' },
     { name: 'Thong ke so lot giao dich 2026 2.xlsx', rootName: 'Thong ke so lot giao dich 2026 2 root.xlsx' },
     { name: 'Thong ke so lot giao dich ACM 2026 2.xlsx', rootName: 'Thong ke so lot giao dich ACM 2026 2 root.xlsx' },
     { name: 'Thong ke so lot giao dich LME 2026.xlsx', rootName: 'Thong ke so lot giao dich LME 2026 root.xlsx' },

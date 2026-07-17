@@ -115,26 +115,48 @@ export async function appendRawDsgd(
 
   const targetWb = new ExcelJS.Workbook();
   let targetWs: ExcelJS.Worksheet;
+  const rowsToKeep: any[][] = [];
+  const headerValues = dailyWs.getRow(1).values as any[];
 
   if (fs.existsSync(targetFilePath)) {
     await targetWb.xlsx.readFile(targetFilePath);
-    targetWs = targetWb.getWorksheet('sheet1') || targetWb.getWorksheet('Sheet1') || targetWb.worksheets[0];
-  } else {
-    targetWs = targetWb.addWorksheet('sheet1');
-    // Copy headers from daily
-    const headers = dailyWs.getRow(1).values as any[];
-    targetWs.getRow(1).values = headers.slice(1); // ExcelJS values are 1-indexed
+    const existingWs = targetWb.getWorksheet('sheet1') || targetWb.getWorksheet('Sheet1') || targetWb.worksheets[0];
+    if (existingWs) {
+      for (let r = 2; r <= existingWs.rowCount; r++) {
+        const row = existingWs.getRow(r);
+        const dateVal = row.getCell(23).value;
+        if (!isSameDate(dateVal, ngayGD)) {
+          const rowVals: any[] = [];
+          for (let c = 1; c <= 23; c++) {
+            rowVals.push(row.getCell(c).value);
+          }
+          rowsToKeep.push(rowVals);
+        }
+      }
+      targetWb.removeWorksheet(existingWs.id);
+    }
   }
 
-  const startRow = targetWs.rowCount + 1;
-  let addedCount = 0;
+  targetWs = targetWb.addWorksheet('sheet1');
+  targetWs.getRow(1).values = headerValues.slice(1);
+
+  let currentGenRow = 2;
+  // Write kept rows
+  for (const rowVals of rowsToKeep) {
+    const newRow = targetWs.getRow(currentGenRow);
+    for (let c = 1; c <= 23; c++) {
+      newRow.getCell(c).value = rowVals[c - 1];
+    }
+    newRow.getCell(23).numFmt = 'yyyy-mm-dd';
+    currentGenRow++;
+  }
 
   // Append daily rows starting from row 2
   for (let r = 2; r <= dailyWs.rowCount; r++) {
     const dailyRow = dailyWs.getRow(r);
     if (!dailyRow.values || (dailyRow.values as any[]).length === 0) continue;
 
-    const newRow = targetWs.getRow(startRow + addedCount);
+    const newRow = targetWs.getRow(currentGenRow);
     // Copy columns A to V (1 to 22)
     for (let c = 1; c <= 22; c++) {
       newRow.getCell(c).value = dailyRow.getCell(c).value;
@@ -143,7 +165,7 @@ export async function appendRawDsgd(
     newRow.getCell(23).value = ngayGD;
     newRow.getCell(23).numFmt = 'yyyy-mm-dd';
 
-    addedCount++;
+    currentGenRow++;
   }
 
   await targetWb.xlsx.writeFile(targetFilePath);
