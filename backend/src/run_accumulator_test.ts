@@ -62,17 +62,12 @@ async function runTest() {
   console.log('Processing lot statistics and updating cumulative files...');
   const result = await service.processLotStatistics(files, params);
 
-  console.log('\n--- DAILY SUMMARIES ---');
-  console.log(`Normal Futures (DSGD): ${result.summary.dsgdProduct}`);
-  console.log(`LME (DSGD):           ${result.summary.dsgdLme}`);
-  console.log(`Options (DSGD):       ${result.summary.dsgdOptions}`);
-  console.log(`Spread (DSGD):        ${result.summary.dsgdSpread}`);
-  console.log(`ACM (DSGD):           ${result.summary.acmLot}`);
-
   // Verification phase
-  console.log('\n--- VERIFYING CUMULATIVE UPDATES ---');
+  console.log('\n--- VERIFYING STYLE HIGHLIGHTS IN NORMAL TRACKER ---');
+  const normalWb = new ExcelJS.Workbook();
+  await normalWb.xlsx.readFile(params.pathNormal);
+  const normalWs = normalWb.getWorksheet('T07.2026')!;
 
-  // Helper function for date matching in test
   function checkDate(cellVal: any, targetStr: string): boolean {
     if (!cellVal) return false;
     if (cellVal instanceof Date) {
@@ -84,53 +79,27 @@ async function runTest() {
     return String(cellVal).includes(targetStr);
   }
 
-  // Verify LME
-  const lmeWb = new ExcelJS.Workbook();
-  await lmeWb.xlsx.readFile(params.pathLme);
-  const lmeWs = lmeWb.getWorksheet('T07.2026')!;
-  console.log(`LME Sheet: T07.2026 row count = ${lmeWs.rowCount}`);
-  let foundRowLme = -1;
-  for (let r = 5; r <= lmeWs.rowCount; r++) {
-    const val = lmeWs.getCell(r, 2).value;
+  let foundRowNormal = -1;
+  for (let r = 5; r <= normalWs.rowCount; r++) {
+    const val = normalWs.getCell(r, 2).value;
     if (checkDate(val, '2026-07-16')) {
-      foundRowLme = r;
+      foundRowNormal = r;
       break;
     }
-  }
-  if (foundRowLme !== -1) {
-    console.log(`[PASS] Found 2026-07-16 in LME tracker at Row ${foundRowLme}`);
-    for (let c = 1; c <= lmeWs.columnCount; c++) {
-      const v = lmeWs.getCell(foundRowLme, c).value;
-      if (v !== null && v !== undefined) {
-        console.log(`  Col ${c} (${lmeWs.getCell(4, c).value}): ${JSON.stringify(v)}`);
-      }
-    }
-  } else {
-    console.log(`[FAIL] Could not find 2026-07-16 in LME tracker`);
   }
 
-  // Verify ACM
-  const acmWb = new ExcelJS.Workbook();
-  await acmWb.xlsx.readFile(params.pathAcm);
-  const acmWs = acmWb.getWorksheet('T07.2026')!;
-  let foundRowAcm = -1;
-  for (let r = 5; r <= acmWs.rowCount; r++) {
-    const val = acmWs.getCell(r, 2).value;
-    if (checkDate(val, '2026-07-16')) {
-      foundRowAcm = r;
-      break;
-    }
-  }
-  if (foundRowAcm !== -1) {
-    console.log(`[PASS] Found 2026-07-16 in ACM tracker at Row ${foundRowAcm}`);
-    for (let c = 1; c <= acmWs.columnCount; c++) {
-      const v = acmWs.getCell(foundRowAcm, c).value;
-      if (v !== null && v !== undefined) {
-        console.log(`  Col ${c} (${acmWs.getCell(4, c).value}): ${JSON.stringify(v)}`);
-      }
+  if (foundRowNormal !== -1) {
+    console.log(`Found 2026-07-16 in Normal tracker at Row ${foundRowNormal}`);
+    const colsToCheck = [3, 17];
+    for (const col of colsToCheck) {
+      const cell = normalWs.getCell(foundRowNormal, col);
+      console.log(`Col ${col} (${normalWs.getCell(4, col).value || normalWs.getCell(5, col).value}):`);
+      console.log(`  Value: ${JSON.stringify(cell.value)}`);
+      console.log(`  Fill:  ${JSON.stringify(cell.fill)}`);
+      console.log(`  Font:  ${JSON.stringify(cell.font)}`);
     }
   } else {
-    console.log(`[FAIL] Could not find 2026-07-16 in ACM tracker`);
+    console.log(`[FAIL] Could not find 2026-07-16 in Normal tracker`);
   }
 
   // Clean up

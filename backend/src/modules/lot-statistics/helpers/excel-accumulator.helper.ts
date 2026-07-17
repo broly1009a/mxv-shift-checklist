@@ -459,7 +459,7 @@ async function updateNormalTrackerFile(
 
   // Update TVKD columns: 33 to 93
   const tvkdLots = aggregateByTvkd(classified.dsgd);
-  const headerRow = ws.getRow(5);
+  const headerRow = ws.getRow(4);
   for (let col = 33; col <= 93; col++) {
     const headerVal = headerRow.getCell(col).value;
     if (headerVal === null || headerVal === undefined) continue;
@@ -489,6 +489,45 @@ async function updateNormalTrackerFile(
     }
     ws.getCell(targetRowIndex, col).value = sumLot;
   }
+
+  // ── Block 3: Parity styling and highlights ──────────────────────────────────
+  const compareAndHighlight = (colMs: number, colCqg: number, valMs: number, valCqg: number) => {
+    const cellMs = ws.getCell(targetRowIndex, colMs);
+    const cellCqg = ws.getCell(targetRowIndex, colCqg);
+
+    if (valMs !== valCqg) {
+      const redFill: ExcelJS.Fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFC7CE' } // Light red background
+      };
+      const redFont: Partial<ExcelJS.Font> = {
+        color: { argb: 'FF9C0006' }, // Dark red text
+        bold: true
+      };
+      cellMs.style = { ...cellMs.style, fill: redFill, font: redFont };
+      cellCqg.style = { ...cellCqg.style, fill: redFill, font: redFont };
+    } else {
+      // Restore default clean template style for Columns 3 and 17
+      const defaultFill: ExcelJS.Fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { theme: 9, tint: 0.5999938962981048 } as any,
+        bgColor: { indexed: 64 } as any
+      };
+      const defaultFont: Partial<ExcelJS.Font> = {
+        size: 11,
+        color: { argb: 'FF000000' } as any,
+        name: 'Times New Roman',
+        family: 1
+      };
+      cellMs.style = { ...cellMs.style, fill: defaultFill, font: defaultFont };
+      cellCqg.style = { ...cellCqg.style, fill: defaultFill, font: defaultFont };
+    }
+  };
+
+  // 1. Futures Lot (Only compare and highlight MS Futures Lot vs CQG Futures Lot)
+  compareAndHighlight(3, 17, s.dsgdProduct || 0, s.frProduct || 0);
 
   await wb.xlsx.writeFile(filePath);
 }
