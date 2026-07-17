@@ -35,7 +35,9 @@ export interface FrProductResult {
     frSpread: number;
     frLme: number;
     frOptions: number;
+    autoExcluded?: number;
   };
+  autoNotes?: string[];
 }
 
 /** Lấy ngày làm việc trước của một ngày (trừ Thứ 7, Chủ nhật) */
@@ -207,6 +209,62 @@ export function calcFrProduct(
     })
     .reduce((s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']), 0);
 
+  // --- Rule tự động loại trừ & tạo ghi chú cho các ngày khác lọt vào ---
+  // Các sản phẩm đặc biệt cần check: TRU, ZFT, FEF, QO, QP, BM, MPO
+  const checkedProducts = ['TRU', 'ZFT', 'FEF', 'QO', 'QP', 'BM', 'MPO'];
+  const autoNotes: string[] = [];
+  let autoExcludedSum = 0;
+  const autoExclusionsMap = new Map<string, { [dateStr: string]: number }>();
+
+  for (const r of frRows) {
+    const sp = getFrMaSP(r);
+    if (!checkedProducts.includes(sp)) continue;
+
+    // Tính ngày giao dịch chuẩn hóa
+    const rowDate = normalizeFrTradingDate(r, config.ngayGD);
+    // Nếu ngày chuẩn hóa < ngayGD, tức là thuộc phiên ngày hôm trước
+    const localNgayGD = new Date(config.ngayGD);
+    localNgayGD.setHours(0, 0, 0, 0);
+    if (rowDate < localNgayGD) {
+      // Kiểm tra xem đã bị loại trừ ở trên chưa
+      let alreadyExcluded = false;
+      if (sp === 'TRU' && config.truDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
+      if (sp === 'FEF' && config.fefDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
+      if (sp === 'ZFT' && config.zftDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
+      
+      if (['QO', 'QP', 'BM', 'MPO'].includes(sp) && config.deadline !== undefined) {
+        const thoiGian = r['Time'] ?? r['Thời gian'] ?? r['col2'];
+        const serial = getFrSerial(thoiGian, config.ngayGD);
+        if (serial < config.deadline) {
+          alreadyExcluded = true;
+        }
+      }
+
+      if (!alreadyExcluded) {
+        const qty = toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']);
+        autoExcludedSum += qty;
+        
+        if (!autoExclusionsMap.has(sp)) {
+          autoExclusionsMap.set(sp, {});
+        }
+        const spMap = autoExclusionsMap.get(sp)!;
+        // Format ngày theo DD/MM/YYYY
+        const d = rowDate.getDate().toString().padStart(2, '0');
+        const m = (rowDate.getMonth() + 1).toString().padStart(2, '0');
+        const y = rowDate.getFullYear();
+        const dateKey = `${d}/${m}/${y}`;
+        spMap[dateKey] = (spMap[dateKey] || 0) + qty;
+      }
+    }
+  }
+
+  // Tạo ghi chú từ map gom nhóm
+  for (const [sp, datesMap] of autoExclusionsMap.entries()) {
+    for (const [dateStr, qty] of Object.entries(datesMap)) {
+      autoNotes.push(`${qty} lot ${sp} phiên ngày ${dateStr} `);
+    }
+  }
+
   const frProduct =
     totalFr -
     truExcluded -
@@ -216,7 +274,8 @@ export function calcFrProduct(
     lExcluded -
     frSpreadTotal -
     frLmeTotal -
-    frOptionsTotal;
+    frOptionsTotal -
+    autoExcludedSum;
 
   return {
     frProduct,
@@ -230,6 +289,8 @@ export function calcFrProduct(
       frSpread: frSpreadTotal,
       frLme: frLmeTotal,
       frOptions: frOptionsTotal,
+      autoExcluded: autoExcludedSum,
     },
+    autoNotes,
   };
 }

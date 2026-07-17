@@ -91,7 +91,8 @@ export interface LotSummaryResult {
   byProduct: LotByProduct[];
   byTvkd: LotByTvkd[];
   validations: ValidationItem[];
-  frBreakdown?: Record<string, number>;
+  frBreakdown?: Record<string, any>;
+  autoNotes?: string[];
 }
 
 // ─── Input files ─────────────────────────────────────────────────────────────
@@ -344,9 +345,13 @@ export class LotStatisticsService {
       zftDates: (params.zftDates ?? []).map((d) => new Date(d)),
       deadline: params.deadline,
     };
-    const { frProduct, breakdown: frBreakdown } = calcFrProduct(
+    const autoNotesList: string[] = [];
+    const { frProduct, breakdown: frBreakdown, autoNotes } = calcFrProduct(
       fr, frSpread, frLme, frOptions, frConfig,
     );
+    if (autoNotes) {
+      autoNotesList.push(...autoNotes);
+    }
     const frSpreadLot = sumFrLot(frSpread);
     const frLmeLot = sumFrLot(frLme);
     const frOptionsLot = sumFrLot(frOptions);
@@ -355,6 +360,9 @@ export class LotStatisticsService {
     const ttttTotal = sumTtttLot(tttt);
     const ttttSpreadLot = sumTtttLot(ttttSpread);
     const lmeExpiredLot = sumTtttLot(lmeExpired);
+    if (lmeExpiredLot > 0) {
+      autoNotesList.push(`${lmeExpiredLot} lot LME đáo hạn kỳ hạn ${params.filterLmeKyHan} `);
+    }
     const ttttLmeLot = sumTtttLot(ttttLme) - lmeExpiredLot;
     const ttttOptionsLot = sumTtttLot(ttttOptions);
     const ttttProduct = ttttTotal - ttttSpreadLot - ttttLmeLot - ttttOptionsLot;
@@ -420,6 +428,7 @@ export class LotStatisticsService {
       byTvkd,
       validations,
       frBreakdown,
+      autoNotes: autoNotesList,
     };
 
     this.logger.log(

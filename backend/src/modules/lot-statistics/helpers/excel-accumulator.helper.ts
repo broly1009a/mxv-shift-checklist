@@ -284,9 +284,9 @@ async function updateAcmTrackerFile(
   ws.getCell(targetRowIndex, 3).value = sumDsgdLot(classified.dsgdAcm); // CQG lot
   ws.getCell(targetRowIndex, 4).value = sumTtttLot(ttttAcm);           // TTTT lot
   ws.getCell(targetRowIndex, 5).value = sumTtmLot(ttmAcm);             // TTM lot
-  ws.getCell(targetRowIndex, 6).value = 0;                             // Placeholder/formula
-  ws.getCell(targetRowIndex, 7).value = 0;                             // Placeholder/formula
-  ws.getCell(targetRowIndex, 8).value = 0;                             // Placeholder/formula
+  ws.getCell(targetRowIndex, 6).value = null;                             // Placeholder/formula
+  ws.getCell(targetRowIndex, 7).value = null;                             // Placeholder/formula
+  ws.getCell(targetRowIndex, 8).value = null;                             // Placeholder/formula
   ws.getCell(targetRowIndex, 9).value = '';                            // Ghi chú
 
   // Update TVKD columns: 11 to 71
@@ -410,7 +410,24 @@ async function updateNormalTrackerFile(
   // Totals (formula cells)
   // Col 29 & 30 are SUM formulas - skip to preserve
 
-  ws.getCell(targetRowIndex, 31).value = ''; // Ghi chú
+  // Ghi nhận ghi chú tự động từ bot và bảo toàn ghi chú thủ công của user
+  const existingNote = ws.getCell(targetRowIndex, 31).value;
+  const autoNoteStr = result.autoNotes && result.autoNotes.length > 0 ? result.autoNotes.join('; ').trim() : '';
+
+  if (existingNote === null || existingNote === undefined || String(existingNote).trim() === '') {
+    ws.getCell(targetRowIndex, 31).value = autoNoteStr;
+  } else {
+    // Nếu đã có ghi chú cũ, chỉ append thêm các ghi chú tự động chưa tồn tại
+    if (result.autoNotes && result.autoNotes.length > 0) {
+      const existingStr = String(existingNote).trim();
+      const newNotesToAppend = result.autoNotes
+        .map(note => note.trim())
+        .filter(note => note && !existingStr.includes(note));
+      if (newNotesToAppend.length > 0) {
+        ws.getCell(targetRowIndex, 31).value = existingStr + '; ' + newNotesToAppend.join('; ');
+      }
+    }
+  }
 
   // Update TVKD columns: 33 to 93
   const tvkdLots = aggregateByTvkd(classified.dsgd);
