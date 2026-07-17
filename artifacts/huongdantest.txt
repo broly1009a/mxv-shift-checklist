@@ -1,2 +1,4 @@
 npx ts-node src/run_in_place.ts
 npx ts-node src/compare_outputs.ts
+
+npx ts-node src/compare_value_outputs.ts

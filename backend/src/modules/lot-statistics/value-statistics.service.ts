@@ -233,6 +233,9 @@ export class ValueStatisticsService {
       this.logger.log(`Cumulative update is disabled by payload setting.`);
     }
 
+    // 6. Generate newsletter report files (Gửi team bản tin)
+    await this.generateNewsletterFile(targetRoot, targetDate, normalGtgdMap);
+
     return {
       ngayGD: targetDate,
       tyGiaDefault,
@@ -243,5 +246,101 @@ export class ValueStatisticsService {
       normalGtgdBreakdown: Object.fromEntries(normalGtgdMap),
       spreadGtgdBreakdown: Object.fromEntries(spreadGtgdMap),
     };
+  }
+
+  /**
+   * Generates the daily newsletter file "Giá trị giao dịch phiên dd.mm.yyyy.xlsx"
+   * by copying an existing newsletter template and updating its values.
+   */
+  private async generateNewsletterFile(
+    targetRoot: string,
+    targetDate: Date,
+    normalGtgdMap: Map<string, number>
+  ) {
+    const dayStr = String(targetDate.getDate()).padStart(2, '0');
+    const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const year = targetDate.getFullYear();
+
+    const newsletterDir = path.join(targetRoot, 'Gửi team bản tin');
+    if (!fs.existsSync(newsletterDir)) {
+      this.logger.warn(`Thư mục "Gửi team bản tin" không tồn tại: ${newsletterDir}. Bỏ qua xuất file bản tin.`);
+      return;
+    }
+
+    // Find any existing daily file in newsletter directory as a template
+    const files = fs.readdirSync(newsletterDir);
+    const templateFileName = files.find(
+      (f) => f.startsWith('Giá trị giao dịch phiên') && f.endsWith('.xlsx')
+    );
+
+    if (!templateFileName) {
+      this.logger.warn(`Không tìm thấy file mẫu nào có dạng 'Giá trị giao dịch phiên' trong thư mục ${newsletterDir}. Bỏ qua.`);
+      return;
+    }
+
+    const templatePath = path.join(newsletterDir, templateFileName);
+    const targetPath = path.join(
+      newsletterDir,
+      `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`
+    );
+
+    this.logger.log(`Generating newsletter report at: ${targetPath} using template: ${templatePath}`);
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(templatePath);
+    const ws = wb.worksheets[0]; // First sheet
+
+    // Process rows 6 to 72 (Normal commodities)
+    for (let r = 6; r <= 72; r++) {
+      const code = ws.getCell(r, 3).value; // Column C (Mã sp)
+      if (code && typeof code === 'string') {
+        const val = normalGtgdMap.get(code.trim()) || 0;
+        ws.getCell(r, 4).value = val; // Column D (Giá trị giao dịch)
+      }
+    }
+
+    // Process rows 73 to 75 (ACM commodities)
+    for (let r = 73; r <= 75; r++) {
+      const code = ws.getCell(r, 3).value; // Column C (Mã sp)
+      if (code && typeof code === 'string') {
+        const val = normalGtgdMap.get(code.trim()) || 0;
+        ws.getCell(r, 4).value = val; // Column D (Giá trị giao dịch)
+      }
+    }
+
+    // Force total row to be recalculatable formula
+    ws.getCell(76, 4).value = { formula: 'SUM(D6:D75)' };
+
+    await wb.xlsx.writeFile(targetPath);
+    this.logger.log(`Successfully generated newsletter report: ${targetPath}`);
+
+    // Optionally also generate GTGD_yyyymmdd.xlsx if the directory can be found/created
+    const marketValueDir = path.join(targetRoot, 'MarketValue', String(year));
+    try {
+      fs.mkdirSync(marketValueDir, { recursive: true });
+      const targetPath2 = path.join(marketValueDir, `GTGD_${year}${monthStr}${dayStr}.xlsx`);
+      
+      const wb2 = new ExcelJS.Workbook();
+      await wb2.xlsx.readFile(templatePath);
+      const ws2 = wb2.worksheets[0];
+      
+      for (let r = 6; r <= 72; r++) {
+        const code = ws2.getCell(r, 3).value;
+        if (code && typeof code === 'string') {
+          ws2.getCell(r, 4).value = normalGtgdMap.get(code.trim()) || 0;
+        }
+      }
+      for (let r = 73; r <= 75; r++) {
+        const code = ws2.getCell(r, 3).value;
+        if (code && typeof code === 'string') {
+          ws2.getCell(r, 4).value = normalGtgdMap.get(code.trim()) || 0;
+        }
+      }
+      ws2.getCell(76, 4).value = { formula: 'SUM(D6:D75)' };
+      await wb2.xlsx.writeFile(targetPath2);
+      this.logger.log(`Successfully generated MarketValue report: ${targetPath2}`);
+    } catch (e: any) {
+      this.logger.warn(`Could not generate MarketValue report: ${e.message}`);
+    }
   }
 }
