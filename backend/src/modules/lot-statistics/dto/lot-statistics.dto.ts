@@ -35,6 +35,17 @@ export class ProcessLotDto {
    * Tương đương Sheet2!Y1 trong VBA
    */
   deadline?: number;
+
+  /** Toggle to update cumulative yearly tracker files */
+  updateCumulative?: boolean;
+
+  /** Target paths for cumulative tracker files */
+  pathDsgdCumulative?: string;
+  pathNormal?: string;
+  pathAcm?: string;
+  pathLme?: string;
+  pathOptions?: string;
+  pathSpread?: string;
 }
 
 export class LotConfigDto {
@@ -58,4 +69,12 @@ export class LotConfigDto {
 
   /** Mã kỳ hạn LME hết hạn mặc định */
   defaultLmeKyHan?: string;
+
+  // Cumulative default paths
+  defaultPathDsgdCumulative?: string;
+  defaultPathNormal?: string;
+  defaultPathAcm?: string;
+  defaultPathLme?: string;
+  defaultPathOptions?: string;
+  defaultPathSpread?: string;
 }

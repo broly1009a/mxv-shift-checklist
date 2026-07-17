@@ -1,0 +1,68 @@
+
+=== Comparing DSGD T07.2026.xlsx ===
+Sheet Gen: Sheet1 (113090 rows), Sheet Root: Sheet1 (84410 rows)
+[WARN] Could not find row for 16-Jul-2026. GenRow: -1, RootRow: -1
+
+=== Comparing Thong ke so lot giao dich 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (Số Lot 
+giao dịch): Gen=0, Root=7377
+Col 9 (Số Lot 
+giao dịch): Gen=0, Root=7
+Col 10 (Số lot
+tất toán): Gen=0, Root=3
+Col 12 (Số Lot 
+giao dịch): Gen=0, Root=3
+Col 15 (Tổng Lot giao dịch M-System): Gen=0, Root=7387
+Col 18 (Số lot
+tất toán): Gen=0, Root=3436
+Col 19 (Vị thế 
+mở): Gen=0, Root=4995
+Col 24 (Số lot
+tất toán): Gen=0, Root=3
+Col 25 (Vị thế 
+mở): Gen=0, Root=9
+Col 27 (Số lot
+tất toán): Gen=0, Root=3
+Col 28 (Vị thế 
+mở): Gen=0, Root=10
+Col 30 (Tổng vị thế mở CQG): Gen=0, Root=5014
+Col 31 (Ghi chú): Gen="", Root="1 lot TRU phiên ngày 15/07/2026 "
+Col 94 (Tổng): Gen=0, Root=7387
+Col 163 (Tổng): Gen={"sharedFormula":"FG6"}, Root=7387
+Total differences in 16-Jul-2026 row: 15
+
+=== Comparing Thong ke so lot giao dich ACM 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 6 (Số Lot 
+giao dịch): Gen=0, Root=null
+Col 7 (Số lot
+tất toán): Gen=0, Root=null
+Col 8 (Vị thế 
+mở): Gen=0, Root=null
+Col 72 (Tổng): Gen=0, Root=1567
+Col 76 (CP2CO): Gen=0, Root=120
+Col 77 (Tổng): Gen={"sharedFormula":"BY7"}, Root=1567
+Total differences in 16-Jul-2026 row: 6
+
+=== Comparing Thong ke so lot giao dich LME 2026.xlsx ===
+Sheet Gen: T07.2026 (232 rows), Sheet Root: T07.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root=7
+Col 75 (Tổng): Gen={"sharedFormula":"BW6"}, Root=7
+Total differences in 16-Jul-2026 row: 2
+
+=== Comparing Thong ke so lot giao dich Options 2026.xlsx ===
+Sheet Gen: T7.2026 (232 rows), Sheet Root: T7.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root=3
+Col 82 (Tổng): Gen={"sharedFormula":"CD6"}, Root=3
+Total differences in 16-Jul-2026 row: 2
+
+=== Comparing Thong ke so lot giao dich Spread 2026.xlsx ===
+Sheet Gen: T07.2026 (224 rows), Sheet Root: T07.2026 (224 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root={"sharedFormula":"BL5"}
+Total differences in 16-Jul-2026 row: 1

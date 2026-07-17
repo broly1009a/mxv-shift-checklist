@@ -92,11 +92,17 @@ export function sumPsLot(rows: ParsedRow[]): number {
  */
 export function getSPFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4']);
-  const maKyHan = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['col6'] ?? row['Kỳ hạn'] ?? row['col8'] ?? row['col9']);
+  const maKyHan = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['col6'] ?? row['Kỳ hạn'] ?? row['col8'] ?? row['col9']).trim();
 
-  if (maTKGD.toUpperCase().endsWith('L')) {
+  const upTKGD = maTKGD.toUpperCase();
+  if (upTKGD.endsWith('L')) {
     // LME: LEFT(maKyHan, 3)
     return maKyHan.substring(0, 3).toUpperCase();
+  } else if (upTKGD.endsWith('-A')) {
+    // ACM: strip last 3 chars (month + year code)
+    return maKyHan.length > 3
+      ? maKyHan.substring(0, maKyHan.length - 3).toUpperCase()
+      : maKyHan.toUpperCase();
   } else {
     // Futures: LEFT(maKyHan, FIND("2", maKyHan) - 2)
     const idx = maKyHan.indexOf('2');

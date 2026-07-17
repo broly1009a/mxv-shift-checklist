@@ -1,0 +1,675 @@
+
+=== Comparing DSGD T07.2026.xlsx ===
+Sheet Gen: Sheet1 (98750 rows), Sheet Root: Sheet1 (84410 rows)
+[WARN] Could not find row for 16-Jul-2026. GenRow: -1, RootRow: -1
+
+=== Comparing Thong ke so lot giao dich 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (Số Lot 
+giao dịch): Gen=null, Root=7377
+Col 4 (Số lot
+tất toán): Gen=null, Root=3436
+Col 5 (Vị thế 
+mở): Gen=null, Root=4995
+Col 6 (Số Lot 
+giao dịch): Gen=null, Root=0
+Col 7 (Số lot
+tất toán): Gen=null, Root=0
+Col 8 (Vị thế 
+mở): Gen=null, Root=0
+Col 9 (Số Lot 
+giao dịch): Gen=null, Root=7
+Col 10 (Số lot
+tất toán): Gen=null, Root=3
+Col 11 (Vị thế 
+mở): Gen=null, Root=9
+Col 12 (Số Lot 
+giao dịch): Gen=null, Root=3
+Col 13 (Số lot
+tất toán): Gen=null, Root=3
+Col 14 (Vị thế 
+mở): Gen=null, Root=10
+Col 15 (Tổng Lot giao dịch M-System): Gen={"sharedFormula":"O7"}, Root=7387
+Col 16 (Tổng vị thế mở M-System): Gen={"sharedFormula":"P7"}, Root=5014
+Col 17 (Số Lot 
+giao dịch): Gen=null, Root=7377
+Col 18 (Số lot
+tất toán): Gen=null, Root=3436
+Col 19 (Vị thế 
+mở): Gen=null, Root=4995
+Col 20 (Số Lot 
+giao dịch): Gen=null, Root=0
+Col 21 (Số lot
+tất toán): Gen=null, Root=0
+Col 22 (Vị thế 
+mở): Gen=null, Root=0
+Col 23 (Số Lot 
+giao dịch): Gen=null, Root=7
+Col 24 (Số lot
+tất toán): Gen=null, Root=3
+Col 25 (Vị thế 
+mở): Gen=null, Root=9
+Col 26 (Số Lot 
+giao dịch): Gen=null, Root=3
+Col 27 (Số lot
+tất toán): Gen=null, Root=3
+Col 28 (Vị thế 
+mở): Gen=null, Root=10
+Col 29 (Tổng Lot giao dịch CQG): Gen={"sharedFormula":"AC7"}, Root=7387
+Col 30 (Tổng vị thế mở CQG): Gen={"sharedFormula":"AD7"}, Root=5014
+Col 31 (Ghi chú): Gen=null, Root="1 lot TRU phiên ngày 15/07/2026 "
+Col 33 (HN
+001): Gen=null, Root=256
+Col 34 (SF
+002): Gen=null, Root=333
+Col 35 (GCL
+003): Gen=null, Root=1155
+Col 36 (TGTL
+005): Gen=null, Root=0
+Col 37 (AL
+006): Gen=null, Root=0
+Col 38 (TVT
+007): Gen=null, Root=89
+Col 39 (TMCA
+008): Gen=null, Root=0
+Col 40 (HTS
+009): Gen=null, Root=101
+Col 41 (VNF
+010): Gen=null, Root=0
+Col 42 (Vmex
+011): Gen=null, Root=6
+Col 43 (HH HCM
+012): Gen=null, Root=1052
+Col 44 (FTV
+015): Gen=null, Root=0
+Col 45 (DCV
+016): Gen=null, Root=0
+Col 46 (ISHARE
+018): Gen=null, Root=0
+Col 47 (SGNX
+019): Gen=null, Root=0
+Col 48 (THC 
+020): Gen=null, Root=0
+Col 49 (MEX-DN
+021): Gen=null, Root=0
+Col 50 (NP
+022): Gen=null, Root=0
+Col 51 (Dsmart 023): Gen=null, Root=1
+Col 52 (IVCOM 025): Gen=null, Root=0
+Col 53 (SG-MK
+026): Gen=null, Root=0
+Col 54 (SCE
+027): Gen=null, Root=0
+Col 55 (Mario 
+028): Gen=null, Root=0
+Col 56 (GlobalATM
+029): Gen=null, Root=0
+Col 57 (HH HN 
+030): Gen=null, Root=0
+Col 58 (FCI 
+031): Gen=null, Root=0
+Col 59 (HiTrade
+032): Gen=null, Root=0
+Col 60 (HBOT 033): Gen=null, Root=0
+Col 61 (Mex
+035): Gen=null, Root=0
+Col 62 (Hitech Finance
+036): Gen=null, Root=376
+Col 63 (Fissa
+037): Gen=null, Root=0
+Col 64 (HTP
+038): Gen=null, Root=0
+Col 65 (MXL
+039): Gen=null, Root=0
+Col 66 (AIMS
+040): Gen=null, Root=0
+Col 67 (VQB
+041): Gen=null, Root=7
+Col 68 (TSA
+042): Gen=null, Root=0
+Col 69 (Edu Trade 
+043): Gen=null, Root=15
+Col 70 (HH
+ĐNÁ
+045): Gen=null, Root=771
+Col 71 (SFVN
+046): Gen=null, Root=4
+Col 72 (Kiến lửa
+048): Gen=null, Root=170
+Col 73 (Hàng hoá VN
+059): Gen=null, Root=0
+Col 74 (Hàng hoá Toàn cầu
+060): Gen=null, Root=0
+Col 75 (Nhật Linh
+061): Gen=null, Root=0
+Col 76 (Amber 062): Gen=null, Root=0
+Col 77 (PTS 
+063): Gen=null, Root=0
+Col 78 (Finhay 065): Gen=null, Root=0
+Col 79 (ALIA
+066): Gen=null, Root=5
+Col 80 (Anfin
+068): Gen=null, Root=124
+Col 81 (Harami-Trade
+069): Gen=null, Root=50
+Col 82 (Phát Đạt Holdings
+070): Gen=null, Root=0
+Col 83 (Tornado
+071): Gen=null, Root=0
+Col 84 (3D
+072): Gen=null, Root=446
+Col 85 (An Thành
+073): Gen=null, Root=0
+Col 86 (SFV
+075): Gen=null, Root=8
+Col 87 (HH Sài Gòn
+076): Gen=null, Root=0
+Col 88 (ICT
+079): Gen=null, Root=67
+Col 89 (APEX
+080): Gen=null, Root=2039
+Col 90 (SPS
+081): Gen=null, Root=128
+Col 91 (InvestingPro
+082): Gen=null, Root=0
+Col 92 (FinTex
+083): Gen=null, Root=184
+Col 93 (Phú Quý 
+085): Gen=null, Root=0
+Col 94 (Tổng): Gen={"sharedFormula":"CP6"}, Root=7387
+Col 96 (ZLE): Gen=null, Root=759
+Col 97 (ZCE): Gen=null, Root=905
+Col 98 (C.ZCE): Gen=null, Root=1
+Col 99 (P.ZCE): Gen=null, Root=2
+Col 100 (ZSE): Gen=null, Root=388
+Col 101 (C.ZSE): Gen=null, Root=0
+Col 102 (P.ZSE): Gen=null, Root=0
+Col 103 (ZME): Gen=null, Root=610
+Col 104 (ZWA): Gen=null, Root=1869
+Col 105 (C.ZWA): Gen=null, Root=0
+Col 106 (P.ZWA): Gen=null, Root=0
+Col 107 (KWE): Gen=null, Root=163
+Col 108 (ZRE): Gen=null, Root=0
+Col 109 (XW): Gen=null, Root=69
+Col 110 (XC): Gen=null, Root=29
+Col 111 (XB): Gen=null, Root=30
+Col 112 (MZW): Gen=null, Root=11
+Col 113 (MZC): Gen=null, Root=7
+Col 114 (MZS): Gen=null, Root=4
+Col 115 (MZL): Gen=null, Root=40
+Col 116 (MZM): Gen=null, Root=3
+Col 117 (CCE): Gen=null, Root=1
+Col 118 (CTE): Gen=null, Root=76
+Col 119 (KCE): Gen=null, Root=31
+Col 120 (C.KCE): Gen=null, Root=0
+Col 121 (P.KCE): Gen=null, Root=0
+Col 122 (SBE): Gen=null, Root=507
+Col 123 (C.SBE): Gen=null, Root=0
+Col 124 (P.SBE): Gen=null, Root=0
+Col 125 (LRC): Gen=null, Root=406
+Col 126 (QW): Gen=null, Root=0
+Col 127 (MPO): Gen=null, Root=1
+Col 128 (TRU): Gen=null, Root=2
+Col 129 (ZFT): Gen=null, Root=19
+Col 130 (ALI): Gen=null, Root=19
+Col 131 (CPE): Gen=null, Root=56
+Col 132 (MQC): Gen=null, Root=11
+Col 133 (MHG): Gen=null, Root=382
+Col 134 (SIE): Gen=null, Root=86
+Col 135 (MQI): Gen=null, Root=31
+Col 136 (SIL): Gen=null, Root=677
+Col 137 (PLE): Gen=null, Root=184
+Col 138 (FEF): Gen=null, Root=1
+Col 139 (CLE): Gen=null, Root=0
+Col 140 (C.CLE): Gen=null, Root=0
+Col 141 (P.CLE): Gen=null, Root=0
+Col 142 (NGE): Gen=null, Root=0
+Col 143 (C.NGE): Gen=null, Root=0
+Col 144 (P.NGE): Gen=null, Root=0
+Col 145 (NQM): Gen=null, Root=0
+Col 146 (RBE): Gen=null, Root=0
+Col 147 (QO): Gen=null, Root=0
+Col 148 (C.QO): Gen=null, Root=0
+Col 149 (P.QO): Gen=null, Root=0
+Col 150 (QP): Gen=null, Root=0
+Col 151 (MCLE): Gen=null, Root=0
+Col 152 (NQG): Gen=null, Root=0
+Col 153 (BM): Gen=null, Root=0
+Col 154 (CAD): Gen=null, Root=0
+Col 155 (AHD): Gen=null, Root=0
+Col 156 (PBD): Gen=null, Root=0
+Col 157 (SND): Gen=null, Root=7
+Col 158 (ZDS): Gen=null, Root=0
+Col 159 (NID): Gen=null, Root=0
+Col 160 (SSC): Gen=null, Root=0
+Col 161 (SSR): Gen=null, Root=0
+Col 162 (LHC): Gen=null, Root=0
+Col 163 (Tổng): Gen={"sharedFormula":"FG6"}, Root=7387
+Total differences in 16-Jul-2026 row: 159
+
+=== Comparing Thong ke so lot giao dich ACM 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (Số Lot 
+giao dịch): Gen=null, Root=1567
+Col 4 (Số lot
+tất toán): Gen=null, Root=695
+Col 5 (Vị thế 
+mở): Gen=null, Root=2945
+Col 9 (Ghi chú): Gen=null, Root=""
+Col 11 (HN
+001): Gen=null, Root=87
+Col 12 (SF
+002): Gen=null, Root=0
+Col 13 (GCL
+003): Gen=null, Root=721
+Col 14 (TGTL
+005): Gen=null, Root=0
+Col 15 (AL
+006): Gen=null, Root=0
+Col 16 (TVT
+007): Gen=null, Root=1
+Col 17 (TMCA
+008): Gen=null, Root=0
+Col 18 (HTS
+009): Gen=null, Root=0
+Col 19 (VNF
+010): Gen=null, Root=0
+Col 20 (Vmex
+011): Gen=null, Root=0
+Col 21 (HH HCM
+012): Gen=null, Root=230
+Col 22 (FTV
+015): Gen=null, Root=0
+Col 23 (DCV
+016): Gen=null, Root=0
+Col 24 (ISHARE
+018): Gen=null, Root=0
+Col 25 (SGNX
+019): Gen=null, Root=0
+Col 26 (THC 
+020): Gen=null, Root=0
+Col 27 (MEX-DN
+021): Gen=null, Root=0
+Col 28 (NP
+022): Gen=null, Root=0
+Col 29 (Dsmart 023): Gen=null, Root=0
+Col 30 (IVCOM 025): Gen=null, Root=0
+Col 31 (SG-MK
+026): Gen=null, Root=0
+Col 32 (SCE
+027): Gen=null, Root=0
+Col 33 (Mario 
+028): Gen=null, Root=0
+Col 34 (GlobalATM
+029): Gen=null, Root=0
+Col 35 (HH HN 
+030): Gen=null, Root=0
+Col 36 (FCI 
+031): Gen=null, Root=0
+Col 37 (HiTrade
+032): Gen=null, Root=0
+Col 38 (HBOT 033): Gen=null, Root=0
+Col 39 (Mex
+035): Gen=null, Root=0
+Col 40 (Hitech Finance
+036): Gen=null, Root=4
+Col 41 (Fissa
+037): Gen=null, Root=0
+Col 42 (HTP
+038): Gen=null, Root=0
+Col 43 (MXL
+039): Gen=null, Root=0
+Col 44 (AIMS
+040): Gen=null, Root=0
+Col 45 (VQB
+041): Gen=null, Root=0
+Col 46 (TSA
+042): Gen=null, Root=0
+Col 47 (Edu Trade 
+043): Gen=null, Root=0
+Col 48 (HH
+ĐNÁ
+045): Gen=null, Root=26
+Col 49 (SFVN
+046): Gen=null, Root=159
+Col 50 (Kiến lửa
+048): Gen=null, Root=25
+Col 51 (Hàng hoá VN
+059): Gen=null, Root=0
+Col 52 (Hàng hoá Toàn cầu
+060): Gen=null, Root=0
+Col 53 (Nhật Linh
+061): Gen=null, Root=0
+Col 54 (Amber 062): Gen=null, Root=0
+Col 55 (PTS 
+063): Gen=null, Root=0
+Col 56 (Finhay 065): Gen=null, Root=0
+Col 57 (ALIA
+066): Gen=null, Root=0
+Col 58 (Anfin
+068): Gen=null, Root=154
+Col 59 (Harami-Trade
+069): Gen=null, Root=0
+Col 60 (Phát Đạt Holdings
+070): Gen=null, Root=0
+Col 61 (Tornado
+071): Gen=null, Root=0
+Col 62 (3D
+072): Gen=null, Root=7
+Col 63 (An Thành
+073): Gen=null, Root=0
+Col 64 (SFV
+075): Gen=null, Root=0
+Col 65 (HH Sài Gòn
+076): Gen=null, Root=0
+Col 66 (ICT 
+079): Gen=null, Root=0
+Col 67 (APEX
+080): Gen=null, Root=0
+Col 68 (SPS
+081): Gen=null, Root=151
+Col 69 (InvestingPro
+082): Gen=null, Root=0
+Col 70 (Fintex
+083): Gen=null, Root=0
+Col 71 (Phú Quý 
+085): Gen=null, Root=2
+Col 72 (Tổng): Gen={"sharedFormula":"BT6"}, Root=1567
+Col 74 (SI5CO): Gen=null, Root=1334
+Col 75 (PL1NY): Gen=null, Root=113
+Col 76 (CP2CO): Gen=null, Root=120
+Col 77 (Tổng): Gen={"sharedFormula":"BY7"}, Root=1567
+Total differences in 16-Jul-2026 row: 70
+
+=== Comparing Thong ke so lot giao dich LME 2026.xlsx ===
+Sheet Gen: T07.2026 (232 rows), Sheet Root: T07.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (HN
+001): Gen=null, Root=0
+Col 4 (SF
+002): Gen=null, Root=0
+Col 5 (GCL
+003): Gen=null, Root=0
+Col 6 (TGTL
+005): Gen=null, Root=0
+Col 7 (AL
+006): Gen=null, Root=0
+Col 8 (TVT
+007): Gen=null, Root=0
+Col 9 (TMCA
+008): Gen=null, Root=0
+Col 10 (HTS
+009): Gen=null, Root=0
+Col 11 (VNF
+010): Gen=null, Root=0
+Col 12 (Vmex
+011): Gen=null, Root=0
+Col 13 (HH HCM
+012): Gen=null, Root=0
+Col 14 (FTV
+015): Gen=null, Root=0
+Col 15 (DCV
+016): Gen=null, Root=0
+Col 16 (ISHARE
+018): Gen=null, Root=0
+Col 17 (SGNX
+019): Gen=null, Root=0
+Col 18 (THC 
+020): Gen=null, Root=0
+Col 19 (MEX-DN
+021): Gen=null, Root=0
+Col 20 (NP
+022): Gen=null, Root=0
+Col 21 (Dsmart 023): Gen=null, Root=0
+Col 22 (IVCOM 025): Gen=null, Root=0
+Col 23 (SG-MK
+026): Gen=null, Root=0
+Col 24 (SCE
+027): Gen=null, Root=0
+Col 25 (Mario 
+028): Gen=null, Root=0
+Col 26 (GlobalATM
+029): Gen=null, Root=0
+Col 27 (HH HN 
+030): Gen=null, Root=0
+Col 28 (FCI 
+031): Gen=null, Root=0
+Col 29 (HiTrade
+032): Gen=null, Root=0
+Col 30 (HBOT 033): Gen=null, Root=0
+Col 31 (Mex
+035): Gen=null, Root=0
+Col 32 (Hitech Finance
+036): Gen=null, Root=0
+Col 33 (Fissa
+037): Gen=null, Root=0
+Col 34 (HTP
+038): Gen=null, Root=0
+Col 35 (MXL
+039): Gen=null, Root=0
+Col 36 (AIMS
+040): Gen=null, Root=0
+Col 37 (VQB
+041): Gen=null, Root=7
+Col 38 (TSA 042): Gen=null, Root=0
+Col 39 (Edu Trade
+043): Gen=null, Root=0
+Col 40 (HH
+ĐNÁ
+045): Gen=null, Root=0
+Col 41 (SFVN
+046): Gen=null, Root=0
+Col 42 (Kiến lửa
+048): Gen=null, Root=0
+Col 43 (Hàng hoá VN
+059): Gen=null, Root=0
+Col 44 (Hàng hoá Toàn cầu 060): Gen=null, Root=0
+Col 45 (Nhật Linh
+061): Gen=null, Root=0
+Col 46 (Amber
+062): Gen=null, Root=0
+Col 47 (PTS
+063): Gen=null, Root=0
+Col 48 (Finhay 065): Gen=null, Root=0
+Col 49 (ALIA
+066): Gen=null, Root=0
+Col 50 (Anfin
+068): Gen=null, Root=0
+Col 51 (Harami-Trade
+069): Gen=null, Root=0
+Col 52 (Phát Đạt Holdings
+070): Gen=null, Root=0
+Col 53 (Tornado
+071): Gen=null, Root=0
+Col 54 (3D
+072): Gen=null, Root=0
+Col 55 (An Thành
+073): Gen=null, Root=0
+Col 56 (SFV
+075): Gen=null, Root=0
+Col 57 (HH Sài Gòn
+076): Gen=null, Root=0
+Col 58 (ICT 
+079): Gen=null, Root=0
+Col 59 (APEX 
+080): Gen=null, Root=0
+Col 60 (APEX 
+081): Gen=null, Root=0
+Col 61 (InvestingPro
+082): Gen=null, Root=0
+Col 62 (Fintex 
+083): Gen=null, Root=0
+Col 63 (Phú Quý 
+085): Gen=null, Root=0
+Col 64 (Tổng): Gen={"sharedFormula":"BL8"}, Root=7
+Col 66 (CAD): Gen=null, Root=0
+Col 67 (AHD): Gen=null, Root=0
+Col 68 (PBD): Gen=null, Root=0
+Col 69 (SND): Gen=null, Root=7
+Col 70 (ZDS): Gen=null, Root=0
+Col 71 (NID): Gen=null, Root=0
+Col 72 (SSC): Gen=null, Root=0
+Col 73 (SSR): Gen=null, Root=0
+Col 74 (LHC): Gen=null, Root=0
+Col 75 (Tổng): Gen={"sharedFormula":"BW6"}, Root=7
+Total differences in 16-Jul-2026 row: 72
+
+=== Comparing Thong ke so lot giao dich Options 2026.xlsx ===
+Sheet Gen: T7.2026 (232 rows), Sheet Root: T7.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (HN
+001): Gen=null, Root=0
+Col 4 (SF
+002): Gen=null, Root=0
+Col 5 (GCL
+003): Gen=null, Root=0
+Col 6 (TGTL
+005): Gen=null, Root=0
+Col 7 (AL
+006): Gen=null, Root=0
+Col 8 (TVT
+007): Gen=null, Root=0
+Col 9 (TMCA
+008): Gen=null, Root=0
+Col 10 (HTS
+009): Gen=null, Root=0
+Col 11 (VNF
+010): Gen=null, Root=0
+Col 12 (Vmex
+011): Gen=null, Root=0
+Col 13 (HH HCM
+012): Gen=null, Root=0
+Col 14 (FTV
+015): Gen=null, Root=0
+Col 15 (DCV
+016): Gen=null, Root=0
+Col 16 (ISHARE
+018): Gen=null, Root=0
+Col 17 (SGNX
+019): Gen=null, Root=0
+Col 18 (THC 
+020): Gen=null, Root=0
+Col 19 (MEX-DN
+021): Gen=null, Root=0
+Col 20 (NP
+022): Gen=null, Root=0
+Col 21 (Dsmart 023): Gen=null, Root=0
+Col 22 (IVCOM 025): Gen=null, Root=0
+Col 23 (SG-MK
+026): Gen=null, Root=0
+Col 24 (SCE
+027): Gen=null, Root=0
+Col 25 (Mario 
+028): Gen=null, Root=0
+Col 26 (GlobalATM
+029): Gen=null, Root=0
+Col 27 (HH HN 
+030): Gen=null, Root=0
+Col 28 (FCI 
+031): Gen=null, Root=0
+Col 29 (HiTrade
+032): Gen=null, Root=0
+Col 30 (HBOT 033): Gen=null, Root=0
+Col 31 (Mex
+035): Gen=null, Root=0
+Col 32 (Hitech Finance
+036): Gen=null, Root=0
+Col 33 (Fissa
+037): Gen=null, Root=0
+Col 34 (HTP
+038): Gen=null, Root=0
+Col 35 (MXL
+039): Gen=null, Root=0
+Col 36 (AIMS
+040): Gen=null, Root=0
+Col 37 (VQB
+041): Gen=null, Root=0
+Col 38 (TSA 042): Gen=null, Root=0
+Col 39 (Edu Trade
+043): Gen=null, Root=0
+Col 40 (HH
+ĐNÁ
+045): Gen=null, Root=3
+Col 41 (SFVN
+046): Gen=null, Root=0
+Col 42 (Kiến lửa
+048): Gen=null, Root=0
+Col 43 (Hàng hoá VN
+059): Gen=null, Root=0
+Col 44 (Hàng hoá Toàn cầu 060): Gen=null, Root=0
+Col 45 (Nhật Linh
+061): Gen=null, Root=0
+Col 46 (Amber
+062): Gen=null, Root=0
+Col 47 (PTS
+063): Gen=null, Root=0
+Col 48 (Finhay 065): Gen=null, Root=0
+Col 49 (ALIA
+066): Gen=null, Root=0
+Col 50 (Anfin
+068): Gen=null, Root=0
+Col 51 (Harami-Trade
+069): Gen=null, Root=0
+Col 52 (Phát Đạt Holdings
+070): Gen=null, Root=0
+Col 53 (Tornado
+071): Gen=null, Root=0
+Col 54 (3D
+072): Gen=null, Root=0
+Col 55 (An Thành
+073): Gen=null, Root=0
+Col 56 (SFV
+075): Gen=null, Root=0
+Col 57 (HH Sài Gòn
+076): Gen=null, Root=0
+Col 58 (ICT 
+079): Gen=null, Root=0
+Col 59 (APEX
+080): Gen=null, Root=0
+Col 60 (SPS
+081): Gen=null, Root=0
+Col 61 (InvestingPro
+082): Gen=null, Root=0
+Col 62 (Fintex
+083): Gen=null, Root=0
+Col 63 (Phú Quý 
+085): Gen=null, Root=0
+Col 64 (Tổng): Gen={"sharedFormula":"BL6"}, Root=3
+Col 66 (C.ZCE): Gen=null, Root=1
+Col 67 (P.ZCE): Gen=null, Root=2
+Col 68 (C.ZSE): Gen=null, Root=0
+Col 69 (P.ZSE): Gen=null, Root=0
+Col 70 (C.ZWA): Gen=null, Root=0
+Col 71 (P.ZWA): Gen=null, Root=0
+Col 72 (C.KCE): Gen=null, Root=0
+Col 73 (P.KCE): Gen=null, Root=0
+Col 74 (C.SBE): Gen=null, Root=0
+Col 75 (P.SBE): Gen=null, Root=0
+Col 76 (C.CLE): Gen=null, Root=0
+Col 77 (P.CLE): Gen=null, Root=0
+Col 78 (C.NGE): Gen=null, Root=0
+Col 79 (P.NGE): Gen=null, Root=0
+Col 80 (C.QO): Gen=null, Root=0
+Col 81 (P.QO): Gen=null, Root=0
+Col 82 (Tổng): Gen={"sharedFormula":"CD6"}, Root=3
+Total differences in 16-Jul-2026 row: 79
+
+=== Comparing Thong ke so lot giao dich Spread 2026.xlsx ===
+Sheet Gen: T07.2026 (224 rows), Sheet Root: T07.2026 (224 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 62 (Fintex 
+083): Gen=null, Root=0
+Col 63 (Phú Quý 
+085): Gen=null, Root=0
+Col 66 (ZWA): Gen=null, Root=0
+Col 67 (ZSE): Gen=null, Root=0
+Col 68 (ZME): Gen=null, Root=0
+Col 69 (ZLE): Gen=null, Root=0
+Col 70 (ZCE): Gen=null, Root=0
+Col 71 (KCE): Gen=null, Root=0
+Col 72 (LRC): Gen=null, Root=0
+Col 73 (CLE): Gen=null, Root=0
+Col 74 (QO): Gen=null, Root=0
+Total differences in 16-Jul-2026 row: 11

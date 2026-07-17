@@ -11,6 +11,8 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { parseExcelBuffer, ParsedRow } from './helpers/excel-parser.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import {
@@ -36,6 +38,7 @@ import {
 } from './helpers/lot-aggregator.helper';
 import { calcFrProduct, FrExclusionConfig } from './helpers/fr-calculator.helper';
 import { ProcessLotDto } from './dto/lot-statistics.dto';
+import { updateAllCumulativeFiles } from './helpers/excel-accumulator.helper';
 
 // ─── Result Types ────────────────────────────────────────────────────────────
 
@@ -94,12 +97,15 @@ export interface LotSummaryResult {
 // ─── Input files ─────────────────────────────────────────────────────────────
 
 export interface LotInputFiles {
-  fileDsgd: Buffer;         // required
-  fileFr: Buffer;           // required
-  fileTtm?: Buffer;         // optional
-  fileTttt?: Buffer;        // optional
-  fileOp?: Buffer;          // optional
-  filePs?: Buffer;          // optional
+  fileDsgd: Buffer;           // required
+  fileFr: Buffer;             // required — first FR file
+  fileFrExtra?: Buffer[];     // optional — FR1.xlsx, FR2.xlsx...
+  fileTtm?: Buffer;           // optional
+  fileTttt?: Buffer;          // optional
+  fileOp?: Buffer;            // optional — first OP file
+  fileOpExtra?: Buffer[];     // optional — OP1.xlsx, OP2.xlsx...
+  filePs?: Buffer;            // optional — first PS file
+  filePsExtra?: Buffer[];     // optional — PS1.xlsx, PS2.xlsx...
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -109,6 +115,147 @@ export class LotStatisticsService {
   private readonly logger = new Logger(LotStatisticsService.name);
 
   constructor(private readonly settingsService: SystemSettingsService) {}
+
+  /**
+   * Quét thư mục trên server và đọc các file Excel tương ứng dưới dạng Buffer
+   */
+  loadFilesFromDirectory(folderPath: string): LotInputFiles {
+    if (!fs.existsSync(folderPath)) {
+      throw new Error(`Thư mục không tồn tại trên server: "${folderPath}"`);
+    }
+    const stats = fs.statSync(folderPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Đường dẫn không phải thư mục: "${folderPath}"`);
+    }
+
+    const files = fs.readdirSync(folderPath);
+    
+    let fileDsgd: Buffer | undefined;
+    let fileFr: Buffer | undefined;
+    let fileTtm: Buffer | undefined;
+    let fileTttt: Buffer | undefined;
+    let fileOp: Buffer | undefined;
+    let filePs: Buffer | undefined;
+
+    for (const file of files) {
+      const lower = file.toLowerCase();
+      const fullPath = path.join(folderPath, file);
+      if (fs.statSync(fullPath).isDirectory()) continue;
+
+      if (lower.includes('dsgd') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileDsgd = fs.readFileSync(fullPath);
+      } else if (lower.includes('fr') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileFr = fs.readFileSync(fullPath);
+      } else if (lower.includes('ttm') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileTtm = fs.readFileSync(fullPath);
+      } else if (lower.includes('tttt') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileTttt = fs.readFileSync(fullPath);
+      } else if (lower.includes('op') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileOp = fs.readFileSync(fullPath);
+      } else if (lower.includes('ps') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        filePs = fs.readFileSync(fullPath);
+      }
+    }
+
+    if (!fileDsgd) {
+      throw new Error(`Không tìm thấy file DSGD (tên file chứa 'dsgd') trong thư mục "${folderPath}"`);
+    }
+    if (!fileFr) {
+      throw new Error(`Không tìm thấy file FR (tên file chứa 'fr') trong thư mục "${folderPath}"`);
+    }
+
+    return {
+      fileDsgd,
+      fileFr,
+      fileTtm,
+      fileTttt,
+      fileOp,
+      filePs,
+    };
+  }
+
+  /**
+   * Quét cả hai thư mục MS và CQG riêng biệt để lấy báo cáo tương ứng.
+   * Hỗ trợ nhiều file FR/OP/PS (FR.xlsx, FR1.xlsx, FR2.xlsx...) bằng cách merge rows.
+   */
+  loadFilesFromDirectories(folderPathMs: string, folderPathCqg?: string): LotInputFiles {
+    if (!folderPathCqg) {
+      return this.loadFilesFromDirectory(folderPathMs);
+    }
+
+    if (!fs.existsSync(folderPathMs)) {
+      throw new Error(`Thư mục MS không tồn tại trên server: "${folderPathMs}"`);
+    }
+    if (!fs.existsSync(folderPathCqg)) {
+      throw new Error(`Thư mục CQG không tồn tại trên server: "${folderPathCqg}"`);
+    }
+
+    const filesMs = fs.readdirSync(folderPathMs);
+    const filesCqg = fs.readdirSync(folderPathCqg);
+    
+    let fileDsgd: Buffer | undefined;
+    let fileTtm: Buffer | undefined;
+    let fileTttt: Buffer | undefined;
+
+    // Collect multiple CQG files by type
+    const frBuffers: Buffer[] = [];
+    const opBuffers: Buffer[] = [];
+    const psBuffers: Buffer[] = [];
+
+    // Quét thư mục MS cho các file DSGD, TTM, TTTT
+    for (const file of filesMs) {
+      const lower = file.toLowerCase();
+      const fullPath = path.join(folderPathMs, file);
+      if (fs.statSync(fullPath).isDirectory()) continue;
+
+      if (lower.includes('dsgd') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileDsgd = fs.readFileSync(fullPath);
+      } else if (lower.includes('ttm') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileTtm = fs.readFileSync(fullPath);
+      } else if (lower.includes('tttt') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+        fileTttt = fs.readFileSync(fullPath);
+      }
+    }
+
+    // Quét thư mục CQG — thu thập TẤT CẢ file FR*, OP*, PS*
+    // Sắp xếp để FR.xlsx luôn đứng trước FR1.xlsx, FR2.xlsx...
+    const sortedCqg = [...filesCqg].sort();
+    for (const file of sortedCqg) {
+      const lower = file.toLowerCase();
+      const fullPath = path.join(folderPathCqg, file);
+      if (fs.statSync(fullPath).isDirectory()) continue;
+      const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls');
+      if (!isExcel) continue;
+
+      const base = lower.replace(/\.(xlsx|xls)$/, '');
+      if (base === 'fr' || /^fr\d+$/.test(base)) {
+        frBuffers.push(fs.readFileSync(fullPath));
+      } else if (base === 'op' || /^op\d+$/.test(base)) {
+        opBuffers.push(fs.readFileSync(fullPath));
+      } else if (base === 'ps' || /^ps\d+$/.test(base)) {
+        psBuffers.push(fs.readFileSync(fullPath));
+      }
+    }
+
+    if (!fileDsgd) {
+      throw new Error(`Không tìm thấy file DSGD (chứa chữ 'dsgd') trong thư mục MS: "${folderPathMs}"`);
+    }
+    if (frBuffers.length === 0) {
+      throw new Error(`Không tìm thấy file FR (tên fr/fr1/fr2...) trong thư mục CQG: "${folderPathCqg}"`);
+    }
+
+    return {
+      fileDsgd,
+      fileFr: frBuffers[0],        // primary FR — multi-file merge handled in parseExcelBuffer
+      fileFrExtra: frBuffers.slice(1),
+      fileTtm,
+      fileTttt,
+      fileOp: opBuffers[0],
+      fileOpExtra: opBuffers.slice(1),
+      filePs: psBuffers[0],
+      filePsExtra: psBuffers.slice(1),
+    };
+  }
 
   /**
    * Tính toán thống kê số lot từ các file Excel
@@ -133,12 +280,32 @@ export class LotStatisticsService {
         files.filePs ? parseExcelBuffer(files.filePs) : Promise.resolve(null),
       ]);
 
-    const dsgdRows = dsgdSheet.rows;
-    const frRows = frSheet.rows;
-    const ttmRows = ttmSheet?.rows ?? [];
-    const ttttRows = ttttSheet?.rows ?? [];
-    const opRows = opSheet?.rows ?? [];
-    const psRows = psSheet?.rows ?? [];
+    let dsgdRows = dsgdSheet.rows;
+    let frRows = frSheet.rows;
+    let ttmRows = ttmSheet?.rows ?? [];
+    let ttttRows = ttttSheet?.rows ?? [];
+    let opRows = opSheet?.rows ?? [];
+    let psRows = psSheet?.rows ?? [];
+
+    // Merge extra FR/OP/PS files if present
+    if (files.fileFrExtra?.length) {
+      for (const buf of files.fileFrExtra) {
+        const extra = await parseExcelBuffer(buf);
+        frRows = [...frRows, ...extra.rows];
+      }
+    }
+    if (files.fileOpExtra?.length) {
+      for (const buf of files.fileOpExtra) {
+        const extra = await parseExcelBuffer(buf);
+        opRows = [...opRows, ...extra.rows];
+      }
+    }
+    if (files.filePsExtra?.length) {
+      for (const buf of files.filePsExtra) {
+        const extra = await parseExcelBuffer(buf);
+        psRows = [...psRows, ...extra.rows];
+      }
+    }
 
     this.logger.debug(
       `Đọc xong: DSGD=${dsgdRows.length}, FR=${frRows.length}, TTM=${ttmRows.length}, TTTT=${ttttRows.length}, OP=${opRows.length}, PS=${psRows.length}`,
@@ -258,6 +425,30 @@ export class LotStatisticsService {
     this.logger.log(
       `Hoàn thành: dsgdProduct=${dsgdProduct}, frProduct=${frProduct}, validated=${validations.every((v) => v.passed)}`,
     );
+
+    if (params.updateCumulative) {
+      this.logger.log('Đang thực hiện cập nhật dữ liệu lũy kế năm...');
+      const dsgdClassified = classifyDsgd(dsgdRows);
+      const paths = {
+        pathDsgdCumulative: params.pathDsgdCumulative || '',
+        pathNormal: params.pathNormal || '',
+        pathAcm: params.pathAcm || '',
+        pathLme: params.pathLme || '',
+        pathOptions: params.pathOptions || '',
+        pathSpread: params.pathSpread || '',
+      };
+      await updateAllCumulativeFiles(
+        files.fileDsgd,
+        result,
+        dsgdClassified,
+        ttttAcm,
+        ttmAcm,
+        lmeExpiredLot,
+        paths,
+      );
+      this.logger.log('Cập nhật dữ liệu lũy kế năm thành công.');
+    }
+
     return result;
   }
 
@@ -275,6 +466,12 @@ export class LotStatisticsService {
         defaultPathOp: parsed.defaultPathOp || '',
         defaultPathPs: parsed.defaultPathPs || '',
         defaultLmeKyHan: parsed.defaultLmeKyHan || '',
+        defaultPathDsgdCumulative: parsed.defaultPathDsgdCumulative || '',
+        defaultPathNormal: parsed.defaultPathNormal || '',
+        defaultPathAcm: parsed.defaultPathAcm || '',
+        defaultPathLme: parsed.defaultPathLme || '',
+        defaultPathOptions: parsed.defaultPathOptions || '',
+        defaultPathSpread: parsed.defaultPathSpread || '',
       };
     } catch {
       return {
@@ -285,6 +482,12 @@ export class LotStatisticsService {
         defaultPathOp: '',
         defaultPathPs: '',
         defaultLmeKyHan: '',
+        defaultPathDsgdCumulative: '',
+        defaultPathNormal: '',
+        defaultPathAcm: '',
+        defaultPathLme: '',
+        defaultPathOptions: '',
+        defaultPathSpread: '',
       };
     }
   }
