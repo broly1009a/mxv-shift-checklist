@@ -161,6 +161,30 @@ export function ensureDirExists(filePath: string) {
 }
 
 /**
+ * Helper to backup file before modification
+ */
+function backupFile(filePath: string) {
+  try {
+    if (!fs.existsSync(filePath)) return;
+    const fileDir = path.dirname(filePath);
+    const backupDir = path.join(fileDir, 'Backup_Snapshots');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString()
+      .replace(/T/, '_')
+      .replace(/\..+/, '')
+      .replace(/:/g, '-');
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const extName = path.extname(filePath);
+    const backupPath = path.join(backupDir, `${baseName}_backup_${timestamp}${extName}`);
+    fs.copyFileSync(filePath, backupPath);
+  } catch (err: any) {
+    console.warn(`[WARN] Không thể tự động tạo file sao lưu cho ${path.basename(filePath)}: ${err.message}`);
+  }
+}
+
+/**
  * 1. Append raw daily DSGD rows to cumulative DSGD file
  */
 export async function appendRawDsgd(
@@ -169,6 +193,7 @@ export async function appendRawDsgd(
   ngayGD: Date,
 ) {
   ensureDirExists(targetFilePath);
+  backupFile(targetFilePath);
   
   // Read daily DSGD rows
   const dailyWb = new ExcelJS.Workbook();
@@ -246,6 +271,7 @@ async function updateTvkdTrackerFile(
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế ${categoryName} không tồn tại: "${filePath}"`);
   }
+  backupFile(filePath);
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
@@ -315,6 +341,7 @@ async function updateAcmTrackerFile(
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế ACM không tồn tại: "${filePath}"`);
   }
+  backupFile(filePath);
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
@@ -384,6 +411,7 @@ async function updateNormalTrackerFile(
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế Normal Futures không tồn tại: "${filePath}"`);
   }
+  backupFile(filePath);
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);

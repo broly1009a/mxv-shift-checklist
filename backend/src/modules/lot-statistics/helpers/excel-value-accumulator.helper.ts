@@ -139,6 +139,25 @@ async function updateValueTrackerFile(
     throw new Error(`File lũy kế ${fileType} không tồn tại: "${filePath}"`);
   }
 
+  // ─── Tự động tạo bản sao lưu trước khi sửa đổi (Backup Snapshot) ───────────
+  try {
+    const fileDir = path.dirname(filePath);
+    const backupDir = path.join(fileDir, 'Backup_Snapshots');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString()
+      .replace(/T/, '_')
+      .replace(/\..+/, '')
+      .replace(/:/g, '-');
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const extName = path.extname(filePath);
+    const backupPath = path.join(backupDir, `${baseName}_backup_${timestamp}${extName}`);
+    fs.copyFileSync(filePath, backupPath);
+  } catch (err: any) {
+    console.warn(`[WARN] Không thể tự động tạo file sao lưu cho ${fileType}: ${err.message}`);
+  }
+
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
 
