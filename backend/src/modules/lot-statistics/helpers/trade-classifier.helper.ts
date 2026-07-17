@@ -27,8 +27,11 @@ export function isSpread(maTKGD: string): boolean {
 }
 
 /** LME: kết thúc -L */
+/** LME: kết thúc bằng ký tự L (ví dụ "-L" hoặc "L") */
 export function isLme(maTKGD: string): boolean {
-  return /-L$/i.test(maTKGD);
+  if (!maTKGD) return false;
+  const s = maTKGD.toString().trim().toUpperCase();
+  return s.endsWith('L');
 }
 
 /** Options: loại hợp đồng bắt đầu C. hoặc P. */

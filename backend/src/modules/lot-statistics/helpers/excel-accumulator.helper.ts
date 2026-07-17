@@ -381,7 +381,7 @@ async function updateNormalTrackerFile(
   ws.getCell(targetRowIndex, 8).value = s.ttmSpread;
   // LME
   ws.getCell(targetRowIndex, 9).value = s.dsgdLme;
-  ws.getCell(targetRowIndex, 10).value = s.ttttLme;          // Số lot tất toán LME (raw, không trừ lmeExpired)
+  ws.getCell(targetRowIndex, 10).value = s.psLme - lmeExpiredLot;          // Số lot tất toán LME (lấy từ số liệu CQG PS để đồng bộ)
   ws.getCell(targetRowIndex, 11).value = s.ttmLme;
   // Options
   ws.getCell(targetRowIndex, 12).value = s.dsgdOptions;
