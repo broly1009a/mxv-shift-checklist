@@ -14,6 +14,7 @@ import {
   Terminal,
   Download,
   FileSpreadsheet,
+  TrendingUp,
 } from 'lucide-react';
 
 import ConnectionSettings from './components/ConnectionSettings';
@@ -23,6 +24,7 @@ import BackupAuditor from './components/BackupAuditor';
 import JobQueuePanel from './components/JobQueuePanel';
 import ReportDownloader from './components/ReportDownloader';
 import LotStatisticsPanel from './components/LotStatisticsPanel';
+import ValueStatisticsPanel from './components/ValueStatisticsPanel';
 
 interface BotJob {
   _id: string;
@@ -36,7 +38,7 @@ interface BotJob {
   updatedAt: string;
 }
 
-type TabType = 'credentials' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'backup' | 'downloader' | 'queue';
+type TabType = 'credentials' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'value-statistics' | 'backup' | 'downloader' | 'queue';
 
 export default function AdminBotConfigPage() {
   const { user, token } = useAuth();
@@ -177,6 +179,7 @@ export default function AdminBotConfigPage() {
     { id: 'gtt', label: 'Kiểm tra GTT', icon: FileText },
     { id: 'reconciliation', label: 'Kiểm thử Đối chiếu', icon: Database },
     { id: 'lot-statistics', label: 'Thống kê số lot', icon: FileSpreadsheet },
+    { id: 'value-statistics', label: 'Thống kê giá trị', icon: TrendingUp },
     { id: 'backup', label: 'Backup & Macro', icon: Clock },
     { id: 'downloader', label: 'Yêu cầu Tải báo cáo', icon: Download },
     { id: 'queue', label: 'Hàng đợi & Logs', icon: Terminal, count: jobs.filter(j => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length },
@@ -252,6 +255,10 @@ export default function AdminBotConfigPage() {
 
           {activeTab === 'lot-statistics' && (
             <LotStatisticsPanel token={token} apiBaseUrl={API_BASE_URL} />
+          )}
+
+          {activeTab === 'value-statistics' && (
+            <ValueStatisticsPanel token={token} apiBaseUrl={API_BASE_URL} />
           )}
 
           {activeTab === 'backup' && (

@@ -1,0 +1,282 @@
+﻿olevba 0.60.2 on Python 3.14.5 - http://decalage.info/python/oletools
+===============================================================================
+FILE: marco\Thong ke gia tri giao dich c├│ ACM\Macro thong ke gia tri giao dich c├│ ACM.xlsm
+Type: OpenXML
+WARNING  For now, VBA stomping cannot be detected for files in memory
+-------------------------------------------------------------------------------
+VBA MACRO ThisWorkbook.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/ThisWorkbook'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet1.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet1'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet2.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet2'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Module1.bas 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Module1'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Sub test()
+  ThisWorkbook.Sheets("sheet1").Range("A9:D100").Clear
+  Dim twb, nwb As Workbook
+  Set twb = ThisWorkbook
+  Dim ws1, ws2, ws3  As Worksheet
+  Dim str1, str3 As Range
+  Set str1 = ThisWorkbook.Sheets("sheet2").Range("A13")
+ 
+    Set nwb = Workbooks.Open(str1)
+    twb.Sheets("sheet1").Range("A5:H500").Clear
+    twb.Sheets("DSGD").Cells.Clear
+    nwb.ActiveSheet.Cells.Copy twb.Sheets("DSGD").Range("A1")
+    nwb.Close False
+    twb.Sheets("DSGD").Range("A1").AutoFilter field:=4, Criteria1:="*-S"
+    Dim num As Long
+    num = Application.WorksheetFunction.Subtotal(103, Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD Spread").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD Spread").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").Range("A1").AutoFilter
+    
+    
+    twb.Sheets("DSGD").Range("A1").AutoFilter field:=4, Criteria1:="*-L"
+    num = Application.WorksheetFunction.Subtotal(103, Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD LME").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD LME").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").Range("A1").AutoFilter
+    
+    
+    twb.Sheets("DSGD").Range("A1").AutoFilter field:=6, Criteria1:="C.*", Operator:=xlOr, Criteria2:="P.*"
+    num = Application.WorksheetFunction.Subtotal(103, Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD Options").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD Options").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").Range("A1").AutoFilter
+    
+    twb.Sheets("DSGD").Range("A1").AutoFilter field:=4, Criteria1:="*-A"
+    num = Application.WorksheetFunction.Subtotal(103, Sheets("DSGD").Range("B:B"))
+    twb.Sheets("DSGD ACM").Cells.Clear
+    If num > 1 Then
+        twb.Sheets("DSGD").Cells.SpecialCells(xlCellTypeVisible).Copy
+        twb.Sheets("DSGD ACM").Range("A1").PasteSpecial xlPasteValuesAndNumberFormats
+    End If
+    twb.Sheets("DSGD").Range("A1").AutoFilter
+    
+    Dim lr As Long
+    lr = twb.Sheets("DSGD").Cells(Rows.Count, 1).End(xlUp).Row
+        
+    twb.Sheets("DSGD").Select
+    Columns("D:F").Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("E1") = "TVKD"
+    Range("D1") = "HH"
+    Range("F1") = "GTGD"
+    Range("E2").Formula = "=LEFT(g2,3)"
+    Range("E2:E" & lr).FillDown
+    Range("D2").Formula = "=VLOOKUP(IF(RIGHT(G2,1)=""L"",LEFT(I2,3),LEFT(I2,FIND(""2"",I2)-2)),HH!A:C,2,0)"
+    Range("D2:D" & lr).FillDown
+    Range("F2").Formula = "=IFERROR(IF(D2=""TRU"",P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP(DSGD!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$3,IF(D2=""MPO"",P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP(DSGD!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$4,P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP(DSGD!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$2)),"""")"
+' tao pivot
+    Columns("D:F").Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD!R1C4:R1048576C6", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R10C1", TableName:="PivotTable2", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(10, 1).Select
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("HH")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    ActiveSheet.PivotTables("PivotTable2").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable2").PivotFields("GTGD"), "Count of GTGD", xlCount
+    With ActiveSheet.PivotTables("PivotTable2").PivotFields("Count of GTGD")
+        .Caption = "Sum of GTGD"
+        .Function = xlSum
+    End With
+    Columns("B:B").NumberFormat = "#,##0 "
+    Columns("B:B").ColumnWidth = 17.71
+
+    'pivot UAT
+    twb.Sheets("DSGD Spread").Select
+    lr = twb.Sheets("DSGD Spread").Cells(Rows.Count, 1).End(xlUp).Row
+    Columns("D:F").Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("E1") = "TVKD"
+    Range("D1") = "HH"
+    Range("F1") = "GTGD"
+    Range("E2").Formula = "=LEFT(G2,3)"
+    If lr > 2 Then
+    Range("E2:E" & lr).FillDown
+    End If
+    Range("D2").Formula = "=IFERROR(LEFT(I2,len(I2)-3),"""")"
+    If lr > 2 Then
+    Range("D2:D" & lr).FillDown
+    End If
+    Range("F2").Formula = "=IFERROR(IF(D2=""TRU"",P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP('DSGD Spread'!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$3,IF(D2=""MPO"",P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP('DSGD Spread'!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$4,P2*Q2*VLOOKUP(D2,'Hhoa Vlookup'!$A:$C,2,0)*VLOOKUP('DSGD Spread'!D2,'Hhoa Vlookup'!$A:$C,3,0)*Sheet1!$D$2)),"""")"
+    If lr > 2 Then
+    Range("F2:F" & lr).FillDown
+    End If
+    Columns("D:F").Select
+    ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+        "DSGD Spread!R1C4:R1048576C6", Version:=6).CreatePivotTable TableDestination _
+        :="Sheet1!R10C3", TableName:="PivotTable3", DefaultVersion:=6
+    Sheets("Sheet1").Select
+    Cells(10, 3).Select
+    With ActiveSheet.PivotTables("PivotTable3").PivotFields("HH")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    ActiveSheet.PivotTables("PivotTable3").AddDataField ActiveSheet.PivotTables( _
+        "PivotTable3").PivotFields("GTGD"), "Count of GTGD", xlCount
+    With ActiveSheet.PivotTables("PivotTable3").PivotFields("Count of GTGD")
+        .Caption = "Sum of GTGD"
+        .Function = xlSum
+    End With
+    Columns("D:D").NumberFormat = "#,##0 "
+    Columns("D:D").ColumnWidth = 17.71
+
+End Sub
+Sub Tao_file_ban_tin()
+    Dim FSO As Object
+         Set FSO = CreateObject("Scripting.FileSystemObject")
+    Dim twb, nwb, nwb1 As Workbook
+        Set twb = ThisWorkbook
+    Dim sour, des, fd As Range
+        Set sour = twb.Sheets("sheet2").Range("A6")
+        Set des = twb.Sheets("sheet2").Range("A7")
+        Set fd = twb.Sheets("sheet2").Range("A4")
+    If FSO.FolderExists(fd) = False Then
+    MsgBox "khong ton tai thu muc nguon"
+    Exit Sub
+    End If
+    FSO.CopyFile sour, des
+    Set FSO = Nothing
+    Set nwb = Workbooks.Open(des)
+    twb.Sheets(1).Range("L11:L77").Copy
+    nwb.ActiveSheet.Range("D6").PasteSpecial xlPasteValues
+    twb.Sheets(1).Range("T11:T13").Copy
+    nwb.ActiveSheet.Range("D73").PasteSpecial xlPasteValues
+    nwb.ActiveSheet.Columns("D:D").NumberFormat = "#,##0 "
+    
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+    Set sour = twb.Sheets("sheet2").Range("A6")
+        Set des = twb.Sheets("sheet2").Range("A26")
+        Set fd = twb.Sheets("sheet2").Range("A24")
+    If FSO.FolderExists(fd) = False Then
+    MsgBox "khong ton tai thu muc nguon"
+    Exit Sub
+    End If
+    FSO.CopyFile sour, des
+    Set FSO = Nothing
+    Set nwb1 = Workbooks.Open(des)
+    twb.Sheets(1).Range("L11:L77").Copy
+    nwb1.ActiveSheet.Range("D6").PasteSpecial xlPasteValues
+    twb.Sheets(1).Range("T11:T13").Copy
+    nwb1.ActiveSheet.Range("D73").PasteSpecial xlPasteValues
+    nwb1.Save
+    nwb1.Close False
+    
+End Sub
+Sub Chay_file()
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+    Call test
+    Call Tao_file_ban_tin
+    Call copy_filethongkegtgd
+Application.ScreenUpdating = True
+Application.EnableEvents = True
+End Sub
+Sub copy_filethongkegtgd()
+    Dim twb, nwb, nwb1, nwb2 As Workbook
+    Dim nwb3, nwb4 As Workbook
+        Set twb = ThisWorkbook
+    Dim str1, str2, str3 As Range
+    Dim str4, str5 As Range
+        Set str1 = twb.Sheets("sheet2").Range("A22")
+        Set str2 = twb.Sheets("sheet2").Range("A16")
+        Set str3 = twb.Sheets("sheet2").Range("A19")
+        Set str4 = twb.Sheets("sheet2").Range("A34")
+        Set str5 = twb.Sheets("sheet2").Range("A35")
+        Set nwb = Workbooks.Open(str1)
+    Dim ws, ws1, ws2, ws3 As Worksheet
+        Set ws = nwb.Sheets(Sheets.Count)
+    Dim lr, lr1, lr2, lr3, lr4 As Long
+         lr = Application.WorksheetFunction.Match(twb.Sheets(1).Range("G2"), ws.Columns("A:A"), 0)
+    twb.Sheets(1).Range("L11:L77").Copy
+    ws.Cells(lr, 2).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    
+       Set nwb1 = Workbooks.Open(str2)
+    Set ws1 = nwb1.Sheets(Sheets.Count)
+         lr1 = Application.WorksheetFunction.Match(twb.Sheets(1).Range("G2"), ws1.Columns("A:A"), 0)
+    twb.Sheets(1).Range("N12:N20").Copy
+    ws1.Cells(lr1, 2).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    Set nwb2 = Workbooks.Open(str3)
+    Set ws2 = nwb2.Sheets(Sheets.Count)
+         lr2 = Application.WorksheetFunction.Match(twb.Sheets(1).Range("G2"), ws2.Columns("A:A"), 0)
+    twb.Sheets(1).Range("L69:L77").Copy
+    ws2.Cells(lr2, 2).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    ws2.Range("M1").Delete
+    
+    
+    Set nwb3 = Workbooks.Open(str4)
+    Set ws3 = nwb3.Sheets(Sheets.Count)
+         lr3 = Application.WorksheetFunction.Match(twb.Sheets(1).Range("G2"), ws3.Columns("A:A"), 0)
+    twb.Sheets(1).Range("O11:O26").Copy
+    ws3.Cells(lr3, 2).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+    
+    Set nwb4 = Workbooks.Open(str5)
+    Set ws4 = nwb4.Sheets(Sheets.Count)
+         lr4 = Application.WorksheetFunction.Match(twb.Sheets(1).Range("G2"), ws4.Columns("A:A"), 0)
+    twb.Sheets(1).Range("T11:T13").Copy
+    ws4.Cells(lr4, 2).PasteSpecial Paste:=xlPasteValues, Transpose:=True
+
+    
+    
+    
+End Sub
+-------------------------------------------------------------------------------
+VBA MACRO Sheet3.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet3'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet6.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet6'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet5.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet5'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet4.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet4'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet7.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet7'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet8.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet8'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+-------------------------------------------------------------------------------
+VBA MACRO Sheet9.cls 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Sheet9'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+(empty macro)
+

@@ -18,7 +18,7 @@ export interface AccumulatorPaths {
 /**
  * Robust date comparison matcher
  */
-function isSameDate(cellVal: any, targetDate: Date): boolean {
+export function isSameDate(cellVal: any, targetDate: Date): boolean {
   if (cellVal === null || cellVal === undefined) return false;
   let d: Date | null = null;
   
@@ -63,7 +63,7 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
 /**
  * Helper to find or create target row index by scanning until "Tổng" or matching date
  */
-function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
+export function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
   let targetRowIndex = -1;
   let tongRowIndex = -1;
 
@@ -122,7 +122,7 @@ function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
 /**
  * Format sheet name according to month and year (e.g. T07.2026 or T7.2026)
  */
-function getSheetName(filename: string, date: Date): string {
+export function getSheetName(filename: string, date: Date): string {
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
   if (filename.toLowerCase().includes('options')) {
@@ -153,7 +153,7 @@ function matchProductHeader(header: string, productCode: string): boolean {
 /**
  * Ensures directory exists
  */
-function ensureDirExists(filePath: string) {
+export function ensureDirExists(filePath: string) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
