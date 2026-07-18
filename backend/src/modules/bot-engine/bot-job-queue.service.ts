@@ -11,6 +11,8 @@ import { ReconciliationService } from '../reconciliation/reconciliation.service'
 import { TelegramService } from '../telegram/telegram.service';
 import { ValueStatisticsService } from '../lot-statistics/value-statistics.service';
 import { LotStatisticsService } from '../lot-statistics/lot-statistics.service';
+import { ShiftsService } from '../shifts/shifts.service';
+import { ShiftsGateway } from '../shifts/shifts.gateway';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -49,7 +51,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private queueInterval: NodeJS.Timeout;
   private cleanupInterval: NodeJS.Timeout;
   private healthInterval: NodeJS.Timeout;
-  private wasAgentOnline = false;
+  private wasAgentOnlineMap = new Map<string, boolean>();
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
@@ -61,6 +63,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly telegramService: TelegramService,
     private readonly valueStatisticsService: ValueStatisticsService,
     private readonly lotStatisticsService: LotStatisticsService,
+    private readonly shiftsService: ShiftsService,
+    private readonly shiftsGateway: ShiftsGateway,
   ) {}
 
   onModuleInit() {
@@ -108,20 +112,24 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async checkAgentConnectionHealth() {
     const { AgentController } = require('./bot-engine.controller');
-    const status = AgentController.agentStatus;
-    if (!status) return;
+    const statuses = AgentController.agentStatuses; // Map<string, { hostname, platform, lastSeen }>
+    if (!statuses) return;
 
-    const diffMs = Date.now() - status.lastSeen.getTime();
-    const isOnline = diffMs < 180000; // 3 minutes timeout
+    for (const [hostname, status] of statuses.entries()) {
+      const diffMs = Date.now() - status.lastSeen.getTime();
+      const isOnline = diffMs < 180000; // 3 minutes timeout
+      const wasOnline = this.wasAgentOnlineMap.get(hostname) || false;
 
-    if (!isOnline && this.wasAgentOnline) {
-      this.wasAgentOnline = false;
-      this.logger.warn(`Agent offline alert. Sending email...`);
-      await this.sendConnectionAlertEmail(status, false);
-    } else if (isOnline && !this.wasAgentOnline) {
-      this.wasAgentOnline = true;
-      this.logger.log(`Agent online info. Sending email...`);
-      await this.sendConnectionAlertEmail(status, true);
+      if (!isOnline && wasOnline) {
+        this.wasAgentOnlineMap.set(hostname, false);
+        this.logger.warn(`Agent ${hostname} offline alert. Sending email...`);
+        await this.sendConnectionAlertEmail(status, false);
+        statuses.delete(hostname); // clean up offline agent
+      } else if (isOnline && !wasOnline) {
+        this.wasAgentOnlineMap.set(hostname, true);
+        this.logger.log(`Agent ${hostname} online info. Sending email...`);
+        await this.sendConnectionAlertEmail(status, true);
+      }
     }
   }
 
@@ -313,11 +321,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.isProcessing = true;
-    job.status = 'PROCESSING';
     job.attempts += 1;
     const startTime = new Date().toISOString();
     job.logs.push(`[${startTime}] Starting attempt ${job.attempts}/${job.maxAttempts}...`);
-    await job.save();
+    await this.syncJobToChecklist(job, 'PROCESSING');
 
     this.logger.log(`Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts})`);
 
@@ -348,9 +355,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
 
-      job.status = 'COMPLETED';
-      job.logs.push(`[${new Date().toISOString()}] Job completed successfully.`);
-      await job.save();
+      await this.syncJobToChecklist(job, 'COMPLETED');
       this.logger.log(`Job ${job.jobType} (ID: ${job._id}) completed successfully.`);
     } catch (err: any) {
       const errorMsg = err.message || 'Lỗi không xác định';
@@ -359,17 +364,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] Attempt ${job.attempts} failed: ${errorMsg}`);
       
       if (job.attempts < job.maxAttempts) {
-        job.status = 'PENDING'; // Requeue for retry
-        job.logs.push(`[${new Date().toISOString()}] Requeued for retry.`);
+        await this.syncJobToChecklist(job, 'PENDING', errorMsg);
       } else {
-        job.status = 'FAILED';
-        job.logs.push(`[${new Date().toISOString()}] Job failed permanently (exhausted attempts).`);
-        // Gửi email cảnh báo lỗi vận hành khi job thất bại vĩnh viễn
+        // Gửi email cảnh báo lỗi vận hành khi job thất bại vĩnh viễn trước khi sync status sang FAILED
         await this.sendOperationalFailureAlert(job, errorMsg).catch((emailErr) => {
           this.logger.error(`Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`);
         });
+        await this.syncJobToChecklist(job, 'FAILED', errorMsg);
       }
-      await job.save();
     } finally {
       this.isProcessing = false;
     }
@@ -792,6 +794,129 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Đồng bộ hóa trạng thái Job với Checklist Task và phát sự kiện Realtime qua WebSockets.
+   */
+  public async syncJobToChecklist(job: BotJob, status: string, errorMsg?: string): Promise<void> {
+    job.status = status as any;
+    
+    // Đảm bảo cập nhật log tương ứng với trạng thái
+    const nowStr = new Date().toISOString();
+    if (status === 'PROCESSING') {
+      job.logs.push(`[${nowStr}] Job status transitioned to PROCESSING.`);
+    } else if (status === 'COMPLETED') {
+      job.logs.push(`[${nowStr}] Job completed successfully.`);
+    } else if (status === 'FAILED') {
+      job.logs.push(`[${nowStr}] Job failed permanently: ${errorMsg || 'Lỗi không xác định'}`);
+    } else if (status === 'PENDING') {
+      job.logs.push(`[${nowStr}] Job status transitioned to PENDING (requeued for retry).`);
+    } else if (status === 'AWAITING_CAPTCHA') {
+      job.logs.push(`[${nowStr}] Job status transitioned to AWAITING_CAPTCHA.`);
+    }
+
+    await job.save();
+
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const shiftLogId = payload.shiftLogId;
+    const taskId = payload.taskId;
+
+    // 1. Cập nhật trạng thái Checklist Task tương ứng trong ShiftLog
+    if (shiftLogId && taskId) {
+      try {
+        const systemUser = {
+          id: '000000000000000000000000',
+          fullName: 'Hệ thống tự động (Bot)',
+          username: 'system_bot',
+          role: 'ADMIN',
+        };
+
+        if (status === 'PROCESSING') {
+          await this.shiftsService.updateTaskStatus(
+            shiftLogId,
+            taskId,
+            'WAITING',
+            systemUser,
+            'Hệ thống đang thực hiện tác vụ tự động...'
+          );
+        } else if (status === 'COMPLETED') {
+          let message = 'Tác vụ tự động hoàn thành thành công.';
+          if (job.jobType === 'RPA_DOWNLOAD_REPORTS') {
+            const targets = payload.targets || [];
+            message = `RPA tải báo cáo thành công: ${targets.join(', ')}`;
+          } else if (job.jobType === 'DOWNLOAD_CAST') {
+            message = 'Tải báo cáo CQG CAST Balances thành công.';
+          } else if (job.jobType === 'AUTO_CHECK_SOD') {
+            message = 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
+          } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
+            const failedCount = payload.failedCount || 0;
+            const totalCount = payload.totalCount || 0;
+            const failedList = payload.failedList || '';
+            const checkData = {
+              success: failedCount === 0,
+              message: failedCount === 0
+                ? `Tất cả email sao kê đã được gửi thành công (${totalCount} email).`
+                : `Phát hiện ${failedCount} email gửi thất bại trên tổng số ${totalCount} email.`,
+              data: { totalCount, failedCount, failedList, timestamp: new Date().toISOString() }
+            };
+            message = JSON.stringify(checkData);
+          }
+
+          await this.shiftsService.updateTaskStatus(
+            shiftLogId,
+            taskId,
+            'PASSED',
+            systemUser,
+            message
+          );
+        } else if (status === 'FAILED') {
+          const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
+          let message = lastLog;
+
+          if (job.jobType === 'VERIFY_EMAIL_STATUS') {
+            const checkData = {
+              success: false,
+              message: `RPA xác minh email thất bại: ${lastLog}`,
+              data: { totalCount: 0, failedCount: 0, failedList: '', timestamp: new Date().toISOString() }
+            };
+            message = JSON.stringify(checkData);
+          }
+
+          await this.shiftsService.updateTaskStatus(
+            shiftLogId,
+            taskId,
+            'FAILED',
+            systemUser,
+            message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`
+          );
+        }
+      } catch (err: any) {
+        this.logger.error(`Lỗi cập nhật trạng thái checklist cho Job ${job._id}: ${err.message}`);
+      }
+    }
+
+    // 2. Phát sự kiện Realtime WebSocket qua ShiftsGateway
+    try {
+      const targetDate = payload.targetDate || payload.sessionDay || new Date().toISOString().split('T')[0];
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        job._id.toString(),
+        null,
+        null,
+        targetDate,
+        {
+          jobId: job._id.toString(),
+          status,
+          jobType: job.jobType,
+          shiftLogId,
+          taskId,
+        }
+      );
+      this.logger.log(`Emitted dashboard-updated WS event for job ${job._id} (${status})`);
+    } catch (err: any) {
+      this.logger.error(`Lỗi phát sự kiện Realtime WebSocket: ${err.message}`);
+    }
+  }
+
+  /**
    * Cung cấp mã Captcha cho một Job đang chờ xử lý từ xa.
    */
   async submitCaptcha(jobId: string, captchaText: string): Promise<void> {
@@ -802,9 +927,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     const job = await this.botJobModel.findById(jobId).exec();
     if (job) {
-      job.status = 'PROCESSING';
       job.logs.push(`[${new Date().toISOString()}] Đã nhận mã Captcha từ người dùng: "${captchaText}". Tiếp tục đăng nhập...`);
-      await job.save();
+      await this.syncJobToChecklist(job, 'PROCESSING');
     }
 
     resolver(captchaText);
@@ -983,14 +1107,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             reject(new Error('Hết thời gian chờ người dùng nhập Captcha (5 phút).'));
           }, 5 * 60 * 1000);
 
-          job.status = 'AWAITING_CAPTCHA';
           const currentPayload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
           job.payload = {
             ...currentPayload,
             captchaImage: base64Img,
           };
           job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
-          job.save().then(() => {
+          this.syncJobToChecklist(job, 'AWAITING_CAPTCHA').then(() => {
             this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
               clearTimeout(timeoutId);
               resolve(captcha);
@@ -1023,7 +1146,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     // 2. Đồng bộ file dump/log từ SFTP nếu thiếu
     const sftpMissing = missingOrOutdated.some(r => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS');
     if (sftpMissing) {
-      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ WinSCP...`);
+      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ SFTP...`);
       await job.save();
       try {
         await this.rpaDownloaderService.downloadAcmSftpBackup(dailyPath, targetDate, job.logs);

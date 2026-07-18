@@ -179,7 +179,7 @@ class AgentWorker(QObject):
             return None
 
     def _post(self, path: str, data: dict = None, files=None) -> Optional[dict]:
-        if path != "/api/v1/bot-engine/agent/login" and not self._ensure_logged_in():
+        if path not in ("/api/v1/bot-engine/agent/login", "/api/v1/bot-engine/agent/logout") and not self._ensure_logged_in():
             return None
         try:
             import requests
@@ -387,6 +387,12 @@ class AgentWorker(QObject):
                 self._dispatch(result["job"])
 
             time.sleep(self._poll_interval)
+
+        # Logout on clean exit
+        if self._session_token:
+            self._post("/api/v1/bot-engine/agent/logout", {"hostname": platform.node()})
+            self._session_token = ""
+            self._token_expire_at = 0.0
 
         self._log("INFO", "Agent đã dừng.")
 

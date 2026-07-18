@@ -128,6 +128,19 @@ export class ShiftJobsService {
         botCheckTargetSnapshot: task.botCheckTarget || '',
         botSuccessConditionSnapshot: task.botSuccessCondition || '',
         botFailureActionSnapshot: task.botFailureAction || '',
+        status: 'PENDING',
+        dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
+        sessionTypeSnapshot: task.sessionType || null,
+        triggerTimeSnapshot: task.triggerTime || null,
+        slaDeadlineSnapshot: task.slaDeadline || null,
+        slaWindowStartSnapshot: task.slaWindowStart || null,
+        slaWindowEndSnapshot: task.slaWindowEnd || null,
+        actionDescriptionSnapshot: task.actionDescription || '',
+        exceptionCodeSnapshot: task.exceptionCode || '',
+        frequencyMinutesSnapshot: task.frequencyMinutes || null,
+        recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
+        parentTaskIdSnapshot: (task as any).parentTaskId || null,
+        slaTypeSnapshot: (task as any).slaType || 'FIXED_TIME',
       }));
 
       // Create new ShiftLog

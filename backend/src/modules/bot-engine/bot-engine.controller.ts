@@ -1498,15 +1498,23 @@ export class BotEngineController {
    */
   @Get('agent-status')
   async getAgentStatus() {
-    if (!AgentController.agentStatus) return { online: false };
-    const diffMs = Date.now() - AgentController.agentStatus.lastSeen.getTime();
-    const online = diffMs < 60_000; // 60s timeout
+    const statuses = Array.from(AgentController.agentStatuses.values());
+    const activeAgents = statuses.filter(s => (Date.now() - s.lastSeen.getTime()) < 180_000);
+    const online = activeAgents.length > 0;
+    if (!online) {
+      return { online: false, hostname: '', platform: '', agents: [] };
+    }
+    const hostname = activeAgents.map(a => a.hostname).join(', ');
+    const platform = activeAgents.map(a => a.platform).join(', ');
+    const lastSeen = activeAgents.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime())[0].lastSeen;
+    const diffMs = Date.now() - lastSeen.getTime();
     return {
-      online,
-      hostname: AgentController.agentStatus.hostname,
-      platform: AgentController.agentStatus.platform,
-      lastSeen: AgentController.agentStatus.lastSeen,
+      online: true,
+      hostname,
+      platform,
+      lastSeen,
       lastSeenMs: diffMs,
+      agents: activeAgents,
     };
   }
 }
@@ -1519,11 +1527,12 @@ import { diskStorage } from 'multer';
 @Controller('api/v1/bot-engine/agent')
 export class AgentController {
   private readonly logger = new Logger('AgentController');
-  public static agentStatus: { hostname: string; platform: string; lastSeen: Date } | null = null;
+  public static agentStatuses = new Map<string, { hostname: string; platform: string; lastSeen: Date }>();
   private static sessionTokens = new Map<string, { hostname: string; expireAt: number }>();
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
+    private readonly jobQueueService: BotJobQueueService,
   ) {}
 
   private validateKey(headers: Record<string, string>) {
@@ -1561,6 +1570,26 @@ export class AgentController {
     return { token, expireAt: new Date(expireAt).toISOString() };
   }
 
+  // POST /api/v1/bot-engine/agent/logout
+  @Post('logout')
+  async logout(@Headers() headers: Record<string, string>, @Body() body?: { hostname?: string }) {
+    const authHeader = headers['authorization'];
+    let hostname = body?.hostname || 'unknown';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      if (AgentController.sessionTokens.has(token)) {
+        const session = AgentController.sessionTokens.get(token);
+        hostname = session?.hostname || hostname;
+        this.logger.log(`Session logout successful for agent: ${hostname}`);
+        AgentController.sessionTokens.delete(token);
+      }
+    }
+    if (hostname && hostname !== 'unknown') {
+      AgentController.agentStatuses.delete(hostname);
+    }
+    return { ok: true };
+  }
+
   // GET /api/v1/bot-engine/agent/version
   @Get('version')
   async version() {
@@ -1573,23 +1602,34 @@ export class AgentController {
   @Post('heartbeat')
   async heartbeat(@Headers() headers: Record<string, string>, @Body() body: any) {
     this.validateKey(headers);
-    AgentController.agentStatus = {
-      hostname: body.hostname || 'unknown',
+    const hostname = body.hostname || 'unknown';
+    AgentController.agentStatuses.set(hostname, {
+      hostname,
       platform: body.platform || 'unknown',
       lastSeen: new Date(),
-    };
-    this.logger.log(`Heartbeat from ${body.hostname}`);
+    });
+    this.logger.log(`Heartbeat from ${hostname}`);
     return { ok: true };
   }
 
   // GET /api/v1/bot-engine/agent/status
   @Get('status')
-  async status(@Headers() headers: Record<string, string>) {
+  async status(@Headers() headers: Record<string, string>, @Query('hostname') queryHostname?: string) {
     this.validateKey(headers);
-    if (!AgentController.agentStatus) return { online: false };
-    const diffMs = Date.now() - AgentController.agentStatus.lastSeen.getTime();
-    const online = diffMs < 60_000; // 60s timeout
-    return { online, ...AgentController.agentStatus, lastSeenMs: diffMs };
+    if (queryHostname) {
+      const status = AgentController.agentStatuses.get(queryHostname);
+      if (!status) return { online: false };
+      const diffMs = Date.now() - status.lastSeen.getTime();
+      const online = diffMs < 180_000; // 3 minutes timeout
+      return { online, ...status, lastSeenMs: diffMs };
+    }
+    const statuses = Array.from(AgentController.agentStatuses.values());
+    if (statuses.length === 0) return { online: false };
+    const sorted = statuses.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime());
+    const status = sorted[0];
+    const diffMs = Date.now() - status.lastSeen.getTime();
+    const online = diffMs < 180_000;
+    return { online, ...status, lastSeenMs: diffMs };
   }
 
   // GET /api/v1/bot-engine/agent/poll
@@ -1614,10 +1654,9 @@ export class AgentController {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
-    job.status = 'PROCESSING';
     job.attempts = (job.attempts || 0) + 1;
     job.logs.push(`[${new Date().toISOString()}] Agent picked up job.`);
-    await job.save();
+    await this.jobQueueService.syncJobToChecklist(job, 'PROCESSING');
     return { ok: true };
   }
 
@@ -1652,7 +1691,6 @@ export class AgentController {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
-    job.status = 'COMPLETED';
     const now = new Date().toISOString();
     job.logs.push(`[${now}] Job completed by Agent.`);
     if (file) {
@@ -1661,7 +1699,7 @@ export class AgentController {
       job.payload = p;
       job.logs.push(`[${now}] File uploaded: ${file.originalname} -> ${file.path}`);
     }
-    await job.save();
+    await this.jobQueueService.syncJobToChecklist(job, 'COMPLETED');
     this.logger.log(`Job ${id} marked COMPLETED by agent. File: ${file?.path || 'none'}`);
     return { ok: true };
   }
@@ -1672,9 +1710,9 @@ export class AgentController {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
-    job.status = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
+    const targetStatus = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
     job.logs.push(`[${new Date().toISOString()}] [Agent] FAILED: ${body.error}`);
-    await job.save();
+    await this.jobQueueService.syncJobToChecklist(job, targetStatus, body.error);
     this.logger.warn(`Job ${id} failed by agent: ${body.error}`);
     return { ok: true };
   }
@@ -1686,21 +1724,22 @@ export class AgentController {
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
     const p = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    let targetStatus = job.status;
     if (body.captchaImage) {
       // Agent uploads captcha image for UI to display
       p.captchaImage = body.captchaImage;
-      job.status = 'AWAITING_CAPTCHA';
+      targetStatus = 'AWAITING_CAPTCHA';
       job.logs.push(`[${new Date().toISOString()}] Captcha required. Waiting for user input.`);
     }
     if (body.captchaText) {
       // UI submits captcha text for agent to retrieve
       p.captchaText = body.captchaText;
       p.captchaImage = undefined;
-      job.status = 'PROCESSING';
+      targetStatus = 'PROCESSING';
       job.logs.push(`[${new Date().toISOString()}] Captcha submitted by user.`);
     }
     job.payload = p;
-    await job.save();
+    await this.jobQueueService.syncJobToChecklist(job, targetStatus);
     return { ok: true, captchaText: p.captchaText || null };
   }
 }
