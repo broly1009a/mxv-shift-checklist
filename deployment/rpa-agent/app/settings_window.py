@@ -412,8 +412,6 @@ class SettingsWindow(QDialog):
         form.setSpacing(14)
 
         self._workspace_edit   = self._path_row(form, "Thư mục Backend NestJS:", file=False)
-        self._lot_macro_edit   = self._path_row(form, "Macro Số Lot (.xlsm):",   file=True,  ext="Excel Macro (*.xlsm)")
-        self._value_macro_edit = self._path_row(form, "Macro Giá Trị (.xlsm):",  file=True,  ext="Excel Macro (*.xlsm)")
         self._ms_backup_edit   = self._path_row(form, "Thư mục Backup MS:",       file=False)
         self._acm_backup_edit  = self._path_row(form, "Thư mục Backup ACM:",      file=False)
 
@@ -487,8 +485,6 @@ class SettingsWindow(QDialog):
 
         self._workspace_edit.setText(cfg.get("workspace_path", ""))
         paths = cfg.get("paths", {})
-        self._lot_macro_edit.setText(paths.get("lot_macro_path", ""))
-        self._value_macro_edit.setText(paths.get("value_macro_path", ""))
         self._ms_backup_edit.setText(paths.get("ms_backup_futures", ""))
         self._acm_backup_edit.setText(paths.get("acm_backup", ""))
 
@@ -508,8 +504,6 @@ class SettingsWindow(QDialog):
         cfg["notification_duration"] = self._duration_spin.value()
         cfg["workspace_path"] = self._workspace_edit.text().strip()
         cfg.setdefault("paths", {})
-        cfg["paths"]["lot_macro_path"]    = self._lot_macro_edit.text().strip()
-        cfg["paths"]["value_macro_path"]  = self._value_macro_edit.text().strip()
         cfg["paths"]["ms_backup_futures"] = self._ms_backup_edit.text().strip()
         cfg["paths"]["acm_backup"]        = self._acm_backup_edit.text().strip()
         _save_cfg(cfg)

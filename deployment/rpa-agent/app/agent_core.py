@@ -271,32 +271,6 @@ class AgentWorker(QObject):
 
     # ── Job handlers ──────────────────────────────────────────────────────────
 
-    def _handle_lot_macro(self, job_id: str, payload: dict) -> None:
-        macro_path = payload.get("macroPath") or self._paths.get("lot_macro_path")
-        target_date = payload.get("targetDate", "")
-        if not macro_path:
-            self._fail_job(job_id, "RUN_LOT_MACRO", "Thiếu macroPath trong payload và config.json")
-            return
-        script = str(BASE_DIR.parent / "scripts" / "run_lot_macro.py")
-        self._send_log(job_id, f"Chạy Macro Số Lot: {macro_path} | Ngày: {target_date}")
-        if self._run_script(job_id, script, [macro_path]):
-            self._complete_job(job_id, "RUN_LOT_MACRO")
-        else:
-            self._fail_job(job_id, "RUN_LOT_MACRO", "Script kết thúc với lỗi")
-
-    def _handle_value_macro(self, job_id: str, payload: dict) -> None:
-        macro_path = payload.get("macroPath") or self._paths.get("value_macro_path")
-        target_date = payload.get("targetDate", "")
-        if not macro_path:
-            self._fail_job(job_id, "RUN_VALUE_MACRO", "Thiếu macroPath trong payload và config.json")
-            return
-        script = str(BASE_DIR.parent / "scripts" / "run_value_macro.py")
-        self._send_log(job_id, f"Chạy Macro Giá Trị: {macro_path} | Ngày: {target_date}")
-        if self._run_script(job_id, script, [macro_path, target_date]):
-            self._complete_job(job_id, "RUN_VALUE_MACRO")
-        else:
-            self._fail_job(job_id, "RUN_VALUE_MACRO", "Script kết thúc với lỗi")
-
     def _handle_delegated_nestjs_job(self, job_id: str, job_type: str, payload: dict) -> None:
         workspace = self._workspace_path
         if not workspace:
@@ -363,11 +337,7 @@ class AgentWorker(QObject):
             self.sweep_orphaned_excel()
 
         try:
-            if job_type == "RUN_LOT_MACRO":
-                self._handle_lot_macro(job_id, payload)
-            elif job_type == "RUN_VALUE_MACRO":
-                self._handle_value_macro(job_id, payload)
-            elif job_type in ("RPA_DOWNLOAD_REPORTS", "DOWNLOAD_CAST", "FILE_AUDIT_MS", "FILE_AUDIT_CQG", "FILE_AUDIT_ACM"):
+            if job_type in ("RUN_LOT_MACRO", "RUN_VALUE_MACRO", "RPA_DOWNLOAD_REPORTS", "DOWNLOAD_CAST", "FILE_AUDIT_MS", "FILE_AUDIT_CQG", "FILE_AUDIT_ACM"):
                 self._handle_delegated_nestjs_job(job_id, job_type, payload)
             else:
                 self._fail_job(job_id, job_type, f"Job type '{job_type}' chưa được hỗ trợ trên Agent")

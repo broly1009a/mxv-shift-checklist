@@ -10,6 +10,7 @@ import { CqgSyncService } from './cqg-sync.service';
 import { ReconciliationService } from '../reconciliation/reconciliation.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { ValueStatisticsService } from '../lot-statistics/value-statistics.service';
+import { LotStatisticsService } from '../lot-statistics/lot-statistics.service';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -59,6 +60,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly reconciliationService: ReconciliationService,
     private readonly telegramService: TelegramService,
     private readonly valueStatisticsService: ValueStatisticsService,
+    private readonly lotStatisticsService: LotStatisticsService,
   ) {}
 
   onModuleInit() {
@@ -1045,52 +1047,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
     }
 
-    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
-
-    const macroPath = payload.macroPath
-      || await this.settingsService.getSetting(
-        'bot_macro_lot_path',
-        defaultMacroPath
-      );
-    const backupMs = payload.backupPathMs
-      || await this.settingsService.getSetting(
-        'bot_backup_path_ms',
-        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
-      );
-    const backupCqg = payload.backupPathCqg
-      || await this.settingsService.getSetting(
-        'bot_backup_path_cqg',
-        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
-      );
-    const targetRoot = payload.targetRoot
-      || await this.settingsService.getSetting(
-        'bot_lot_macro_target_root',
-        'M:\\Quanlygiaodich\\Tai lieu hoat dong'
-      );
-    const pythonExe = await this.settingsService.getSetting(
-      'bot_python_path',
-      'python'
-    );
-
-    // Đường dẫn script Python động: ưu tiên payload -> settings -> tương đối project -> fallback C:\POC\scripts
-    const defaultLotScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_lot_macro.py');
-      const relPath2 = path.join(process.cwd(), 'scripts', 'run_lot_macro.py');
-      if (fs.existsSync(relPath)) return relPath;
-      if (fs.existsSync(relPath2)) return relPath2;
-      return path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
-    })();
-
-    const scriptPath = payload.scriptPath
-      || await this.settingsService.getSetting(
-        'bot_lot_script_path',
-        defaultLotScriptPath
-      );
-
-
-    // Chaining save calls to prevent Mongoose ParallelSaveError
     let savePromise: Promise<any> = Promise.resolve();
     const safeSave = () => {
       savePromise = savePromise.then(() => job.save()).catch((err) => {
@@ -1104,105 +1060,105 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy Macro thống kê số lot cho ngày: ${targetDateStr}`);
-    log(`Python Executable: ${pythonExe}`);
-    log(`Script Python: ${scriptPath}`);
-    log(`File Macro Excel: ${macroPath}`);
-
+    log(`Bắt đầu chạy thống kê số lot native cho ngày: ${targetDateStr}`);
     await safeSave();
 
-    const { spawn } = require('child_process');
-    const child = spawn(pythonExe, [
-      scriptPath,
-      macroPath,
-    ]);
+    try {
+      const targetDate = new Date(targetDateStr);
+      const year = targetDate.getFullYear().toString();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
 
-    let finalJsonStr = '';
+      const backupMs = payload.backupPathMs
+        || await this.settingsService.getSetting(
+          'bot_backup_path_ms',
+          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+        );
+      const backupCqg = payload.backupPathCqg
+        || await this.settingsService.getSetting(
+          'bot_backup_path_cqg',
+          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+        );
 
-    const savePayloadField = (key: string, val: any) => {
-      if (job.payload instanceof Map) {
-        job.payload.set(key, val);
+      const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+      const folderPathMs = path.join(backupMs, subFolder);
+      const folderPathCqg = path.join(backupCqg, subFolder);
+
+      log(`Thư mục MS: ${folderPathMs}`);
+      log(`Thư mục CQG: ${folderPathCqg}`);
+      await safeSave();
+
+      const files = this.lotStatisticsService.loadFilesFromDirectories(folderPathMs, folderPathCqg);
+      log(`Nạp file thành công. Tiến hành chạy tính toán số lot...`);
+      await safeSave();
+
+      const lotConfig = await this.lotStatisticsService.getConfig();
+      const filterLmeKyHan = lotConfig.defaultLmeKyHan || 'M26';
+
+      const lastPartCqgIdx = backupCqg.lastIndexOf('\\');
+      const parentBaseCqg = lastPartCqgIdx > 0 ? backupCqg.substring(0, lastPartCqgIdx) : backupCqg;
+
+      const pathDsgdCumulative = lotConfig.defaultPathDsgdCumulative || `${folderPathMs}\\DSGD T${month}.${year}.xlsx`;
+      const pathNormal = lotConfig.defaultPathNormal || `${folderPathCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`;
+      const pathAcm = lotConfig.defaultPathAcm || `${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`;
+      const pathLme = lotConfig.defaultPathLme || `${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`;
+      const pathOptions = lotConfig.defaultPathOptions || `${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`;
+      const pathSpread = lotConfig.defaultPathSpread || `${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`;
+
+      const parseDateArray = (input: any) => {
+        if (!input) return [];
+        if (Array.isArray(input)) return input;
+        try {
+          const parsed = JSON.parse(input);
+          return Array.isArray(parsed) ? parsed : [input];
+        } catch {
+          if (typeof input === 'string') {
+            return input.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+          return [];
+        }
+      };
+
+      const processParams = {
+        ngayGD: targetDateStr,
+        truDates: parseDateArray(payload.truDates),
+        fefDates: parseDateArray(payload.fefDates),
+        zftDates: parseDateArray(payload.zftDates),
+        filterLmeKyHan,
+        deadline: payload.deadline ? parseFloat(payload.deadline) : undefined,
+        updateCumulative: payload.updateCumulative === true || payload.updateCumulative === 'true',
+        pathDsgdCumulative,
+        pathNormal,
+        pathAcm,
+        pathLme,
+        pathOptions,
+        pathSpread,
+      };
+
+      const result = await this.lotStatisticsService.processLotStatistics(files, processParams);
+      log(`✅ Chạy tính toán thống kê số lot thành công.`);
+      log(`Kết quả: DSGD Product: ${result.summary.dsgdProduct}, FR Product: ${result.summary.frProduct}`);
+      
+      const allPassed = result.validations.every((v: any) => v.passed);
+      if (allPassed) {
+        log(`✅ Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
       } else {
-        if (!job.payload) job.payload = {};
-        job.payload[key] = val;
+        log(`⚠️ Phát hiện chênh lệch đối chiếu:`);
+        for (const val of result.validations) {
+          if (!val.passed) {
+            log(`   - ${val.field}: mong đợi ${val.expected}, thực tế ${val.actual}`);
+          }
+        }
       }
-    };
 
-    return new Promise<void>((resolve, reject) => {
-      child.stdout.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        const lines = text.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed) {
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-              finalJsonStr = trimmed;
-            } else if (trimmed.startsWith('[VBA WARNING]')) {
-              log(`⚠️ ${trimmed}`);
-              const warningText = trimmed.substring('[VBA WARNING]'.length).trim();
-              
-              let currentWarnings = [];
-              if (job.payload instanceof Map) {
-                currentWarnings = job.payload.get('warnings') || [];
-              } else {
-                currentWarnings = job.payload?.warnings || [];
-              }
-              if (!currentWarnings.includes(warningText)) {
-                currentWarnings.push(warningText);
-                savePayloadField('warnings', currentWarnings);
-              }
-            } else if (trimmed.startsWith('[VBA RUNTIME ERROR]')) {
-              log(`❌ ${trimmed}`);
-            } else {
-              log(`  > ${trimmed}`);
-            }
-          }
-        }
-        safeSave();
-      });
-
-      child.stderr.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        log(`  > [Stderr] ${text.trim()}`);
-        safeSave();
-      });
-
-      child.on('close', async (code: number | null) => {
-
-        // Wait for any pending logs to finish saving to the database
-        await savePromise;
-        
-        if (code === 0) {
-          if (finalJsonStr) {
-            try {
-              const parsed = JSON.parse(finalJsonStr);
-              if (parsed.success) {
-                log('✅ Macro hoàn tất thành công.');
-                if (parsed.warnings && parsed.warnings.length > 0) {
-                  savePayloadField('warnings', parsed.warnings);
-                }
-                await safeSave();
-                resolve();
-              } else {
-                reject(new Error(parsed.error || 'Lỗi không xác định từ Script Python'));
-              }
-            } catch (err: any) {
-              reject(new Error(`Không thể phân tích kết quả JSON từ script: ${err.message}`));
-            }
-          } else {
-            resolve();
-          }
-        } else {
-          reject(new Error(`Script Python kết thúc với mã lỗi: ${code}`));
-        }
-      });
-
-      child.on('error', async (err: Error) => {
-        await savePromise;
-        reject(err);
-      });
-    });
+      await safeSave();
+    } catch (err: any) {
+      log(`❌ Lỗi chạy thống kê số lot: ${err.message}`);
+      await safeSave();
+      throw err;
+    }
   }
+
 
   /**
    * Xử lý Job RUN_VALUE_MACRO: Sử dụng ValueStatisticsService để chạy tính toán native.

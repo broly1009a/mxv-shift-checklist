@@ -1634,66 +1634,7 @@ export class RpaDownloaderService {
   }
 
   /**
-   * Tìm đường dẫn executable WinSCP.com trên hệ thống Windows.
-   */
-  private async getWinscpPath(log: (msg: string) => void): Promise<string> {
-    const customPath = await this.settingsService.getSetting('bot_winscp_path', '');
-    if (customPath && fs.existsSync(customPath)) {
-      log(`Sử dụng WinSCP cấu hình thủ công: ${customPath}`);
-      return customPath;
-    }
-
-    const standardPaths = [
-      'C:\\Program Files (x86)\\WinSCP\\WinSCP.com',
-      'C:\\Program Files\\WinSCP\\WinSCP.com',
-    ];
-    if (process.env.LOCALAPPDATA) {
-      standardPaths.push(path.join(process.env.LOCALAPPDATA, 'Programs', 'WinSCP', 'WinSCP.com'));
-    }
-
-    for (const p of standardPaths) {
-      if (fs.existsSync(p)) {
-        return p;
-      }
-    }
-
-    // Kiểm tra trong biến môi trường PATH
-    const pathDirs = (process.env.PATH || '').split(path.delimiter);
-    for (const dir of pathDirs) {
-      const p = path.join(dir, 'WinSCP.com');
-      if (fs.existsSync(p)) {
-        return p;
-      }
-    }
-
-    // Tra cứu Registry Windows qua lệnh reg query
-    try {
-      const { execSync } = require('child_process');
-      const regQueries = [
-        'reg query "HKLM\\SOFTWARE\\WinSCP" /v InstallPath',
-        'reg query "HKLM\\SOFTWARE\\WOW6432Node\\WinSCP" /v InstallPath',
-        'reg query "HKCU\\SOFTWARE\\WinSCP" /v InstallPath',
-      ];
-      for (const q of regQueries) {
-        try {
-          const output = execSync(q, { encoding: 'utf8' });
-          const match = output.match(/InstallPath\\s+REG_SZ\\s+(.+)/);
-          if (match && match[1]) {
-            const installDir = match[1].trim();
-            const candidate = path.join(installDir, 'WinSCP.com');
-            if (fs.existsSync(candidate)) {
-              return candidate;
-            }
-          }
-        } catch (e) {}
-      }
-    } catch (err) {}
-
-    throw new Error('Không tìm thấy executable WinSCP.com trên hệ thống. Vui lòng cài đặt WinSCP.');
-  }
-
-  /**
-   * Đồng bộ các file dump/log từ SFTP sử dụng WinSCP.com.
+   * Đồng bộ các file dump/log từ SFTP sử dụng thư viện ssh2 (Chạy đa nền tảng Windows/Linux).
    */
   async downloadAcmSftpBackup(dailyPath: string, targetDate: Date, jobLogs: string[] = []): Promise<void> {
     const log = (msg: string) => {
@@ -1710,15 +1651,10 @@ export class RpaDownloaderService {
     }
 
     const sftpHost = credentials.sftpHost || 'sftp.mxv.com.vn';
-    const sftpPort = credentials.sftpPort || '2231';
+    const sftpPort = parseInt(credentials.sftpPort || '2231', 10);
     const sftpUsername = credentials.sftpUsername || 'testuser';
     const sftpPassword = credentials.sftpPassword || 'Test@2o26';
     const sftpRemoteDir = credentials.sftpRemoteDir || '/data/';
-
-    const winscpExe = await this.getWinscpPath(log);
-
-    const remoteSrc = `${sftpRemoteDir.replace(/\/$/, '')}/*`;
-    const localDest = `${dailyPath.replace(/\\$/, '')}\\`;
 
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -1727,67 +1663,113 @@ export class RpaDownloaderService {
     const yyyy_mm_dd = `${year}-${month}-${day}`;
 
     // Tải file CSV kết thúc bằng _ddmmyyyy.csv và file XLS bắt đầu bằng yyyy-mm-dd_
-    const filemask = `*_${ddmmyyyy}.csv;${yyyy_mm_dd}_*.xls`;
+    const csvSuffix = `_${ddmmyyyy}.csv`;
+    const xlsPrefix = `${yyyy_mm_dd}_`;
 
-    // Đảm bảo thư mục log tồn tại để ghi script file tạm
-    const logsDir = path.join(process.cwd(), 'logs');
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
+    log(`Kết nối SFTP tới sftp://${sftpUsername}@${sftpHost}:${sftpPort}...`);
 
-    const scriptFile = path.join(logsDir, `winscp_temp_${Date.now()}.script`);
-    const scriptContent = [
-      'option batch abort',
-      'option confirm off',
-      `open sftp://${sftpUsername}:${sftpPassword}@${sftpHost}:${sftpPort}/ -hostkey=*`,
-      `get -neweronly -filemask="${filemask}" "${remoteSrc}" "${localDest}"`,
-      'exit'
-    ].join('\n');
-
-    fs.writeFileSync(scriptFile, scriptContent, { encoding: 'utf8' });
-
-    log(`Đang chạy WinSCP đồng bộ từ sftp://${sftpUsername}@${sftpHost}:${sftpPort}${sftpRemoteDir}`);
-    log(`Filemask lọc: "${filemask}"`);
-    log(`Thư mục local: "${localDest}"`);
-
-    const { spawn } = require('child_process');
-    const child = spawn(winscpExe, [`/script=${scriptFile}`]);
+    const { Client } = require('ssh2');
+    const conn = new Client();
 
     return new Promise<void>((resolve, reject) => {
-      child.stdout.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        const lines = text.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed && !trimmed.startsWith('winscp>')) {
-            log(`  > ${trimmed}`);
+      conn.on('ready', () => {
+        log('Kết nối SSH thành công. Đang mở subsystem SFTP...');
+        conn.sftp((err: any, sftp: any) => {
+          if (err) {
+            conn.end();
+            return reject(err);
           }
-        }
+
+          log(`Đọc thư mục remote: ${sftpRemoteDir}`);
+          sftp.readdir(sftpRemoteDir, (err: any, list: any[]) => {
+            if (err) {
+              conn.end();
+              return reject(err);
+            }
+
+            if (!list || !Array.isArray(list)) {
+              log('⚠️ Không thể đọc danh sách file hoặc danh sách rỗng.');
+              conn.end();
+              return resolve();
+            }
+
+            // Lọc các file phù hợp với filemask
+            const filesToDownload = list.filter(item => {
+              const name = item.filename;
+              if (!name) return false;
+
+              const mode = item.attrs ? item.attrs.mode : 0;
+              const isDir = ((mode & 0o170000) === 0o040000) || (item.longname && item.longname.startsWith('d'));
+              if (isDir) return false;
+
+              const isCsvMatch = name.toLowerCase().endsWith(csvSuffix.toLowerCase());
+              const isXlsMatch = name.toLowerCase().startsWith(xlsPrefix.toLowerCase()) && name.toLowerCase().endsWith('.xls');
+              return isCsvMatch || isXlsMatch;
+            });
+
+            if (filesToDownload.length === 0) {
+              log('⚠️ Không tìm thấy file nào khớp với bộ lọc trên SFTP.');
+              conn.end();
+              return resolve();
+            }
+
+            log(`Tìm thấy ${filesToDownload.length} file cần tải về.`);
+            
+            let downloadedCount = 0;
+            const downloadNext = () => {
+              if (downloadedCount >= filesToDownload.length) {
+                log('✅ Hoàn tất tải toàn bộ file từ SFTP.');
+                conn.end();
+                return resolve();
+              }
+
+              const item = filesToDownload[downloadedCount];
+              const remoteFile = path.posix.join(sftpRemoteDir, item.filename);
+              const localFile = path.join(dailyPath, item.filename);
+
+              log(`Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} -> ${localFile}`);
+
+              sftp.fastGet(remoteFile, localFile, {}, (err: any) => {
+                if (err) {
+                  log(`❌ Lỗi tải file ${item.filename}: ${err.message}`);
+                  conn.end();
+                  return reject(err);
+                }
+                downloadedCount++;
+                downloadNext();
+              });
+            };
+
+            downloadNext();
+          });
+        });
       });
 
-      child.stderr.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        log(`  > [Error] ${text.trim()}`);
-      });
-
-      child.on('close', (code: number | null) => {
-        if (fs.existsSync(scriptFile)) {
-          fs.unlinkSync(scriptFile);
-        }
-        if (code === 0) {
-          log('✅ WinSCP hoàn tất đồng bộ thành công.');
-          resolve();
-        } else {
-          reject(new Error(`WinSCP kết thúc với mã lỗi: ${code}`));
-        }
-      });
-
-      child.on('error', (err: Error) => {
-        if (fs.existsSync(scriptFile)) {
-          fs.unlinkSync(scriptFile);
-        }
+      conn.on('error', (err: Error) => {
+        log(`❌ Lỗi kết nối SFTP: ${err.message}`);
         reject(err);
       });
+
+      conn.on('close', () => {
+        log('Đã đóng kết nối SFTP.');
+      });
+
+      try {
+        conn.connect({
+          host: sftpHost,
+          port: sftpPort,
+          username: sftpUsername,
+          password: sftpPassword,
+          readyTimeout: 30000,
+          // Bỏ qua kiểm tra host key tương đương "-hostkey=*" trong WinSCP
+          algorithms: {
+            serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ssh-ed25519']
+          }
+        });
+      } catch (err: any) {
+        log(`❌ Lỗi khởi chạy conn.connect: ${err.message}`);
+        reject(err);
+      }
     });
   }
 
