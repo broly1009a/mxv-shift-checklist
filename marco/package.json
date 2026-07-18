@@ -1,0 +1,24 @@
+{
+  "name": "mxv-macro-converter",
+  "version": "1.0.0",
+  "description": "Chuyển đổi VBA Macro thống kê giao dịch MXV sang TypeScript",
+  "scripts": {
+    "so-lot": "ts-node src/macro-so-lot.ts",
+    "gia-tri": "ts-node src/macro-gia-tri.ts",
+    "build": "tsc",
+    "build:so-lot": "tsc && node dist/macro-so-lot.js",
+    "build:gia-tri": "tsc && node dist/macro-gia-tri.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -94,3 +94,32 @@ Cả 2 workspace đã được build thành công không lỗi:
 *   **`page.tsx`**:
     *   Tích hợp modal `MaturityTemplateModal` và liên kết với nút bấm mở từ `TaskTable`.
 
+---
+
+## Cập Nhật Mới: Tích Hợp Quy Trình Đối Chiếu Khớp Lệnh Thanh Toán (TTTT vs PS)
+
+Quy trình đối chiếu Khớp Lệnh Thanh Toán (TTTT vs PS) đã được tích hợp thành công cả ở Backend và Frontend nhằm đạt được sự tương đồng hoàn toàn với công cụ C# cũ và tăng cường khả năng phát hiện lệch chi tiết theo từng tài khoản.
+
+### 1. Backend
+
+*   **`reconciliation.service.ts`**:
+    *   Cập nhật hàm `checkKLGD` để nhận thêm file `tttt`, `ps1`, và `ps2`.
+    *   Hỗ trợ phân tích dữ liệu file `TTTT.xlsx` lấy tổng khối lượng bán và file `PS1.xlsx`/`PS2.xlsx` lấy tổng cột `S` (S value).
+    *   Tự động chuẩn hóa mã tài khoản (loại bỏ các hậu tố `F`, `L`, `S` của CQG hoặc chuyển thành `-L`/`-S` tương thích với M-System) đảm bảo đối chiếu khớp chính xác.
+    *   Tự động loại bỏ các mã hàng hóa không thuộc diện đối chiếu như `TRU`, `ZFT`, `FEF`, `MPO` và các tài khoản ACM kết thúc bằng chữ `A`.
+    *   Tính toán tổng Lot TTTT, tổng Lot PS, chênh lệch và xuất danh sách các tài khoản lệch chi tiết (`mismatchedTTTT`).
+*   **`reconciliation.controller.ts`**:
+    *   Mở rộng endpoint `/upload-klgd` để chấp nhận thêm 3 file: `tttt`, `ps1`, và `ps2`.
+    *   Đồng bộ kết quả đối chiếu vào ghi chú log của ca trực. Nếu phát hiện chênh lệch TTTT vs PS, hệ thống sẽ tự động cập nhật trạng thái checklist thành `NEEDS_ATTENTION` kèm theo ghi chú chi tiết.
+
+### 2. Frontend
+
+*   **`ReconciliationModal.tsx`**:
+    *   Bổ sung thêm 3 dropzone cho phép tải lên file **TTTT (M-System)**, **PS1 (CQG)** và **PS2 (CQG)** trong giao diện đối chiếu KLGD.
+    *   Cập nhật giao diện kết quả hiển thị thông tin trực quan:
+        *   Tổng lot tất toán M-System (TTTT) và Tổng lot PS CQG.
+        *   Chênh lệch tổng số lot tất toán.
+        *   Bảng chênh lệch chi tiết theo tài khoản gồm: Tài khoản, Tổng Lot TTTT M-System, Tổng Lot PS CQG, Chênh lệch.
+    *   Tự động phát hiện chênh lệch và hiển thị trạng thái cảnh báo trực quan cho người trực.
+
+

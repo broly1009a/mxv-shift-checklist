@@ -17,6 +17,7 @@ import { PostEodHandlerService } from './post-eod-handler.service';
 import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LotStatisticsModule } from '../lot-statistics/lot-statistics.module';
 
 import { OmsWatcherService } from './oms-watcher.service';
 
@@ -29,6 +30,7 @@ import { OmsWatcherService } from './oms-watcher.service';
     ShiftsModule,
     forwardRef(() => ReconciliationModule),
     NotificationsModule,
+    LotStatisticsModule,
   ],
   providers: [
     EmailWatcherService,
@@ -60,5 +62,6 @@ import { OmsWatcherService } from './oms-watcher.service';
   ],
 })
 export class BotEngineModule {}
+
 
 

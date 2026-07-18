@@ -29,24 +29,36 @@ export class ReconciliationController {
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
+      { name: 'fr', maxCount: 1 },
       { name: 'fr1', maxCount: 1 },
       { name: 'fr2', maxCount: 1 },
       { name: 'nano', maxCount: 1 },
       { name: 'ttm', maxCount: 1 },
+      { name: 'op', maxCount: 1 },
       { name: 'op1', maxCount: 1 },
       { name: 'op2', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'ps', maxCount: 1 },
+      { name: 'ps1', maxCount: 1 },
+      { name: 'ps2', maxCount: 1 },
     ]),
   )
   async uploadAndReconcile(
     @UploadedFiles()
     files: {
       dsgd?: any[];
+      fr?: any[];
       fr1?: any[];
       fr2?: any[];
       nano?: any[];
       ttm?: any[];
+      op?: any[];
       op1?: any[];
       op2?: any[];
+      tttt?: any[];
+      ps?: any[];
+      ps1?: any[];
+      ps2?: any[];
     },
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
@@ -61,12 +73,18 @@ export class ReconciliationController {
 
     const fileBuffers = {
       dsgd: files?.dsgd?.[0]?.buffer,
+      fr: files?.fr?.[0]?.buffer,
       fr1: files?.fr1?.[0]?.buffer,
       fr2: files?.fr2?.[0]?.buffer,
       nano: files?.nano?.[0]?.buffer,
       ttm: files?.ttm?.[0]?.buffer,
+      op: files?.op?.[0]?.buffer,
       op1: files?.op1?.[0]?.buffer,
       op2: files?.op2?.[0]?.buffer,
+      tttt: files?.tttt?.[0]?.buffer,
+      ps: files?.ps?.[0]?.buffer,
+      ps1: files?.ps1?.[0]?.buffer,
+      ps2: files?.ps2?.[0]?.buffer,
     };
 
     if (!fileBuffers.dsgd) {
@@ -87,7 +105,9 @@ export class ReconciliationController {
         result.totals.differ > 0 ||
         result.totals.differACM > 0 ||
         result.mismatchedTrades.length > 0 ||
-        result.mismatchedTTM.length > 0;
+        result.mismatchedTTM.length > 0 ||
+        (result.totals.differTTTT !== undefined && result.totals.differTTTT > 0) ||
+        (result.mismatchedTTTT && result.mismatchedTTTT.length > 0);
 
       const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
       
@@ -95,6 +115,10 @@ export class ReconciliationController {
       note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalDSGD} vs ${result.totals.totalFR} lot (Chênh lệch: ${result.totals.differ} lot)\n`;
       note += `• Khớp lệnh tự doanh (MS vs ACM): ${result.totals.totalACM} vs ${result.totals.totalNano} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       
+      if (result.totals.totalTTTT !== undefined) {
+        note += `• Khớp lệnh tất toán (TTTT vs PS): ${result.totals.totalTTTT} vs ${result.totals.totalPS} lot (Chênh lệch: ${result.totals.differTTTT} lot)\n`;
+      }
+
       if (result.mismatchedTrades.length > 0) {
         note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach(m => {
@@ -111,6 +135,13 @@ export class ReconciliationController {
         note += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
         result.mismatchedTTM.slice(0, 10).forEach(m => {
           note += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
+        });
+      }
+
+      if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
+        note += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
+        result.mismatchedTTTT.slice(0, 10).forEach(m => {
+          note += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
       }
 
@@ -382,11 +413,17 @@ export class ReconciliationController {
       if (!dsgd) throw new Error('Thiếu file DSGD.xlsx');
       const klgdFiles = {
         dsgd,
+        fr: readIfExists('FR', 'xlsx') || undefined,
         fr1: readIfExists('FR1', 'xlsx') || undefined,
         fr2: readIfExists('FR2', 'xlsx') || undefined,
+        op: readIfExists('OP', 'xlsx') || undefined,
         op1: readIfExists('OP1', 'xlsx') || undefined,
         op2: readIfExists('OP2', 'xlsx') || undefined,
         ttm: readIfExists('TTM', 'xlsx') || undefined,
+        tttt: readIfExists('TTTT', 'xlsx') || undefined,
+        ps: readIfExists('PS', 'xlsx') || undefined,
+        ps1: readIfExists('PS1', 'xlsx') || undefined,
+        ps2: readIfExists('PS2', 'xlsx') || undefined,
       };
       results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '05:00');
     } catch (err: any) {
@@ -655,6 +692,11 @@ export class ReconciliationController {
       const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
 
       let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+      }
       note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalCQG_MS} vs ${result.totals.totalCQG_FR} lot (Chênh lệch: ${result.totals.differCQG} lot)\n`;
       note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;

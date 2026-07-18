@@ -1,0 +1,171 @@
+
+=== Comparing DSGD T07.2026.xlsx ===
+Sheet Gen: Sheet1 (105920 rows), Sheet Root: Sheet1 (84410 rows)
+[WARN] Could not find row for 16-Jul-2026. GenRow: -1, RootRow: -1
+
+=== Comparing Thong ke so lot giao dich 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 3 (Số Lot 
+giao dịch): Gen=0, Root=7377
+Col 9 (Số Lot 
+giao dịch): Gen=0, Root=7
+Col 10 (Số lot
+tất toán): Gen=0, Root=3
+Col 12 (Số Lot 
+giao dịch): Gen=0, Root=3
+Col 15 (Tổng Lot giao dịch M-System): Gen=0, Root=7387
+Col 18 (Số lot
+tất toán): Gen=0, Root=3436
+Col 19 (Vị thế 
+mở): Gen=0, Root=4995
+Col 24 (Số lot
+tất toán): Gen=0, Root=3
+Col 25 (Vị thế 
+mở): Gen=0, Root=9
+Col 27 (Số lot
+tất toán): Gen=0, Root=3
+Col 28 (Vị thế 
+mở): Gen=0, Root=10
+Col 30 (Tổng vị thế mở CQG): Gen=0, Root=5014
+Col 31 (Ghi chú): Gen="", Root="1 lot TRU phiên ngày 15/07/2026 "
+Col 94 (Tổng): Gen=0, Root=7387
+Col 96 (ZLE): Gen=null, Root=759
+Col 97 (ZCE): Gen=null, Root=905
+Col 98 (C.ZCE): Gen=null, Root=1
+Col 99 (P.ZCE): Gen=null, Root=2
+Col 100 (ZSE): Gen=null, Root=388
+Col 101 (C.ZSE): Gen=null, Root=0
+Col 102 (P.ZSE): Gen=null, Root=0
+Col 103 (ZME): Gen=null, Root=610
+Col 104 (ZWA): Gen=null, Root=1869
+Col 105 (C.ZWA): Gen=null, Root=0
+Col 106 (P.ZWA): Gen=null, Root=0
+Col 107 (KWE): Gen=null, Root=163
+Col 108 (ZRE): Gen=null, Root=0
+Col 109 (XW): Gen=null, Root=69
+Col 110 (XC): Gen=null, Root=29
+Col 111 (XB): Gen=null, Root=30
+Col 112 (MZW): Gen=null, Root=11
+Col 113 (MZC): Gen=null, Root=7
+Col 114 (MZS): Gen=null, Root=4
+Col 115 (MZL): Gen=null, Root=40
+Col 116 (MZM): Gen=null, Root=3
+Col 117 (CCE): Gen=null, Root=1
+Col 118 (CTE): Gen=null, Root=76
+Col 119 (KCE): Gen=null, Root=31
+Col 120 (C.KCE): Gen=null, Root=0
+Col 121 (P.KCE): Gen=null, Root=0
+Col 122 (SBE): Gen=null, Root=507
+Col 123 (C.SBE): Gen=null, Root=0
+Col 124 (P.SBE): Gen=null, Root=0
+Col 125 (LRC): Gen=null, Root=406
+Col 126 (QW): Gen=null, Root=0
+Col 127 (MPO): Gen=null, Root=1
+Col 128 (TRU): Gen=null, Root=2
+Col 129 (ZFT): Gen=null, Root=19
+Col 130 (ALI): Gen=null, Root=19
+Col 131 (CPE): Gen=null, Root=56
+Col 132 (MQC): Gen=null, Root=11
+Col 133 (MHG): Gen=null, Root=382
+Col 134 (SIE): Gen=null, Root=86
+Col 135 (MQI): Gen=null, Root=31
+Col 136 (SIL): Gen=null, Root=677
+Col 137 (PLE): Gen=null, Root=184
+Col 138 (FEF): Gen=null, Root=1
+Col 139 (CLE): Gen=null, Root=0
+Col 140 (C.CLE): Gen=null, Root=0
+Col 141 (P.CLE): Gen=null, Root=0
+Col 142 (NGE): Gen=null, Root=0
+Col 143 (C.NGE): Gen=null, Root=0
+Col 144 (P.NGE): Gen=null, Root=0
+Col 145 (NQM): Gen=null, Root=0
+Col 146 (RBE): Gen=null, Root=0
+Col 147 (QO): Gen=null, Root=0
+Col 148 (C.QO): Gen=null, Root=0
+Col 149 (P.QO): Gen=null, Root=0
+Col 150 (QP): Gen=null, Root=0
+Col 151 (MCLE): Gen=null, Root=0
+Col 152 (NQG): Gen=null, Root=0
+Col 153 (BM): Gen=null, Root=0
+Col 154 (CAD): Gen=null, Root=0
+Col 155 (AHD): Gen=null, Root=0
+Col 156 (PBD): Gen=null, Root=0
+Col 157 (SND): Gen=null, Root=7
+Col 158 (ZDS): Gen=null, Root=0
+Col 159 (NID): Gen=null, Root=0
+Col 160 (SSC): Gen=null, Root=0
+Col 161 (SSR): Gen=null, Root=0
+Col 162 (LHC): Gen=null, Root=0
+Col 163 (Tổng): Gen={"sharedFormula":"FG6"}, Root=7387
+Total differences in 16-Jul-2026 row: 82
+
+=== Comparing Thong ke so lot giao dich ACM 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 6 (Số Lot 
+giao dịch): Gen=0, Root=null
+Col 7 (Số lot
+tất toán): Gen=0, Root=null
+Col 8 (Vị thế 
+mở): Gen=0, Root=null
+Col 72 (Tổng): Gen=0, Root=1567
+Col 74 (SI5CO): Gen=null, Root=1334
+Col 75 (PL1NY): Gen=null, Root=113
+Col 76 (CP2CO): Gen=null, Root=120
+Col 77 (Tổng): Gen={"sharedFormula":"BY7"}, Root=1567
+Total differences in 16-Jul-2026 row: 8
+
+=== Comparing Thong ke so lot giao dich LME 2026.xlsx ===
+Sheet Gen: T07.2026 (232 rows), Sheet Root: T07.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root=7
+Col 66 (CAD): Gen=null, Root=0
+Col 67 (AHD): Gen=null, Root=0
+Col 68 (PBD): Gen=null, Root=0
+Col 69 (SND): Gen=null, Root=7
+Col 70 (ZDS): Gen=null, Root=0
+Col 71 (NID): Gen=null, Root=0
+Col 72 (SSC): Gen=null, Root=0
+Col 73 (SSR): Gen=null, Root=0
+Col 74 (LHC): Gen=null, Root=0
+Col 75 (Tổng): Gen={"sharedFormula":"BW6"}, Root=7
+Total differences in 16-Jul-2026 row: 11
+
+=== Comparing Thong ke so lot giao dich Options 2026.xlsx ===
+Sheet Gen: T7.2026 (232 rows), Sheet Root: T7.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root=3
+Col 66 (C.ZCE): Gen=null, Root=1
+Col 67 (P.ZCE): Gen=null, Root=2
+Col 68 (C.ZSE): Gen=null, Root=0
+Col 69 (P.ZSE): Gen=null, Root=0
+Col 70 (C.ZWA): Gen=null, Root=0
+Col 71 (P.ZWA): Gen=null, Root=0
+Col 72 (C.KCE): Gen=null, Root=0
+Col 73 (P.KCE): Gen=null, Root=0
+Col 74 (C.SBE): Gen=null, Root=0
+Col 75 (P.SBE): Gen=null, Root=0
+Col 76 (C.CLE): Gen=null, Root=0
+Col 77 (P.CLE): Gen=null, Root=0
+Col 78 (C.NGE): Gen=null, Root=0
+Col 79 (P.NGE): Gen=null, Root=0
+Col 80 (C.QO): Gen=null, Root=0
+Col 81 (P.QO): Gen=null, Root=0
+Col 82 (Tổng): Gen={"sharedFormula":"CD6"}, Root=3
+Total differences in 16-Jul-2026 row: 18
+
+=== Comparing Thong ke so lot giao dich Spread 2026.xlsx ===
+Sheet Gen: T07.2026 (224 rows), Sheet Root: T07.2026 (224 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 64 (Tổng): Gen=0, Root={"sharedFormula":"BL5"}
+Col 66 (ZWA): Gen=null, Root=0
+Col 67 (ZSE): Gen=null, Root=0
+Col 68 (ZME): Gen=null, Root=0
+Col 69 (ZLE): Gen=null, Root=0
+Col 70 (ZCE): Gen=null, Root=0
+Col 71 (KCE): Gen=null, Root=0
+Col 72 (LRC): Gen=null, Root=0
+Col 73 (CLE): Gen=null, Root=0
+Col 74 (QO): Gen=null, Root=0
+Total differences in 16-Jul-2026 row: 10

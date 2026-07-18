@@ -1,0 +1,42 @@
+hiepth@MXVD01077 MINGW64 ~/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend (maro-value-lot)
+$ npx ts-node src/compare_outputs.ts
+
+=== Comparing DSGD T07.2026.xlsx ===
+Sheet Gen: Sheet1 (170450 rows), Sheet Root: Sheet1 (84410 rows)
+[WARN] Could not find row for 16-Jul-2026. GenRow: -1, RootRow: -1
+
+=== Comparing Thong ke so lot giao dich 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 10 (Số lot
+tất toán): Gen=0, Root=3
+Col 17 (Số Lot
+giao dịch): Gen=7378, Root=7377
+Col 31 (Ghi chú): Gen="", Root="1 lot TRU phiên ngày 15/07/2026 "
+Total differences in 16-Jul-2026 row: 3
+
+=== Comparing Thong ke so lot giao dich ACM 2026 2.xlsx ===
+Sheet Gen: T07.2026 (223 rows), Sheet Root: T07.2026 (223 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Col 6 (Số Lot
+giao dịch): Gen=0, Root=null
+Col 7 (Số lot
+tất toán): Gen=0, Root=null
+Col 8 (Vị thế
+mở): Gen=0, Root=null
+Total differences in 16-Jul-2026 row: 3
+
+=== Comparing Thong ke so lot giao dich LME 2026.xlsx ===
+Sheet Gen: T07.2026 (232 rows), Sheet Root: T07.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Total differences in 16-Jul-2026 row: 0
+
+=== Comparing Thong ke so lot giao dich Options 2026.xlsx ===
+Sheet Gen: T7.2026 (232 rows), Sheet Root: T7.2026 (232 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Total differences in 16-Jul-2026 row: 0
+
+=== Comparing Thong ke so lot giao dich Spread 2026.xlsx ===
+Sheet Gen: T07.2026 (224 rows), Sheet Root: T07.2026 (224 rows)
+Found 16-Jul-2026 at Gen Row 16, Root Row 16
+Total differences in 16-Jul-2026 row: 0

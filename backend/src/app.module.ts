@@ -25,6 +25,7 @@ import { ReconciliationModule } from './modules/reconciliation/reconciliation.mo
 import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
 import { CcpStatisticsModule } from './modules/ccp-statistics/ccp-statistics.module';
 import { TradingReportModule } from './modules/trading-report/trading-report.module';
+import { LotStatisticsModule } from './modules/lot-statistics/lot-statistics.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TradingReportModule } from './modules/trading-report/trading-report.mod
     MarginCheckerModule,
     CcpStatisticsModule,
     TradingReportModule,
+    LotStatisticsModule,
   ],
   controllers: [AppController],
   providers: [

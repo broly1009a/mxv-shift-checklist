@@ -9,6 +9,7 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { CqgSyncService } from './cqg-sync.service';
 import { ReconciliationService } from '../reconciliation/reconciliation.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { ValueStatisticsService } from '../lot-statistics/value-statistics.service';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -57,6 +58,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     @Inject(forwardRef(() => ReconciliationService))
     private readonly reconciliationService: ReconciliationService,
     private readonly telegramService: TelegramService,
+    private readonly valueStatisticsService: ValueStatisticsService,
   ) {}
 
   onModuleInit() {
@@ -1203,7 +1205,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Xử lý Job RUN_VALUE_MACRO: Gọi script Python điều phối Excel.
+   * Xử lý Job RUN_VALUE_MACRO: Sử dụng ValueStatisticsService để chạy tính toán native.
    */
   private async handleRunValueMacroJob(job: BotJob) {
     const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
@@ -1211,35 +1213,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
     }
-
-    const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm');
-
-    const macroPath = payload.macroPath
-      || await this.settingsService.getSetting(
-        'bot_macro_value_path',
-        defaultMacroPath
-      );
-    const pythonExe = await this.settingsService.getSetting(
-      'bot_python_path',
-      'python'
-    );
-
-    // Đường dẫn script Python động: ưu tiên theo thứ tự: payload -> settings -> tương đối project -> fallback C:\POC\scripts
-    const defaultScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_value_macro.py');
-      const relPath2 = path.join(process.cwd(), 'scripts', 'run_value_macro.py');
-      if (fs.existsSync(relPath)) return relPath;
-      if (fs.existsSync(relPath2)) return relPath2;
-      return path.join('C:', 'POC', 'scripts', 'run_value_macro.py');
-    })();
-
-    const scriptPath = payload.scriptPath
-      || await this.settingsService.getSetting(
-        'bot_value_script_path',
-        defaultScriptPath
-      );
 
     // Chaining save calls to prevent Mongoose ParallelSaveError
     let savePromise: Promise<any> = Promise.resolve();
@@ -1255,103 +1228,21 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy Macro thống kê giá trị cho ngày: ${targetDateStr}`);
-    log(`Python Executable: ${pythonExe}`);
-    log(`Script Python: ${scriptPath}`);
-    log(`File Macro Excel: ${macroPath}`);
-
+    log(`Bắt đầu chạy thống kê giá trị giao dịch native cho ngày: ${targetDateStr}`);
     await safeSave();
 
-    const { spawn } = require('child_process');
-    const child = spawn(pythonExe, [
-      scriptPath,
-      macroPath,
-    ]);
-
-    let finalJsonStr = '';
-
-    const savePayloadField = (key: string, val: any) => {
-      if (job.payload instanceof Map) {
-        job.payload.set(key, val);
-      } else {
-        if (!job.payload) job.payload = {};
-        job.payload[key] = val;
-      }
-    };
-
-    return new Promise<void>((resolve, reject) => {
-      child.stdout.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        const lines = text.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed) {
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-              finalJsonStr = trimmed;
-            } else if (trimmed.startsWith('[VBA WARNING]')) {
-              log(`⚠️ ${trimmed}`);
-              const warningText = trimmed.substring('[VBA WARNING]'.length).trim();
-              
-              let currentWarnings = [];
-              if (job.payload instanceof Map) {
-                currentWarnings = job.payload.get('warnings') || [];
-              } else {
-                currentWarnings = job.payload?.warnings || [];
-              }
-              if (!currentWarnings.includes(warningText)) {
-                currentWarnings.push(warningText);
-                savePayloadField('warnings', currentWarnings);
-              }
-            } else if (trimmed.startsWith('[VBA RUNTIME ERROR]')) {
-              log(`❌ ${trimmed}`);
-            } else {
-              log(`  > ${trimmed}`);
-            }
-          }
-        }
-        safeSave();
-      });
-
-      child.stderr.on('data', (data: any) => {
-        const text = data.toString('utf8');
-        log(`  > [Stderr] ${text.trim()}`);
-        safeSave();
-      });
-
-      child.on('close', async (code: number | null) => {
-        // Wait for any pending logs to finish saving to the database
-        await savePromise;
-        
-        if (code === 0) {
-          if (finalJsonStr) {
-            try {
-              const parsed = JSON.parse(finalJsonStr);
-              if (parsed.success) {
-                log('✅ Macro hoàn tất thành công.');
-                if (parsed.warnings && parsed.warnings.length > 0) {
-                  savePayloadField('warnings', parsed.warnings);
-                }
-                await safeSave();
-                resolve();
-              } else {
-                reject(new Error(parsed.error || 'Lỗi không xác định từ Script Python'));
-              }
-            } catch (err: any) {
-              reject(new Error(`Không thể phân tích kết quả JSON từ script: ${err.message}`));
-            }
-          } else {
-            resolve();
-          }
-        } else {
-          reject(new Error(`Script Python kết thúc với mã lỗi: ${code}`));
-        }
-      });
-
-      child.on('error', async (err: Error) => {
-        await savePromise;
-        reject(err);
-      });
-    });
+    try {
+      const targetDate = new Date(targetDateStr);
+      const result = await this.valueStatisticsService.processValueStatistics(targetDate, payload);
+      log(`✅ Chạy tính toán thống kê giá trị thành công.`);
+      log(`Tỷ giá mặc định: ${result.tyGiaDefault}, TRU: ${result.tyGiaTru}, MPO: ${result.tyGiaMpo}`);
+      log(`Tổng số dòng giao dịch Normal: ${result.normalCount}, Spread: ${result.spreadCount}`);
+      await safeSave();
+    } catch (err: any) {
+      log(`❌ Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
+      await safeSave();
+      throw err;
+    }
   }
 
   private async handleDownloadCastJob(job: BotJob) {
@@ -1459,6 +1350,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const result = await this.reconciliationService.runAutoCheckPreEOD(targetDate);
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+      }
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
       job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
       payload.result = result;

@@ -18,6 +18,9 @@ export interface CheckKLGDResult {
     totalNano: number;
     differ: number;
     differACM: number;
+    totalTTTT?: number;
+    totalPS?: number;
+    differTTTT?: number;
   };
   mismatchedTrades: Array<{
     source: 'MSystem' | 'CQG' | 'ACM' | 'Nano';
@@ -33,6 +36,12 @@ export interface CheckKLGDResult {
     maTKGD: string;
     ttmValue: number;
     opValue: number;
+    differ: number;
+  }>;
+  mismatchedTTTT?: Array<{
+    maTKGD: string;
+    ttttValue: number;
+    psValue: number;
     differ: number;
   }>;
 }
@@ -199,6 +208,12 @@ export class ReconciliationService {
     });
   }
 
+  isIgnoredCommodity(symbol: string): boolean {
+    if (!symbol) return false;
+    const upper = symbol.toUpperCase();
+    return ['TRU', 'ZFT', 'FEF', 'MPO'].some(ignored => upper.startsWith(ignored));
+  }
+
   /**
    * Helper to convert LME symbols based on trading date.
    */
@@ -259,6 +274,17 @@ export class ReconciliationService {
     return `${mapped}D${newDay}${monthCode}${yearShort}`;
   }
 
+  getNormalizedAccount(account: string): string {
+    if (!account) return '';
+    let acc = account.trim();
+    acc = acc.replace(/F$/i, '');
+    acc = acc.replace(/L$/i, '-L');
+    acc = acc.replace(/S$/i, '-S');
+    acc = acc.replace(/--/g, '-');
+    return acc.toUpperCase();
+  }
+
+
   /**
    * Parse M-System DSGD.xlsx
    */
@@ -277,6 +303,7 @@ export class ReconciliationService {
     const klGiaoDichIdx = header.indexOf('KL giao dịch');
     const giaKhopIdx = header.indexOf('Giá khớp');
     const ngayGioIdx = header.indexOf('Ngày giờ thực hiện');
+    const maGDIdx = header.indexOf('Mã giao dịch');
 
     if (maLenhIdx === -1 || maTKGDIdx === -1 || maHDIdx === -1 || klGiaoDichIdx === -1 || giaKhopIdx === -1) {
       throw new Error('Thiếu cột bắt buộc trong file DSGD.xlsx (Mã lệnh, Mã TKGD, Mã HĐ, KL giao dịch, Giá khớp)');
@@ -288,11 +315,12 @@ export class ReconciliationService {
       if (!row || row.length === 0) continue;
 
       const maLenh = String(row[maLenhIdx] || '').trim();
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
       const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
       const ngayGio = ngayGioIdx !== -1 ? String(row[ngayGioIdx] || '').trim() : '';
+      const maGD = maGDIdx !== -1 ? String(row[maGDIdx] || '').trim() : '';
 
       if (!maLenh || !maTKGD || !maHD) continue;
 
@@ -303,6 +331,7 @@ export class ReconciliationService {
         klGiaoDich,
         giaKhop,
         ngayGio,
+        maGD,
         // Combined key as C# does: {maTKGD}{maHD}{giaKhop}
         combinedKey: `${maTKGD}${maHD}${giaKhop}`,
       });
@@ -385,14 +414,7 @@ export class ReconciliationService {
       if (!ord || !account || !symbol) continue;
 
       // Handle account suffix adjustment as in C#
-      let accountRaw = account;
-      if (accountRaw.endsWith('L') || accountRaw.endsWith('l')) {
-        accountRaw = accountRaw.slice(0, -1) + '-L';
-      } else if (accountRaw.endsWith('S') || accountRaw.endsWith('s')) {
-        accountRaw = accountRaw.slice(0, -1) + '-S';
-      } else if (accountRaw.endsWith('F') || accountRaw.endsWith('f')) {
-        accountRaw = accountRaw.slice(0, -1);
-      }
+      const accountRaw = this.getNormalizedAccount(account);
 
       let tradeDate = date;
       if (time) {
@@ -451,7 +473,7 @@ export class ReconciliationService {
       if (!row || row.length === 0) continue;
 
       const maLenh = String(row[maLenhIdx] || '').trim();
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
       const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
@@ -551,8 +573,10 @@ export class ReconciliationService {
 
       if (!symbol) continue;
 
+      const accountRaw = this.getNormalizedAccount(account);
+
       result.push({
-        account,
+        account: accountRaw,
         symbol,
         lValue,
         sValue,
@@ -578,12 +602,8 @@ export class ReconciliationService {
     const maTKGDIdx = header.findIndex(h => h === 'Mã TKGD' || h === 'Mã tài khoản');
     const maHDIdx = header.findIndex(h => h === 'Mã HĐ' || h === 'Mã hợp đồng');
 
-    const tongMuaIdx = header.findIndex(h =>
-      h === 'KL Mua' || h === 'Tổng KL Mua' || h === 'Tổng mua' || h === 'Tổng KL mua'
-    );
-    const tongBanIdx = header.findIndex(h =>
-      h === 'KL Bán' || h === 'Tổng KL Bán' || h === 'Tổng bán' || h === 'Tổng KL bán'
-    );
+    const tongMuaIdx = header.findIndex(h => h.toLowerCase() === 'kl mua');
+    const tongBanIdx = header.findIndex(h => h.toLowerCase() === 'kl bán');
     const giaKhopIdx = header.findIndex(h =>
       h === 'Giá TB' || h === 'Giá khớp' || h === 'Giá trung bình'
     );
@@ -597,7 +617,7 @@ export class ReconciliationService {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
-      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maTKGD = this.getNormalizedAccount(String(row[maTKGDIdx] || ''));
       const maHD = String(row[maHDIdx] || '').trim();
       const tongMua = parseFloat(row[tongMuaIdx]) || 0;
       const tongBan = parseFloat(row[tongBanIdx]) || 0;
@@ -616,11 +636,72 @@ export class ReconciliationService {
     return result;
   }
 
+  parseTTTTForVolume(buffer: Buffer): any[] {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return [];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map(h => String(h || '').trim());
+
+    const maTKGDIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
+    const tongMuaIdx = this.findHeaderIndex(header, 'KL Mua', ['KL mua']);
+    const tongBanIdx = this.findHeaderIndex(header, 'KL Bán', ['KL bán']);
+
+    // fallbacks
+    const finalAccIdx = maTKGDIdx !== -1 ? maTKGDIdx : 7;
+    const finalSymIdx = maHDIdx !== -1 ? maHDIdx : 9;
+    const finalMuaIdx = tongMuaIdx !== -1 ? tongMuaIdx : 15;
+    const finalBanIdx = tongBanIdx !== -1 ? tongBanIdx : 16;
+
+    const result = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const maTKGD = this.getNormalizedAccount(String(row[finalAccIdx] || ''));
+      const maHD = String(row[finalSymIdx] || '').trim();
+      const tongMua = parseFloat(row[finalMuaIdx]) || 0;
+      const tongBan = parseFloat(row[finalBanIdx]) || 0;
+
+      if (!maTKGD || !maHD) continue;
+
+      result.push({
+        maTKGD,
+        maHD,
+        tongMua,
+        tongBan,
+      });
+    }
+    return result;
+  }
+
+  parsePSForVolume(buffer: Buffer): any[] {
+    return this.parseOP(buffer);
+  }
+
   /**
    * Match Trade Volumes (CheckKLGD)
    */
   async checkKLGD(
-    files: { dsgd?: Buffer; fr1?: Buffer; fr2?: Buffer; nano?: Buffer; ttm?: Buffer; op1?: Buffer; op2?: Buffer },
+    files: {
+      dsgd?: Buffer;
+      fr?: Buffer;
+      fr1?: Buffer;
+      fr2?: Buffer;
+      nano?: Buffer;
+      ttm?: Buffer;
+      op?: Buffer;
+      op1?: Buffer;
+      op2?: Buffer;
+      tttt?: Buffer;
+      ps?: Buffer;
+      ps1?: Buffer;
+      ps2?: Buffer;
+    },
     tradingDate: Date,
     holidays: string[] = [],
     sessionStartStr: string = '05:00'
@@ -633,6 +714,7 @@ export class ReconciliationService {
 
     // Parse and merge FR files
     const rawFrData: any[] = [];
+    if (files.fr) rawFrData.push(...this.parseFR(files.fr, tradingDate, holidays));
     if (files.fr1) rawFrData.push(...this.parseFR(files.fr1, tradingDate, holidays));
     if (files.fr2) rawFrData.push(...this.parseFR(files.fr2, tradingDate, holidays));
 
@@ -648,6 +730,9 @@ export class ReconciliationService {
     if (isPastDateOrDateOnly) {
       // Historical check or date-only upload: include the entire 24h session window
       sessionStart.setHours(sHour, sMin, 0, 0);
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
       checkTime = new Date(sessionStart);
       checkTime.setDate(checkTime.getDate() + 1);
     } else {
@@ -663,6 +748,10 @@ export class ReconciliationService {
     }
 
     // Filter DSGD data
+    // DSGD is filtered from sessionStart to checkTime (session-based rolling window)
+    // to align with CQG session bounds and support DSGD files containing next day trades.
+    const dsgdUpperBound = checkTime;
+
     const dsgdData = rawDsgdData.filter(gd => {
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
@@ -678,10 +767,11 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
-    // Filter Nano data
+    // Filter Nano data - same logic as DSGD: always end-of-tradingDate
+    const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter(gd => {
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
@@ -706,7 +796,7 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= nanoUpperBound;
     });
 
     // Filter CQG data using parseCqgDateTime
@@ -796,7 +886,7 @@ export class ReconciliationService {
 
     // Find ACM Nano rows not in MSystem
     nanoData.forEach(gd => {
-      const existsInDSGD = dsgdData.some(row => row.maTKGD.toUpperCase().endsWith('A') && row.maLenh === gd.maGD);
+      const existsInDSGD = dsgdData.some(row => row.maTKGD.toUpperCase().endsWith('A') && row.maGD === gd.maGD && row.klGiaoDich === gd.klGiaoDich);
       if (!existsInDSGD) {
         mismatchedTrades.push({
           source: 'ACM',
@@ -814,7 +904,7 @@ export class ReconciliationService {
     // Find MSystem ACM rows not in Nano
     dsgdData.forEach(gd => {
       if (!gd.maTKGD.toUpperCase().endsWith('A')) return;
-      const existsInNano = nanoData.some(row => row.maGD === gd.maLenh);
+      const existsInNano = nanoData.some(row => row.maGD === gd.maGD && row.klGiaoDich === gd.klGiaoDich);
       if (!existsInNano) {
         mismatchedTrades.push({
           source: 'Nano',
@@ -836,9 +926,10 @@ export class ReconciliationService {
       opValue: number;
       differ: number;
     }> = [];
-    if (files.ttm && (files.op1 || files.op2)) {
+    if (files.ttm && (files.op || files.op1 || files.op2)) {
       const ttmData = this.parseTTM(files.ttm);
       const opData: any[] = [];
+      if (files.op) opData.push(...this.parseOP(files.op));
       if (files.op1) opData.push(...this.parseOP(files.op1));
       if (files.op2) opData.push(...this.parseOP(files.op2));
 
@@ -871,6 +962,56 @@ export class ReconciliationService {
       });
     }
 
+    // --- III. TTTT vs PS (Closed Trades Matching) ---
+    let totalTTTT = 0;
+    let totalPS = 0;
+    const mismatchedTTTT: Array<{
+      maTKGD: string;
+      ttttValue: number;
+      psValue: number;
+      differ: number;
+    }> = [];
+
+    if (files.tttt && (files.ps || files.ps1 || files.ps2)) {
+      const ttttData = this.parseTTTTForVolume(files.tttt);
+      const psData: any[] = [];
+      if (files.ps) psData.push(...this.parsePSForVolume(files.ps));
+      if (files.ps1) psData.push(...this.parsePSForVolume(files.ps1));
+      if (files.ps2) psData.push(...this.parsePSForVolume(files.ps2));
+      const filteredPsData = psData;
+
+      const ttttSummary: Record<string, number> = {};
+      ttttData.forEach(t => {
+        if (!t.maTKGD.toUpperCase().endsWith('A')) {
+          totalTTTT += t.tongBan;
+          ttttSummary[t.maTKGD] = (ttttSummary[t.maTKGD] || 0) + t.tongBan;
+        }
+      });
+
+      const psSummary: Record<string, number> = {};
+      filteredPsData.forEach(p => {
+        totalPS += p.sValue;
+        psSummary[p.account] = (psSummary[p.account] || 0) + p.sValue;
+      });
+
+      const allTtttAccounts = Array.from(new Set([...Object.keys(ttttSummary), ...Object.keys(psSummary)]));
+      allTtttAccounts.forEach(acc => {
+        if (acc.toUpperCase().endsWith('A')) return; // Skip ACM
+
+        const ttttVal = ttttSummary[acc] || 0;
+        const psVal = psSummary[acc] || 0;
+
+        if (Math.abs(ttttVal - psVal) > 0) {
+          mismatchedTTTT.push({
+            maTKGD: acc,
+            ttttValue: ttttVal,
+            psValue: psVal,
+            differ: Math.abs(ttttVal - psVal),
+          });
+        }
+      });
+    }
+
     return {
       totals: {
         totalDSGD,
@@ -879,9 +1020,13 @@ export class ReconciliationService {
         totalNano,
         differ,
         differACM,
+        totalTTTT: files.tttt ? totalTTTT : undefined,
+        totalPS: files.tttt ? totalPS : undefined,
+        differTTTT: files.tttt ? Math.abs(totalTTTT - totalPS) : undefined,
       },
       mismatchedTrades,
       mismatchedTTM,
+      mismatchedTTTT: files.tttt ? mismatchedTTTT : undefined,
     };
   }
 
@@ -1434,24 +1579,46 @@ export class ReconciliationService {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
     if (rows.length < 2) return [];
 
-    const header = rows[0].map(h => String(h || '').trim());
-    const accountIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'Mã khách hàng', 'Mã KH']);
-    const symbolIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Mã HH', 'Mã hàng hóa']);
-    const positionIdx = this.findHeaderIndex(header, 'KL ròng', ['Khối lượng ròng', 'Net Position', 'Position', 'Vị thế ròng', 'Trạng thái ròng']);
+    let headerRowIdx = 0;
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let positionIdx = -1;
 
-    // fallback to index if not found (column H is 7, column J is 9, column T is 19)
-    const finalAccIdx = accountIdx !== -1 ? accountIdx : 7;
-    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 9;
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+      const tempAccIdx = this.findHeaderIndex(rowHeaders, 'Mã TKGD', ['mã tài khoản', 'account', 'mã khách hàng', 'mã kh', 'tk']);
+      const tempSymIdx = this.findHeaderIndex(rowHeaders, 'Mã HĐ', ['mã hợp đồng', 'symbol', 'mã hh', 'mã hàng hóa']);
+      const tempPosIdx = this.findHeaderIndex(rowHeaders, 'KL ròng', ['khối lượng ròng', 'net position', 'position', 'vị thế ròng', 'trạng thái ròng', 'lãi lỗ thực tế', 'lãi/lỗ']);
+
+      if (tempAccIdx !== -1 && tempSymIdx !== -1) {
+        headerRowIdx = r;
+        accountIdx = tempAccIdx;
+        symbolIdx = tempSymIdx;
+        if (tempPosIdx !== -1) {
+          positionIdx = tempPosIdx;
+        }
+        break;
+      }
+    }
+
+    if (accountIdx === -1 || symbolIdx === -1) {
+      accountIdx = 7;
+      symbolIdx = 9;
+    }
     const finalPosIdx = positionIdx !== -1 ? positionIdx : 19;
 
     const result = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
-      const account = String(row[finalAccIdx] || '').trim();
-      const symbol = String(row[finalSymIdx] || '').trim();
+      const accountRaw = String(row[accountIdx] || '').trim();
+      const symbol = String(row[symbolIdx] || '').trim();
       const position = parseFloat(row[finalPosIdx]) || 0;
-      if (!account || !symbol) continue;
+      if (!accountRaw || !symbol) continue;
+
+      const account = this.getNormalizedAccount(accountRaw);
       result.push({ account, symbol, position });
     }
     return result;
@@ -1471,32 +1638,47 @@ export class ReconciliationService {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
     if (rows.length < 2) return [];
 
-    const header = rows[0].map(h => String(h || '').trim());
-    const accountIdx = this.findHeaderIndex(header, 'Account', ['Mã TKGD', 'Mã tài khoản']);
-    const symbolIdx = this.findHeaderIndex(header, 'Symbol', ['Mã HĐ', 'Mã hợp đồng']);
-    const positionIdx = this.findHeaderIndex(header, 'Position', ['Net', 'KL ròng', 'Vị thế', 'Trạng thái ròng']);
+    let headerRowIdx = 1; // default fallback to index 1 (row 2 in Excel)
+    let accountIdx = -1;
+    let symbolIdx = -1;
+    let positionIdx = -1;
 
-    // fallback to index if not found (column A is 0, column D is 3, column I is 8)
-    const finalAccIdx = accountIdx !== -1 ? accountIdx : 0;
-    const finalSymIdx = symbolIdx !== -1 ? symbolIdx : 3;
+    const scanLimit = Math.min(rows.length, 5);
+    for (let r = 0; r < scanLimit; r++) {
+      if (!rows[r]) continue;
+      const rowHeaders = rows[r].map(h => String(h || '').trim());
+      const tempAccIdx = this.findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'account number', 'acc']);
+      const tempSymIdx = this.findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'ma hop dong', 'contract']);
+      const tempPosIdx = this.findHeaderIndex(rowHeaders, 'Position', ['net', 'kl ròng', 'vị thế', 'trạng thái ròng', 'pl', 'profit', 'lỗ']);
+
+      if (tempAccIdx !== -1 && tempSymIdx !== -1) {
+        headerRowIdx = r;
+        accountIdx = tempAccIdx;
+        symbolIdx = tempSymIdx;
+        if (tempPosIdx !== -1) {
+          positionIdx = tempPosIdx;
+        }
+        break;
+      }
+    }
+
+    if (accountIdx === -1 || symbolIdx === -1) {
+      // Fallback index matching C# default values
+      accountIdx = 0;
+      symbolIdx = 3;
+    }
     const finalPosIdx = positionIdx !== -1 ? positionIdx : 8;
 
     const result = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
-      let account = String(row[finalAccIdx] || '').trim();
-      let symbol = String(row[finalSymIdx] || '').trim();
+      const accountRaw = String(row[accountIdx] || '').trim();
+      let symbol = String(row[symbolIdx] || '').trim();
       const position = this.parseCqgNumber(row[finalPosIdx]);
-      if (!account || !symbol) continue;
+      if (!accountRaw || !symbol) continue;
 
-      // adjust account suffix
-      account = account.replace(/F$/i, '')
-        .replace(/L$/i, '-L')
-        .replace(/S$/i, '-S')
-        .replace(/--/g, '-');
-
-      // convert LME symbols
+      const account = this.getNormalizedAccount(accountRaw);
       symbol = this.convertLMESymbol(symbol, tradingDate, holidays);
 
       result.push({ account, symbol, position });
@@ -1543,23 +1725,12 @@ export class ReconciliationService {
       cqgPosition: number;
       differ: number;
     }>;
+    sessionStart?: Date;
+    checkTime?: Date;
   }> {
     if (sessionStartStr) {
       await this.settingsService.setSetting('session_start_time', sessionStartStr);
     }
-    // 1. Calculate expected T-1 date relative to tradingDate
-    const d = new Date(tradingDate);
-    d.setDate(d.getDate() - 1);
-    while (d.getDay() === 0 || d.getDay() === 6) { // 0 Sunday, 6 Saturday
-      d.setDate(d.getDate() - 1);
-    }
-    const expectedDateStr = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`;
-
-    // Validate filename date suffix for acmTrades
-    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
-      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}). Vui lòng kiểm tra lại.`);
-    }
-
     // Calculate time bounds: sessionStart and checkTime
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
 
@@ -1567,30 +1738,40 @@ export class ReconciliationService {
       (tradingDate.getHours() === 0 && tradingDate.getMinutes() === 0 && tradingDate.getSeconds() === 0) ||
       (tradingDate.getUTCHours() === 0 && tradingDate.getUTCMinutes() === 0 && tradingDate.getUTCSeconds() === 0);
 
-    let sessionStart: Date;
+    let sessionStart = new Date(tradingDate);
     let checkTime: Date;
+
     if (isPastDateOrDateOnly) {
-      // Session start is T-1 date at 06:00
-      sessionStart = new Date(d);
+      // Historical check or date-only upload: include the entire 24h session window
       sessionStart.setHours(sHour, sMin, 0, 0);
-      
-      // checkTime is tradingDate (checking date) at 06:00
-      checkTime = new Date(tradingDate);
-      checkTime.setHours(sHour, sMin, 0, 0);
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
+        sessionStart.setDate(sessionStart.getDate() - 1);
+      }
+      checkTime = new Date(sessionStart);
+      checkTime.setDate(checkTime.getDate() + 1);
     } else {
+      // Live check: mimic the C# tool logic
       checkTime = new Date(tradingDate);
-      sessionStart = new Date(tradingDate);
       sessionStart.setHours(sHour, sMin, 0, 0);
       if (checkTime < sessionStart) {
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
-      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
     }
 
+    // Validate filename date suffix for acmTrades (must match the filter `tradingDate` exactly)
+    const expectedDateStr = `${String(tradingDate.getDate()).padStart(2, '0')}${String(tradingDate.getMonth() + 1).padStart(2, '0')}${tradingDate.getFullYear()}`;
+    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
+      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày đối chiếu (${tradingDate.getDate().toString().padStart(2, '0')}/${(tradingDate.getMonth() + 1).toString().padStart(2, '0')}/${tradingDate.getFullYear()}). Vui lòng kiểm tra lại.`);
+    }
+
     // 2. Parse DSGD and separate into ACM and CQG trades
+    // DSGD is filtered from sessionStart to checkTime (session-based rolling window)
+    // to align with CQG session bounds and support DSGD files containing next day trades.
     const rawDsgdData = this.parseDSGD(files.dsgd);
+    const dsgdUpperBound = checkTime;
     const dsgdData = rawDsgdData.filter(gd => {
       if (!gd.ngayGio) return true;
       const parts = gd.ngayGio.split(/\s+/);
@@ -1606,7 +1787,7 @@ export class ReconciliationService {
       const sec = Math.floor(secVal);
       const ms = Math.round((secVal - sec) * 1000);
       const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
-      return tradeTime >= sessionStart && tradeTime <= checkTime;
+      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
     let totalACM_MS = 0;
@@ -1788,6 +1969,8 @@ export class ReconciliationService {
       },
       mismatchedTrades,
       mismatchedPositions,
+      sessionStart,
+      checkTime,
     };
   }
 
@@ -2359,6 +2542,11 @@ export class ReconciliationService {
 
     // Gửi Telegram alert
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    if (result.sessionStart && result.checkTime) {
+      const startStr = result.sessionStart.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const endStr = result.checkTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      telegramMsg += `• Khoảng thời gian lọc: <code>${startStr}</code> đến <code>${endStr}</code>\n`;
+    }
     telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '🚨 <b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
     telegramMsg += `• ACM (M-System vs Straits): MS <code>${result.totals.totalACM_MS}</code> vs Partner <code>${result.totals.totalACM_Straits}</code> (Lệch: <b>${result.totals.differACM}</b>)\n`;
     telegramMsg += `• CQG (M-System vs CQG): MS <code>${result.totals.totalCQG_MS}</code> vs Partner <code>${result.totals.totalCQG_FR}</code> (Lệch: <b>${result.totals.differCQG}</b>)\n`;
