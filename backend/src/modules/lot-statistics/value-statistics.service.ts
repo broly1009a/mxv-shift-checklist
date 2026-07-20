@@ -5,6 +5,7 @@ import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { parseExcelBuffer, toNum, toStr, ParsedRow } from './helpers/excel-parser.helper';
 import { updateAllValueCumulativeFiles, ValueAccumulatorPaths } from './helpers/excel-value-accumulator.helper';
+import { assertSafeWritePath } from '../../common/file-guard.helper';
 
 export function getMaHHFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4'] ?? '');
@@ -311,14 +312,23 @@ export class ValueStatisticsService {
     // Force total row to be recalculatable formula
     ws.getCell(76, 4).value = { formula: 'SUM(D6:D75)' };
 
+    if (targetRoot) {
+      assertSafeWritePath(targetPath, targetRoot);
+    }
     await wb.xlsx.writeFile(targetPath);
     this.logger.log(`Successfully generated newsletter report: ${targetPath}`);
 
     // Optionally also generate GTGD_yyyymmdd.xlsx if the directory can be found/created
     const marketValueDir = path.join(targetRoot, 'MarketValue', String(year));
     try {
+      if (targetRoot) {
+        assertSafeWritePath(marketValueDir, targetRoot);
+      }
       fs.mkdirSync(marketValueDir, { recursive: true });
       const targetPath2 = path.join(marketValueDir, `GTGD_${year}${monthStr}${dayStr}.xlsx`);
+      if (targetRoot) {
+        assertSafeWritePath(targetPath2, targetRoot);
+      }
       
       const wb2 = new ExcelJS.Workbook();
       await wb2.xlsx.readFile(templatePath);

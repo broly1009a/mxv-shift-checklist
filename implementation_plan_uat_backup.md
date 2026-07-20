@@ -76,6 +76,11 @@ sudo apt-get install -y python3 python3-pip
 
 # rsync
 sudo apt-get install -y rsync
+
+# Playwright Browser Dependencies (cho RPA Bot chạy Headless Chrome)
+npx playwright install-deps
+# Hoặc cài đặt các thư viện Chrome bằng apt-get:
+sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
 ```
 
 ### Task 2.2 — Tạo user riêng chạy app
@@ -252,9 +257,9 @@ pm2 startup  # auto-start khi reboot
 
 ## Phần 4 — Bảo vệ dữ liệu gốc
 
-### Task 4.1 — Thêm path guard vào code
+### Task 4.1 — Thêm path guard vào code (✅ ĐÃ HOÀN THÀNH TRONG SOURCE CODE)
 
-Thêm file `operate-checklist/backend/src/common/file-guard.helper.ts`:
+Đã tạo file `backend/src/common/file-guard.helper.ts` và tích hợp vào `excel-accumulator.helper.ts` & `value-statistics.service.ts`:
 
 ```typescript
 import * as path from 'path';
@@ -371,7 +376,7 @@ df -h /mnt/qlgd /mnt/oc-uat
 - [ ] **[Dev]** Tạo file `.env` với đúng paths
 - [ ] **[Dev]** Build và khởi động app bằng PM2
 - [ ] **[Dev]** Cập nhật `bot_lot_macro_target_root` trong DB
-- [ ] **[Dev]** Thêm `assertSafeWritePath()` guard vào code
+- [x] **[Dev]** Thêm `assertSafeWritePath()` guard vào code (Đã xong trong source code)
 - [ ] **[Dev]** Verify mount read-only hoạt động đúng
 - [ ] **[Dev]** Chạy thử 1 ca, kiểm tra file output có xuất hiện trong `M:\OperateChecklist_UAT\`
 - [ ] **[QLGD]** So sánh kết quả file output vs kết quả thủ công ngày đầu tiên

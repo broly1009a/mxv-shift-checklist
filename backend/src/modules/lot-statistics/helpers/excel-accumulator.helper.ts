@@ -150,10 +150,16 @@ function matchProductHeader(header: string, productCode: string): boolean {
   return normalizedHeader === normalizedProd;
 }
 
+import { assertSafeWritePath } from '../../../common/file-guard.helper';
+
 /**
- * Ensures directory exists
+ * Ensures directory exists and validates safety against allowed root
  */
 export function ensureDirExists(filePath: string) {
+  const allowedRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
+  if (allowedRoot) {
+    assertSafeWritePath(filePath, allowedRoot);
+  }
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
