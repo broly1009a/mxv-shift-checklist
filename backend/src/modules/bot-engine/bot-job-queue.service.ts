@@ -748,22 +748,33 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     // 2. Login M-System chỉ khi có file cần tải
     const { browser, page } = await this.rpaDownloaderService.loginMSystem(backupPath);
 
+    const failedFiles: string[] = [];
     try {
       for (const item of missingOrOutdated) {
         const destFile = path.join(backupPath, item.filename);
         job.logs.push(`[${new Date().toISOString()}] Đang tải bổ sung: ${item.filename}...`);
         await job.save();
 
-        const downloaded = await this.rpaDownloaderService.downloadByTarget(page, item.key, destFile);
-        if (downloaded) {
-          job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công: ${item.filename}`);
-        } else {
-          job.logs.push(`[${new Date().toISOString()}] ⚠️ Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`);
+        try {
+          const downloaded = await this.rpaDownloaderService.downloadByTarget(page, item.key, destFile);
+          if (downloaded) {
+            job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công: ${item.filename}`);
+          } else {
+            job.logs.push(`[${new Date().toISOString()}] ⚠️ Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`);
+            failedFiles.push(`${item.filename} (Chưa hỗ trợ tải tự động)`);
+          }
+        } catch (dlErr: any) {
+          job.logs.push(`[${new Date().toISOString()}] ❌ Lỗi khi tải ${item.filename}: ${dlErr.message}`);
+          failedFiles.push(`${item.filename} (${dlErr.message})`);
         }
         await job.save();
         
         // Tránh lỗi 429 Too Many Requests từ phía server bằng cách giãn cách giữa các lần tải 5 giây
         await page.waitForTimeout(5000).catch(() => {});
+      }
+
+      if (failedFiles.length > 0) {
+        throw new Error(`Thiếu/Lỗi tải bổ sung ${failedFiles.length} file M-System: ${failedFiles.join('; ')}`);
       }
     } finally {
       this.logger.log('Closing Playwright browser after file audit recovery.');
@@ -793,7 +804,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     await job.save();
 
     if (!result.success) {
-      throw new Error('Có lỗi xảy ra trong quá trình tự động ghép file CQG.');
+      const errorDetails = result.logs
+        .filter((l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu') || l.includes('thất bại'))
+        .join(' | ');
+      throw new Error(`Ghép file CQG thất bại: ${errorDetails || 'Thiếu file nguồn CQG hoặc sai định dạng.'}`);
     }
   }
 
