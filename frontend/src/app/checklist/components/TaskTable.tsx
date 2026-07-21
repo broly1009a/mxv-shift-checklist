@@ -26,6 +26,8 @@ import {
   UserCheck,
   Copy
 } from 'lucide-react';
+import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
+
 const cleanAnsiText = (text: string): string => {
   if (!text) return '';
   return text
@@ -309,8 +311,18 @@ export default function TaskTable({
             const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
             const StatusIcon = currentStatusConfig.icon;
             const locked = isTaskLocked(item);
+            const isChildDropdownActive = children.some(c => c.taskId === openStatusDropdownTaskId);
+            const isSelfDropdownActive = openStatusDropdownTaskId === item.taskId;
+            const isDropdownActive = isSelfDropdownActive || isChildDropdownActive;
+
             return (
-              <div key={`${item.taskId}-${idx}`} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div key={`${item.taskId}-${idx}`} className="animate-fade-in" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                position: 'relative',
+                zIndex: isDropdownActive ? 100 : (log.details.length - idx)
+              }}>
               <div className="glass-panel" style={{
                 padding: '16px',
                 borderRadius: hasChildren ? '12px 12px 0 0' : '12px',
@@ -842,7 +854,7 @@ export default function TaskTable({
                   display: 'flex', flexDirection: 'column', gap: '6px',
                   background: 'rgba(139,92,246,0.03)', borderRadius: '0 0 12px 12px',
                   border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
-                  padding: '8px 12px 12px 12px'
+                          padding: '8px 12px 12px 12px'
                 }}>
                   {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map((child, cIdx) => {
                     const isBot = child.isBotCheckSnapshot;
@@ -851,6 +863,7 @@ export default function TaskTable({
                     const CIcon = cConfig.icon;
                     const cSaving = savingTaskId === child.taskId;
                     const cToggling = togglingTaskIds.has(child.taskId);
+                    const isChildDropdownOpen = openStatusDropdownTaskId === child.taskId;
                     return (
                       <div key={`${child.taskId}-${cIdx}`} style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
@@ -863,7 +876,8 @@ export default function TaskTable({
                           : isBot ? '1px solid rgba(236,72,153,0.15)' : '1px solid var(--border-color)',
                         opacity: cToggling ? 0.6 : 1,
                         transition: 'all 0.2s',
-                        position: 'relative'
+                        position: 'relative',
+                        zIndex: isChildDropdownOpen ? 50 : (children.length - cIdx)
                       }}>
                         {/* Bot or Maker indicator checkbox */}
                         <input
@@ -944,7 +958,21 @@ export default function TaskTable({
                         {openStatusDropdownTaskId === child.taskId && (
                           <>
                             <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={() => setOpenStatusDropdownTaskId(null)} />
-                            <div style={{ position:'absolute', right:0, top: '32px', background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:'10px', boxShadow:'var(--glass-shadow)', zIndex:1000, minWidth:'160px', padding:'4px', display:'flex', flexDirection:'column' }}>
+                            <div style={{
+                              position:'absolute',
+                              right:0,
+                              top: cIdx >= Math.max(1, children.length - 2) ? 'auto' : '32px',
+                              bottom: cIdx >= Math.max(1, children.length - 2) ? '32px' : 'auto',
+                              background:'var(--bg-card)',
+                              border:'1px solid var(--border-color)',
+                              borderRadius:'10px',
+                              boxShadow:'0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+                              zIndex:1000,
+                              minWidth:'160px',
+                              padding:'4px',
+                              display:'flex',
+                              flexDirection:'column'
+                            }}>
                               {Object.entries(STATUS_CONFIGS).map(([sk, sc]) => {
                                 const OI = sc.icon;
                                 return (

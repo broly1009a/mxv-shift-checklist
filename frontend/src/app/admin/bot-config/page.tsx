@@ -15,9 +15,11 @@ import {
   Download,
   FileSpreadsheet,
   TrendingUp,
+  Sliders,
 } from 'lucide-react';
 
 import ConnectionSettings from './components/ConnectionSettings';
+import SystemSchedulerSettings from './components/SystemSchedulerSettings';
 import GttChecker from './components/GttChecker';
 import ReconciliationPanel from './components/ReconciliationPanel';
 import BackupAuditor from './components/BackupAuditor';
@@ -38,7 +40,7 @@ interface BotJob {
   updatedAt: string;
 }
 
-type TabType = 'credentials' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'value-statistics' | 'backup' | 'downloader' | 'queue';
+type TabType = 'credentials' | 'scheduler' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'value-statistics' | 'backup' | 'downloader' | 'queue';
 
 export default function AdminBotConfigPage() {
   const { user, token } = useAuth();
@@ -199,7 +201,8 @@ export default function AdminBotConfigPage() {
 
   // Tab configurations
   const TABS = [
-    { id: 'credentials', label: 'Tài khoản & Lập lịch', icon: Key },
+    { id: 'credentials', label: 'Tài khoản kết nối', icon: Key },
+    { id: 'scheduler', label: 'Tham số & Lập lịch', icon: Sliders },
     { id: 'gtt', label: 'Kiểm tra GTT', icon: FileText },
     { id: 'reconciliation', label: 'Kiểm thử Đối chiếu', icon: Database },
     { id: 'lot-statistics', label: 'Thống kê số lot', icon: FileSpreadsheet },
@@ -332,6 +335,10 @@ export default function AdminBotConfigPage() {
         <div style={{ flex: 1, marginTop: '8px' }}>
           {activeTab === 'credentials' && (
             <ConnectionSettings token={token} apiBaseUrl={API_BASE_URL} fetchJobs={fetchJobs} />
+          )}
+
+          {activeTab === 'scheduler' && (
+            <SystemSchedulerSettings token={token} apiBaseUrl={API_BASE_URL} />
           )}
 
           {activeTab === 'gtt' && (

@@ -218,11 +218,12 @@ export class RpaDownloaderService {
       if (!pinSelectorVisible) {
         const loginError = await this.checkForLoginErrors(page);
         if (loginError) {
-          throw new Error(`Đăng nhập thất bại. ${loginError}`);
+          throw new Error(`Đăng nhập M-System thất bại: ${loginError}`);
         }
+        throw new Error('Đăng nhập thất bại: Không thấy bảng mã PIN (div.pincode) xuất hiện. Nguyên nhân có thể do M-System phản hồi chậm (>20s), sai tài khoản/mật khẩu hoặc mạng bị tắc nghẽn.');
       }
 
-      await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
+      await page.waitForSelector('div.pincode', { state: 'visible', timeout: 15000 });
 
       // Click each pin digit
       const pinDigits = pin.split('');

@@ -785,146 +785,16 @@ export default function ConnectionSettings({
           </div>
         </div>
 
-        {/* System Parameters Panel */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <h4 style={{
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            borderBottom: '1px solid var(--border-color)',
-            paddingBottom: '12px',
-            margin: 0,
-          }}>
-            <Settings size={18} style={{ color: '#10b981' }} />
-            Tham số hệ thống & Phiên giao dịch
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
-            <div>
-              <label style={labelStyle}>Giờ bắt đầu phiên mặc định</label>
-              <div style={{ position: 'relative' }}>
-                <Clock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input
-                  type="time"
-                  className="form-input"
-                  style={{ paddingLeft: '38px' }}
-                  value={sessionStartTime}
-                  onChange={(e) => setSessionStartTime(e.target.value)}
-                  required
-                />
-              </div>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '6px 0 0 0', lineHeight: 1.5 }}>
-                Mốc phân chia phiên giao dịch mặc định. Được áp dụng tự động cho Bot chạy trong nền và màn hình checklist.
-              </p>
-            </div>
-            
-            <div>
-              <label style={labelStyle}>Tỷ giá quy đổi USD/VND mặc định</label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>VND</span>
-                <input
-                  type="number"
-                  className="form-input"
-                  style={{ paddingLeft: '46px' }}
-                  value={usdExchangeRate}
-                  onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
-                  required
-                />
-              </div>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '6px 0 0 0', lineHeight: 1.5 }}>
-                Tỷ giá quy đổi dùng cho tính toán chênh lệch số dư tài khoản CQG (Balance Reconciliation).
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Scheduler config panel */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <h4 style={{
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            borderBottom: '1px solid var(--border-color)',
-            paddingBottom: '12px',
-            margin: 0,
-          }}>
-            <Clock size={18} style={{ color: '#10b981' }} />
-            Lập lịch chạy tự động (Scheduler)
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {schedulerConfig.map((task, idx) => (
-              <div
-                key={task.id || idx}
-                style={{
-                  backgroundColor: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  padding: '14px 18px',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{task.name}</h5>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Job Type: <code style={{ color: '#10b981', fontFamily: 'monospace' }}>{task.jobType}</code>
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Giờ chạy:</span>
-                    <input
-                      type="time"
-                      className="form-input"
-                      style={{ padding: '6px 10px', fontSize: '0.75rem', width: '110px' }}
-                      value={task.time}
-                      onChange={(e) => {
-                        const updated = [...schedulerConfig];
-                        updated[idx] = { ...updated[idx], time: e.target.value };
-                        setSchedulerConfig(updated);
-                      }}
-                    />
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={task.enabled}
-                      onChange={(e) => {
-                        const updated = [...schedulerConfig];
-                        updated[idx] = { ...updated[idx], enabled: e.target.checked };
-                        setSchedulerConfig(updated);
-                      }}
-                      style={{ accentColor: '#10b981' }}
-                    />
-                    Kích hoạt
-                  </label>
-                </div>
-              </div>
-            ))}
-            {schedulerConfig.length === 0 && (
-              <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', padding: '16px 0' }}>Không tìm thấy cấu hình lập lịch.</p>
-            )}
-          </div>
-        </div>
-
         {/* Submit Save config button */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
           <button
             type="submit"
-            disabled={anyTesting}
+            disabled={anyTesting || savingConfig}
             className="btn btn-primary"
             style={{ padding: '12px 28px', fontSize: '0.85rem', fontWeight: 700 }}
           >
             <Save size={16} />
-            Lưu tất cả cấu hình credentials & lập lịch
+            {savingConfig ? 'Đang lưu...' : 'Lưu tất cả cấu hình tài khoản Bot'}
           </button>
         </div>
       </form>
