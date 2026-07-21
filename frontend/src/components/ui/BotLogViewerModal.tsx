@@ -17,6 +17,8 @@ import {
   MailCheck,
   MailWarning,
   RefreshCw,
+  Terminal,
+  BarChart2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -57,47 +59,7 @@ export default function BotLogViewerModal({
 }: BotLogViewerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Detect Task Category based on title and content
-  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION'>(() => {
-    const titleUpper = (taskTitle || '').toUpperCase();
-    const noteUpper = (resultNote || '').toUpperCase();
-
-    // Check System / API / Email Watcher
-    if (
-      titleUpper.includes('EMAIL') ||
-      titleUpper.includes('SNAPSHOT') ||
-      titleUpper.includes('GRAPH API') ||
-      titleUpper.includes('OMS') ||
-      titleUpper.includes('CONNECT') ||
-      noteUpper.includes('MICROSOFT GRAPH API') ||
-      noteUpper.includes('SLA') ||
-      noteUpper.includes('TRỄ SLA') ||
-      noteUpper.includes('SOCKET')
-    ) {
-      return 'SYSTEM_API';
-    }
-
-    // Check File Audit / Backup / Downloads
-    if (
-      titleUpper.includes('FILE') ||
-      titleUpper.includes('AUDIT') ||
-      titleUpper.includes('BACKUP') ||
-      titleUpper.includes('DOWNLOAD') ||
-      titleUpper.includes('QUÉT FILE') ||
-      titleUpper.includes('TẢI BÁO CÁO') ||
-      noteUpper.includes('THƯ MỤC BACKUP') ||
-      noteUpper.includes('FILE BACKUP') ||
-      noteUpper.includes('.XLSX') ||
-      noteUpper.includes('.CSV')
-    ) {
-      return 'FILE_AUDIT';
-    }
-
-    // Default to Reconciliation (Trade & Balance matching)
-    return 'RECONCILIATION';
-  }, [taskTitle, resultNote]);
-
-  // Parse structured data
+  // Parse structured data first
   const parsedData = useMemo(() => {
     if (!resultNote) {
       return { summaryCards: [], mismatchedItems: [], fileItems: [], rawText: '' };
@@ -128,38 +90,51 @@ export default function BotLogViewerModal({
       }
     });
 
-    // Parse Mismatched Trades
+    // Parse Mismatched Trades & Net Position Discrepancies
     const mismatchedItems: MismatchedItem[] = [];
-    const lines = text.split(/[-–]\s*\[/);
+    const rawLines = text.split(/\n|(?=\s*-\s*TK|\s*-\s*\[)/);
 
-    lines.forEach((line, idx) => {
-      if (!line.trim()) return;
-      const fullLine = '[' + line.trim();
-      const match = fullLine.match(
+    rawLines.forEach((line, idx) => {
+      const trimmed = line.trim().replace(/^[-–•]\s*/, '');
+      if (!trimmed) return;
+
+      // Type A: [CQG] TK 012C1189215, HĐ SILU26, Giá 61.48, Qty 1: Lệnh CQG không tìm thấy...
+      const matchA = trimmed.match(
         /^\[(.*?)\]\s*(?:TK\s*([^,]+))?,?\s*(?:HĐ\s*([^,]+))?,?\s*(?:Giá\s*([^,]+))?,?\s*(?:Qty\s*([^:]+))?:\s*(.*)/i
       );
 
-      if (match) {
+      // Type B: TK 009C0268369, HĐ LRCU26: MS 780 vs CQG 810 (Chênh lệch: -30)
+      const matchB = trimmed.match(
+        /^(?:TK\s*([^,]+)),?\s*(?:HĐ\s*([^:]+)):\s*(.*)/i
+      );
+
+      if (matchA) {
+        const sysTag = (matchA[1] || '').trim().toUpperCase();
+        const hasTradeDetails = Boolean(matchA[2] || matchA[3] || matchA[4] || matchA[5]);
+        const isKnownTradeSystem = ['MSYSTEM', 'CQG', 'STRAITS', 'ACM', 'EOD', 'NKTHT', 'MS'].some((s) => sysTag.includes(s));
+
+        if (hasTradeDetails || isKnownTradeSystem) {
+          mismatchedItems.push({
+            id: idx,
+            system: matchA[1] || 'Hệ thống',
+            account: matchA[2] || '—',
+            contract: matchA[3] || '—',
+            price: matchA[4] || '—',
+            qty: matchA[5] || '—',
+            reason: matchA[6] || trimmed,
+            raw: trimmed,
+          });
+        }
+      } else if (matchB) {
         mismatchedItems.push({
           id: idx,
-          system: match[1] || 'Hệ thống',
-          account: match[2] || '—',
-          contract: match[3] || '—',
-          price: match[4] || '—',
-          qty: match[5] || '—',
-          reason: match[6] || fullLine,
-          raw: fullLine,
-        });
-      } else if (line.includes('TK ') || line.includes('HĐ ')) {
-        mismatchedItems.push({
-          id: idx,
-          system: 'Khác',
-          account: '—',
-          contract: '—',
+          system: 'Net Position',
+          account: matchB[1]?.trim() || '—',
+          contract: matchB[2]?.trim() || '—',
           price: '—',
           qty: '—',
-          reason: line.trim(),
-          raw: line.trim(),
+          reason: matchB[3]?.trim() || trimmed,
+          raw: trimmed,
         });
       }
     });
@@ -195,6 +170,67 @@ export default function BotLogViewerModal({
       rawText: text,
     };
   }, [resultNote]);
+
+  // Determine if task failed or has warning
+  const isTaskFailed = useMemo(() => {
+    const s = (status || '').toUpperCase();
+    const raw = (parsedData.rawText || '').toUpperCase();
+    return (
+      s === 'FAILED' ||
+      s === 'NEEDS_ATTENTION' ||
+      raw.includes('THẤT BẠI') ||
+      raw.includes('LỖI KẾT NỐI') ||
+      raw.includes('FAILED') ||
+      raw.includes('NOT FOUND')
+    );
+  }, [status, parsedData.rawText]);
+
+  // Detect Task Category intelligently with priority
+  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION'>(() => {
+    const titleUpper = (taskTitle || '').toUpperCase();
+    const noteUpper = (parsedData.rawText || '').toUpperCase();
+
+    // Priority 1: Pure System / API Watcher (Snapshot Email, API Health)
+    if (
+      titleUpper.includes('JOB SNAPSHOT') ||
+      titleUpper.includes('GRAPH API') ||
+      noteUpper.includes('MICROSOFT GRAPH API') ||
+      noteUpper.includes('GRAPH API QUERY FAILED')
+    ) {
+      return 'SYSTEM_API';
+    }
+
+    // Priority 2: Trade / Balance Reconciliation
+    if (
+      titleUpper.includes('ĐỐI CHIẾU') ||
+      noteUpper.includes('ĐỐI CHIẾU') ||
+      noteUpper.includes('MS VS CQG') ||
+      noteUpper.includes('MS VS STRAITS') ||
+      noteUpper.includes('NET POSITION') ||
+      noteUpper.includes('KHỚP LỆNH') ||
+      parsedData.mismatchedItems.length > 0 ||
+      parsedData.summaryCards.length > 0
+    ) {
+      return 'RECONCILIATION';
+    }
+
+    // Priority 3: File Audit & RPA Backup Downloads
+    if (
+      titleUpper.includes('FILE') ||
+      titleUpper.includes('AUDIT') ||
+      titleUpper.includes('BACKUP') ||
+      titleUpper.includes('DOWNLOAD') ||
+      titleUpper.includes('QUÉT FILE') ||
+      titleUpper.includes('TẢI BÁO CÁO') ||
+      noteUpper.includes('THƯ MỤC BACKUP') ||
+      noteUpper.includes('FILE BACKUP') ||
+      parsedData.fileItems.length > 0
+    ) {
+      return 'FILE_AUDIT';
+    }
+
+    return 'SYSTEM_API';
+  }, [taskTitle, parsedData]);
 
   const filteredMismatches = useMemo(() => {
     if (!searchQuery.trim()) return parsedData.mismatchedItems;
@@ -262,16 +298,16 @@ export default function BotLogViewerModal({
               <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 {category === 'SYSTEM_API' && 'Chẩn Đoán Trạng Thái API / Hạ Tầng'}
                 {category === 'FILE_AUDIT' && 'Báo Cáo Kiểm Tra File & Backup RPA'}
-                {category === 'RECONCILIATION' && 'Chi Tiết Đối Chiếu Dữ Liệu & Số Dư'}
+                {category === 'RECONCILIATION' && 'Chi Tiết Log Đối Chiếu Bot'}
               </h3>
 
-              {status === 'PASSED' ? (
+              {!isTaskFailed ? (
                 <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   ✓ PASSED
                 </span>
               ) : (
                 <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                  ✕ FAILED
+                  ✕ FAILED / WARNING
                 </span>
               )}
             </div>
@@ -296,7 +332,7 @@ export default function BotLogViewerModal({
              ========================================================================= */}
           {category === 'SYSTEM_API' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {status === 'FAILED' ? (
+              {isTaskFailed ? (
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', marginBottom: '10px' }}>
                     <MailWarning size={24} />
@@ -320,8 +356,8 @@ export default function BotLogViewerModal({
 
               {/* Log Console Box */}
               <div>
-                <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  🖥️ Chi tiết phản hồi chẩn đoán API
+                <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Terminal size={14} color="#0284c7" /> Chi tiết phản hồi chẩn đoán API
                 </h4>
                 <div
                   style={{
@@ -331,7 +367,7 @@ export default function BotLogViewerModal({
                     border: '1px solid var(--border-color)',
                     fontFamily: 'monospace',
                     fontSize: '0.75rem',
-                    color: status === 'FAILED' ? '#ef4444' : 'var(--text-primary)',
+                    color: isTaskFailed ? '#ef4444' : 'var(--text-primary)',
                     lineHeight: 1.6,
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
@@ -398,8 +434,8 @@ export default function BotLogViewerModal({
               {/* Summary Cards */}
               {parsedData.summaryCards.length > 0 && (
                 <div>
-                  <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                    📊 Tổng hợp số liệu đối chiếu
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <BarChart2 size={14} color="#0284c7" /> Tổng hợp số liệu đối chiếu
                   </h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                     {parsedData.summaryCards.map((card, i) => (
@@ -425,8 +461,8 @@ export default function BotLogViewerModal({
               {/* Mismatched Items Table */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                  <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                    ⚠️ Danh sách giao dịch/số dư chênh lệch chi tiết ({parsedData.mismatchedItems.length})
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={14} color="#f59e0b" /> Danh sách giao dịch/số dư chênh lệch chi tiết ({parsedData.mismatchedItems.length})
                   </h4>
                   {parsedData.mismatchedItems.length > 0 && (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -457,7 +493,7 @@ export default function BotLogViewerModal({
                 </div>
 
                 {parsedData.mismatchedItems.length === 0 ? (
-                  status === 'FAILED' ? (
+                  isTaskFailed ? (
                     <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', textAlign: 'center', fontSize: '0.75rem', color: '#ef4444' }}>
                       <AlertTriangle size={24} style={{ margin: '0 auto 8px auto', display: 'block' }} />
                       <strong style={{ fontSize: '0.85rem' }}>Tác vụ tự động thất bại do Lỗi Hệ Thống / API!</strong>
@@ -505,8 +541,8 @@ export default function BotLogViewerModal({
 
           {/* Raw Text Fallback Collapsible */}
           <details style={{ backgroundColor: 'var(--bg-input)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <summary style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 700 }}>
-              📝 Xem chuỗi Log văn bản gốc (Raw Text)
+            <summary style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <FileText size={14} /> Xem chuỗi Log văn bản gốc (Raw Text)
             </summary>
             <pre style={{ margin: '10px 0 0 0', fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: '150px', overflowY: 'auto' }}>
               {parsedData.rawText}
