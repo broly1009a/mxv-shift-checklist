@@ -212,8 +212,8 @@ export default function AdminBotConfigPage() {
   if (!token) {
     return (
       <ProtectedRoute>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-zinc-500 text-xs">Đang tải token xác thực...</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '0.8rem' }}>Đang tải token xác thực...</div>
         </div>
       </ProtectedRoute>
     );
@@ -221,56 +221,69 @@ export default function AdminBotConfigPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col gap-6 animate-fade-in text-zinc-300 min-h-screen">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '100vh', color: 'var(--text-primary)' }} className="animate-fade-in">
         {/* Page Header */}
-        <div className="flex justify-between items-center flex-wrap gap-4 border-b border-zinc-800 pb-4">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
           <div>
-            <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              <Cpu className="text-emerald-500 animate-pulse" size={24} />
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Cpu color="#10b981" className="animate-pulse" size={26} />
               Cấu hình hệ thống RPA & Robot
             </h1>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
               Quản lý tài khoản kết nối các hệ thống, theo dõi tiến trình chạy và cấu hình tự động hóa MXV.
             </p>
           </div>
 
           {/* Agent Status Badge */}
           {agentStatus ? (
-            <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border ${
-              agentStatus.online 
-                ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' 
-                : 'bg-rose-950/30 border-rose-800/50 text-rose-300'
-            }`}>
-              <div className="relative flex h-3 w-3">
-                {agentStatus.online && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span className={`relative inline-flex rounded-full h-3 w-3 ${
-                  agentStatus.online ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
-                }`}></span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: agentStatus.online ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(244, 63, 94, 0.4)',
+              backgroundColor: agentStatus.online ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+              color: agentStatus.online ? '#34d399' : '#fb7185',
+            }}>
+              <div style={{ position: 'relative', width: '10px', height: '10px' }}>
+                <span style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  backgroundColor: agentStatus.online ? '#10b981' : '#f43f5e',
+                }}></span>
               </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] font-black tracking-wider uppercase">
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Agent: {agentStatus.online ? 'Online' : 'Offline'}
                 </span>
                 {agentStatus.online && (
-                  <span className="text-[10px] text-zinc-400 font-medium">
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                     {agentStatus.hostname} ({agentStatus.platform})
                   </span>
                 )}
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-zinc-900 border-zinc-800 text-zinc-400 animate-pulse">
-              <div className="h-3.5 w-3.5 rounded-full border-2 border-t-transparent border-zinc-500 animate-spin"></div>
-              <span className="text-[10px] font-bold">Đang kiểm tra Agent...</span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-input)',
+              color: 'var(--text-muted)',
+            }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: '2px solid transparent', borderTopColor: 'var(--text-muted)' }} className="animate-spin" />
+              <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Đang kiểm tra Agent...</span>
             </div>
           )}
         </div>
 
-
         {/* Tab Buttons bar */}
-        <div className="flex gap-2 border-b border-zinc-800 pb-1 flex-wrap">
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', flexWrap: 'wrap' }}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -279,16 +292,34 @@ export default function AdminBotConfigPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-lg transition relative ${
-                  isActive
-                    ? 'bg-zinc-800/80 text-white border-b-2 border-emerald-500'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  borderRadius: '8px 8px 0 0',
+                  border: 'none',
+                  borderBottom: isActive ? '2px solid #10b981' : '2px solid transparent',
+                  color: isActive ? '#10b981' : 'var(--text-secondary)',
+                  backgroundColor: isActive ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
               >
-                <Icon size={14} className={isActive ? 'text-emerald-400' : 'text-zinc-500'} />
+                <Icon size={15} color={isActive ? '#10b981' : 'var(--text-muted)'} />
                 <span>{tab.label}</span>
                 {!!tab.count && tab.count > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-black font-bold animate-pulse">
+                  <span style={{
+                    marginLeft: '4px',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '0.65rem',
+                    backgroundColor: '#f59e0b',
+                    color: '#000000',
+                    fontWeight: 800,
+                  }} className="animate-pulse">
                     {tab.count}
                   </span>
                 )}
@@ -298,7 +329,7 @@ export default function AdminBotConfigPage() {
         </div>
 
         {/* Tab content rendering */}
-        <div className="flex-1 mt-2">
+        <div style={{ flex: 1, marginTop: '8px' }}>
           {activeTab === 'credentials' && (
             <ConnectionSettings token={token} apiBaseUrl={API_BASE_URL} fetchJobs={fetchJobs} />
           )}

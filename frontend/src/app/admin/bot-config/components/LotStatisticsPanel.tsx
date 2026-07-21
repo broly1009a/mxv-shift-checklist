@@ -6,7 +6,6 @@ import {
   Play,
   RefreshCw,
   Upload,
-  FileText,
   Download,
   AlertTriangle,
   CheckCircle2,
@@ -24,7 +23,7 @@ function getPreviousWorkday(d: Date = new Date()): Date {
   const prev = new Date(d);
   do {
     prev.setDate(prev.getDate() - 1);
-  } while (prev.getDay() === 0 || prev.getDay() === 6); // 0 = Sunday, 6 = Saturday
+  } while (prev.getDay() === 0 || prev.getDay() === 6);
   return prev;
 }
 
@@ -43,7 +42,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
   const [fefDates, setFefDates] = useState('2026-07-03, 2026-07-02');
   const [zftDates, setZftDates] = useState('2026-07-03, 2026-07-02');
   const [filterLmeKyHan, setFilterLmeKyHan] = useState('U26');
-  const [deadline, setDeadline] = useState('46217.208333'); // Default VBA Y1 deadline serial
+  const [deadline, setDeadline] = useState('46217.208333');
 
   // Cumulative annual states
   const [updateCumulative, setUpdateCumulative] = useState(false);
@@ -76,13 +75,9 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
   // Load basePaths from localStorage on mount
   useEffect(() => {
     const savedMs = localStorage.getItem('lot_stats_base_path_ms');
-    if (savedMs) {
-      setBasePathMs(savedMs);
-    }
+    if (savedMs) setBasePathMs(savedMs);
     const savedCqg = localStorage.getItem('lot_stats_base_path_cqg');
-    if (savedCqg) {
-      setBasePathCqg(savedCqg);
-    }
+    if (savedCqg) setBasePathCqg(savedCqg);
   }, []);
 
   // Automatically compute and sync paths when ngayGD or base paths change
@@ -92,17 +87,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     if (parts.length !== 3) return;
     const [year, month, day] = parts;
     
-    // MS
     const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
     const computedMs = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
     setFolderPathMs(computedMs);
 
-    // CQG
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
     const computedCqg = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
     setFolderPathCqg(computedCqg);
 
-    // Cumulative paths auto-computation (inside the daily folder)
     const lastPartCqgIdx = cleanBaseCqg.lastIndexOf('\\');
     const parentBaseCqg = lastPartCqgIdx > 0 ? cleanBaseCqg.substring(0, lastPartCqgIdx) : cleanBaseCqg;
 
@@ -136,17 +128,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     }
     const [year, month, day] = parts;
     
-    // MS
     const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
     const computedMs = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
     setFolderPathMs(computedMs);
 
-    // CQG
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
     const computedCqg = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
     setFolderPathCqg(computedCqg);
 
-    // Cumulative paths auto-computation
     const lastPartCqgIdx = cleanBaseCqg.lastIndexOf('\\');
     const parentBaseCqg = lastPartCqgIdx > 0 ? cleanBaseCqg.substring(0, lastPartCqgIdx) : cleanBaseCqg;
 
@@ -204,7 +193,6 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     }
   };
 
-  // Load configuration from backend if available
   useEffect(() => {
     if (!token) return;
     fetch(`${apiBaseUrl}/lot-statistics/config`, {
@@ -213,21 +201,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       .then((res) => res.json())
       .then((data) => {
         if (data) {
-          if (data.defaultLmeKyHan) {
-            setFilterLmeKyHan(data.defaultLmeKyHan);
-          }
-          // Pre-fill paths if configured on the server
+          if (data.defaultLmeKyHan) setFilterLmeKyHan(data.defaultLmeKyHan);
           if (data.defaultPathDsgd) {
             const lastSlash = Math.max(data.defaultPathDsgd.lastIndexOf('\\'), data.defaultPathDsgd.lastIndexOf('/'));
-            if (lastSlash > 0) {
-              setFolderPathMs(data.defaultPathDsgd.substring(0, lastSlash));
-            }
+            if (lastSlash > 0) setFolderPathMs(data.defaultPathDsgd.substring(0, lastSlash));
           }
           if (data.defaultPathFr) {
             const lastSlash = Math.max(data.defaultPathFr.lastIndexOf('\\'), data.defaultPathFr.lastIndexOf('/'));
-            if (lastSlash > 0) {
-              setFolderPathCqg(data.defaultPathFr.substring(0, lastSlash));
-            }
+            if (lastSlash > 0) setFolderPathCqg(data.defaultPathFr.substring(0, lastSlash));
           }
           if (data.defaultPathDsgdCumulative) setPathDsgdCumulative(data.defaultPathDsgdCumulative);
           if (data.defaultPathNormal) setPathNormal(data.defaultPathNormal);
@@ -240,18 +221,15 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       .catch((err) => console.error('Error fetching lot statistics config:', err));
   }, [token, apiBaseUrl]);
 
-  // Handle file input changes
   const handleFileChange = (key: string, file: File | null) => {
     setFiles((prev) => ({ ...prev, [key]: file }));
   };
 
-  // Helper to parse dates into JSON arrays
   const parseDates = (str: string) => {
     const dates = str.split(',').map((d) => d.trim()).filter(Boolean);
     return JSON.stringify(dates);
   };
 
-  // Helper to construct FormData (for file uploads)
   const buildFormData = () => {
     const formData = new FormData();
     if (files.fileDsgd) formData.append('fileDsgd', files.fileDsgd);
@@ -271,7 +249,6 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     return formData;
   };
 
-  // Helper to construct JSON payload (for server folder scan)
   const buildJsonPayload = () => {
     return {
       folderPathMs,
@@ -292,7 +269,6 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     };
   };
 
-  // Run lot statistics process (JSON results)
   const handleRunProcess = async () => {
     if (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) {
       toast.error('Vui lòng chọn tối thiểu File DSGD và File FR.');
@@ -345,7 +321,6 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     }
   };
 
-  // Process and download Excel workbook
   const handleDownloadExcel = async () => {
     if (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) {
       toast.error('Vui lòng chọn tối thiểu File DSGD và File FR.');
@@ -403,26 +378,34 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '6px',
+    display: 'block',
+  };
+
   const renderFileZone = (key: string, label: string, required = false) => {
     const file = files[key as keyof typeof files];
     return (
-      <div className="bg-zinc-900/30 border border-zinc-800 p-3 rounded-lg flex flex-col gap-1.5 relative hover:border-zinc-700 transition">
-        <label className="text-[11px] font-bold text-zinc-400 flex justify-between items-center">
-          <span>{label} {required && <span className="text-red-400">*</span>}</span>
-          {file && <span className="text-[10px] text-emerald-400 font-mono">Đã chọn</span>}
+      <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{label} {required && <span style={{ color: '#ef4444' }}>*</span>}</span>
+          {file && <span style={{ fontSize: '0.65rem', color: '#10b981', fontFamily: 'monospace' }}>Đã chọn</span>}
         </label>
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="file"
             accept=".xlsx,.xls"
             onChange={(e) => handleFileChange(key, e.target.files?.[0] || null)}
-            className="w-full text-xs text-zinc-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 file:cursor-pointer"
+            style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
           />
           {file && (
             <button
               type="button"
               onClick={() => handleFileChange(key, null)}
-              className="text-[10px] text-red-400 hover:text-red-300 font-semibold px-1"
+              style={{ fontSize: '0.75rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
             >
               Xóa
             </button>
@@ -432,95 +415,100 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     );
   };
 
-  // Summarize results stats helper
   const getSummaryRow = (label: string, dsgd: number, fr: number, tttt: number, ttm: number, op: number, ps: number) => (
-    <tr className="border-b border-zinc-900 hover:bg-zinc-900/10 font-mono text-xs">
-      <td className="p-2.5 font-sans font-semibold text-zinc-300 text-left">{label}</td>
-      <td className="p-2.5 text-right font-bold text-sky-400">{dsgd.toLocaleString()}</td>
-      <td className="p-2.5 text-right font-bold text-indigo-400">{fr.toLocaleString()}</td>
-      <td className="p-2.5 text-right text-zinc-400">{tttt.toLocaleString()}</td>
-      <td className="p-2.5 text-right text-zinc-400">{ttm.toLocaleString()}</td>
-      <td className="p-2.5 text-right text-zinc-400">{op.toLocaleString()}</td>
-      <td className="p-2.5 text-right text-zinc-400">{ps.toLocaleString()}</td>
+    <tr style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+      <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 600, color: 'var(--text-primary)' }}>{label}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>{dsgd.toLocaleString()}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{fr.toLocaleString()}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{tttt.toLocaleString()}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{ttm.toLocaleString()}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{op.toLocaleString()}</td>
+      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{ps.toLocaleString()}</td>
     </tr>
   );
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in text-zinc-300">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', color: 'var(--text-primary)' }} className="animate-fade-in">
       {/* Configuration Form */}
-      <div className="glass-panel p-6 flex flex-col gap-5">
-        <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-3">
-          <Info size={16} className="text-emerald-500" />
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0 }}>
+          <Info size={16} color="#10b981" />
           1. Thông tin phiên & Tham số đối chiếu
         </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">Ngày giao dịch</label>
+            <label style={labelStyle}>Ngày giao dịch</label>
             <input
               type="date"
               value={ngayGD || ''}
               onChange={(e) => setNgayGD(e.target.value)}
-              className="form-input text-xs"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px' }}
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">Kỳ hạn LME hết hạn</label>
+            <label style={labelStyle}>Kỳ hạn LME hết hạn</label>
             <input
               type="text"
               value={filterLmeKyHan || ''}
               onChange={(e) => setFilterLmeKyHan(e.target.value)}
-              className="form-input text-xs font-mono"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace' }}
               placeholder="U26"
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">Ngày TRU loại trừ (FR)</label>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={labelStyle}>Ngày TRU loại trừ (FR)</label>
             <input
               type="text"
               value={truDates || ''}
               onChange={(e) => setTruDates(e.target.value)}
-              className="form-input text-xs font-mono"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace' }}
               placeholder="comma-separated dates"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">Ngày FEF loại trừ</label>
+            <label style={labelStyle}>Ngày FEF loại trừ</label>
             <input
               type="text"
               value={fefDates || ''}
               onChange={(e) => setFefDates(e.target.value)}
-              className="form-input text-xs font-mono"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace' }}
               placeholder="comma-separated dates"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">Ngày ZFT loại trừ</label>
+            <label style={labelStyle}>Ngày ZFT loại trừ</label>
             <input
               type="text"
               value={zftDates || ''}
               onChange={(e) => setZftDates(e.target.value)}
-              className="form-input text-xs font-mono"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace' }}
               placeholder="comma-separated dates"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-zinc-800/60 pt-4 items-center">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', alignItems: 'center' }}>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 block mb-0.5">Deadline QO/QP/BM/MPO (Excel Serial)</label>
-            <span className="text-[10px] text-zinc-500 block mb-1">Tương đương Sheet2!Y1 (Ví dụ: 46217.208333 cho ngày 06/07/2026 05:00:00)</span>
+            <label style={labelStyle}>Deadline QO/QP/BM/MPO (Excel Serial)</label>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Tương đương Sheet2!Y1 (Ví dụ: 46217.208333 cho ngày 06/07/2026 05:00:00)</span>
             <input
               type="text"
               value={deadline || ''}
               onChange={(e) => setDeadline(e.target.value)}
-              className="form-input text-xs font-mono"
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace' }}
               placeholder="46217.208333"
             />
           </div>
-          <div className="flex items-end justify-start h-full pb-1">
-            <span className="text-xs text-zinc-500 bg-zinc-950/40 p-2.5 rounded border border-zinc-900 leading-normal flex items-start gap-1.5">
-              <Info size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+              <Info size={16} color="#10b981" style={{ flexShrink: 0 }} />
               <span>Chuyển đổi hoàn toàn in-memory thay thế 30 sheet trung gian của Excel VBA Macro.</span>
             </span>
           </div>
@@ -528,33 +516,49 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       </div>
 
       {/* File Source Panel */}
-      <div className="glass-panel p-6 flex flex-col gap-4">
-        <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-3">
-          <FileSpreadsheet size={16} className="text-sky-400" />
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0 }}>
+          <FileSpreadsheet size={16} color="#0284c7" />
           2. Chọn nguồn dữ liệu đối chiếu
         </h4>
 
         {/* Tab Selector */}
-        <div className="flex gap-2 border-b border-zinc-800 pb-2">
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
           <button
             type="button"
             onClick={() => setRunMode('folder')}
-            className={`px-4 py-1.5 text-xs font-semibold rounded transition flex items-center gap-1.5 ${
-              runMode === 'folder'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              borderRadius: '6px',
+              border: runMode === 'folder' ? '1px solid #10b981' : '1px solid var(--border-color)',
+              backgroundColor: runMode === 'folder' ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-input)',
+              color: runMode === 'folder' ? '#10b981' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
           >
             <FolderOpen size={14} /> Chạy từ thư mục trên server
           </button>
           <button
             type="button"
             onClick={() => setRunMode('upload')}
-            className={`px-4 py-1.5 text-xs font-semibold rounded transition flex items-center gap-1.5 ${
-              runMode === 'upload'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              borderRadius: '6px',
+              border: runMode === 'upload' ? '1px solid #10b981' : '1px solid var(--border-color)',
+              backgroundColor: runMode === 'upload' ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-input)',
+              color: runMode === 'upload' ? '#10b981' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
           >
             <Upload size={14} /> Tải file lên từ máy local
           </button>
@@ -562,47 +566,57 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
         {/* Form content based on selected Mode */}
         {runMode === 'folder' ? (
-          <div className="bg-zinc-900/30 border border-zinc-850 p-5 rounded-lg flex flex-col gap-4">
+          <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             {/* Quick generate panel */}
-            <div className="bg-zinc-950/40 p-4 rounded border border-zinc-850 flex flex-col gap-3">
-              <h5 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                <RefreshCw size={13} className="text-emerald-500 animate-pulse" />
+            <div style={{ backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <h5 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                <RefreshCw size={14} color="#10b981" />
                 Cấu hình Thư mục gốc & Tạo đường dẫn nhanh theo Ngày GD
               </h5>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Thư mục gốc MS (Backup MS)
-                  </label>
+                  <label style={labelStyle}>Thư mục gốc MS (Backup MS)</label>
                   <input
                     type="text"
                     value={basePathMs || ''}
                     onChange={(e) => handleBasePathMsChange(e.target.value)}
-                    className="form-input text-xs font-mono w-full"
+                    className="form-input"
+                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                     placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Thư mục gốc CQG (Backup CQG)
-                  </label>
+                  <label style={labelStyle}>Thư mục gốc CQG (Backup CQG)</label>
                   <input
                     type="text"
                     value={basePathCqg || ''}
                     onChange={(e) => handleBasePathCqgChange(e.target.value)}
-                    className="form-input text-xs font-mono w-full"
+                    className="form-input"
+                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                     placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   onClick={applyQuickPaths}
-                  className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-6 py-2 rounded text-xs transition font-bold flex items-center justify-center gap-1.5"
+                  style={{
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
                 >
                   <RefreshCw size={13} /> Tạo nhanh cả 2 thư mục theo Ngày GD
                 </button>
@@ -610,121 +624,117 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             </div>
 
             {/* Target Folder Inputs */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1">
-                  Thư mục M-System (Chứa DSGD, TTM, TTTT) <span className="text-red-400">*</span>
+                <label style={labelStyle}>
+                  Thư mục M-System (Chứa DSGD, TTM, TTTT) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
                   value={folderPathMs || ''}
                   onChange={(e) => setFolderPathMs(e.target.value)}
-                  className="form-input text-xs font-mono w-full"
+                  className="form-input"
+                  style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                   placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T07.2026\16.07"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1">
-                  Thư mục CQG (Chứa FR, OP, PS) <span className="text-red-400">*</span>
+                <label style={labelStyle}>
+                  Thư mục CQG (Chứa FR, OP, PS) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
                   value={folderPathCqg || ''}
                   onChange={(e) => setFolderPathCqg(e.target.value)}
-                  className="form-input text-xs font-mono w-full"
+                  className="form-input"
+                  style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                   placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\2026\T07.2026\16.07"
                 />
               </div>
             </div>
 
             {/* Cumulative Update Panel */}
-            <div className="border-t border-zinc-850 pt-4 mt-2">
-              <label className="flex items-center gap-2 cursor-pointer mb-3 select-none">
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '12px', userSelect: 'none' }}>
                 <input
                   type="checkbox"
                   checked={updateCumulative}
                   onChange={(e) => setUpdateCumulative(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20"
+                  style={{ accentColor: '#10b981' }}
                 />
-                <span className="text-xs font-bold text-white">Cập nhật dữ liệu lũy kế năm</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cập nhật dữ liệu lũy kế năm</span>
               </label>
 
               {updateCumulative && (
-                <div className="bg-zinc-950/20 border border-zinc-850/60 p-4 rounded-lg flex flex-col gap-4 animate-fade-in">
-                  <h6 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5 mb-1">
-                    <FileSpreadsheet size={13} className="text-emerald-500" />
+                <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h6 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <FileSpreadsheet size={13} color="#10b981" />
                     Đường dẫn 6 file Excel lũy kế năm
                   </h6>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        File DSGD lũy kế tháng
-                      </label>
+                      <label style={labelStyle}>File DSGD lũy kế tháng</label>
                       <input
                         type="text"
                         value={pathDsgdCumulative || ''}
                         onChange={(e) => setPathDsgdCumulative(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Backup MS\Futures\2026\DSGD T07.2026.xlsx"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        Tracker Standard Futures
-                      </label>
+                      <label style={labelStyle}>Tracker Standard Futures</label>
                       <input
                         type="text"
                         value={pathNormal || ''}
                         onChange={(e) => setPathNormal(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Thong ke so lot giao dich 2026 2.xlsx"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        Tracker ACM
-                      </label>
+                      <label style={labelStyle}>Tracker ACM</label>
                       <input
                         type="text"
                         value={pathAcm || ''}
                         onChange={(e) => setPathAcm(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Thong ke so lot giao dich ACM 2026 2.xlsx"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        Tracker LME
-                      </label>
+                      <label style={labelStyle}>Tracker LME</label>
                       <input
                         type="text"
                         value={pathLme || ''}
                         onChange={(e) => setPathLme(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Thong ke so lot giao dich LME 2026.xlsx"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        Tracker Options
-                      </label>
+                      <label style={labelStyle}>Tracker Options</label>
                       <input
                         type="text"
                         value={pathOptions || ''}
                         onChange={(e) => setPathOptions(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Thong ke so lot giao dich Options 2026.xlsx"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                        Tracker Spread
-                      </label>
+                      <label style={labelStyle}>Tracker Spread</label>
                       <input
                         type="text"
                         value={pathSpread || ''}
                         onChange={(e) => setPathSpread(e.target.value)}
-                        className="form-input text-xs font-mono w-full text-zinc-300 bg-zinc-900/50 border-zinc-800"
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                         placeholder="M:\...\Thong ke so lot giao dich Spread 2026.xlsx"
                       />
                     </div>
@@ -733,19 +743,18 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
               )}
             </div>
 
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center border-t border-zinc-850 pt-3 mt-1 gap-3">
-              <p className="text-[11px] text-zinc-500 flex items-start gap-1.5 leading-normal max-w-2/3">
-                <Info size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                <span>
-                  Hệ thống sẽ quét độc lập thư mục MS (đọc DSGD, TTM, TTTT) và thư mục CQG (đọc FR, OP, PS) để tự động nạp dữ liệu.
-                </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '14px', flexWrap: 'wrap', gap: '12px' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                <Info size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                <span>Hệ thống sẽ quét độc lập thư mục MS (đọc DSGD, TTM, TTTT) và thư mục CQG (đọc FR, OP, PS) để tự động nạp dữ liệu.</span>
               </p>
               
               <button
                 type="button"
                 onClick={handleSaveConfig}
                 disabled={savingConfig}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-5 py-2 rounded text-xs transition font-semibold flex items-center gap-1.5 flex-shrink-0"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.75rem', padding: '8px 16px' }}
               >
                 <RefreshCw size={12} className={savingConfig ? 'animate-spin' : ''} />
                 Lưu cấu hình mặc định
@@ -753,7 +762,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
             {renderFileZone('fileDsgd', 'File M-System DSGD (DSGD.xlsx)', true)}
             {renderFileZone('fileFr', 'File CQG FR (FR.xlsx)', true)}
             {renderFileZone('fileTtm', 'File M-System TTM (TTM.xlsx)')}
@@ -763,12 +772,13 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           </div>
         )}
 
-        <div className="flex justify-end gap-3 mt-4 border-t border-zinc-800/80 pt-4">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
           {runMode === 'upload' && (
             <button
               type="button"
               onClick={() => setFiles({})}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-4 py-2 rounded text-xs transition font-semibold"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '8px 16px' }}
             >
               Reset Files
             </button>
@@ -782,7 +792,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
-            className="btn btn-secondary px-5 py-2 flex items-center gap-1.5 text-xs font-bold"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700 }}
           >
             <Download size={14} className={downloading ? 'animate-bounce' : ''} />
             {downloading ? 'Đang xuất Excel...' : 'Tải Excel Báo cáo'}
@@ -796,7 +807,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
-            className="btn btn-primary px-6 py-2 flex items-center gap-1.5 text-xs font-bold"
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem', padding: '8px 22px', fontWeight: 700 }}
           >
             <Play size={14} className={loading ? 'animate-spin' : ''} />
             {loading ? 'Đang đối chiếu...' : 'Chạy kiểm thử trực tuyến'}
@@ -806,71 +818,52 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
       {/* Results View */}
       {result && (
-        <div className="flex flex-col gap-4 animate-fade-in">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
           {/* Tabs bar */}
-          <div className="flex gap-2 border-b border-zinc-800 pb-1 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setResultTab('summary')}
-              className={`px-4 py-2 text-xs font-bold rounded-t-md transition ${
-                resultTab === 'summary'
-                  ? 'bg-zinc-800 text-white border-b-2 border-emerald-500'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              📊 Bảng tổng hợp số lot
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultTab('validations')}
-              className={`px-4 py-2 text-xs font-bold rounded-t-md transition ${
-                resultTab === 'validations'
-                  ? 'bg-zinc-800 text-white border-b-2 border-emerald-500'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              🔎 Kiểm tra đối chiếu validations ({result.validations?.length ?? 0})
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultTab('product')}
-              className={`px-4 py-2 text-xs font-bold rounded-t-md transition ${
-                resultTab === 'product'
-                  ? 'bg-zinc-800 text-white border-b-2 border-emerald-500'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              📦 Chi tiết theo sản phẩm ({result.byProduct?.length ?? 0})
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultTab('tvkd')}
-              className={`px-4 py-2 text-xs font-bold rounded-t-md transition ${
-                resultTab === 'tvkd'
-                  ? 'bg-zinc-800 text-white border-b-2 border-emerald-500'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              🏢 Chi tiết theo TVKD ({result.byTvkd?.length ?? 0})
-            </button>
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'summary', label: '📊 Bảng tổng hợp số lot' },
+              { id: 'validations', label: `🔎 Kiểm tra đối chiếu validations (${result.validations?.length ?? 0})` },
+              { id: 'product', label: `📦 Chi tiết theo sản phẩm (${result.byProduct?.length ?? 0})` },
+              { id: 'tvkd', label: `🏢 Chi tiết theo TVKD (${result.byTvkd?.length ?? 0})` },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setResultTab(t.id as any)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  borderRadius: '6px 6px 0 0',
+                  border: 'none',
+                  borderBottom: resultTab === t.id ? '2px solid #10b981' : '2px solid transparent',
+                  color: resultTab === t.id ? '#10b981' : 'var(--text-secondary)',
+                  backgroundColor: resultTab === t.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
           {/* Result content */}
           {resultTab === 'summary' && (
-            <div className="glass-panel p-6 flex flex-col gap-4">
-              <h5 className="text-sm font-bold text-white mb-2">📊 Bảng đối chiếu số lot giữa các báo cáo</h5>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng đối chiếu số lot giữa các báo cáo</h5>
               
-              <div className="overflow-x-auto border border-zinc-800 rounded-lg">
-                <table className="w-full text-left text-xs border-collapse">
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="bg-zinc-900/50 border-b border-zinc-850 text-zinc-400 font-bold">
-                      <th className="p-2.5">Loại phân loại lot</th>
-                      <th className="p-2.5 text-right text-sky-400">DSGD (M-System)</th>
-                      <th className="p-2.5 text-right text-indigo-400">FR (CQG)</th>
-                      <th className="p-2.5 text-right">TTTT</th>
-                      <th className="p-2.5 text-right">TTM</th>
-                      <th className="p-2.5 text-right">OP</th>
-                      <th className="p-2.5 text-right">PS</th>
+                    <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                      <th style={{ padding: '10px 12px' }}>Loại phân loại lot</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>DSGD (M-System)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#6366f1' }}>FR (CQG)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>TTTT</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>TTM</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>OP</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>PS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -915,44 +908,49 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
               </div>
 
               {/* ACM summary */}
-              <div className="bg-zinc-950/50 border border-zinc-900 p-4 rounded-lg flex items-center justify-between flex-wrap gap-4 mt-2">
+              <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
-                  <p className="text-xs font-bold text-white">Tổng số lot tự doanh ACM (Tài khoản -A)</p>
-                  <p className="text-[10px] text-zinc-500">Được trích lọc tự động từ danh sách tài khoản ACM.</p>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>Tổng số lot tự doanh ACM (Tài khoản -A)</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>Được trích lọc tự động từ danh sách tài khoản ACM.</p>
                 </div>
-                <p className="text-lg font-mono font-extrabold text-emerald-400">
-                  {result.summary.acmLot?.toLocaleString() ?? 0} <span className="text-xs font-sans text-zinc-500 font-semibold">lot</span>
+                <p style={{ fontSize: '1.2rem', fontFamily: 'monospace', fontWeight: 800, color: '#10b981', margin: 0 }}>
+                  {result.summary.acmLot?.toLocaleString() ?? 0} <span style={{ fontSize: '0.75rem', fontFamily: 'sans-serif', color: 'var(--text-muted)' }}>lot</span>
                 </p>
               </div>
             </div>
           )}
 
           {resultTab === 'validations' && (
-            <div className="glass-panel p-6 flex flex-col gap-4">
-              <h5 className="text-sm font-bold text-white mb-2">🔎 Kết quả kiểm tra đối chiếu (Validations)</h5>
-              <div className="flex flex-col gap-3">
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🔎 Kết quả kiểm tra đối chiếu (Validations)</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {result.validations?.map((item: any, i: number) => (
                   <div
                     key={i}
-                    className={`flex items-start gap-3 p-3 rounded-lg border text-xs font-medium ${
-                      item.passed
-                        ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
-                        : 'bg-red-500/5 border-red-500/20 text-red-400'
-                    }`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      border: item.passed ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                      backgroundColor: item.passed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                      fontSize: '0.75rem',
+                    }}
                   >
                     {item.passed ? (
-                      <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5 text-emerald-400" />
+                      <CheckCircle2 size={16} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
                     ) : (
-                      <AlertTriangle size={16} className="flex-shrink-0 mt-0.5 text-red-400" />
+                      <AlertTriangle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
                     )}
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center flex-wrap gap-2">
-                        <strong className="font-bold uppercase text-[11px] tracking-wider text-zinc-300">{item.field}</strong>
-                        <span className="font-mono text-zinc-400">
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <strong style={{ fontWeight: 800, textTransform: 'uppercase', color: item.passed ? '#10b981' : '#ef4444' }}>{item.field}</strong>
+                        <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
                           Kỳ vọng: {item.expected} | Thực tế: {item.actual}
                         </span>
                       </div>
-                      <p className="text-zinc-400 mt-1 text-[11px] font-sans">{item.message}</p>
+                      <p style={{ color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>{item.message}</p>
                     </div>
                   </div>
                 ))}
@@ -961,35 +959,35 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           )}
 
           {resultTab === 'product' && (
-            <div className="glass-panel p-6 flex flex-col gap-4">
-              <h5 className="text-sm font-bold text-white mb-2">📦 Thống kê chi tiết theo Mã Sản Phẩm</h5>
-              <div className="overflow-x-auto border border-zinc-800 rounded-lg max-h-[450px]">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-zinc-900/60 sticky top-0 border-b border-zinc-800 z-10">
-                    <tr className="text-zinc-400 font-bold">
-                      <th className="p-2.5">Mã Sản phẩm</th>
-                      <th className="p-2.5 text-right">Tổng DSGD</th>
-                      <th className="p-2.5 text-right">Spread DSGD</th>
-                      <th className="p-2.5 text-right">LME DSGD</th>
-                      <th className="p-2.5 text-right font-bold text-sky-400">Product DSGD</th>
-                      <th className="p-2.5 text-right">Tổng FR</th>
-                      <th className="p-2.5 text-right font-bold text-indigo-400">Product FR</th>
-                      <th className="p-2.5 text-right text-red-400">Lệch Product</th>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📦 Thống kê chi tiết theo Mã Sản Phẩm</h5>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px', maxHeight: '450px' }}>
+                <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                      <th style={{ padding: '10px 12px' }}>Mã Sản phẩm</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Spread DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>LME DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Product DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng FR</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#6366f1' }}>Product FR</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>Lệch Product</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.byProduct?.map((item: any, i: number) => {
                       const diff = (item.dsgdProduct ?? 0) - (item.frProduct ?? 0);
                       return (
-                        <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-900/10 font-mono">
-                          <td className="p-2.5 font-sans font-bold text-white text-left">{item.productCode}</td>
-                          <td className="p-2.5 text-right text-zinc-400">{(item.dsgdTotal ?? 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-right text-zinc-500">{(item.dsgdSpread ?? 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-right text-zinc-500">{(item.dsgdLme ?? 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-right font-bold text-sky-400">{(item.dsgdProduct ?? 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-right text-zinc-400">{(item.frTotal ?? 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-right font-bold text-indigo-400">{(item.frProduct ?? 0).toLocaleString()}</td>
-                          <td className={`p-2.5 text-right font-bold ${diff !== 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
+                          <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.productCode}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.dsgdTotal ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdSpread ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdLme ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>{(item.dsgdProduct ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.frTotal ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{(item.frProduct ?? 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: diff !== 0 ? '#ef4444' : 'var(--text-muted)' }}>
                             {diff.toLocaleString()}
                           </td>
                         </tr>
@@ -1002,33 +1000,33 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           )}
 
           {resultTab === 'tvkd' && (
-            <div className="glass-panel p-6 flex flex-col gap-4">
-              <h5 className="text-sm font-bold text-white mb-2">🏢 Thống kê chi tiết theo TVKD</h5>
-              <div className="overflow-x-auto border border-zinc-800 rounded-lg max-h-[450px]">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-zinc-900/60 sticky top-0 border-b border-zinc-800 z-10">
-                    <tr className="text-zinc-400 font-bold font-sans">
-                      <th className="p-2.5">Mã TVKD</th>
-                      <th className="p-2.5">Tên Thành Viên</th>
-                      <th className="p-2.5 text-right">Tổng DSGD</th>
-                      <th className="p-2.5 text-right">Spread DSGD</th>
-                      <th className="p-2.5 text-right">LME DSGD</th>
-                      <th className="p-2.5 text-right">Options DSGD</th>
-                      <th className="p-2.5 text-right font-bold text-sky-400">Product DSGD</th>
-                      <th className="p-2.5 text-right">ACM Lot (-A)</th>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🏢 Thống kê chi tiết theo TVKD</h5>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px', maxHeight: '450px' }}>
+                <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                      <th style={{ padding: '10px 12px' }}>Mã TVKD</th>
+                      <th style={{ padding: '10px 12px' }}>Tên Thành Viên</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Spread DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>LME DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Options DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Product DSGD</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981' }}>ACM Lot (-A)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.byTvkd?.map((item: any, i: number) => (
-                      <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-900/10 font-mono">
-                        <td className="p-2.5 font-sans font-bold text-emerald-400 text-left">{item.tvkdCode}</td>
-                        <td className="p-2.5 font-sans text-zinc-400 text-left truncate max-w-48">{item.tvkdName || 'N/A'}</td>
-                        <td className="p-2.5 text-right text-zinc-400">{(item.dsgdTotal ?? 0).toLocaleString()}</td>
-                        <td className="p-2.5 text-right text-zinc-500">{(item.dsgdSpread ?? 0).toLocaleString()}</td>
-                        <td className="p-2.5 text-right text-zinc-500">{(item.dsgdLme ?? 0).toLocaleString()}</td>
-                        <td className="p-2.5 text-right text-zinc-500">{(item.dsgdOptions ?? 0).toLocaleString()}</td>
-                        <td className="p-2.5 text-right font-bold text-sky-400">{(item.dsgdProduct ?? 0).toLocaleString()}</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-400">{(item.acmLot ?? 0).toLocaleString()}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
+                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: '#10b981' }}>{item.tvkdCode}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.tvkdName || 'N/A'}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.dsgdTotal ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdSpread ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdLme ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdOptions ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>{(item.dsgdProduct ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>{(item.acmLot ?? 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

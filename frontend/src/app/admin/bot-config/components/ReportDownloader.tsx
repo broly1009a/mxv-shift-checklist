@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Download,
-  CheckCircle,
   Play,
   FileText,
 } from 'lucide-react';
@@ -94,63 +93,72 @@ export default function ReportDownloader({
   };
 
   return (
-    <div className="glass-panel p-6 flex flex-col gap-6 animate-fade-in">
-      <div className="flex justify-between items-center border-b border-zinc-800 pb-4 flex-wrap gap-3">
+    <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', color: 'var(--text-primary)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h3 className="text-md font-bold text-white flex items-center gap-2">
-            <Download size={18} className="text-emerald-500" />
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <Download size={18} color="#10b981" />
             Yêu cầu tải báo cáo trực tiếp
           </h3>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
             Chọn các báo cáo cần thiết để ra lệnh cho Bot tự động đăng nhập sở tải về.
           </p>
         </div>
         <button
           type="button"
           onClick={handleSelectAllTargets}
-          className="btn btn-secondary text-xs px-3.5 py-1.5"
+          className="btn btn-secondary"
+          style={{ fontSize: '0.75rem', padding: '6px 14px' }}
         >
           {downloadTargets.length === REPORT_OPTIONS.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
         {REPORT_OPTIONS.map((option) => {
           const isSelected = downloadTargets.includes(option.id);
           return (
             <div
               key={option.id}
               onClick={() => handleTargetToggle(option.id)}
-              className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between gap-3 select-none ${
-                isSelected
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-white font-semibold'
-                  : 'bg-zinc-900/30 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-white'
-              }`}
+              style={{
+                padding: '12px',
+                borderRadius: '8px',
+                border: isSelected ? '1px solid #10b981' : '1px solid var(--border-color)',
+                backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                userSelect: 'none',
+              }}
             >
-              <div className="flex items-center gap-2">
-                <FileText size={14} className={isSelected ? 'text-emerald-400' : 'text-zinc-500'} />
-                <span className="text-xs leading-normal">{option.label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={14} color={isSelected ? '#10b981' : 'var(--text-muted)'} />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: isSelected ? 700 : 500 }}>{option.label}</span>
               </div>
               <input
                 type="checkbox"
                 checked={isSelected}
-                onChange={() => {}} // Controlled via parent div click
-                className="rounded border-zinc-850 text-emerald-500 focus:ring-emerald-500 bg-zinc-950/60"
+                onChange={() => {}}
+                style={{ accentColor: '#10b981' }}
               />
             </div>
           );
         })}
       </div>
 
-      <div className="flex justify-between items-center gap-4 mt-4 border-t border-zinc-800/60 pt-4 flex-wrap">
-        <span className="text-xs text-zinc-400">
-          Đang chọn <strong className="text-emerald-400">{downloadTargets.length}</strong> / {REPORT_OPTIONS.length} loại báo cáo
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          Đang chọn <strong style={{ color: '#10b981' }}>{downloadTargets.length}</strong> / {REPORT_OPTIONS.length} loại báo cáo
         </span>
         <button
           type="button"
           onClick={handleTriggerDownload}
           disabled={triggeringDownload || downloadTargets.length === 0}
-          className="btn btn-primary px-8 py-3 flex items-center gap-2 text-sm font-bold shadow-lg"
+          className="btn btn-primary"
+          style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', fontWeight: 700 }}
         >
           <Play size={16} />
           {triggeringDownload ? 'Đang gửi yêu cầu...' : 'Khởi chạy Bot tải báo cáo'}

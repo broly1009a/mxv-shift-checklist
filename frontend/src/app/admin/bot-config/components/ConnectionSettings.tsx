@@ -232,23 +232,17 @@ export default function ConnectionSettings({
     }
   };
 
-  // Test connection M-System
   const handleTestConnection = async () => {
     if (!token) return;
     setTestingConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập M-System...');
-
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thử nghiệm thất bại');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm thất bại');
       toast.success(data.message || 'Kết nối M-System thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
@@ -258,23 +252,17 @@ export default function ConnectionSettings({
     }
   };
 
-  // Test CQG connection
   const handleTestCqgConnection = async () => {
     if (!token) return;
     setTestingCqgConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CQG...');
-
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thử nghiệm CQG thất bại');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CQG thất bại');
       toast.success(data.message || 'Kết nối CQG thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
@@ -284,23 +272,17 @@ export default function ConnectionSettings({
     }
   };
 
-  // Test ACM connection
   const handleTestAcmConnection = async () => {
     if (!token) return;
     setTestingAcmConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập ACM...');
-
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-acm`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thử nghiệm ACM thất bại');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm ACM thất bại');
       toast.success(data.message || 'Kết nối ACM thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
@@ -310,23 +292,17 @@ export default function ConnectionSettings({
     }
   };
 
-  // Test CCP connection
   const handleTestCppConnection = async () => {
     if (!token) return;
     setTestingCppConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CCP...');
-
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-ccp`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thử nghiệm CCP thất bại');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CCP thất bại');
       toast.success(data.message || 'Kết nối CCP thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
@@ -336,23 +312,17 @@ export default function ConnectionSettings({
     }
   };
 
-  // Test CE connection
   const handleTestCeConnection = async () => {
     if (!token) return;
     setTestingCeConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CE...');
-
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-ce`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thử nghiệm CE thất bại');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CE thất bại');
       toast.success(data.message || 'Kết nối CE thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
@@ -364,8 +334,8 @@ export default function ConnectionSettings({
 
   if (loadingConfig) {
     return (
-      <div className="flex items-center justify-center p-12 text-zinc-400">
-        <Server className="animate-spin mr-3 text-emerald-500" size={24} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
+        <Server className="animate-spin" size={24} style={{ marginRight: '12px', color: 'var(--color-primary)' }} />
         <span>Đang tải thông tin cấu hình credentials...</span>
       </div>
     );
@@ -379,79 +349,79 @@ export default function ConnectionSettings({
     testingCeConnection ||
     savingConfig;
 
+  // Common Label Style
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '6px',
+  };
+
   return (
-    <div className="flex flex-col gap-8 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
       {/* Test Buttons Panel */}
-      <div className="glass-panel p-6 flex flex-wrap gap-4 items-center justify-between">
+      <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h3 className="text-lg font-bold text-white mb-1">Kiểm tra kết nối tức thì</h3>
-          <p className="text-xs text-zinc-400">Kích hoạt bot chạy headless để thử nghiệm đăng nhập trực tiếp.</p>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+            Kiểm tra kết nối tức thì
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+            Kích hoạt bot chạy headless để thử nghiệm đăng nhập trực tiếp.
+          </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={handleTestConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+          <button type="button" onClick={handleTestConnection} disabled={anyTesting} className="btn btn-secondary">
             <Play size={14} className={testingConnection ? 'animate-spin' : ''} />
             M-System
           </button>
-          <button
-            type="button"
-            onClick={handleTestCqgConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+          <button type="button" onClick={handleTestCqgConnection} disabled={anyTesting} className="btn btn-secondary">
             <Play size={14} className={testingCqgConnection ? 'animate-spin' : ''} />
             CQG Desktop
           </button>
-          <button
-            type="button"
-            onClick={handleTestAcmConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+          <button type="button" onClick={handleTestAcmConnection} disabled={anyTesting} className="btn btn-secondary">
             <Play size={14} className={testingAcmConnection ? 'animate-spin' : ''} />
             ACM
           </button>
-          <button
-            type="button"
-            onClick={handleTestCppConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+          <button type="button" onClick={handleTestCppConnection} disabled={anyTesting} className="btn btn-secondary">
             <Play size={14} className={testingCppConnection ? 'animate-spin' : ''} />
             CCP
           </button>
-          <button
-            type="button"
-            onClick={handleTestCeConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+          <button type="button" onClick={handleTestCeConnection} disabled={anyTesting} className="btn btn-secondary">
             <Play size={14} className={testingCeConnection ? 'animate-spin' : ''} />
             CE
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleSaveConfig} className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px' }}>
+          
           {/* M-System Config */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <h4 className="text-md font-bold text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-3">
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
               <Server size={18} />
               Cấu hình M-System
             </h4>
-            <div className="flex flex-col gap-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="text-xs font-semibold text-zinc-400 block mb-1">M-System URL</label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                <label style={labelStyle}>M-System URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
                     type="url"
-                    className="form-input pl-10"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
                     placeholder="https://msystem.mxv.vn/"
                     value={msystemUrl}
                     onChange={(e) => setMsystemUrl(e.target.value)}
@@ -459,9 +429,10 @@ export default function ConnectionSettings({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Username</label>
+                  <label style={labelStyle}>Username</label>
                   <input
                     type="text"
                     className="form-input"
@@ -472,11 +443,12 @@ export default function ConnectionSettings({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Mã PIN ảo</label>
-                  <div className="relative">
+                  <label style={labelStyle}>Mã PIN ảo</label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type={showMsystemPin ? 'text' : 'password'}
-                      className="form-input pr-10"
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
                       placeholder="Mã PIN..."
                       value={msystemPin}
                       onChange={(e) => setMsystemPin(e.target.value)}
@@ -485,20 +457,31 @@ export default function ConnectionSettings({
                     <button
                       type="button"
                       onClick={() => setShowMsystemPin(!showMsystemPin)}
-                      className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
                     >
                       {showMsystemPin ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-zinc-400 block mb-1">Mật khẩu</label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                <label style={labelStyle}>Mật khẩu</label>
+                <div style={{ position: 'relative' }}>
+                  <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
                     type={showMsystemPassword ? 'text' : 'password'}
-                    className="form-input pl-10 pr-10"
+                    className="form-input"
+                    style={{ paddingLeft: '38px', paddingRight: '38px' }}
                     placeholder="Mật khẩu..."
                     value={msystemPassword}
                     onChange={(e) => setMsystemPassword(e.target.value)}
@@ -507,7 +490,16 @@ export default function ConnectionSettings({
                   <button
                     type="button"
                     onClick={() => setShowMsystemPassword(!showMsystemPassword)}
-                    className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
                   >
                     {showMsystemPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -517,19 +509,30 @@ export default function ConnectionSettings({
           </div>
 
           {/* CQG Desktop Config */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <h4 className="text-md font-bold text-amber-400 flex items-center gap-2 border-b border-zinc-800 pb-3">
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
               <Cpu size={18} />
               Cấu hình CQG Desktop
             </h4>
-            <div className="flex flex-col gap-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="text-xs font-semibold text-zinc-400 block mb-1">CQG Desktop URL</label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                <label style={labelStyle}>CQG Desktop URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
                     type="url"
-                    className="form-input pl-10"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
                     placeholder="https://m.cqg.com/..."
                     value={cqgUrl}
                     onChange={(e) => setCqgUrl(e.target.value)}
@@ -537,9 +540,10 @@ export default function ConnectionSettings({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Username</label>
+                  <label style={labelStyle}>Username</label>
                   <input
                     type="text"
                     className="form-input"
@@ -550,11 +554,12 @@ export default function ConnectionSettings({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Mật khẩu</label>
-                  <div className="relative">
+                  <label style={labelStyle}>Mật khẩu</label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type={showCqgPassword ? 'text' : 'password'}
-                      className="form-input pr-10"
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
                       placeholder="CQG Password..."
                       value={cqgPassword}
                       onChange={(e) => setCqgPassword(e.target.value)}
@@ -563,7 +568,16 @@ export default function ConnectionSettings({
                     <button
                       type="button"
                       onClick={() => setShowCqgPassword(!showCqgPassword)}
-                      className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
                     >
                       {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -573,381 +587,304 @@ export default function ConnectionSettings({
             </div>
           </div>
 
-          {/* ACM Config */}
-          <div className="glass-panel p-6 flex flex-col gap-4 md:col-span-2">
-            <h4 className="text-md font-bold text-sky-400 flex items-center gap-2 border-b border-zinc-800 pb-3">
-              <Server size={18} />
-              Cấu hình Cổng ACM & WinSCP SFTP
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <span className="text-xs font-bold text-zinc-300 border-l-2 border-sky-400 pl-2">ACM Web Login</span>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">ACM URL</label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16} />
-                    <input
-                      type="url"
-                      className="form-input pl-10"
-                      placeholder="https://acm.member-url.vn/login"
-                      value={acmUrl}
-                      onChange={(e) => setAcmUrl(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">Username</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Tên đăng nhập..."
-                      value={acmUsername}
-                      onChange={(e) => setAcmUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">Mật khẩu</label>
-                    <div className="relative">
-                      <input
-                        type={showAcmPassword ? 'text' : 'password'}
-                        className="form-input pr-10"
-                        placeholder="Mật khẩu..."
-                        value={acmPassword}
-                        onChange={(e) => setAcmPassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAcmPassword(!showAcmPassword)}
-                        className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
-                      >
-                        {showAcmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">API Key giải Captcha (Gemini API)</label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-3.5 text-zinc-500" size={16} />
-                    <input
-                      type={showAcmGeminiApiKey ? 'text' : 'password'}
-                      className="form-input pl-10 pr-10"
-                      placeholder="Gemini API Key..."
-                      value={acmGeminiApiKey}
-                      onChange={(e) => setAcmGeminiApiKey(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
-                      className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
-                    >
-                      {showAcmGeminiApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">Download URL Path</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="/acm/report/download"
-                      value={acmDownloadUrl}
-                      onChange={(e) => setAcmDownloadUrl(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">Button Selector</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="#btnExportExcel"
-                      value={acmDownloadBtnSelector}
-                      onChange={(e) => setAcmDownloadBtnSelector(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
+        </div>
 
-              <div className="flex flex-col gap-3">
-                <span className="text-xs font-bold text-zinc-300 border-l-2 border-emerald-400 pl-2">SFTP Sync Configuration</span>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">SFTP Host</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="sftp.mxv.com.vn"
-                      value={acmSftpHost}
-                      onChange={(e) => setAcmSftpHost(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">Port</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="2231"
-                      value={acmSftpPort}
-                      onChange={(e) => setAcmSftpPort(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">SFTP Username</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="SFTP User..."
-                      value={acmSftpUsername}
-                      onChange={(e) => setAcmSftpUsername(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 block mb-1">SFTP Password</label>
-                    <div className="relative">
-                      <input
-                        type={showAcmSftpPassword ? 'text' : 'password'}
-                        className="form-input pr-10"
-                        placeholder="SFTP Password..."
-                        value={acmSftpPassword}
-                        onChange={(e) => setAcmSftpPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAcmSftpPassword(!showAcmSftpPassword)}
-                        className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
-                      >
-                        {showAcmSftpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Remote Directory Path</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="/data/"
-                    value={acmSftpRemoteDir}
-                    onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CAST Config */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <h4 className="text-md font-bold text-orange-400 flex items-center gap-2 border-b border-zinc-800 pb-3">
-              <Globe size={18} />
-              CQG CAST Config
-            </h4>
-            <div className="flex flex-col gap-3">
+        {/* ACM Config */}
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <h4 style={{
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: '#38bdf8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '12px',
+            margin: 0,
+          }}>
+            <Server size={18} />
+            Cấu hình Cổng ACM & WinSCP SFTP
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', borderLeft: '3px solid #38bdf8', paddingLeft: '8px' }}>
+                ACM Web Login
+              </span>
               <div>
-                <label className="text-xs font-semibold text-zinc-400 block mb-1">CAST URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://www.cqgtrader.com/CAST/..."
-                  value={castUrl}
-                  onChange={(e) => setCastUrl(e.target.value)}
-                />
+                <label style={labelStyle}>ACM URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="url"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
+                    placeholder="https://acm.member-url.vn/login"
+                    value={acmUrl}
+                    onChange={(e) => setAcmUrl(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Username</label>
+                  <label style={labelStyle}>Username</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="CAST Username..."
-                    value={castUsername}
-                    onChange={(e) => setCastUsername(e.target.value)}
+                    placeholder="Tên đăng nhập..."
+                    value={acmUsername}
+                    onChange={(e) => setAcmUsername(e.target.value)}
+                    required
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-400 block mb-1">Mật khẩu</label>
-                  <div className="relative">
+                  <label style={labelStyle}>Mật khẩu</label>
+                  <div style={{ position: 'relative' }}>
                     <input
-                      type={showCastPassword ? 'text' : 'password'}
-                      className="form-input pr-10"
-                      placeholder="CAST Password..."
-                      value={castPassword}
-                      onChange={(e) => setCastPassword(e.target.value)}
+                      type={showAcmPassword ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
+                      placeholder="Mật khẩu..."
+                      value={acmPassword}
+                      onChange={(e) => setAcmPassword(e.target.value)}
+                      required
                     />
                     <button
                       type="button"
-                      onClick={() => setShowCastPassword(!showCastPassword)}
-                      className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
+                      onClick={() => setShowAcmPassword(!showAcmPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
                     >
-                      {showCastPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showAcmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* CPP & CE Config */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <h4 className="text-md font-bold text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-3">
-              <Settings size={18} />
-              Hệ thống CPP & CE
-            </h4>
-            <div className="flex flex-col gap-4">
-              {/* CPP */}
-              <div className="border-b border-zinc-800/40 pb-3 flex flex-col gap-2">
-                <span className="text-xs font-bold text-violet-300">CPP (MM / CPP Check)</span>
-                <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label style={labelStyle}>API Key giải Captcha (Gemini API)</label>
+                <div style={{ position: 'relative' }}>
+                  <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
-                    type="url"
-                    className="form-input col-span-2 text-xs"
-                    placeholder="URL CPP..."
-                    value={cppUrl}
-                    onChange={(e) => setCppUrl(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    className="form-input text-xs"
-                    placeholder="User CPP..."
-                    value={cppUsername}
-                    onChange={(e) => setCppUsername(e.target.value)}
-                  />
-                </div>
-                <div className="relative">
-                  <input
-                    type={showCppPassword ? 'text' : 'password'}
-                    className="form-input pr-10 text-xs"
-                    placeholder="Mật khẩu CPP..."
-                    value={cppPassword}
-                    onChange={(e) => setCppPassword(e.target.value)}
+                    type={showAcmGeminiApiKey ? 'text' : 'password'}
+                    className="form-input"
+                    style={{ paddingLeft: '38px', paddingRight: '38px' }}
+                    placeholder="Gemini API Key..."
+                    value={acmGeminiApiKey}
+                    onChange={(e) => setAcmGeminiApiKey(e.target.value)}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowCppPassword(!showCppPassword)}
-                    className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
+                    onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
                   >
-                    {showCppPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {showAcmGeminiApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* CE */}
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-cyan-300">CE (CE / EOD Check)</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="url"
-                    className="form-input col-span-2 text-xs"
-                    placeholder="URL CE..."
-                    value={ceUrl}
-                    onChange={(e) => setCeUrl(e.target.value)}
-                  />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', borderLeft: '3px solid #10b981', paddingLeft: '8px' }}>
+                SFTP Sync Configuration
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>SFTP Host</label>
                   <input
                     type="text"
-                    className="form-input text-xs"
-                    placeholder="User CE..."
-                    value={ceUsername}
-                    onChange={(e) => setCeUsername(e.target.value)}
+                    className="form-input"
+                    placeholder="sftp.mxv.com.vn"
+                    value={acmSftpHost}
+                    onChange={(e) => setAcmSftpHost(e.target.value)}
                   />
                 </div>
-                <div className="relative">
+                <div>
+                  <label style={labelStyle}>Port</label>
                   <input
-                    type={showCePassword ? 'text' : 'password'}
-                    className="form-input pr-10 text-xs"
-                    placeholder="Mật khẩu CE..."
-                    value={cePassword}
-                    onChange={(e) => setCePassword(e.target.value)}
+                    type="text"
+                    className="form-input"
+                    placeholder="2231"
+                    value={acmSftpPort}
+                    onChange={(e) => setAcmSftpPort(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowCePassword(!showCePassword)}
-                    className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"
-                  >
-                    {showCePassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
                 </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>SFTP Username</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="SFTP User..."
+                    value={acmSftpUsername}
+                    onChange={(e) => setAcmSftpUsername(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>SFTP Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showAcmSftpPassword ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
+                      placeholder="SFTP Password..."
+                      value={acmSftpPassword}
+                      onChange={(e) => setAcmSftpPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAcmSftpPassword(!showAcmSftpPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showAcmSftpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Remote Directory Path</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="/data/"
+                  value={acmSftpRemoteDir}
+                  onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
+                />
               </div>
             </div>
           </div>
         </div>
 
         {/* System Parameters Panel */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Settings size={18} className="text-emerald-500" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <h4 style={{
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '12px',
+            margin: 0,
+          }}>
+            <Settings size={18} style={{ color: '#10b981' }} />
             Tham số hệ thống & Phiên giao dịch
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
             <div>
-              <label className="text-xs font-semibold text-zinc-400 block mb-1">
-                Giờ bắt đầu phiên mặc định
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-3 text-zinc-500" size={16} />
+              <label style={labelStyle}>Giờ bắt đầu phiên mặc định</label>
+              <div style={{ position: 'relative' }}>
+                <Clock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="time"
-                  className="form-input pl-10 text-xs py-2"
+                  className="form-input"
+                  style={{ paddingLeft: '38px' }}
                   value={sessionStartTime}
                   onChange={(e) => setSessionStartTime(e.target.value)}
                   required
                 />
               </div>
-              <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
-                Mốc phân chia phiên giao dịch mặc định. Được áp dụng tự động cho Bot chạy trong nền và màn hình checklist khi mở ca.
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '6px 0 0 0', lineHeight: 1.5 }}>
+                Mốc phân chia phiên giao dịch mặc định. Được áp dụng tự động cho Bot chạy trong nền và màn hình checklist.
               </p>
             </div>
             
             <div>
-              <label className="text-xs font-semibold text-zinc-400 block mb-1">
-                Tỷ giá quy đổi USD/VND mặc định
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-zinc-500 text-xs font-bold font-mono">VND</span>
+              <label style={labelStyle}>Tỷ giá quy đổi USD/VND mặc định</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>VND</span>
                 <input
                   type="number"
-                  className="form-input pl-12 text-xs py-2"
+                  className="form-input"
+                  style={{ paddingLeft: '46px' }}
                   value={usdExchangeRate}
                   onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
                   required
                 />
               </div>
-              <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
-                Tỷ giá quy đổi được sử dụng cho tính toán chênh lệch số dư tài khoản CQG (Balance Reconciliation) nếu không đồng bộ được từ M-System.
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '6px 0 0 0', lineHeight: 1.5 }}>
+                Tỷ giá quy đổi dùng cho tính toán chênh lệch số dư tài khoản CQG (Balance Reconciliation).
               </p>
             </div>
           </div>
         </div>
 
         {/* Scheduler config panel */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Clock size={18} className="text-emerald-500" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <h4 style={{
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '12px',
+            margin: 0,
+          }}>
+            <Clock size={18} style={{ color: '#10b981' }} />
             Lập lịch chạy tự động (Scheduler)
           </h4>
-          <div className="flex flex-col gap-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {schedulerConfig.map((task, idx) => (
               <div
                 key={task.id || idx}
-                className="flex items-center justify-between bg-zinc-900/30 border border-zinc-800 p-4 rounded-lg flex-wrap gap-3 hover:border-zinc-700 transition"
+                style={{
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  padding: '14px 18px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
               >
                 <div>
-                  <h5 className="text-sm font-bold text-white">{task.name}</h5>
-                  <span className="text-xs text-zinc-500">
-                    Job Type: <code className="text-emerald-400">{task.jobType}</code>
+                  <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{task.name}</h5>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Job Type: <code style={{ color: '#10b981', fontFamily: 'monospace' }}>{task.jobType}</code>
                   </span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400">Giờ chạy:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Giờ chạy:</span>
                     <input
                       type="time"
-                      className="form-input py-1.5 px-3 text-xs w-28"
+                      className="form-input"
+                      style={{ padding: '6px 10px', fontSize: '0.75rem', width: '110px' }}
                       value={task.time}
                       onChange={(e) => {
                         const updated = [...schedulerConfig];
@@ -956,7 +893,7 @@ export default function ConnectionSettings({
                       }}
                     />
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-primary)' }}>
                     <input
                       type="checkbox"
                       checked={task.enabled}
@@ -965,7 +902,7 @@ export default function ConnectionSettings({
                         updated[idx] = { ...updated[idx], enabled: e.target.checked };
                         setSchedulerConfig(updated);
                       }}
-                      className="rounded border-zinc-800 text-emerald-500 focus:ring-emerald-500 bg-zinc-950"
+                      style={{ accentColor: '#10b981' }}
                     />
                     Kích hoạt
                   </label>
@@ -973,17 +910,18 @@ export default function ConnectionSettings({
               </div>
             ))}
             {schedulerConfig.length === 0 && (
-              <p className="text-center text-xs text-zinc-500 py-4">Không tìm thấy cấu hình lập lịch.</p>
+              <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', padding: '16px 0' }}>Không tìm thấy cấu hình lập lịch.</p>
             )}
           </div>
         </div>
 
         {/* Submit Save config button */}
-        <div className="flex justify-end mt-4">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
           <button
             type="submit"
             disabled={anyTesting}
-            className="btn btn-primary py-3 px-8 flex items-center gap-2 text-sm font-bold shadow-lg"
+            className="btn btn-primary"
+            style={{ padding: '12px 28px', fontSize: '0.85rem', fontWeight: 700 }}
           >
             <Save size={16} />
             Lưu tất cả cấu hình credentials & lập lịch

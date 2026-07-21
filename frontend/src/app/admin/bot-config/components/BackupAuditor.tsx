@@ -8,9 +8,7 @@ import {
   Cpu,
   Save,
   BarChart2,
-  FileText,
   Download,
-  AlertTriangle,
   FolderOpen,
   Play,
 } from 'lucide-react';
@@ -44,7 +42,6 @@ export default function BackupAuditor({
 
   // Backup ACM states
   const [backupPathAcm, setBackupPathAcm] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures');
-  const [savingBackupPathAcm, setSavingBackupPathAcm] = useState(false);
   const [auditingAcm, setAuditingAcm] = useState(false);
   const [auditAcmResults, setAuditAcmResults] = useState<any>(null);
   const [triggeringAuditAcm, setTriggeringAuditAcm] = useState(false);
@@ -493,38 +490,48 @@ export default function BackupAuditor({
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '6px',
+    display: 'block',
+  };
+
   return (
-    <div className="flex flex-col gap-8 animate-fade-in text-zinc-300">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', color: 'var(--text-primary)' }} className="animate-fade-in">
       {/* 1. Backup MS Audit */}
-      <div className="glass-panel p-6 flex flex-col gap-4">
-        <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-          <Settings size={18} className="text-emerald-500" />
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0 }}>
+          <Settings size={18} color="#10b981" />
           Kiểm tra & Đồng bộ File Backup MS
         </h4>
-        <form onSubmit={handleSaveBackupMsConfig} className="flex gap-3 items-end flex-wrap">
-          <div className="flex-1 min-w-[280px]">
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">
+        <form onSubmit={handleSaveBackupMsConfig} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '280px' }}>
+            <label style={labelStyle}>
               Đường dẫn thư mục backup MS của IT Tool
             </label>
             <input
               type="text"
               className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
               value={backupPathMs}
               onChange={(e) => setBackupPathMs(e.target.value)}
               required
             />
           </div>
-          <button type="submit" disabled={savingBackupPathMs} className="btn btn-secondary py-2.5 px-4 text-xs font-semibold whitespace-nowrap">
+          <button type="submit" disabled={savingBackupPathMs} className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 600, height: '36px' }}>
             {savingBackupPathMs ? 'Đang lưu...' : 'Lưu đường dẫn'}
           </button>
         </form>
 
-        <div className="flex gap-3 flex-wrap">
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleAuditMsBackup}
             disabled={auditingMs || triggeringAuditMs}
-            className="btn btn-secondary flex items-center gap-2 text-xs"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <RefreshCw size={14} className={auditingMs ? 'animate-spin' : ''} />
             Quét thư mục backup MS
@@ -533,7 +540,8 @@ export default function BackupAuditor({
             type="button"
             onClick={handleTriggerAuditMs}
             disabled={auditingMs || triggeringAuditMs}
-            className="btn btn-primary flex items-center gap-2 text-xs font-bold"
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditMs ? 'animate-pulse' : ''} />
             🤖 Tải bổ sung file thiếu MS
@@ -545,35 +553,37 @@ export default function BackupAuditor({
       </div>
 
       {/* 2. Backup CQG Audit */}
-      <div className="glass-panel p-6 flex flex-col gap-4">
-        <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-          <Settings size={18} className="text-amber-500" />
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0 }}>
+          <Settings size={18} color="#f59e0b" />
           Kiểm tra & Đồng bộ File Backup CQG
         </h4>
-        <form onSubmit={handleSaveBackupCqgConfig} className="flex gap-3 items-end flex-wrap">
-          <div className="flex-1 min-w-[280px]">
-            <label className="text-xs font-semibold text-zinc-400 block mb-1">
+        <form onSubmit={handleSaveBackupCqgConfig} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '280px' }}>
+            <label style={labelStyle}>
               Đường dẫn thư mục backup CQG của IT Tool
             </label>
             <input
               type="text"
               className="form-input"
+              style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
               value={backupPathCqg}
               onChange={(e) => setBackupPathCqg(e.target.value)}
               required
             />
           </div>
-          <button type="submit" disabled={savingBackupPathCqg} className="btn btn-secondary py-2.5 px-4 text-xs font-semibold whitespace-nowrap">
+          <button type="submit" disabled={savingBackupPathCqg} className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 600, height: '36px' }}>
             {savingBackupPathCqg ? 'Đang lưu...' : 'Lưu đường dẫn'}
           </button>
         </form>
 
-        <div className="flex gap-3 flex-wrap">
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleAuditCqgBackup}
             disabled={auditingCqg || triggeringAuditCqg}
-            className="btn btn-secondary flex items-center gap-2 text-xs"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <RefreshCw size={14} className={auditingCqg ? 'animate-spin' : ''} />
             Quét thư mục backup CQG
@@ -582,7 +592,8 @@ export default function BackupAuditor({
             type="button"
             onClick={handleTriggerAuditCqg}
             disabled={auditingCqg || triggeringAuditCqg}
-            className="btn btn-primary flex items-center gap-2 text-xs font-bold"
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditCqg ? 'animate-pulse' : ''} />
             🤖 Ghép file backup CQG
@@ -594,32 +605,34 @@ export default function BackupAuditor({
       </div>
 
       {/* 3. Backup ACM Audit */}
-      <div className="glass-panel p-6 flex flex-col gap-4">
-        <h4 className="text-md font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-          <Settings size={18} className="text-sky-500" />
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0 }}>
+          <Settings size={18} color="#0284c7" />
           Kiểm tra & Đồng bộ File Backup ACM (Web & SFTP)
         </h4>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-zinc-400">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>
             Thư mục backup ACM (Tự động đồng bộ theo cấu hình Backup MS)
           </label>
           <input
             type="text"
-            className="form-input bg-zinc-950/65 text-zinc-500 cursor-not-allowed border-zinc-850"
+            className="form-input"
+            style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%', opacity: 0.7, cursor: 'not-allowed', backgroundColor: 'var(--bg-input)' }}
             value={backupPathAcm}
             disabled
           />
-          <span className="text-[10px] text-zinc-500">
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             * Thư mục ACM tự động được nhận diện song song với Futures của Backup MS.
           </span>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleAuditAcmBackup}
             disabled={auditingAcm || triggeringAuditAcm}
-            className="btn btn-secondary flex items-center gap-2 text-xs"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <RefreshCw size={14} className={auditingAcm ? 'animate-spin' : ''} />
             Quét thư mục backup ACM
@@ -628,7 +641,8 @@ export default function BackupAuditor({
             type="button"
             onClick={handleTriggerAuditAcm}
             disabled={auditingAcm || triggeringAuditAcm}
-            className="btn btn-primary flex items-center gap-2 text-xs font-bold"
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditAcm ? 'animate-pulse' : ''} />
             🤖 Đồng bộ Backup ACM
@@ -640,19 +654,20 @@ export default function BackupAuditor({
       </div>
 
       {/* 4. CQG CAST & Margin folder path */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
         {/* CAST */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-            <Download size={16} className="text-sky-400" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0 }}>
+            <Download size={16} color="#0284c7" />
             Báo cáo CQG CAST
           </h4>
-          <div className="flex flex-col gap-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Thư mục tải báo cáo CQG CAST</label>
+              <label style={labelStyle}>Thư mục tải báo cáo CQG CAST</label>
               <input
                 type="text"
-                className="form-input text-xs"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
                 value={backupPathCast}
                 onChange={(e) => setBackupPathCast(e.target.value)}
               />
@@ -661,7 +676,8 @@ export default function BackupAuditor({
               type="button"
               onClick={handleTriggerCastDownload}
               disabled={triggeringCastDownload}
-              className="btn btn-primary text-xs py-2 font-bold w-fit flex items-center gap-2"
+              className="btn btn-primary"
+              style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 700, width: 'fit-content', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
               <Cpu size={14} className={triggeringCastDownload ? 'animate-pulse' : ''} />
               Tải báo cáo CQG CAST
@@ -670,19 +686,20 @@ export default function BackupAuditor({
         </div>
 
         {/* Margin Decision */}
-        <div className="glass-panel p-6 flex flex-col gap-4 justify-between">
-          <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-            <FolderOpen size={16} className="text-emerald-400" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0 }}>
+            <FolderOpen size={16} color="#10b981" />
             Thư mục Quyết định Ký quỹ
           </h4>
-          <form onSubmit={handleSaveMarginPathConfig} className="flex flex-col gap-3">
+          <form onSubmit={handleSaveMarginPathConfig} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">
+              <label style={labelStyle}>
                 Đường dẫn chứa các file QĐ ban hành mức ký quỹ (.docx)
               </label>
               <input
                 type="text"
-                className="form-input text-xs"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
                 value={marginDecisionPath}
                 onChange={(e) => setMarginDecisionPath(e.target.value)}
                 required
@@ -691,7 +708,8 @@ export default function BackupAuditor({
             <button
               type="submit"
               disabled={savingMarginPath}
-              className="btn btn-primary text-xs py-2 px-4 font-bold w-fit flex items-center gap-2"
+              className="btn btn-primary"
+              style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 700, width: 'fit-content', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
               <Save size={14} />
               Lưu đường dẫn
@@ -701,43 +719,46 @@ export default function BackupAuditor({
       </div>
 
       {/* 5. Python Excel Macros */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
         {/* Macro Lot */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-            <BarChart2 size={16} className="text-sky-400" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0 }}>
+            <BarChart2 size={16} color="#0284c7" />
             Excel Macro Thống Kê Số Lot
           </h4>
-          <form onSubmit={handleSaveMacroLotConfig} className="flex flex-col gap-3">
+          <form onSubmit={handleSaveMacroLotConfig} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label className="text-xs text-zinc-400 block mb-0.5">Đường dẫn file Excel Macro (.xlsm)</label>
+              <label style={labelStyle}>Đường dẫn file Excel Macro (.xlsm)</label>
               <input
                 type="text"
-                className="form-input text-xs"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
                 value={macroLotPath}
                 onChange={(e) => setMacroLotPath(e.target.value)}
                 placeholder="C:\...\Macro thong ke so lot giao dich có ACM.xlsm"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-0.5">Script Python (.py) thực thi</label>
+              <label style={labelStyle}>Script Python (.py) thực thi</label>
               <input
                 type="text"
-                className="form-input text-xs font-mono"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                 value={macroLotScriptPath}
                 onChange={(e) => setMacroLotScriptPath(e.target.value)}
                 placeholder="C:\POC\scripts\run_lot_macro.py"
               />
             </div>
-            <div className="flex gap-2 justify-between mt-2 flex-wrap">
-              <button type="submit" disabled={savingMacroConfig} className="btn btn-secondary text-xs py-2 px-3">
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '8px', flexWrap: 'wrap' }}>
+              <button type="submit" disabled={savingMacroConfig} className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                 Lưu cấu hình Macro
               </button>
               <button
                 type="button"
                 onClick={handleTriggerLotMacro}
                 disabled={triggeringMacroLot}
-                className="btn btn-primary text-xs py-2 px-4 font-bold flex items-center gap-2"
+                className="btn btn-primary"
+                style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Play size={12} />
                 Chạy Script Macro Lot
@@ -747,41 +768,44 @@ export default function BackupAuditor({
         </div>
 
         {/* Macro Value */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-            <BarChart2 size={16} className="text-amber-400" />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0 }}>
+            <BarChart2 size={16} color="#f59e0b" />
             Excel Macro Giá Trị Giao Dịch
           </h4>
-          <form onSubmit={handleSaveMacroValueConfig} className="flex flex-col gap-3">
+          <form onSubmit={handleSaveMacroValueConfig} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label className="text-xs text-zinc-400 block mb-0.5">Đường dẫn file Excel Macro Giá Trị (.xlsm)</label>
+              <label style={labelStyle}>Đường dẫn file Excel Macro Giá Trị (.xlsm)</label>
               <input
                 type="text"
-                className="form-input text-xs"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', width: '100%' }}
                 value={macroValuePath}
                 onChange={(e) => setMacroValuePath(e.target.value)}
                 placeholder="C:\...\Macro thong ke gia tri giao dich.xlsm"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-0.5">Script Python (.py) thực thi</label>
+              <label style={labelStyle}>Script Python (.py) thực thi</label>
               <input
                 type="text"
-                className="form-input text-xs font-mono"
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
                 value={macroValueScriptPath}
                 onChange={(e) => setMacroValueScriptPath(e.target.value)}
                 placeholder="C:\POC\scripts\run_value_macro.py"
               />
             </div>
-            <div className="flex gap-2 justify-between mt-2 flex-wrap">
-              <button type="submit" disabled={savingValueMacroConfig} className="btn btn-secondary text-xs py-2 px-3">
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '8px', flexWrap: 'wrap' }}>
+              <button type="submit" disabled={savingValueMacroConfig} className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                 Lưu cấu hình Macro
               </button>
               <button
                 type="button"
                 onClick={handleTriggerValueMacro}
                 disabled={triggeringMacroValue}
-                className="btn btn-primary text-xs py-2 px-4 font-bold flex items-center gap-2"
+                className="btn btn-primary"
+                style={{ fontSize: '0.75rem', padding: '8px 16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Play size={12} />
                 Chạy Script Macro Value
@@ -797,61 +821,61 @@ export default function BackupAuditor({
 // Sub-render function for audit table
 function renderAuditResultsTable(auditResults: any, isCqg = false) {
   return (
-    <div className="flex flex-col gap-3 mt-2">
-      <div className="flex gap-2 flex-wrap text-[10px] font-semibold">
-        <span className="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-1 rounded">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.7rem', fontWeight: 600 }}>
+        <span style={{ backgroundColor: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)', padding: '4px 10px', borderRadius: '6px' }}>
           Tổng số file: {auditResults.summary.total}
         </span>
-        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded">
+        <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px' }}>
           Đầy đủ (Hôm nay): {auditResults.summary.ok}
         </span>
         {auditResults.summary.missing > 0 && (
-          <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded">
+          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '4px 10px', borderRadius: '6px' }}>
             Thiếu: {auditResults.summary.missing}
           </span>
         )}
         {auditResults.summary.outdated > 0 && (
-          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded">
+          <span style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 10px', borderRadius: '6px' }}>
             Cũ: {auditResults.summary.outdated}
           </span>
         )}
       </div>
 
-      <div className="overflow-x-auto border border-zinc-800 rounded-lg max-h-64 overflow-y-auto">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800 text-zinc-400 font-semibold z-10">
+      <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', maxHeight: '260px' }}>
+        <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+          <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, zIndex: 10 }}>
             <tr>
-              <th className="p-2.5">Tên File</th>
-              <th className="p-2.5 w-24">Trạng thái</th>
-              {isCqg && <th className="p-2.5 w-28">Loại file</th>}
-              <th className="p-2.5 w-40">Thời gian sửa đổi</th>
+              <th style={{ padding: '10px 12px' }}>Tên File</th>
+              <th style={{ padding: '10px 12px', width: '100px' }}>Trạng thái</th>
+              {isCqg && <th style={{ padding: '10px 12px', width: '120px' }}>Loại file</th>}
+              <th style={{ padding: '10px 12px', width: '160px' }}>Thời gian sửa đổi</th>
             </tr>
           </thead>
           <tbody>
             {auditResults.files.map((file: any) => (
-              <tr key={file.key} className="border-b border-zinc-900 hover:bg-zinc-900/20 transition">
-                <td className="p-2.5 font-bold text-white text-[11px] font-mono break-all">{file.filename}</td>
-                <td className="p-2.5">
+              <tr key={file.key} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{file.filename}</td>
+                <td style={{ padding: '10px 12px' }}>
                   {file.status === 'OK' ? (
-                    <span className="text-emerald-400 bg-emerald-500/10 text-[9px] font-bold px-1.5 py-0.5 rounded">OK</span>
+                    <span style={{ color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.12)', fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>OK</span>
                   ) : file.status === 'OUTDATED' ? (
-                    <span className="text-amber-400 bg-amber-500/10 text-[9px] font-bold px-1.5 py-0.5 rounded">FILE CŨ</span>
+                    <span style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.12)', fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>FILE CŨ</span>
                   ) : (
-                    <span className="text-red-400 bg-red-500/10 text-[9px] font-bold px-1.5 py-0.5 rounded">THIẾU</span>
+                    <span style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.12)', fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>THIẾU</span>
                   )}
                 </td>
                 {isCqg && (
-                  <td className="p-2.5">
+                  <td style={{ padding: '10px 12px' }}>
                     {file.type === 'RAW' ? (
-                      <span className="text-sky-400 text-[10px]">File thô</span>
+                      <span style={{ color: '#0284c7', fontSize: '0.7rem' }}>File thô</span>
                     ) : file.type === 'CONSOLIDATED' ? (
-                      <span className="text-emerald-400 text-[10px] font-semibold">Tự động gộp</span>
+                      <span style={{ color: '#10b981', fontSize: '0.7rem', fontWeight: 600 }}>Tự động gộp</span>
                     ) : (
-                      <span className="text-amber-400 text-[10px] font-bold">Thủ công</span>
+                      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700 }}>Thủ công</span>
                     )}
                   </td>
                 )}
-                <td className="p-2.5 text-zinc-500 text-[10px]">
+                <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
                   {file.lastModified ? new Date(file.lastModified).toLocaleString('vi-VN') : '—'}
                 </td>
               </tr>

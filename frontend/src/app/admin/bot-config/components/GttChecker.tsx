@@ -221,78 +221,88 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     }
   }
 
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '6px',
+    display: 'block',
+  };
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
       {/* File Upload Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {/* GTT.xlsx Upload */}
-        <div className="glass-panel p-5 flex flex-col justify-between">
+        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <FileText size={16} className="text-emerald-500" />
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 6px 0' }}>
+              <FileText size={16} color="#10b981" />
               File GTT.xlsx
             </h4>
-            <p className="text-xs text-zinc-400 mb-4">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
               Chứa danh sách các hợp đồng mở cần kiểm tra đối chiếu.
             </p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <input
               id="gtt-file-input"
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setGttFile(e.target.files?.[0] || null)}
-              className="text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
+              style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
             />
             <button
               type="button"
               onClick={handleUploadGtt}
               disabled={!gttFile || uploadingGtt}
-              className="btn btn-secondary w-full text-xs py-2 flex items-center justify-center gap-2"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '8px 14px', width: '100%' }}
             >
-              <Upload size={12} />
+              <Upload size={13} />
               {uploadingGtt ? 'Đang upload...' : 'Upload GTT.xlsx'}
             </button>
           </div>
         </div>
 
         {/* market.csv Upload */}
-        <div className="glass-panel p-5 flex flex-col justify-between">
+        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <Download size={16} className="text-amber-500" />
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 6px 0' }}>
+              <Download size={16} color="#f59e0b" />
               File market.csv (Bảng Giá MS)
             </h4>
-            <p className="text-xs text-zinc-400 mb-4">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
               Tải trực tiếp bảng giá từ M-System hoặc tải lên file thủ công.
             </p>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300 mb-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-primary)' }}>
               <input
                 type="checkbox"
                 checked={downloadMarketCsv}
                 onChange={(e) => setDownloadMarketCsv(e.target.checked)}
-                className="rounded border-zinc-800 text-emerald-500 bg-zinc-950"
+                style={{ accentColor: '#10b981' }}
               />
               Bot tự động tải từ M-System
             </label>
             {!downloadMarketCsv && (
-              <div className="flex flex-col gap-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <input
                   id="market-csv-input"
                   type="file"
                   accept=".csv"
                   onChange={(e) => setMarketCsvFile(e.target.files?.[0] || null)}
-                  className="text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
+                  style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
                 />
                 <button
                   type="button"
                   onClick={handleUploadMarketCsv}
                   disabled={!marketCsvFile || uploadingMarketCsv}
-                  className="btn btn-secondary w-full text-xs py-2 flex items-center justify-center gap-2"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '8px 14px', width: '100%' }}
                 >
-                  <Upload size={12} />
+                  <Upload size={13} />
                   {uploadingMarketCsv ? 'Đang upload...' : 'Upload market.csv'}
                 </button>
               </div>
@@ -301,31 +311,32 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
         </div>
 
         {/* hang_hoa.xlsx Upload */}
-        <div className="glass-panel p-5 flex flex-col justify-between">
+        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <Settings size={16} className="text-sky-500" />
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 6px 0' }}>
+              <Settings size={16} color="#0284c7" />
               File Hàng Hóa (hang_hoa.xlsx)
             </h4>
-            <p className="text-xs text-zinc-400 mb-4">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
               Cung cấp bước giá tối thiểu (Tick Size) của từng mặt hàng.
             </p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <input
               id="commodity-file-input"
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setCommodityFile(e.target.files?.[0] || null)}
-              className="text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
+              style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
             />
             <button
               type="button"
               onClick={handleUploadCommodity}
               disabled={!commodityFile || uploadingCommodity}
-              className="btn btn-secondary w-full text-xs py-2 flex items-center justify-center gap-2"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '8px 14px', width: '100%' }}
             >
-              <Upload size={12} />
+              <Upload size={13} />
               {uploadingCommodity ? 'Đang upload...' : 'Upload file hàng hóa'}
             </button>
           </div>
@@ -333,17 +344,22 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
       </div>
 
       {/* Action Row */}
-      <div className="flex justify-between items-center gap-4 flex-wrap bg-zinc-900/20 border border-zinc-800/80 p-4 rounded-lg">
+      <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <div>
-          <h4 className="text-sm font-bold text-white">Chạy quy trình so khớp giá GTT</h4>
-          <p className="text-xs text-zinc-400">Tự động đối chiếu thông tin GTT giữa M-System và CQG.</p>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
+            Chạy quy trình so khớp giá GTT
+          </h4>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+            Tự động đối chiếu thông tin GTT giữa M-System và CQG.
+          </p>
         </div>
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
             onClick={handleLoadGttReport}
             disabled={loadingGttReport}
-            className="btn btn-secondary flex items-center gap-2 text-xs"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 14px' }}
           >
             <RefreshCw size={14} className={loadingGttReport ? 'animate-spin' : ''} />
             Báo cáo gần nhất
@@ -352,7 +368,8 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
             type="button"
             onClick={handleRunGttCheck}
             disabled={runningGttCheck || uploadingGtt || uploadingMarketCsv}
-            className="btn btn-primary flex items-center gap-2 text-xs font-bold"
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700 }}
           >
             <Play size={14} className={runningGttCheck ? 'animate-pulse' : ''} />
             {runningGttCheck ? 'Đang chạy pipeline...' : 'Bắt đầu kiểm tra GTT'}
@@ -362,34 +379,35 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
 
       {/* Report results display */}
       {gttReport ? (
-        <div className="glass-panel p-6 flex flex-col gap-6">
-          <div className="flex justify-between items-center border-b border-zinc-800 pb-4 flex-wrap gap-3">
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h3 className="text-md font-bold text-white flex items-center gap-2">
-                <BarChart2 size={18} className="text-sky-500" />
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <BarChart2 size={18} color="#0284c7" />
                 Kết quả đối chiếu giá GTT
-                <span className="text-xs font-normal text-zinc-500">
+                <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>
                   ({new Date(gttReport.runAt).toLocaleString('vi-VN')})
                 </span>
               </h3>
             </div>
+
             {/* Status Summary badges */}
-            <div className="flex gap-2 flex-wrap text-[10px] font-semibold">
-              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.7rem', fontWeight: 700 }}>
+              <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '20px' }}>
                 Khớp: {gttReport.matched}
               </span>
               {gttReport.diffCount > 0 && (
                 <>
-                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                  <span style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 10px', borderRadius: '20px' }}>
                     Lệch ít: {gttReport.rows.filter((r: any) => r.status === 'DIFF' && (r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length}
                   </span>
-                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-full">
+                  <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '4px 10px', borderRadius: '20px' }}>
                     Lệch nhiều: {gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length}
                   </span>
                 </>
               )}
               {(gttReport.msOnlyCount + gttReport.cqgOnlyCount) > 0 && (
-                <span className="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1 rounded-full">
+                <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '4px 10px', borderRadius: '20px' }}>
                   Chỉ có 1 bên: {gttReport.msOnlyCount + gttReport.cqgOnlyCount}
                 </span>
               )}
@@ -398,30 +416,51 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
 
           {/* Action on discrepancies */}
           {gttReport.diffCount > 0 && (
-            <div className="bg-red-500/5 border border-red-500/15 p-4 rounded-lg flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="text-red-400 shrink-0" size={18} />
-                <span className="text-xs text-red-200">
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              padding: '14px 18px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertTriangle style={{ color: '#ef4444', flexShrink: 0 }} size={18} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Phát hiện {gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length} hợp đồng bị lệch nhiều. Chọn hành động:
                 </span>
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={handlePushToMSystem}
                   disabled={pushingToMs}
-                  className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs px-3 py-1.5 rounded font-bold transition"
+                  style={{
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    color: '#0284c7',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    fontSize: '0.75rem',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
                 >
                   {pushingToMs ? 'Đang đẩy...' : 'Đẩy trực tiếp lên M-System'}
                 </button>
                 <button
                   onClick={() => handleDownloadCorrection('settlement')}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs px-3 py-1.5 rounded font-medium transition"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '6px 12px' }}
                 >
                   Tải file sửa GTT (.xlsx)
                 </button>
                 <button
                   onClick={() => handleDownloadCorrection('first_match')}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs px-3 py-1.5 rounded font-medium transition"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '6px 12px' }}
                 >
                   Tải file sửa Giá Khớp Đầu
                 </button>
@@ -431,10 +470,18 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
 
           {/* Preview CSV block */}
           {gttCsvContent && (
-            <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-lg flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                  <FileText size={14} className="text-sky-400" />
+            <div style={{
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-color)',
+              padding: '14px',
+              borderRadius: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText size={14} color="#0284c7" />
                   Xem trước tệp sửa giá (CSV - Chỉ các hợp đồng lệch nhiều)
                 </span>
                 <button
@@ -442,54 +489,74 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
                     navigator.clipboard.writeText(gttCsvContent);
                     toast.success('Đã copy nội dung CSV!');
                   }}
-                  className="text-xs text-sky-400 hover:underline"
+                  style={{ fontSize: '0.75rem', color: '#0284c7', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Copy CSV
                 </button>
               </div>
-              <pre className="text-xs font-mono bg-black/60 p-3 rounded text-sky-500 overflow-x-auto max-h-40 border border-zinc-900">
+              <pre style={{
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--text-primary)',
+                padding: '12px 14px',
+                borderRadius: '6px',
+                overflowX: 'auto',
+                maxHeight: '160px',
+                margin: 0,
+                border: '1px solid var(--border-color)',
+              }}>
                 {gttCsvContent}
               </pre>
             </div>
           )}
 
           {/* Filters Tab */}
-          <div className="flex gap-2 flex-wrap border-b border-zinc-800/40 pb-3 text-xs">
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', fontSize: '0.75rem' }}>
             {[
-              { id: 'ALL', label: `Tất cả (${gttReport.rows.length})`, color: 'bg-zinc-800 text-zinc-300' },
-              { id: 'DIFF', label: `Tổng chênh lệch (${gttReport.rows.filter((r: any) => r.status === 'DIFF').length})`, color: 'bg-zinc-800 text-zinc-300' },
-              { id: 'DIFF_MINOR', label: `Lệch ít (${gttReport.rows.filter((r: any) => r.status === 'DIFF' && (r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})`, color: 'bg-amber-500/10 text-amber-400 border border-amber-500/20' },
-              { id: 'DIFF_MAJOR', label: `Lệch nhiều (${gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})`, color: 'bg-red-500/10 text-red-400 border border-red-500/20' },
-              { id: 'MATCH', label: `Khớp (${gttReport.rows.filter((r: any) => r.status === 'MATCH').length})`, color: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' },
-              { id: 'MISSING', label: `Thiếu/1 bên (${gttReport.rows.filter((r: any) => r.status === 'MS_ONLY' || r.status === 'CQG_ONLY').length})`, color: 'bg-sky-500/10 text-sky-400 border border-sky-500/20' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setGttFilter(tab.id as any)}
-                className={`px-3 py-1.5 rounded-md font-semibold transition ${
-                  gttFilter === tab.id
-                    ? 'bg-emerald-500 text-white font-bold'
-                    : 'bg-zinc-900/60 text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { id: 'ALL', label: `Tất cả (${gttReport.rows.length})` },
+              { id: 'DIFF', label: `Tổng chênh lệch (${gttReport.rows.filter((r: any) => r.status === 'DIFF').length})` },
+              { id: 'DIFF_MINOR', label: `Lệch ít (${gttReport.rows.filter((r: any) => r.status === 'DIFF' && (r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})` },
+              { id: 'DIFF_MAJOR', label: `Lệch nhiều (${gttReport.rows.filter((r: any) => r.status === 'DIFF' && !(r.isMinorDiff ?? (r.diff !== null && Math.abs(r.diff) <= (r.tickSize ?? 0.05)))).length})` },
+              { id: 'MATCH', label: `Khớp (${gttReport.rows.filter((r: any) => r.status === 'MATCH').length})` },
+              { id: 'MISSING', label: `Thiếu/1 bên (${gttReport.rows.filter((r: any) => r.status === 'MS_ONLY' || r.status === 'CQG_ONLY').length})` },
+            ].map((tab) => {
+              const isSelected = gttFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setGttFilter(tab.id as any)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    border: isSelected ? '1px solid #10b981' : '1px solid var(--border-color)',
+                    backgroundColor: isSelected ? '#10b981' : 'var(--bg-input)',
+                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Results Table */}
-          <div className="overflow-x-auto border border-zinc-800/80 rounded-lg">
-            <table className="w-full text-left text-xs border-collapse">
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+            <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="bg-zinc-900/40 border-b border-zinc-800 text-zinc-400 font-semibold">
-                  <th className="p-3">Mã HĐ</th>
-                  <th className="p-3 text-right">GTT M-System</th>
-                  <th className="p-3 text-right">GTT CQG</th>
-                  <th className="p-3 text-right">Bước giá</th>
-                  <th className="p-3 text-right">Chênh lệch</th>
-                  <th className="p-3 text-center">Trạng thái</th>
-                  <th className="p-3">Ghi chú</th>
+                <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                  <th style={{ padding: '12px 14px' }}>Mã HĐ</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>GTT M-System</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>GTT CQG</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Bước giá</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Chênh lệch</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ padding: '12px 14px' }}>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
@@ -508,47 +575,74 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
                     return (
                       <tr
                         key={row.symbol}
-                        className={`border-b border-zinc-900 transition hover:bg-zinc-900/25 ${
-                          idx % 2 === 0 ? 'bg-transparent' : 'bg-zinc-900/10'
-                        }`}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                          backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.02)',
+                        }}
                       >
-                        <td className="p-3 font-mono font-bold text-white">{row.symbol}</td>
-                        <td className="p-3 text-right font-mono text-zinc-300">
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--text-primary)' }}>{row.symbol}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                           {row.gttMs !== null ? row.gttMs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
                         </td>
-                        <td className="p-3 text-right font-mono text-zinc-300">
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                           {row.gttCqg !== null ? row.gttCqg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
                         </td>
-                        <td className="p-3 text-right font-mono text-zinc-500">
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
                           {row.tickSize !== undefined && row.tickSize !== null ? row.tickSize.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : '0.05'}
                         </td>
-                        <td className={`p-3 text-right font-mono font-bold ${
-                          row.diff && Math.abs(row.diff) > 0 ? (isMinorDiff ? 'text-amber-400' : 'text-red-400') : 'text-zinc-500'
-                        }`}>
+                        <td style={{
+                          padding: '12px 14px',
+                          textAlign: 'right',
+                          fontFamily: 'monospace',
+                          fontWeight: 700,
+                          color: row.diff && Math.abs(row.diff) > 0 ? (isMinorDiff ? '#d97706' : '#dc2626') : 'var(--text-muted)',
+                        }}>
                           {row.diff !== null ? row.diff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
                         </td>
-                        <td className="p-3 text-center">
-                          {row.status === 'MATCH' && <span className="text-emerald-400 font-semibold text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10">✅ Khợp</span>}
+                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                          {row.status === 'MATCH' && (
+                            <span style={{ color: '#059669', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                              ✅ Khớp
+                            </span>
+                          )}
                           {row.status === 'DIFF' && (
-                            <span className={`${isMinorDiff ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'} font-semibold text-[10px] px-2 py-0.5 rounded border border-zinc-800`}>
+                            <span style={{
+                              color: isMinorDiff ? '#d97706' : '#dc2626',
+                              fontWeight: 700,
+                              fontSize: '0.65rem',
+                              backgroundColor: isMinorDiff ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              border: isMinorDiff ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                            }}>
                               {isMinorDiff ? '⚠️ Lệch ít' : '🚨 Lệch nhiều'}
                             </span>
                           )}
-                          {row.status === 'MS_ONLY' && <span className="text-amber-400 font-semibold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-zinc-800">📋 Chỉ có MS</span>}
-                          {row.status === 'CQG_ONLY' && <span className="text-sky-400 font-semibold text-[10px] bg-sky-500/10 px-2 py-0.5 rounded border border-zinc-800">📊 Chỉ có CQG</span>}
-                          {row.status === 'NO_PRICE' && <span className="text-zinc-500 text-[10px]">❓ Không có giá</span>}
+                          {row.status === 'MS_ONLY' && (
+                            <span style={{ color: '#d97706', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                              📋 Chỉ có MS
+                            </span>
+                          )}
+                          {row.status === 'CQG_ONLY' && (
+                            <span style={{ color: '#0284c7', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                              📊 Chỉ có CQG
+                            </span>
+                          )}
+                          {row.status === 'NO_PRICE' && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>❓ Không có giá</span>
+                          )}
                         </td>
-                        <td className="p-3 text-zinc-400 text-[11px]">
+                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
                           {row.status === 'MATCH' && <span>Khớp hoàn toàn.</span>}
                           {row.status === 'DIFF' && (
                             isMinorDiff ? (
-                              <span className="text-amber-400/90">Lệch nhỏ hơn hoặc bằng bước giá tối thiểu ({row.tickSize ?? 0.05}). Chênh lệch do làm tròn.</span>
+                              <span style={{ color: '#d97706', fontWeight: 500 }}>Lệch nhỏ hơn hoặc bằng bước giá tối thiểu ({row.tickSize ?? 0.05}). Chênh lệch do làm tròn.</span>
                             ) : (
-                              <span className="text-red-400/90">Lệch lớn hơn bước giá tối thiểu. Cần đẩy sửa giá!</span>
+                              <span style={{ color: '#dc2626', fontWeight: 600 }}>Lệch lớn hơn bước giá tối thiểu. Cần đẩy sửa giá!</span>
                             )
                           )}
-                          {row.status === 'MS_ONLY' && <span className="text-amber-400/80">Chỉ có trên MS. Kiểm tra xem hợp đồng đã hoạt động bên CQG chưa.</span>}
-                          {row.status === 'CQG_ONLY' && <span className="text-sky-400/80">Chỉ có trên CQG. Kiểm tra cấu hình hợp đồng trên MS.</span>}
+                          {row.status === 'MS_ONLY' && <span style={{ color: '#d97706' }}>Chỉ có trên MS. Kiểm tra xem hợp đồng đã hoạt động bên CQG chưa.</span>}
+                          {row.status === 'CQG_ONLY' && <span style={{ color: '#0284c7' }}>Chỉ có trên CQG. Kiểm tra cấu hình hợp đồng trên MS.</span>}
                           {row.status === 'NO_PRICE' && <span>Không tìm thấy giá ở cả 2 bên.</span>}
                         </td>
                       </tr>
@@ -559,7 +653,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
           </div>
         </div>
       ) : (
-        <div className="glass-panel p-8 text-center text-zinc-500">
+        <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           Chưa có báo cáo đối chiếu GTT nào khả dụng. Hãy nhấn "Bắt đầu kiểm tra GTT" để thực hiện.
         </div>
       )}
