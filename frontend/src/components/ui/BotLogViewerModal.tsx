@@ -171,6 +171,20 @@ export default function BotLogViewerModal({
     };
   }, [resultNote]);
 
+  // Determine if task is currently processing / waiting
+  const isTaskProcessing = useMemo(() => {
+    const s = (status || '').toUpperCase();
+    const raw = (parsedData.rawText || '').toUpperCase();
+    return (
+      s === 'WAITING' ||
+      s === 'PROCESSING' ||
+      s === 'PENDING' ||
+      raw.includes('ĐANG CHẠY') ||
+      raw.includes('ĐANG BẮT ĐẦU') ||
+      raw.includes('LOẠI KIỂM TRA KHÔNG ĐƯỢC HỖ TRỢ')
+    );
+  }, [status, parsedData.rawText]);
+
   // Determine if task failed or has warning
   const isTaskFailed = useMemo(() => {
     const s = (status || '').toUpperCase();
@@ -218,74 +232,64 @@ export default function BotLogViewerModal({
     if (
       titleUpper.includes('FILE') ||
       titleUpper.includes('AUDIT') ||
+      titleUpper.includes('SCAN') ||
       titleUpper.includes('BACKUP') ||
-      titleUpper.includes('DOWNLOAD') ||
-      titleUpper.includes('QUÉT FILE') ||
       titleUpper.includes('TẢI BÁO CÁO') ||
-      noteUpper.includes('THƯ MỤC BACKUP') ||
-      noteUpper.includes('FILE BACKUP') ||
-      parsedData.fileItems.length > 0
+      titleUpper.includes('RPA')
     ) {
       return 'FILE_AUDIT';
     }
 
-    return 'SYSTEM_API';
+    return 'RECONCILIATION';
   }, [taskTitle, parsedData]);
 
-  const filteredMismatches = useMemo(() => {
-    if (!searchQuery.trim()) return parsedData.mismatchedItems;
-    const q = searchQuery.toLowerCase();
-    return parsedData.mismatchedItems.filter(
-      (item) =>
-        item.account.toLowerCase().includes(q) ||
-        item.contract.toLowerCase().includes(q) ||
-        item.system.toLowerCase().includes(q) ||
-        item.reason.toLowerCase().includes(q)
-    );
-  }, [parsedData.mismatchedItems, searchQuery]);
-
   if (!isOpen) return null;
+
+  const filteredMismatches = parsedData.mismatchedItems.filter(
+    (item) =>
+      item.account.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.contract.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.system.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.reason.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
+        inset: 0,
+        zIndex: 99999,
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1100,
-        padding: '20px',
+        padding: '16px',
       }}
     >
       <div
-        className="glass-panel animate-fade-in"
+        className="glass-card"
         style={{
           width: '100%',
           maxWidth: '850px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--bg-app)',
-          border: '1px solid var(--border-color)',
           borderRadius: '16px',
           overflow: 'hidden',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
         }}
       >
         {/* Modal Header */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '16px 24px',
             borderBottom: '1px solid var(--border-color)',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            justifyContent: 'space-between',
             backgroundColor: 'var(--bg-input)',
           }}
         >
@@ -301,7 +305,11 @@ export default function BotLogViewerModal({
                 {category === 'RECONCILIATION' && 'Chi Tiết Log Đối Chiếu Bot'}
               </h3>
 
-              {!isTaskFailed ? (
+              {isTaskProcessing ? (
+                <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}>
+                  ⏳ ĐANG XỬ LÝ / CHỜ
+                </span>
+              ) : !isTaskFailed ? (
                 <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   ✓ PASSED
                 </span>
@@ -493,7 +501,15 @@ export default function BotLogViewerModal({
                 </div>
 
                 {parsedData.mismatchedItems.length === 0 ? (
-                  isTaskFailed ? (
+                  isTaskProcessing ? (
+                    <div style={{ backgroundColor: 'rgba(2, 132, 199, 0.08)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(2, 132, 199, 0.3)', textAlign: 'center', fontSize: '0.75rem', color: '#0284c7' }}>
+                      <Activity size={24} style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                      <strong style={{ fontSize: '0.85rem' }}>Tác vụ đang trong quá trình thực thi / kiểm tra...</strong>
+                      <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.72rem', backgroundColor: 'var(--bg-input)', padding: '8px 12px', borderRadius: '6px', textAlign: 'left', wordBreak: 'break-word' }}>
+                        {parsedData.rawText}
+                      </div>
+                    </div>
+                  ) : isTaskFailed ? (
                     <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', textAlign: 'center', fontSize: '0.75rem', color: '#ef4444' }}>
                       <AlertTriangle size={24} style={{ margin: '0 auto 8px auto', display: 'block' }} />
                       <strong style={{ fontSize: '0.85rem' }}>Tác vụ tự động thất bại do Lỗi Hệ Thống / API!</strong>

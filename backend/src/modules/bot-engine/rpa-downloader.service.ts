@@ -523,11 +523,21 @@ export class RpaDownloaderService {
   // Individual download wrappers mapping to C# methods
 
   async downloadNKTTHT(page: Page, destFile: string) {
-    await this.navigateAndDownload(page, ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'], destFile);
+    try {
+      await this.gotoAndDownload(page, '#/systemManagement/auditLog', destFile);
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload hash navigation failed for NKTTHT, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(page, ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'], destFile);
+    }
   }
 
   async downloadDSTKGDFutures(page: Page, destFile: string) {
-    await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'], destFile);
+    try {
+      await this.gotoAndDownload(page, '#/clientManagement/investorManagement', destFile);
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload hash navigation failed for DSTKGDFutures, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'], destFile);
+    }
   }
 
   async downloadDSTKGDSpread(page: Page, destFile: string) {
@@ -559,7 +569,12 @@ export class RpaDownloaderService {
   }
 
   async downloadNR(page: Page, destFile: string) {
-    await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'Lịch sử giao dịch tiền TKGD'], destFile);
+    try {
+      await this.gotoAndDownload(page, '#/clientManagement/transactionHistory', destFile);
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload hash navigation failed for NR, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(page, ['QL khách hàng', 'QL TKGD', 'Lịch sử giao dịch tiền TKGD'], destFile);
+    }
   }
 
   async downloadDSTrader(page: Page, destFile: string) {
@@ -684,9 +699,6 @@ export class RpaDownloaderService {
         break;
       case 'DSTKGD-ACM':
         await this.downloadDSTKGDACM(page, destFile);
-        break;
-      case 'DSTKGD-Options':
-        await this.downloadDSTKGDOptions(page, destFile);
         break;
       case 'QLTKGD':
       case 'QLTTTKGD':

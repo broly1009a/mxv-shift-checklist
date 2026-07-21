@@ -80,7 +80,6 @@ export default function BackupAuditor({
         const backupData = await backupRes.json();
         if (backupData.backupPath) {
           setBackupPathMs(backupData.backupPath);
-          setBackupPathCast(backupData.backupPath);
         }
       }
 
@@ -92,6 +91,7 @@ export default function BackupAuditor({
         const backupCqgData = await backupCqgRes.json();
         if (backupCqgData.backupPath) {
           setBackupPathCqg(backupCqgData.backupPath);
+          setBackupPathCast(backupCqgData.backupPath);
         }
       }
 

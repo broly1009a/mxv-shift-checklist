@@ -195,19 +195,21 @@ export class BotEngineService {
           } else if (checkType === 'API_STATUS') {
             checkResult = await this.apiWatcherService.checkApiTask(target, condition);
           } else if (checkType === 'RPA_DOWNLOAD') {
-            let targets: string[] = ['NKTTHT'];
+            let targets: string[] = ['QLTKGD', 'NR', 'DSTKGD-Futures'];
             try {
-              if (target.trim().startsWith('[')) {
+              if (target && target.trim().startsWith('[')) {
                 targets = JSON.parse(target);
-              } else if (target) {
+              } else if (target && target.trim()) {
                 targets = target.split(',').map((t) => t.trim());
               }
             } catch (e) {
-              targets = [target];
+              if (target) targets = [target];
             }
 
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            if (!existingJob) {
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
               // Enqueue new job
               await this.botJobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
                 taskId: task.taskId,
@@ -215,7 +217,7 @@ export class BotEngineService {
                 targets,
                 sessionDay: log.shiftDate,
               });
-              checkResult = { success: false, message: 'Đang bắt đầu tác vụ RPA tải file báo cáo...' };
+              checkResult = { success: false, message: 'Đang khởi tạo tác vụ RPA tải file báo cáo...' };
             } else {
               if (existingJob.status === 'COMPLETED') {
                 checkResult = { success: true, message: `RPA tải báo cáo thành công: ${targets.join(', ')}` };
@@ -228,7 +230,9 @@ export class BotEngineService {
             }
           } else if (checkType === 'RPA_DOWNLOAD_CAST') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            if (!existingJob) {
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('DOWNLOAD_CAST', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
@@ -327,6 +331,94 @@ export class BotEngineService {
                 checkResult = { success: false, message: `Đối chiếu SOD thất bại: ${lastLog}` };
               } else {
                 checkResult = { success: false, message: 'Đang thực hiện đối chiếu số dư đầu ngày SOD...' };
+              }
+            }
+          } else if (checkType === 'CHECK_PRE_EOD') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('CHECK_PRE_EOD', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu dữ liệu 3 bên thành công.';
+                checkResult = { success: true, message: lastLog };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện sai lệch đối chiếu dữ liệu 3 bên';
+                checkResult = { success: false, message: `Đối chiếu 3 bên thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang tự động chạy đối chiếu dữ liệu 3 bên...' };
+              }
+            }
+          } else if (checkType === 'FILE_AUDIT_ACM') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('FILE_AUDIT_ACM', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+              });
+              checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup ACM...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup ACM hoàn tất.';
+                checkResult = { success: true, message: lastLog };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup ACM';
+                checkResult = { success: false, message: `Kiểm tra backup ACM thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup ACM...' };
+              }
+            }
+          } else if (checkType === 'FILE_AUDIT_MS') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('FILE_AUDIT_MS', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+              });
+              checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup MS...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup MS hoàn tất.';
+                checkResult = { success: true, message: lastLog };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup MS';
+                checkResult = { success: false, message: `Kiểm tra backup MS thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup MS...' };
+              }
+            }
+          } else if (checkType === 'FILE_AUDIT_CQG') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('FILE_AUDIT_CQG', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+              });
+              checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup CQG...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup CQG hoàn tất.';
+                checkResult = { success: true, message: lastLog };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup CQG';
+                checkResult = { success: false, message: `Kiểm tra backup CQG thất bại: ${lastLog}` };
+              } else {
+                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup CQG...' };
               }
             }
           } else if (checkType === 'NOTIFY_MATURITY') {

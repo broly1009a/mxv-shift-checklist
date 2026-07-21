@@ -29,7 +29,6 @@ const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
   { key: 'DSTKGD-ACM',      filename: 'DSTKGD-ACM.xlsx' },
   { key: 'DSTKGD-Futures',  filename: 'DSTKGD-Futures.xlsx' },
   { key: 'DSTKGD-LME',      filename: 'DSTKGD-LME.xlsx' },
-  { key: 'DSTKGD-Options',  filename: 'DSTKGD-Options.xlsx' },
   { key: 'DSTKGD-Spread',   filename: 'DSTKGD-Spread.xlsx' },
   { key: 'DSTrader',        filename: 'DSTrader.xlsx' },
   { key: 'Markettruoc6h',   filename: 'market truoc 6 h.csv' },
@@ -512,6 +511,38 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         }
 
         job.logs.push(`[${new Date().toISOString()}] Downloaded report: ${target} successfully.`);
+        await job.save();
+      }
+
+      // Copy downloaded reports to Backup MS folder if configured
+      const backupMsBase = payload.backupPathMs
+        || await this.settingsService.getSetting(
+          'bot_backup_path_ms',
+          process.env.DEFAULT_BACKUP_PATH_MS || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+        );
+
+      if (backupMsBase) {
+        const targetDate = sessionDay ? new Date(sessionDay) : new Date();
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const destFolder = path.join(backupMsBase, subFolder);
+
+        if (!fs.existsSync(destFolder)) {
+          fs.mkdirSync(destFolder, { recursive: true });
+        }
+
+        job.logs.push(`[${new Date().toISOString()}] Copying downloaded reports to Backup MS folder: ${destFolder}`);
+        for (const target of targets) {
+          const filename = this.getReportFileName(target);
+          const srcFile = path.join(tempDir, filename);
+          if (fs.existsSync(srcFile)) {
+            const destFile = path.join(destFolder, filename);
+            fs.copyFileSync(srcFile, destFile);
+            job.logs.push(`[${new Date().toISOString()}] ✅ Copied ${filename} to ${destFile}`);
+          }
+        }
         await job.save();
       }
     } finally {
@@ -1195,12 +1226,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const backupMs = payload.backupPathMs
         || await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+          process.env.DEFAULT_BACKUP_PATH_MS || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
         );
       const backupCqg = payload.backupPathCqg
         || await this.settingsService.getSetting(
           'bot_backup_path_cqg',
-          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+          process.env.DEFAULT_BACKUP_PATH_CQG || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
         );
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
@@ -1347,9 +1378,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.payload = payload;
       await job.save();
 
-      // Check if custom backup path is provided to copy and rename the file
-      let customBackupPath = payload.backupPath;
-      if (customBackupPath) {
+      // Check if custom backup path is provided or configured in settings to copy and rename the file
+      let baseBackupPath = payload.backupPath
+        || await this.settingsService.getSetting(
+          'bot_backup_path_cqg',
+          process.env.DEFAULT_BACKUP_PATH_CQG || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+        );
+
+      if (baseBackupPath) {
         // Lấy ngày cần chạy (mặc định là ngày hôm nay nếu không truyền targetDate)
         const targetDateStr = payload.targetDate;
         const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
@@ -1360,7 +1396,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
         
         // Ghép thêm thư mục ngày vào đường dẫn backup gốc
-        customBackupPath = path.join(customBackupPath, subFolder);
+        const customBackupPath = path.join(baseBackupPath, subFolder);
 
         job.logs.push(`[${new Date().toISOString()}] Đang copy và đổi tên file sang thư mục backup: ${customBackupPath}`);
         await job.save();
