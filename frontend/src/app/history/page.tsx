@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 
 interface Department {
   _id: string;
@@ -87,6 +88,7 @@ function HistoryAudit() {
 
   // Detail Modal
   const [activeDetail, setActiveDetail] = useState<ShiftLog | null>(null);
+  const [viewingBotLog, setViewingBotLog] = useState<{ title: string; resultNote: string; status?: string; checkedAt?: string } | null>(null);
 
   const formatTime = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -557,6 +559,10 @@ function HistoryAudit() {
                       const json = JSON.parse(task.resultNote);
                       parsedMessage = json.message || task.resultNote;
                     } catch (e) {}
+
+                    const isLongMsg = parsedMessage.length > 140 || parsedMessage.includes('•');
+                    const displayMsg = isLongMsg ? parsedMessage.substring(0, 140) + '...' : parsedMessage;
+
                     return (
                       <div style={{
                         background: 'var(--bg-input)',
@@ -568,14 +574,45 @@ function HistoryAudit() {
                         marginLeft: '32px',
                         fontFamily: 'monospace',
                         display: 'flex',
-                        alignItems: 'flex-start',
+                        flexDirection: 'column',
                         gap: '6px',
                         lineHeight: 1.5
                       }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
-                          <Bot size={14} /> Log kết quả Bot:
-                        </span>
-                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{parsedMessage}</span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
+                            <Bot size={14} /> Log kết quả Bot:
+                          </span>
+                          <span style={{ flex: 1, wordBreak: 'break-word' }}>{displayMsg}</span>
+                        </div>
+
+                        {isLongMsg && (
+                          <div style={{ marginLeft: '20px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setViewingBotLog({
+                                title: task.taskNameSnapshot,
+                                resultNote: task.resultNote || '',
+                                status: task.status,
+                                checkedAt: task.checkedAt
+                              })}
+                              className="btn btn-secondary"
+                              style={{
+                                fontSize: '0.7rem',
+                                padding: '3px 8px',
+                                background: 'rgba(2, 132, 199, 0.1)',
+                                color: '#0284c7',
+                                border: '1px solid rgba(2, 132, 199, 0.25)',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -624,6 +661,18 @@ function HistoryAudit() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bot Structured Log Viewer Modal */}
+      {viewingBotLog && (
+        <BotLogViewerModal
+          isOpen={!!viewingBotLog}
+          onClose={() => setViewingBotLog(null)}
+          taskTitle={viewingBotLog.title}
+          resultNote={viewingBotLog.resultNote}
+          status={viewingBotLog.status}
+          checkedAt={viewingBotLog.checkedAt}
+        />
       )}
     </ProtectedRoute>
   );

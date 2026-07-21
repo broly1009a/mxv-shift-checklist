@@ -101,6 +101,7 @@ interface TaskTableProps {
   onOpenTradingReport: () => void;
   onOpenOmsStatus: (taskId: string) => void;
   onOpenMaturityTemplates?: () => void;
+  onOpenBotLogViewer?: (title: string, resultNote: string, status?: string, checkedAt?: string) => void;
   togglingTaskIds: Set<string>;
 }
 
@@ -132,6 +133,7 @@ export default function TaskTable({
   onOpenTradingReport,
   onOpenOmsStatus,
   onOpenMaturityTemplates,
+  onOpenBotLogViewer,
   togglingTaskIds
 }: TaskTableProps) {
 
@@ -456,11 +458,64 @@ export default function TaskTable({
                           </span>
                         )}
                       </div>
-                      {item.actionDescriptionSnapshot && (
-                        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '8px', fontStyle: 'italic', lineHeight: 1.4, opacity: item.isChecked ? 0.6 : 1 }}>
-                          <strong>Hướng dẫn:</strong> {item.actionDescriptionSnapshot}
-                        </p>
-                      )}
+                      {/* Bot Result Note Display */}
+                      {item.resultNote && (() => {
+                        let parsedMessage = item.resultNote;
+                        try {
+                          const json = JSON.parse(item.resultNote);
+                          parsedMessage = json.message || item.resultNote;
+                        } catch (e) {}
+
+                        const isLongMsg = parsedMessage.length > 140 || parsedMessage.includes('•');
+                        const displayMsg = isLongMsg ? parsedMessage.substring(0, 140) + '...' : parsedMessage;
+
+                        return (
+                          <div style={{
+                            marginTop: '8px',
+                            background: 'var(--bg-input)',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            fontSize: '0.78rem',
+                            color: 'var(--text-secondary)',
+                            borderLeft: item.status === 'FAILED' ? '3px solid #ef4444' : '3px solid #0284c7',
+                            fontFamily: 'monospace',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0 }}>
+                                <Bot size={13} /> Log kết quả Bot:
+                              </span>
+                              <span style={{ flex: 1, wordBreak: 'break-word' }}>{displayMsg}</span>
+                            </div>
+
+                            {isLongMsg && (
+                              <div style={{ marginLeft: '18px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenBotLogViewer?.(item.taskNameSnapshot, item.resultNote || '', item.status, item.checkedAt)}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    padding: '2px 8px',
+                                    background: 'rgba(2, 132, 199, 0.1)',
+                                    color: '#0284c7',
+                                    border: '1px solid rgba(2, 132, 199, 0.25)',
+                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Reconciliation Button */}
                       {(item.taskId.toUpperCase().includes('KLGD') ||

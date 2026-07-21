@@ -30,6 +30,7 @@ import CcpStatisticsModal from './components/CcpStatisticsModal';
 import TradingReportModal from './components/TradingReportModal';
 import OmsStatusModal from './components/OmsStatusModal';
 import MaturityTemplateModal from './components/MaturityTemplateModal';
+import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 
 function ChecklistWorksheet() {
   const {
@@ -95,6 +96,7 @@ function ChecklistWorksheet() {
   const [isMaturityModalOpen, setIsMaturityModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
   const [omsTaskId, setOmsTaskId] = React.useState('');
+  const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -544,6 +546,7 @@ function ChecklistWorksheet() {
               setIsOmsModalOpen(true);
             }}
             onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
+            onOpenBotLogViewer={(title, resultNote, status, checkedAt) => setViewingBotLog({ title, resultNote, status, checkedAt })}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -736,6 +739,18 @@ function ChecklistWorksheet() {
           </div>
         </div>
       </div>
+
+      {/* Bot Structured Log Viewer Modal */}
+      {viewingBotLog && (
+        <BotLogViewerModal
+          isOpen={!!viewingBotLog}
+          onClose={() => setViewingBotLog(null)}
+          taskTitle={viewingBotLog.title}
+          resultNote={viewingBotLog.resultNote}
+          status={viewingBotLog.status}
+          checkedAt={viewingBotLog.checkedAt}
+        />
+      )}
     </>
   );
 }
