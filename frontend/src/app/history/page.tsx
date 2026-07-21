@@ -10,7 +10,8 @@ import {
   Clock, 
   User as UserIcon, 
   Eye, 
-  X
+  X,
+  Bot
 } from 'lucide-react';
 import Link from 'next/link';
 import { TableSkeleton } from '@/components/ui/Skeleton';
@@ -32,6 +33,8 @@ interface TaskDetail {
     username: string;
   };
   note?: string;
+  status?: string;
+  resultNote?: string;
 }
 
 interface ShiftLog {
@@ -518,6 +521,21 @@ function HistoryAudit() {
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                         {getPriorityBadge(task.prioritySnapshot)}
+                        {task.updatedBy?.username === 'system_bot' && (
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Bot size={12} /> Bot tự động kiểm tra
+                          </span>
+                        )}
+                        {task.status === 'PASSED' && (
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            ✓ ĐẠT (PASSED)
+                          </span>
+                        )}
+                        {task.status === 'FAILED' && (
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            ✕ KHÔNG ĐẠT (FAILED)
+                          </span>
+                        )}
                         {task.isChecked && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <Clock size={12} style={{ flexShrink: 0 }} /> Đã kiểm lúc: {formatTime(task.checkedAt)}
@@ -532,20 +550,68 @@ function HistoryAudit() {
                     </div>
                   </div>
 
-                  {/* Note row */}
-                  {task.note && (
-                    <div style={{
-                      background: 'rgba(255,255,255,0.02)',
-                      padding: '10px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                      borderLeft: '3px solid var(--color-accent)',
-                      marginLeft: '32px'
-                    }}>
-                      <strong>Ghi chú:</strong> {task.note}
-                    </div>
-                  )}
+                  {/* Note & Bot Result Note */}
+                  {task.resultNote && (() => {
+                    let parsedMessage = task.resultNote;
+                    try {
+                      const json = JSON.parse(task.resultNote);
+                      parsedMessage = json.message || task.resultNote;
+                    } catch (e) {}
+                    return (
+                      <div style={{
+                        background: 'var(--bg-input)',
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-secondary)',
+                        borderLeft: task.status === 'FAILED' ? '3px solid #ef4444' : '3px solid #0284c7',
+                        marginLeft: '32px',
+                        fontFamily: 'monospace',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '6px',
+                        lineHeight: 1.5
+                      }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
+                          <Bot size={14} /> Log kết quả Bot:
+                        </span>
+                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{parsedMessage}</span>
+                      </div>
+                    );
+                  })()}
+                  {task.note && task.note !== task.resultNote && (() => {
+                    let parsedMsg = '';
+                    if (task.resultNote) {
+                      try {
+                        const json = JSON.parse(task.resultNote);
+                        parsedMsg = json.message || task.resultNote;
+                      } catch (e) {
+                        parsedMsg = task.resultNote;
+                      }
+                    }
+                    if (parsedMsg && task.note === parsedMsg) return null;
+
+                    return (
+                      <div style={{
+                        background: 'var(--bg-input)',
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-secondary)',
+                        borderLeft: '3px solid #f59e0b',
+                        marginLeft: '32px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '6px',
+                        lineHeight: 1.5
+                      }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#f59e0b', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
+                          <UserIcon size={14} /> Ghi chú thủ công:
+                        </span>
+                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{task.note}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
