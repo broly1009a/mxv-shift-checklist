@@ -1,0 +1,41 @@
+1. 📊 BẢNG ĐỐI SOÁT TOÀN BỘ FILE BÁO CÁO (C# TOOL vs NESTJS SERVICE):
+🟢 HỆ THỐNG M-SYSTEM (20 BÁO CÁO CHUẨN):
+STT	Mã File	Tên File Trên Ổ Đĩa	Hàm C# Legacy (ChromeBot.cs)	NestJS Service (RpaDownloaderService)	Trạng Thái Rà Soát
+1	NKTTHT	NKTTHT.xlsx	DownloadNKTTHT()	downloadNKTTHT()	✅ Đủ
+2	DSTKGD-Futures	DSTKGD-Futures.xlsx	DownloadDSTKGDFutures()	downloadDSTKGDFutures()	✅ Đủ
+3	DSTKGD-Spread	DSTKGD-Spread.xlsx	DownloadDSTKGDSpread()	downloadDSTKGDSpread()	✅ Đủ
+4	DSTKGD-LME	DSTKGD-LME.xlsx	DownloadDSTKGDLME()	downloadDSTKGDLME()	✅ Đủ
+5	DSTKGD-ACM	DSTKGD-ACM.xlsx	DownloadDSTKGDACM()	downloadDSTKGDACM()	✅ Đủ
+6	QLTKGD	QLTKGD.xlsx	DownloadQLTTTKGD()	downloadQLTTTKGD()	✅ Đủ
+7	QLTKGDAmKQ	QLTKGDAmKQ.xlsx	DownloadQLTTTKGDAmKQ()	downloadQLTTTKGDAmKQ()	✅ Đủ
+8	TLKQHSKQ	TLKQHSKQ.xlsx	DownloadTLKQHSKQ()	downloadTLKQHSKQ()	✅ Đủ
+9	NR	NR.xlsx	DownloadNR()	downloadNR()	✅ Đủ
+10	DSTrader	DSTrader.xlsx	DownloadDSTrader()	downloadDSTrader()	✅ Đủ
+11	Markettruoc6h	market truoc 6 h.csv	DownloadMarkettruoc6h()	downloadMarkettruoc6h()	✅ Đủ
+12	DSLDK	DSLDK.xlsx	DownloadDSLDK()	downloadDSLDK()	✅ Đủ
+13	DSLCK	DSLCK.xlsx	DownloadDSLCK()	downloadDSLCK()	✅ Đủ
+14	DSLH	DSLH.xlsx	DownloadDSLH()	downloadDSLH()	✅ Đủ
+15	DSLK	DSLK.xlsx	DownloadDSLK()	downloadDSLK()	✅ Đủ
+16	DSGD	DSGD.xlsx	DownloadDSGD()	downloadDSGD()	✅ Đủ
+17	TTM	TTM.xlsx	DownloadTTM()	downloadTTM()	✅ Đủ
+18	TTTT	TTTT.xlsx	DownloadTTTT()	downloadTTTT()	✅ Đủ
+19	TTCDH	TTCDH.xlsx	DownloadTTCDH()	downloadTTCDH()	✅ Đủ
+20	DSQLKQ	DSQLKQ.xlsx	DownloadDSQLKQ()	downloadDSQLKQ()	✅ Đủ
+(Ghi chú: Vừa loại bỏ thành công file dư thừa DSTKGD-Options.xlsx không tồn tại trên M-System).
+
+🔵 HỆ THỐNG CQG (8 BÁO CÁO CHUẨN):
+Tài Khoản	Loại Báo Cáo	Tên File Trên Ổ Đĩa	NestJS Service (CqgDownloaderService)	Trạng Thái
+CQG 1	FR1 (Fills)	FR1.xlsx	downloadCQGReports('CQG1')	✅ Đủ
+CQG 1	PS1 (Purchase & Sales)	PS1.xlsx	downloadCQGReports('CQG1')	✅ Đủ
+CQG 1	OP1 (Open Positions)	OP1.xlsx	downloadCQGReports('CQG1')	✅ Đủ
+CQG 1	OD1 (Orders)	OD1.xlsx	downloadCQGReports('CQG1')	✅ Đủ
+CQG 2	FR2 (Fills)	FR2.xlsx	downloadCQGReports('CQG2')	✅ Đủ
+CQG 2	PS2 (Purchase & Sales)	PS2.xlsx	downloadCQGReports('CQG2')	✅ Đủ
+CQG 2	OP2 (Open Positions)	OP2.xlsx	downloadCQGReports('CQG2')	✅ Đủ
+CQG 2	OD2 (Orders)	OD2.xlsx	downloadCQGReports('CQG2')	✅ Đủ
+🟡 HỆ THỐNG ACM (SFTP AUTOMATION):
+Tự động quét & kéo file từ Server SFTP ACM: handleFileAuditAcmJob() trong bot-job-queue.service.ts kết nối SFTP lấy file khớp lệnh ACM (acm_trades_...csv) lưu vào thư mục Backup ACM.
+Trạng thái: ✅ Khớp 100% với hàm GetDSGDBeforeEOD trong TransactionCheckingService.cs.
+📌 KẾT LUẬN RÀ SOÁT:
+Không bỏ sót bất kỳ file nào: Hệ thống NestJS Service hiện tại đã bao phủ 100% toàn bộ 28 file báo cáo (20 file M-System, 8 file CQG, và dữ liệu SFTP ACM) từ Tool IT C# cũ sang.
+Luồng Bot quét tự động: Cả 3 job kiểm tra file backup (FILE_AUDIT_MS, FILE_AUDIT_CQG, FILE_AUDIT_ACM) và job tải đầu ngày (RPA_DOWNLOAD) đã đồng bộ hoàn hảo!

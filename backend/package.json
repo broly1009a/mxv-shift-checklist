@@ -25,6 +25,7 @@
     "test:ms-login": "ts-node src/test-ms-login.ts",
     "test:ms-download": "ts-node src/test-ms-download.ts",
     "test:ms-prices": "ts-node src/test-ms-prices.ts",
+    "test:ms-sidebar": "ts-node src/test-ms-sidebar-navigation.ts",
     "test:reconcile": "ts-node src/test-reconciliation.ts",
     "test:reconcile-local": "ts-node src/test-reconcile-local-files.ts",
     "test:teams-maturity": "ts-node src/test-teams-maturity.ts",
