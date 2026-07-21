@@ -144,7 +144,7 @@ export default function ShiftCardGrid({ activeLogs }: ShiftCardGridProps) {
                   <Unlock size={20} color="var(--color-accent)" /> Ca trực đang vận hành ({pendingShifts.length})
                 </h3>
                 <div className="shift-grid">
-                  {pendingShifts.map(item => {
+                  {pendingShifts.map((item, idx) => {
                     const isDone = item.progressPercentage === 100;
                     const sessionType = item.templateId?.sessionType || 'OPEN';
                     
@@ -159,7 +159,7 @@ export default function ShiftCardGrid({ activeLogs }: ShiftCardGridProps) {
                     }
 
                     return (
-                      <div key={item._id} className={`premium-card ${isDone ? 'completed-glow' : ''}`}>
+                      <div key={`${item._id}-${idx}`} className={`premium-card ${isDone ? 'completed-glow' : ''}`}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                           <div>
                             <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: '1.4', marginBottom: '8px' }}>
@@ -251,7 +251,7 @@ export default function ShiftCardGrid({ activeLogs }: ShiftCardGridProps) {
                   <Lock size={20} color="#64748b" /> Ca trực đã chốt hôm nay ({completedShifts.length})
                 </h3>
                 <div className="shift-grid">
-                  {completedShifts.map(item => {
+                  {completedShifts.map((item, idx) => {
                     const sessionType = item.templateId?.sessionType || 'OPEN';
                     
                     let badgeClass = 'session-badge-premium session-badge-open';
@@ -265,7 +265,7 @@ export default function ShiftCardGrid({ activeLogs }: ShiftCardGridProps) {
                     }
 
                     return (
-                      <div key={item._id} className="premium-card completed-shift-style">
+                      <div key={`${item._id}-${idx}`} className="premium-card completed-shift-style">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                           <div>
                             <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '8px' }}>

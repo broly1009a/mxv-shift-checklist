@@ -1,9 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Search, RefreshCw, AlertCircle, MessageSquare, Clock, FileText, Play } from 'lucide-react';
+import { X, MessageSquare, Copy, Check, Search, RefreshCw, Layers } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+
+interface TemplateItem {
+  id: string;
+  category: string;
+  commodityCode: string;
+  commodityName: string;
+  contractMonth: string;
+  title: string;
+  content: string;
+  targetRole: string;
+}
 
 interface MaturityTemplateModalProps {
   isOpen: boolean;
@@ -11,20 +22,7 @@ interface MaturityTemplateModalProps {
   token: string;
   shiftLogId: string;
   taskId: string;
-}
-
-interface MessageItem {
-  memberCode: string;
-  account: string;
-  contractCode: string;
-  contractName: string;
-  side: string;
-  openSide: string;
-  openVolume: number;
-  pendingSide: string;
-  pendingVolume: number;
-  deadline: string;
-  messageText: string;
+  shiftDate?: string;
 }
 
 export default function MaturityTemplateModal({
@@ -33,134 +31,175 @@ export default function MaturityTemplateModal({
   token,
   shiftLogId,
   taskId,
+  shiftDate,
 }: MaturityTemplateModalProps) {
-  const [activeTab, setActiveTab] = useState<'cards' | 'raw'>('cards');
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'cards' | 'json'>('cards');
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedAll, setCopiedAll] = useState(false);
-  const [textContent, setTextContent] = useState('');
-  const [jsonContent, setJsonContent] = useState<MessageItem[]>([]);
-  const [shiftDate, setShiftDate] = useState('');
-  const [triggering, setTriggering] = useState(false);
-
-  const handleTriggerCheck = async () => {
-    setTriggering(true);
-    toast.loading('Đang khởi chạy robot đối chiếu tất toán hợp đồng...', { id: 'maturity-trigger' });
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-maturity-check/${shiftLogId}/${taskId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Lỗi khi kích hoạt bot đối chiếu');
-      }
-
-      toast.success('Đã kích hoạt quét kiểm tra đáo hạn hợp đồng thành công. Vui lòng chờ 5-10s để dữ liệu được tạo.', { id: 'maturity-trigger' });
-      
-      // Auto-reload data after 8 seconds
-      setTimeout(() => {
-        fetchTemplates();
-      }, 8000);
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi kích hoạt kiểm tra', { id: 'maturity-trigger' });
-    } finally {
-      setTriggering(false);
-    }
-  };
-
-  const fetchTemplates = async () => {
-    if (!shiftLogId) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/reconciliation/maturity-manual-messages?shiftLogId=${shiftLogId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Không thể tải danh sách template tin nhắn');
-      }
-
-      const data = await response.json();
-      setTextContent(data.textContent || '');
-      setJsonContent(data.jsonContent || []);
-      setShiftDate(data.shiftDate || '');
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi tải templates');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [copiedAllJson, setCopiedAllJson] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchTemplates();
     }
-  }, [isOpen, shiftLogId]);
+  }, [isOpen]);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/shift-logs/maturity-templates?shiftLogId=${shiftLogId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Không thể tải dữ liệu templates đáo hạn');
+      }
+
+      const data = await res.json();
+      setTemplates(data || []);
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
-  const handleCopyText = (text: string, id: string) => {
+  const handleCopyText = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    toast.success('Đã sao chép tin nhắn vào bộ nhớ tạm');
+    toast.success('Đã sao chép tin nhắn!');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleCopyAll = () => {
-    navigator.clipboard.writeText(textContent);
-    setCopiedAll(true);
-    toast.success('Đã sao chép toàn bộ template');
-    setTimeout(() => setCopiedAll(false), 2000);
+  const handleCopyAllJson = () => {
+    const jsonStr = JSON.stringify(templates, null, 2);
+    navigator.clipboard.writeText(jsonStr);
+    setCopiedAllJson(true);
+    toast.success('Đã sao chép toàn bộ JSON templates!');
+    setTimeout(() => setCopiedAllJson(false), 2000);
   };
 
-  // Filter parsed cards
-  const filteredMessages = jsonContent.filter((msg) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      msg.memberCode.toLowerCase().includes(term) ||
-      msg.account.toLowerCase().includes(term) ||
-      msg.contractCode.toLowerCase().includes(term) ||
-      (msg.contractName && msg.contractName.toLowerCase().includes(term))
-    );
+  // Filter templates
+  const filteredTemplates = templates.filter(t => {
+    const matchesSearch = 
+      t.commodityCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.commodityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.content.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory = selectedCategory === 'ALL' || t.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
   });
 
+  const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="bg-[#0f172a] border border-slate-800/90 rounded-xl w-full max-w-5xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '24px',
+    }}>
+      <div style={{
+        backgroundColor: '#0f172a',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '960px',
+        maxHeight: '88vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+        overflow: 'hidden',
+      }}>
         
         {/* Header */}
-        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl shrink-0">
-              <MessageSquare className="animate-pulse" size={22} />
+        <div style={{
+          padding: '18px 28px',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+            <div style={{
+              padding: '10px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              color: '#818cf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <MessageSquare size={22} />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-slate-100 truncate">Templates Tin nhắn Đáo hạn Hợp đồng</h2>
-              <p className="text-xs text-slate-400 truncate mt-0.5">
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                color: '#f8fafc',
+                margin: 0,
+                lineHeight: 1.4,
+              }}>
+                Templates Tin nhắn Đáo hạn Hợp đồng
+              </h2>
+              <p style={{
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+                margin: '3px 0 0 0',
+                lineHeight: 1.3,
+              }}>
                 Sao chép các tin nhắn thông báo thủ công gửi thành viên QLGD (ngày {shiftDate || 'hiện tại'})
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             <button
               onClick={fetchTemplates}
               disabled={loading}
               title="Tải lại dữ liệu"
-              className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
+              style={{
+                padding: '8px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                cursor: 'pointer',
+              }}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-100 transition-colors"
+              style={{
+                padding: '8px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                cursor: 'pointer',
+              }}
             >
               <X size={20} />
             </button>
@@ -168,202 +207,282 @@ export default function MaturityTemplateModal({
         </div>
 
         {/* Tab Selectors */}
-        <div className="flex bg-slate-900/40 border-b border-slate-800/80 px-6 pt-1">
+        <div style={{
+          display: 'flex',
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '0 28px',
+          flexShrink: 0,
+        }}>
           <button
             onClick={() => setActiveTab('cards')}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
-              activeTab === 'cards'
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-            }`}
+            style={{
+              padding: '12px 20px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: 'none',
+              borderBottom: activeTab === 'cards' ? '2px solid #818cf8' : '2px solid transparent',
+              color: activeTab === 'cards' ? '#818cf8' : '#94a3b8',
+              backgroundColor: activeTab === 'cards' ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+              marginBottom: '-1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}
           >
             <MessageSquare size={16} />
-            Danh sách Templates ({jsonContent.length})
+            Thẻ Tin nhắn mẫu
           </button>
           <button
-            onClick={() => setActiveTab('raw')}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
-              activeTab === 'raw'
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-            }`}
+            onClick={() => setActiveTab('json')}
+            style={{
+              padding: '12px 20px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: 'none',
+              borderBottom: activeTab === 'json' ? '2px solid #818cf8' : '2px solid transparent',
+              color: activeTab === 'json' ? '#818cf8' : '#94a3b8',
+              backgroundColor: activeTab === 'json' ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+              marginBottom: '-1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}
           >
-            <FileText size={16} />
-            Văn bản tổng hợp (Gửi nhanh)
+            <Layers size={16} />
+            Dữ liệu JSON Tổng hợp
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-950/20 min-h-[340px] flex flex-col">
-          
-          {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-12">
-              <RefreshCw className="animate-spin h-8 w-8 text-indigo-400 mb-3" />
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Đang tải danh sách tin nhắn...</p>
-            </div>
-          ) : activeTab === 'cards' ? (
-            <div className="space-y-4 flex-1 flex flex-col">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm nhanh theo mã TV, tài khoản, mã hợp đồng..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-800/80 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all text-xs font-medium"
-                />
+        {/* Main Body */}
+        <div style={{
+          padding: '24px 28px',
+          flex: 1,
+          overflowY: 'auto',
+          backgroundColor: 'rgba(15, 23, 42, 0.2)',
+        }}>
+          {activeTab === 'cards' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* Search & Filter Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  position: 'relative',
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}>
+                  <Search size={16} style={{ position: 'absolute', left: '12px', color: '#64748b' }} />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Tìm theo mã hàng hóa, tên SP hoặc nội dung tin..."
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#020617',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      padding: '8px 12px 8px 36px',
+                      color: '#f8fafc',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {categories.length > 0 && (
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    style={{
+                      backgroundColor: '#020617',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#f8fafc',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="ALL">Tất cả Phân loại</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              {/* Message Cards List */}
-              {filteredMessages.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 overflow-y-auto flex-1 max-h-[50vh] pr-1">
-                  {filteredMessages.map((msg, index) => {
-                    const uniqueId = `${msg.memberCode}-${msg.account}-${msg.contractCode}-${index}`;
-                    const isCopied = copiedId === uniqueId;
-                    
-                    return (
-                      <div
-                        key={uniqueId}
-                        className="bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/40 rounded-xl overflow-hidden shadow-md transition-all flex flex-col"
-                      >
-                        {/* Card Header */}
-                        <div className="px-5 py-3 bg-slate-950/60 border-b border-slate-800/70 flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold px-2.5 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 rounded-lg shadow-sm">
-                              TVKD: {msg.memberCode}
+              {/* Cards List */}
+              {filteredTemplates.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
+                  {filteredTemplates.map(item => (
+                    <div
+                      key={item.id}
+                      style={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                              color: '#818cf8',
+                              border: '1px solid rgba(99, 102, 241, 0.3)',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                            }}>
+                              {item.commodityCode} {item.contractMonth}
                             </span>
-                            <span className="text-xs font-bold px-2.5 py-1 bg-slate-800 text-slate-200 border border-slate-700/80 rounded-lg font-mono">
-                              TK: {msg.account}
-                            </span>
-                            <span className="text-xs font-bold px-2.5 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-lg font-mono">
-                              HĐ: {msg.contractCode}
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+                              {item.commodityName}
                             </span>
                           </div>
-                          
-                          <div className="text-xs text-slate-400 flex items-center gap-1.5 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
-                            <Clock size={12} className="text-slate-500" />
-                            Hạn tất toán: <strong className="text-slate-200">{msg.deadline}</strong>
-                          </div>
-                        </div>
 
-                        {/* Card Body & Action */}
-                        <div className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                          <div className="flex-1 text-slate-200 text-xs leading-relaxed whitespace-pre-wrap font-mono bg-slate-950/80 p-4 rounded-xl border border-slate-800/80 select-all shadow-inner">
-                            {msg.messageText}
-                          </div>
-                          
                           <button
-                            onClick={() => handleCopyText(msg.messageText, uniqueId)}
-                            className={`shrink-0 w-full md:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
-                              isCopied
-                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
-                                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'
-                            }`}
+                            onClick={() => handleCopyText(item.id, item.content)}
+                            style={{
+                              padding: '5px 12px',
+                              backgroundColor: copiedId === item.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                              color: copiedId === item.id ? '#34d399' : '#e2e8f0',
+                              border: copiedId === item.id ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '6px',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              flexShrink: 0,
+                            }}
                           >
-                            {isCopied ? (
-                              <>
-                                <Check size={14} />
-                                Đã copy!
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={14} />
-                                Copy tin nhắn
-                              </>
-                            )}
+                            {copiedId === item.id ? <Check size={13} /> : <Copy size={13} />}
+                            {copiedId === item.id ? 'Đã sao chép' : 'Sao chép'}
                           </button>
                         </div>
+
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9', margin: '0 0 8px 0' }}>
+                          {item.title}
+                        </h4>
+
+                        <p style={{
+                          fontSize: '0.8rem',
+                          color: '#cbd5e1',
+                          backgroundColor: '#020617',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          margin: 0,
+                          lineHeight: 1.5,
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                        }}>
+                          {item.content}
+                        </p>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="flex-1 py-14 px-6 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 text-center shadow-inner">
-                  <div className="p-4 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 mb-4 shadow-md">
-                    <AlertCircle size={36} />
-                  </div>
-                  <h3 className="text-base text-slate-200 font-bold mb-1">Không tìm thấy mẫu tin nhắn nào</h3>
-                  <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                    {searchTerm 
-                      ? 'Thử thay đổi từ khóa tìm kiếm của bạn.'
-                      : 'Có thể tệp đối chiếu đáo hạn hợp đồng chưa được chạy hoặc không có vị thế/lệnh đáo hạn nào.'}
-                  </p>
+                <div style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  color: '#94a3b8',
+                  fontSize: '0.85rem',
+                }}>
+                  Không tìm thấy template tin nhắn phù hợp.
                 </div>
               )}
+
             </div>
           ) : (
-            <div className="flex-1 flex flex-col space-y-4">
-              {textContent ? (
-                <div className="relative flex-1 flex flex-col min-h-[300px]">
-                  <div className="absolute right-4 top-4 z-10">
-                    <button
-                      onClick={handleCopyAll}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border shadow ${
-                        copiedAll
-                          ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500/30 text-white'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-indigo-400 hover:text-indigo-300'
-                      }`}
-                    >
-                      {copiedAll ? <Check size={13} /> : <Copy size={13} />}
-                      {copiedAll ? 'Đã copy tất cả!' : 'Sao chép toàn bộ'}
-                    </button>
-                  </div>
-                  <pre className="flex-1 bg-slate-950 text-indigo-300 p-6 rounded-xl border border-slate-850 font-mono text-xs overflow-auto leading-relaxed shadow-inner max-h-[460px]">
-                    {textContent}
-                  </pre>
-                </div>
-              ) : (
-                <div className="flex-1 py-14 px-6 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 text-center shadow-inner">
-                  <div className="p-4 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 mb-4 shadow-md">
-                    <AlertCircle size={36} />
-                  </div>
-                  <h3 className="text-base text-slate-200 font-bold mb-1">Tệp tin nhắn trống</h3>
-                  <p className="text-xs text-slate-400">
-                    Tệp teams_manual_messages.txt hiện chưa có dữ liệu.
-                  </p>
-                </div>
-              )}
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 10 }}>
+                <button
+                  onClick={handleCopyAllJson}
+                  style={{
+                    padding: '6px 14px',
+                    backgroundColor: '#1e293b',
+                    color: '#f1f5f9',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <Copy size={13} />
+                  {copiedAllJson ? 'Đã chép tất cả!' : 'Sao chép JSON'}
+                </button>
+              </div>
+              <pre style={{
+                backgroundColor: '#020617',
+                color: '#34d399',
+                padding: '20px',
+                borderRadius: '12px',
+                border: '1px solid #1e293b',
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                overflowX: 'auto',
+                lineHeight: 1.6,
+                margin: 0,
+                maxHeight: '440px',
+              }}>
+                {JSON.stringify(templates, null, 2)}
+              </pre>
             </div>
           )}
-
         </div>
 
-        {/* Footer - Clear non-overlapping layout */}
-        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="text-xs text-slate-400 font-medium shrink-0">
-            Tổng cộng: <strong className="text-slate-200 font-extrabold">{jsonContent.length}</strong> template tin nhắn.
+        {/* Footer */}
+        <div style={{
+          padding: '16px 28px',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+            Tổng cộng: <strong style={{ color: '#f8fafc' }}>{templates.length}</strong> template tin nhắn.
           </div>
-          <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
-            <button
-              onClick={handleTriggerCheck}
-              disabled={triggering || loading}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
-                triggering
-                  ? 'bg-amber-600/30 text-amber-300 border border-amber-500/20 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-indigo-500/20'
-              }`}
-            >
-              {triggering ? (
-                <>
-                  <RefreshCw className="animate-spin h-4 w-4 text-amber-300" />
-                  Đang chạy bot...
-                </>
-              ) : (
-                <>
-                  <Play size={14} fill="currentColor" />
-                  Chạy lại đối chiếu (RPA)
-                </>
-              )}
-            </button>
-            <button
-              onClick={onClose}
-              disabled={triggering}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-700/60 disabled:opacity-50"
-            >
-              Đóng
-            </button>
-          </div>
+
+          <button
+            onClick={onClose}
+            style={{
+              padding: '9px 20px',
+              backgroundColor: '#1e293b',
+              color: '#e2e8f0',
+              borderRadius: '10px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              border: '1px solid #334155',
+              cursor: 'pointer',
+            }}
+          >
+            Đóng
+          </button>
         </div>
 
       </div>

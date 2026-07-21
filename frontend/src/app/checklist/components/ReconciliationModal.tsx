@@ -388,11 +388,11 @@ export default function ReconciliationModal({
       <div style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
-        borderRadius: '16px',
+        borderRadius: '12px',
         width: '100%',
         maxWidth: '850px',
         maxHeight: '90vh',
-        overflowY: 'auto',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: 'var(--glass-shadow)',
@@ -405,7 +405,8 @@ export default function ReconciliationModal({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'rgba(255,255,255,0.01)'
+          background: 'rgba(255,255,255,0.01)',
+          flexShrink: 0
         }}>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileSpreadsheet color="var(--color-accent)" size={22} />
@@ -420,7 +421,7 @@ export default function ReconciliationModal({
         </div>
 
         {/* Content */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', flex: 1 }}>
           
           {/* Form input row */}
           <div style={{ display: 'grid', gridTemplateColumns: mode === 'CQG' ? '1fr 1fr' : '1fr 1fr 1.5fr', gap: '16px' }}>

@@ -40,7 +40,7 @@ export default function CcpStatisticsModal({
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Load config when open or when activeTab is config
+  // Load config when open
   useEffect(() => {
     if (isOpen) {
       fetchConfig();
@@ -59,8 +59,38 @@ export default function CcpStatisticsModal({
         setFixedMembers((data.fixedMembers || []).join(', '));
         setTkMmCodes((data.tkMmCodes || []).join(', '));
       }
-    } catch (err) {
-      console.error('Error fetching config:', err);
+    } catch (err: any) {
+      console.error('Lỗi khi tải cấu hình CCP:', err);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
+    try {
+      const arrayFixed = fixedMembers.split(',').map(s => s.trim()).filter(Boolean);
+      const arrayMm = tkMmCodes.split(',').map(s => s.trim()).filter(Boolean);
+
+      const res = await fetch(`${API_BASE_URL}/ccp-statistics/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fixedMembers: arrayFixed,
+          tkMmCodes: arrayMm,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Lỗi khi lưu cấu hình CCP');
+      }
+
+      toast.success('Đã lưu cấu hình danh sách Thành viên & Tài khoản MM thành công!');
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message}`);
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -68,7 +98,7 @@ export default function CcpStatisticsModal({
 
   const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
-    setFiles((prev) => ({ ...prev, [key]: selectedFile }));
+    setFiles(prev => ({ ...prev, [key]: selectedFile }));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -78,63 +108,55 @@ export default function CcpStatisticsModal({
   const handleDrop = (key: string, e: React.DragEvent) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files?.[0] || null;
-    setFiles((prev) => ({ ...prev, [key]: droppedFile }));
+    setFiles(prev => ({ ...prev, [key]: droppedFile }));
   };
 
-  const handleSaveConfig = async () => {
-    setIsSavingConfig(true);
+  const downloadFileFromBase64 = (base64Data: string, fileName: string) => {
     try {
-      const payload = {
-        fixedMembers: fixedMembers
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0),
-        tkMmCodes: tkMmCodes
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0),
-      };
-
-      const res = await fetch(`${API_BASE_URL}/ccp-statistics/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
 
-      if (!res.ok) {
-        throw new Error('Không thể lưu cấu hình');
-      }
-
-      toast.success('Lưu cấu hình CCP thành công!');
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi lưu cấu hình');
-    } finally {
-      setIsSavingConfig(false);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error('Lỗi khi tải file:', e);
+      toast.error('Lỗi khi tải file về máy!');
     }
   };
 
   const handleRunProcess = async () => {
-    // Validate files
-    const missing = Object.entries(files).filter(([_, file]) => !file);
-    if (missing.length > 0) {
-      toast.error('Vui lòng tải lên đầy đủ 6 file Excel trước khi thực hiện!');
+    // Validate required files
+    if (!files.dsgdCcp || !files.dsgdMmCcp || !files.dstkgd || !files.nr || !files.ttm) {
+      toast.error('Vui lòng chọn đủ 5 file bắt buộc (*)!');
       return;
     }
 
-    const formData = new FormData();
-    formData.append('date', selectedDate);
-    Object.entries(files).forEach(([key, file]) => {
-      if (file) {
-        formData.append(key, file);
-      }
-    });
-
     setLoading(true);
-
     try {
+      const formData = new FormData();
+      formData.append('reportDate', selectedDate);
+      formData.append('dsgdCcp', files.dsgdCcp);
+      formData.append('dsgdMmCcp', files.dsgdMmCcp);
+      formData.append('dstkgd', files.dstkgd);
+      formData.append('nr', files.nr);
+      formData.append('ttm', files.ttm);
+      if (files.tttt) {
+        formData.append('tttt', files.tttt);
+      }
+
       const res = await fetch(`${API_BASE_URL}/ccp-statistics/process`, {
         method: 'POST',
         headers: {
@@ -144,197 +166,384 @@ export default function CcpStatisticsModal({
       });
 
       if (!res.ok) {
-        const errText = await res.json().catch(() => ({ message: 'Lỗi không xác định khi xuất báo cáo.' }));
-        throw new Error(errText.message || 'Lỗi xuất báo cáo thống kê CCP');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Lỗi khi xử lý gom nhóm báo cáo CCP');
       }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Thong_ke_kich_ban_Pilot_Bac_${selectedDate.replace(/-/g, '')}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const data = await res.json();
+      toast.success('Báo cáo CCP đã gom nhóm thành công! Đang tải file về...');
 
-      toast.success('Xuất báo cáo Thống kê CCP thành công!');
-      onClose();
+      if (data.fileBase64 && data.fileName) {
+        downloadFileFromBase64(data.fileBase64, data.fileName);
+      }
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi kết nối máy chủ');
+      toast.error(`Lỗi: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const fileInputs = [
-    { key: 'dsgdCcp', label: 'DSGD CCP.xlsx', desc: 'Báo cáo giao dịch CCP' },
-    { key: 'dsgdMmCcp', label: 'DSGD MM CCP.xlsx', desc: 'Báo cáo giao dịch Market Maker' },
-    { key: 'dstkgd', label: 'DSTKGD.xlsx', desc: 'Danh sách tài khoản giao dịch' },
-    { key: 'nr', label: 'NR.xlsx', desc: 'Báo cáo nộp rút tiền thành viên' },
-    { key: 'ttm', label: 'TTM.xlsx', desc: 'Báo cáo trạng thái mở' },
-    { key: 'tttt', label: 'TTTT.xlsx', desc: 'Báo cáo tất toán hợp đồng' },
-  ];
+  const renderDropzone = (key: string, label: string, desc: string, required: boolean = true) => {
+    const file = files[key];
+    return (
+      <div
+        onDragOver={handleDragOver}
+        onDrop={e => handleDrop(key, e)}
+        style={{
+          border: file ? '1px solid #10b981' : '1px dashed rgba(255, 255, 255, 0.15)',
+          borderRadius: '12px',
+          padding: '16px',
+          backgroundColor: file ? 'rgba(16, 185, 129, 0.05)' : 'rgba(15, 23, 42, 0.4)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          position: 'relative',
+          cursor: 'pointer',
+          minHeight: '100px',
+          transition: 'all 0.2s',
+        }}
+      >
+        <input
+          type="file"
+          accept=".xlsx, .xls"
+          onChange={e => handleFileChange(key, e)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0,
+            cursor: 'pointer',
+            zIndex: 5,
+          }}
+        />
+        <FileSpreadsheet size={24} color={file ? '#10b981' : '#64748b'} />
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', textAlign: 'center' }}>
+          {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+        </span>
+        <span style={{
+          fontSize: '0.7rem',
+          color: file ? '#34d399' : '#94a3b8',
+          textAlign: 'center',
+          wordBreak: 'break-all',
+          lineHeight: 1.3,
+        }}>
+          {file ? file.name : desc}
+        </span>
+      </div>
+    );
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="bg-[#0f172a] border border-slate-800/90 rounded-xl w-full max-w-5xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '24px',
+    }}>
+      <div style={{
+        backgroundColor: '#0f172a',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '960px',
+        maxHeight: '88vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+        overflow: 'hidden',
+      }}>
         {/* Header */}
-        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center gap-4 shrink-0">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
-              <FileSpreadsheet className="animate-pulse" size={22} />
+        <div style={{
+          padding: '18px 28px',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+            <div style={{
+              padding: '10px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              color: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <FileSpreadsheet size={22} />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-slate-100 truncate leading-snug">Báo cáo & Thống kê CCP</h2>
-              <p className="text-xs text-slate-400 truncate mt-1">Xử lý gom nhóm và kết xuất báo cáo Pilot Bạc Thỏi</p>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                color: '#f8fafc',
+                margin: 0,
+                lineHeight: 1.4,
+              }}>
+                Báo cáo & Thống kê CCP
+              </h2>
+              <p style={{
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+                margin: '3px 0 0 0',
+                lineHeight: 1.3,
+              }}>
+                Xử lý gom nhóm và kết xuất báo cáo Pilot Bạc Thỏi
+              </p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-100 transition-colors shrink-0"
+            style={{
+              padding: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation Tabs - with shrink-0 and -mb-px to align active tab border perfectly */}
-        <div className="flex bg-slate-900/40 border-b border-slate-800/80 px-6 sm:px-8 pt-1 shrink-0">
+        {/* Navigation Tabs */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '0 28px',
+          flexShrink: 0,
+        }}>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
-              activeTab === 'upload'
-                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-            }`}
+            style={{
+              padding: '12px 20px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: 'none',
+              borderBottom: activeTab === 'upload' ? '2px solid #10b981' : '2px solid transparent',
+              color: activeTab === 'upload' ? '#10b981' : '#94a3b8',
+              backgroundColor: activeTab === 'upload' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              marginBottom: '-1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}
           >
-            <Play size={16} />
-            Xử lý Báo cáo
+            <FileSpreadsheet size={16} />
+            Nhập File Báo cáo
           </button>
           <button
             onClick={() => setActiveTab('config')}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
-              activeTab === 'config'
-                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-            }`}
+            style={{
+              padding: '12px 20px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: 'none',
+              borderBottom: activeTab === 'config' ? '2px solid #10b981' : '2px solid transparent',
+              color: activeTab === 'config' ? '#10b981' : '#94a3b8',
+              backgroundColor: activeTab === 'config' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              marginBottom: '-1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}
           >
             <Settings size={16} />
             Cấu hình Thành viên & MM
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-950/20 min-h-[340px]">
+        {/* Main Content Area */}
+        <div style={{
+          padding: '24px 28px',
+          flex: 1,
+          overflowY: 'auto',
+          backgroundColor: 'rgba(15, 23, 42, 0.2)',
+        }}>
           {activeTab === 'upload' ? (
-            <div className="space-y-6">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Date Input */}
-              <div className="bg-slate-900/60 p-4 border border-slate-800/80 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-200 uppercase tracking-wider">Ngày đối soát dữ liệu</label>
-                  <p className="text-xs text-slate-400">Hệ thống sẽ lấy ngày này để xác định vị trí append hoặc cập nhật</p>
-                </div>
+              <div style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+              }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                  Ngày chạy báo cáo:
+                </label>
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-200 px-3.5 py-2 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-medium"
+                  onChange={e => setSelectedDate(e.target.value)}
+                  style={{
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    color: '#f8fafc',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                  }}
                 />
               </div>
 
-              {/* Grid of upload zones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {fileInputs.map(({ key, label, desc }) => (
-                  <div
-                    key={key}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(key, e)}
-                    className={`relative p-5 border-2 border-dashed rounded-xl flex flex-col justify-center items-center text-center transition-all ${
-                      files[key]
-                        ? 'border-emerald-500/60 bg-emerald-500/10'
-                        : 'border-slate-800 hover:border-slate-700 bg-slate-900/40'
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      id={`file-${key}`}
-                      accept=".xlsx,.xls"
-                      onChange={(e) => handleFileChange(key, e)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <FileSpreadsheet className={`mb-2 ${files[key] ? 'text-emerald-400' : 'text-slate-500'}`} size={26} />
-                    <span className="text-xs font-bold text-slate-100">{files[key] ? files[key]?.name : label}</span>
-                    <span className="text-[11px] text-slate-400 mt-1">{desc}</span>
-                    {files[key] && (
-                      <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                        <CheckCircle2 size={11} /> Đã chọn
-                      </span>
-                    )}
-                  </div>
-                ))}
+              {/* Grid 6 dropzones */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {renderDropzone('dsgdCcp', 'File DSGD CCP', 'Báo cáo danh sách giao dịch CCP')}
+                {renderDropzone('dsgdMmCcp', 'File DSGD MM CCP', 'Báo cáo danh sách giao dịch MM')}
+                {renderDropzone('dstkgd', 'File DSTKGD', 'Danh sách tài khoản giao dịch')}
+                {renderDropzone('nr', 'File Nộp Rút (NR)', 'Báo cáo nộp rút tiền thành viên')}
+                {renderDropzone('ttm', 'File TTM', 'Báo cáo trạng thái mở')}
+                {renderDropzone('tttt', 'File TTTT (Tùy chọn)', 'Báo cáo thanh toán thực tế', false)}
               </div>
             </div>
           ) : (
-            <div className="space-y-6 max-w-2xl mx-auto py-2">
-              <div className="bg-slate-900/80 p-4 border border-slate-800/80 rounded-xl flex items-start gap-3.5">
-                <AlertCircle className="text-amber-400 shrink-0 mt-0.5" size={20} />
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-slate-200">Lưu ý cấu hình danh sách</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Phân tách các mã bằng dấu phẩy (ví dụ: <code className="text-amber-300 font-mono">001, 003, 082</code>). Các tài khoản MM sẽ được gom nhóm riêng chi tiết đến mã TKGD thay vì mã TVKD.
-                  </p>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9', margin: 0 }}>
+                  Danh sách Thành viên cố định (Fixed Members)
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+                  Nhập mã thành viên phân cách bởi dấu phẩy (Ví dụ: 001, 002, 003)
+                </p>
+                <input
+                  type="text"
+                  value={fixedMembers}
+                  onChange={e => setFixedMembers(e.target.value)}
+                  placeholder="001, 002, 005..."
+                  style={{
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    color: '#f8fafc',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                  }}
+                />
               </div>
 
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Thành viên cố định (FixedMembers)</label>
-                  <textarea
-                    rows={4}
-                    value={fixedMembers}
-                    onChange={(e) => setFixedMembers(e.target.value)}
-                    placeholder="001, 003, 012, 045, 046, 048, 082, 083, 999"
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 p-3.5 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono leading-relaxed"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Tài khoản Market Maker (TkMmCodes)</label>
-                  <textarea
-                    rows={3}
-                    value={tkMmCodes}
-                    onChange={(e) => setTkMmCodes(e.target.value)}
-                    placeholder="082E9999999-M"
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 p-3.5 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono leading-relaxed"
-                  />
-                </div>
+              <div style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9', margin: 0 }}>
+                  Danh sách Tài khoản MM (Market Maker Codes)
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+                  Nhập mã tài khoản MM phân cách bởi dấu phẩy (Ví dụ: 001C111111, 002C222222)
+                </p>
+                <input
+                  type="text"
+                  value={tkMmCodes}
+                  onChange={e => setTkMmCodes(e.target.value)}
+                  placeholder="001C123456, 002C654321..."
+                  style={{
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    color: '#f8fafc',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                  }}
+                />
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-          <div className="text-xs text-slate-400 font-medium shrink-0">
+        <div style={{
+          padding: '16px 28px',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
             {activeTab === 'upload' ? 'Đảm bảo dữ liệu các file Excel đúng định dạng báo cáo gốc.' : 'Cấu hình này sẽ được áp dụng cho mọi lượt đối soát tiếp theo.'}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {activeTab === 'upload' ? (
               <button
                 onClick={handleRunProcess}
                 disabled={loading}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:from-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20"
+                style={{
+                  padding: '9px 24px',
+                  borderRadius: '10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                }}
               >
                 {loading ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    Đang xử lý...
+                    Đang gom nhóm...
                   </>
                 ) : (
                   <>
                     <Play size={14} fill="currentColor" />
-                    Xuất Báo cáo Excel
+                    Chạy gom nhóm báo cáo
                   </>
                 )}
               </button>
@@ -342,20 +551,45 @@ export default function CcpStatisticsModal({
               <button
                 onClick={handleSaveConfig}
                 disabled={isSavingConfig}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:from-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20"
+                style={{
+                  padding: '9px 24px',
+                  borderRadius: '10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: 'none',
+                  cursor: isSavingConfig ? 'not-allowed' : 'pointer',
+                  opacity: isSavingConfig ? 0.6 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                }}
               >
                 <Save size={14} />
                 Lưu cấu hình
               </button>
             )}
+
             <button
               onClick={onClose}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-700/60"
+              style={{
+                padding: '9px 20px',
+                backgroundColor: '#1e293b',
+                color: '#e2e8f0',
+                borderRadius: '10px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                border: '1px solid #334155',
+                cursor: 'pointer',
+              }}
             >
-              Hủy
+              Đóng
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );

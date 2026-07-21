@@ -285,7 +285,7 @@ export default function TaskTable({
             Không tìm thấy tác vụ phù hợp với bộ lọc.
           </div>
         ) : (
-          parentDetails.map((item) => {
+          parentDetails.map((item, idx) => {
             const children = childrenMap[item.taskId] || [];
             const hasChildren = children.length > 0;
             const isExpanded = expandedParents.has(item.taskId);
@@ -297,7 +297,7 @@ export default function TaskTable({
             const StatusIcon = currentStatusConfig.icon;
             const locked = isTaskLocked(item);
             return (
-              <div key={item.taskId} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div key={`${item.taskId}-${idx}`} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div className="glass-panel" style={{
                 padding: '16px',
                 borderRadius: hasChildren ? '12px 12px 0 0' : '12px',
@@ -775,7 +775,7 @@ export default function TaskTable({
                   border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
                   padding: '8px 12px 12px 12px'
                 }}>
-                  {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map(child => {
+                  {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map((child, cIdx) => {
                     const isBot = child.isBotCheckSnapshot;
                     const cStatus = child.status || 'PENDING';
                     const cConfig = STATUS_CONFIGS[cStatus] || STATUS_CONFIGS.PENDING;
@@ -783,7 +783,7 @@ export default function TaskTable({
                     const cSaving = savingTaskId === child.taskId;
                     const cToggling = togglingTaskIds.has(child.taskId);
                     return (
-                      <div key={child.taskId} style={{
+                      <div key={`${child.taskId}-${cIdx}`} style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: '8px 12px', borderRadius: '8px',
                         background: child.isChecked
