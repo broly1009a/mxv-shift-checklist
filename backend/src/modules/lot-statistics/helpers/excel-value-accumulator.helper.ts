@@ -7,6 +7,8 @@ import {
   ensureDirExists,
 } from './excel-accumulator.helper';
 
+import { ensureBaseFileExists } from '../../../common/file-guard.helper';
+
 // ─── Commodity Code Mappings matching Sheet1 ranges ─────────────────────────
 
 export const NORMAL_COMMODITIES = [
@@ -135,6 +137,8 @@ async function updateValueTrackerFile(
   valueMap: Map<string, number>,
   fileType: string
 ) {
+  ensureBaseFileExists(filePath);
+
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế ${fileType} không tồn tại: "${filePath}"`);
   }

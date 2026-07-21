@@ -13,6 +13,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ensureBaseDirectoryExists } from '../../common/file-guard.helper';
 import { parseExcelBuffer, ParsedRow } from './helpers/excel-parser.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import {
@@ -121,6 +122,7 @@ export class LotStatisticsService {
    * Quét thư mục trên server và đọc các file Excel tương ứng dưới dạng Buffer
    */
   loadFilesFromDirectory(folderPath: string): LotInputFiles {
+    ensureBaseDirectoryExists(folderPath);
     if (!fs.existsSync(folderPath)) {
       throw new Error(`Thư mục không tồn tại trên server: "${folderPath}"`);
     }
@@ -184,8 +186,12 @@ export class LotStatisticsService {
       return this.loadFilesFromDirectory(folderPathMs);
     }
 
+    ensureBaseDirectoryExists(folderPathMs);
     if (!fs.existsSync(folderPathMs)) {
       throw new Error(`Thư mục MS không tồn tại trên server: "${folderPathMs}"`);
+    }
+    if (folderPathCqg) {
+      ensureBaseDirectoryExists(folderPathCqg);
     }
     if (!fs.existsSync(folderPathCqg)) {
       throw new Error(`Thư mục CQG không tồn tại trên server: "${folderPathCqg}"`);

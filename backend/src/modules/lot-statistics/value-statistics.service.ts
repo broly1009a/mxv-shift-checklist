@@ -5,7 +5,7 @@ import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { parseExcelBuffer, toNum, toStr, ParsedRow } from './helpers/excel-parser.helper';
 import { updateAllValueCumulativeFiles, ValueAccumulatorPaths } from './helpers/excel-value-accumulator.helper';
-import { assertSafeWritePath } from '../../common/file-guard.helper';
+import { assertSafeWritePath, ensureBaseFileExists } from '../../common/file-guard.helper';
 
 export function getMaHHFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4'] ?? '');
@@ -100,6 +100,7 @@ export class ValueStatisticsService {
     this.logger.log(`Using Macro template: ${macroPath}`);
     this.logger.log(`Target root: ${targetRoot}`);
 
+    ensureBaseFileExists(macroPath);
     if (!fs.existsSync(macroPath)) {
       throw new Error(`Không tìm thấy file Macro cấu hình tại: "${macroPath}"`);
     }
@@ -161,6 +162,7 @@ export class ValueStatisticsService {
     );
 
     this.logger.log(`Searching for daily DSGD at: ${dsgdPath}`);
+    ensureBaseFileExists(dsgdPath);
     if (!fs.existsSync(dsgdPath)) {
       throw new Error(`Không tìm thấy file DSGD giao dịch ngày ${dayStr}.${monthStr}.${year} tại: "${dsgdPath}"`);
     }

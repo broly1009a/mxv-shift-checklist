@@ -402,8 +402,8 @@ function ChecklistWorksheet() {
                     outline: 'none',
                   }}
                 >
-                  {activeLogs.map((item) => (
-                    <option key={item._id} value={item._id}>
+                  {activeLogs.map((item, idx) => (
+                    <option key={`${item._id}-${idx}`} value={item._id}>
                       {item.templateId?.title} ({item.shiftDate}) {item.status === 'COMPLETED' ? '[Đã chốt]' : '[Đang chạy]'}
                     </option>
                   ))}

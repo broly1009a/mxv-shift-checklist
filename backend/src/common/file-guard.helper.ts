@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * Ensures that target files can only be written to allowed output root paths.
@@ -20,4 +21,78 @@ export function assertSafeWritePath(filePath: string, allowedOutputRoot: string)
       `  - Thư mục định ghi: "${resolvedTarget}"`
     );
   }
+}
+
+/**
+ * Checks if a required file exists in target path.
+ * If missing in output targetRoot, automatically attempts to copy it over from DATA_ROOT source directory.
+ */
+export function ensureBaseFileExists(filePath: string): boolean {
+  if (fs.existsSync(filePath)) {
+    return true;
+  }
+
+  const dataRoot = process.env.DATA_ROOT;
+  const targetRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT;
+
+  if (dataRoot && targetRoot) {
+    const resolvedTarget = path.resolve(filePath);
+    const resolvedAllowedRoot = path.resolve(targetRoot);
+
+    if (resolvedTarget.startsWith(resolvedAllowedRoot)) {
+      const relativePath = path.relative(resolvedAllowedRoot, resolvedTarget);
+      const sourceCandidate = path.join(dataRoot, relativePath);
+
+      if (fs.existsSync(sourceCandidate)) {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.copyFileSync(sourceCandidate, filePath);
+        console.log(`[AUTO-SYNC] Đã tự động kéo file thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${filePath}"`);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Checks if a required directory exists in target path.
+ * If missing in output targetRoot, automatically attempts to copy the folder files from DATA_ROOT source directory.
+ */
+export function ensureBaseDirectoryExists(dirPath: string): boolean {
+  if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+    return true;
+  }
+
+  const dataRoot = process.env.DATA_ROOT;
+  const targetRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT;
+
+  if (dataRoot && targetRoot) {
+    const resolvedTarget = path.resolve(dirPath);
+    const resolvedAllowedRoot = path.resolve(targetRoot);
+
+    if (resolvedTarget.startsWith(resolvedAllowedRoot)) {
+      const relativePath = path.relative(resolvedAllowedRoot, resolvedTarget);
+      const sourceCandidate = path.join(dataRoot, relativePath);
+
+      if (fs.existsSync(sourceCandidate) && fs.statSync(sourceCandidate).isDirectory()) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        const files = fs.readdirSync(sourceCandidate);
+        for (const file of files) {
+          const srcFile = path.join(sourceCandidate, file);
+          const destFile = path.join(dirPath, file);
+          if (fs.statSync(srcFile).isFile()) {
+            fs.copyFileSync(srcFile, destFile);
+          }
+        }
+        console.log(`[AUTO-SYNC] Đã tự động kéo thư mục thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${dirPath}"`);
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

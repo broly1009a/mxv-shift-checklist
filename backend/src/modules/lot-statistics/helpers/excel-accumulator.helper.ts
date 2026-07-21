@@ -4,8 +4,7 @@ import * as fs from 'fs';
 import { LotSummaryResult } from '../lot-statistics.service';
 import { DsgdClassified } from './trade-classifier.helper';
 import { aggregateByTvkd, sumDsgdLot, sumTtmLot, sumTtttLot, aggregateByProduct, getSPFromDsgd, getSPFromSpread } from './lot-aggregator.helper';
-import { toDate } from './excel-parser.helper';
-
+import { assertSafeWritePath, ensureBaseFileExists } from '../../../common/file-guard.helper';
 export interface AccumulatorPaths {
   pathDsgdCumulative: string;   // DSGD T[MM].[YYYY].xlsx
   pathNormal: string;           // Thong ke so lot giao dich 2026 2.xlsx
@@ -21,7 +20,7 @@ export interface AccumulatorPaths {
 export function isSameDate(cellVal: any, targetDate: Date): boolean {
   if (cellVal === null || cellVal === undefined) return false;
   let d: Date | null = null;
-  
+
   if (cellVal instanceof Date) {
     d = cellVal;
   } else if (typeof cellVal === 'number') {
@@ -150,7 +149,7 @@ function matchProductHeader(header: string, productCode: string): boolean {
   return normalizedHeader === normalizedProd;
 }
 
-import { assertSafeWritePath } from '../../../common/file-guard.helper';
+
 
 /**
  * Ensures directory exists and validates safety against allowed root
@@ -200,7 +199,7 @@ export async function appendRawDsgd(
 ) {
   ensureDirExists(targetFilePath);
   backupFile(targetFilePath);
-  
+
   // Read daily DSGD rows
   const dailyWb = new ExcelJS.Workbook();
   await dailyWb.xlsx.load(dailyDsgdBuffer as any);
@@ -274,6 +273,8 @@ async function updateTvkdTrackerFile(
   ngayGD: Date,
   categoryName: 'LME' | 'Options' | 'Spread',
 ) {
+  ensureBaseFileExists(filePath);
+
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế ${categoryName} không tồn tại: "${filePath}"`);
   }
@@ -344,6 +345,8 @@ async function updateAcmTrackerFile(
   ttmAcm: any[],
   ngayGD: Date,
 ) {
+  ensureBaseFileExists(filePath);
+
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế ACM không tồn tại: "${filePath}"`);
   }
@@ -414,6 +417,8 @@ async function updateNormalTrackerFile(
   classified: DsgdClassified,
   lmeExpiredLot: number,
 ) {
+  ensureBaseFileExists(filePath);
+
   if (!fs.existsSync(filePath)) {
     throw new Error(`File lũy kế Normal Futures không tồn tại: "${filePath}"`);
   }

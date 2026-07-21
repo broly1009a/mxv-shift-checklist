@@ -24,7 +24,7 @@ export default function AuditLogsPanel({ auditLogs }: AuditLogsPanelProps) {
           {/* Visual vertical line for timeline */}
           <div style={{ position: 'absolute', top: '8px', bottom: '8px', left: '15px', width: '2px', background: 'var(--border-color)' }}></div>
 
-          {auditLogs.map((audit) => {
+          {auditLogs.map((audit, idx) => {
             let badgeColor = 'rgba(255,255,255,0.02)';
             let dotColor = '#94a3b8';
             if (audit.action === 'CHECK' || audit.action === 'INCIDENT_RESOLVED') {
@@ -42,7 +42,7 @@ export default function AuditLogsPanel({ auditLogs }: AuditLogsPanelProps) {
             }
 
             return (
-              <div key={audit._id} style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
+              <div key={`${audit._id}-${idx}`} style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
                 {/* Custom timeline dot */}
                 <div style={{
                   width: '32px',

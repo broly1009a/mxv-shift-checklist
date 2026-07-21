@@ -132,7 +132,7 @@ export function useChecklist() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setActiveLogs(data);
+      setActiveLogs(Array.from(new Map(data.map((item: any) => [item._id, item])).values()) as ShiftLog[]);
     } catch (err) {
       console.warn(err);
     } finally {
@@ -175,7 +175,8 @@ export function useChecklist() {
       });
       if (res.ok) {
         const data = await res.json();
-        setAuditLogs(data);
+        const uniqueAudits = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
+        setAuditLogs(uniqueAudits as AuditLog[]);
       }
     } catch (err) {
       console.warn('Lỗi tải nhật ký kiểm toán:', err);
@@ -190,7 +191,8 @@ export function useChecklist() {
       });
       if (res.ok) {
         const data = await res.json();
-        setIncidents(data);
+        const uniqueIncidents = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
+        setIncidents(uniqueIncidents);
       }
     } catch (err) {
       console.warn('Lỗi tải danh sách sự cố:', err);
@@ -362,7 +364,10 @@ export function useChecklist() {
       }
 
       if (data?.auditLog) {
-        setAuditLogs(prev => [data.auditLog!, ...prev].slice(0, 100));
+        setAuditLogs(prev => {
+          if (prev.some(a => a._id === data.auditLog!._id)) return prev;
+          return [data.auditLog!, ...prev].slice(0, 100);
+        });
       }
     });
 
@@ -383,7 +388,10 @@ export function useChecklist() {
       }
 
       if (data?.auditLog) {
-        setAuditLogs(prev => [data.auditLog!, ...prev].slice(0, 100));
+        setAuditLogs(prev => {
+          if (prev.some(a => a._id === data.auditLog!._id)) return prev;
+          return [data.auditLog!, ...prev].slice(0, 100);
+        });
       }
     });
 

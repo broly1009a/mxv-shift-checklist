@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, FileSpreadsheet, Play, Settings, Save, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, FileSpreadsheet, Play, Settings, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -177,30 +177,35 @@ export default function CcpStatisticsModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-fade-in">
+      <div className="bg-[#0f172a] border border-slate-800/90 rounded-xl w-full max-w-5xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <FileSpreadsheet className="text-emerald-400" size={24} />
-            <div>
-              <h2 className="text-lg font-bold text-slate-100">Báo cáo & Thống kê CCP</h2>
-              <p className="text-xs text-slate-400">Xử lý gom nhóm và kết xuất báo cáo Pilot Bạc Thỏi</p>
+        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
+              <FileSpreadsheet className="animate-pulse" size={22} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-slate-100 truncate leading-snug">Báo cáo & Thống kê CCP</h2>
+              <p className="text-xs text-slate-400 truncate mt-1">Xử lý gom nhóm và kết xuất báo cáo Pilot Bạc Thỏi</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors">
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-100 transition-colors shrink-0"
+          >
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex bg-slate-950/20 border-b border-slate-800">
+        {/* Navigation Tabs - with shrink-0 and -mb-px to align active tab border perfectly */}
+        <div className="flex bg-slate-900/40 border-b border-slate-800/80 px-6 sm:px-8 pt-1 shrink-0">
           <button
             onClick={() => setActiveTab('upload')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
               activeTab === 'upload'
-                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
             }`}
           >
             <Play size={16} />
@@ -208,10 +213,10 @@ export default function CcpStatisticsModal({
           </button>
           <button
             onClick={() => setActiveTab('config')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all flex items-center gap-2 rounded-t-lg ${
               activeTab === 'config'
-                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
             }`}
           >
             <Settings size={16} />
@@ -220,20 +225,20 @@ export default function CcpStatisticsModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-900/50">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-950/20 min-h-[340px]">
           {activeTab === 'upload' ? (
             <div className="space-y-6">
               {/* Date Input */}
-              <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="bg-slate-900/60 p-4 border border-slate-800/80 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Ngày đối soát dữ liệu</label>
+                  <label className="text-xs font-bold text-slate-200 uppercase tracking-wider">Ngày đối soát dữ liệu</label>
                   <p className="text-xs text-slate-400">Hệ thống sẽ lấy ngày này để xác định vị trí append hoặc cập nhật</p>
                 </div>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-slate-850 border border-slate-750 text-slate-200 px-3 py-2 rounded-md focus:outline-none focus:border-emerald-500 text-sm"
+                  className="bg-slate-950 border border-slate-800 text-slate-200 px-3.5 py-2 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-medium"
                 />
               </div>
 
@@ -244,10 +249,10 @@ export default function CcpStatisticsModal({
                     key={key}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(key, e)}
-                    className={`relative p-4 border-2 border-dashed rounded-lg flex flex-col justify-center items-center text-center transition-all ${
+                    className={`relative p-5 border-2 border-dashed rounded-xl flex flex-col justify-center items-center text-center transition-all ${
                       files[key]
-                        ? 'border-emerald-500/50 bg-emerald-500/5'
-                        : 'border-slate-700 hover:border-slate-600 bg-slate-950/20'
+                        ? 'border-emerald-500/60 bg-emerald-500/10'
+                        : 'border-slate-800 hover:border-slate-700 bg-slate-900/40'
                     }`}
                   >
                     <input
@@ -257,12 +262,12 @@ export default function CcpStatisticsModal({
                       onChange={(e) => handleFileChange(key, e)}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <FileSpreadsheet className={`mb-2 ${files[key] ? 'text-emerald-400' : 'text-slate-500'}`} size={24} />
-                    <span className="text-sm font-semibold text-slate-200">{files[key] ? files[key]?.name : label}</span>
-                    <span className="text-xs text-slate-400 mt-1">{desc}</span>
+                    <FileSpreadsheet className={`mb-2 ${files[key] ? 'text-emerald-400' : 'text-slate-500'}`} size={26} />
+                    <span className="text-xs font-bold text-slate-100">{files[key] ? files[key]?.name : label}</span>
+                    <span className="text-[11px] text-slate-400 mt-1">{desc}</span>
                     {files[key] && (
-                      <span className="mt-2 inline-flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
-                        <CheckCircle2 size={10} /> Đã chọn
+                      <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                        <CheckCircle2 size={11} /> Đã chọn
                       </span>
                     )}
                   </div>
@@ -270,18 +275,18 @@ export default function CcpStatisticsModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-6 max-w-2xl mx-auto">
-              <div className="bg-slate-950/40 p-4 border border-slate-800 rounded-lg flex items-start gap-3">
-                <AlertCircle className="text-amber-400 shrink-0 mt-0.5" size={18} />
+            <div className="space-y-6 max-w-2xl mx-auto py-2">
+              <div className="bg-slate-900/80 p-4 border border-slate-800/80 rounded-xl flex items-start gap-3.5">
+                <AlertCircle className="text-amber-400 shrink-0 mt-0.5" size={20} />
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-slate-200">Lưu ý cấu hình danh sách</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Phân tách các mã bằng dấu phẩy (ví dụ: <code className="text-amber-300">001, 003, 082</code>). Các tài khoản MM sẽ được gom nhóm riêng chi tiết đến mã TKGD thay vì mã TVKD.
+                    Phân tách các mã bằng dấu phẩy (ví dụ: <code className="text-amber-300 font-mono">001, 003, 082</code>). Các tài khoản MM sẽ được gom nhóm riêng chi tiết đến mã TKGD thay vì mã TVKD.
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Thành viên cố định (FixedMembers)</label>
                   <textarea
@@ -289,7 +294,7 @@ export default function CcpStatisticsModal({
                     value={fixedMembers}
                     onChange={(e) => setFixedMembers(e.target.value)}
                     placeholder="001, 003, 012, 045, 046, 048, 082, 083, 999"
-                    className="w-full bg-slate-850 border border-slate-750 text-slate-250 p-3 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-mono leading-relaxed"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 p-3.5 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono leading-relaxed"
                   />
                 </div>
 
@@ -300,7 +305,7 @@ export default function CcpStatisticsModal({
                     value={tkMmCodes}
                     onChange={(e) => setTkMmCodes(e.target.value)}
                     placeholder="082E9999999-M"
-                    className="w-full bg-slate-850 border border-slate-750 text-slate-250 p-3 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-mono leading-relaxed"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 p-3.5 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono leading-relaxed"
                   />
                 </div>
               </div>
@@ -309,24 +314,21 @@ export default function CcpStatisticsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800 flex justify-between items-center">
-          <div className="text-xs text-slate-400">
+        <div className="px-6 sm:px-8 py-4 bg-slate-900/90 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+          <div className="text-xs text-slate-400 font-medium shrink-0">
             {activeTab === 'upload' ? 'Đảm bảo dữ liệu các file Excel đúng định dạng báo cáo gốc.' : 'Cấu hình này sẽ được áp dụng cho mọi lượt đối soát tiếp theo.'}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
             {activeTab === 'upload' ? (
               <button
                 onClick={handleRunProcess}
                 disabled={loading}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-slate-100 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:from-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20"
               >
                 {loading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <RefreshCw size={14} className="animate-spin" />
                     Đang xử lý...
                   </>
                 ) : (
@@ -340,7 +342,7 @@ export default function CcpStatisticsModal({
               <button
                 onClick={handleSaveConfig}
                 disabled={isSavingConfig}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-slate-100 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:from-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20"
               >
                 <Save size={14} />
                 Lưu cấu hình
@@ -348,7 +350,7 @@ export default function CcpStatisticsModal({
             )}
             <button
               onClick={onClose}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-300 rounded-lg text-sm font-semibold transition-colors"
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-700/60"
             >
               Hủy
             </button>
