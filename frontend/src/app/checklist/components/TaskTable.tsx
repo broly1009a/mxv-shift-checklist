@@ -850,24 +850,19 @@ export default function TaskTable({
                         opacity: cToggling ? 0.6 : 1,
                         transition: 'all 0.2s'
                       }}>
-                        {/* Bot or Maker indicator */}
-                        {isBot ? (
-                          <span title="Bot tự động check" style={{ flexShrink: 0 }}>
-                            <Cpu size={15} color={child.isChecked ? '#10b981' : '#ec4899'} />
-                          </span>
-                        ) : (
-                          <input
-                            type="checkbox"
-                            checked={child.isChecked}
-                            onChange={() => handleToggle(child.taskId, child.isChecked)}
-                            disabled={isCompleted || cSaving || cToggling}
-                            style={{
-                              width: '16px', height: '16px', flexShrink: 0,
-                              cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
-                              accentColor: 'var(--color-primary)'
-                            }}
-                          />
-                        )}
+                        {/* Bot or Maker indicator checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={child.isChecked}
+                          onChange={() => handleToggle(child.taskId, child.isChecked)}
+                          disabled={isCompleted || cSaving || cToggling}
+                          title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
+                          style={{
+                            width: '16px', height: '16px', flexShrink: 0,
+                            cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
+                            accentColor: isBot ? '#ec4899' : 'var(--color-primary)'
+                          }}
+                        />
                         <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: child.isChecked ? 'line-through' : 'none', opacity: child.isChecked ? 0.6 : 1 }}>
                           {child.taskNameSnapshot}
                         </span>
@@ -885,13 +880,13 @@ export default function TaskTable({
                         <span style={{ display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600, color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px', border:`1px solid ${cConfig.borderColor}`, flexShrink:0 }}>
                           <CIcon size={11}/> {cConfig.label}
                         </span>
-                        {/* Status dropdown for Maker sub-tasks */}
-                        {!isBot && !isCompleted && (
+                        {/* Status dropdown for sub-tasks (Maker can manual override Bot tasks if needed) */}
+                        {!isCompleted && (
                           <button
                             onClick={() => setOpenStatusDropdownTaskId(openStatusDropdownTaskId === child.taskId ? null : child.taskId)}
                             disabled={isCompleted || cSaving || cToggling}
                             style={{ background:'transparent', border:'1px solid var(--border-color)', borderRadius:'6px', padding:'2px 6px', cursor:'pointer', flexShrink:0 }}
-                            title="Đổi trạng thái"
+                            title="Can thiệp / Đổi trạng thái thủ công"
                           >
                             <ChevronDown size={12} color="var(--text-muted)" />
                           </button>

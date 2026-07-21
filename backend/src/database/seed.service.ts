@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -27,6 +29,12 @@ export class SeedService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED !== 'false';
+    if (!isAutoSeedEnabled) {
+      this.logger.log('Automatic database seeding is DISABLED via ENABLE_AUTO_SEED=false. Skipping.');
+      return;
+    }
+
     this.logger.log('Starting database seeding...');
     try {
       const divs = await this.seedDivisions();
@@ -372,424 +380,32 @@ export class SeedService implements OnApplicationBootstrap {
       })
       .exec();
 
-    const templatesData = [
-      // ==================== IT CORE ====================
-      {
-        title: 'Checklist Mở Cửa - IT Vận Hành Core',
-        departmentCode: 'IT_CORE',
-        sessionType: 'OPEN',
-        shiftSlotCode: 'SHIFT_3',
-        tasks: [
-          {
-            taskId: 'it_open_01',
-            taskName:
-              'Kiểm tra kết nối hệ thống mạng nội bộ (Intranet) và kết nối VPN sang các đầu mối Thành viên kinh doanh',
-            priority: 'HIGH',
-            sortOrder: 1,
-            functionUrl: 'http://intranet.mxv.vn/ping',
-            urdReference: 'URD-NET-001',
-          },
-          {
-            taskId: 'it_open_02',
-            taskName:
-              'Kiểm tra ping và trạng thái kết nối cổng FIX Gateway sang hệ thống bù trừ của ngân hàng liên kết (MSB UAT/Production)',
-            priority: 'CRITICAL',
-            sortOrder: 2,
-            functionUrl: 'http://gateway.mxv.vn/fix',
-            urdReference: 'URD-FIX-002',
-          },
-          {
-            taskId: 'it_open_03',
-            taskName:
-              'Khởi động dịch vụ BroadcastServer và kiểm tra log kết nối luồng giá Realtime qua giao thức WebSocket thuần (ws)',
-            priority: 'CRITICAL',
-            sortOrder: 3,
-            isBotCheck: true,
-            botTriggerTime: '06:05',
-            botCheckType: 'API_STATUS',
-            botCheckTarget: 'http://cqg.mxv.vn/api/status',
-            botSuccessCondition: '{"connection": "ACTIVE"}',
-            botFailureAction: 'ALERT_TELEGRAM',
-          },
-          {
-            taskId: 'it_open_04',
-            taskName:
-              'Kiểm tra dung lượng ổ đĩa cứng (Disk Storage) và mức độ tiêu thụ RAM/CPU của cụm máy chủ cơ sở dữ liệu MongoDB',
-            priority: 'HIGH',
-            sortOrder: 4,
-            dependsOnTaskIds: ['it_open_01'],
-          },
-          {
-            taskId: 'it_open_05',
-            taskName:
-              'Xác nhận đồng bộ thành công dữ liệu giá mở cửa đầu ngày (Snapshot Full Refresh) từ các sàn quốc tế liên thông',
-            priority: 'CRITICAL',
-            sortOrder: 5,
-            dependsOnTaskIds: ['it_open_02'],
-          },
-        ],
-      },
-      {
-        title: 'Checklist Trong Phiên - IT Vận Hành Core',
-        departmentCode: 'IT_CORE',
-        sessionType: 'DURING',
-        shiftSlotCode: 'SHIFT_1',
-        tasks: [
-          {
-            taskId: 'it_during_01',
-            taskName:
-              'Giám sát luồng tin nhắn cập nhật giá biến động (Incremental Refresh) tránh tình trạng nghẽn/trễ hàng tin (Message Queue)',
-            priority: 'HIGH',
-            sortOrder: 1,
-          },
-          {
-            taskId: 'it_during_02',
-            taskName:
-              'Kiểm tra và bóc tách log tập trung trên Grafana Loki để phát hiện sớm các mã lỗi kết nối mạng từ phía máy Client của Thành viên',
-            priority: 'MEDIUM',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'it_during_03',
-            taskName:
-              'Theo dõi trạng thái xử lý lỗi Buffer.isBuffer(data) khi hệ thống tiếp nhận các chuỗi dữ liệu thô nhị phân từ cổng mạng',
-            priority: 'HIGH',
-            sortOrder: 3,
-          },
-        ],
-      },
-      {
-        title: 'Checklist Đóng Cửa - IT Vận Hành Core',
-        departmentCode: 'IT_CORE',
-        sessionType: 'CLOSE',
-        shiftSlotCode: 'SHIFT_2',
-        tasks: [
-          {
-            taskId: 'it_close_01',
-            taskName:
-              'Thực hiện tiến trình sao lưu cơ sở dữ liệu tự động (Auto-backup Database Snapshot) cuối ngày của phân hệ ca trực',
-            priority: 'HIGH',
-            sortOrder: 1,
-            isBotCheck: true,
-            botTriggerTime: '23:30',
-            botCheckType: 'FILE_EXISTS',
-            botCheckTarget: '\\\\shared-folder\\backup\\EOD_TTM.csv',
-            botSuccessCondition: '{"minSizeKb": 10}',
-            botFailureAction: 'ALERT_TELEGRAM',
-          },
-          {
-            taskId: 'it_close_02',
-            taskName:
-              'Kiểm tra trạng thái đóng cổng kết nối API và ngắt các phiên kết nối Realtime (Socket Session) của Client an toàn',
-            priority: 'MEDIUM',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'it_close_03',
-            taskName:
-              'Xuất file báo cáo Log lỗi hệ thống trong ngày bàn giao cho ca trực tiếp theo xử lý kỹ thuật',
-            priority: 'LOW',
-            sortOrder: 3,
-          },
-        ],
-      },
-
-      // ==================== TRADING OPERATIONS ====================
-      {
-        title: 'Checklist Mở Cửa - Trading Operations',
-        departmentCode: 'QLGD_OPS',
-        sessionType: 'OPEN',
-        shiftSlotCode: 'SHIFT_3',
-        tasks: [
-          {
-            taskId: 'ops_open_01',
-            taskName:
-              'Kiểm tra Job Snapshot (Email: anhdao@mxv.vn)',
-            priority: 'HIGH',
-            sortOrder: 1,
-            isBotCheck: true,
-            botTriggerTime: '05:00',
-            botCheckType: 'EMAIL_PARSE',
-            botCheckTarget: '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}',
-            botSuccessCondition: 'thành công',
-            botFailureAction: 'ALERT_TELEGRAM',
-            slaDeadline: '05:15',
-            actionDescription: 'Kiểm tra email kết quả "Job Snapshot". Nếu không thành công, phối hợp với Newgen xử lý kết chuyển dữ liệu.',
-          },
-          {
-            taskId: 'ops_open_02',
-            taskName:
-              'Kiểm tra EOD OMS & lệnh MM OMS (CQG / CCP Screen)',
-            priority: 'HIGH',
-            sortOrder: 2,
-            isBotCheck: true,
-            botTriggerTime: '05:00',
-            botCheckType: 'API_STATUS',
-            botCheckTarget: 'http://cqg.mxv.vn/api/oms/status',
-            botSuccessCondition: '{"status": "EOD_COMPLETED"}',
-            botFailureAction: 'ALERT_TELEGRAM',
-            slaDeadline: '05:15',
-            actionDescription: 'Kiểm tra kết quả EOD của CCP / CE. Kiểm tra lệnh MM đã lên CCP / CE hay chưa.',
-          },
-          {
-            taskId: 'TASK_CHECK_EOD',
-            taskName:
-              'Đối chiếu & Chạy EOD M-System (MS, CQG, ACM, Email)',
-            priority: 'HIGH',
-            sortOrder: 3,
-            isBotCheck: true,
-            botTriggerTime: '06:00',
-            botCheckType: 'EMAIL_PARSE',
-            botCheckTarget: '{"subject": "EOD M-System SUCCESS", "sender": "m-system@mxv.vn"}',
-            botSuccessCondition: 'SUCCESS',
-            botFailureAction: 'ALERT_TELEGRAM',
-            slaDeadline: '07:00',
-            actionDescription: 'Kiểm tra đối chiếu dữ liệu phiên T-1 giữa M-System, CQG và ACM; kiểm tra giá thanh toán; thực hiện chạy EOD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Nếu quá trình xử lý lỗi kết chuyển/đối chiếu kéo dài quá 07h30, thông báo lùi thời gian EOD và gửi Sao kê cho TVKD.',
-          },
-          {
-            taskId: 'ops_open_rpa_download',
-            taskName:
-              'RPA tự động tải báo cáo đối chiếu đầu ngày từ M-System (NKTTHT, DSTKGD, QLTKGD, NR)',
-            priority: 'HIGH',
-            sortOrder: 4,
-            isBotCheck: true,
-            botTriggerTime: '06:00',
-            botCheckType: 'RPA_DOWNLOAD',
-            botCheckTarget: '["NKTTHT", "DSTKGD-Futures", "DSTKGD-Spread", "DSTKGD-LME", "DSTKGD-ACM", "QLTKGD", "NR"]',
-            botSuccessCondition: 'SUCCESS',
-            botFailureAction: 'ALERT_TELEGRAM',
-            slaDeadline: '06:45',
-            actionDescription: 'Hệ thống sử dụng RPA đăng nhập M-System, giải PIN ảo và tự động tải báo cáo. Vận hành ca trực có thể bấm nút Chạy thử / cưỡng bức nếu bị lỗi.',
-          },
-          {
-            taskId: 'ops_open_04',
-            taskName:
-              'Xử lý sau EOD (M-System, Ổ shared QLGD, Email)',
-            priority: 'HIGH',
-            sortOrder: 5,
-            dependsOnTaskIds: ['TASK_CHECK_EOD', 'ops_open_rpa_download'],
-            actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
-          },
-          {
-            taskId: 'ops_open_05',
-            taskName:
-              'Thực hiện Start of Day (SOD) (M-System)',
-            priority: 'HIGH',
-            sortOrder: 6,
-            dependsOnTaskIds: ['TASK_CHECK_EOD'],
-            actionDescription: 'Cập nhật Start of Day (SOD) cho hệ thống M-System. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.',
-          },
-          {
-            taskId: 'TASK_CHECK_CQG',
-            taskName:
-              'Đồng bộ CQG (Sync CQG) (CQG Cast, M-System)',
-            priority: 'MEDIUM',
-            sortOrder: 7,
-            dependsOnTaskIds: ['ops_open_05'],
-            actionDescription: 'Kiểm tra việc reset dữ liệu trên CQG; sau khi reset xong, thực hiện đồng bộ số dư (Sync CQG) thủ công lên CQG Cast.',
-          },
-          {
-            taskId: 'TASK_MARGIN_CHECK',
-            taskName:
-              'Kiểm tra ký quỹ và lãi lỗ dự kiến (Margin Checker)',
-            priority: 'MEDIUM',
-            sortOrder: 8,
-            actionDescription: 'Sử dụng công cụ kiểm tra ký quỹ và lãi lỗ dự kiến, import 3 file dữ liệu đối chiếu.',
-          },
-          {
-            taskId: 'ops_open_07',
-            taskName:
-              'Gửi email Sao kê TKGD thủ công (M-System, Email)',
-            priority: 'HIGH',
-            sortOrder: 9,
-            isBotCheck: true,
-            botTriggerTime: '07:00',
-            botCheckType: 'EMAIL_STATUS_CHECK',
-            botCheckTarget: 'M-System Admin',
-            botSuccessCondition: 'SUCCESS',
-            botFailureAction: 'ALERT_TELEGRAM',
-            slaDeadline: '07:30',
-            dependsOnTaskIds: ['ops_open_05'],
-            actionDescription: 'Gửi email Sao kê TKGD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 30 phút sau khi kết quả EOD được xác nhận chính xác, thực hiện thao tác gửi email Sao kê TKGD thủ công cho Khách hàng.',
-          },
-        ],
-      },
-      {
-        title: 'Checklist Trong Phiên - Trading Operations',
-        departmentCode: 'QLGD_OPS',
-        sessionType: 'DURING',
-        shiftSlotCode: 'SHIFT_1',
-        tasks: [
-          {
-            taskId: 'ops_during_01',
-            taskName:
-              'Thay đổi ký quỹ hàng hóa (M-System, CQG Cast)',
-            priority: 'HIGH',
-            sortOrder: 1,
-            actionDescription: 'Nếu có Quyết định thay đổi ký quỹ có hiệu lực từ phiên T, người trực ca 1 thực hiện tạo bản ghi thay đổi, người trực ca 2 duyệt bản ghi (thực hiện khi có Trưởng bộ phận).',
-          },
-          {
-            taskId: 'TASK_CHECK_KLGD',
-            taskName:
-              'Giám sát & Đối chiếu MS vs CQG (M-System, CQG Cast, Email)',
-            priority: 'HIGH',
-            sortOrder: 2,
-            actionDescription: 'Kiểm tra tính cân bằng dữ liệu giữa M-System và CQG. Xử lý các lỗi lệch do thiết lập tham số hoặc mất kết nối API.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 30 phút kể từ khi đối chiếu phát hiện không cân bằng: Xác định nguyên nhân và tài khoản bị lệch giao dịch.\n• Sau khi tìm ra nguyên nhân lệch giao dịch: Thông báo cho TVKD (qua room Hỗ trợ nghiệp vụ giao dịch) thực hiện thiết bổ sung các tham số còn thiếu của TKGD và báo cho Newgen kéo lệnh còn thiếu về MS.',
-          },
-          {
-            taskId: 'ops_during_03',
-            taskName:
-              'Mở mới hợp đồng giao dịch (M-System, CQG Cast)',
-            priority: 'MEDIUM',
-            sortOrder: 3,
-            actionDescription: 'Thực hiện mở mới hợp đồng Futures, Spreads, ACM. Lưu ý: Mở tối đa 1 năm tính từ hiện tại.',
-          },
-          {
-            taskId: 'ops_during_04',
-            taskName:
-              'Hỗ trợ & Xử lý sự cố (M-System, CQG, ACM, Teams/Zalo)',
-            priority: 'HIGH',
-            sortOrder: 4,
-            actionDescription: 'Tiếp nhận thắc mắc của TVKD; thông báo lỗi hệ thống; sửa lỗi giao dịch; gán hàng hóa (mặt hàng có điều kiện/API); đình chỉ TVKD.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 05 phút kể từ khi phát hiện lỗi: Thông báo lỗi/sự cố hệ thống (mất kết nối, lỗi phần mềm M-System, CQG, ACM...) cho Newgen và Khối CNTT.\n• Trong vòng 10 phút kể từ khi phát hiện lỗi: Gửi email thông báo sự cố cho các ĐVNV và Thành viên Kinh doanh (TVKD).\n• Ngay sau khi hoàn tất kiểm tra hệ thống: Thông báo lỗi/sự cố đã được khắc phục sau khi kiểm tra dữ liệu chính xác giữa các nền tảng.\n• Trong phiên, sau khi hoàn thành xử lý lỗi / sự cố: Cập nhật vào Báo cáo ghi nhận lỗi giao dịch (Mẫu số: 01/QT/TVH).\n• Trong vòng 15 phút kể từ khi tiếp nhận thông tin qua Teams/Email: Tiếp nhận và tìm hiểu nguyên nhân khiếu nại/thắc mắc của TVKD.',
-          },
-          {
-            taskId: 'ops_during_05',
-            taskName:
-              'Giám sát tất toán hợp đồng (M-System, Email)',
-            priority: 'HIGH',
-            sortOrder: 5,
-            actionDescription: 'Gửi thông báo thời hạn tất toán hợp đồng; thực hiện hủy lệnh chờ và đóng vị thế bắt buộc nếu TVKD không tự thực hiện đúng hạn.',
-          },
-          {
-            taskId: 'TASK_CCP_STATISTICS',
-            taskName:
-              'Báo cáo & Thống kê CCP gửi Ban giám sát (DSGD, TTM, TTTT)',
-            priority: 'HIGH',
-            sortOrder: 6,
-            actionDescription: 'Thống kê các dữ liệu giao dịch trong phiên: DSGD, TTM… gửi Ban giám sát qua Whatsapp.',
-          },
-        ],
-      },
-      {
-        title: 'Checklist Đóng Cửa - Trading Operations',
-        departmentCode: 'QLGD_OPS',
-        sessionType: 'CLOSE',
-        shiftSlotCode: 'SHIFT_2',
-        tasks: [
-          {
-            taskId: 'ops_close_01',
-            taskName:
-              'Backup dữ liệu cuối phiên (M-System, CQG Cast, ACM, CE/CCP, Ổ shared)',
-            priority: 'CRITICAL',
-            sortOrder: 1,
-            actionDescription: 'Sao lưu toàn bộ dữ liệu giao dịch, lệnh, trạng thái, ký quỹ, nộp rút tiền... trên M-System, CQG, ACM, CE / CCP. Lưu ý: CE và ACM ưu tiên backup trước. Tổng hợp dữ liệu thành các báo cáo theo mẫu.',
-          },
-        ],
-      },
-
-      // ==================== RISK MANAGEMENT ====================
-      {
-        title: 'Checklist Mở Cửa - Risk Management',
-        departmentCode: 'QLRR_RISK',
-        sessionType: 'OPEN',
-        shiftSlotCode: 'SHIFT_3',
-        tasks: [
-          {
-            taskId: 'surv_open_01',
-            taskName:
-              'Kiểm tra biên độ dao động giá trần/giá sàn (Price Limit) của toàn bộ các mặt hàng giao dịch trước giờ mở cửa',
-            priority: 'CRITICAL',
-            sortOrder: 1,
-          },
-          {
-            taskId: 'surv_open_02',
-            taskName:
-              'Xác nhận trạng thái hoạt động (Active) của tài khoản các Thành viên kinh doanh lớn trên hệ thống lõi',
-            priority: 'HIGH',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'surv_open_03',
-            taskName:
-              'Kiểm tra cấu hình cảnh báo tỷ lệ ký quỹ rủi ro tự động trên hệ thống giám sát tập trung',
-            priority: 'HIGH',
-            sortOrder: 3,
-          },
-        ],
-      },
-      {
-        title: 'Checklist Trong Phiên - Risk Management',
-        departmentCode: 'QLRR_RISK',
-        sessionType: 'DURING',
-        shiftSlotCode: 'SHIFT_1',
-        tasks: [
-          {
-            taskId: 'surv_during_01',
-            taskName:
-              'Giám sát các lệnh giao dịch có khối lượng lớn bất thường (Big Trades) nhằm phát hiện hành vi thao túng thị trường',
-            priority: 'HIGH',
-            sortOrder: 1,
-          },
-          {
-            taskId: 'surv_during_02',
-            taskName:
-              'Theo dõi tổng số lượng vị thế mở (Open Interest - OI) của các kỳ hạn lệnh, cảnh báo nếu vượt hạn mức quy định của Sở',
-            priority: 'HIGH',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'surv_during_03',
-            taskName:
-              'Phát lệnh cảnh báo (Margin Call) hoặc tạm khóa vị thế đối với các tài khoản NĐT sụt giảm tỷ lệ ký quỹ xuống mức rủi ro',
-            priority: 'CRITICAL',
-            sortOrder: 3,
-          },
-          {
-            taskId: 'surv_during_04',
-            taskName:
-              'Xử lý tạm ngừng giao dịch đối với các mã hợp đồng xảy ra hiện tượng chạm giá trần hoặc giá sàn liên tục',
-            priority: 'CRITICAL',
-            sortOrder: 4,
-          },
-        ],
-      },
-      {
-        title: 'Checklist Đóng Cửa - Risk Management',
-        departmentCode: 'QLRR_RISK',
-        sessionType: 'CLOSE',
-        shiftSlotCode: 'SHIFT_2',
-        tasks: [
-          {
-            taskId: 'surv_close_01',
-            taskName:
-              'Chốt mức giá quyết toán cuối ngày (Settlement Price) cho toàn bộ các mặt hàng để làm căn cứ tính toán lãi/lỗ vị thế',
-            priority: 'CRITICAL',
-            sortOrder: 1,
-          },
-          {
-            taskId: 'surv_close_02',
-            taskName:
-              'Kích hoạt luồng chỉ định giao hàng bắt buộc từ CCP (DELIVERY_DESIGNATED) đối với các vị thế Bán mở còn giữ lại đến ngày LTD',
-            priority: 'CRITICAL',
-            sortOrder: 2,
-          },
-          {
-            taskId: 'surv_close_03',
-            taskName:
-              'Tổng hợp danh sách các tài khoản vi phạm quy chế giao dịch hoặc để trạng thái tài khoản bị âm tiền sau phiên EOD',
-            priority: 'HIGH',
-            sortOrder: 3,
-          },
-          {
-            taskId: 'surv_close_04',
-            taskName:
-              'Xuất báo cáo tổng kết phiên giao dịch (Daily Market Report) gửi Hội đồng ban giám đốc Sở',
-            priority: 'MEDIUM',
-            sortOrder: 4,
-          },
-        ],
-      },
-    ];
+    const jsonPath = path.join(__dirname, 'exported_templates.json');
+    let templatesData: any[] = [];
+    if (fs.existsSync(jsonPath)) {
+      templatesData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    } else {
+      templatesData = [
+        // ==================== IT CORE ====================
+        {
+          title: 'Checklist Mở Cửa - IT Vận Hành Core',
+          departmentCode: 'IT_CORE',
+          sessionType: 'OPEN',
+          shiftSlotCode: 'SHIFT_3',
+          tasks: [
+            {
+              taskId: 'it_open_01',
+              taskName:
+                'Kiểm tra kết nối hệ thống mạng nội bộ (Intranet) và kết nối VPN sang các đầu mối Thành viên kinh doanh',
+              priority: 'HIGH',
+              sortOrder: 1,
+              functionUrl: 'http://intranet.mxv.vn/ping',
+              urdReference: 'URD-NET-001',
+            },
+          ],
+        },
+      ];
+    }
 
     for (const tpl of templatesData) {
       const deptId = depts[tpl.departmentCode];
@@ -814,16 +430,18 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
+        const hasSubTasks = existing.tasks && existing.tasks.some((t: any) => t.parentTaskId);
+        const updateData: any = {
+          title: tpl.title,
+          shiftSlotId: slotId,
+          isActive: true,
+        };
+        if (!hasSubTasks) {
+          updateData.tasks = tpl.tasks;
+        }
         await this.templateModel.updateOne(
           { _id: existing._id },
-          {
-            $set: {
-              title: tpl.title,
-              shiftSlotId: slotId,
-              isActive: true,
-              tasks: tpl.tasks,
-            },
-          },
+          { $set: updateData },
         ).exec();
         this.logger.log(`Updated checklist template: ${tpl.title}`);
       }

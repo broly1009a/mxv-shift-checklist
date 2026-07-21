@@ -35,8 +35,10 @@ const SUBTASK_DEFINITIONS = {
     ],
   },
 
-  'TASK_CHECK_EOD': { // Đối chiếu & Chạy EOD MS → 🔴 Thủ công hoàn toàn
+  'TASK_CHECK_EOD': { // Đối chiếu & Chạy EOD MS → 🤝 Bot + Maker
     children: [
+      { id: 'TASK_CHECK_EOD_sb1', name: 'Bot kiểm tra & xác minh email kết quả EOD M-System SUCCESS (m-system@mxv.vn)', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'HIGH' },
+      { id: 'TASK_CHECK_EOD_sb2', name: 'Bot tự động chạy đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'HIGH' },
       { id: 'TASK_CHECK_EOD_s1', name: 'Maker đối chiếu dữ liệu M-System vs CQG vs ACM', isBotCheck: false, priority: 'CRITICAL' },
       { id: 'TASK_CHECK_EOD_s2', name: 'Maker xác nhận Settlement Price chính xác', isBotCheck: false, priority: 'CRITICAL' },
       { id: 'TASK_CHECK_EOD_s3', name: 'Maker chạy EOD thủ công trên M-System (Newgen)', isBotCheck: false, priority: 'CRITICAL' },
@@ -156,18 +158,12 @@ async function main() {
   console.log(`Found ${templates.length} templates\n`);
 
   for (const tmpl of templates) {
-    const tasks = tmpl.tasks || [];
-    // Skip templates that already have sub-tasks
-    const alreadyHasSubs = tasks.some(t => t.parentTaskId);
-    if (alreadyHasSubs) {
-      console.log(`⏭  Skip "${tmpl.title}" — already has sub-tasks`);
-      continue;
-    }
+    const parentTasksOnly = (tmpl.tasks || []).filter(t => !t.parentTaskId);
 
     const newTasks = [];
     let sortOrder = 0;
 
-    for (const task of tasks) {
+    for (const task of parentTasksOnly) {
       const def = SUBTASK_DEFINITIONS[task.taskId];
 
       // Push task cha (giữ nguyên, tăng sortOrder)
@@ -217,8 +213,8 @@ async function main() {
       { $set: { tasks: newTasks } }
     );
 
-    const added = newTasks.length - tasks.length;
-    console.log(`✅ Updated "${tmpl.title}": ${tasks.length} → ${newTasks.length} tasks (+${added} sub-tasks)`);
+    const added = newTasks.length - parentTasksOnly.length;
+    console.log(`✅ Updated "${tmpl.title}": ${parentTasksOnly.length} → ${newTasks.length} tasks (+${added} sub-tasks)`);
   }
 
   await client.close();

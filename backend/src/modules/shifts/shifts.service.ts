@@ -588,7 +588,7 @@ export class ShiftsService {
       );
     }
 
-    // Auto-update parent task if it exists
+    // Auto-update parent task if updating a child task
     if (task.parentTaskIdSnapshot) {
       const parentId = task.parentTaskIdSnapshot;
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
@@ -599,12 +599,26 @@ export class ShiftsService {
           const allSiblingsChecked = siblings.every((d) => d.isChecked);
 
           if (allSiblingsChecked && !parentTask.isChecked) {
+            // Check if any Bot sub-task was manually checked by a human Maker (not system)
+            const hasManualBotOverride = siblings.some(
+              (s) =>
+                s.isBotCheckSnapshot &&
+                s.isChecked &&
+                s.updatedBy &&
+                (s.updatedBy as any).role !== 'SYSTEM' &&
+                (s.updatedBy as any).fullName !== 'System Bot',
+            );
+
+            const noteText = hasManualBotOverride
+              ? 'Hoàn thành theo các tác vụ con (Maker đã xác nhận thủ công thay cho Bot)'
+              : 'Tự động hoàn thành theo các tác vụ con';
+
             const resLog = await this.updateTaskStatus(
               shiftLogId,
               parentId,
               'PASSED',
               user,
-              'Tự động hoàn thành theo các tác vụ con',
+              noteText,
               true,
             );
             return resLog;
@@ -618,6 +632,43 @@ export class ShiftsService {
               true,
             );
             return resLog;
+          }
+        }
+      }
+    } else {
+      // Auto-update children tasks if updating a parent task directly
+      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
+      if (latestLog) {
+        const children = latestLog.details.filter((d) => d.parentTaskIdSnapshot === taskId);
+        if (children.length > 0) {
+          let updatedChild = false;
+          for (const child of children) {
+            if (child.isChecked !== isChecked) {
+              await this.shiftLogModel.updateOne(
+                { _id: shiftLogId, 'details.taskId': child.taskId },
+                {
+                  $set: {
+                    'details.$.status': status,
+                    'details.$.isChecked': isChecked,
+                    'details.$.checkedAt': isChecked ? new Date() : null,
+                    'details.$.updatedBy': new Types.ObjectId(user.id || user._id) as any,
+                  },
+                },
+              );
+              updatedChild = true;
+            }
+          }
+          if (updatedChild) {
+            return (await this.shiftLogModel
+              .findById(shiftLogId)
+              .populate('userId', 'fullName username')
+              .populate('closedBy', 'fullName username')
+              .populate('details.updatedBy', 'fullName username')
+              .populate({
+                path: 'templateId',
+                populate: { path: 'departmentId' },
+              })
+              .exec()) as ShiftLog;
           }
         }
       }
