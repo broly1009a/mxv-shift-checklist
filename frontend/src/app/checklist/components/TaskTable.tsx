@@ -26,7 +26,18 @@ import {
   UserCheck,
   Copy
 } from 'lucide-react';
-import { TaskDetail, ShiftLog } from '../hooks/useChecklist';
+const cleanAnsiText = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '')
+    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+    .replace(/\[\d+m/g, '')
+    .replace(/\[\d+2m/g, '')
+    .replace(/\[\d+22m/g, '')
+    .replace(/\[2m/g, '')
+    .replace(/\[22m/g, '')
+    .trim();
+};
 
 const STATUS_CONFIGS = {
   PENDING: {
@@ -466,8 +477,11 @@ export default function TaskTable({
                           parsedMessage = json.message || item.resultNote;
                         } catch (e) {}
 
-                        const isLongMsg = parsedMessage.length > 140 || parsedMessage.includes('•');
-                        const displayMsg = isLongMsg ? parsedMessage.substring(0, 140) + '...' : parsedMessage;
+                        const cleanedMsg = cleanAnsiText(parsedMessage);
+                        if (!cleanedMsg) return null;
+
+                        const isLongMsg = cleanedMsg.length > 140 || cleanedMsg.includes('•');
+                        const displayMsg = isLongMsg ? cleanedMsg.substring(0, 140) + '...' : cleanedMsg;
 
                         return (
                           <div style={{
@@ -848,7 +862,8 @@ export default function TaskTable({
                           ? '1px solid rgba(16,185,129,0.15)'
                           : isBot ? '1px solid rgba(236,72,153,0.15)' : '1px solid var(--border-color)',
                         opacity: cToggling ? 0.6 : 1,
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        position: 'relative'
                       }}>
                         {/* Bot or Maker indicator checkbox */}
                         <input
@@ -876,10 +891,45 @@ export default function TaskTable({
                             <UserCheck size={9}/> Maker
                           </span>
                         )}
-                        {/* Sub-task status */}
-                        <span style={{ display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600, color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px', border:`1px solid ${cConfig.borderColor}`, flexShrink:0 }}>
+                        {/* Sub-task status badge */}
+                        <span
+                          onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt)}
+                          style={{
+                            display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600,
+                            color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px',
+                            border:`1px solid ${cConfig.borderColor}`, flexShrink:0,
+                            cursor: child.resultNote ? 'pointer' : 'default'
+                          }}
+                          title={child.resultNote ? "Bấm để xem log chi tiết Bot" : undefined}
+                        >
                           <CIcon size={11}/> {cConfig.label}
                         </span>
+
+                        {/* Inline Log Viewer Button if resultNote exists */}
+                        {child.resultNote && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              background: child.status === 'FAILED' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
+                              color: child.status === 'FAILED' ? '#ef4444' : '#0284c7',
+                              border: child.status === 'FAILED' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(2, 132, 199, 0.25)',
+                              borderRadius: '5px',
+                              padding: '2px 7px',
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                            title="Xem chi tiết log Bot"
+                          >
+                            <Search size={10} /> Xem log
+                          </button>
+                        )}
+
                         {/* Status dropdown for sub-tasks (Maker can manual override Bot tasks if needed) */}
                         {!isCompleted && (
                           <button
@@ -894,7 +944,7 @@ export default function TaskTable({
                         {openStatusDropdownTaskId === child.taskId && (
                           <>
                             <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={() => setOpenStatusDropdownTaskId(null)} />
-                            <div style={{ position:'absolute', right:0, background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:'10px', boxShadow:'var(--glass-shadow)', zIndex:1000, minWidth:'160px', padding:'4px', display:'flex', flexDirection:'column' }}>
+                            <div style={{ position:'absolute', right:0, top: '32px', background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:'10px', boxShadow:'var(--glass-shadow)', zIndex:1000, minWidth:'160px', padding:'4px', display:'flex', flexDirection:'column' }}>
                               {Object.entries(STATUS_CONFIGS).map(([sk, sc]) => {
                                 const OI = sc.icon;
                                 return (
