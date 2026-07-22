@@ -286,6 +286,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await this.handleRunLotMacroJob(job);
     } else if (job.jobType === 'RUN_VALUE_MACRO') {
       await this.handleRunValueMacroJob(job);
+    } else if (job.jobType === 'DOWNLOAD_CQG_BACKUP') {
+      await this.handleDownloadCqgBackupJob(job);
     } else {
       throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
     }
@@ -303,6 +305,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       'RUN_VALUE_MACRO',
       'RPA_DOWNLOAD_REPORTS',
       'DOWNLOAD_CAST',
+      'DOWNLOAD_CQG_BACKUP',
       'FILE_AUDIT_MS',
       'FILE_AUDIT_CQG',
       'FILE_AUDIT_ACM',
@@ -350,6 +353,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await this.handleRunLotMacroJob(job);
       } else if (job.jobType === 'RUN_VALUE_MACRO') {
         await this.handleRunValueMacroJob(job);
+      } else if (job.jobType === 'DOWNLOAD_CQG_BACKUP') {
+        await this.handleDownloadCqgBackupJob(job);
       } else {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
@@ -808,6 +813,67 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         .filter((l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu') || l.includes('thất bại'))
         .join(' | ');
       throw new Error(`Ghép file CQG thất bại: ${errorDetails || 'Thiếu file nguồn CQG hoặc sai định dạng.'}`);
+    }
+  }
+
+  /**
+   * DOWNLOAD_CQG_BACKUP job handler:
+   * Đăng nhập CQG web (account 1 và/hoặc account 2), tải FR/PS/OP/OD về thư mục backup
+   * rồi trigger merge (autoMergeMissingFiles) như FILE_AUDIT_CQG thông thường.
+   *
+   * Payload:
+   *   targetDate?: string (ISO date, mặc định = hôm nay)
+   *   reports?: { FR1, PS1, OP1, OD1, FR2, PS2, OP2, OD2 } — mặc định tải tất cả
+   *   skipMerge?: boolean — nếu true, bỏ qua bước merge sau khi tải
+   */
+  private async handleDownloadCqgBackupJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDate = payload.targetDate ? new Date(payload.targetDate) : new Date();
+
+    // Xác định danh sách file cần tải (mặc định: tất cả)
+    const defaultReports = { FR1: true, PS1: true, OP1: true, OD1: true, FR2: true, PS2: true, OP2: true, OD2: true, AS: true };
+    const reports: Partial<Record<'FR1' | 'PS1' | 'OP1' | 'OD1' | 'FR2' | 'PS2' | 'OP2' | 'OD2' | 'AS', boolean>> =
+      payload.reports || defaultReports;
+
+    // Resolve thư mục backup CQG theo ngày
+    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu tải file CQG từ web tới: ${fullPath}`);
+    job.logs.push(`[${new Date().toISOString()}] File cần tải: ${Object.entries(reports).filter(([, v]) => v).map(([k]) => k).join(', ')}`);
+    await job.save();
+
+    // Gọi downloadCqgBackup
+    const { errors, downloaded } = await this.rpaDownloaderService.downloadCqgBackup(reports, fullPath);
+
+    for (const f of downloaded) {
+      job.logs.push(`[${new Date().toISOString()}] ✅ Đã tải: ${f}`);
+    }
+    for (const e of errors) {
+      job.logs.push(`[${new Date().toISOString()}] ⚠️ ${e}`);
+    }
+    await job.save();
+
+    if (downloaded.length === 0) {
+      throw new Error(`Không tải được file nào từ CQG. Lỗi: ${errors.join(' | ')}`);
+    }
+
+    // Trigger merge (tương tự FILE_AUDIT_CQG) trừ khi skipMerge = true
+    if (!payload.skipMerge) {
+      job.logs.push(`[${new Date().toISOString()}] Bắt đầu merge file CQG...`);
+      await job.save();
+
+      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+      for (const logLine of mergeResult.logs) {
+        job.logs.push(`[${new Date().toISOString()}] ${logLine}`);
+      }
+      await job.save();
+
+      if (!mergeResult.success) {
+        const errDetails = mergeResult.logs
+          .filter((l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu'))
+          .join(' | ');
+        throw new Error(`Tải CQG thành công nhưng merge thất bại: ${errDetails}`);
+      }
     }
   }
 

@@ -32,6 +32,7 @@
     "test:teams-maturity-step3": "ts-node src/test-teams-maturity-step3.ts",
     "test:cqg-login": "ts-node src/test-cqg-login.ts",
     "test:cqg-qss": "ts-node src/test-cqg-qss.ts",
+    "test:cqg-backup": "ts-node src/test-cqg-backup.ts",
     "test:cast-download": "ts-node src/test-cast-download.ts",
     "test:parent-child": "ts-node src/test-parent-child-tasks.ts",
     "test:scheduler": "ts-node src/test-dynamic-scheduler.ts",

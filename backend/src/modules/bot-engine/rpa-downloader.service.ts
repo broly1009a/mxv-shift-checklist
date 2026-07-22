@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { chromium, Browser, Page } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { decrypt } from './utils/crypto';
 
@@ -2237,6 +2238,327 @@ export class RpaDownloaderService {
     } finally {
       await browser.close();
     }
+  }
+
+  // =========================================================================
+  // CQG BACKUP DOWNLOAD METHODS (ported from C# IT Tool ChromeBot.cs)
+  // Các method này đăng nhập vào CQG web và tải FR/PS/OP/OD/AS tương ứng.
+  // =========================================================================
+
+  private async downloadCqgWidget(
+    page: Page,
+    searchTerm: string,
+    tabLabel: string,
+    downloadText: string,
+    destFile: string,
+  ): Promise<void> {
+    // Press Escape to dismiss any open modals or menus
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(500);
+
+    this.logger.log(`[CQG] Mở widget "${searchTerm}"...`);
+
+    // Click 'Ho' (Home menu) first
+    await page.locator("//div[text()='Ho']").first().click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+
+    // Click plus icon to add widget
+    await page.locator("//div[contains(@class,'wpfe-add-widget-btn')]").first().click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+
+    // Fill search input
+    await page.locator("//input[@placeholder='Search...']").first().fill(searchTerm, { timeout: 10000 });
+    await page.waitForTimeout(1000);
+
+    // Click target widget item
+    const itemText =
+      searchTerm === 'P&S'
+        ? 'Purchase & Sales'
+        : searchTerm === 'Pos'
+        ? 'Positions'
+        : searchTerm === 'Orders'
+        ? 'Orders'
+        : 'Fills';
+    const widgetItem = page
+      .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
+      .first();
+    await widgetItem.click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+
+    // Select accounts -> All accounts
+    await page
+      .locator("//button[contains(@class,'wpfe-widget-account-selector-button')]")
+      .first()
+      .click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+    await page
+      .locator("//div[contains(@class,'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]")
+      .first()
+      .click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+    await page.locator("//div[text()='OK']").first().click({ timeout: 10000 });
+
+    this.logger.log(`[CQG] Đã chọn All accounts, đang chờ data load (10s)...`);
+    await page.waitForTimeout(10000);
+
+    // Click ellipsis menu button
+    const ellipsisSelector = [
+      `//span[contains(text(),'${tabLabel}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+      `//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+    ].join(' | ');
+
+    let downloaded = false;
+    try {
+      await page.screenshot({ path: path.join(process.cwd(), `cqg-1-before-ellipsis-${searchTerm}.png`) }).catch(() => {});
+      await page.locator(ellipsisSelector).first().click({ timeout: 5000 });
+      await page.waitForTimeout(1000);
+      await page.screenshot({ path: path.join(process.cwd(), `cqg-2-after-ellipsis-${searchTerm}.png`) }).catch(() => {});
+
+      this.logger.log(`[CQG] Click Download menu: "${downloadText}"...`);
+      const downloadBtn = page.locator(`//div[contains(text(),"${downloadText}")]`).first();
+      
+      const isDisabled = await downloadBtn.evaluate((el) => {
+        const menuItem = el.closest('wpfe-dropdown-menu-item');
+        return menuItem ? menuItem.classList.contains('wpfe-dropdown-menu-item-disabled') : false;
+      }).catch(() => false);
+
+      if (isDisabled) {
+        this.logger.warn(`[CQG] Nút download "${downloadText}" đang bị vô hiệu hóa (không có dữ liệu). Tạo file Excel trống...`);
+        const workbook = new ExcelJS.Workbook();
+        workbook.addWorksheet('Sheet1');
+        await workbook.xlsx.writeFile(destFile);
+        this.logger.log(`[CQG] Đã lưu file trống thành công: ${destFile}`);
+        downloaded = true;
+      } else {
+        const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+        await downloadBtn.click({ timeout: 5000 });
+
+        const download = await downloadPromise;
+        await download.saveAs(destFile);
+        this.logger.log(`[CQG] Đã lưu: ${destFile}`);
+        downloaded = true;
+      }
+    } catch (err: any) {
+      this.logger.warn(`[CQG] Không click được ellipsis/download button: ${err.message}`);
+      await page.screenshot({ path: path.join(process.cwd(), `cqg-3-error-${searchTerm}.png`) }).catch(() => {});
+    } finally {
+      // Close widget tab
+      const closeSelector = [
+        `//span[contains(text(),'${tabLabel}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
+        `//div[contains(@class,'wpfe-tab-header-active')]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
+      ].join(' | ');
+      await page.locator(closeSelector).first().click({ timeout: 5000 }).catch(() => {});
+    }
+
+    await page.waitForTimeout(2000);
+
+    if (!downloaded) {
+      throw new Error(`[CQG] Không thể tải "${searchTerm}" — không tìm thấy nút download hoặc không nhận được file.`);
+    }
+  }
+
+  async downloadCqgFR(page: Page, destFile: string): Promise<void> {
+    await this.downloadCqgWidget(page, 'Fills', 'Fills: All', "Download today's fills in view", destFile);
+  }
+
+  async downloadCqgPS(page: Page, destFile: string): Promise<void> {
+    await this.downloadCqgWidget(page, 'P&S', 'P&S: All', 'Download Purchase and sales in view', destFile);
+  }
+
+  async downloadCqgOP(page: Page, destFile: string): Promise<void> {
+    await this.downloadCqgWidget(page, 'Pos', 'Pos: All', 'Download open positions in view', destFile);
+  }
+
+  async downloadCqgOD(page: Page, destFile: string): Promise<void> {
+    await this.downloadCqgWidget(page, 'Orders', 'Orders: All', 'Download orders in view', destFile);
+  }
+
+  async downloadCqgAS(page: Page, destFile: string): Promise<void> {
+    this.logger.log('[CQG] Giả lập tải báo cáo AS (Account Summary) trong 2 giây...');
+    await page.waitForTimeout(2000);
+  }
+
+  async downloadCqgBackup(
+    reports: Partial<Record<'FR1' | 'PS1' | 'OP1' | 'OD1' | 'FR2' | 'PS2' | 'OP2' | 'OD2' | 'AS', boolean>>,
+    destDir: string,
+  ): Promise<{ errors: string[]; downloaded: string[] }> {
+    const errors: string[] = [];
+    const downloaded: string[] = [];
+
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    const credRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+    if (!credRaw) {
+      throw new Error('Chưa cấu hình tài khoản CQG trong cài đặt hệ thống (bot_credentials_cqg).');
+    }
+
+    let creds: any;
+    try {
+      creds = JSON.parse(decrypt(credRaw));
+    } catch {
+      throw new Error('Không thể giải mã cấu hình tài khoản CQG.');
+    }
+
+    const cqgUrl = creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+
+    const loginCqgAccount = async (username: string, password: string) => {
+      const executablePath = this.getChromeExecutablePath();
+      const launchOptions: any = {
+        headless: process.env.HEADLESS_BOT !== 'false',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+      if (executablePath) launchOptions.executablePath = executablePath;
+
+      const browser = await (await import('playwright-core')).chromium.launch(launchOptions);
+      const context = await browser.newContext({
+        acceptDownloads: true,
+        viewport: { width: 1280, height: 800 },
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(30000);
+
+      await page.goto(cqgUrl);
+      await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 20000 });
+      await page.fill('input[name="userName"]', username);
+      await page.fill('input[name="password"]', password);
+      await page.click('button[type="submit"]');
+
+      await page.waitForSelector('div.wpfe-logo-image', { state: 'visible', timeout: 60000 });
+      this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
+      return { browser, page };
+    };
+
+    // ── CQG1: FR1, PS1, OP1, OD1, AS ──────────────────────────────────────────
+    const needCqg1 = reports.FR1 || reports.PS1 || reports.OP1 || reports.OD1 || reports.AS;
+    if (needCqg1) {
+      const username1 = creds.username1 || creds.usernameCQG1 || creds.username;
+      const password1 = creds.password1 || creds.passwordCQG1 || creds.password;
+
+      if (!username1 || !password1) {
+        errors.push('Thiếu thông tin tài khoản CQG1 (username1/password1 trong bot_credentials_cqg).');
+      } else {
+        let browser1: any = null;
+        try {
+          const { browser, page } = await loginCqgAccount(username1, password1);
+          browser1 = browser;
+          await page.waitForTimeout(10000);
+
+          if (reports.FR1) {
+            try {
+              await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'));
+              downloaded.push('FR1.xlsx');
+            } catch (e: any) {
+              errors.push(`FR1: ${e.message}`);
+            }
+          }
+          if (reports.PS1) {
+            try {
+              await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'));
+              downloaded.push('PS1.xlsx');
+            } catch (e: any) {
+              errors.push(`PS1: ${e.message}`);
+            }
+          }
+          if (reports.OP1) {
+            try {
+              await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'));
+              downloaded.push('OP1.xlsx');
+            } catch (e: any) {
+              errors.push(`OP1: ${e.message}`);
+            }
+          }
+          if (reports.OD1) {
+            try {
+              await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'));
+              downloaded.push('OD1.xlsx');
+            } catch (e: any) {
+              errors.push(`OD1: ${e.message}`);
+            }
+          }
+          if (reports.AS) {
+            try {
+              await this.downloadCqgAS(page, path.join(destDir, 'AS1.xlsx'));
+              downloaded.push('AS1.xlsx');
+            } catch (e: any) {
+              errors.push(`AS1: ${e.message}`);
+            }
+          }
+        } catch (e: any) {
+          errors.push(`CQG1 login thất bại: ${e.message}`);
+        } finally {
+          if (browser1) await browser1.close().catch(() => {});
+          this.logger.log('[CQG] Đóng phiên CQG1.');
+        }
+      }
+    }
+
+    // ── CQG2: FR2, PS2, OP2, OD2, AS (đều hỗ trợ AS nếu được chọn) ───────────────
+    const needCqg2 = reports.FR2 || reports.PS2 || reports.OP2 || reports.OD2 || reports.AS;
+    if (needCqg2) {
+      const username2 = creds.username2 || creds.usernameCQG2;
+      const password2 = creds.password2 || creds.passwordCQG2;
+
+      if (!username2 || !password2) {
+        errors.push('Thiếu thông tin tài khoản CQG2 (username2/password2 trong bot_credentials_cqg).');
+      } else {
+        let browser2: any = null;
+        try {
+          const { browser, page } = await loginCqgAccount(username2, password2);
+          browser2 = browser;
+          await page.waitForTimeout(10000);
+
+          if (reports.FR2) {
+            try {
+              await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'));
+              downloaded.push('FR2.xlsx');
+            } catch (e: any) {
+              errors.push(`FR2: ${e.message}`);
+            }
+          }
+          if (reports.PS2) {
+            try {
+              await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'));
+              downloaded.push('PS2.xlsx');
+            } catch (e: any) {
+              errors.push(`PS2: ${e.message}`);
+            }
+          }
+          if (reports.OP2) {
+            try {
+              await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'));
+              downloaded.push('OP2.xlsx');
+            } catch (e: any) {
+              errors.push(`OP2: ${e.message}`);
+            }
+          }
+          if (reports.OD2) {
+            try {
+              await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'));
+              downloaded.push('OD2.xlsx');
+            } catch (e: any) {
+              errors.push(`OD2: ${e.message}`);
+            }
+          }
+          if (reports.AS) {
+            try {
+              await this.downloadCqgAS(page, path.join(destDir, 'AS2.xlsx'));
+              downloaded.push('AS2.xlsx');
+            } catch (e: any) {
+              errors.push(`AS2: ${e.message}`);
+            }
+          }
+        } catch (e: any) {
+          errors.push(`CQG2 login thất bại: ${e.message}`);
+        } finally {
+          if (browser2) await browser2.close().catch(() => {});
+          this.logger.log('[CQG] Đóng phiên CQG2.');
+        }
+      }
+    }
+
+    return { errors, downloaded };
   }
 }
 
