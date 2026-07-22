@@ -54,10 +54,10 @@ export class SchedulerService implements OnModuleInit {
           id: 'RPA_DOWNLOAD_MS',
           name: 'Tải báo cáo đối chiếu đầu ngày M-System',
           enabled: true,
-          time: '08:00',
+          time: '04:30',
           jobType: 'RPA_DOWNLOAD_REPORTS',
           payload: {
-            targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR']
+            targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT']
           }
         },
         {
@@ -83,19 +83,40 @@ export class SchedulerService implements OnModuleInit {
         let updated = false;
 
         if (Array.isArray(tasks)) {
-          if (!tasks.some(t => t.id === 'RPA_DOWNLOAD_MS')) {
+          const rpaTaskIdx = tasks.findIndex(t => t.id === 'RPA_DOWNLOAD_MS');
+          if (rpaTaskIdx === -1) {
             tasks.push({
               id: 'RPA_DOWNLOAD_MS',
               name: 'Tải báo cáo đối chiếu đầu ngày M-System',
               enabled: true,
-              time: '08:00',
+              time: '04:30',
               jobType: 'RPA_DOWNLOAD_REPORTS',
               payload: {
-                targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR']
+                targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT']
               }
             });
             updated = true;
+          } else {
+            const rpaTask = tasks[rpaTaskIdx];
+            if (rpaTask.time !== '04:30') {
+              rpaTask.time = '04:30';
+              updated = true;
+            }
+            if (!rpaTask.payload) {
+              rpaTask.payload = { targets: [] };
+            }
+            if (!rpaTask.payload.targets) {
+              rpaTask.payload.targets = [];
+            }
+            const expectedTargets = ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT'];
+            for (const tgt of expectedTargets) {
+              if (!rpaTask.payload.targets.includes(tgt)) {
+                rpaTask.payload.targets.push(tgt);
+                updated = true;
+              }
+            }
           }
+
           if (!tasks.some(t => t.id === 'CHECK_PRE_EOD')) {
             tasks.push({
               id: 'CHECK_PRE_EOD',
@@ -119,7 +140,7 @@ export class SchedulerService implements OnModuleInit {
 
           if (updated) {
             await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(tasks, null, 2));
-            this.logger.log('Appended missing tasks to existing scheduler configurations.');
+            this.logger.log('Appended missing tasks/updates to existing scheduler configurations.');
           }
         }
       } catch (err) {

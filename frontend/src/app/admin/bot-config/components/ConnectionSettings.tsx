@@ -36,6 +36,9 @@ export default function ConnectionSettings({
   const [cqgUrl, setCqgUrl] = useState('https://m.cqg.com/cqg/desktop/logon?ref=forced');
   const [cqgUsername, setCqgUsername] = useState('');
   const [cqgPassword, setCqgPassword] = useState('');
+  const [cqgUsername2, setCqgUsername2] = useState('');
+  const [cqgPassword2, setCqgPassword2] = useState('');
+  const [showCqgPassword2, setShowCqgPassword2] = useState(false);
 
   const [acmUrl, setAcmUrl] = useState('https://acm.member-url.vn/login');
   const [acmUsername, setAcmUsername] = useState('');
@@ -107,6 +110,8 @@ export default function ConnectionSettings({
           setCqgUrl(data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
+          setCqgUsername2(data.cqg.username2 || '');
+          setCqgPassword2(data.cqg.password2 || '');
         }
         if (data.acm) {
           setAcmUrl(data.acm.url || 'https://acm.member-url.vn/login');
@@ -183,6 +188,8 @@ export default function ConnectionSettings({
             url: cqgUrl.trim(),
             username: cqgUsername.trim(),
             password: cqgPassword,
+            username2: cqgUsername2.trim(),
+            password2: cqgPassword2,
           },
           acm: {
             url: acmUrl.trim(),
@@ -541,46 +548,100 @@ export default function ConnectionSettings({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>Username</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="CQG Username..."
-                    value={cqgUsername}
-                    onChange={(e) => setCqgUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Mật khẩu</label>
-                  <div style={{ position: 'relative' }}>
+               {/* CQG1 Account */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>
+                  Tài khoản CQG1 (mxvprice)
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Username CQG1</label>
                     <input
-                      type={showCqgPassword ? 'text' : 'password'}
+                      type="text"
                       className="form-input"
-                      style={{ paddingRight: '38px' }}
-                      placeholder="CQG Password..."
-                      value={cqgPassword}
-                      onChange={(e) => setCqgPassword(e.target.value)}
+                      placeholder="CQG1 Username..."
+                      value={cqgUsername}
+                      onChange={(e) => setCqgUsername(e.target.value)}
                       required
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowCqgPassword(!showCqgPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mật khẩu CQG1</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCqgPassword ? 'text' : 'password'}
+                        className="form-input"
+                        style={{ paddingRight: '38px' }}
+                        placeholder="CQG1 Password..."
+                        value={cqgPassword}
+                        onChange={(e) => setCqgPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCqgPassword(!showCqgPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CQG3 Account */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>
+                  Tài khoản CQG3
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Username CQG3</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="CQG3 Username..."
+                      value={cqgUsername2}
+                      onChange={(e) => setCqgUsername2(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mật khẩu CQG3</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCqgPassword2 ? 'text' : 'password'}
+                        className="form-input"
+                        style={{ paddingRight: '38px' }}
+                        placeholder="CQG3 Password..."
+                        value={cqgPassword2}
+                        onChange={(e) => setCqgPassword2(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCqgPassword2(!showCqgPassword2)}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {showCqgPassword2 ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

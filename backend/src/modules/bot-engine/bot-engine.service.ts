@@ -330,29 +330,89 @@ export class BotEngineService {
                 const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện chênh lệch số dư';
                 checkResult = { success: false, message: `Đối chiếu SOD thất bại: ${lastLog}` };
               } else {
-                checkResult = { success: false, message: 'Đang thực hiện đối chiếu số dư đầu ngày SOD...' };
+                const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện đối chiếu số dư đầu ngày SOD...';
+                checkResult = { success: false, message: logsSummary };
               }
             }
           } else if (checkType === 'CHECK_PRE_EOD') {
-            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+            if (task.taskId === 'ops_open_04_s4') {
+              const msBackupBase = await this.settingsService.getSetting(
+                'bot_backup_path_ms',
+                'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+              );
+              const targetDate = new Date(log.shiftDate);
+              const year = targetDate.getFullYear().toString();
+              const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+              const day = String(targetDate.getDate()).padStart(2, '0');
+              const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+              const dailyPath = path.join(msBackupBase, subFolder);
 
-            if (shouldEnqueueNewJob) {
-              await this.botJobQueueService.enqueue('CHECK_PRE_EOD', {
-                taskId: task.taskId,
-                shiftLogId: log._id.toString(),
-                sessionDay: log.shiftDate,
-              });
-              checkResult = { success: false, message: 'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...' };
-            } else {
-              if (existingJob.status === 'COMPLETED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu dữ liệu 3 bên thành công.';
-                checkResult = { success: true, message: lastLog };
-              } else if (existingJob.status === 'FAILED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện sai lệch đối chiếu dữ liệu 3 bên';
-                checkResult = { success: false, message: `Đối chiếu 3 bên thất bại: ${lastLog}` };
+              if (!fs.existsSync(dailyPath)) {
+                checkResult = { success: false, message: 'Đang chờ thư mục backup ngày hiện tại được khởi tạo...' };
               } else {
-                checkResult = { success: false, message: 'Đang tự động chạy đối chiếu dữ liệu 3 bên...' };
+                const files = fs.readdirSync(dailyPath);
+                const marginFiles = files.filter(f => 
+                  (f.toLowerCase().includes('qltkgd') || f.toLowerCase().includes('accounts_balances') || f.toLowerCase().includes('balances')) && 
+                  (f.toLowerCase().endsWith('.xlsx') || f.toLowerCase().endsWith('.xls') || f.toLowerCase().endsWith('.csv'))
+                );
+
+                if (marginFiles.length === 0) {
+                  checkResult = { success: false, message: 'Đang chờ file báo cáo QLTKGD.xlsx được tải xuống...' };
+                } else {
+                  this.logger.log(`[Negative Margin Check] Quét file ${marginFiles.join(', ')} tại ${dailyPath} để tìm tài khoản âm ký quỹ...`);
+                  let allNegativeAccounts: any[] = [];
+                  for (const file of marginFiles) {
+                    const filePath = path.join(dailyPath, file);
+                    const negatives = await this.postEodHandlerService.scanNegativeMarginAccounts(filePath);
+                    allNegativeAccounts = [...allNegativeAccounts, ...negatives];
+                  }
+
+                  if (allNegativeAccounts.length > 0) {
+                    const count = allNegativeAccounts.length;
+                    const detailsList = allNegativeAccounts.map(a => `• Tài khoản: <b>${a.account}</b> | Số dư ký quỹ: <font color="red"><b>${a.margin.toLocaleString()}</b></font>`).join('\n');
+                    
+                    const alertMsg = `⚠️ <b>[CẢNH BÁO KÝ QUỸ ĐẦU NGÀY - POST EOD]</b>\n` +
+                      `Phát hiện <b>${count} tài khoản bị âm ký quỹ đầu ngày</b> sau phiên EOD:\n\n` +
+                      `${detailsList}\n\n` +
+                      `Đề nghị bộ phận trực ca vận hành kiểm tra và xử lý theo quy trình!`;
+
+                    await this.telegramService.sendMessage(alertMsg);
+                    this.logger.warn(`[Negative Margin Check] Đã phát hiện ${count} tài khoản âm ký quỹ đầu ngày. Đã gửi cảnh báo Telegram.`);
+
+                    checkResult = { 
+                      success: true, 
+                      message: `[Quét tự động]: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}. Đã gửi cảnh báo Telegram.`
+                    };
+                  } else {
+                    checkResult = {
+                      success: true,
+                      message: `[Quét tự động]: Thành công. Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`
+                    };
+                  }
+                }
+              }
+            } else {
+              const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+              const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+              if (shouldEnqueueNewJob) {
+                await this.botJobQueueService.enqueue('CHECK_PRE_EOD', {
+                  taskId: task.taskId,
+                  shiftLogId: log._id.toString(),
+                  sessionDay: log.shiftDate,
+                });
+                checkResult = { success: false, message: 'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...' };
+              } else {
+                if (existingJob.status === 'COMPLETED') {
+                  const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu dữ liệu 3 bên thành công.';
+                  checkResult = { success: true, message: lastLog };
+                } else if (existingJob.status === 'FAILED') {
+                  const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện sai lệch đối chiếu dữ liệu 3 bên';
+                  checkResult = { success: false, message: `Đối chiếu 3 bên thất bại: ${lastLog}` };
+                } else {
+                  const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang tự động chạy đối chiếu dữ liệu 3 bên...';
+                  checkResult = { success: false, message: logsSummary };
+                }
               }
             }
           } else if (checkType === 'FILE_AUDIT_ACM') {
@@ -368,13 +428,14 @@ export class BotEngineService {
               checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup ACM...' };
             } else {
               if (existingJob.status === 'COMPLETED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup ACM hoàn tất.';
-                checkResult = { success: true, message: lastLog };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: true, message: logsSummary };
               } else if (existingJob.status === 'FAILED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup ACM';
-                checkResult = { success: false, message: `Kiểm tra backup ACM thất bại: ${lastLog}` };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: false, message: `Kiểm tra backup ACM thất bại:\n${logsSummary}` };
               } else {
-                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup ACM...' };
+                const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup ACM...';
+                checkResult = { success: false, message: logsSummary };
               }
             }
           } else if (checkType === 'FILE_AUDIT_MS') {
@@ -390,13 +451,14 @@ export class BotEngineService {
               checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup MS...' };
             } else {
               if (existingJob.status === 'COMPLETED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup MS hoàn tất.';
-                checkResult = { success: true, message: lastLog };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: true, message: logsSummary };
               } else if (existingJob.status === 'FAILED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup MS';
-                checkResult = { success: false, message: `Kiểm tra backup MS thất bại: ${lastLog}` };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: false, message: `Kiểm tra backup MS thất bại:\n${logsSummary}` };
               } else {
-                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup MS...' };
+                const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup MS...';
+                checkResult = { success: false, message: logsSummary };
               }
             }
           } else if (checkType === 'FILE_AUDIT_CQG') {
@@ -412,13 +474,14 @@ export class BotEngineService {
               checkResult = { success: false, message: 'Đang khởi chạy kiểm tra file backup CQG...' };
             } else {
               if (existingJob.status === 'COMPLETED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Kiểm tra file backup CQG hoàn tất.';
-                checkResult = { success: true, message: lastLog };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: true, message: logsSummary };
               } else if (existingJob.status === 'FAILED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện thiếu file backup CQG';
-                checkResult = { success: false, message: `Kiểm tra backup CQG thất bại: ${lastLog}` };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: false, message: `Kiểm tra backup CQG thất bại:\n${logsSummary}` };
               } else {
-                checkResult = { success: false, message: 'Đang thực hiện scan & kiểm tra file backup CQG...' };
+                const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup CQG...';
+                checkResult = { success: false, message: logsSummary };
               }
             }
           } else if (checkType === 'NOTIFY_MATURITY') {

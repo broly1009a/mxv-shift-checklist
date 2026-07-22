@@ -59,6 +59,18 @@ export default function BotLogViewerModal({
 }: BotLogViewerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isGeneralSystemTask = useMemo(() => {
+    const titleUpper = (taskTitle || '').toUpperCase();
+    return (
+      titleUpper.includes('KÝ QUỸ') ||
+      titleUpper.includes('ÂM KÝ QUỸ') ||
+      titleUpper.includes('TELEGRAM') ||
+      titleUpper.includes('CẢNH BÁO') ||
+      titleUpper.includes('THÔNG BÁO') ||
+      titleUpper.includes('GỬI')
+    );
+  }, [taskTitle]);
+
   // Parse structured data first
   const parsedData = useMemo(() => {
     if (!resultNote) {
@@ -76,6 +88,10 @@ export default function BotLogViewerModal({
     const summaryCards: { label: string; value: string; isWarning?: boolean }[] = [];
 
     bullets.forEach((bullet) => {
+      const trimmed = bullet.trim();
+      if (trimmed.startsWith('[20') || /^\[\d{4}/.test(trimmed)) {
+        return;
+      }
       if (bullet.includes(':')) {
         const parts = bullet.split(':');
         const label = parts[0].trim().replace(/^\[.*?\]\s*/, '');
@@ -199,22 +215,45 @@ export default function BotLogViewerModal({
     );
   }, [status, parsedData.rawText]);
 
+  const hasMarginWarning = useMemo(() => {
+    const text = parsedData.rawText || '';
+    return text.includes('Phát hiện') && (text.includes('âm ký quỹ') || text.includes('tài khoản âm') || text.includes('âm'));
+  }, [parsedData.rawText]);
+
   // Detect Task Category intelligently with priority
   const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION'>(() => {
     const titleUpper = (taskTitle || '').toUpperCase();
     const noteUpper = (parsedData.rawText || '').toUpperCase();
 
-    // Priority 1: Pure System / API Watcher (Snapshot Email, API Health)
+    // Priority 1: Pure System / API Watcher (Snapshot Email, API Health, Negative margin checks, Telegram alerts)
     if (
       titleUpper.includes('JOB SNAPSHOT') ||
       titleUpper.includes('GRAPH API') ||
+      titleUpper.includes('KÝ QUỸ') ||
+      titleUpper.includes('ÂM KÝ QUỸ') ||
+      titleUpper.includes('TELEGRAM') ||
+      titleUpper.includes('CẢNH BÁO') ||
+      titleUpper.includes('THÔNG BÁO') ||
+      titleUpper.includes('GỬI') ||
       noteUpper.includes('MICROSOFT GRAPH API') ||
       noteUpper.includes('GRAPH API QUERY FAILED')
     ) {
       return 'SYSTEM_API';
     }
 
-    // Priority 2: Trade / Balance Reconciliation
+    // Priority 2: File Audit & RPA Backup Downloads
+    if (
+      titleUpper.includes('FILE') ||
+      titleUpper.includes('AUDIT') ||
+      titleUpper.includes('SCAN') ||
+      titleUpper.includes('BACKUP') ||
+      titleUpper.includes('TẢI BÁO CÁO') ||
+      titleUpper.includes('RPA')
+    ) {
+      return 'FILE_AUDIT';
+    }
+
+    // Priority 3: Trade / Balance Reconciliation
     if (
       titleUpper.includes('ĐỐI CHIẾU') ||
       noteUpper.includes('ĐỐI CHIẾU') ||
@@ -226,18 +265,6 @@ export default function BotLogViewerModal({
       parsedData.summaryCards.length > 0
     ) {
       return 'RECONCILIATION';
-    }
-
-    // Priority 3: File Audit & RPA Backup Downloads
-    if (
-      titleUpper.includes('FILE') ||
-      titleUpper.includes('AUDIT') ||
-      titleUpper.includes('SCAN') ||
-      titleUpper.includes('BACKUP') ||
-      titleUpper.includes('TẢI BÁO CÁO') ||
-      titleUpper.includes('RPA')
-    ) {
-      return 'FILE_AUDIT';
     }
 
     return 'RECONCILIATION';
@@ -344,20 +371,40 @@ export default function BotLogViewerModal({
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', marginBottom: '10px' }}>
                     <MailWarning size={24} />
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Cảnh Báo Sự Cố Kết Nối / SLA Thất Bại</h4>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>
+                      {isGeneralSystemTask ? 'Phát Hiện Cảnh Báo / Sự Cố Vận Hành' : 'Cảnh Báo Sự Cố Kết Nối / SLA Thất Bại'}
+                    </h4>
                   </div>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                    Hệ thống không thể hoàn tất quá trình tự động kiểm tra do lỗi hạ tầng kết nối hoặc dịch vụ không phản hồi đúng hạn.
+                    {isGeneralSystemTask
+                      ? 'Hệ thống đã phát hiện các vấn đề cần lưu ý trong quá trình quét tự động.'
+                      : 'Hệ thống không thể hoàn tất quá trình tự động kiểm tra do lỗi hạ tầng kết nối hoặc dịch vụ không phản hồi đúng hạn.'}
+                  </p>
+                </div>
+              ) : hasMarginWarning ? (
+                <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#f59e0b', marginBottom: '8px' }}>
+                    <AlertTriangle size={24} />
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>
+                      Phát Hiện Tài Khoản Âm Ký Quỹ (Đã Cảnh Báo)
+                    </h4>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Hệ thống đã phát hiện các tài khoản bị âm ký quỹ và hoàn tất việc gửi danh sách cảnh báo qua Telegram.
                   </p>
                 </div>
               ) : (
                 <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#10b981', marginBottom: '8px' }}>
                     <MailCheck size={24} />
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Kết Nối Dịch Vụ Bình Thường</h4>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>
+                      {isGeneralSystemTask ? 'Trạng Thái Vận Hành Bình Thường' : 'Kết Nối Dịch Vụ Bình Thường'}
+                    </h4>
                   </div>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    Toàn bộ API và luồng xử lý tự động đã phản hồi chính xác.
+                    {isGeneralSystemTask
+                      ? 'Quy trình kiểm tra tự động đã hoàn tất và không phát hiện bất thường.'
+                      : 'Toàn bộ API và luồng xử lý tự động đã phản hồi chính xác.'}
                   </p>
                 </div>
               )}
@@ -365,7 +412,7 @@ export default function BotLogViewerModal({
               {/* Log Console Box */}
               <div>
                 <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Terminal size={14} color="#0284c7" /> Chi tiết phản hồi chẩn đoán API
+                  <Terminal size={14} color="#0284c7" /> {isGeneralSystemTask ? 'Chi tiết kết quả quét tự động' : 'Chi tiết phản hồi chẩn đoán API'}
                 </h4>
                 <div
                   style={{

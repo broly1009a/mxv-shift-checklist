@@ -674,8 +674,7 @@ export class RpaDownloaderService {
   }
 
   async downloadTTCDH(page: Page, destFile: string) {
-    // TODO: Xác nhận lại đường dẫn menu hoặc hash route cho TTCDH trên M-System
-    await this.navigateAndDownload(page, ['QL giao dịch', 'Tổng hợp', 'TTCDH'], destFile);
+    await this.navigateAndDownload(page, ['QL trạng thái', 'Trạng thái tất toán', 'Trạng thái tất toán chờ đáo hạn LME'], destFile);
   }
 
   /**
@@ -1300,13 +1299,25 @@ export class RpaDownloaderService {
    * Giải quyết Captcha dạng hình ảnh sử dụng Google Gemini 1.5 Flash API.
    * Chạy nhanh, chính xác cao và hoàn toàn miễn phí dưới ngưỡng 15 RPM.
    */
-  async solveCaptchaWithGemini(base64Image: string, apiKey: string, jobLogs: string[] = []): Promise<string> {
-    const log = (msg: string) => {
+  private getLogFn(jobLogs: string[] | ((msg: string) => void | Promise<void>)) {
+    return async (msg: string) => {
       this.logger.log(msg);
-      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+      if (typeof jobLogs === 'function') {
+        await jobLogs(msg);
+      } else {
+        jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
+      }
     };
+  }
 
-    log('Đang gửi ảnh Captcha lên Gemini API (gemini-flash-latest)...');
+  async solveCaptchaWithGemini(
+    base64Image: string,
+    apiKey: string,
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
+  ): Promise<string> {
+    const log = this.getLogFn(jobLogs);
+
+    await log('Đang gửi ảnh Captcha lên Gemini API (gemini-flash-latest)...');
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
@@ -1340,13 +1351,13 @@ export class RpaDownloaderService {
         throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
       }
 
-      const data = await response.json() as any;
+      const data = (await response.json()) as any;
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       const solvedCode = text ? text.replace(/\s/g, '') : '';
-      log(`Nhận diện Captcha từ Gemini thành công: "${solvedCode}"`);
+      await log(`Nhận diện Captcha từ Gemini thành công: "${solvedCode}"`);
       return solvedCode;
     } catch (err: any) {
-      log(`Lỗi khi gọi Gemini API: ${err.message}`);
+      await log(`Lỗi khi gọi Gemini API: ${err.message}`);
       throw err;
     }
   }
@@ -1358,12 +1369,9 @@ export class RpaDownloaderService {
   async loginACM(
     downloadDir: string,
     getCaptchaFromUI?: (base64Img: string) => Promise<string>,
-    jobLogs: string[] = [],
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
   ): Promise<{ browser: Browser; page: Page }> {
-    const log = (msg: string) => {
-      this.logger.log(msg);
-      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
-    };
+    const log = this.getLogFn(jobLogs);
 
     // 1. Lấy thông tin đăng nhập
     const credentialsRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
@@ -1403,7 +1411,7 @@ export class RpaDownloaderService {
       launchOptions.executablePath = executablePath;
     }
 
-    log('Khởi tạo phiên trình duyệt Playwright...');
+    await log('Khởi tạo phiên trình duyệt Playwright...');
     const browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({
       acceptDownloads: true,
@@ -1421,7 +1429,7 @@ export class RpaDownloaderService {
     page.setDefaultTimeout(30000);
 
     try {
-      log(`Truy cập trang đăng nhập ACM: ${acmUrl}`);
+      await log(`Truy cập trang đăng nhập ACM: ${acmUrl}`);
       await page.goto(acmUrl);
       await page.waitForTimeout(2000);
 
@@ -1479,14 +1487,14 @@ export class RpaDownloaderService {
       const capImgSel = await findSelector(captchaImgSelectors);
       const btnSel = await findSelector(loginBtnSelectors);
 
-      log(`Điền thông tin tài khoản: ${username}`);
+      await log(`Điền thông tin tài khoản: ${username}`);
       await page.fill(userSel, username);
       await page.fill(passSel, password);
 
       // Vòng lặp giải captcha (tối đa 4 lần thử reload)
       const maxCaptchaAttempts = 4;
       for (let attempt = 1; attempt <= maxCaptchaAttempts; attempt++) {
-        log(`[Lần thử đăng nhập ${attempt}/${maxCaptchaAttempts}] Bắt đầu xử lý Captcha...`);
+        await log(`[Lần thử đăng nhập ${attempt}/${maxCaptchaAttempts}] Bắt đầu xử lý Captcha...`);
 
         // Đợi ảnh captcha hiển thị
         await page.waitForSelector(capImgSel, { state: 'visible', timeout: 10000 });
@@ -1501,13 +1509,13 @@ export class RpaDownloaderService {
           try {
             captchaText = await this.solveCaptchaWithGemini(base64Image, geminiApiKey, jobLogs);
           } catch (err: any) {
-            log(`Giải tự động bằng Gemini lỗi: ${err.message}. Chuyển sang cơ chế dự phòng...`);
+            await log(`Giải tự động bằng Gemini lỗi: ${err.message}. Chuyển sang cơ chế dự phòng...`);
           }
         }
 
         // Dự phòng: đẩy lên giao diện checklist bắt gõ tay
         if (!captchaText && getCaptchaFromUI) {
-          log('Chuyển sang luồng nhập tay (Human-in-the-loop). Đang chờ người dùng nhập mã từ UI...');
+          await log('Chuyển sang luồng nhập tay (Human-in-the-loop). Đang chờ người dùng nhập mã từ UI...');
           captchaText = await getCaptchaFromUI(base64Image);
         }
 
@@ -1515,18 +1523,18 @@ export class RpaDownloaderService {
           throw new Error('Không giải được Captcha (cả Gemini và nhập tay đều không có kết quả).');
         }
 
-        log(`Nhập mã Captcha: "${captchaText}"`);
+        await log(`Nhập mã Captcha: "${captchaText}"`);
         await page.fill(capInputSel, captchaText);
         await page.waitForTimeout(500);
 
-        log('Bấm nút đăng nhập...');
+        await log('Bấm nút đăng nhập...');
         await page.click(btnSel);
         await page.waitForTimeout(3000);
 
         // Kiểm tra xem đăng nhập thành công chưa bằng cách check sự biến mất của ô login hoặc xuất hiện trang dashboard
         const isStillOnLogin = await page.locator(userSel).isVisible().catch(() => false);
         if (!isStillOnLogin) {
-          log('Đăng nhập ACM thành công!');
+          await log('Đăng nhập ACM thành công!');
           return { browser, page };
         }
 
@@ -1540,7 +1548,7 @@ export class RpaDownloaderService {
           })
           .catch(() => '');
 
-        log(`Đăng nhập thất bại. Thông báo lỗi: "${errorText || 'Sai mã captcha hoặc thông tin tài khoản'}"`);
+        await log(`Đăng nhập thất bại. Thông báo lỗi: "${errorText || 'Sai mã captcha hoặc thông tin tài khoản'}"`);
 
         if (attempt === maxCaptchaAttempts) {
           throw new Error(
@@ -1549,14 +1557,14 @@ export class RpaDownloaderService {
         }
 
         // Reload captcha ảnh
-        log('Đang tải lại mã Captcha mới để giải lại...');
+        await log('Đang tải lại mã Captcha mới để giải lại...');
         await captchaElement.click().catch(() => {});
         await page.waitForTimeout(1500);
       }
 
       throw new Error('Không thể đăng nhập ACM.');
     } catch (err: any) {
-      log(`Lỗi đăng nhập ACM: ${err.message}`);
+      await log(`Lỗi đăng nhập ACM: ${err.message}`);
       await browser.close().catch(() => {});
       throw err;
     }
@@ -1565,16 +1573,17 @@ export class RpaDownloaderService {
   /**
    * Tải các file báo cáo tự doanh (Order & Fill) từ ACM về thư mục hàng ngày.
    */
-  async downloadAcmBackup(page: Page, dailyPath: string, jobLogs: string[] = []): Promise<void> {
-    const log = (msg: string) => {
-      this.logger.log(msg);
-      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
-    };
+  async downloadAcmBackup(
+    page: Page,
+    dailyPath: string,
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
+  ): Promise<void> {
+    const log = this.getLogFn(jobLogs);
 
     const orderFile = path.join(dailyPath, 'Order.xlsx');
     const fillFile = path.join(dailyPath, 'Fill.xlsx');
 
-    log('Bắt đầu tải Báo cáo Order...');
+    await log('Bắt đầu tải Báo cáo Order...');
     await this.downloadAcmReport(
       page,
       orderFile,
@@ -1582,7 +1591,7 @@ export class RpaDownloaderService {
       jobLogs,
     );
 
-    log('Bắt đầu tải Báo cáo Fill (Trade)...');
+    await log('Bắt đầu tải Báo cáo Fill (Trade)...');
     await this.downloadAcmReport(
       page,
       fillFile,
@@ -1598,20 +1607,17 @@ export class RpaDownloaderService {
     page: Page,
     destFile: string,
     url: string,
-    jobLogs: string[] = [],
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
   ): Promise<void> {
-    const log = (msg: string) => {
-      this.logger.log(msg);
-      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
-    };
+    const log = this.getLogFn(jobLogs);
 
-    log(`Điều hướng đến trang tải báo cáo: ${url}`);
+    await log(`Điều hướng đến trang tải báo cáo: ${url}`);
     await page.goto(url);
     await page.waitForTimeout(3000); // Đợi tải dữ liệu ban đầu
 
     const exportBtnSelector =
       '.el-button--info:has-text("Export"), button:has-text("Export"), button:has-text("Download")';
-    log(`Đang tìm kiếm nút Export bằng selector: "${exportBtnSelector}"...`);
+    await log(`Đang tìm kiếm nút Export bằng selector: "${exportBtnSelector}"...`);
 
     // Đợi selector xuất hiện
     await page.waitForSelector(exportBtnSelector, { state: 'visible', timeout: 15000 }).catch(() => {});
@@ -1620,7 +1626,7 @@ export class RpaDownloaderService {
     const isVisible = await btn.isVisible().catch(() => false);
 
     if (!isVisible) {
-      log(`Không tìm thấy nút Export tại URL: ${url}. Thử tìm nút thay thế...`);
+      await log(`Không tìm thấy nút Export tại URL: ${url}. Thử tìm nút thay thế...`);
       const fallbackBtn = page
         .locator(
           'button:has-text("Nano"), a:has-text("Nano"), button:has-text("Tải"), a:has-text("Tải"), button:has-text("Export"), a:has-text("Export")',
@@ -1628,33 +1634,34 @@ export class RpaDownloaderService {
         .first();
       const fallbackVis = await fallbackBtn.isVisible().catch(() => false);
       if (fallbackVis) {
-        log('Tìm thấy nút tải thay thế, click...');
+        await log('Tìm thấy nút tải thay thế, click...');
         const downloadPromise = page.waitForEvent('download');
         await fallbackBtn.click();
         const download = await downloadPromise;
         await download.saveAs(destFile);
-        log(`Tải file thành công: ${destFile}`);
+        await log(`Tải file thành công: ${destFile}`);
         return;
       }
       throw new Error(`Không tìm thấy nút Export hoặc Download tại trang ${url}`);
     }
 
-    log('Kích hoạt click xuất file báo cáo...');
+    await log('Kích hoạt click xuất file báo cáo...');
     const downloadPromise = page.waitForEvent('download');
     await btn.click();
     const download = await downloadPromise;
     await download.saveAs(destFile);
-    log(`Tải và lưu file thành công: ${destFile}`);
+    await log(`Tải và lưu file thành công: ${destFile}`);
   }
 
   /**
    * Đồng bộ các file dump/log từ SFTP sử dụng thư viện ssh2 (Chạy đa nền tảng Windows/Linux).
    */
-  async downloadAcmSftpBackup(dailyPath: string, targetDate: Date, jobLogs: string[] = []): Promise<void> {
-    const log = (msg: string) => {
-      this.logger.log(msg);
-      jobLogs.push(`[${new Date().toISOString()}] ${msg}`);
-    };
+  async downloadAcmSftpBackup(
+    dailyPath: string,
+    targetDate: Date,
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
+  ): Promise<void> {
+    const log = this.getLogFn(jobLogs);
 
     const credentialsRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
     let credentials: any = {};
@@ -1680,29 +1687,29 @@ export class RpaDownloaderService {
     const csvSuffix = `_${ddmmyyyy}.csv`;
     const xlsPrefix = `${yyyy_mm_dd}_`;
 
-    log(`Kết nối SFTP tới sftp://${sftpUsername}@${sftpHost}:${sftpPort}...`);
+    await log(`Kết nối SFTP tới sftp://${sftpUsername}@${sftpHost}:${sftpPort}...`);
 
     const { Client } = require('ssh2');
     const conn = new Client();
 
     return new Promise<void>((resolve, reject) => {
-      conn.on('ready', () => {
-        log('Kết nối SSH thành công. Đang mở subsystem SFTP...');
-        conn.sftp((err: any, sftp: any) => {
+      conn.on('ready', async () => {
+        await log('Kết nối SSH thành công. Đang mở subsystem SFTP...');
+        conn.sftp(async (err: any, sftp: any) => {
           if (err) {
             conn.end();
             return reject(err);
           }
 
-          log(`Đọc thư mục remote: ${sftpRemoteDir}`);
-          sftp.readdir(sftpRemoteDir, (err: any, list: any[]) => {
+          await log(`Đọc thư mục remote: ${sftpRemoteDir}`);
+          sftp.readdir(sftpRemoteDir, async (err: any, list: any[]) => {
             if (err) {
               conn.end();
               return reject(err);
             }
 
             if (!list || !Array.isArray(list)) {
-              log('⚠️ Không thể đọc danh sách file hoặc danh sách rỗng.');
+              await log('⚠️ Không thể đọc danh sách file hoặc danh sách rỗng.');
               conn.end();
               return resolve();
             }
@@ -1722,17 +1729,17 @@ export class RpaDownloaderService {
             });
 
             if (filesToDownload.length === 0) {
-              log('⚠️ Không tìm thấy file nào khớp với bộ lọc trên SFTP.');
+              await log('⚠️ Không tìm thấy file nào khớp với bộ lọc trên SFTP.');
               conn.end();
               return resolve();
             }
 
-            log(`Tìm thấy ${filesToDownload.length} file cần tải về.`);
+            await log(`Tìm thấy ${filesToDownload.length} file cần tải về.`);
             
             let downloadedCount = 0;
-            const downloadNext = () => {
+            const downloadNext = async () => {
               if (downloadedCount >= filesToDownload.length) {
-                log('✅ Hoàn tất tải toàn bộ file từ SFTP.');
+                await log('✅ Hoàn tất tải toàn bộ file từ SFTP.');
                 conn.end();
                 return resolve();
               }
@@ -1741,31 +1748,31 @@ export class RpaDownloaderService {
               const remoteFile = path.posix.join(sftpRemoteDir, item.filename);
               const localFile = path.join(dailyPath, item.filename);
 
-              log(`Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} -> ${localFile}`);
+              await log(`Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} -> ${localFile}`);
 
-              sftp.fastGet(remoteFile, localFile, {}, (err: any) => {
+              sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
                 if (err) {
-                  log(`❌ Lỗi tải file ${item.filename}: ${err.message}`);
+                  await log(`❌ Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
                 downloadedCount++;
-                downloadNext();
+                await downloadNext();
               });
             };
 
-            downloadNext();
+            await downloadNext();
           });
         });
       });
 
-      conn.on('error', (err: Error) => {
-        log(`❌ Lỗi kết nối SFTP: ${err.message}`);
+      conn.on('error', async (err: Error) => {
+        await log(`❌ Lỗi kết nối SFTP: ${err.message}`);
         reject(err);
       });
 
-      conn.on('close', () => {
-        log('Đã đóng kết nối SFTP.');
+      conn.on('close', async () => {
+        await log('Đã đóng kết nối SFTP.');
       });
 
       try {

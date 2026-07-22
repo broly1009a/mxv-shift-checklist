@@ -957,6 +957,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = 'Tải báo cáo CQG CAST Balances thành công.';
           } else if (job.jobType === 'AUTO_CHECK_SOD') {
             message = 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
+          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)) {
+            message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const failedCount = payload.failedCount || 0;
             const totalCount = payload.totalCount || 0;
@@ -982,7 +984,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
           let message = lastLog;
 
-          if (job.jobType === 'VERIFY_EMAIL_STATUS') {
+          if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)) {
+            message = job.logs.join('\n');
+          } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const checkData = {
               success: false,
               message: `RPA xác minh email thất bại: ${lastLog}`,
@@ -996,7 +1000,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'FAILED',
             systemUser,
-            message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`
+            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)
+              ? message
+              : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`)
           );
         }
       } catch (err: any) {
@@ -1177,7 +1183,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    */
   private async handleFileAuditAcmJob(job: BotJob) {
     const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    const targetDateStr = payload.targetDate;
+    const targetDateStr = payload.targetDate || payload.sessionDay;
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
 
     const acmBackupBase = await this.getAcmBackupBase();
@@ -1192,23 +1198,38 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       fs.mkdirSync(dailyPath, { recursive: true });
     }
 
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
-    await job.save();
+    let saveQueue = Promise.resolve();
+    const logAndSave = async (msg: string) => {
+      const logEntry = `[${new Date().toISOString()}] ${msg}`;
+      job.logs.push(logEntry);
+      
+      saveQueue = saveQueue.then(async () => {
+        try {
+          await this.botJobModel.updateOne(
+            { _id: job._id },
+            { $push: { logs: logEntry } }
+          ).exec();
+        } catch (dbErr: any) {
+          this.logger.error(`Lỗi khi lưu log thời gian thực: ${dbErr.message}`);
+        }
+      });
+      await saveQueue;
+    };
+
+    await logAndSave(`Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
 
     const scanResults = await this.scanAcmBackupFiles(dailyPath, targetDate);
     const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
 
     if (missingOrOutdated.length === 0) {
-      job.logs.push(`[${new Date().toISOString()}] ✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`);
-      await job.save();
+      await logAndSave(`✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`);
       return;
     }
 
     // 1. Tải báo cáo từ Web ACM nếu thiếu
     const webMissing = missingOrOutdated.some(r => r.key === 'ORDER' || r.key === 'FILL');
     if (webMissing) {
-      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`);
-      await job.save();
+      await logAndSave(`⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`);
 
       // callback để đẩy Captcha lên UI nếu tự động giải bằng Gemini thất bại
       const getCaptchaFromUI = (base64Img: string): Promise<string> => {
@@ -1223,29 +1244,31 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             ...currentPayload,
             captchaImage: base64Img,
           };
-          job.logs.push(`[${new Date().toISOString()}] ⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`);
-          this.syncJobToChecklist(job, 'AWAITING_CAPTCHA').then(() => {
-            this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
+          
+          logAndSave(`⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`)
+            .then(() => this.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
+            .then(() => {
+              this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
+                clearTimeout(timeoutId);
+                resolve(captcha);
+              });
+            })
+            .catch((err) => {
               clearTimeout(timeoutId);
-              resolve(captcha);
+              reject(err);
             });
-          }).catch((err) => {
-            clearTimeout(timeoutId);
-            reject(err);
-          });
         });
       };
 
       const { browser, page } = await this.rpaDownloaderService.loginACM(
         dailyPath,
         getCaptchaFromUI,
-        job.logs,
+        logAndSave,
       );
 
       try {
-        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, job.logs);
-        job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
-        await job.save();
+        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
+        await logAndSave(`✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
       } finally {
         this.logger.log('Closing Playwright browser after ACM audit.');
         await browser.close().catch((err) => {
@@ -1257,16 +1280,25 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     // 2. Đồng bộ file dump/log từ SFTP nếu thiếu
     const sftpMissing = missingOrOutdated.some(r => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS');
     if (sftpMissing) {
-      job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ SFTP...`);
-      await job.save();
+      await logAndSave(`⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ SFTP...`);
       try {
-        await this.rpaDownloaderService.downloadAcmSftpBackup(dailyPath, targetDate, job.logs);
-        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn tất đồng bộ file từ SFTP.`);
-        await job.save();
+        await this.rpaDownloaderService.downloadAcmSftpBackup(dailyPath, targetDate, logAndSave);
+        await logAndSave(`✅ Hoàn tất đồng bộ file từ SFTP.`);
       } catch (err: any) {
-        job.logs.push(`[${new Date().toISOString()}] ❌ Lỗi đồng bộ SFTP: ${err.message}`);
-        await job.save();
-        throw err;
+        await logAndSave(`⚠️ Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
+        
+        // Kiểm tra xem báo cáo Web đã tồn tại đầy đủ chưa
+        const currentScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+        const webReportsOk = currentScan
+          .filter(r => r.key === 'ORDER' || r.key === 'FILL')
+          .every(r => r.status === 'OK');
+        
+        if (webReportsOk) {
+          await logAndSave(`ℹ️ Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`);
+        } else {
+          await logAndSave(`❌ Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`);
+          throw err;
+        }
       }
     }
   }

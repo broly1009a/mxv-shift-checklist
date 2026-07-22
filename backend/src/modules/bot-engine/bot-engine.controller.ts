@@ -54,7 +54,7 @@ export class BotEngineController {
     const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
 
     let msystem = { url: 'https://msystem.mxv.vn/', username: '', password: '', pin: '' };
-    let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '' };
+    let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '', username2: '', password2: '' };
     let acm = {
       url: 'https://acm.member-url.vn/login',
       username: '',
@@ -92,6 +92,8 @@ export class BotEngineController {
           url: decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
+          username2: decrypted.username2 || decrypted.usernameCQG2 || '',
+          password2: decrypted.password2 || decrypted.passwordCQG2 ? '********' : '',
         };
       } catch (err) {}
     }
@@ -214,6 +216,8 @@ export class BotEngineController {
         url: cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
         username: cqg.username !== undefined ? cqg.username : currentCqg.username,
         password: cqg.password && cqg.password !== '********' ? cqg.password : currentCqg.password,
+        username2: cqg.username2 !== undefined ? cqg.username2 : currentCqg.username2,
+        password2: cqg.password2 && cqg.password2 !== '********' ? cqg.password2 : currentCqg.password2,
       };
 
       await this.settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(mergedCqg)));
