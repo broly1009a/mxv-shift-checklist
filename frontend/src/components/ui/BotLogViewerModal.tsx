@@ -58,6 +58,51 @@ export default function BotLogViewerModal({
   checkedAt,
 }: BotLogViewerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [marginSearch, setMarginSearch] = useState('');
+  const [showRawLog, setShowRawLog] = useState(false);
+
+  const parsedMarginAccounts = useMemo(() => {
+    if (!resultNote) return null;
+    let text = resultNote;
+    try {
+      const json = JSON.parse(resultNote);
+      text = json.message || resultNote;
+    } catch (e) {}
+
+    if (!text.includes('âm ký quỹ')) return null;
+
+    // Extract the accounts string after the colon
+    const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+)$/i);
+    if (!match) return null;
+
+    const accountsStr = match[1].trim();
+    const rawTokens = accountsStr.split(',');
+    const list: { account: string; value: number }[] = [];
+
+    rawTokens.forEach((token) => {
+      const trimmedToken = token.trim();
+      if (!trimmedToken) return;
+
+      const tokenMatch = trimmedToken.match(/^([a-zA-Z0-9-]+)\s*\(([^)]+)\)/);
+      if (tokenMatch) {
+        const account = tokenMatch[1].trim();
+        const valueStr = tokenMatch[2].replace(/[^\d.-]/g, '');
+        const value = parseFloat(valueStr) || 0;
+        list.push({ account, value });
+      } else {
+        list.push({ account: trimmedToken, value: 0 });
+      }
+    });
+
+    return list;
+  }, [resultNote]);
+
+  const filteredMarginAccounts = useMemo(() => {
+    if (!parsedMarginAccounts) return [];
+    return parsedMarginAccounts.filter((acc) =>
+      acc.account.toLowerCase().includes(marginSearch.toLowerCase())
+    );
+  }, [parsedMarginAccounts, marginSearch]);
 
   const isGeneralSystemTask = useMemo(() => {
     const titleUpper = (taskTitle || '').toUpperCase();
@@ -116,7 +161,7 @@ export default function BotLogViewerModal({
 
       // Type A: [CQG] TK 012C1189215, HĐ SILU26, Giá 61.48, Qty 1: Lệnh CQG không tìm thấy...
       const matchA = trimmed.match(
-        /^\[(.*?)\]\s*(?:TK\s*([^,]+))?,?\s*(?:HĐ\s*([^,]+))?,?\s*(?:Giá\s*([^,]+))?,?\s*(?:Qty\s*([^:]+))?:\s*(.*)/i
+        /^\[(.*?)\]\s*(?:TK\s*([^,:]+))?,?\s*(?:HĐ\s*([^,]+))?,?\s*(?:Giá\s*([^,]+))?,?\s*(?:Qty\s*([^:]+))?:\s*(.*)/i
       );
 
       // Type B: TK 009C0268369, HĐ LRCU26: MS 780 vs CQG 810 (Chênh lệch: -30)
@@ -127,7 +172,7 @@ export default function BotLogViewerModal({
       if (matchA) {
         const sysTag = (matchA[1] || '').trim().toUpperCase();
         const hasTradeDetails = Boolean(matchA[2] || matchA[3] || matchA[4] || matchA[5]);
-        const isKnownTradeSystem = ['MSYSTEM', 'CQG', 'STRAITS', 'ACM', 'EOD', 'NKTHT', 'MS'].some((s) => sysTag.includes(s));
+        const isKnownTradeSystem = ['MSYSTEM', 'CQG', 'STRAITS', 'ACM', 'EOD', 'NKTHT', 'MS', 'SOD'].some((s) => sysTag.includes(s));
 
         if (hasTradeDetails || isKnownTradeSystem) {
           mismatchedItems.push({
@@ -227,7 +272,7 @@ export default function BotLogViewerModal({
 
     // Priority 1: Pure System / API Watcher (Snapshot Email, API Health, Negative margin checks, Telegram alerts)
     if (
-      titleUpper.includes('JOB SNAPSHOT') ||
+      (titleUpper.includes('JOB SNAPSHOT') ||
       titleUpper.includes('GRAPH API') ||
       titleUpper.includes('KÝ QUỸ') ||
       titleUpper.includes('ÂM KÝ QUỸ') ||
@@ -236,7 +281,10 @@ export default function BotLogViewerModal({
       titleUpper.includes('THÔNG BÁO') ||
       titleUpper.includes('GỬI') ||
       noteUpper.includes('MICROSOFT GRAPH API') ||
-      noteUpper.includes('GRAPH API QUERY FAILED')
+      noteUpper.includes('GRAPH API QUERY FAILED')) &&
+      !titleUpper.includes('ĐỐI CHIẾU') &&
+      !titleUpper.includes('SOD') &&
+      !titleUpper.includes('SO SÁNH')
     ) {
       return 'SYSTEM_API';
     }
@@ -322,12 +370,16 @@ export default function BotLogViewerModal({
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {category === 'SYSTEM_API' && <Server size={18} color="#ec4899" />}
+              {category === 'SYSTEM_API' && (
+                isGeneralSystemTask ? <ShieldAlert size={18} color="#f59e0b" /> : <Server size={18} color="#ec4899" />
+              )}
               {category === 'FILE_AUDIT' && <FolderCheck size={18} color="#f59e0b" />}
               {category === 'RECONCILIATION' && <ShieldAlert size={18} color="#0284c7" />}
 
               <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                {category === 'SYSTEM_API' && 'Chẩn Đoán Trạng Thái API / Hạ Tầng'}
+                {category === 'SYSTEM_API' && (
+                  isGeneralSystemTask ? 'Giám Sát Ký Quỹ & Cảnh Báo Tự Động' : 'Chẩn Đoán Trạng Thái API / Hạ Tầng'
+                )}
                 {category === 'FILE_AUDIT' && 'Báo Cáo Kiểm Tra File & Backup RPA'}
                 {category === 'RECONCILIATION' && 'Chi Tiết Log Đối Chiếu Bot'}
               </h3>
@@ -335,6 +387,10 @@ export default function BotLogViewerModal({
               {isTaskProcessing ? (
                 <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}>
                   ⏳ ĐANG XỬ LÝ / CHỜ
+                </span>
+              ) : hasMarginWarning ? (
+                <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  ⚠️ WARNING / CẢNH BÁO
                 </span>
               ) : !isTaskFailed ? (
                 <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
@@ -411,25 +467,137 @@ export default function BotLogViewerModal({
 
               {/* Log Console Box */}
               <div>
-                <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Terminal size={14} color="#0284c7" /> {isGeneralSystemTask ? 'Chi tiết kết quả quét tự động' : 'Chi tiết phản hồi chẩn đoán API'}
-                </h4>
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-input)',
-                    padding: '14px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    fontFamily: 'monospace',
-                    fontSize: '0.75rem',
-                    color: isTaskFailed ? '#ef4444' : 'var(--text-primary)',
-                    lineHeight: 1.6,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {parsedData.rawText}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '12px' }}>
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Terminal size={14} color="#0284c7" /> {isGeneralSystemTask ? 'Chi tiết kết quả quét tự động' : 'Chi tiết phản hồi chẩn đoán API'}
+                  </h4>
+                  {parsedMarginAccounts && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {!showRawLog && (
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <Search size={12} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)' }} />
+                          <input
+                            type="text"
+                            placeholder="Tìm TKGD..."
+                            value={marginSearch}
+                            onChange={(e) => setMarginSearch(e.target.value)}
+                            style={{
+                              width: '130px',
+                              padding: '4px 8px 4px 24px',
+                              fontSize: '0.7rem',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-primary)',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowRawLog(!showRawLog)}
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <RefreshCw size={10} /> {showRawLog ? 'Xem danh sách' : 'Xem log gốc'}
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {parsedMarginAccounts && !showRawLog ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', padding: '0 4px' }}>
+                      <span>Phát hiện: <strong>{parsedMarginAccounts.length}</strong> tài khoản âm ký quỹ</span>
+                      {marginSearch && <span>Tìm thấy: <strong>{filteredMarginAccounts.length}</strong> kết quả</span>}
+                    </div>
+
+                    <div
+                      style={{
+                        backgroundColor: 'var(--bg-input)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {filteredMarginAccounts.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '24px 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Không tìm thấy tài khoản khớp với từ khóa tìm kiếm.
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                            gap: '8px',
+                          }}
+                        >
+                          {filteredMarginAccounts.map((acc, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '6px',
+                                padding: '6px 10px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {acc.account}
+                              </span>
+                              <span
+                                style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  color: '#ef4444',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                {acc.value ? `${new Intl.NumberFormat('vi-VN').format(acc.value)}` : '—'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      backgroundColor: 'var(--bg-input)',
+                      padding: '14px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      fontFamily: 'monospace',
+                      fontSize: '0.75rem',
+                      color: isTaskFailed ? '#ef4444' : 'var(--text-primary)',
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {parsedData.rawText}
+                  </div>
+                )}
               </div>
             </div>
           )}

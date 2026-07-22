@@ -146,7 +146,7 @@ export class ReconciliationController {
       }
 
       // Update the checklist task status using ShiftsService
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
 
       return {
         success: !hasDiscrepancy,
@@ -231,7 +231,7 @@ export class ReconciliationController {
           note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
         }
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
 
         return {
           success: !hasDiscrepancy,
@@ -271,7 +271,7 @@ export class ReconciliationController {
           note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
         }
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
 
         return {
           success: !hasDiscrepancy,
@@ -721,7 +721,7 @@ export class ReconciliationController {
         }
       }
 
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note);
+      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
 
       return {
         success: true,

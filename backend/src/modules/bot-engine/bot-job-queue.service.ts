@@ -946,7 +946,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'WAITING',
             systemUser,
-            'Hệ thống đang thực hiện tác vụ tự động...'
+            'Hệ thống đang thực hiện tác vụ tự động...',
+            true
           );
         } else if (status === 'COMPLETED') {
           let message = 'Tác vụ tự động hoàn thành thành công.';
@@ -978,13 +979,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'PASSED',
             systemUser,
-            message
+            message,
+            true
           );
         } else if (status === 'FAILED') {
           const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
           let message = lastLog;
 
-          if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)) {
+          if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
             message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const checkData = {
@@ -1000,9 +1002,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'FAILED',
             systemUser,
-            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)
+            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)
               ? message
-              : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`)
+              : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`),
+            true
           );
         }
       } catch (err: any) {
@@ -1554,6 +1557,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await job.save();
       
       if (!result.success) {
+        if (result.discrepancies && result.discrepancies.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Danh sách tài khoản lệch số dư:`);
+          result.discrepancies.forEach((d: any) => {
+            job.logs.push(`- [SOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`);
+          });
+        }
+        await job.save();
         throw new Error(`Phát hiện chênh lệch số dư tài khoản (> $100) giữa M-System và CQG CAST. Vui lòng kiểm tra báo cáo.`);
       }
     } catch (err: any) {
@@ -1589,6 +1599,19 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await job.save();
 
       if (!result.passed) {
+        if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
+          result.mismatchedTrades.forEach((t: any) => {
+            job.logs.push(`- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`);
+          });
+        }
+        if (result.mismatchedPositions && result.mismatchedPositions.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`);
+          result.mismatchedPositions.forEach((p: any) => {
+            job.logs.push(`- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`);
+          });
+        }
+        await job.save();
         throw new Error(`Phát hiện chênh lệch khớp lệnh hoặc vị thế cuối ngày (Pre-EOD). Vui lòng kiểm tra báo cáo.`);
       }
     } catch (err: any) {
@@ -1620,6 +1643,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const totalNegative = result.eodResult.negativeBalanceAccs.length + result.eodResult.negativeIMRAcc.length;
       const totalMismatched = result.cqgResult.length;
       if (totalNegative > 0 || totalMismatched > 0) {
+        if (result.cqgResult && result.cqgResult.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`);
+          result.cqgResult.forEach((d: any) => {
+            job.logs.push(`- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`);
+          });
+        }
+        await job.save();
         throw new Error(`Phát hiện bất thường EOD: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatched} tài khoản lệch số dư EOD CQG.`);
       }
     } catch (err: any) {

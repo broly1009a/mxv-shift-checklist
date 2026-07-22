@@ -565,7 +565,8 @@ export class BotEngineController {
             taskId,
             'PASSED',
             systemUser,
-            msg
+            msg,
+            true
           );
           return;
         }
@@ -642,7 +643,8 @@ export class BotEngineController {
           taskId,
           res.success ? 'PASSED' : 'FAILED',
           systemUser,
-          res.message
+          res.message,
+          true
         );
       } catch (err: any) {
         await this.shiftsService.updateTaskStatus(
@@ -650,7 +652,8 @@ export class BotEngineController {
           taskId,
           'FAILED',
           systemUser,
-          `Lỗi đối chiếu đáo hạn: ${err.message}`
+          `Lỗi đối chiếu đáo hạn: ${err.message}`,
+          true
         );
       }
     })();

@@ -275,7 +275,8 @@ export class MarginChangeRequestsService {
               'ops_during_01',
               'PASSED',
               user,
-              noteText
+              noteText,
+              true
             );
           }
         } catch (shiftErr) {
@@ -396,7 +397,8 @@ export class MarginChangeRequestsService {
                   'ops_during_01',
                   taskStatus,
                   user,
-                  noteText
+                  noteText,
+                  true
                 );
                 break; 
               }
@@ -448,7 +450,8 @@ export class MarginChangeRequestsService {
               'ops_during_01',
               taskStatus,
               user,
-              noteText
+              noteText,
+              true
             );
             break;
           }

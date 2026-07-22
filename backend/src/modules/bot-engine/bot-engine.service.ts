@@ -110,7 +110,8 @@ export class BotEngineService {
               task.taskId,
               'WAITING',
               systemUser,
-              'Hệ thống đang bắt đầu quét kiểm tra tự động...'
+              'Hệ thống đang bắt đầu quét kiểm tra tự động...',
+              true
             );
             // Refresh local task variable status
             task.status = 'WAITING';
@@ -224,6 +225,7 @@ export class BotEngineService {
               } else if (existingJob.status === 'FAILED') {
                 const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
                 checkResult = { success: false, message: `RPA thất bại: ${lastLog}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 checkResult = { success: false, message: 'Đang chạy RPA tải file báo cáo từ M-System...' };
               }
@@ -245,6 +247,7 @@ export class BotEngineService {
               } else if (existingJob.status === 'FAILED') {
                 const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
                 checkResult = { success: false, message: `Tải CAST thất bại: ${lastLog}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 checkResult = { success: false, message: 'Đang tải báo cáo CQG CAST Balances...' };
               }
@@ -327,8 +330,9 @@ export class BotEngineService {
               if (existingJob.status === 'COMPLETED') {
                 checkResult = { success: true, message: 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.' };
               } else if (existingJob.status === 'FAILED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện chênh lệch số dư';
-                checkResult = { success: false, message: `Đối chiếu SOD thất bại: ${lastLog}` };
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = { success: false, message: `Đối chiếu SOD thất bại:\n${logsSummary}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện đối chiếu số dư đầu ngày SOD...';
                 checkResult = { success: false, message: logsSummary };
@@ -407,8 +411,9 @@ export class BotEngineService {
                   const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu dữ liệu 3 bên thành công.';
                   checkResult = { success: true, message: lastLog };
                 } else if (existingJob.status === 'FAILED') {
-                  const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Phát hiện sai lệch đối chiếu dữ liệu 3 bên';
-                  checkResult = { success: false, message: `Đối chiếu 3 bên thất bại: ${lastLog}` };
+                  const logsSummary = existingJob.logs.join('\n');
+                  checkResult = { success: false, message: `Đối chiếu 3 bên thất bại:\n${logsSummary}` };
+                  (checkResult as any).forceFailed = true;
                 } else {
                   const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang tự động chạy đối chiếu dữ liệu 3 bên...';
                   checkResult = { success: false, message: logsSummary };
@@ -433,6 +438,7 @@ export class BotEngineService {
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: false, message: `Kiểm tra backup ACM thất bại:\n${logsSummary}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup ACM...';
                 checkResult = { success: false, message: logsSummary };
@@ -456,6 +462,7 @@ export class BotEngineService {
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: false, message: `Kiểm tra backup MS thất bại:\n${logsSummary}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup MS...';
                 checkResult = { success: false, message: logsSummary };
@@ -479,6 +486,7 @@ export class BotEngineService {
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: false, message: `Kiểm tra backup CQG thất bại:\n${logsSummary}` };
+                (checkResult as any).forceFailed = true;
               } else {
                 const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện scan & kiểm tra file backup CQG...';
                 checkResult = { success: false, message: logsSummary };
@@ -602,7 +610,8 @@ export class BotEngineService {
               task.taskId,
               'PASSED',
               systemUser,
-              checkResult.message
+              checkResult.message,
+              true
             );
           } else {
             // Check for SLA deadline breach
@@ -635,7 +644,8 @@ export class BotEngineService {
                 systemUser,
                 (checkResult as any).forceFailed
                   ? checkResult.message
-                  : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`
+                  : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`,
+                true
               );
             } else {
               // Update status note with retry logs
@@ -647,7 +657,8 @@ export class BotEngineService {
                 systemUser,
                 checkResult.message.startsWith('{')
                   ? checkResult.message
-                  : `[Quét tự động lúc ${formattedTime}]: ${checkResult.message}`
+                  : `[Quét tự động lúc ${formattedTime}]: ${checkResult.message}`,
+                true
               );
             }
           }
