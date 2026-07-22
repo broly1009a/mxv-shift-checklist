@@ -346,11 +346,22 @@ export default function TaskTable({
               >
 
                 {/* Checkbox and task information row */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }} onClick={e => hasChildren && e.stopPropagation()}>
+                <div 
+                  style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }} 
+                  onClick={e => {
+                    if (hasChildren) {
+                      const target = e.target as HTMLElement;
+                      if (target.tagName !== 'A' && target.tagName !== 'BUTTON' && !target.closest('a') && !target.closest('button')) {
+                        toggleParent(item.taskId);
+                      }
+                      e.stopPropagation();
+                    }
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                     {/* Expand arrow for parent tasks */}
                     {hasChildren ? (
-                      <span style={{ marginTop: '3px', flexShrink: 0, color: '#8b5cf6' }}>
+                      <span style={{ marginTop: '3px', flexShrink: 0, color: '#8b5cf6', cursor: 'pointer' }}>
                         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                       </span>
                     ) : locked ? (
@@ -756,7 +767,10 @@ export default function TaskTable({
                       <>
                         <div
                           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                          onClick={() => setOpenStatusDropdownTaskId(null)}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setOpenStatusDropdownTaskId(null);
+                          }}
                         />
                         <div style={{
                           position: 'absolute',
@@ -850,12 +864,15 @@ export default function TaskTable({
 
               {/* Sub-tasks accordion */}
               {hasChildren && isExpanded && (
-                <div style={{
-                  display: 'flex', flexDirection: 'column', gap: '6px',
-                  background: 'rgba(139,92,246,0.03)', borderRadius: '0 0 12px 12px',
-                  border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
-                          padding: '8px 12px 12px 12px'
-                }}>
+                <div 
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: '6px',
+                    background: 'rgba(139,92,246,0.03)', borderRadius: '0 0 12px 12px',
+                    border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
+                    padding: '8px 12px 12px 12px'
+                  }}
+                >
                   {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map((child, cIdx) => {
                     const isBot = child.isBotCheckSnapshot;
                     const cStatus = child.status || 'PENDING';
@@ -957,7 +974,7 @@ export default function TaskTable({
                         )}
                         {openStatusDropdownTaskId === child.taskId && (
                           <>
-                            <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={() => setOpenStatusDropdownTaskId(null)} />
+                            <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={e => { e.stopPropagation(); setOpenStatusDropdownTaskId(null); }} />
                             <div style={{
                               position:'absolute',
                               right:0,

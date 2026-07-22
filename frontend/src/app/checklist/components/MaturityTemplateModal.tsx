@@ -50,7 +50,7 @@ export default function MaturityTemplateModal({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/shift-logs/maturity-templates?shiftLogId=${shiftLogId}`, {
+      const res = await fetch(`${API_BASE_URL}/reconciliation/maturity-manual-messages?shiftLogId=${shiftLogId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -60,8 +60,22 @@ export default function MaturityTemplateModal({
         throw new Error('Không thể tải dữ liệu templates đáo hạn');
       }
 
-      const data = await res.json();
-      setTemplates(data || []);
+      const responseData = await res.json();
+      if (responseData.success && Array.isArray(responseData.jsonContent)) {
+        const mappedTemplates: TemplateItem[] = responseData.jsonContent.map((item: any, idx: number) => ({
+          id: `${item.account}_${item.contractCode}_${idx}`,
+          category: `Thành viên ${item.memberCode}`,
+          commodityCode: item.contractCode,
+          commodityName: item.contractName,
+          contractMonth: '',
+          title: `Tài khoản: ${item.account}`,
+          content: item.messageText,
+          targetRole: 'QLGD',
+        }));
+        setTemplates(mappedTemplates);
+      } else {
+        setTemplates([]);
+      }
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {
