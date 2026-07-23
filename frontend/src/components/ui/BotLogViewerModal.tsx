@@ -57,8 +57,24 @@ export default function BotLogViewerModal({
 
     const titleUpper = (taskTitle || '').toUpperCase();
 
-    // 1. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
+    // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
     if (
+      titleUpper.includes('SỐ DƯ CQG') ||
+      titleUpper.includes('SOD') ||
+      titleUpper.includes('TASK_CHECK_CQG') ||
+      text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]')
+    ) {
+      jsonType = 'CQG';
+    }
+    // 2. EOD Negative Margin Check (Âm ký quỹ) -> EOD Mode
+    else if (
+      titleUpper.includes('ÂM KÝ QUỸ') ||
+      text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
+    ) {
+      jsonType = 'EOD';
+    }
+    // 3. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
+    else if (
       titleUpper.includes('EMAIL') ||
       titleUpper.includes('SAO KÊ') ||
       titleUpper.includes('XÁC MINH') ||
@@ -69,7 +85,7 @@ export default function BotLogViewerModal({
     ) {
       jsonType = 'SYSTEM_API';
     }
-    // 2. FILE_AUDIT Tasks (RPA report scanning)
+    // 4. FILE_AUDIT Tasks (RPA report scanning)
     else if (
       titleUpper.includes('FILE') ||
       titleUpper.includes('AUDIT') ||
@@ -81,7 +97,16 @@ export default function BotLogViewerModal({
     ) {
       jsonType = 'FILE_AUDIT';
     }
-    // 3. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
+    // 5. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
+    else if (
+      titleUpper.includes('TASK_CHECK_KLGD') ||
+      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('SOD')) ||
+      titleUpper.includes('TRONG PHIÊN') ||
+      text.includes('[ĐỐI CHIẾU KLGD]')
+    ) {
+      jsonType = 'KLGD';
+    }
+    // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
     else if (
       titleUpper.includes('TASK_CHECK_EOD') ||
       titleUpper.includes('CHECK_EOD') ||
@@ -90,28 +115,6 @@ export default function BotLogViewerModal({
       text.includes('[ĐỐI CHIẾU TRƯỚC EOD]')
     ) {
       jsonType = 'PRE_EOD';
-    }
-    // 4. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
-    else if (
-      titleUpper.includes('BÁO CÁO HỆ THỐNG') ||
-      titleUpper.includes('TASK_CHECK_KLGD') ||
-      titleUpper.includes('TRONG PHIÊN') ||
-      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('DỮ LIỆU 3 BÊN')) ||
-      text.includes('[ĐỐI CHIẾU KLGD]')
-    ) {
-      jsonType = 'KLGD';
-    }
-    // 5. CQG Balance Check
-    else if (
-      text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]') && !text.includes('[ĐỐI CHIẾU SỐ DƯ EOD')
-    ) {
-      jsonType = 'CQG';
-    }
-    // 6. EOD Negative Margin Check
-    else if (
-      text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
-    ) {
-      jsonType = 'EOD';
     } else {
       jsonType = 'SYSTEM_API';
     }
