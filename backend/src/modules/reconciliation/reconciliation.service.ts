@@ -2509,26 +2509,35 @@ export class ReconciliationService {
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
+    const cqgBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+    const acmBackupBase = msBackupBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
+
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(msBackupBase, subFolder);
+    
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
+    const acmDailyPath = path.join(acmBackupBase, subFolder);
 
-    const dsgdPath = path.join(dailyPath, 'DSGD.xlsx');
-    const ttttPath = path.join(dailyPath, 'TTTT.xlsx');
+    const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
+    const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
     
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
     
-    const acmTradesPath = this.findLatestFile(dailyPath, /Straits/i) || this.findLatestFile(castDownloadsDir, /Straits/i);
-    const cqgFrPath = this.findLatestFile(dailyPath, /FR/i) || this.findLatestFile(castDownloadsDir, /FR/i);
-    const cqgPsPath = this.findLatestFile(dailyPath, /Positions/i) || this.findLatestFile(castDownloadsDir, /Positions/i);
+    const acmTradesPath = this.findLatestFile(acmDailyPath, /Straits/i) || this.findLatestFile(castDownloadsDir, /Straits/i);
+    const cqgFrPath = this.findLatestFile(cqgDailyPath, /FR/i) || this.findLatestFile(castDownloadsDir, /FR/i);
+    const cqgPsPath = this.findLatestFile(cqgDailyPath, /Positions|PS/i) || this.findLatestFile(castDownloadsDir, /Positions|PS/i);
 
     if (!fs.existsSync(dsgdPath)) throw new Error(`Thiếu file DSGD.xlsx tại ${dsgdPath}`);
     if (!fs.existsSync(ttttPath)) throw new Error(`Thiếu file TTTT.xlsx tại ${ttttPath}`);
-    if (!acmTradesPath) throw new Error('Không tìm thấy file ACM Trades/Straits');
-    if (!cqgFrPath) throw new Error('Không tìm thấy file CQG FR');
-    if (!cqgPsPath) throw new Error('Không tìm thấy file CQG Positions');
+    if (!acmTradesPath) throw new Error(`Không tìm thấy file ACM Trades/Straits tại ${acmDailyPath}`);
+    if (!cqgFrPath) throw new Error(`Không tìm thấy file CQG FR tại ${cqgDailyPath}`);
+    if (!cqgPsPath) throw new Error(`Không tìm thấy file CQG Positions tại ${cqgDailyPath}`);
 
     const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
 
@@ -2566,17 +2575,24 @@ export class ReconciliationService {
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
+    const cqgBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(msBackupBase, subFolder);
+    
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
 
-    const qltkgdPath = path.join(dailyPath, 'QLTKGD.xlsx');
+    const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
     
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
-    const eodPath = this.findLatestFile(dailyPath, /eod/i) || this.findLatestFile(castDownloadsDir, /eod/i);
-    const accountsBalancesPath = this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i) || this.findLatestFile(dailyPath, /Accounts_Balances/i);
+    const eodPath = this.findLatestFile(msDailyPath, /eod/i) || this.findLatestFile(castDownloadsDir, /eod/i);
+    const accountsBalancesPath = this.findLatestFile(cqgDailyPath, /Accounts_Balances/i) || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i) || this.findLatestFile(msDailyPath, /Accounts_Balances/i);
 
     if (!fs.existsSync(qltkgdPath)) throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
     if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx');

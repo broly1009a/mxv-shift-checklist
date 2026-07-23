@@ -13,6 +13,8 @@ import { ValueStatisticsService } from '../lot-statistics/value-statistics.servi
 import { LotStatisticsService } from '../lot-statistics/lot-statistics.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
+import { CcpStatisticsService } from '../ccp-statistics/ccp-statistics.service';
+import * as XLSX from 'xlsx';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -64,6 +66,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly lotStatisticsService: LotStatisticsService,
     private readonly shiftsService: ShiftsService,
     private readonly shiftsGateway: ShiftsGateway,
+    private readonly ccpStatisticsService: CcpStatisticsService,
   ) {}
 
   onModuleInit() {
@@ -303,6 +306,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     const WINDOWS_ONLY_JOB_TYPES = [
       'RUN_LOT_MACRO',
       'RUN_VALUE_MACRO',
+      'RUN_MACRO',
       'RPA_DOWNLOAD_REPORTS',
       'DOWNLOAD_CAST',
       'DOWNLOAD_CQG_BACKUP',
@@ -353,6 +357,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await this.handleRunLotMacroJob(job);
       } else if (job.jobType === 'RUN_VALUE_MACRO') {
         await this.handleRunValueMacroJob(job);
+      } else if (job.jobType === 'RUN_MACRO') {
+        await this.handleRunMacroJob(job);
       } else if (job.jobType === 'DOWNLOAD_CQG_BACKUP') {
         await this.handleDownloadCqgBackupJob(job);
       } else {
@@ -940,6 +946,126 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           role: 'ADMIN',
         };
 
+        const getReconciliationJson = (jobType: string, payload: any, success: boolean): string | null => {
+          const result = payload?.result;
+          if (!result) return null;
+
+          if (jobType === 'AUTO_CHECK_SOD') {
+            let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
+            const discrepancies = result.discrepancies || [];
+            note += `• Số tài khoản chênh lệch (> 100 USD): ${discrepancies.length}\n`;
+            if (discrepancies.length > 0) {
+              note += `⚠️ Danh sách tài khoản lệch:\n`;
+              discrepancies.slice(0, 10).forEach((r: any) => {
+                note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ?.toFixed(2)})\n`;
+              });
+              if (discrepancies.length > 10) {
+                note += `  ... và ${discrepancies.length - 10} tài khoản khác.\n`;
+              }
+            } else {
+              note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
+            }
+            return JSON.stringify({
+              success,
+              message: note,
+              result: discrepancies,
+              type: 'CQG',
+              usdRate: result.usdRate
+            });
+          }
+
+          if (jobType === 'CHECK_PRE_EOD') {
+            let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+            if (result.sessionStart && result.checkTime) {
+              const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+            }
+            const totals = result.totals || {};
+            note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;
+            note += `• Khớp lệnh thường (MS vs CQG): ${totals.totalCQG_MS || 0} vs ${totals.totalCQG_FR || 0} lot (Chênh lệch: ${totals.differCQG || 0} lot)\n`;
+            
+            const mismatchedPositions = result.mismatchedPositions || [];
+            note += `• Chênh lệch vị thế net position (MS vs CQG): ${mismatchedPositions.length} tài khoản\n`;
+
+            const mismatchedTrades = result.mismatchedTrades || [];
+            if (mismatchedTrades.length > 0) {
+              note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+              mismatchedTrades.slice(0, 10).forEach((m: any) => {
+                note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
+              });
+              if (mismatchedTrades.length > 10) {
+                note += `  - ... và ${mismatchedTrades.length - 10} giao dịch khác.\n`;
+              }
+            } else {
+              note += `✓ Không có lệch chi tiết khớp lệnh.\n`;
+            }
+
+            if (mismatchedPositions.length > 0) {
+              note += `⚠️ Phát hiện ${mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+              mismatchedPositions.slice(0, 10).forEach((m: any) => {
+                note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
+              });
+              if (mismatchedPositions.length > 10) {
+                note += `  - ... và ${mismatchedPositions.length - 10} chênh lệch khác.\n`;
+              }
+            }
+            return JSON.stringify({
+              success,
+              message: note,
+              result,
+              type: 'PRE_EOD'
+            });
+          }
+
+          if (jobType === 'CHECK_EOD_MM') {
+            const eodResult = result.eodResult || {};
+            const cqgResult = result.cqgResult || [];
+            const negativeBalanceAccsCount = eodResult.negativeBalanceAccs?.length || 0;
+            const negativeIMRAccCount = eodResult.negativeIMRAcc?.length || 0;
+            
+            let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
+            note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
+            note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
+
+            if (negativeBalanceAccsCount > 0) {
+              note += `🚨 Tài khoản âm số dư hiện tại: ${eodResult.negativeBalanceAccs?.join(', ')}\n`;
+            }
+            if (negativeIMRAccCount > 0) {
+              note += `🚨 Tài khoản âm ký quỹ khả dụng: ${eodResult.negativeIMRAcc.join(', ')}\n`;
+            }
+            if (negativeBalanceAccsCount === 0 && negativeIMRAccCount === 0) {
+              note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
+            }
+
+            note += `\n[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
+            note += `• Số tài khoản chênh lệch (> 100 USD): ${cqgResult.length}\n`;
+            if (cqgResult.length > 0) {
+              note += `⚠️ Danh sách tài khoản lệch:\n`;
+              cqgResult.slice(0, 10).forEach((r: any) => {
+                note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ?.toFixed(2)})\n`;
+              });
+              if (cqgResult.length > 10) {
+                note += `  ... và ${cqgResult.length - 10} tài khoản khác.\n`;
+              }
+            } else {
+              note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
+            }
+            return JSON.stringify({
+              success,
+              message: note,
+              result: {
+                negativeBalanceAccs: eodResult.negativeBalanceAccs || [],
+                negativeIMRAcc: eodResult.negativeIMRAcc || [],
+                cqgResult: cqgResult
+              },
+              type: 'EOD'
+            });
+          }
+
+          return null;
+        };
+
         if (status === 'PROCESSING') {
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
@@ -956,9 +1082,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = `RPA tải báo cáo thành công: ${targets.join(', ')}`;
           } else if (job.jobType === 'DOWNLOAD_CAST') {
             message = 'Tải báo cáo CQG CAST Balances thành công.';
-          } else if (job.jobType === 'AUTO_CHECK_SOD') {
-            message = 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
-          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS'].includes(job.jobType)) {
+          } else if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
+            const jsonMsg = getReconciliationJson(job.jobType, payload, true);
+            if (jsonMsg) {
+              message = jsonMsg;
+            } else if (job.jobType === 'AUTO_CHECK_SOD') {
+              message = 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
+            } else {
+              message = 'Đối chiếu tự động hoàn thành thành công.';
+            }
+          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)) {
             message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const failedCount = payload.failedCount || 0;
@@ -986,7 +1119,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
           let message = lastLog;
 
-          if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
+          if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
+            const jsonMsg = getReconciliationJson(job.jobType, payload, false);
+            if (jsonMsg) {
+              message = jsonMsg;
+            } else {
+              message = job.logs.join('\n');
+            }
+          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)) {
             message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const checkData = {
@@ -1002,7 +1142,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'FAILED',
             systemUser,
-            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)
+            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)
               ? message
               : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`),
             true
@@ -1754,5 +1894,132 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     } catch (err: any) {
       this.logger.error(`Không thể gửi email cảnh báo lỗi vận hành cho job ${job.jobType}: ${err.message}`);
     }
+  }
+
+  private async handleRunMacroJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const targetDateStr = payload.targetDate || payload.sessionDay;
+    if (!targetDateStr) {
+      throw new Error('Thiếu tham số targetDate/sessionDay trong payload.');
+    }
+
+    let savePromise: Promise<any> = Promise.resolve();
+    const safeSave = () => {
+      savePromise = savePromise.then(() => job.save()).catch((err) => {
+        this.logger.error(`Error saving bot job in handleRunMacroJob: ${err.message}`);
+      });
+      return savePromise;
+    };
+
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(`Bắt đầu chạy macro thống kê số lô & giá trị giao dịch CCP cho ngày: ${targetDateStr}`);
+    await safeSave();
+
+    try {
+      const targetDate = new Date(targetDateStr);
+      const year = targetDate.getFullYear().toString();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+
+      const backupMs = payload.backupPathMs
+        || await this.settingsService.getSetting(
+          'bot_backup_path_ms',
+          'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+        );
+
+      const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+      const dailyPath = path.join(backupMs, subFolder);
+
+      log(`Thư mục MS Daily: ${dailyPath}`);
+      await safeSave();
+
+      if (!fs.existsSync(dailyPath)) {
+        throw new Error(`Thư mục backup ngày ${targetDateStr} không tồn tại: ${dailyPath}`);
+      }
+
+      // Resolve 6 files
+      const dsgdCcpPath = path.join(dailyPath, 'DSGD.xlsx');
+      let dsgdMmCcpBuffer: Buffer;
+      const dsgdMmCcpPath = path.join(dailyPath, 'DSGD-MM.xlsx');
+      const dsgdMmCcpPath2 = path.join(dailyPath, 'DSGD_MM.xlsx');
+
+      if (fs.existsSync(dsgdMmCcpPath)) {
+        dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPath);
+        log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath}`);
+      } else if (fs.existsSync(dsgdMmCcpPath2)) {
+        dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPath2);
+        log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath2}`);
+      } else {
+        dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
+        log(`Không tìm thấy file DSGD MM CCP riêng biệt. Khởi tạo buffer trống.`);
+      }
+
+      const dstkgdPath = path.join(dailyPath, 'DSTKGD-Futures.xlsx');
+      const dstkgdPathFallback = path.join(dailyPath, 'DSTKGD.xlsx');
+      const nrPath = path.join(dailyPath, 'NR.xlsx');
+      const ttmPath = path.join(dailyPath, 'TTM.xlsx');
+      const ttttPath = path.join(dailyPath, 'TTTT.xlsx');
+
+      // Verification
+      if (!fs.existsSync(dsgdCcpPath)) {
+        throw new Error(`Thiếu file giao dịch CCP (DSGD.xlsx) tại: ${dailyPath}`);
+      }
+      const finalDstkgdPath = fs.existsSync(dstkgdPath) ? dstkgdPath : (fs.existsSync(dstkgdPathFallback) ? dstkgdPathFallback : null);
+      if (!finalDstkgdPath) {
+        throw new Error(`Thiếu file danh sách tài khoản giao dịch (DSTKGD-Futures.xlsx hoặc DSTKGD.xlsx) tại: ${dailyPath}`);
+      }
+      if (!fs.existsSync(nrPath)) {
+        throw new Error(`Thiếu file nộp rút (NR.xlsx) tại: ${dailyPath}`);
+      }
+      if (!fs.existsSync(ttmPath)) {
+        throw new Error(`Thiếu file trạng thái mở (TTM.xlsx) tại: ${dailyPath}`);
+      }
+      if (!fs.existsSync(ttttPath)) {
+        throw new Error(`Thiếu file trạng thái tất toán (TTTT.xlsx) tại: ${dailyPath}`);
+      }
+
+      log(`Tất cả 6 file báo cáo đã được nạp thành công.`);
+      await safeSave();
+
+      const files = {
+        dsgdCcp: fs.readFileSync(dsgdCcpPath),
+        dsgdMmCcp: dsgdMmCcpBuffer,
+        dstkgd: fs.readFileSync(finalDstkgdPath),
+        nr: fs.readFileSync(nrPath),
+        ttm: fs.readFileSync(ttmPath),
+        tttt: fs.readFileSync(ttttPath),
+      };
+
+      log(`Bắt đầu xử lý dữ liệu báo cáo CCP qua CcpStatisticsService...`);
+      await safeSave();
+
+      const outputPath = await this.ccpStatisticsService.processCcpData(files, targetDate);
+
+      log(`✅ Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
+      await safeSave();
+    } catch (err: any) {
+      log(`❌ Lỗi chạy báo cáo thống kê CCP: ${err.message}`);
+      await safeSave();
+      throw err;
+    }
+  }
+
+  private createEmptyDsgdBuffer(): Buffer {
+    const headers = [
+      'STT', 'Mã lệnh', 'Mã giao dịch', 'Mã TKGD', 'Tên TKGD',
+      'Mã HĐ', 'Tên HĐ', 'Hình thức lệnh', 'Loại lệnh', 'Phương thức ghép',
+      'Chiều mua bán', 'KL đặt lệnh', 'KL giao dịch', 'Giá khớp', 'Giá giới hạn',
+      'Giá dừng', 'Phí quyền chọn (USD)', 'Phí quyền chọn (VND)', 'Phí giao dịch',
+      'Người đặt lệnh', 'Ngày giờ đặt lệnh', 'Ngày giờ thực hiện', 'Mã TVKD',
+      'Tên TVKD', 'Mã MG', 'Tên MG', 'Mã CTV', 'Tên CTV', 'Nhóm hàng hoá'
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   }
 }

@@ -780,25 +780,17 @@ export class ReconciliationController {
     const nodePath = require('path');
     const dailyTextPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.txt');
     const dailyJsonPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.json');
-    const fallbackTextPath = nodePath.join(process.cwd(), 'temp', 'downloads', 'teams_manual_messages.txt');
-    const fallbackJsonPath = nodePath.join(process.cwd(), 'temp', 'downloads', 'teams_manual_messages.json');
 
     let textContent = '';
     let jsonContent: any[] = [];
 
     if (fs.existsSync(dailyTextPath)) {
       textContent = fs.readFileSync(dailyTextPath, 'utf8');
-    } else if (fs.existsSync(fallbackTextPath)) {
-      textContent = fs.readFileSync(fallbackTextPath, 'utf8');
     }
 
     if (fs.existsSync(dailyJsonPath)) {
       try {
         jsonContent = JSON.parse(fs.readFileSync(dailyJsonPath, 'utf8'));
-      } catch (e) {}
-    } else if (fs.existsSync(fallbackJsonPath)) {
-      try {
-        jsonContent = JSON.parse(fs.readFileSync(fallbackJsonPath, 'utf8'));
       } catch (e) {}
     }
 

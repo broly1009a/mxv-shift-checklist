@@ -1397,7 +1397,7 @@
         "priority": "HIGH",
         "sortOrder": 4,
         "isBotCheck": true,
-        "botCheckType": "AUTO_CHECK_SOD",
+        "botCheckType": "CHECK_PRE_EOD",
         "botTriggerTime": "",
         "botCheckTarget": "",
         "botSuccessCondition": "",

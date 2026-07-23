@@ -492,6 +492,28 @@ export class BotEngineService {
                 checkResult = { success: false, message: logsSummary };
               }
             }
+          } else if (checkType === 'RUN_MACRO') {
+            const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('RUN_MACRO', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                targetDate: log.shiftDate,
+              });
+              checkResult = { success: false, message: 'Đang bắt đầu chạy thống kê báo cáo CCP...' };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                checkResult = { success: true, message: 'Chạy thống kê báo cáo CCP thành công.' };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Lỗi không xác định';
+                checkResult = { success: false, message: `Chạy báo cáo CCP thất bại: ${lastLog}` };
+                (checkResult as any).forceFailed = true;
+              } else {
+                checkResult = { success: false, message: 'Đang chạy báo cáo thống kê CCP...' };
+              }
+            }
           } else if (checkType === 'NOTIFY_MATURITY') {
             try {
               let expiringContracts: ExpiringContract[] = [];

@@ -18,6 +18,7 @@ import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LotStatisticsModule } from '../lot-statistics/lot-statistics.module';
+import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 
 import { OmsWatcherService } from './oms-watcher.service';
 
@@ -31,6 +32,7 @@ import { OmsWatcherService } from './oms-watcher.service';
     forwardRef(() => ReconciliationModule),
     NotificationsModule,
     LotStatisticsModule,
+    CcpStatisticsModule,
   ],
   providers: [
     EmailWatcherService,
