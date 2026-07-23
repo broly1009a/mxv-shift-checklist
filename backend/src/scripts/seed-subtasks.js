@@ -93,7 +93,7 @@ const SUBTASK_DEFINITIONS = {
 
   'TASK_CHECK_KLGD': { // Giám sát & Đối chiếu định kỳ → 🤝 Bot+Maker
     children: [
-      { id: 'TASK_CHECK_KLGD_s1', name: 'Bot so sánh M-System vs CQG và gửi kết quả Telegram', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'HIGH' },
+      { id: 'TASK_CHECK_KLGD_s1', name: 'Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'HIGH' },
       { id: 'TASK_CHECK_KLGD_s2', name: 'Maker xem kết quả đối chiếu (nếu lệch → ghi nhận đã điều tra và xử lý)', isBotCheck: false, priority: 'HIGH' },
     ],
   },

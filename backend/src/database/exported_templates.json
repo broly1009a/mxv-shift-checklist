@@ -1393,7 +1393,7 @@
       },
       {
         "taskId": "TASK_CHECK_KLGD_s1",
-        "taskName": "Bot so sánh M-System vs CQG và gửi kết quả Telegram",
+        "taskName": "Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống",
         "priority": "HIGH",
         "sortOrder": 4,
         "isBotCheck": true,
@@ -1410,7 +1410,7 @@
         "slaWindowStart": null,
         "slaWindowEnd": null,
         "slaType": "FIXED_TIME",
-        "actionDescription": "Bot so sánh M-System vs CQG và gửi kết quả Telegram",
+        "actionDescription": "Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống",
         "exceptionCode": "",
         "frequencyMinutes": null,
         "recurrenceGroupId": "",

@@ -57,17 +57,31 @@ export default function BotLogViewerModal({
 
     const titleUpper = (taskTitle || '').toUpperCase();
 
-    // 1. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả Telegram / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
+    // 1. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
     if (
-      titleUpper.includes('TELEGRAM') ||
-      titleUpper.includes('TASK_CHECK_KLGD') ||
-      titleUpper.includes('TRONG PHIÊN') ||
-      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('DỮ LIỆU 3 BÊN')) ||
-      text.includes('[ĐỐI CHIẾU KLGD]')
+      titleUpper.includes('EMAIL') ||
+      titleUpper.includes('SAO KÊ') ||
+      titleUpper.includes('XÁC MINH') ||
+      titleUpper.includes('SYSTEM_API') ||
+      titleUpper.includes('OPS_OPEN_07') ||
+      text.includes('email sao kê') ||
+      text.includes('xác minh email')
     ) {
-      jsonType = 'KLGD';
+      jsonType = 'SYSTEM_API';
     }
-    // 2. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
+    // 2. FILE_AUDIT Tasks (RPA report scanning)
+    else if (
+      titleUpper.includes('FILE') ||
+      titleUpper.includes('AUDIT') ||
+      titleUpper.includes('SCAN') ||
+      titleUpper.includes('BACKUP') ||
+      titleUpper.includes('TẢI BÁO CÁO') ||
+      titleUpper.includes('RPA') ||
+      text.includes('FILE_AUDIT')
+    ) {
+      jsonType = 'FILE_AUDIT';
+    }
+    // 3. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
     else if (
       titleUpper.includes('TASK_CHECK_EOD') ||
       titleUpper.includes('CHECK_EOD') ||
@@ -77,19 +91,51 @@ export default function BotLogViewerModal({
     ) {
       jsonType = 'PRE_EOD';
     }
-    // 3. CQG Balance Check
+    // 4. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
+    else if (
+      titleUpper.includes('BÁO CÁO HỆ THỐNG') ||
+      titleUpper.includes('TASK_CHECK_KLGD') ||
+      titleUpper.includes('TRONG PHIÊN') ||
+      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('DỮ LIỆU 3 BÊN')) ||
+      text.includes('[ĐỐI CHIẾU KLGD]')
+    ) {
+      jsonType = 'KLGD';
+    }
+    // 5. CQG Balance Check
     else if (
       text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]') && !text.includes('[ĐỐI CHIẾU SỐ DƯ EOD')
     ) {
       jsonType = 'CQG';
     }
-    // 4. EOD Negative Margin Check
+    // 6. EOD Negative Margin Check
     else if (
       text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
     ) {
       jsonType = 'EOD';
     } else {
-      jsonType = 'KLGD';
+      jsonType = 'SYSTEM_API';
+    }
+
+    // Parsing for SYSTEM_API mode (Email / Warning tasks)
+    if (jsonType === 'SYSTEM_API') {
+      let totalCount = jsonResult?.totalCount || 0;
+      let failedCount = jsonResult?.failedCount || 0;
+      let failedList = jsonResult?.failedList || '';
+
+      const totalMatch = text.match(/tổng số (\d+) email/i) || text.match(/sao kê đã được gửi thành công \((\d+) email\)/i) || text.match(/đã gửi thành công (\d+) email/i) || text.match(/(\d+) email/i);
+      if (totalMatch) {
+        totalCount = parseInt(totalMatch[1], 10);
+      }
+      const failMatch = text.match(/Phát hiện (\d+) email gửi thất bại/i) || text.match(/(\d+) email thất bại/i);
+      if (failMatch) {
+        failedCount = parseInt(failMatch[1], 10);
+      }
+
+      jsonResult = {
+        totalCount,
+        failedCount,
+        failedList
+      };
     }
 
     // Parsing for PRE_EOD mode (Opening Shift / Pre-EOD)
@@ -374,7 +420,6 @@ export default function BotLogViewerModal({
     if (
       titleUpper.includes('KÝ QUỸ') ||
       titleUpper.includes('ÂM KÝ QUỸ') ||
-      titleUpper.includes('TELEGRAM') ||
       titleUpper.includes('CẢNH BÁO') ||
       titleUpper.includes('THÔNG BÁO') ||
       titleUpper.includes('GỬI') ||

@@ -33,11 +33,19 @@ export class TelegramService implements OnModuleInit {
   }
 
   async sendMessage(text: string, customChatId?: string): Promise<void> {
-    const targetChatId = customChatId || this.chatId;
+    // Nếu không có customChatId (tin nhắn gửi nhóm chung QLGD), bỏ qua theo yêu cầu đóng tính năng Telegram QLGD
+    if (!customChatId) {
+      this.logger.log(
+        `[QLGD TELEGRAM DISABLED] Bỏ qua gửi thông báo nhóm QLGD: ${text.replace(/<[^>]*>/g, '').substring(0, 80)}...`,
+      );
+      return;
+    }
+
+    const targetChatId = customChatId;
 
     if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
       this.logger.log(
-        `[DEV MODE] Bỏ qua gửi Telegram đến ${targetChatId || 'GROUP_CHAT'}: ${text.replace(/<[^>]*>/g, '')}`,
+        `[DEV MODE] Giả lập gửi Telegram cá nhân đến ${targetChatId}: ${text.replace(/<[^>]*>/g, '')}`,
       );
       return;
     }
@@ -64,7 +72,7 @@ export class TelegramService implements OnModuleInit {
         if (!res.ok) {
           const errText = await res.text();
           this.logger.error(
-            `Gửi tin nhắn Telegram đến ${targetChatId} thất bại: ${errText}`,
+            `Gửi tin nhắn Telegram cá nhân đến ${targetChatId} thất bại: ${errText}`,
           );
         }
       } catch (err) {
@@ -76,9 +84,9 @@ export class TelegramService implements OnModuleInit {
         '\n========================================================================',
       );
       console.log(
-        `[TELEGRAM SIMULATION BOT ALERT - Chat ID: ${targetChatId || 'GROUP_CHAT'}]`,
+        `[TELEGRAM PERSONAL BOT ALERT - Personal Chat ID: ${targetChatId}]`,
       );
-      console.log(`Nội dung: ${text.replace(/<[^>]*>/g, '')}`); // Strip HTML tags for console printing
+      console.log(`Nội dung: ${text.replace(/<[^>]*>/g, '')}`);
       console.log(
         '========================================================================\n',
       );
@@ -110,7 +118,6 @@ export class TelegramService implements OnModuleInit {
     for (const shift of activeShifts) {
       const userObj = shift.userId as any;
       const userSettings = userObj?.settings;
-      // Lấy ngưỡng cảnh báo động từ cài đặt cá nhân, mặc định là 15 phút
       const threshold =
         userSettings?.alertThresholdMinutes !== undefined &&
         userSettings?.alertThresholdMinutes !== null
@@ -127,7 +134,6 @@ export class TelegramService implements OnModuleInit {
           const deadTotalMins = deadHour * 60 + deadMin;
           const minsDiff = deadTotalMins - currentTotalMins;
 
-          // Cảnh báo nếu sắp đến deadline hoặc đã trễ hạn
           if (minsDiff <= threshold) {
             const warningType = minsDiff < 0 ? 'OVERDUE' : 'COMING_SOON';
             const cacheKey = `${shift._id}-${item.taskId}-${warningType}`;
@@ -154,10 +160,7 @@ export class TelegramService implements OnModuleInit {
                 `• Ca trực: <i>${(shift.templateId as any)?.title || 'Ca vận hành'}</i>\n\n` +
                 `Đề nghị đồng chí trực ban khẩn trương kiểm tra và xử lý gấp!`;
 
-              // 1. Gửi vào group vận hành chung
-              await this.sendMessage(message);
-
-              // 2. Gửi riêng cho nhân sự trực nếu cấu hình bật nhận tin nhắn và cung cấp chat ID
+              // Gửi riêng cho cá nhân bạn nếu bật nhận thông báo và cấu hình Telegram Chat ID cá nhân
               if (
                 userSettings?.telegramNotifications &&
                 userSettings?.telegramChatId
