@@ -114,7 +114,7 @@ interface TaskTableProps {
   onOpenTradingReport: () => void;
   onOpenOmsStatus: (taskId: string) => void;
   onOpenMaturityTemplates?: () => void;
-  onOpenBotLogViewer?: (title: string, resultNote: string, status?: string, checkedAt?: string) => void;
+  onOpenBotLogViewer?: (title: string, resultNote: string, status?: string, checkedAt?: string, taskId?: string) => void;
   togglingTaskIds: Set<string>;
 }
 
@@ -531,7 +531,7 @@ export default function TaskTable({
                               <div style={{ marginLeft: '18px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => onOpenBotLogViewer?.(item.taskNameSnapshot, item.resultNote || '', item.status, item.checkedAt)}
+                                  onClick={() => onOpenBotLogViewer?.(item.taskNameSnapshot, item.resultNote || '', item.status, item.checkedAt, item.taskId)}
                                   className="btn btn-secondary"
                                   style={{
                                     fontSize: '0.7rem',
@@ -924,7 +924,7 @@ export default function TaskTable({
                         )}
                         {/* Sub-task status badge */}
                         <span
-                          onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt)}
+                          onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
                           style={{
                             display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600,
                             color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px',
@@ -940,7 +940,7 @@ export default function TaskTable({
                         {child.resultNote && (
                           <button
                             type="button"
-                            onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt)}
+                            onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',

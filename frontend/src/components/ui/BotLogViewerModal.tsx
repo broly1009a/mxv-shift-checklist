@@ -10,6 +10,7 @@ interface BotLogViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   taskTitle: string;
+  taskId?: string;
   resultNote?: string;
   checkedAt?: string | Date;
   status?: string;
@@ -19,6 +20,7 @@ export default function BotLogViewerModal({
   isOpen,
   onClose,
   taskTitle,
+  taskId = '',
   resultNote = '',
   checkedAt,
   status = 'COMPLETED',
@@ -56,18 +58,21 @@ export default function BotLogViewerModal({
     }
 
     const titleUpper = (taskTitle || '').toUpperCase();
+    const idUpper = (taskId || '').toUpperCase();
 
     // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
     if (
+      idUpper === 'TASK_CHECK_CQG' ||
+      idUpper.includes('CQG') ||
       titleUpper.includes('SỐ DƯ CQG') ||
       titleUpper.includes('SOD') ||
-      titleUpper.includes('TASK_CHECK_CQG') ||
       text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]')
     ) {
       jsonType = 'CQG';
     }
     // 2. EOD Negative Margin Check (Âm ký quỹ) -> EOD Mode
     else if (
+      idUpper.includes('EOD_MARGIN') ||
       titleUpper.includes('ÂM KÝ QUỸ') ||
       text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
     ) {
@@ -75,6 +80,7 @@ export default function BotLogViewerModal({
     }
     // 3. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
     else if (
+      idUpper.includes('SYSTEM_API') ||
       titleUpper.includes('EMAIL') ||
       titleUpper.includes('SAO KÊ') ||
       titleUpper.includes('XÁC MINH') ||
@@ -87,6 +93,7 @@ export default function BotLogViewerModal({
     }
     // 4. FILE_AUDIT Tasks (RPA report scanning)
     else if (
+      idUpper.includes('FILE_AUDIT') ||
       titleUpper.includes('FILE') ||
       titleUpper.includes('AUDIT') ||
       titleUpper.includes('SCAN') ||
@@ -99,8 +106,10 @@ export default function BotLogViewerModal({
     }
     // 5. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
     else if (
+      idUpper === 'TASK_CHECK_KLGD' ||
+      idUpper.includes('KLGD') ||
+      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('SOD') && !titleUpper.includes('3 BÊN')) ||
       titleUpper.includes('TASK_CHECK_KLGD') ||
-      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('SOD')) ||
       titleUpper.includes('TRONG PHIÊN') ||
       text.includes('[ĐỐI CHIẾU KLGD]')
     ) {
@@ -108,15 +117,95 @@ export default function BotLogViewerModal({
     }
     // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
     else if (
+      idUpper === 'TASK_CHECK_EOD' ||
+      idUpper.includes('PRE_EOD') ||
       titleUpper.includes('TASK_CHECK_EOD') ||
       titleUpper.includes('CHECK_EOD') ||
       titleUpper.includes('DỮ LIỆU 3 BÊN') ||
+      titleUpper.includes('PRE_EOD') ||
       titleUpper.includes('ĐẦU PHIÊN') ||
       text.includes('[ĐỐI CHIẾU TRƯỚC EOD]')
     ) {
       jsonType = 'PRE_EOD';
     } else {
-      jsonType = 'SYSTEM_API';
+      if (idUpper.includes('PRE_EOD') || titleUpper.includes('PRE_EOD')) {
+        jsonType = 'PRE_EOD';
+      } else if (idUpper.includes('CQG') || titleUpper.includes('CQG')) {
+        jsonType = 'CQG';
+      } else if (idUpper.includes('EOD') || titleUpper.includes('EOD')) {
+        jsonType = 'EOD';
+      } else {
+        jsonType = 'SYSTEM_API';
+      }
+    }
+
+    let marginAccounts: MarginAccount[] = [];
+
+    // Parsing for EOD mode (Negative Margin Check)
+    if (jsonType === 'EOD') {
+      let marginAccountsList: MarginAccount[] = jsonResult?.marginAccounts || [];
+      if (marginAccountsList.length === 0 && (text.includes('âm ký quỹ') || text.includes('tài khoản âm'))) {
+        const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i) || 
+                      text.match(/(?:tài khoản âm):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i);
+        if (match) {
+          const accountsStr = match[1].trim();
+          accountsStr.split(',').forEach((token) => {
+            const trimmedToken = token.trim();
+            if (!trimmedToken) return;
+
+            const tokenMatch = trimmedToken.match(/^([a-zA-Z0-9-]+)\s*\(([^)]+)\)/);
+            if (tokenMatch) {
+              const account = tokenMatch[1].trim();
+              const valueStr = tokenMatch[2].replace(/[^\d.-]/g, '');
+              const value = parseFloat(valueStr) || 0;
+              marginAccountsList.push({ account, value });
+            } else {
+              const cleanAcc = trimmedToken.replace(/\..*$/, '').trim();
+              if (cleanAcc) marginAccountsList.push({ account: cleanAcc, value: 0 });
+            }
+          });
+        }
+      }
+
+      marginAccounts = marginAccountsList;
+      jsonResult = {
+        marginAccounts: marginAccountsList,
+        totalCount: marginAccountsList.length,
+        passed: marginAccountsList.length === 0
+      };
+    }
+
+    // Parsing for CQG mode (SOD Balance Check)
+    if (jsonType === 'CQG') {
+      let cqgDiscrepancies: any[] = jsonResult?.result || jsonResult?.discrepancies || [];
+
+      if (cqgDiscrepancies.length === 0 && text.includes('TK ')) {
+        const lines = text.split('\n');
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+          const match = trimmed.match(/TK\s+([a-zA-Z0-9-]+):\s*MS\s*\$?([\d.,]+)\s*vs\s*CQG\s*\$?([\d.,]+)\s*\(Chênh lệch:\s*\$?([\d.,]+)\)/i);
+          if (match) {
+            const maTKGD = match[1].trim();
+            const calculatedBalance = parseFloat(match[2].replace(/,/g, '')) || 0;
+            const cqgBalance = parseFloat(match[3].replace(/,/g, '')) || 0;
+            const differ = parseFloat(match[4].replace(/,/g, '')) || 0;
+            cqgDiscrepancies.push({
+              maTKGD,
+              calculatedBalance,
+              cqgBalance,
+              differ
+            });
+          }
+        });
+      }
+
+      jsonResult = {
+        ...(jsonResult || {}),
+        discrepancies: cqgDiscrepancies,
+        cqgDiscrepancies,
+        totalCount: cqgDiscrepancies.length,
+        passed: cqgDiscrepancies.length === 0
+      };
     }
 
     // Parsing for SYSTEM_API mode (Email / Warning tasks)
@@ -359,8 +448,7 @@ export default function BotLogViewerModal({
     });
 
     // Parse negative margin accounts from text if margin warning is active
-    let marginAccounts: MarginAccount[] = [];
-    if (text.includes('âm ký quỹ') || text.includes('tài khoản âm')) {
+    if (marginAccounts.length === 0 && (text.includes('âm ký quỹ') || text.includes('tài khoản âm'))) {
       const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+)$/i) || text.match(/(?:tài khoản âm):\s*([\s\S]+)$/i);
       if (match) {
         const accountsStr = match[1].trim();

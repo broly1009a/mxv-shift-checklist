@@ -8,9 +8,6 @@ async function main() {
   console.log('Connected to MongoDB.');
   const db = client.db('mxv_shift_checklist');
 
-  const oldTitle = 'Bot so sánh M-System vs CQG và gửi kết quả Telegram';
-  const newTitle = 'Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống';
-
   // 1. Update shift_templates
   const templates = await db.collection('shift_templates').find({}).toArray();
   let templatesUpdated = 0;
@@ -18,12 +15,26 @@ async function main() {
     let modified = false;
     if (t.tasks && Array.isArray(t.tasks)) {
       t.tasks.forEach(task => {
+        if (task.taskName && task.taskName.includes('Telegram')) {
+          task.taskName = task.taskName.replace(/Telegram/g, 'hệ thống');
+          modified = true;
+        }
+        if (task.actionDescription && task.actionDescription.includes('Telegram')) {
+          task.actionDescription = task.actionDescription.replace(/Telegram/g, 'hệ thống');
+          modified = true;
+        }
         if (task.subtasks && Array.isArray(task.subtasks)) {
           task.subtasks.forEach(st => {
-            if (st.name === oldTitle || st.taskName === oldTitle || (st.name && st.name.includes('Telegram'))) {
-              st.name = st.name.replace('Telegram', 'báo cáo hệ thống');
-              if (st.taskName) st.taskName = st.taskName.replace('Telegram', 'báo cáo hệ thống');
-              if (st.actionDescription) st.actionDescription = st.actionDescription.replace('Telegram', 'báo cáo hệ thống');
+            if (st.name && st.name.includes('Telegram')) {
+              st.name = st.name.replace(/Telegram/g, 'hệ thống');
+              modified = true;
+            }
+            if (st.taskName && st.taskName.includes('Telegram')) {
+              st.taskName = st.taskName.replace(/Telegram/g, 'hệ thống');
+              modified = true;
+            }
+            if (st.actionDescription && st.actionDescription.includes('Telegram')) {
+              st.actionDescription = st.actionDescription.replace(/Telegram/g, 'hệ thống');
               modified = true;
             }
           });
@@ -45,13 +56,21 @@ async function main() {
     if (s.details && Array.isArray(s.details)) {
       s.details.forEach(d => {
         if (d.taskNameSnapshot && d.taskNameSnapshot.includes('Telegram')) {
-          d.taskNameSnapshot = d.taskNameSnapshot.replace('Telegram', 'báo cáo hệ thống');
+          d.taskNameSnapshot = d.taskNameSnapshot.replace(/Telegram/g, 'hệ thống');
+          modified = true;
+        }
+        if (d.resultNote && d.resultNote.includes('Telegram')) {
+          d.resultNote = d.resultNote.replace(/cảnh báo Telegram/g, 'cảnh báo hệ thống').replace(/Telegram/g, 'hệ thống');
           modified = true;
         }
         if (d.subtasks && Array.isArray(d.subtasks)) {
           d.subtasks.forEach(st => {
             if (st.name && st.name.includes('Telegram')) {
-              st.name = st.name.replace('Telegram', 'báo cáo hệ thống');
+              st.name = st.name.replace(/Telegram/g, 'hệ thống');
+              modified = true;
+            }
+            if (st.taskNameSnapshot && st.taskNameSnapshot.includes('Telegram')) {
+              st.taskNameSnapshot = st.taskNameSnapshot.replace(/Telegram/g, 'hệ thống');
               modified = true;
             }
           });

@@ -88,7 +88,7 @@ function HistoryAudit() {
 
   // Detail Modal
   const [activeDetail, setActiveDetail] = useState<ShiftLog | null>(null);
-  const [viewingBotLog, setViewingBotLog] = useState<{ title: string; resultNote: string; status?: string; checkedAt?: string } | null>(null);
+  const [viewingBotLog, setViewingBotLog] = useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
 
   const formatTime = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -591,6 +591,7 @@ function HistoryAudit() {
                               type="button"
                               onClick={() => setViewingBotLog({
                                 title: task.taskNameSnapshot,
+                                taskId: task.taskId,
                                 resultNote: task.resultNote || '',
                                 status: task.status,
                                 checkedAt: task.checkedAt
@@ -669,6 +670,7 @@ function HistoryAudit() {
           isOpen={!!viewingBotLog}
           onClose={() => setViewingBotLog(null)}
           taskTitle={viewingBotLog.title}
+          taskId={viewingBotLog.taskId}
           resultNote={viewingBotLog.resultNote}
           status={viewingBotLog.status}
           checkedAt={viewingBotLog.checkedAt}

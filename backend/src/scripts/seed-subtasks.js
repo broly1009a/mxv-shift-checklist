@@ -21,7 +21,7 @@ const SUBTASK_DEFINITIONS = {
   'ops_open_01': { // Kiểm tra Job Snapshot → 🤝 Bot+Maker
     children: [
       { id: 'ops_open_01_s1', name: 'Bot kiểm tra email "Job Snapshot" trong Inbox', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'HIGH' },
-      { id: 'ops_open_01_s2', name: 'Bot gửi cảnh báo Telegram nếu không có email thành công', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'MEDIUM' },
+      { id: 'ops_open_01_s2', name: 'Bot gửi cảnh báo hệ thống nếu không có email thành công', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'MEDIUM' },
       { id: 'ops_open_01_s3', name: 'Maker xác nhận đã đọc kết quả (OK → tick; FAILED → ghi nhận đã liên hệ Newgen)', isBotCheck: false, priority: 'HIGH' },
     ],
   },
@@ -51,7 +51,7 @@ const SUBTASK_DEFINITIONS = {
       { id: 'ops_open_04_s1', name: 'Bot scan & tải bổ sung file backup M-System', isBotCheck: true, botCheckType: 'FILE_AUDIT_MS', priority: 'HIGH' },
       { id: 'ops_open_04_s2', name: 'Bot scan & kiểm tra file backup CQG', isBotCheck: true, botCheckType: 'FILE_AUDIT_CQG', priority: 'HIGH' },
       { id: 'ops_open_04_s3', name: 'Bot scan & kiểm tra file backup ACM (ưu tiên cao)', isBotCheck: true, botCheckType: 'FILE_AUDIT_ACM', priority: 'CRITICAL' },
-      { id: 'ops_open_04_s4', name: 'Bot phân tích danh sách TKGD âm ký quỹ & gửi cảnh báo Telegram', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'CRITICAL' },
+      { id: 'ops_open_04_s4', name: 'Bot phân tích danh sách TKGD âm ký quỹ & gửi cảnh báo hệ thống', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'CRITICAL' },
       { id: 'ops_open_04_s5', name: 'Maker xác nhận đã nhận cảnh báo âm ký quỹ và theo dõi xử lý', isBotCheck: false, priority: 'HIGH' },
     ],
   },
@@ -66,7 +66,7 @@ const SUBTASK_DEFINITIONS = {
 
   'TASK_CHECK_CQG': { // Sync CQG → 🤝 Bot+Maker
     children: [
-      { id: 'TASK_CHECK_CQG_s1', name: 'Bot đối chiếu số dư SOD: M-System vs CQG và gửi báo cáo Telegram', isBotCheck: true, botCheckType: 'AUTO_CHECK_SOD', priority: 'HIGH' },
+      { id: 'TASK_CHECK_CQG_s1', name: 'Bot đối chiếu số dư SOD: M-System vs CQG và gửi báo cáo hệ thống', isBotCheck: true, botCheckType: 'AUTO_CHECK_SOD', priority: 'HIGH' },
       { id: 'TASK_CHECK_CQG_s2', name: 'Maker kiểm tra CQG Cast đã reset xong chưa', isBotCheck: false, priority: 'HIGH' },
       { id: 'TASK_CHECK_CQG_s3', name: 'Maker nhấn Sync CQG Cast thủ công và xác nhận thành công', isBotCheck: false, priority: 'CRITICAL' },
     ],

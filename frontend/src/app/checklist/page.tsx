@@ -96,7 +96,7 @@ function ChecklistWorksheet() {
   const [isMaturityModalOpen, setIsMaturityModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
   const [omsTaskId, setOmsTaskId] = React.useState('');
-  const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string } | null>(null);
+  const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -546,7 +546,7 @@ function ChecklistWorksheet() {
               setIsOmsModalOpen(true);
             }}
             onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
-            onOpenBotLogViewer={(title, resultNote, status, checkedAt) => setViewingBotLog({ title, resultNote, status, checkedAt })}
+            onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => setViewingBotLog({ title, resultNote, status, checkedAt, taskId })}
           />
 
           {/* Right Column Layout: Incident Manager & Audit Trail */}
@@ -746,6 +746,7 @@ function ChecklistWorksheet() {
           isOpen={!!viewingBotLog}
           onClose={() => setViewingBotLog(null)}
           taskTitle={viewingBotLog.title}
+          taskId={viewingBotLog.taskId}
           resultNote={viewingBotLog.resultNote}
           status={viewingBotLog.status}
           checkedAt={viewingBotLog.checkedAt}
