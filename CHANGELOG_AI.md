@@ -4,6 +4,82 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 10:45:00] - Hỗ Trợ Đọc File Đối Chiếu Straits CSV Trong parseNano (Tránh Lỗi Thiếu Cột)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi đối chiếu khớp lệnh tự động `[TASK_CHECK_KLGD]` báo lỗi `Job failed permanently: Thiếu cột bắt buộc trong file Nano (Order Sysid, Trader Id, Instrument Id, Volume, Price, Trade Id)`.
+
+### 2. Danh sách File Chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`reconciliation.service.ts` (`parseNano`)**:
+  - Bổ sung kiểm tra xem file đầu vào có phải là Straits CSV (có chứa tiêu đề `buy` và `sell`).
+  - Nếu là Straits CSV, tự động chuyển sang luồng parse CSV động, trích xuất dữ liệu chi tiết giao dịch tương ứng với các cột của Straits (`Sub-A/C` -> `maTKGD`, `Broker Trade ID` -> `maLenh`/`maGD`, `Product Code` -> `maHD`, `Buy`/`Sell` -> `klGiaoDich`, `Price` -> `giaKhop`, `Execution Date-time` -> `ngayGio`).
+  - Trả về danh sách đối tượng chuẩn hoá giống định dạng file Excel tự doanh cũ, giúp phần đối chiếu tiếp theo so sánh được tổng volume và tìm ra các lệnh lệch mà không bị ném lỗi chặn.
+  - Chuẩn hoá cơ chế đọc file Excel cũ thành dạng so khớp tiêu đề không phân biệt chữ hoa/thường (case-insensitive) giống như tool IT C#.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 10:36:00] - Khắc phục Lỗi Không Hỗ Trợ Loại Job `CHECK_KLGD` Trong ProcessQueue Worker
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi khi chạy đối chiếu trong phiên `[TASK_CHECK_KLGD]` báo lỗi `Job failed permanently: Loại job không được hỗ trợ: CHECK_KLGD`.
+
+### 2. Danh sách File Chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`bot-job-queue.service.ts` (`processQueue`)**:
+  - Bổ sung nhánh rẽ `else if (job.jobType === 'CHECK_KLGD') { await this.handleCheckKlgdJob(job); }` vào vòng lặp xử lý hàng đợi Worker chính.
+  - Trước đó, loại job `CHECK_KLGD` mới thêm chỉ được khai báo trong hàm chạy trực tiếp `executeJobDirectly` mà thiếu đi khai báo trong hàng đợi chạy nền tự động, dẫn đến khi job được lấy từ DB lên xử lý bị crash và trả về lỗi không hỗ trợ.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 10:30:00] - Cập Nhật Dữ Liệu Checklist Templates (Bổ sung ops_during_01_sb1)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi khi khởi tạo ca trực mới từ Dashboard không xuất hiện tác vụ con Bot check (`ops_during_01_sb1`) của tác vụ cha `[ops_during_01] Thay đổi ký quỹ hàng hóa`.
+
+### 2. Danh sách File Chỉnh sửa
+- Không chỉnh sửa file nguồn (Chỉ chạy script cập nhật dữ liệu database: [seed-subtasks.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/seed-subtasks.js)).
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- Chạy script `seed-subtasks.js` để cập nhật lại toàn bộ cây tác vụ con trong bảng `checklist_templates` của MongoDB.
+- Nguyên nhân hôm qua chạy script `seed-ops-during-sb1.js` bị nhầm tên collection `shift_templates` (collection không sử dụng trong code NestJS) thay vì `checklist_templates`, dẫn đến template gốc trong database chưa được cập nhật tác vụ con này.
+
+---
+
+## [2026-07-24 10:21:00] - Khắc phục Lỗi Không Đồng Bộ Trạng Thái Tác Vụ Cha Tự Động Do Ràng Buộc Phụ Thuộc (Dependency Check)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi khi tất cả các tác vụ con đã hoàn thành nhưng tác vụ cha vẫn hiển thị "Chưa thực hiện" (PENDING).
+- Nguyên nhân xảy ra do tác vụ con được hoàn tất trước khi các tác vụ phụ thuộc (dependency) của tác vụ cha hoàn tất. Lúc tác vụ con cuối cùng hoàn thành, hệ thống chạy cập nhật tự động cho tác vụ cha nhưng bị chặn bởi dependency check và trả về lỗi. Về sau khi các dependency hoàn thành, không có trigger đánh giá lại tác vụ cha.
+
+### 2. Danh sách File Chỉnh sửa
+- [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`shifts.service.ts`**:
+  - Chuyển đổi logic kích hoạt tự động hoàn tất tác vụ cha từ kiểm tra theo sự kiện tác vụ con sang kiểm tra toàn diện tất cả các tác vụ cha trong ca trực mỗi khi có bất kỳ tác vụ nào (bao gồm cả tác vụ phụ thuộc) thay đổi trạng thái.
+  - Tự động đánh giá đầy đủ: Tác vụ cha sẽ tự động chuyển sang `PASSED` nếu và chỉ nếu: (1) toàn bộ tác vụ con đạt `isChecked = true` VÀ (2) toàn bộ tác vụ phụ thuộc của tác vụ cha đạt `isChecked = true`.
+  - Tự động reset tác vụ cha về `PENDING` nếu một tác vụ con hoặc tác vụ phụ thuộc bị huỷ hoàn thành.
+  - Cho phép huỷ hoàn thành tác vụ phụ thuộc mà không bị chặn bởi lỗi ràng buộc phụ thuộc đối với các tác vụ phụ thuộc là tác vụ cha (do hệ thống sẽ tự động cập nhật/huỷ hoàn thành tác vụ cha đồng thời trong giao dịch).
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+- **Kịch bản kiểm thử (`test-parent-child-tasks.ts` & `test-parent-dependency-sync.ts`)**: PASSED thành công 100%.
+
+---
+
 ## [2026-07-24 08:20:00] - Chuẩn hóa Quy tắc Nghiệp vụ & Khôi phục Tự động Ghép File CQG
 
 ### 1. Mục tiêu Thay đổi
@@ -252,6 +328,104 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **`bot-engine.service.ts`**:
   - Khi tác vụ `AUTO_CHECK_SOD` hoàn thành hoặc báo lỗi, Bot đóng gói chuẩn đối tượng JSON chứa mảng **toàn bộ 1121 tài khoản lệch** (`result: discrepancies`) vào `task.resultNote`.
   - Giúp Frontend đọc trọn vẹn mảng 1121 tài khoản, hiển thị đủ 113 trang phân trang, hỗ trợ lọc ô tìm kiếm và bấm `Copy DS Lọc` lấy trọn vẹn 100% dữ liệu.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:30:00] - Sửa Lỗi CSS Nút Đóng `✕` Trên Popup Thông Báo (Chuyển Sang `toast.custom`)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi nút đóng **`✕`** bị đẩy văng ra ngoài khung Card thông báo và sai lệch màu nền trên giao diện.
+
+### 2. Danh sách File Chỉnh sửa
+- [NotificationDropdown.tsx](file:///c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/NotificationDropdown.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`NotificationDropdown.tsx`**:
+  - Chuyển sang sử dụng `toast.custom(...)` để loại bỏ hoàn toàn các khung bọc CSS mặc định của thư viện `react-hot-toast`.
+  - Thiết kế chuẩn Container Card đồng bộ tông màu `var(--bg-sidebar)` và `var(--border-color)`.
+  - Đặt nút **`✕`** gọn gàng 100% bên trong góc phải của Card với hiệu ứng hover mượt mà.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:35:00] - Khắc phục Triệt Để Lỗi Bóc Tách Mảng `jsonResult` Trên Giao Diện Web Modal (`Array.isArray(jsonResult)`)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi nguyên nhân gốc (Root Cause): Khi Backend gửi mảng JSON `parsed.result` (chứa 1121 tài khoản), Frontend kiểm tra `jsonResult.result` (truy cập `.result` trên đối tượng mảng `Array`) trả về `undefined`, khiến Frontend rơi vào luồng fallback trích xuất 10 dòng từ text note.
+
+### 2. Danh sách File Chỉnh sửa
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+- [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`BotLogViewerModal.tsx` & `ReconciliationVisualReport.tsx`**:
+  - Thêm cờ kiểm tra `Array.isArray(jsonResult)`: Nếu `jsonResult` chính là mảng 1121 tài khoản, lấy trực tiếp đối tượng mảng `jsonResult`.
+  - **Kết quả**: Giao diện Modal đọc trọn vẹn 1121 tài khoản, hiển thị chuẩn **113 Trang phân trang**, ô tìm kiếm lọc 100% tài khoản và xuất Excel đầy đủ.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:49:00] - Cập Nhật Chuẩn Đường Dẫn Hash URL & Menu Cho Báo Cáo `NKTTHT` Trong Bot RPA
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục nguyên nhân gốc khiến Bot RPA tải báo cáo `NKTTHT` bị treo quá 10 phút do sai đường dẫn Hash URL và Menu trên M-System.
+
+### 2. Danh sách File Chỉnh sửa
+- [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`rpa-downloader.service.ts`**:
+  - Cập nhật Hash URL chính xác theo M-System thực tế: `#/systemManagement/activityHistory` (thay cho sai lệch cũ `#/systemManagement/auditLog`).
+  - Giữ nguyên luồng Menu fallback 3 cấp chuẩn theo Sidebar tree của M-System: `['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống']`.
+  - **Kết quả**: Bot RPA truy cập tức thì màn hình xuất báo cáo NKTTHT và tải xong file Excel chỉ dưới 5 giây.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:55:00] - Nâng Cấp Bộ Lọc Tìm Kiếm Selector Menu Sidebar Cho Cả Thẻ `<a>`, `<span>` và `<div>` trong RPA
+
+### 1. Mục tiêu Thay đổi
+- Nâng cấp bộ lọc XPath của hàm `navigateAndDownload` để bắt được nút click Sidebar trên M-System dù thẻ HTML là `<a>`, `<span>` hay `<div>`.
+
+### 2. Danh sách File Chỉnh sửa
+- [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`rpa-downloader.service.ts`**:
+  - Mở rộng selector: `xpath=//*[self::a or self::span or self::div][text()='${menu}' or normalize-space(text())='${menu}']`.
+  - Giúp Bot RPA click từng cấp menu `QL hệ thống` $\rightarrow$ `Thông tin chung` $\rightarrow$ `Nhật ký thao tác hệ thống` trơn tru 100%.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 10:02:00] - Nâng cấp Script Test Playwright Đọc & Giải Mã Credentials M-System Từ MongoDB
+
+### 1. Mục tiêu Thay đổi
+- Cập nhật script test Playwright để tự động kết nối MongoDB và giải mã (decrypt) thông tin đăng nhập từ `system_settings` (`bot_credentials_msystem`), khắc phục lỗi bỏ trống password do biến môi trường không được lưu dạng text trong `.env`.
+
+### 2. Danh sách File Chỉnh sửa
+- [test-playwright-nktht.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test-playwright-nktht.js)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`test-playwright-nktht.js`**:
+  - Nhập thư viện `mongoose` và `crypto` để kết nối DB và áp dụng giải mã AES-256-CBC theo đúng thuật toán mã hóa của hệ thống.
+  - Tự động lấy `username`, `password`, `pin` đã được mã hóa an toàn trong CSDL để đăng nhập M-System.
 
 ### 4. Kết quả Kiểm thử & Build
 - **Backend (`npm run build`)**: PASSED (0 lỗi)

@@ -464,7 +464,7 @@ export class RpaDownloaderService {
       // Click sequential menus intelligently
       for (let i = 0; i < menuSteps.length; i++) {
         const menu = menuSteps[i];
-        const selector = `xpath=//a[text()='${menu}' or normalize-space(text())='${menu}']`;
+        const selector = `xpath=//*[self::a or self::span or self::li or self::div][contains(text(), '${menu}')]`;
 
         // Nếu không phải mục cuối cùng (tức là dropdown parent), kiểm tra xem nó đã mở sẵn chưa
         if (i < menuSteps.length - 1) {
@@ -525,7 +525,7 @@ export class RpaDownloaderService {
 
   async downloadNKTTHT(page: Page, destFile: string) {
     try {
-      await this.gotoAndDownload(page, '#/systemManagement/auditLog', destFile);
+      await this.gotoAndDownload(page, '#/systemManagement/activityHistory', destFile);
     } catch (err) {
       this.logger.warn(`gotoAndDownload hash navigation failed for NKTTHT, falling back to navigateAndDownload: ${err}`);
       await this.navigateAndDownload(page, ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'], destFile);

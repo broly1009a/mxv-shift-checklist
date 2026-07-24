@@ -345,6 +345,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await this.handleVerifyEmailStatusJob(job);
       } else if (job.jobType === 'AUTO_CHECK_SOD') {
         await this.handleAutoCheckSodJob(job);
+      } else if (job.jobType === 'CHECK_KLGD') {
+        await this.handleCheckKlgdJob(job);
       } else if (job.jobType === 'CHECK_PRE_EOD') {
         await this.handleCheckPreEodJob(job);
       } else if (job.jobType === 'CHECK_EOD_MM') {

@@ -399,8 +399,7 @@ export class ShiftsService {
         (d) =>
           d.isChecked &&
           d.dependsOnTaskIdsSnapshot &&
-          d.dependsOnTaskIdsSnapshot.includes(taskId) &&
-          !log.details.some((child) => child.parentTaskIdSnapshot === d.taskId),
+          d.dependsOnTaskIdsSnapshot.includes(taskId),
       );
       if (dependents.length > 0) {
         const listStr = dependents.map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`).join(', ');
@@ -589,8 +588,54 @@ export class ShiftsService {
       );
     }
 
-    // Auto-update parent tasks if any child or dependency is updated
-    if (isParentTask) {
+    // Auto-update parent task if updating a child task
+    if (task.parentTaskIdSnapshot) {
+      const parentId = task.parentTaskIdSnapshot;
+      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
+      if (latestLog) {
+        const parentTask = latestLog.details.find((d) => d.taskId === parentId);
+        if (parentTask) {
+          const siblings = latestLog.details.filter((d) => d.parentTaskIdSnapshot === parentId);
+          const allSiblingsChecked = siblings.every((d) => d.isChecked);
+
+          if (allSiblingsChecked && !parentTask.isChecked) {
+            // Check if any Bot sub-task was manually checked by a human Maker (not system)
+            const hasManualBotOverride = siblings.some(
+              (s) =>
+                s.isBotCheckSnapshot &&
+                s.isChecked &&
+                s.updatedBy &&
+                (s.updatedBy as any).role !== 'SYSTEM' &&
+                (s.updatedBy as any).fullName !== 'System Bot',
+            );
+
+            const noteText = hasManualBotOverride
+              ? 'Hoàn thành theo các tác vụ con (Maker đã xác nhận thủ công thay cho Bot)'
+              : 'Tự động hoàn thành theo các tác vụ con';
+
+            const resLog = await this.updateTaskStatus(
+              shiftLogId,
+              parentId,
+              'PASSED',
+              user,
+              noteText,
+              true,
+            );
+            return resLog;
+          } else if (!allSiblingsChecked && parentTask.isChecked) {
+            const resLog = await this.updateTaskStatus(
+              shiftLogId,
+              parentId,
+              'PENDING',
+              user,
+              'Hủy hoàn thành tự động do có tác vụ con chưa hoàn tất',
+              true,
+            );
+            return resLog;
+          }
+        }
+      }
+    } else {
       // Auto-update children tasks if updating a parent task directly
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {
@@ -624,71 +669,6 @@ export class ShiftsService {
                 populate: { path: 'departmentId' },
               })
               .exec()) as ShiftLog;
-          }
-        }
-      }
-    } else {
-      // It is a subtask or regular task. We re-evaluate all parent tasks.
-      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
-      if (latestLog) {
-        const parentTaskIds = new Set(
-          latestLog.details
-            .map((d) => d.parentTaskIdSnapshot)
-            .filter(Boolean),
-        );
-
-        for (const parentId of parentTaskIds) {
-          const parentTask = latestLog.details.find((d) => d.taskId === parentId);
-          if (parentTask) {
-            const siblings = latestLog.details.filter((d) => d.parentTaskIdSnapshot === parentId);
-            const allSiblingsChecked = siblings.every((d) => d.isChecked);
-
-            // Check parent dependencies
-            let allDepsChecked = true;
-            if (parentTask.dependsOnTaskIdsSnapshot && parentTask.dependsOnTaskIdsSnapshot.length > 0) {
-              for (const depId of parentTask.dependsOnTaskIdsSnapshot) {
-                const depTask = latestLog.details.find((d) => d.taskId === depId);
-                if (depTask && !depTask.isChecked) {
-                  allDepsChecked = false;
-                  break;
-                }
-              }
-            }
-
-            if (allSiblingsChecked && allDepsChecked && !parentTask.isChecked) {
-              const hasManualBotOverride = siblings.some(
-                (s) =>
-                  s.isBotCheckSnapshot &&
-                  s.isChecked &&
-                  s.updatedBy &&
-                  (s.updatedBy as any).role !== 'SYSTEM' &&
-                  (s.updatedBy as any).fullName !== 'System Bot',
-              );
-
-              const noteText = hasManualBotOverride
-                ? 'Hoàn thành theo các tác vụ con (Maker đã xác nhận thủ công thay cho Bot)'
-                : 'Tự động hoàn thành theo các tác vụ con';
-
-              const resLog = await this.updateTaskStatus(
-                shiftLogId,
-                parentId as string,
-                'PASSED',
-                user,
-                noteText,
-                true,
-              );
-              return resLog;
-            } else if ((!allSiblingsChecked || !allDepsChecked) && parentTask.isChecked) {
-              const resLog = await this.updateTaskStatus(
-                shiftLogId,
-                parentId as string,
-                'PENDING',
-                user,
-                'Hủy hoàn thành tự động do có tác vụ con hoặc tác vụ phụ thuộc chưa hoàn tất',
-                true,
-              );
-              return resLog;
-            }
           }
         }
       }

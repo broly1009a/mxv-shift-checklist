@@ -188,11 +188,16 @@ export default function BotLogViewerModal({
 
     // Parsing for CQG mode (SOD Balance Check)
     if (jsonType === 'CQG') {
-      let cqgDiscrepancies: any[] = jsonResult?.result || jsonResult?.discrepancies || [];
-      let totalCount = jsonResult?.totalCount || (Array.isArray(cqgDiscrepancies) ? cqgDiscrepancies.length : 0);
+      let cqgDiscrepancies: any[] = Array.isArray(jsonResult)
+        ? jsonResult
+        : (jsonResult?.result || jsonResult?.discrepancies || []);
+
+      let totalCount = (Array.isArray(cqgDiscrepancies) && cqgDiscrepancies.length > 0)
+        ? cqgDiscrepancies.length
+        : (jsonResult?.totalCount || 0);
 
       const totalMatch = text.match(/Số tài khoản (?:chênh lệch|lệch).*?:\s*(\d+)/i);
-      if (totalMatch) {
+      if (totalMatch && !totalCount) {
         totalCount = parseInt(totalMatch[1], 10);
       }
 

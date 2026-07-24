@@ -21,7 +21,10 @@ export const ReconciliationVisualReport: React.FC<ReconciliationVisualReportProp
   const [currentPage, setCurrentPage] = useState(1);
 
   const cqgDiscrepancies = useMemo(() => {
-    const list: any[] = parsedData.jsonResult?.cqgDiscrepancies || parsedData.jsonResult?.discrepancies || parsedData.jsonResult?.result || [];
+    const raw = parsedData.jsonResult;
+    const list: any[] = Array.isArray(raw)
+      ? raw
+      : (raw?.cqgDiscrepancies || raw?.discrepancies || raw?.result || []);
     if (!list.length) return [];
     const q = searchQuery.trim().toLowerCase();
     if (!q) return list;

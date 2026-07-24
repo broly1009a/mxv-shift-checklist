@@ -189,31 +189,40 @@ export default function NotificationDropdown() {
               console.warn('Failed to play synthesized sound:', err);
             }
             
-            toast((t) => (
+            toast.custom((t) => (
               <div 
                 onClick={() => toast.dismiss(t.id)}
                 style={{ 
+                  opacity: t.visible ? 1 : 0,
+                  transform: t.visible ? 'translateY(0)' : 'translateY(-10px)',
+                  transition: 'all 0.25s ease-in-out',
+                  background: 'var(--bg-sidebar, #1e293b)',
+                  color: 'var(--text-primary, #ffffff)',
+                  border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15))',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
                   display: 'flex', 
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  cursor: 'pointer',
                   maxWidth: '360px',
-                  width: '100%'
+                  width: '100%',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(12px)'
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', flex: 1 }}>
                   <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>🔔 {title}</span>
                   <span style={{ 
                     fontSize: '0.78rem', 
-                    opacity: 0.9, 
                     color: 'var(--text-secondary)',
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    lineHeight: '1.3'
+                    lineHeight: '1.35'
                   }}>
                     {latest.message}
                   </span>
@@ -225,20 +234,23 @@ export default function NotificationDropdown() {
                     toast.dismiss(t.id);
                   }}
                   style={{
-                    background: 'rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.12)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
+                    width: '22px',
+                    height: '22px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontSize: '0.75rem',
+                    fontWeight: 700,
                     flexShrink: 0,
-                    marginTop: '2px'
+                    marginTop: '2px',
+                    transition: 'background 0.2s ease'
                   }}
+                  title="Đóng thông báo"
                 >
                   ✕
                 </button>
