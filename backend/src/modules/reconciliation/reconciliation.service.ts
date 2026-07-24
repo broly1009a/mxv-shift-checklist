@@ -46,6 +46,7 @@ export interface CheckKLGDResult {
   }>;
   sessionStart?: Date;
   checkTime?: Date;
+  passed?: boolean;
 }
 
 @Injectable()
@@ -1069,6 +1070,13 @@ export class ReconciliationService {
       });
     }
 
+    const hasDiscrepancy =
+      differ > 0 ||
+      differACM > 0 ||
+      mismatchedTrades.length > 0 ||
+      mismatchedTTM.length > 0 ||
+      (files.tttt && (Math.abs(totalTTTT - totalPS) > 0 || mismatchedTTTT.length > 0));
+
     return {
       totals: {
         totalDSGD,
@@ -1086,6 +1094,7 @@ export class ReconciliationService {
       mismatchedTTTT: files.tttt ? mismatchedTTTT : undefined,
       sessionStart,
       checkTime,
+      passed: !hasDiscrepancy,
     };
   }
 

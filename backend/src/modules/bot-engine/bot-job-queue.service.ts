@@ -1814,6 +1814,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           });
         }
         await job.save();
+        throw new Error(`Phát hiện chênh lệch khớp lệnh trong phiên (KLGD). Vui lòng kiểm tra báo cáo.`);
       }
     } catch (err: any) {
       job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu khớp lệnh tự động: ${err.message}`);

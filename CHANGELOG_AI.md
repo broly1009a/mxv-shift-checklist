@@ -4,6 +4,95 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 13:50:00] - Fix: Bug Lifecycle Trạng Thái Task (PENDING -> WAITING) Làm Bot Không Enqueue Job Mới
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Người dùng thay đổi trạng thái sang `PENDING` (Chưa thực hiện), nhưng log của NestJS vẫn báo `check PASSED: [2026-07-24T04:38:16.639Z] Job completed successfully` (tức là lấy lại kết quả cũ của job lúc 11:38) mà không thực sự enqueue chạy job mới.
+- **Root cause**:
+  1. Trong vòng lặp `handleBotChecks()`, khi phát hiện task ở trạng thái `PENDING`, bot-engine ngay lập tức cập nhật trạng thái của task thành `WAITING` trên DB và cập nhật biến cục bộ `task.status = 'WAITING'` trước khi gọi đến các hàm check job.
+  2. Tại thời điểm đánh giá `shouldEnqueueNewJob` trong `bot-engine.service.ts`, giá trị `task.status` lúc này đã đổi thành `'WAITING'` (chứ không còn là `'PENDING'`). 
+  3. Do đó, điều kiện cũ `existingJob.status === 'COMPLETED' && task.status === 'PENDING'` bị đánh giá thành `false`. Hệ thống rơi vào nhánh `else` lấy kết quả cũ của job `COMPLETED` trước đó $\rightarrow$ tự động set lại thành `PASSED`.
+- **Giải pháp**:
+  - Đơn giản hóa và chuẩn hóa điều kiện `shouldEnqueueNewJob` cho tất cả các loại bot task (`CHECK_KLGD`, `FILE_AUDIT`, `RUN_MACRO`). 
+  - Nếu công việc trước đó đã hoàn thành (`COMPLETED` hoặc `FAILED`) và trạng thái hiện tại của task là `PENDING` hoặc `WAITING` (nghĩa là đang cần kiểm tra/quét lại), hệ thống sẽ luôn enqueue tạo một job mới để chạy lại thực tế.
+  ```typescript
+  const shouldEnqueueNewJob = !existingJob
+    || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
+  ```
+
+### 2. Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Thay đổi logic gán `shouldEnqueueNewJob` ở các nhánh check task `CHECK_KLGD`/`CHECK_PRE_EOD`, `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, và `RUN_MACRO` trong file `bot-engine.service.ts`.
+
+### 4. Xác nhận Build/Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 13:42:00] - Fix: Bot Quét Lại Lệch Khớp Lệnh (CHECK_KLGD) Vẫn Đạt Trong Checklist Nhưng View Log Lệch
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Người dùng chuyển task sang `PENDING`, bot đã tự động quét lại nhưng sau khi quét xong (vẫn lệch 74 lot ACM vs Nano và 4856 lot TTTT vs PS) thì checklist hiển thị "Đạt", trong khi mở dialog bot log vẫn báo "Chưa đạt" kèm bảng thống kê lệch.
+- **Phân tích**:
+  1. Hàm `checkKLGD` trong `reconciliation.service.ts` chưa trả về trường `passed` (trong khi frontend dialog và `bot-job-queue.service.ts` mong đợi trường `result.passed` này). Do `result.passed` bằng `undefined` nên log của bot luôn báo `LỆCH`, nhưng dialog frontend thì map `!parsedData.jsonResult?.passed` (tức `!undefined`) thành `isFailed: true` (✕ CHƯA ĐẠT).
+  2. Hàm `handleCheckKlgdJob` trong `bot-job-queue.service.ts` khi phát hiện `!result.passed` chỉ thực hiện lưu log chứ không `throw new Error(...)` như `handleCheckPreEodJob`, làm cho background job được xem là chạy thành công (`COMPLETED`). Khi job là `COMPLETED`, backend queue runner tự động cập nhật task status thành `PASSED`.
+- **Giải pháp**:
+  1. Thêm trường `passed?: boolean` vào interface `CheckKLGDResult` và tự động tính toán `passed = !hasDiscrepancy` ở cuối hàm `checkKLGD` trong `reconciliation.service.ts`.
+  2. Bổ sung lệnh `throw new Error(...)` khi có lệch (`!result.passed`) trong hàm `handleCheckKlgdJob` tại `bot-job-queue.service.ts`. Từ đó, nếu đối chiếu lệch thì job sẽ chuyển trạng thái thành `FAILED`, và hệ thống sẽ tự động cập nhật task checklist thành `FAILED` (Đỏ / Chưa đạt) đồng bộ với giao diện popup.
+
+### 2. Danh sách file chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+
+**File `reconciliation.service.ts`:**
+- Định nghĩa `passed?: boolean` trong interface `CheckKLGDResult`.
+- Tính toán `passed = !hasDiscrepancy` (dựa trên chênh lệch `differ > 0`, `differACM > 0`, `mismatchedTrades.length > 0`, `mismatchedTTM.length > 0`, `differTTTT > 0`, v.v.) và trả về trong kết quả của `checkKLGD()`.
+
+**File `bot-job-queue.service.ts`:**
+- Ở cuối hàm `handleCheckKlgdJob`, nếu `!result.passed`, ngoài việc lưu logs chênh lệch sẽ thực hiện: `throw new Error("Phát hiện chênh lệch khớp lệnh trong phiên (KLGD). Vui lòng kiểm tra báo cáo.");` để đánh dấu job thất bại.
+
+### 4. Xác nhận Build/Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 11:57:00] - Fix: Task Reset PENDING Bị Tự Động Set PASSED Mà Không Chạy Lại Bot
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Khi `TASK_CHECK_KLGD_s1` báo `NEEDS_ATTENTION`, user reset về `PENDING` để bot quét lại, nhưng hệ thống tự động set thành `PASSED` mà không chạy lại job.
+- **Root cause**: `bot-engine.service.ts` khi check bot task sử dụng `shouldEnqueueNewJob` chỉ xét điều kiện `existingJob.status === 'FAILED'`. Khi job cũ là `COMPLETED` (kể cả khi có lệch, vì `handleCheckKlgdJob` không throw error), hệ thống dùng lại kết quả cũ → `checkResult = { success: true }` → task bị set lại `PASSED`.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+
+**File**: `bot-engine.service.ts` — điều kiện `shouldEnqueueNewJob` (~line 449)
+
+**Trước (SAI):**
+```typescript
+const shouldEnqueueNewJob = !existingJob
+  || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+// → job COMPLETED + task PENDING = không chạy lại, dùng kết quả cũ → PASSED
+```
+
+**Sau (ĐÚNG):**
+```typescript
+const shouldEnqueueNewJob = !existingJob
+  || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'))
+  || (existingJob.status === 'COMPLETED' && task.status === 'PENDING'); // Task bị reset thủ công → phải chạy lại
+// → job COMPLETED + task PENDING = enqueue job mới
+```
+
+### 4. Xác nhận Build/Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
 ## [2026-07-24 11:52:00] - Fix Cửa Sổ Thời Gian Lọc T-1 Khi Upload File Thủ Công (FE Historical Check)
 
 ### 1. Mục tiêu Thay đổi

@@ -446,7 +446,8 @@ export class BotEngineService {
               }
             } else {
               const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-              const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+              const shouldEnqueueNewJob = !existingJob
+                || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
 
               if (shouldEnqueueNewJob) {
                 const targetJobType = checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_PRE_EOD';
@@ -472,7 +473,8 @@ export class BotEngineService {
             }
           } else if (checkType === 'FILE_AUDIT_ACM') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = !existingJob
+              || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_ACM', {
@@ -496,7 +498,8 @@ export class BotEngineService {
             }
           } else if (checkType === 'FILE_AUDIT_MS') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = !existingJob
+              || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_MS', {
@@ -520,7 +523,8 @@ export class BotEngineService {
             }
           } else if (checkType === 'FILE_AUDIT_CQG') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = !existingJob
+              || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_CQG', {
@@ -544,7 +548,8 @@ export class BotEngineService {
             }
           } else if (checkType === 'RUN_MACRO') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = !existingJob
+              || (['COMPLETED', 'FAILED'].includes(existingJob.status) && (task.status === 'WAITING' || task.status === 'PENDING'));
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('RUN_MACRO', {
