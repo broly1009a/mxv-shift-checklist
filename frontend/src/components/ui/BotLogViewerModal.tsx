@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { X, BarChart2, Terminal, Server, FolderCheck, FileSpreadsheet } from 'lucide-react';
+import { X, BarChart2, Terminal, Server, FolderCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { ParsedBotData, FileAuditItem, MarginAccount, MismatchedTrade } from './bot-log-viewer/types';
 import { ReconciliationVisualReport } from './bot-log-viewer/ReconciliationVisualReport';
 import { FileAuditVisualReport } from './bot-log-viewer/FileAuditVisualReport';
 import { SystemApiVisualReport } from './bot-log-viewer/SystemApiVisualReport';
+import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
 
 interface BotLogViewerModalProps {
@@ -60,8 +61,18 @@ export default function BotLogViewerModal({
     const titleUpper = (taskTitle || '').toUpperCase();
     const idUpper = (taskId || '').toUpperCase();
 
-    // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
+    // 0. MARGIN_DECISION Tasks (Bot quét thư mục Quyết định thay đổi ký quỹ)
     if (
+      idUpper.includes('MARGIN') ||
+      idUpper.includes('DECISION') ||
+      titleUpper.includes('QUYẾT ĐỊNH') ||
+      titleUpper.includes('THAY ĐỔI KÝ QUỸ') ||
+      text.includes('Quyết định thay đổi ký quỹ')
+    ) {
+      jsonType = 'MARGIN_DECISION';
+    }
+    // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
+    else if (
       idUpper === 'TASK_CHECK_CQG' ||
       idUpper.includes('CQG') ||
       titleUpper.includes('SỐ DƯ CQG') ||
@@ -480,7 +491,10 @@ export default function BotLogViewerModal({
     };
   }, [resultNote, taskTitle]);
 
-  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION'>(() => {
+  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION' | 'MARGIN_DECISION'>(() => {
+    if (parsedData.jsonType === 'MARGIN_DECISION') {
+      return 'MARGIN_DECISION';
+    }
     if (
       parsedData.jsonType === 'KLGD' ||
       parsedData.jsonType === 'PRE_EOD' ||
@@ -497,6 +511,15 @@ export default function BotLogViewerModal({
     }
 
     const titleUpper = (taskTitle || '').toUpperCase();
+    const idUpper = (taskId || '').toUpperCase();
+    if (
+      idUpper.includes('MARGIN') ||
+      idUpper.includes('DECISION') ||
+      titleUpper.includes('QUYẾT ĐỊNH') ||
+      titleUpper.includes('THAY ĐỔI KÝ QUỸ')
+    ) {
+      return 'MARGIN_DECISION';
+    }
     if (
       titleUpper.includes('KLGD') ||
       titleUpper.includes('ĐỐI CHIẾU') ||
@@ -529,7 +552,7 @@ export default function BotLogViewerModal({
       return 'FILE_AUDIT';
     }
     return 'RECONCILIATION';
-  }, [taskTitle, parsedData]);
+  }, [taskTitle, taskId, parsedData]);
 
   if (!isOpen) return null;
 
@@ -581,11 +604,13 @@ export default function BotLogViewerModal({
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {category === 'MARGIN_DECISION' && <FileCheck size={18} color="#34d399" />}
               {category === 'SYSTEM_API' && <Server size={18} color="#ec4899" />}
               {category === 'FILE_AUDIT' && <FolderCheck size={18} color="#f59e0b" />}
               {category === 'RECONCILIATION' && <FileSpreadsheet size={18} color="var(--color-accent)" />}
 
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {category === 'MARGIN_DECISION' && 'Giám Sát Quyết Định Thay Đổi Ký Quỹ'}
                 {category === 'SYSTEM_API' && 'Giám Sát Hệ Thống & Cảnh Báo'}
                 {category === 'FILE_AUDIT' && 'Kiểm Tra Tồn Tại File Báo Cáo'}
                 {category === 'RECONCILIATION' && (
@@ -682,6 +707,7 @@ export default function BotLogViewerModal({
             <RawLogConsoleView rawText={parsedData.rawText} />
           ) : (
             <>
+              {category === 'MARGIN_DECISION' && <MarginDecisionVisualReport jsonResult={parsedData.jsonResult} rawText={parsedData.rawText} />}
               {category === 'RECONCILIATION' && <ReconciliationVisualReport parsedData={parsedData} />}
               {category === 'FILE_AUDIT' && <FileAuditVisualReport fileItems={parsedData.fileItems} />}
               {category === 'SYSTEM_API' && <SystemApiVisualReport jsonResult={parsedData.jsonResult} marginAccounts={parsedData.marginAccounts} />}

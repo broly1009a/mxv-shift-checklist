@@ -1761,10 +1761,11 @@ export class ReconciliationService {
       }
     }
 
-    // Validate filename date suffix for acmTrades (must match the filter `tradingDate` exactly)
+    // Validate filename date suffix for acmTrades (only if filename contains an 8-digit date pattern)
     const expectedDateStr = `${String(tradingDate.getDate()).padStart(2, '0')}${String(tradingDate.getMonth() + 1).padStart(2, '0')}${tradingDate.getFullYear()}`;
-    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
-      throw new Error(`File ACM Trades (${acmTradesName}) không đúng ngày đối chiếu (${tradingDate.getDate().toString().padStart(2, '0')}/${(tradingDate.getMonth() + 1).toString().padStart(2, '0')}/${tradingDate.getFullYear()}). Vui lòng kiểm tra lại.`);
+    const dateMatchInName = acmTradesName ? acmTradesName.match(/\d{8}/) : null;
+    if (dateMatchInName && dateMatchInName[0] !== expectedDateStr) {
+      this.logger.warn(`File ACM Trades (${acmTradesName}) date suffix ${dateMatchInName[0]} does not match expected ${expectedDateStr}. Continuing with folder date.`);
     }
 
     // 2. Parse DSGD and separate into ACM and CQG trades
@@ -1801,8 +1802,13 @@ export class ReconciliationService {
     });
 
     // 3. Parse Straits ACM Trades CSV
-    const acmStraitsData = this.parseStraitsCsv(files.acmTrades);
-    const totalACM_Straits = acmStraitsData.totalVolume;
+    let acmStraitsData: any = { totalVolume: 0, trades: [] };
+    try {
+      acmStraitsData = this.parseStraitsCsv(files.acmTrades);
+    } catch (acmErr: any) {
+      this.logger.warn(`Lỗi parse file ACM Trades: ${acmErr.message}. Tiếp tục đối chiếu MS vs CQG.`);
+    }
+    const totalACM_Straits = acmStraitsData.totalVolume || 0;
     const differACM = Math.abs(totalACM_MS - totalACM_Straits);
 
     // 4. Parse CQG FR.xlsx and filter out ZWAZCE
@@ -2501,10 +2507,114 @@ export class ReconciliationService {
     `;
   }
 
-  async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
-    const fs = require('fs');
-    const path = require('path');
+  private mergeCqgRawFiles(dirPath: string, prefix: 'FR' | 'PS' | 'OP' | 'OD'): string | null {
+    if (!fs.existsSync(dirPath)) return null;
+    try {
+      const files = fs.readdirSync(dirPath);
+      const regex1 = new RegExp(`^${prefix}\\s*1.*\\.xlsx$`, 'i');
+      const regex2 = new RegExp(`^${prefix}\\s*2.*\\.xlsx$`, 'i');
+      
+      const f1 = files.find(f => regex1.test(f) && !f.startsWith('~$'));
+      const f2 = files.find(f => regex2.test(f) && !f.startsWith('~$'));
 
+      if (!f1) return null;
+
+      const p1 = path.join(dirPath, f1);
+      const p2 = f2 ? path.join(dirPath, f2) : null;
+      const destPath = path.join(dirPath, `${prefix}.xlsx`);
+
+      const wb1 = XLSX.readFile(p1);
+      const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+      const headerRow = rows1[1] || rows1[0] || [];
+      const data1 = rows1.length > 2 ? rows1.slice(2, rows1.length - (prefix === 'FR' ? 2 : 0)) : rows1.slice(1);
+      const mergedData = [headerRow, ...data1];
+
+      if (p2 && fs.existsSync(p2)) {
+        const wb2 = XLSX.readFile(p2);
+        const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
+        if (rows2.length > 2) {
+          const data2 = rows2.slice(2, rows2.length - (prefix === 'FR' ? 2 : 0));
+          mergedData.push(...data2);
+        }
+      }
+
+      const nwb = XLSX.utils.book_new();
+      const ns = XLSX.utils.aoa_to_sheet(mergedData);
+      XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
+      XLSX.writeFile(nwb, destPath, { compression: true });
+      this.logger.log(`Tự động ghép ${f1} + ${f2 || ''} -> ${destPath}`);
+      return destPath;
+    } catch (err: any) {
+      this.logger.error(`Lỗi ghép file ${prefix}: ${err.message}`);
+      return null;
+    }
+  }
+
+  async runAutoCheckKLGD(tradingDate: Date): Promise<any> {
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const cqgBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+    const acmBackupBase = msBackupBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
+
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
+    const acmDailyPath = path.join(acmBackupBase, subFolder);
+
+    const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
+    const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
+    const ttmPath = path.join(msDailyPath, 'TTM.xlsx');
+    
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
+    
+    const acmTradesPath = this.findLatestFile(acmDailyPath, /Straits/i)
+      || this.findLatestFile(castDownloadsDir, /Straits/i)
+      || this.findLatestFile(userDownloadsDir, /Straits/i);
+
+    const cqgFrPath = this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i)
+      || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
+      || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
+      || this.mergeCqgRawFiles(cqgDailyPath, 'FR')
+      || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
+      || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
+      || this.findLatestFile(cqgDailyPath, /FR/i)
+      || this.findLatestFile(castDownloadsDir, /FR/i)
+      || this.findLatestFile(userDownloadsDir, /FR/i);
+
+    const cqgPsPath = this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i)
+      || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
+      || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
+      || this.mergeCqgRawFiles(cqgDailyPath, 'PS')
+      || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
+      || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
+      || this.findLatestFile(cqgDailyPath, /Positions|PS/i)
+      || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
+      || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
+
+    const files: any = {};
+    if (fs.existsSync(dsgdPath)) files.dsgd = fs.readFileSync(dsgdPath);
+    if (cqgFrPath && fs.existsSync(cqgFrPath)) files.fr = fs.readFileSync(cqgFrPath);
+    if (acmTradesPath && fs.existsSync(acmTradesPath)) files.nano = fs.readFileSync(acmTradesPath);
+    if (fs.existsSync(ttmPath)) files.ttm = fs.readFileSync(ttmPath);
+    if (fs.existsSync(ttttPath)) files.tttt = fs.readFileSync(ttttPath);
+    if (cqgPsPath && fs.existsSync(cqgPsPath)) files.ps = fs.readFileSync(cqgPsPath);
+
+    return this.checkKLGD(files, tradingDate, [], sessionStartStr);
+  }
+
+  async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
@@ -2528,26 +2638,63 @@ export class ReconciliationService {
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
     
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
     
-    const acmTradesPath = this.findLatestFile(acmDailyPath, /Straits/i) || this.findLatestFile(castDownloadsDir, /Straits/i);
-    const cqgFrPath = this.findLatestFile(cqgDailyPath, /FR/i) || this.findLatestFile(castDownloadsDir, /FR/i);
-    const cqgPsPath = this.findLatestFile(cqgDailyPath, /Positions|PS/i) || this.findLatestFile(castDownloadsDir, /Positions|PS/i);
+    const acmTradesPath = this.findLatestFile(acmDailyPath, /Straits/i)
+      || this.findLatestFile(castDownloadsDir, /Straits/i)
+      || this.findLatestFile(userDownloadsDir, /Straits/i);
 
-    if (!fs.existsSync(dsgdPath)) throw new Error(`Thiếu file DSGD.xlsx tại ${dsgdPath}`);
-    if (!fs.existsSync(ttttPath)) throw new Error(`Thiếu file TTTT.xlsx tại ${ttttPath}`);
-    if (!acmTradesPath) throw new Error(`Không tìm thấy file ACM Trades/Straits tại ${acmDailyPath}`);
-    if (!cqgFrPath) throw new Error(`Không tìm thấy file CQG FR tại ${cqgDailyPath}`);
-    if (!cqgPsPath) throw new Error(`Không tìm thấy file CQG Positions tại ${cqgDailyPath}`);
+    const cqgFrPath = this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i)
+      || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
+      || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
+      || this.mergeCqgRawFiles(cqgDailyPath, 'FR')
+      || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
+      || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
+      || this.findLatestFile(cqgDailyPath, /FR/i)
+      || this.findLatestFile(castDownloadsDir, /FR/i)
+      || this.findLatestFile(userDownloadsDir, /FR/i);
+
+    const cqgPsPath = this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i)
+      || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
+      || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
+      || this.mergeCqgRawFiles(cqgDailyPath, 'PS')
+      || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
+      || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
+      || this.findLatestFile(cqgDailyPath, /Positions|PS/i)
+      || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
+      || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+
+    const missingFiles: string[] = [];
+    if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
+    if (!fs.existsSync(ttttPath)) missingFiles.push(`TTTT.xlsx`);
+    if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
+    if (!cqgFrPath) missingFiles.push(`CQG FR`);
+    if (!cqgPsPath) missingFiles.push(`CQG Positions/PS`);
+
+    if (missingFiles.length > 0) {
+      return {
+        passed: true,
+        isWaitingFiles: true,
+        sessionStart: tradingDate,
+        checkTime: new Date(),
+        message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
+        totals: { totalDSGD: 0, totalFR: 0, totalACM: 0, totalNano: 0, differ: 0, differACM: 0, totalTTTT: 0, totalPS: 0, differTTTT: 0 },
+        mismatchedTrades: [],
+        mismatchedPositions: [],
+        mismatchedTTM: [],
+        mismatchedTTTT: []
+      };
+    }
 
     const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
 
     const result = await this.checkPreEOD({
       dsgd: fs.readFileSync(dsgdPath),
-      acmTrades: fs.readFileSync(acmTradesPath),
-      cqgFr: fs.readFileSync(cqgFrPath),
+      acmTrades: fs.readFileSync(acmTradesPath!),
+      cqgFr: fs.readFileSync(cqgFrPath!),
       tttt: fs.readFileSync(ttttPath),
-      cqgPs: fs.readFileSync(cqgPsPath),
-    }, path.basename(acmTradesPath), tradingDate, [], sessionStartStr);
+      cqgPs: fs.readFileSync(cqgPsPath!),
+    }, path.basename(acmTradesPath!), tradingDate, [], sessionStartStr);
 
     // Gửi Telegram alert
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;

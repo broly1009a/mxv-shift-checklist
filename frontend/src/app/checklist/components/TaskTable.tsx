@@ -165,7 +165,7 @@ export default function TaskTable({
   const childrenMap = useMemo(() => {
     const map: Record<string, TaskDetail[]> = {};
     (log.details || []).forEach(d => {
-      const pid = (d as any).parentTaskIdSnapshot;
+      const pid = (d as any).parentTaskIdSnapshot || (d as any).parentTaskId;
       if (pid) {
         if (!map[pid]) map[pid] = [];
         map[pid].push(d);

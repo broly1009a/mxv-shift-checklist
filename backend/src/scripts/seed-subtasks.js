@@ -84,8 +84,9 @@ const SUBTASK_DEFINITIONS = {
 
   // ── DURING SESSION ────────────────────────────────────────
 
-  'ops_during_01': { // Thay đổi ký quỹ → 🔴 Maker-Checker
+  'ops_during_01': { // Thay đổi ký quỹ → 🤝 Bot + Maker + Checker
     children: [
+      { id: 'ops_during_01_sb1', name: 'Bot quét thư mục Quyết định thay đổi ký quỹ & báo cáo hệ thống', isBotCheck: true, botCheckType: 'CHECK_MARGIN_DECISION', priority: 'HIGH' },
       { id: 'ops_during_01_s1', name: 'Maker (Ca 1) tạo bản ghi thay đổi ký quỹ: điền mã HH, ký quỹ cũ/mới, phiên hiệu lực', isBotCheck: false, priority: 'CRITICAL' },
       { id: 'ops_during_01_s2', name: 'Checker (Ca 2 / Trưởng BP) kiểm tra và phê duyệt bản ghi', isBotCheck: false, priority: 'CRITICAL' },
     ],
@@ -93,7 +94,7 @@ const SUBTASK_DEFINITIONS = {
 
   'TASK_CHECK_KLGD': { // Giám sát & Đối chiếu định kỳ → 🤝 Bot+Maker
     children: [
-      { id: 'TASK_CHECK_KLGD_s1', name: 'Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống', isBotCheck: true, botCheckType: 'CHECK_PRE_EOD', priority: 'HIGH' },
+      { id: 'TASK_CHECK_KLGD_s1', name: 'Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống', isBotCheck: true, botCheckType: 'CHECK_KLGD', priority: 'HIGH' },
       { id: 'TASK_CHECK_KLGD_s2', name: 'Maker xem kết quả đối chiếu (nếu lệch → ghi nhận đã điều tra và xử lý)', isBotCheck: false, priority: 'HIGH' },
     ],
   },

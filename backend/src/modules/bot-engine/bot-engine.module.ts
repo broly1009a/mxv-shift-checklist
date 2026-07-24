@@ -22,6 +22,8 @@ import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 
 import { OmsWatcherService } from './oms-watcher.service';
 
+import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -30,6 +32,7 @@ import { OmsWatcherService } from './oms-watcher.service';
     ]),
     ShiftsModule,
     forwardRef(() => ReconciliationModule),
+    forwardRef(() => MarginChangeRequestsModule),
     NotificationsModule,
     LotStatisticsModule,
     CcpStatisticsModule,

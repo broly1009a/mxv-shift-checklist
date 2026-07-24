@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
@@ -13,6 +13,7 @@ import { TelegramService } from '../telegram/telegram.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { TeamsNotifierService, ExpiringContract } from '../notifications/teams-notifier.service';
 import { RpaDownloaderService } from './rpa-downloader.service';
+import { MarginChangeRequestsService } from '../margin-change-requests/margin-change-requests.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -34,6 +35,8 @@ export class BotEngineService {
     private readonly settingsService: SystemSettingsService,
     private readonly teamsNotifierService: TeamsNotifierService,
     private readonly rpaDownloaderService: RpaDownloaderService,
+    @Inject(forwardRef(() => MarginChangeRequestsService))
+    private readonly marginChangeRequestsService: MarginChangeRequestsService,
   ) {}
 
   /**
@@ -338,7 +341,28 @@ export class BotEngineService {
                 checkResult = { success: false, message: logsSummary };
               }
             }
-          } else if (checkType === 'CHECK_PRE_EOD') {
+          } else if (checkType === 'CHECK_MARGIN_DECISION') {
+            try {
+              const userObj = { id: log.userId, _id: log.userId, role: 'ADMIN' };
+              const scanRes = await this.marginChangeRequestsService.scanDecisionDocument(userObj);
+              if (scanRes && scanRes.fileName) {
+                checkResult = {
+                  success: true,
+                  message: `[Bot quét tự động]: Phát hiện Quyết định "${scanRes.fileName}" (Hiệu lực: ${scanRes.effectiveSession || 'Phiên T'}). Đã tự động bóc tách ${scanRes.totalExtracted || 0} mặt hàng và tạo ${scanRes.totalCreated || 0} yêu cầu chờ duyệt.`
+                };
+              } else {
+                checkResult = {
+                  success: true,
+                  message: `[Bot quét tự động]: Không tìm thấy file Quyết định thay đổi ký quỹ trong thư mục ngày ${log.shiftDate}. Mức ký quỹ giữ nguyên.`
+                };
+              }
+            } catch (err: any) {
+              checkResult = {
+                success: false,
+                message: `[Bot quét tự động]: Lỗi quét thư mục quyết định ký quỹ: ${err.message}`
+              };
+            }
+          } else if (checkType === 'CHECK_KLGD' || checkType === 'CHECK_PRE_EOD') {
             if (task.taskId === 'ops_open_04_s4') {
               const msBackupBase = await this.settingsService.getSetting(
                 'bot_backup_path_ms',
@@ -372,20 +396,10 @@ export class BotEngineService {
                   }
 
                   if (allNegativeAccounts.length > 0) {
-                    const count = allNegativeAccounts.length;
-                    const detailsList = allNegativeAccounts.map(a => `• Tài khoản: <b>${a.account}</b> | Số dư ký quỹ: <font color="red"><b>${a.margin.toLocaleString()}</b></font>`).join('\n');
-                    
-                    const alertMsg = `⚠️ <b>[CẢNH BÁO KÝ QUỸ ĐẦU NGÀY - POST EOD]</b>\n` +
-                      `Phát hiện <b>${count} tài khoản bị âm ký quỹ đầu ngày</b> sau phiên EOD:\n\n` +
-                      `${detailsList}\n\n` +
-                      `Đề nghị bộ phận trực ca vận hành kiểm tra và xử lý theo quy trình!`;
-
-                    await this.telegramService.sendMessage(alertMsg);
-                    this.logger.warn(`[Negative Margin Check] Đã phát hiện ${count} tài khoản âm ký quỹ đầu ngày. Đã gửi cảnh báo Telegram.`);
-
-                    checkResult = { 
-                      success: true, 
-                      message: `[Quét tự động]: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}. Đã gửi cảnh báo Telegram.`
+                    const accNames = allNegativeAccounts.map(a => a.maTKGD || a.account).join(', ');
+                    checkResult = {
+                      success: true,
+                      message: `⚠️ Phát hiện ${allNegativeAccounts.length} tài khoản âm ký quỹ: ${accNames}`
                     };
                   } else {
                     checkResult = {
@@ -400,7 +414,8 @@ export class BotEngineService {
               const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
 
               if (shouldEnqueueNewJob) {
-                await this.botJobQueueService.enqueue('CHECK_PRE_EOD', {
+                const targetJobType = checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_PRE_EOD';
+                await this.botJobQueueService.enqueue(targetJobType, {
                   taskId: task.taskId,
                   shiftLogId: log._id.toString(),
                   sessionDay: log.shiftDate,

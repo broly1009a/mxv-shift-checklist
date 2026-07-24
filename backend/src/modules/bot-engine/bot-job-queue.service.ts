@@ -71,7 +71,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
-    this.cleanupStuckJobs().catch((err) => {
+    this.cleanupStuckJobs(true).catch((err) => {
       this.logger.error(`Lỗi khi dọn dẹp các Job bị treo lúc khởi động: ${err.message}`);
     });
 
@@ -275,6 +275,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await this.handleVerifyEmailStatusJob(job);
     } else if (job.jobType === 'AUTO_CHECK_SOD') {
       await this.handleAutoCheckSodJob(job);
+    } else if (job.jobType === 'CHECK_KLGD') {
+      await this.handleCheckKlgdJob(job);
     } else if (job.jobType === 'CHECK_PRE_EOD') {
       await this.handleCheckPreEodJob(job);
     } else if (job.jobType === 'CHECK_EOD_MM') {
@@ -690,24 +692,36 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     status: 'OK' | 'MISSING' | 'OUTDATED';
     lastModified?: Date;
   }>> {
-    const today = new Date(targetDate);
-    today.setHours(0, 0, 0, 0);
+    const existingFiles = fs.existsSync(backupPath) ? fs.readdirSync(backupPath) : [];
 
     return REQUIRED_MS_FILES.map(({ key, filename }) => {
-      const filePath = path.join(backupPath, filename);
-      if (!fs.existsSync(filePath)) {
-        return { key, filename, status: 'MISSING' as const };
+      const exactPath = path.join(backupPath, filename);
+      if (fs.existsSync(exactPath)) {
+        const stat = fs.statSync(exactPath);
+        return {
+          key,
+          filename,
+          status: stat.size > 0 ? ('OK' as const) : ('MISSING' as const),
+          lastModified: stat.mtime,
+        };
       }
-      const stat = fs.statSync(filePath);
-      const fileDay = new Date(stat.mtime);
-      fileDay.setHours(0, 0, 0, 0);
-      const isToday = fileDay.getTime() === today.getTime();
-      return {
-        key,
-        filename,
-        status: isToday ? 'OK' as const : 'OUTDATED' as const,
-        lastModified: stat.mtime,
-      };
+
+      // Fuzzy check for minor spacing/naming variations (e.g. market truoc 6 h.csv vs market truoc 6h.csv)
+      const normalizedTarget = filename.toLowerCase().replace(/\s+/g, '');
+      const matchedFile = existingFiles.find(f => f.toLowerCase().replace(/\s+/g, '') === normalizedTarget);
+
+      if (matchedFile) {
+        const matchedPath = path.join(backupPath, matchedFile);
+        const stat = fs.statSync(matchedPath);
+        return {
+          key,
+          filename,
+          status: stat.size > 0 ? ('OK' as const) : ('MISSING' as const),
+          lastModified: stat.mtime,
+        };
+      }
+
+      return { key, filename, status: 'MISSING' as const };
     });
   }
 
@@ -887,19 +901,22 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Tự động quét và dọn dẹp các Job bị treo ở trạng thái PROCESSING quá 30 phút.
    * Chuyển chúng thành trạng thái FAILED kèm log giải thích.
    */
-  private async cleanupStuckJobs(): Promise<void> {
+  private async cleanupStuckJobs(forceAllOnStartup = false): Promise<void> {
     try {
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const timeoutThreshold = forceAllOnStartup 
+        ? new Date() 
+        : new Date(Date.now() - 3 * 60 * 1000); // 3 minutes timeout
+
       const stuckJobs = await this.botJobModel.find({
         status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
-        updatedAt: { $lt: thirtyMinutesAgo },
+        updatedAt: { $lt: timeoutThreshold },
       }).exec();
 
       if (stuckJobs.length > 0) {
-        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo hoặc chờ Captcha. Đang tự động dọn dẹp...`);
+        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo hoặc dở dang. Đang tự động reset...`);
         for (const job of stuckJobs) {
           job.status = 'FAILED';
-          job.logs.push(`[${new Date().toISOString()}] Job tự động chuyển sang thất bại do bị treo quá hạn hoặc Server khởi động lại.`);
+          job.logs.push(`[${new Date().toISOString()}] Job tự động chuyển sang FAILED do bị treo quá 3 phút hoặc Server khởi động lại.`);
           await job.save();
           this.captchaResolvers.delete(job._id.toString());
         }
@@ -1713,6 +1730,47 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async handleCheckKlgdJob(job: BotJob) {
+    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`);
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckKLGD(targetDate);
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+      }
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`);
+      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+      payload.result = result;
+      job.payload = payload;
+      await job.save();
+
+      if (!result.passed) {
+        if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
+          result.mismatchedTrades.forEach((t: any) => {
+            job.logs.push(`- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`);
+          });
+        }
+        await job.save();
+      }
+    } catch (err: any) {
+      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu khớp lệnh tự động: ${err.message}`);
+      await job.save();
+      throw err;
+    }
+  }
+
   private async handleCheckPreEodJob(job: BotJob) {
     const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
     let targetDate = new Date();
@@ -1732,8 +1790,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
       }
-      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
-      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+      if (result.isWaitingFiles) {
+        job.logs.push(`[${new Date().toISOString()}] ${result.message}`);
+      } else {
+        job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
+        job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+      }
       payload.result = result;
       job.payload = payload;
       await job.save();
