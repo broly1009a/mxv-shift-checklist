@@ -257,7 +257,9 @@ export class BotEngineService {
             }
           } else if (checkType === 'EMAIL_STATUS_CHECK') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            if (!existingJob) {
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
@@ -322,7 +324,9 @@ export class BotEngineService {
             }
           } else if (checkType === 'AUTO_CHECK_SOD') {
             const existingJob = await this.botJobQueueService.getJobForTask(task.taskId, log._id.toString());
-            if (!existingJob) {
+            const shouldEnqueueNewJob = !existingJob || (existingJob.status === 'FAILED' && (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('AUTO_CHECK_SOD', {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
@@ -331,7 +335,8 @@ export class BotEngineService {
               checkResult = { success: false, message: 'Đang bắt đầu đối chiếu SOD...' };
             } else {
               if (existingJob.status === 'COMPLETED') {
-                checkResult = { success: true, message: 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.' };
+                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
+                checkResult = { success: true, message: lastLog };
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: false, message: `Đối chiếu SOD thất bại:\n${logsSummary}` };

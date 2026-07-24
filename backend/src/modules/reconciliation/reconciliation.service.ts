@@ -2615,6 +2615,10 @@ export class ReconciliationService {
   }
 
   async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
+    // Đối chiếu Pre-EOD chốt số liệu cho phiên giao dịch T-1 (ngày làm việc vừa kết thúc)
+    const targetDate = new Date(tradingDate);
+    targetDate.setDate(targetDate.getDate() - 1);
+
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
@@ -2625,9 +2629,9 @@ export class ReconciliationService {
     );
     const acmBackupBase = msBackupBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
 
-    const year = tradingDate.getFullYear().toString();
-    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
-    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
     
     const msDailyPath = path.join(msBackupBase, subFolder);
@@ -2694,7 +2698,7 @@ export class ReconciliationService {
       cqgFr: fs.readFileSync(cqgFrPath!),
       tttt: fs.readFileSync(ttttPath),
       cqgPs: fs.readFileSync(cqgPsPath!),
-    }, path.basename(acmTradesPath!), tradingDate, [], sessionStartStr);
+    }, path.basename(acmTradesPath!), targetDate, [], sessionStartStr);
 
     // Gửi Telegram alert
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
