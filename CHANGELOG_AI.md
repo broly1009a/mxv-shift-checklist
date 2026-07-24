@@ -4,7 +4,110 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 11:52:00] - Fix Cửa Sổ Thời Gian Lọc T-1 Khi Upload File Thủ Công (FE Historical Check)
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Khi upload file thủ công từ FE với `tradingDate = "2026-07-24"`, note hiển thị khoảng lọc `05:00 24/7 → 05:00 25/7` — sai nghiệp vụ. Phiên giao dịch ngày 24/7 phải là `05:00 23/7 (T-1) → 05:00 24/7`.
+- **Phân tích**: FE gửi date-only string → backend parse thành `2026-07-24T00:00:00Z` → rơi vào nhánh `isPastDateOrDateOnly`. Logic cũ dùng `tradingDate` làm `sessionStart` rồi +1 ngày thành `checkTime` → window sai.
+- **Bot tự động**: Không bị ảnh hưởng — bot truyền `new Date()` (có giờ phút thực) → rơi vào nhánh `else` (Live check), tự tính T-1 đúng từ trước.
+
+### 2. Danh sách file chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+
+**Hàm `checkKLGD` (line ~785) & `checkPreEOD` (line ~1806) — nhánh `isPastDateOrDateOnly`**
+
+**Trước (SAI):**
+```typescript
+// sessionStart = tradingDate 05:00 → checkTime = sessionStart + 1 ngày
+sessionStart.setHours(sHour, sMin, 0, 0);
+checkTime = new Date(sessionStart);
+checkTime.setDate(checkTime.getDate() + 1);
+// Kết quả: tradingDate=24/7 → sessionStart=24/7 05:00, checkTime=25/7 05:00
+```
+
+**Sau (ĐÚNG):**
+```typescript
+// tradingDate LÀ ngày kết thúc phiên → checkTime = tradingDate 05:00, sessionStart = T-1
+checkTime = new Date(tradingDate);
+checkTime.setHours(sHour, sMin, 0, 0);
+sessionStart = new Date(checkTime);
+sessionStart.setDate(sessionStart.getDate() - 1); // T-1
+// Kết quả: tradingDate=24/7 → checkTime=24/7 05:00, sessionStart=23/7 05:00
+```
+
+### 4. Xác nhận Build/Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **Pass, không có lỗi.**
+
+---
+
+## [2026-07-24 11:44:00] - Fix TypeScript Error: sessionStart/checkTime Missing from CheckKLGDResult
+
+### 1. Mục tiêu Thay đổi
+- Sửa lỗi TypeScript: `Property 'sessionStart' does not exist on type 'CheckKLGDResult'` tại `reconciliation.controller.ts:L115`.
+- Controller đã dùng `result.sessionStart` và `result.checkTime` để hiển thị khoảng thời gian lọc trong note, nhưng interface `CheckKLGDResult` chưa khai báo 2 field này dù service đã thực sự trả về chúng.
+
+### 2. Danh sách file chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+
+**File**: `reconciliation.service.ts` — Interface `CheckKLGDResult` (line 41–49)
+
+**Trước:**
+```typescript
+export interface CheckKLGDResult {
+  // ...
+  mismatchedTTTT?: Array<{ ... }>;
+}
+```
+
+**Sau:**
+```typescript
+export interface CheckKLGDResult {
+  // ...
+  mismatchedTTTT?: Array<{ ... }>;
+  sessionStart?: Date;   // ← THÊM MỚI
+  checkTime?: Date;      // ← THÊM MỚI
+}
+```
+
+### 4. Xác nhận Build/Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **Pass, không còn lỗi nào.**
+
+---
+
+## [2026-07-24 11:32:00] - Thêm Khoảng Thời Gian Bộ Lọc Vào Note & Log Đối Chiếu CHECK_KLGD
+
+### 1. Mục tiêu Thay đổi
+- USER yêu cầu: Khi check thủ công hoặc bot tự động chạy `CHECK_KLGD`, note ghi vào checklist task và job log phải hiển thị rõ **khoảng thời gian (sessionStart → checkTime)** mà bộ lọc dữ liệu đã sử dụng, để kiểm soát viên biết hệ thống đang lấy dữ liệu ở khung giờ nào.
+
+### 2. Danh sách File Chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+
+**`reconciliation.service.ts`** — hàm `checkKLGD()`:
+- **Trước**: Không trả về `sessionStart` và `checkTime` trong kết quả.
+- **Sau**: Bổ sung `sessionStart` và `checkTime` vào object trả về để caller (controller/job) có thể dùng ghi log.
+
+**`reconciliation.controller.ts`** — endpoint `POST /upload-klgd` (check thủ công):
+- **Trước**: Note ghi vào checklist task không có thông tin thời gian lọc.
+- **Sau**: Nếu `result.sessionStart && result.checkTime` tồn tại, thêm dòng `• Khoảng thời gian lọc: từ [start] đến [end]` vào đầu note trước khi lưu vào DB. Note được format JSON chuẩn.
+
+**`bot-job-queue.service.ts`** — `syncJobToChecklist` / `CHECK_KLGD` (đã có trước):
+- Xác nhận: Luồng bot tự động đã có sẵn log thời gian lọc tại `handleCheckKlgdJob` (job.logs) và `getReconciliationJson` (note DB). Không cần sửa thêm.
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend đang chạy `npm run start:dev` với hot-reload — tự động áp dụng thay đổi.
+- Lần check tiếp theo sẽ hiển thị `• Khoảng thời gian lọc: từ ... đến ...` trong note kết quả.
+
+---
+
 ## [2026-07-24 11:15:00] - Hỗ Trợ Lưu Kết Quả JSON Đối Chiếu Trong Phiên (CHECK_KLGD) & Giao Diện Xem Lịch Sử Các Lần Quét
+
 
 ### 1. Mục tiêu Thay đổi
 - Tích hợp cấu trúc dữ liệu JSON chi tiết của luồng đối chiếu khớp lệnh trong phiên (`CHECK_KLGD`) để hiển thị báo cáo trực quan (Visual Report) thay vì chỉ lưu text thô.

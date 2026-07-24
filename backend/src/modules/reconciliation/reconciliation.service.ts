@@ -44,6 +44,8 @@ export interface CheckKLGDResult {
     psValue: number;
     differ: number;
   }>;
+  sessionStart?: Date;
+  checkTime?: Date;
 }
 
 @Injectable()
@@ -782,7 +784,8 @@ export class ReconciliationService {
 
     let checkTime: Date;
     if (isPastDateOrDateOnly) {
-      // Historical check or date-only upload: include the entire 24h session window
+      // Historical check or date-only upload:
+      // tradingDate là ngày bắt đầu phiên (do FE truyền vào), checkTime = sessionStart + 1 ngày
       sessionStart.setHours(sHour, sMin, 0, 0);
       while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);
@@ -1081,6 +1084,8 @@ export class ReconciliationService {
       mismatchedTrades,
       mismatchedTTM,
       mismatchedTTTT: files.tttt ? mismatchedTTTT : undefined,
+      sessionStart,
+      checkTime,
     };
   }
 
@@ -1796,7 +1801,8 @@ export class ReconciliationService {
     let checkTime: Date;
 
     if (isPastDateOrDateOnly) {
-      // Historical check or date-only upload: include the entire 24h session window
+      // Historical check or date-only upload:
+      // tradingDate là ngày bắt đầu phiên (do FE truyền vào), checkTime = sessionStart + 1 ngày
       sessionStart.setHours(sHour, sMin, 0, 0);
       while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) { // 0: Sunday, 6: Saturday
         sessionStart.setDate(sessionStart.getDate() - 1);

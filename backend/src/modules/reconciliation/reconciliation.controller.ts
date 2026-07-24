@@ -111,42 +111,57 @@ export class ReconciliationController {
 
       const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
       
-      let note = `[ĐỐI CHIẾU TỰ ĐỘNG]\n`;
-      note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalDSGD} vs ${result.totals.totalFR} lot (Chênh lệch: ${result.totals.differ} lot)\n`;
-      note += `• Khớp lệnh tự doanh (MS vs ACM): ${result.totals.totalACM} vs ${result.totals.totalNano} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
+      let noteText = `[ĐỐI CHIẾU TỰ ĐỘNG]\n`;
+      if (result.sessionStart && result.checkTime) {
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        noteText += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+      }
+      noteText += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalDSGD} vs ${result.totals.totalFR} lot (Chênh lệch: ${result.totals.differ} lot)\n`;
+      noteText += `• Khớp lệnh tự doanh (MS vs ACM): ${result.totals.totalACM} vs ${result.totals.totalNano} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       
       if (result.totals.totalTTTT !== undefined) {
-        note += `• Khớp lệnh tất toán (TTTT vs PS): ${result.totals.totalTTTT} vs ${result.totals.totalPS} lot (Chênh lệch: ${result.totals.differTTTT} lot)\n`;
+        noteText += `• Khớp lệnh tất toán (TTTT vs PS): ${result.totals.totalTTTT} vs ${result.totals.totalPS} lot (Chênh lệch: ${result.totals.differTTTT} lot)\n`;
       }
 
       if (result.mismatchedTrades.length > 0) {
-        note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        noteText += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach(m => {
-          note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
+          noteText += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
         if (result.mismatchedTrades.length > 10) {
-          note += `  ... và ${result.mismatchedTrades.length - 10} giao dịch khác.\n`;
+          noteText += `  ... và ${result.mismatchedTrades.length - 10} giao dịch khác.\n`;
         }
       } else {
-        note += `✓ Không có lệch chi tiết khớp lệnh.\n`;
+        noteText += `✓ Không có lệch chi tiết khớp lệnh.\n`;
       }
 
       if (result.mismatchedTTM.length > 0) {
-        note += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
+        noteText += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
         result.mismatchedTTM.slice(0, 10).forEach(m => {
-          note += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
+          noteText += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
         });
       }
 
       if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
-        note += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
+        noteText += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
         result.mismatchedTTTT.slice(0, 10).forEach(m => {
-          note += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
+          noteText += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
       }
 
+      const noteJson = JSON.stringify({
+        success: !hasDiscrepancy,
+        message: noteText,
+        result,
+        type: 'KLGD',
+        attempts: 1,
+        maxAttempts: 1,
+        executedAt: new Date().toISOString()
+      });
+
       // Update the checklist task status using ShiftsService
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
+      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
 
       return {
         success: !hasDiscrepancy,
@@ -231,7 +246,18 @@ export class ReconciliationController {
           note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
         }
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
+        const noteJson = JSON.stringify({
+          success: !hasDiscrepancy,
+          message: note,
+          result,
+          type: 'CQG',
+          usdRate,
+          attempts: 1,
+          maxAttempts: 1,
+          executedAt: new Date().toISOString()
+        });
+
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
 
         return {
           success: !hasDiscrepancy,
@@ -271,7 +297,21 @@ export class ReconciliationController {
           note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
         }
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
+        const noteJson = JSON.stringify({
+          success: !hasDiscrepancy,
+          message: note,
+          result: {
+            negativeBalanceAccs: result.negativeBalanceAccs || [],
+            negativeIMRAcc: result.negativeIMRAcc || [],
+            cqgResult: []
+          },
+          type: 'EOD',
+          attempts: 1,
+          maxAttempts: 1,
+          executedAt: new Date().toISOString()
+        });
+
+        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
 
         return {
           success: !hasDiscrepancy,
@@ -721,7 +761,17 @@ export class ReconciliationController {
         }
       }
 
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, note, true);
+      const noteJson = JSON.stringify({
+        success: result.passed,
+        message: note,
+        result,
+        type: 'PRE_EOD',
+        attempts: 1,
+        maxAttempts: 1,
+        executedAt: new Date().toISOString()
+      });
+
+      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
 
       return {
         success: true,
