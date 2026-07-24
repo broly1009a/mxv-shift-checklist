@@ -998,6 +998,42 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             });
           }
 
+          if (jobType === 'CHECK_KLGD') {
+            let note = `[ĐỐI CHIẾU KLGD]\n`;
+            note += runInfo;
+            if (result.sessionStart && result.checkTime) {
+              const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+            }
+            note += `• Tổng lot M-System: ${result.totals?.totalDSGD || 0} lot\n`;
+            note += `• Tổng lot CQG: ${result.totals?.totalFR || 0} lot (Chênh lệch: ${result.totals?.differ || 0} lot)\n`;
+            note += `• Tổng lot ACM: ${result.totals?.totalACM || 0} lot\n`;
+            note += `• Tổng lot Nano: ${result.totals?.totalNano || 0} lot (Chênh lệch: ${result.totals?.differACM || 0} lot)\n`;
+            note += `• Tất toán M-System (TTTT): ${result.totals?.totalTTTT || 0} lot\n`;
+            note += `• Tổng PS CQG (S Value): ${result.totals?.totalPS || 0} lot (Chênh lệch: ${result.totals?.differTTTT || 0} lot)\n`;
+
+            const mismatchedTrades = result.mismatchedTrades || [];
+            if (mismatchedTrades.length > 0) {
+              note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch lệch chi tiết:\n`;
+              mismatchedTrades.slice(0, 10).forEach((t: any) => {
+                note += `  - [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}\n`;
+              });
+            } else {
+              note += `✓ Dữ liệu khớp hoàn toàn.\n`;
+            }
+
+            return JSON.stringify({
+              success,
+              message: note,
+              result,
+              type: 'KLGD',
+              attempts: job.attempts || 1,
+              maxAttempts: job.maxAttempts || 3,
+              executedAt: new Date().toISOString()
+            });
+          }
+
           if (jobType === 'CHECK_PRE_EOD') {
             let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
             note += runInfo;
@@ -1114,7 +1150,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = `RPA tải báo cáo thành công: ${targets.join(', ')}`;
           } else if (job.jobType === 'DOWNLOAD_CAST') {
             message = 'Tải báo cáo CQG CAST Balances thành công.';
-          } else if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
+          } else if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD'].includes(job.jobType)) {
             const jsonMsg = getReconciliationJson(job.jobType, payload, true);
             if (jsonMsg) {
               message = jsonMsg;
@@ -1151,7 +1187,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
           let message = lastLog;
 
-          if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'].includes(job.jobType)) {
+          if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD'].includes(job.jobType)) {
             const jsonMsg = getReconciliationJson(job.jobType, payload, false);
             if (jsonMsg) {
               message = jsonMsg;
@@ -1174,7 +1210,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'FAILED',
             systemUser,
-            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)
+            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)
               ? message
               : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`),
             true

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, BarChart2, Terminal, Server, FolderCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { ParsedBotData, FileAuditItem, MarginAccount, MismatchedTrade } from './bot-log-viewer/types';
 import { ReconciliationVisualReport } from './bot-log-viewer/ReconciliationVisualReport';
@@ -6,6 +6,7 @@ import { FileAuditVisualReport } from './bot-log-viewer/FileAuditVisualReport';
 import { SystemApiVisualReport } from './bot-log-viewer/SystemApiVisualReport';
 import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 
 interface BotLogViewerModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface BotLogViewerModalProps {
   resultNote?: string;
   checkedAt?: string | Date;
   status?: string;
+  shiftLogId?: string;
 }
 
 export default function BotLogViewerModal({
@@ -25,11 +27,62 @@ export default function BotLogViewerModal({
   resultNote = '',
   checkedAt,
   status = 'COMPLETED',
+  shiftLogId,
 }: BotLogViewerModalProps) {
   const [activeTab, setActiveTab] = useState<'visual' | 'raw'>('visual');
+  const [historyJobs, setHistoryJobs] = useState<any[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && shiftLogId && taskId && token) {
+      fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?shiftLogId=${shiftLogId}&taskId=${taskId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setHistoryJobs(data);
+            if (data.length > 0) {
+              setSelectedJobId(data[0]._id || data[0].id);
+            }
+          }
+        })
+        .catch(err => console.error('Lỗi tải lịch sử chạy bot:', err));
+    }
+  }, [isOpen, shiftLogId, taskId, token]);
+
+  const selectedJob = useMemo(() => {
+    return historyJobs.find(j => (j._id || j.id) === selectedJobId);
+  }, [historyJobs, selectedJobId]);
+
+  const activeResultNote = useMemo(() => {
+    if (!selectedJob) return resultNote;
+    const payload = selectedJob.payload || {};
+    const result = payload.result;
+    if (!result) return selectedJob.logs?.join('\n') || '';
+
+    let type = '';
+    if (selectedJob.jobType === 'CHECK_KLGD') type = 'KLGD';
+    else if (selectedJob.jobType === 'AUTO_CHECK_SOD') type = 'CQG';
+    else if (selectedJob.jobType === 'CHECK_PRE_EOD') type = 'PRE_EOD';
+    else if (selectedJob.jobType === 'CHECK_EOD_MM') type = 'EOD';
+
+    return JSON.stringify({
+      type,
+      result,
+      message: selectedJob.logs?.join('\n') || '',
+      success: selectedJob.status === 'COMPLETED'
+    });
+  }, [selectedJob, resultNote]);
+
+  const activeStatus = selectedJob ? selectedJob.status : status;
+  const activeCheckedAt = selectedJob ? selectedJob.updatedAt || selectedJob.createdAt : checkedAt;
 
   const parsedData = useMemo<ParsedBotData>(() => {
-    if (!resultNote) {
+    if (!activeResultNote) {
       return {
         isJson: false,
         jsonType: '',
@@ -42,15 +95,15 @@ export default function BotLogViewerModal({
     }
 
     let isJson = false;
-    let text = resultNote;
+    let text = activeResultNote;
     let message = '';
     let jsonType = '';
     let jsonResult: any = null;
 
     try {
-      const json = JSON.parse(resultNote);
+      const json = JSON.parse(activeResultNote);
       isJson = true;
-      text = json.message || resultNote;
+      text = json.message || activeResultNote;
       message = json.message || '';
       jsonType = json.type || '';
       jsonResult = json.result || null;
@@ -160,7 +213,7 @@ export default function BotLogViewerModal({
                       text.match(/(?:tài khoản âm):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i);
         if (match) {
           const accountsStr = match[1].trim();
-          accountsStr.split(',').forEach((token) => {
+          accountsStr.split(',').forEach((token: string) => {
             const trimmedToken = token.trim();
             if (!trimmedToken) return;
 
@@ -203,7 +256,7 @@ export default function BotLogViewerModal({
 
       if (cqgDiscrepancies.length === 0 && text.includes('TK ')) {
         const lines = text.split('\n');
-        lines.forEach((line) => {
+        lines.forEach((line: string) => {
           const trimmed = line.trim();
           const match = trimmed.match(/TK\s+([a-zA-Z0-9-]+):\s*MS\s*\$?([\d.,]+)\s*vs\s*CQG\s*\$?([\d.,]+)\s*\(Chênh lệch:\s*\$?([\d.,]+)\)/i);
           if (match) {
@@ -278,7 +331,7 @@ export default function BotLogViewerModal({
       if (!isJson) {
         const lines = text.split('\n');
         let mode: 'trades' | 'positions' | 'none' = 'none';
-        lines.forEach(line => {
+        lines.forEach((line: string) => {
           const trimmed = line.trim();
           if (trimmed.includes('giao dịch bị lệch chi tiết:')) {
             mode = 'trades';
@@ -448,7 +501,7 @@ export default function BotLogViewerModal({
     // Parse File items for File Audit
     const fileItems: FileAuditItem[] = [];
     const fileLines = text.split('\n');
-    fileLines.forEach((fl, idx) => {
+    fileLines.forEach((fl: string, idx: number) => {
       const trimmed = fl.trim();
       if (trimmed.includes('.xlsx') || trimmed.includes('.csv') || trimmed.includes('.txt') || trimmed.toLowerCase().includes('file')) {
         let fileStatus: 'OK' | 'MISSING' | 'OUTDATED' | 'DOWNLOADED' = 'OK';
@@ -474,7 +527,7 @@ export default function BotLogViewerModal({
       const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+)$/i) || text.match(/(?:tài khoản âm):\s*([\s\S]+)$/i);
       if (match) {
         const accountsStr = match[1].trim();
-        accountsStr.split(',').forEach((token) => {
+        accountsStr.split(',').forEach((token: string) => {
           const trimmedToken = token.trim();
           if (!trimmedToken) return;
 
@@ -500,7 +553,7 @@ export default function BotLogViewerModal({
       fileItems,
       marginAccounts
     };
-  }, [resultNote, taskTitle]);
+  }, [activeResultNote, taskTitle, taskId]);
 
   const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION' | 'MARGIN_DECISION'>(() => {
     if (parsedData.jsonType === 'MARGIN_DECISION') {
@@ -568,7 +621,7 @@ export default function BotLogViewerModal({
   if (!isOpen) return null;
 
   const isFailed =
-    status === 'FAILED' ||
+    activeStatus === 'FAILED' ||
     (parsedData.isJson && !parsedData.jsonResult?.passed && (parsedData.jsonType === 'KLGD' || parsedData.jsonType === 'PRE_EOD')) ||
     (parsedData.jsonType === 'CQG' && parsedData.jsonResult?.length > 0);
 
@@ -614,7 +667,7 @@ export default function BotLogViewerModal({
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {category === 'MARGIN_DECISION' && <FileCheck size={18} color="#34d399" />}
               {category === 'SYSTEM_API' && <Server size={18} color="#ec4899" />}
               {category === 'FILE_AUDIT' && <FolderCheck size={18} color="#f59e0b" />}
@@ -632,7 +685,7 @@ export default function BotLogViewerModal({
                 )}
               </h3>
 
-              {status === 'WAITING' ? (
+              {activeStatus === 'WAITING' ? (
                 <span style={{ fontSize: '0.68rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                   ⏳ ĐANG XỬ LÝ
                 </span>
@@ -645,9 +698,42 @@ export default function BotLogViewerModal({
                   ✓ ĐẠT YÊU CẦU
                 </span>
               )}
+
+              {/* Lịch sử lần chạy selector */}
+              {historyJobs.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lần quét:</span>
+                  <select
+                    value={selectedJobId}
+                    onChange={(e) => setSelectedJobId(e.target.value)}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    {historyJobs.map((j, index) => {
+                      const date = new Date(j.createdAt);
+                      const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                      const statusStr = j.status === 'COMPLETED' ? 'Khớp' : j.status === 'PROCESSING' ? 'Đang chạy' : 'Lệch/Lỗi';
+                      return (
+                        <option key={j._id || j.id} value={j._id || j.id}>
+                          Lượt #{historyJobs.length - index} ({timeStr}) - {statusStr}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
             </div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '6px 0 0 0' }}>
-              Tác vụ: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{taskTitle}</span> {checkedAt && `• Thực hiện lúc ${new Date(checkedAt).toLocaleTimeString('vi-VN')}`}
+              Tác vụ: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{taskTitle}</span> {activeCheckedAt && `• Thực hiện lúc ${new Date(activeCheckedAt).toLocaleTimeString('vi-VN')}`}
             </p>
           </div>
           <button

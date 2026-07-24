@@ -750,6 +750,7 @@ function ChecklistWorksheet() {
           resultNote={viewingBotLog.resultNote}
           status={viewingBotLog.status}
           checkedAt={viewingBotLog.checkedAt}
+          shiftLogId={shiftLogId}
         />
       )}
     </>

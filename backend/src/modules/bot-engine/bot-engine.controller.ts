@@ -311,8 +311,18 @@ export class BotEngineController {
    * Retrieves all recent jobs and their execution logs.
    */
   @Get('jobs')
-  async getJobs() {
-    return this.botJobModel.find().sort({ createdAt: -1 }).limit(50).exec();
+  async getJobs(
+    @Query('shiftLogId') shiftLogId?: string,
+    @Query('taskId') taskId?: string,
+  ) {
+    const query: any = {};
+    if (shiftLogId) {
+      query['payload.shiftLogId'] = shiftLogId;
+    }
+    if (taskId) {
+      query['payload.taskId'] = taskId;
+    }
+    return this.botJobModel.find(query).sort({ createdAt: -1 }).limit(50).exec();
   }
 
   /**

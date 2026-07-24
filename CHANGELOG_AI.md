@@ -4,6 +4,39 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 11:15:00] - Hỗ Trợ Lưu Kết Quả JSON Đối Chiếu Trong Phiên (CHECK_KLGD) & Giao Diện Xem Lịch Sử Các Lần Quét
+
+### 1. Mục tiêu Thay đổi
+- Tích hợp cấu trúc dữ liệu JSON chi tiết của luồng đối chiếu khớp lệnh trong phiên (`CHECK_KLGD`) để hiển thị báo cáo trực quan (Visual Report) thay vì chỉ lưu text thô.
+- Hỗ trợ xem lại lịch sử các lần chạy định kỳ (1 tiếng/lần) trực tiếp trên giao diện checklist để kiểm soát viên có cái nhìn trực quan qua từng thời điểm.
+
+### 2. Danh sách File Chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+- [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+- [page.tsx (checklist)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+- [page.tsx (history)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`bot-job-queue.service.ts`**:
+  - Bổ sung định dạng JSON trả về cho loại job `CHECK_KLGD` trong hàm `getReconciliationJson()` tương tự như đối chiếu SOD/Pre-EOD.
+  - Cấu hình đưa `CHECK_KLGD` vào danh sách các job tự động đồng bộ kết quả dưới dạng JSON có cấu trúc khi `COMPLETED` hoặc `FAILED` để lưu vào `resultNote` của checklist.
+- **`bot-engine.controller.ts`**:
+  - Nâng cấp API `GET /api/v1/bot-engine/jobs` hỗ trợ nhận query params `shiftLogId` và `taskId` nhằm lọc ra danh sách lịch sử tất cả các lượt quét (runs/attempts) của riêng tác vụ đó.
+- **`BotLogViewerModal.tsx`**:
+  - Hỗ trợ nhận prop `shiftLogId` và gọi API lấy danh sách các lượt quét bot đã thực hiện trong ca.
+  - Tích hợp `useAuth` để lấy `token` xác thực và đính kèm vào header `Authorization: Bearer <token>` khi gọi API, tránh lỗi 401 Unauthorized dẫn đến việc bị đẩy ra trang đăng nhập.
+  - Thêm phần chọn lượt chạy (Dropdown select) ở header dạng: `Lượt #2 (10:49:07) - Khớp`, `Lượt #1 (09:49:05) - Khớp`...
+  - Khi người dùng thay đổi lượt quét, nội dung Visual Report và Console Log tự động cập nhật theo lượt quét tương ứng.
+  - Khắc phục các lỗi biên dịch ẩn (`implicit any`) của TS trong component.
+- **`frontend/src/app/checklist/page.tsx` & `frontend/src/app/history/page.tsx`**:
+  - Truyền prop `shiftLogId` vào `BotLogViewerModal` từ dữ liệu ca trực hiện tại.
+
+### 4. Xác nhận Build/Kiểm thử
+- Cả hai đầu dự án Frontend và Backend đều chạy biên dịch `npx tsc --noEmit` thành công 100%.
+
+---
+
 ## [2026-07-24 11:00:00] - Phân Định Đúng File ACM Cho 2 Luồng: Nano/Fill Trong Phiên & Straits Cho EOD
 
 ### 1. Mục tiêu Thay đổi

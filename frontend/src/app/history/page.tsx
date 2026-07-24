@@ -674,6 +674,7 @@ function HistoryAudit() {
           resultNote={viewingBotLog.resultNote}
           status={viewingBotLog.status}
           checkedAt={viewingBotLog.checkedAt}
+          shiftLogId={activeDetail?._id}
         />
       )}
     </ProtectedRoute>
