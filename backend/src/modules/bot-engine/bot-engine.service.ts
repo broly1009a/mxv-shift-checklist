@@ -334,13 +334,43 @@ export class BotEngineService {
               });
               checkResult = { success: false, message: 'Đang bắt đầu đối chiếu SOD...' };
             } else {
-              if (existingJob.status === 'COMPLETED') {
-                const lastLog = existingJob.logs[existingJob.logs.length - 1] || 'Đối chiếu số dư đầu ngày SOD khớp hoàn toàn.';
-                checkResult = { success: true, message: lastLog };
-              } else if (existingJob.status === 'FAILED') {
-                const logsSummary = existingJob.logs.join('\n');
-                checkResult = { success: false, message: `Đối chiếu SOD thất bại:\n${logsSummary}` };
-                (checkResult as any).forceFailed = true;
+              if (existingJob.status === 'COMPLETED' || existingJob.status === 'FAILED') {
+                const jobPayload = existingJob.payload instanceof Map ? Object.fromEntries(existingJob.payload) : (existingJob.payload || {});
+                const resData = jobPayload.result || {};
+                const discrepancies = resData.discrepancies || resData || [];
+                const isSuccess = existingJob.status === 'COMPLETED' && (!Array.isArray(discrepancies) || discrepancies.length === 0);
+                const usdRate = resData.usdRate || 26320;
+
+                let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
+                note += `• Lượt quét: Lượt #${existingJob.attempts || 1}/${existingJob.maxAttempts || 3} (Lúc ${new Date().toLocaleTimeString('vi-VN')})\n`;
+                note += `• Số tài khoản chênh lệch (> 100 USD): ${Array.isArray(discrepancies) ? discrepancies.length : 0}\n`;
+                if (Array.isArray(discrepancies) && discrepancies.length > 0) {
+                  note += `⚠️ Danh sách tài khoản lệch:\n`;
+                  discrepancies.slice(0, 10).forEach((r: any) => {
+                    note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ?.toFixed(2)})\n`;
+                  });
+                  if (discrepancies.length > 10) {
+                    note += `  ... và ${discrepancies.length - 10} tài khoản khác.\n`;
+                  }
+                } else {
+                  note += `✓ Số dư khớp hoàn toàn giữa M-System và CQG.\n`;
+                }
+
+                const jsonMsg = JSON.stringify({
+                  success: isSuccess,
+                  message: note,
+                  result: Array.isArray(discrepancies) ? discrepancies : [],
+                  type: 'CQG',
+                  usdRate
+                });
+
+                checkResult = { 
+                  success: isSuccess, 
+                  message: jsonMsg 
+                };
+                if (!isSuccess) {
+                  (checkResult as any).forceFailed = true;
+                }
               } else {
                 const logsSummary = existingJob.logs.length > 0 ? existingJob.logs.join('\n') : 'Đang thực hiện đối chiếu số dư đầu ngày SOD...';
                 checkResult = { success: false, message: logsSummary };

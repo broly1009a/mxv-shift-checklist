@@ -19,11 +19,15 @@ class CompactConsoleLogger extends ConsoleLogger {
   }
 }
 
+import { json, urlencoded } from 'express';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: new CompactConsoleLogger(),
   });
   app.enableCors(); // Enables communication between NextJS frontend and NestJS backend
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 }

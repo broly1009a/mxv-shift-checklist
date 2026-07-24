@@ -154,3 +154,105 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 ### 4. Kết quả Kiểm thử & Build
 - **Backend (`npm run build`)**: PASSED (0 lỗi)
 - **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:07:00] - Khắc phục Lỗi `PayloadTooLargeError` Khi Gửi Kết Quả Báo Cáo Lớn
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi `PayloadTooLargeError: request entity too large` (expected 180KB > limit 100KB) khi Bot cập nhật kết quả báo cáo dài (ví dụ danh sách 181 tài khoản âm ký quỹ hoặc danh sách chênh lệch khớp lệnh chi tiết).
+
+### 2. Danh sách File Chỉnh sửa
+- [main.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/main.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`main.ts`**:
+  - Khai báo Middleware `express.json({ limit: '50mb' })` và `express.urlencoded({ limit: '50mb', extended: true })`.
+  - Nâng giới hạn dung lượng Request Body tối đa từ **100KB mặc định lên 50MB**, giúp nhận dữ liệu báo cáo lớn mượt mà không bị nghẽn HTTP 413.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:16:00] - Tối Ưu Giao Diện Thông Báo (Toast Notification & Line Clamp)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi thông báo Popup quá dài che mất nút "Chốt Ca Trực", không tự ẩn/tắt được và làm tràn giao diện khi có thông báo lớn (như danh sách âm ký quỹ).
+
+### 2. Danh sách File Chỉnh sửa
+- [NotificationDropdown.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/NotificationDropdown.tsx)
+- [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`NotificationDropdown.tsx`**:
+  - Giới hạn chiều rộng tối đa Toast `maxWidth: 360px` và cắt bớt văn bản tối đa 2 dòng (`WebkitLineClamp: 2`, `textOverflow: ellipsis`).
+  - Bổ sung nút bấm đóng nhanh **`✕`** và cho phép click vào Toast để tắt ngay lập tức (`toast.dismiss(t.id)`).
+  - Cắt bớt văn bản nội dung danh sách thông báo trong Tray xuống tối đa 2 dòng.
+- **`layout.tsx`**:
+  - Đặt `containerStyle` cho `<Toaster />` với vị trí `top: 72px` giúp thông báo đẩy xuống dưới thanh Header, không còn đè lên nút "Chốt Ca Trực".
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:19:00] - Đồng Bộ Tổng Số Tài Khoản Lệch SOD CQG Trong Giao Diện Modal (Total vs Sample Count)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục sự lệch con số giữa Tiêu đề/Telegram (`1121 tài khoản`) và Thẻ Summary Card trên Giao diện Modal (`10 tài khoản`).
+
+### 2. Danh sách File Chỉnh sửa
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+- [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`BotLogViewerModal.tsx`**:
+  - Trích xuất `totalCount` thực tế từ chuỗi Note văn bản (ví dụ: `1121 tài khoản`) khi bóc tách thông tin.
+- **`ReconciliationVisualReport.tsx`**:
+  - Hiển thị đúng **tổng số 1121 tài khoản** trên Thẻ Summary Card đỏ.
+  - Cập nhật tiêu đề bảng hiển thị rõ: `(Mẫu 10 / Tổng 1121)` để người dùng hiểu bảng đang liệt kê 10 mẫu trích xuất từ 1121 tài khoản thực tế.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:27:00] - Bổ Sung Thông Tin Lượt Quét & Thời Gian Thực Hiện Vào Log Tác Vụ (`AUTO_CHECK_SOD`, `CHECK_PRE_EOD`, `CHECK_EOD_MM`)
+
+### 1. Mục tiêu Thay đổi
+- Bổ sung thông tin số lượt quét (Lượt #1/3, #2/3...) và giờ thực hiện chính xác vào log tóm tắt đối chiếu để chuyên viên vận hành dễ dàng theo dõi lịch sử chạy lại của Bot.
+
+### 2. Danh sách File Chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`bot-job-queue.service.ts`**:
+  - Tự động bổ sung dòng `• Lượt quét: Lượt #X/Y (Lúc HH:MM:SS)` vào đầu mỗi thông báo kết quả đối chiếu tự động.
+  - Lưu cờ `attempts`, `maxAttempts`, `executedAt` vào JSON payload để phục vụ hiển thị chi tiết trên giao diện Web Modal.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-24 09:28:00] - Khắc phục Lỗi Không Hiển Thị Đủ Mảng 1121 Tài Khoản Lệch SOD Trên Giao Diện Web Modal
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục triệt để việc Giao diện Web chỉ hiển thị 10 tài khoản (Trang 1/1) khi bóc tách kết quả SOD CQG thay vì cho phép phân trang và tìm kiếm đầy đủ 1121 tài khoản.
+
+### 2. Danh sách File Chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`bot-engine.service.ts`**:
+  - Khi tác vụ `AUTO_CHECK_SOD` hoàn thành hoặc báo lỗi, Bot đóng gói chuẩn đối tượng JSON chứa mảng **toàn bộ 1121 tài khoản lệch** (`result: discrepancies`) vào `task.resultNote`.
+  - Giúp Frontend đọc trọn vẹn mảng 1121 tài khoản, hiển thị đủ 113 trang phân trang, hỗ trợ lọc ô tìm kiếm và bấm `Copy DS Lọc` lấy trọn vẹn 100% dữ liệu.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)

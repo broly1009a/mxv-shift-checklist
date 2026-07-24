@@ -190,12 +190,61 @@ export default function NotificationDropdown() {
             }
             
             toast((t) => (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>🔔 {title}</span>
-                <span style={{ fontSize: '0.8rem', opacity: 0.9, color: 'var(--text-secondary)' }}>{latest.message}</span>
+              <div 
+                onClick={() => toast.dismiss(t.id)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  maxWidth: '360px',
+                  width: '100%'
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', flex: 1 }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>🔔 {title}</span>
+                  <span style={{ 
+                    fontSize: '0.78rem', 
+                    opacity: 0.9, 
+                    color: 'var(--text-secondary)',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    lineHeight: '1.3'
+                  }}>
+                    {latest.message}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.dismiss(t.id);
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    flexShrink: 0,
+                    marginTop: '2px'
+                  }}
+                >
+                  ✕
+                </button>
               </div>
             ), {
-              duration: 5000,
+              duration: 4000,
             });
           }
           lastActivityIdRef.current = latestId;
@@ -448,7 +497,16 @@ export default function NotificationDropdown() {
                       )}
                       {title}
                     </p>
-                    <p style={{ color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
+                    <p style={{ 
+                      color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)', 
+                      margin: '0 0 4px 0', 
+                      lineHeight: '1.3',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
                       {act.message}
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

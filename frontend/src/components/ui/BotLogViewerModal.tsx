@@ -189,6 +189,12 @@ export default function BotLogViewerModal({
     // Parsing for CQG mode (SOD Balance Check)
     if (jsonType === 'CQG') {
       let cqgDiscrepancies: any[] = jsonResult?.result || jsonResult?.discrepancies || [];
+      let totalCount = jsonResult?.totalCount || (Array.isArray(cqgDiscrepancies) ? cqgDiscrepancies.length : 0);
+
+      const totalMatch = text.match(/Số tài khoản (?:chênh lệch|lệch).*?:\s*(\d+)/i);
+      if (totalMatch) {
+        totalCount = parseInt(totalMatch[1], 10);
+      }
 
       if (cqgDiscrepancies.length === 0 && text.includes('TK ')) {
         const lines = text.split('\n');
@@ -214,8 +220,8 @@ export default function BotLogViewerModal({
         ...(jsonResult || {}),
         discrepancies: cqgDiscrepancies,
         cqgDiscrepancies,
-        totalCount: cqgDiscrepancies.length,
-        passed: cqgDiscrepancies.length === 0
+        totalCount: totalCount || cqgDiscrepancies.length,
+        passed: (totalCount || cqgDiscrepancies.length) === 0
       };
     }
 

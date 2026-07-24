@@ -126,7 +126,7 @@ export const ReconciliationVisualReport: React.FC<ReconciliationVisualReportProp
           <div style={{ padding: '14px 16px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
             <div style={{ fontSize: '0.68rem', color: '#f87171', marginBottom: '4px', fontWeight: 700 }}>TÀI KHOẢN LỆCH SỐ DƯ CQG</div>
             <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f87171' }}>
-              {cqgDiscrepancies.length} tài khoản
+              {parsedData.jsonResult?.totalCount || cqgDiscrepancies.length} tài khoản
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               Chênh lệch số dư SOD (&gt; $100 USD)
@@ -430,7 +430,11 @@ export const ReconciliationVisualReport: React.FC<ReconciliationVisualReportProp
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertCircle size={14} color="#f87171" /> Danh sách tài khoản chênh lệch số dư CQG (Chênh lệch &gt; 100 USD) ({cqgDiscrepancies.length})
+              <AlertCircle size={14} color="#f87171" /> Danh sách tài khoản chênh lệch số dư CQG (Chênh lệch &gt; 100 USD) {
+                parsedData.jsonResult?.totalCount && parsedData.jsonResult.totalCount > cqgDiscrepancies.length
+                  ? `(Mẫu ${cqgDiscrepancies.length} / Tổng ${parsedData.jsonResult.totalCount})`
+                  : `(${cqgDiscrepancies.length})`
+              }
             </h4>
             {cqgDiscrepancies.length > 0 && (
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>

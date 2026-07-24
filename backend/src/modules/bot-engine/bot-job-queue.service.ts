@@ -966,9 +966,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         const getReconciliationJson = (jobType: string, payload: any, success: boolean): string | null => {
           const result = payload?.result;
           if (!result) return null;
+          const runInfo = `• Lượt quét: Lượt #${job.attempts || 1}/${job.maxAttempts || 3} (Lúc ${new Date().toLocaleTimeString('vi-VN')})\n`;
 
           if (jobType === 'AUTO_CHECK_SOD') {
             let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
+            note += runInfo;
             const discrepancies = result.discrepancies || [];
             note += `• Số tài khoản chênh lệch (> 100 USD): ${discrepancies.length}\n`;
             if (discrepancies.length > 0) {
@@ -987,12 +989,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               message: note,
               result: discrepancies,
               type: 'CQG',
-              usdRate: result.usdRate
+              usdRate: result.usdRate,
+              attempts: job.attempts || 1,
+              maxAttempts: job.maxAttempts || 3,
+              executedAt: new Date().toISOString()
             });
           }
 
           if (jobType === 'CHECK_PRE_EOD') {
             let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+            note += runInfo;
             if (result.sessionStart && result.checkTime) {
               const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
               const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -1031,7 +1037,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               success,
               message: note,
               result,
-              type: 'PRE_EOD'
+              type: 'PRE_EOD',
+              attempts: job.attempts || 1,
+              maxAttempts: job.maxAttempts || 3,
+              executedAt: new Date().toISOString()
             });
           }
 
@@ -1042,6 +1051,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             const negativeIMRAccCount = eodResult.negativeIMRAcc?.length || 0;
             
             let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
+            note += runInfo;
             note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
             note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
 
@@ -1076,7 +1086,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 negativeIMRAcc: eodResult.negativeIMRAcc || [],
                 cqgResult: cqgResult
               },
-              type: 'EOD'
+              type: 'EOD',
+              attempts: job.attempts || 1,
+              maxAttempts: job.maxAttempts || 3,
+              executedAt: new Date().toISOString()
             });
           }
 
