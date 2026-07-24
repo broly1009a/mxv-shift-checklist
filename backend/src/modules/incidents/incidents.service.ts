@@ -386,7 +386,20 @@ export class IncidentsService {
     };
 
     rNum++; // 15
-    writeLongField(rNum, 'Nguyên nhân chính:', incident.rootCause || 'Chưa xác định');
+    let rootCauseText = 'Chưa xác định';
+    if (incident.rootCause) {
+      switch (incident.rootCause) {
+        case 'MISSING_CONFIGURATION': rootCauseText = 'Thiếu cấu hình'; break;
+        case 'MESSAGE_SYNC_LOSS': rootCauseText = 'Mất đồng bộ tin nhắn'; break;
+        case 'SOFTWARE_BUG': rootCauseText = 'Lỗi phần mềm'; break;
+        case 'NETWORK_DISRUPTION': rootCauseText = 'Sự cố đường truyền/mạng'; break;
+        case 'DATA_FILE_ERROR': rootCauseText = 'Lỗi tệp tin / Dữ liệu'; break;
+        case 'THIRD_PARTY_ERROR': rootCauseText = 'Sự cố hệ thống liên kết / Bên thứ 3'; break;
+        case 'OTHER': rootCauseText = 'Nguyên nhân khác'; break;
+        default: rootCauseText = incident.rootCause; break;
+      }
+    }
+    writeLongField(rNum, 'Nguyên nhân chính:', rootCauseText);
     rNum++; // 16
     writeLongField(rNum, 'Yêu cầu SOP:', incident.requiredAction || '-');
     rNum++; // 17

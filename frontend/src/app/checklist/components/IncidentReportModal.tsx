@@ -84,6 +84,8 @@ export default function IncidentReportModal({
                 <option value="MESSAGE_SYNC_LOSS">MESSAGE_SYNC_LOSS (Mất đồng bộ tin nhắn)</option>
                 <option value="SOFTWARE_BUG">SOFTWARE_BUG (Lỗi phần mềm)</option>
                 <option value="NETWORK_DISRUPTION">NETWORK_DISRUPTION (Sự cố đường truyền/mạng)</option>
+                <option value="DATA_FILE_ERROR">DATA_FILE_ERROR (Lỗi tệp tin / Dữ liệu)</option>
+                <option value="THIRD_PARTY_ERROR">THIRD_PARTY_ERROR (Sự cố hệ thống liên kết / Bên thứ 3)</option>
                 <option value="OTHER">OTHER (Nguyên nhân khác)</option>
               </select>
             </div>

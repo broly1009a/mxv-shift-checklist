@@ -2058,10 +2058,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       // Resolve 6 files
       const dsgdCcpPath = path.join(dailyPath, 'DSGD.xlsx');
       let dsgdMmCcpBuffer: Buffer;
+      const dsgdMmCcpPathStd = path.join(dailyPath, 'DSGD MM CCP.xlsx');
       const dsgdMmCcpPath = path.join(dailyPath, 'DSGD-MM.xlsx');
       const dsgdMmCcpPath2 = path.join(dailyPath, 'DSGD_MM.xlsx');
 
-      if (fs.existsSync(dsgdMmCcpPath)) {
+      if (fs.existsSync(dsgdMmCcpPathStd)) {
+        dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPathStd);
+        log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPathStd}`);
+      } else if (fs.existsSync(dsgdMmCcpPath)) {
         dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPath);
         log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath}`);
       } else if (fs.existsSync(dsgdMmCcpPath2)) {

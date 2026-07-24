@@ -72,6 +72,43 @@ export class BotEngineService {
         role: 'ADMIN',
       };
 
+      // Pass 1: Periodic task reset pass based on frequencyMinutes
+      for (const log of activeLogs) {
+        let hasReset = false;
+        for (const task of log.details) {
+          if (task.isBotCheckSnapshot && task.frequencyMinutesSnapshot && task.frequencyMinutesSnapshot > 0) {
+            const isResolved = ['PASSED', 'FAILED', 'NEEDS_ATTENTION'].includes(task.status);
+            if (isResolved) {
+              const lastCheckedTime = task.checkedAt || task.completedAt || task.failedAt || task.needsAttentionAt;
+              if (lastCheckedTime) {
+                const diffMs = Date.now() - new Date(lastCheckedTime).getTime();
+                const diffMin = diffMs / (60 * 1000);
+                if (diffMin >= task.frequencyMinutesSnapshot) {
+                  this.logger.log(
+                    `[Bot] Periodic reset for Task [${task.taskId}] in ShiftLog [${log._id}] (Frequency: ${task.frequencyMinutesSnapshot}m, Stale for: ${Math.round(diffMin)}m).`
+                  );
+                  await this.shiftsService.updateTaskStatus(
+                    log._id.toString(),
+                    task.taskId,
+                    'PENDING',
+                    systemUser,
+                    `[Hệ thống tự động] Reset định kỳ ${task.frequencyMinutesSnapshot} phút để quét lại.`,
+                    true
+                  );
+                  hasReset = true;
+                }
+              }
+            }
+          }
+        }
+        if (hasReset) {
+          const updatedLog = await this.shiftLogModel.findById(log._id).exec();
+          if (updatedLog) {
+            log.details = updatedLog.details;
+          }
+        }
+      }
+
       for (const log of activeLogs) {
         for (const task of log.details) {
           // Check only bot-driven tasks that are not yet resolved (PASSED, SKIPPED)

@@ -154,7 +154,21 @@ export default function IncidentList({
                 {!isPending && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <div><strong>Nguyên nhân:</strong> {inc.rootCause}</div>
+                      <div>
+                        <strong>Nguyên nhân:</strong>{' '}
+                        {(() => {
+                          switch (inc.rootCause) {
+                            case 'MISSING_CONFIGURATION': return 'Thiếu cấu hình';
+                            case 'MESSAGE_SYNC_LOSS': return 'Mất đồng bộ tin nhắn';
+                            case 'SOFTWARE_BUG': return 'Lỗi phần mềm';
+                            case 'NETWORK_DISRUPTION': return 'Sự cố đường truyền/mạng';
+                            case 'DATA_FILE_ERROR': return 'Lỗi tệp tin / Dữ liệu';
+                            case 'THIRD_PARTY_ERROR': return 'Sự cố hệ thống liên kết / Bên thứ 3';
+                            case 'OTHER': return 'Nguyên nhân khác';
+                            default: return inc.rootCause || 'Chưa xác định';
+                          }
+                        })()}
+                      </div>
                       <div><strong>Giải quyết:</strong> {inc.remediationAction}</div>
                       {inc.affectedAccounts && inc.affectedAccounts.length > 0 && (
                         <div><strong>Tài khoản ảnh hưởng:</strong> {inc.affectedAccounts.join(', ')}</div>

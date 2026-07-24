@@ -352,9 +352,15 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
   ) => {
     return (
       <div
-        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
-          file ? 'border-emerald-500 bg-emerald-950/10' : 'border-slate-700 bg-slate-800/40 hover:border-slate-500'
-        }`}
+        style={{
+          border: file ? '2px dashed var(--color-primary)' : '2px dashed var(--border-color)',
+          borderRadius: '8px',
+          padding: '16px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          backgroundColor: file ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-input)',
+          transition: 'all 0.2s',
+        }}
         onClick={() => document.getElementById(id)?.click()}
       >
         <input
@@ -365,24 +371,32 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
           onChange={(e) => setFile(e.target.files?.[0] || null)}
         />
         {file ? (
-          <div className="flex flex-col items-center gap-1">
-            <CheckCircle2 className="text-emerald-400" size={24} />
-            <span className="text-xs font-semibold text-emerald-300 truncate max-w-[200px]">{file.name}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <CheckCircle2 style={{ color: 'var(--color-primary)' }} size={24} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }}>{file.name}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setFile(null);
               }}
-              className="text-[10px] text-red-400 hover:text-red-300 underline mt-1"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '0.7rem',
+                color: 'var(--color-critical)',
+                textDecoration: 'underline',
+                marginTop: '4px',
+                cursor: 'pointer',
+              }}
             >
               Hủy bỏ
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1 text-slate-400">
-            <Upload size={22} className="text-slate-500 mb-1" />
-            <span className="text-xs font-medium">{placeholder}</span>
-            <span className="text-[10px] text-slate-500">Chấp nhận .xlsx, .xls</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
+            <Upload size={22} style={{ color: 'var(--text-muted)', marginBottom: '4px' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{placeholder}</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Chấp nhận .xlsx, .xls</span>
           </div>
         )}
       </div>
@@ -390,24 +404,105 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '24px',
+    }}>
+      <div className="glass-panel" style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '960px',
+        maxHeight: '88vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: 'var(--glass-shadow)',
+        overflow: 'hidden',
+      }}>
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-950/60 border-b border-slate-800 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <FileSpreadsheet className="text-sky-400" size={24} />
-            <div>
-              <h2 className="text-lg font-bold text-slate-100">Báo cáo & Thống kê Giao dịch</h2>
-              <p className="text-xs text-slate-400">Kết xuất báo cáo đối chiếu, doanh thu TVKD & hàng hóa từ WinForms legacy</p>
+        <div style={{
+          padding: '18px 28px',
+          backgroundColor: 'var(--bg-sidebar)',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+            <div style={{
+              padding: '10px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              color: 'var(--color-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <FileSpreadsheet size={22} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0,
+                lineHeight: 1.4,
+              }}>
+                Báo cáo & Thống kê Giao dịch
+              </h2>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                margin: '2px 0 0 0',
+                lineHeight: 1.3,
+              }}>
+                Kết xuất báo cáo đối chiếu, doanh thu TVKD & hàng hóa từ WinForms legacy
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors">
+          <button 
+            onClick={onClose} 
+            style={{
+              padding: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <X size={20} />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex bg-slate-950/30 border-b border-slate-800 overflow-x-auto">
+        <div style={{
+          display: 'flex',
+          backgroundColor: 'var(--bg-input)',
+          borderBottom: '1px solid var(--border-color)',
+          padding: '0 28px',
+          overflowX: 'auto',
+          flexShrink: 0,
+        }}>
           {[
             { id: 'month', label: 'Báo cáo Tháng' },
             { id: 'quarter', label: 'Báo cáo Quý' },
@@ -418,11 +513,22 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id as any)}
-              className={`px-6 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-all ${
-                activeTab === t.id
-                  ? 'border-sky-500 text-sky-400 bg-sky-950/10'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-              }`}
+              style={{
+                padding: '12px 20px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+                borderBottom: activeTab === t.id ? '2px solid var(--color-accent)' : '2px solid transparent',
+                color: activeTab === t.id ? 'var(--color-accent)' : 'var(--text-secondary)',
+                backgroundColor: activeTab === t.id ? 'rgba(var(--color-accent-rgb), 0.08)' : 'transparent',
+                marginBottom: '-1px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+              }}
             >
               {t.label}
             </button>
@@ -430,17 +536,24 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
         </div>
 
         {/* Content Area */}
-        <div className="p-6 overflow-y-auto flex-1 bg-slate-900/60 text-slate-300">
+        <div style={{
+          padding: '24px',
+          overflowY: 'auto',
+          flex: 1,
+          backgroundColor: 'transparent',
+          color: 'var(--text-primary)',
+        }}>
           {/* TAB 1: Monthly Report */}
           {activeTab === 'month' && (
-            <div className="space-y-6 max-w-3xl mx-auto">
-              <div className="grid grid-cols-2 gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '768px', margin: '0 auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Tháng báo cáo</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Tháng báo cáo</label>
                   <select
                     value={month}
                     onChange={(e) => setMonth(parseInt(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <option key={m} value={m}>Tháng {m}</option>
@@ -448,49 +561,52 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Năm</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Năm</label>
                   <input
                     type="number"
                     value={year}
                     onChange={(e) => setYear(parseInt(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Giờ bắt đầu phiên (startSession)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Giờ bắt đầu phiên (startSession)</label>
                   <input
                     type="text"
                     value={startSession}
                     onChange={(e) => setStartSession(e.target.value)}
                     placeholder="07:00:00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Giờ kết thúc phiên (endSession)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Giờ kết thúc phiên (endSession)</label>
                   <input
                     type="text"
                     value={endSession}
                     onChange={(e) => setEndSession(e.target.value)}
                     placeholder="06:00:00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Các phân mục báo cáo</label>
-                <div className="flex flex-wrap gap-4 bg-slate-950/40 p-3 border border-slate-800/80 rounded-lg">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>Các phân mục báo cáo</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', backgroundColor: 'var(--bg-input)', padding: '12px 16px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   {Object.entries(monthReportTypes).map(([key, val]) => (
-                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', userSelect: 'none' }}>
                       <input
                         type="checkbox"
                         checked={val}
                         onChange={(e) => setMonthReportTypes((prev) => ({ ...prev, [key]: e.target.checked }))}
-                        className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500"
+                        style={{ accentColor: 'var(--color-accent)', width: '15px', height: '15px' }}
                       />
                       <span>
                         {key === 'Member' && 'Báo cáo TVKD'}
@@ -504,22 +620,23 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Giao dịch Tháng này (T)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Giao dịch Tháng này (T)</label>
                   {fileDropZone(monthDSGDT, setMonthDSGDT, 'Chọn file DSGDT.xlsx', 'monthDSGDT')}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Giao dịch Tháng trước (T-1)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Giao dịch Tháng trước (T-1)</label>
                   {fileDropZone(monthDSGDT1, setMonthDSGDT1, 'Chọn file DSGDT1.xlsx', 'monthDSGDT1')}
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
                 <button
                   onClick={handleExportMonth}
                   disabled={loading}
-                  className="btn btn-primary px-6 py-2.5 flex items-center gap-2 text-sm font-semibold"
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600 }}
                 >
                   <FileDown size={16} />
                   {loading ? 'Đang xử lý...' : 'Xuất Báo Cáo Tháng'}
@@ -530,56 +647,59 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
           {/* TAB 2: Quarterly Report */}
           {activeTab === 'quarter' && (
-            <div className="space-y-6 max-w-3xl mx-auto">
-              <div className="grid grid-cols-2 gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '768px', margin: '0 auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Từ ngày</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Từ ngày</label>
                   <input
                     type="date"
                     value={qStartDate}
                     onChange={(e) => setQStartDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Đến ngày</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Đến ngày</label>
                   <input
                     type="date"
                     value={qEndDate}
                     onChange={(e) => setQEndDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    className="form-input"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Danh sách giao dịch (DSGD)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Danh sách giao dịch (DSGD)</label>
                   {fileDropZone(quarterDSGD, setQuarterDSGD, 'Chọn file DSGD.xlsx', 'quarterDSGD')}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Tất toán (TTTT)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Tất toán (TTTT)</label>
                   {fileDropZone(quarterTTTT, setQuarterTTTT, 'Chọn file TTTT.xlsx', 'quarterTTTT')}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Chờ tất toán (Waiting TTTT)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Chờ tất toán (Waiting TTTT)</label>
                   {fileDropZone(quarterWaitingTTTT, setQuarterWaitingTTTT, 'Chọn file Waiting_TTTT.xlsx', 'quarterWaitingTTTT')}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Tỷ giá quy đổi (Tùy chọn)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Tỷ giá quy đổi (Tùy chọn)</label>
                   {fileDropZone(quarterConvertExchange, setQuarterConvertExchange, 'Chọn file Ty_gia.xlsx', 'quarterConvertExchange')}
-                  <p className="text-[10px] text-slate-500 mt-1">Nếu để trống, hệ thống sẽ sử dụng tỷ giá quy đổi được cấu hình trong DB.</p>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px', margin: '4px 0 0 0' }}>Nếu để trống, hệ thống sẽ sử dụng tỷ giá quy đổi được cấu hình trong DB.</p>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
                 <button
                   onClick={handleExportQuarter}
                   disabled={loading}
-                  className="btn btn-primary px-6 py-2.5 flex items-center gap-2 text-sm font-semibold"
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600 }}
                 >
                   <FileDown size={16} />
                   {loading ? 'Đang xử lý...' : 'Xuất Báo Cáo Quý'}
@@ -590,17 +710,17 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
           {/* TAB 3: TTTT Report */}
           {activeTab === 'tttt' && (
-            <div className="space-y-6 max-w-3xl mx-auto">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '768px', margin: '0 auto' }}>
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Các phân mục đối chiếu</label>
-                <div className="flex gap-4 bg-slate-950/40 p-3 border border-slate-800/80 rounded-lg">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>Các phân mục đối chiếu</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', backgroundColor: 'var(--bg-input)', padding: '12px 16px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                   {Object.entries(ttttReportTypes).map(([key, val]) => (
-                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', userSelect: 'none' }}>
                       <input
                         type="checkbox"
                         checked={val}
                         onChange={(e) => setTtttReportTypes((prev) => ({ ...prev, [key]: e.target.checked }))}
-                        className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500"
+                        style={{ accentColor: 'var(--color-accent)', width: '15px', height: '15px' }}
                       />
                       <span>
                         {key === 'Member' && 'Đối chiếu theo TVKD'}
@@ -611,22 +731,23 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Tất toán Tháng này (T)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Tất toán Tháng này (T)</label>
                   {fileDropZone(ttttT, setTtttT, 'Chọn file TTTT_T.xlsx', 'ttttT')}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">File Tất toán Tháng trước (T-1)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>File Tất toán Tháng trước (T-1)</label>
                   {fileDropZone(ttttT1, setTtttT1, 'Chọn file TTTT_T1.xlsx', 'ttttT1')}
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
                 <button
                   onClick={handleExportTttt}
                   disabled={loading}
-                  className="btn btn-primary px-6 py-2.5 flex items-center gap-2 text-sm font-semibold"
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600 }}
                 >
                   <FileDown size={16} />
                   {loading ? 'Đang xử lý...' : 'Xuất Báo Cáo Tất Toán'}
@@ -637,46 +758,62 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
           {/* TAB 4: Exchange Rates */}
           {activeTab === 'rates' && (
-            <div className="space-y-6">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Import Section & Single Form */}
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px' }}>
                 {/* List Exchange Rates */}
-                <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-4">
-                  <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                    <Calendar size={16} className="text-sky-400" />
+                <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-sidebar)' }}>
+                  <h3 style={{
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderBottom: '1px solid var(--border-color)',
+                    paddingBottom: '10px',
+                    margin: 0,
+                  }}>
+                    <Calendar size={16} style={{ color: 'var(--color-accent)' }} />
                     Danh sách tỷ giá hiệu lực
                   </h3>
-                  <div className="overflow-x-auto max-h-[350px]">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div style={{ overflowX: 'auto', maxHeight: '350px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                       <thead>
-                        <tr className="border-b border-slate-800 text-slate-400 font-semibold bg-slate-950/50">
-                          <th className="py-2 px-3">Từ tệ</th>
-                          <th className="py-2 px-3">Sang tệ</th>
-                          <th className="py-2 px-3 text-right">Tỷ giá quy đổi</th>
-                          <th className="py-2 px-3">Ngày bắt đầu</th>
-                          <th className="py-2 px-3">Ngày kết thúc</th>
-                          <th className="py-2 px-3 text-center">Hành động</th>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-input)' }}>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Từ tệ</th>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Sang tệ</th>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'right' }}>Tỷ giá quy đổi</th>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Ngày bắt đầu</th>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Ngày kết thúc</th>
+                          <th style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>Hành động</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rates.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="py-4 text-center text-slate-500">Chưa có cấu hình tỷ giá. Vui lòng thêm thủ công hoặc import.</td>
+                            <td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có cấu hình tỷ giá. Vui lòng thêm thủ công hoặc import.</td>
                           </tr>
                         ) : (
                           rates.map((rate) => (
-                            <tr key={rate._id} className="border-b border-slate-900/60 hover:bg-slate-800/20">
-                              <td className="py-2 px-3 font-semibold text-slate-200">{rate.fromCurrency}</td>
-                              <td className="py-2 px-3 text-slate-400">{rate.toCurrency}</td>
-                              <td className="py-2 px-3 text-right font-bold text-emerald-400">{rate.rate.toLocaleString()}</td>
-                              <td className="py-2 px-3 text-slate-400">{new Date(rate.effectiveFrom).toLocaleDateString('vi-VN')}</td>
-                              <td className="py-2 px-3 text-slate-500">
+                            <tr key={rate._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>{rate.fromCurrency}</td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{rate.toCurrency}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)' }}>{rate.rate.toLocaleString()}</td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{new Date(rate.effectiveFrom).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-muted)' }}>
                                 {rate.effectiveTo ? new Date(rate.effectiveTo).toLocaleDateString('vi-VN') : 'Đến nay'}
                               </td>
-                              <td className="py-2 px-3 text-center">
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                                 <button
                                   onClick={() => handleDeleteRate(rate._id)}
-                                  className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-950/20 transition-colors"
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    padding: '4px',
+                                    cursor: 'pointer',
+                                    color: 'var(--color-critical)',
+                                  }}
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -690,45 +827,66 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
                 </div>
 
                 {/* Operations side panel */}
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* Add rate manual */}
-                  <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-4">
-                    <h4 className="text-xs font-bold text-slate-200 uppercase mb-3 flex items-center gap-1.5">
-                      <Plus size={14} className="text-emerald-400" />
+                  <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-sidebar)' }}>
+                    <h4 style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      textTransform: 'uppercase',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      margin: '0 0 12px 0',
+                      borderBottom: '1px solid var(--border-color)',
+                      paddingBottom: '8px',
+                    }}>
+                      <Plus size={14} style={{ color: 'var(--color-primary)' }} />
                       Thêm tỷ giá thủ công
                     </h4>
-                    <div className="space-y-3 text-xs">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div>
-                        <label className="block text-slate-400 mb-1">Mã đồng tiền (fromCurrency)</label>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Mã đồng tiền (fromCurrency)
+                        </label>
                         <input
                           type="text"
                           value={newRate.fromCurrency}
                           onChange={(e) => setNewRate((prev) => ({ ...prev, fromCurrency: e.target.value.toUpperCase() }))}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none"
+                          className="form-input"
+                          style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                         />
                       </div>
                       <div>
-                        <label className="block text-slate-400 mb-1">Tỷ giá quy đổi sang VNĐ</label>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Tỷ giá quy đổi sang VNĐ
+                        </label>
                         <input
                           type="number"
                           placeholder="ví dụ: 25450"
                           value={newRate.rate}
                           onChange={(e) => setNewRate((prev) => ({ ...prev, rate: e.target.value }))}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none"
+                          className="form-input"
+                          style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                         />
                       </div>
                       <div>
-                        <label className="block text-slate-400 mb-1">Ngày phiên hiệu lực</label>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Ngày phiên hiệu lực
+                        </label>
                         <input
                           type="date"
                           value={newRate.effectiveFrom}
                           onChange={(e) => setNewRate((prev) => ({ ...prev, effectiveFrom: e.target.value }))}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none"
+                          className="form-input"
+                          style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
                         />
                       </div>
                       <button
                         onClick={handleCreateRate}
-                        className="w-full btn btn-primary py-2 font-semibold text-xs mt-2"
+                        className="btn btn-primary"
+                        style={{ width: '100%', padding: '10px', fontSize: '0.78rem', fontWeight: 600, marginTop: '4px' }}
                       >
                         Thêm tỷ giá
                       </button>
@@ -736,17 +894,29 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
                   </div>
 
                   {/* Upload excel rate sheet */}
-                  <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-4">
-                    <h4 className="text-xs font-bold text-slate-200 uppercase mb-3 flex items-center gap-1.5">
-                      <Upload size={14} className="text-sky-400" />
+                  <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-sidebar)' }}>
+                    <h4 style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      textTransform: 'uppercase',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      margin: '0 0 12px 0',
+                      borderBottom: '1px solid var(--border-color)',
+                      paddingBottom: '8px',
+                    }}>
+                      <Upload size={14} style={{ color: 'var(--color-accent)' }} />
                       Nhập tỷ giá từ Excel
                     </h4>
-                    <div className="space-y-3">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {fileDropZone(ratesFile, setRatesFile, 'Chọn file tỷ giá Excel', 'ratesFile')}
                       <button
                         onClick={handleImportRates}
                         disabled={isRatesUploading || !ratesFile}
-                        className="w-full btn btn-secondary py-2 font-semibold text-xs text-slate-200"
+                        className="btn btn-secondary"
+                        style={{ width: '100%', padding: '10px', fontSize: '0.78rem', fontWeight: 600 }}
                       >
                         {isRatesUploading ? 'Đang xử lý...' : 'Tải lên & Import'}
                       </button>
@@ -759,27 +929,29 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
           {/* TAB 5: System Configuration */}
           {activeTab === 'config' && (
-            <div className="space-y-4 flex flex-col h-full min-h-[450px]">
-              <div className="flex justify-between items-center">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: '450px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-200">Cấu hình danh mục hệ thống</h3>
-                  <p className="text-xs text-slate-500">Cho phép cập nhật danh mục TVKD, danh sách hàng hóa và ánh xạ mã LME/Tháng</p>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Cấu hình danh mục hệ thống</h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Cho phép cập nhật danh mục TVKD, danh sách hàng hóa và ánh xạ mã LME/Tháng</p>
                 </div>
                 <button
                   onClick={handleSaveConfig}
                   disabled={isSavingConfig}
-                  className="btn btn-primary px-5 py-2 flex items-center gap-2 text-sm font-semibold"
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}
                 >
                   <Save size={15} />
                   {isSavingConfig ? 'Đang lưu...' : 'Lưu cấu hình'}
                 </button>
               </div>
 
-              <div className="flex-1 min-h-[380px] relative">
+              <div style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
                 <textarea
                   value={systemConfigText}
                   onChange={(e) => setSystemConfigText(e.target.value)}
-                  className="w-full h-full min-h-[380px] bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                  className="form-input font-mono"
+                  style={{ minHeight: '380px', height: '100%', width: '100%', fontSize: '0.75rem', lineHeight: '1.4' }}
                   spellCheck={false}
                 />
               </div>

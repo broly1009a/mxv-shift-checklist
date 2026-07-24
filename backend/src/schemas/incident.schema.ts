@@ -50,7 +50,7 @@ export class Incident extends Document {
   @Prop({
     type: String,
     required: false,
-    enum: ['MISSING_CONFIGURATION', 'MESSAGE_SYNC_LOSS', 'SOFTWARE_BUG', 'NETWORK_DISRUPTION', 'OTHER', null],
+    enum: ['MISSING_CONFIGURATION', 'MESSAGE_SYNC_LOSS', 'SOFTWARE_BUG', 'NETWORK_DISRUPTION', 'DATA_FILE_ERROR', 'THIRD_PARTY_ERROR', 'OTHER', null],
     default: null
   })
   rootCause?: string | null;

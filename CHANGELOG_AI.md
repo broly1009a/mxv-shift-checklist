@@ -4,6 +4,259 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 15:25:00] - Fix: Đồng Bộ Giao Diện Toàn Diện Cho Tất Cả Các Tab Còn Lại Trong TradingReportModal
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Các tab Báo cáo Tháng (Tab 1), Báo cáo Quý (Tab 2), và Báo cáo Tất toán TTTT (Tab 3) trong `TradingReportModal` vẫn hiển thị các ô input, select có nền đen cứng và chữ label mờ trong giao diện Sáng (Light Mode), không đồng bộ và không lấy theo cấu hình CSS variables toàn cục.
+- **Giải pháp**:
+  - Cập nhật toàn bộ nhãn, input, select và khối checkbox của Tab 1, Tab 2, Tab 3 trong [`TradingReportModal.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx) sang sử dụng các biến CSS (`var(--text-secondary)`, `var(--bg-input)`, `var(--border-color)`) và class `.form-input` chuẩn của hệ thống.
+  - Sử dụng thuộc tính `accentColor: 'var(--color-accent)'` cho các checkbox để tạo điểm nhấn hiện đại.
+  - Định hình lại khoảng cách và bố cục lưới bằng display flex/grid phù hợp.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Thay thế các class Tailwind có màu slate cứng bằng inline styles sử dụng biến CSS và class hệ thống `.form-input` cho tất cả các tab 1, 2, 3.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: Biên dịch thành công 100% không phát sinh lỗi.
+
+---
+
+## [2026-07-24 15:21:00] - Fix: Đồng Bộ Giao Diện Tỷ Giá Quy Đổi (Tab 4) Và Cấu Hình (Tab 5) Theo Thiết Kế Bot Config
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Tab "Tỷ giá Quy đổi" (Tab 4) và "Cấu hình" (Tab 5) trong `TradingReportModal` hiển thị bảng, biểu mẫu nhập liệu và trường text bị lệch màu nghiêm trọng: label chữ đen đè lên nền xám tối, ô input mang màu nền đen cứng không tự chuyển màu theo chế độ Sáng/Tối.
+- **Phân tích**: 
+  - Các cấu hình này trước đây dùng class hardcode màu Tailwind (`bg-slate-950`, `border-slate-800`, `text-slate-200`...), không kế thừa từ hệ thống CSS variables toàn cục.
+  - Cần chỉnh sửa các vùng này dựa trên ngôn ngữ thiết kế đồng bộ của màn hình `bot-config` (sử dụng `.glass-panel`, các biến `var(--text-...)`, `var(--border-...)` và class `.form-input` chuẩn).
+- **Giải pháp**:
+  - Chuyển đổi toàn bộ layout của Tab 4 và Tab 5 trong [`TradingReportModal.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx) sang dùng inline styles và class hệ thống.
+  - Sử dụng class `.glass-panel` cho các khối panel con, chỉnh các ô input sang class `.form-input` có padding thu gọn, đổi các màu tiêu đề và nhãn sang biến CSS để tự động đổi màu theo Light/Dark Mode của hệ thống.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Chuyển đổi divs bọc panel con của Tab 4 sang `.glass-panel`, đổi bảng tỷ giá sang thiết kế phẳng, sử dụng `.form-input` cho các trường nhập liệu tỷ giá và text cấu hình của Tab 5.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: Biên dịch thành công 100% không phát sinh lỗi.
+
+---
+
+## [2026-07-24 15:17:00] - Fix: Đồng Bộ Cấu Hình Dark/Light Mode Cho TradingReportModal
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Modal "Báo cáo & Thống kê Giao dịch" (`TradingReportModal.tsx`) sau khi sửa tabs vẫn sử dụng các mã màu cứng (hex) màu tối. Điều này làm cho modal không tự chuyển màu khi người dùng bật tắt chế độ Sáng/Tối (Light/Dark Mode).
+- **Giải pháp**:
+  - Chuyển đổi các mã màu cứng (`#0f172a`, `rgba(15, 23, 42, ...)`, `#f8fafc`, `#94a3b8`) sang các biến CSS chuẩn hóa của hệ thống đã khai báo trong `globals.css`:
+    - Khung modal: Sử dụng class `className="glass-panel"` và `background: var(--bg-card)`.
+    - Tiêu đề & Nội dung: Sử dụng `color: var(--text-primary)`.
+    - Mô tả phụ: Sử dụng `color: var(--text-secondary)`.
+    - Thanh điều hướng tab: Sử dụng `backgroundColor: var(--bg-input)`.
+    - Dropzone tải file: Sử dụng màu `var(--bg-input)` và `var(--border-color)` thay thế cho mã màu xám và viền cũ.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Cập nhật hàm `fileDropZone()` và các style wrapper, header, tab bar của `TradingReportModal` sử dụng biến `var(--...)`.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: Biên dịch thành công 100% không phát sinh lỗi.
+
+---
+
+## [2026-07-24 15:14:00] - Fix: Khắc Phục Lỗi Tràn Lề (Overlap) Và Sắp Xếp Vị Trí Tabs Của TradingReportModal
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Trên màn hình checklist, khi người dùng mở modal "Báo cáo & Thống kê Giao dịch" (`TradingReportModal.tsx`), các nhãn của thanh tab điều hướng bị co hẹp, đè chồng lấn lên nhau (Overlap) trông rất lộn xộn.
+- **Phân tích**: 
+  - Do modal này trước đây dùng các class tiện ích flexbox của Tailwind CSS, nhưng khi render lồng trong Next.js thì các class này bị xung đột hoặc không được biên dịch/áp dụng đúng cách.
+  - Các modal khác trong hệ thống (`CcpStatisticsModal`, `ReconciliationModal`) đều sử dụng inline styles tùy biến để đảm bảo tính độc lập tuyệt đối và không bị ảnh hưởng bởi xung đột CSS.
+- **Giải pháp**:
+  - Chuyển đổi toàn bộ layout khung ngoài, header, nút đóng, thanh tab điều hướng và vùng nội dung trong [`TradingReportModal.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx) sang sử dụng cơ chế **Inline Style**.
+  - Định hình cấu trúc flexbox chuẩn, đặt padding, khoảng cách `gap: '8px'`, thiết lập `whiteSpace: 'nowrap'` cho các nút tab để đảm bảo text không bao giờ bị vỡ dòng hay đè lấn.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Chuyển đổi các thuộc tính `className` ở header và tab wrapper sang thuộc tính `style={{ ... }}`.
+- Đặt `display: 'flex'` và màu sắc chủ đạo tương đồng với các modal khác để tạo sự đồng bộ tối đa cho giao diện.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 15:09:00] - Feature: Bản Địa Hóa (Parse) Nguyên Nhân Sự Cố Sang Tiếng Việt Trên UI Và Excel Report
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Quyết định phương án biểu diễn trường nguyên nhân sự cố `rootCause`.
+- **Giải pháp**:
+  - **Database**: Giữ nguyên mã code Tiếng Anh (ví dụ: `MISSING_CONFIGURATION`, `DATA_FILE_ERROR`) để chuẩn hóa dữ liệu, phục vụ lọc, truy vấn và phân tích báo cáo thống kê tự động.
+  - **Giao diện người dùng (UI)**: Cập nhật [`IncidentList.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) để dịch các mã Tiếng Anh này sang nhãn Tiếng Việt thân thiện, dễ đọc hiểu cho người vận hành.
+  - **Báo cáo Excel (Export)**: Cập nhật [`incidents.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts) để tự động dịch `rootCause` sang Tiếng Việt khi ghi dữ liệu vào tệp tin báo cáo sự cố Excel `.xlsx` xuất ra.
+
+### 2. Danh sách file chỉnh sửa
+- [IncidentList.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx)
+- [incidents.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Frontend: Sử dụng switch-case inline để render ra text Tiếng Việt tương ứng với `rootCause` của incident.
+- Backend: Sử dụng switch-case map `incident.rootCause` sang biến `rootCauseText` Tiếng Việt trước khi ghi đè vào bảng Excel.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend & Backend: Đều biên dịch thành công 100% không có lỗi.
+
+---
+
+## [2026-07-24 15:00:00] - Feature: Bổ Sung Tùy Chọn Nguyên Nhân Sự Cố (Root Cause) Đặc Thù Vận Hành
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Bổ sung hai nguyên nhân sự cố phổ biến của hệ thống checklist ca trực là `DATA_FILE_ERROR` (Lỗi tệp tin/dữ liệu) và `THIRD_PARTY_ERROR` (Sự cố hệ thống liên kết/bên thứ 3) vào danh mục Nguyên nhân gốc rễ (Root Cause) khi giải quyết sự cố.
+- **Giải pháp**:
+  - **Backend**: Cập nhật file [`incident.schema.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/incident.schema.ts) để mở rộng mảng `enum` cho phép lưu trữ 2 giá trị này trong DB (tránh lỗi Validation Error của Mongoose).
+  - **Frontend**: Thêm 2 thẻ `<option>` mới vào thẻ `<select>` chọn Root Cause bên trong Modal xử lý sự cố [`IncidentReportModal.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx).
+
+### 2. Danh sách file chỉnh sửa
+- [incident.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/incident.schema.ts)
+- [IncidentReportModal.tsx](file:///c:/Users/hiepth%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Backend: Thêm `'DATA_FILE_ERROR'` và `'THIRD_PARTY_ERROR'` vào trường enum `rootCause` trong schema.
+- Frontend: Cập nhật JSX trong `IncidentReportModal.tsx` để render thêm các option tương ứng.
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 14:49:00] - Fix: Đồng Bộ Tên Tệp DSGD MM CCP Giữa C# Tool Và NestJS Backend
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Đối chiếu tệp tin đầu vào của tác vụ "Thống kê CCP" để đảm bảo tính năng tương thích hoàn toàn với tool C# cũ.
+- **Phân tích**: 
+  - Trong source code C# ([`ExcelDataService.cs`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/CCP-Statistics-Tool/CCP-Statistics-Tool/Services/ExcelDataService.cs#L47) dòng 47), tool C# tìm kiếm file giao dịch nhà tạo lập thị trường bằng tên chính xác là: `DSGD MM CCP.xlsx`.
+  - Trong khi đó, code NestJS backend cũ chỉ đang check các pattern dạng `DSGD-MM.xlsx` và `DSGD_MM.xlsx`.
+- **Giải pháp**:
+  - Cập nhật hàm `handleRunLotMacroJob()` và các phần liên quan trong [`bot-job-queue.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) để tìm thêm tên file chuẩn C# là **`DSGD MM CCP.xlsx`** làm ưu tiên cao nhất, giữ các định dạng `DSGD-MM.xlsx` và `DSGD_MM.xlsx` làm phương án dự phòng.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung định nghĩa `dsgdMmCcpPathStd` trỏ tới `DSGD MM CCP.xlsx` và đưa vào block kiểm tra `fs.existsSync()` ưu tiên số 1.
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 14:27:00] - Feature: Triển Khai Giao Diện Lưu Trực Tiếp (Instant Save UX) Cho Checklist Templates
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Nâng cấp UX của trang Quản lý Template của Admin từ cơ chế lưu 2 bước (cập nhật tạm thời rồi ấn nút lưu tổng) thành **Lưu trực tiếp (Instant Save)** để hạn chế lỗi quên lưu, giảm bớt click thừa và giúp giao diện trực quan hơn.
+- **Giải pháp**:
+  - **Khai báo helper `saveTemplateTasks()`**: Gửi PUT request trực tiếp lên API lưu cấu hình template, sau đó tự động gọi `fetchTemplates` để đồng bộ lại dữ liệu mới nhất từ DB về Client.
+  - **Tích hợp tự động lưu (Instant Save) cho mọi thao tác**:
+    - **Thêm mới / Cập nhật**: Gọi `saveTemplateTasks()` ngay sau khi người dùng bấm nút ở sub-form.
+    - **Xóa tác vụ**: Gọi `saveTemplateTasks()` ngay sau khi xác định danh sách đã lọc.
+    - **Sắp xếp thứ tự**: Gọi `saveTemplateTasks()` ngay sau khi người dùng click nút mũi tên di chuyển hoặc kéo thả (Drag and Drop) tác vụ.
+  - **Tinh gọn giao diện**:
+    - Xóa bỏ hoàn toàn nút **"Lưu Cấu Hình Tác Vụ"** trên Header (vì mọi thao tác đã được tự động lưu tức thì).
+    - Đổi tên nút xác nhận trong Form phụ từ *"Cập nhật tác vụ"* thành **"Lưu thay đổi"** khi đang sửa task, giúp người dùng hiểu rõ hành động này sẽ lưu trực tiếp xuống DB.
+
+### 2. Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Viết hàm `saveTemplateTasks()` gọi API PUT.
+- Thay thế các lệnh `setSelectedTemplate` ở `handleAddTask`, `handleDeleteTask`, `handleMoveTask`, `handleDrop` bằng cuộc gọi tới `saveTemplateTasks()`.
+- Xóa JSX chứa nút `handleSaveTemplate` trên Header, cập nhật text button trong sub-form thành "Lưu thay đổi".
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 14:20:00] - Fix: Tự Động Apply Thay Đổi Của Task Đang Sửa Khi Bấm Lưu Cấu Hình Mẫu Checklist
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Người dùng phản ánh điền tần suất quét cho task xong, bấm "Lưu cấu hình tác vụ" nhưng tần suất không được lưu lại vào cơ sở dữ liệu.
+- **Phân tích**: 
+  - Quy trình thiết kế cũ yêu cầu người dùng phải bấm nút xanh lá cây **"Cập nhật tác vụ"** (hoặc **"Thêm tác vụ"**) để ghi nhận thông tin từ form nhập liệu vào mảng tạm `selectedTemplate.tasks` trong React State, sau đó mới bấm nút **"Lưu Cấu Hình Tác Vụ"** trên header để gọi API PUT lưu vào DB.
+  - Nếu người dùng nhập thông tin xong (ví dụ điền số 5 vào ô tần suất) mà lập tức bấm luôn nút **"Lưu Cấu Hình Tác Vụ"** trên header, giá trị mới nhập vẫn chỉ nằm trong State của Form (`newFrequencyMinutes`) mà chưa được cập nhật vào mảng `tasks`, dẫn đến payload gửi lên API vẫn mang giá trị cũ (null/empty) và khi DB load lại, số phút sẽ bị biến mất.
+- **Giải pháp**:
+  - Tại hàm `handleSaveTemplate()`, nếu hệ thống phát hiện người dùng đang có một tác vụ đang ở trạng thái chỉnh sửa (`editingTaskId !== null`), hệ thống sẽ **tự động map và đè toàn bộ giá trị đang nhập trên Form** vào phần tử task đó trong danh sách gửi đi lưu DB.
+  - Giúp trải nghiệm người dùng tự nhiên và không bao giờ bị mất dữ liệu cấu hình tần suất hay bất kỳ tham số nào khác kể cả khi quên bấm nút phụ "Cập nhật tác vụ".
+
+### 2. Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung logic auto-merge form state vào `tasksToSave` khi có `editingTaskId` tại đầu hàm `handleSaveTemplate()`.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 14:15:00] - Fix: Đồng Bộ Dropdown Loại Bot Check Và Label Mô Tả Trực Quan Trên UI Template
+
+### 1. Mục tiêu Thay đổi
+- **Báo cáo lỗi**: Trên giao diện Admin Template khi chọn Bot Check, dù giá trị là `CHECK_KLGD` (hoặc các loại đối chiếu nghiệp vụ khác) nhưng dropdown hiển thị sai tùy chọn đầu tiên là "Quét Email (EMAIL_PARSE)" và nhãn trường bên dưới hiển thị sai là "Địa chỉ API Endpoint".
+- **Phân tích**: 
+  - Thẻ `<select>` trong `templates/page.tsx` trước đây chỉ chứa 3 option cơ bản (`EMAIL_PARSE`, `FILE_EXISTS`, `API_STATUS`). Khi chỉnh sửa các task có `botCheckType` là `CHECK_KLGD` hoặc các loại đối chiếu khác, React select không tìm thấy option tương ứng nên bị fallback hiển thị sai.
+  - Nhãn (label) và Placeholder hiển thị bên dưới sử dụng biểu thức ternary đơn giản, không cover các trường hợp custom job types dẫn đến rơi vào nhánh `else` hiển thị "Địa chỉ API Endpoint".
+- **Giải pháp**:
+  1. Thêm đầy đủ 8 loại Bot Check nghiệp vụ khác (`CHECK_KLGD`, `CHECK_PRE_EOD`, `AUTO_CHECK_SOD`, `CHECK_EOD_MM`, `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `RUN_MACRO`) vào danh sách option của thẻ `<select>`.
+  2. Cập nhật logic render nhãn mô tả và placeholder của các trường nhập liệu tương ứng dựa trên nhóm loại Bot Check được chọn để hiển thị đúng thực tế (vd: đổi từ "Địa chỉ API Endpoint" thành "Tham số / Cấu hình bổ sung" cho các tác vụ đối chiếu).
+
+### 2. Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Cập nhật JSX tại khu vực `newIsBotCheck` trong file `templates/page.tsx`.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
+## [2026-07-24 14:04:00] - Feature: Cấu Hình Tần Suất Quét Định Kỳ (frequencyMinutes) Cho Bot Check Trên UI Và Backend
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Hỗ trợ thiết lập tần suất đối chiếu định kỳ (ví dụ cứ 5 phút, 60 phút,... quét một lần) trực tiếp từ giao diện Admin thay vì lập lịch giờ cố định thủ công.
+- **Giải pháp**:
+  - **Backend**: 
+    1. Tận dụng trường `frequencyMinutes` đã có trong database schema.
+    2. Bổ sung một bước kiểm tra ở đầu hàm `handleBotChecks()` trong `bot-engine.service.ts`: Duyệt qua các task đang chạy trong ca trực có cấu hình `frequencyMinutesSnapshot > 0` và ở trạng thái đã hoàn thành (`PASSED`/`FAILED`/`NEEDS_ATTENTION`).
+    3. Tính thời gian trôi qua từ lần cập nhật trạng thái cuối cùng, nếu lớn hơn hoặc bằng `frequencyMinutesSnapshot` phút, hệ thống sẽ tự động gọi `shiftsService.updateTaskStatus()` để reset trạng thái task về `PENDING`.
+    4. Khi task quay về `PENDING`, chu kỳ tiếp theo của Bot Engine sẽ tự động bắt được và tạo job quét đối chiếu mới.
+  - **Frontend**:
+    1. Mở rộng UI Form chỉnh sửa và tạo mới task trong trang Quản lý Template (`templates/page.tsx`).
+    2. Bổ sung ô nhập "Tần Suất Quét (Phút)" (đối với các task được chọn tùy chọn "Sử dụng Bot Check tự động").
+    3. Gửi và cập nhật trường `frequencyMinutes` trong payload API lên Backend.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Backend: Thêm logic Reset Pass ở đầu `handleBotChecks()`, re-fetch `log.details` khi có reset để đồng bộ in-memory.
+- Frontend: Cập nhật state `newFrequencyMinutes`, bind vào form và trigger handlers (`handleSelectTemplate`, `handleStartEditTask`, `handleCancelEditTask`, `handleAddTask`). Render thêm trường input số phút khi tick "Sử dụng Bot Check tự động".
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+- Frontend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
 ## [2026-07-24 13:50:00] - Fix: Bug Lifecycle Trạng Thái Task (PENDING -> WAITING) Làm Bot Không Enqueue Job Mới
 
 ### 1. Mục tiêu Thay đổi

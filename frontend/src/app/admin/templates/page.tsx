@@ -49,6 +49,11 @@ interface Task {
   actionDescription?: string;
   dependsOnTaskIds?: string[];
   parentTaskId?: string | null;
+  frequencyMinutes?: number | null;
+  slaWindowStart?: string | null;
+  slaWindowEnd?: string | null;
+  exceptionCode?: string;
+  recurrenceGroupId?: string;
 }
 
 interface Template {
@@ -104,6 +109,7 @@ export default function AdminTemplatesPage() {
   const [newActionDescription, setNewActionDescription] = useState('');
   const [newDependsOnTaskIds, setNewDependsOnTaskIds] = useState<string[]>([]);
   const [newParentTaskId, setNewParentTaskId] = useState<string>('');
+  const [newFrequencyMinutes, setNewFrequencyMinutes] = useState<string>('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [isTaskFormExpanded, setIsTaskFormExpanded] = useState(false);
   
@@ -215,6 +221,7 @@ export default function AdminTemplatesPage() {
     setNewActionDescription('');
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
+    setNewFrequencyMinutes('');
   };
 
   const handleStartEditTask = (task: Task) => {
@@ -240,6 +247,7 @@ export default function AdminTemplatesPage() {
     setNewActionDescription(task.actionDescription || '');
     setNewDependsOnTaskIds(task.dependsOnTaskIds || []);
     setNewParentTaskId(task.parentTaskId || '');
+    setNewFrequencyMinutes(task.frequencyMinutes !== undefined && task.frequencyMinutes !== null ? String(task.frequencyMinutes) : '');
   };
 
   const handleCancelEditTask = () => {
@@ -263,6 +271,7 @@ export default function AdminTemplatesPage() {
     setNewTriggerTime('');
     setNewSlaDeadline('');
     setNewActionDescription('');
+    setNewFrequencyMinutes('');
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
   };
@@ -410,17 +419,14 @@ export default function AdminTemplatesPage() {
             slaDeadline: newSlaDeadline.trim() || undefined,
             actionDescription: newActionDescription.trim() || undefined,
             dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined,
-            parentTaskId: newParentTaskId || null
+            parentTaskId: newParentTaskId || null,
+            frequencyMinutes: newIsBotCheck ? (newFrequencyMinutes ? Number(newFrequencyMinutes) : null) : null
           };
         }
          return t;
       });
 
-      setSelectedTemplate({
-        ...selectedTemplate,
-        tasks: updatedTasks
-      });
-      toast.success('Đã cập nhật thông tin tác vụ. Hãy bấm "Lưu Cấu Hình Tác Vụ" để lưu vào cơ sở dữ liệu.');
+      saveTemplateTasks(updatedTasks);
       handleCancelEditTask();
       return;
     }
@@ -452,14 +458,12 @@ export default function AdminTemplatesPage() {
       slaDeadline: newSlaDeadline.trim() || undefined,
       actionDescription: newActionDescription.trim() || undefined,
       dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined,
-      parentTaskId: newParentTaskId || null
+      parentTaskId: newParentTaskId || null,
+      frequencyMinutes: newIsBotCheck ? (newFrequencyMinutes ? Number(newFrequencyMinutes) : null) : null
     }; 
 
     const updatedTasks = [...selectedTemplate.tasks, newTask];
-    setSelectedTemplate({
-      ...selectedTemplate,
-      tasks: updatedTasks
-    });
+    saveTemplateTasks(updatedTasks);
     setIsTaskFormExpanded(false);
 
     setNewTaskId('');
@@ -482,6 +486,7 @@ export default function AdminTemplatesPage() {
     setNewActionDescription('');
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
+    setNewFrequencyMinutes('');
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -493,10 +498,7 @@ export default function AdminTemplatesPage() {
       sortOrder: idx + 1,
       parentTaskId: t.parentTaskId === taskId ? null : t.parentTaskId
     }));
-    setSelectedTemplate({
-      ...selectedTemplate,
-      tasks: sorted
-    });
+    saveTemplateTasks(sorted);
   };
 
   const handleMoveTask = (index: number, direction: 'up' | 'down') => {
@@ -517,10 +519,7 @@ export default function AdminTemplatesPage() {
       sortOrder: idx + 1
     }));
 
-    setSelectedTemplate({
-      ...selectedTemplate,
-      tasks: updated
-    });
+    saveTemplateTasks(updated);
   };
 
   // Drag and drop event handlers
@@ -559,10 +558,7 @@ export default function AdminTemplatesPage() {
       sortOrder: idx + 1
     }));
 
-    setSelectedTemplate({
-      ...selectedTemplate,
-      tasks: updated
-    });
+    saveTemplateTasks(updated);
   };
 
   const handleDragEnd = () => {
@@ -570,7 +566,7 @@ export default function AdminTemplatesPage() {
     setDragOverIndex(null);
   };
 
-  const handleSaveTemplate = async () => {
+  const saveTemplateTasks = async (updatedTasks: Task[]) => {
     if (!selectedTemplate || !token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/templates/${selectedTemplate._id}`, {
@@ -585,7 +581,7 @@ export default function AdminTemplatesPage() {
           departmentId: selectedTemplate.departmentId?._id || selectedTemplate.departmentId,
           shiftSlotId: selectedTemplate.shiftSlotId?._id || selectedTemplate.shiftSlotId || null,
           isActive: selectedTemplate.isActive !== false,
-          tasks: selectedTemplate.tasks
+          tasks: updatedTasks
         })
       });
 
@@ -594,10 +590,10 @@ export default function AdminTemplatesPage() {
         throw new Error(err.message || 'Cập nhật mẫu checklist thất bại');
       }
 
-      toast.success('Đã lưu cấu hình mẫu checklist thành công!');
-      fetchTemplates(selectedTemplate._id);
+      toast.success('Đã lưu cấu hình tự động thành công!');
+      await fetchTemplates(selectedTemplate._id);
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi xảy ra');
+      toast.error(err.message || 'Lỗi xảy ra khi lưu tự động');
     }
   };
 
@@ -721,13 +717,6 @@ export default function AdminTemplatesPage() {
                       style={{ padding: '12px 20px', color: '#ef4444' }}
                     >
                       <Trash2 size={16} /> Xóa mẫu
-                    </button>
-                    <button 
-                      onClick={handleSaveTemplate} 
-                      className="btn btn-primary" 
-                      style={{ padding: '12px 24px' }}
-                    >
-                      <Save size={16} /> Lưu Cấu Hình Tác Vụ
                     </button>
                   </div>
                 )}
@@ -1008,7 +997,7 @@ export default function AdminTemplatesPage() {
 
                         {newIsBotCheck && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                               <div>
                                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
                                 <input
@@ -1029,20 +1018,53 @@ export default function AdminTemplatesPage() {
                                   style={{ background: 'var(--bg-app)', width: '100%' }}
                                 >
                                   <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
-                                  <option value="FILE_EXISTS">Kiểm tra File (FILE_EXISTS)</option>
+                                  <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
                                   <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
+                                  <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
+                                  <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
+                                  <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
+                                  <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
+                                  <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
+                                  <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
+                                  <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
+                                  <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
                                 </select>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  placeholder="Bỏ trống nếu chạy 1 lần"
+                                  value={newFrequencyMinutes}
+                                  onChange={(e) => setNewFrequencyMinutes(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
                               <div>
                                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE' ? 'Tham số Email (JSON: subject, sender)' : newBotCheckType === 'FILE_EXISTS' ? 'Đường dẫn file (vd: C:\\Backup\\...)' : 'Địa chỉ API Endpoint'}
+                                  {newBotCheckType === 'EMAIL_PARSE'
+                                    ? 'Tham số Email (JSON: subject, sender)'
+                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? 'Đường dẫn tệp tin / Thư mục'
+                                    : newBotCheckType === 'API_STATUS'
+                                    ? 'Địa chỉ API Endpoint'
+                                    : 'Tham số / Cấu hình bổ sung (JSON, để trống nếu dùng mặc định)'}
                                 </label>
                                 <input
                                   type="text"
                                   className="form-input"
-                                  placeholder={newBotCheckType === 'EMAIL_PARSE' ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}' : newBotCheckType === 'FILE_EXISTS' ? 'C:\\Backup\\EOD_TTM.csv' : 'http://oms.mxv.vn/api/v1/health'}
+                                  placeholder={
+                                    newBotCheckType === 'EMAIL_PARSE'
+                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}'
+                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                      ? 'vd: C:\\Backup\\EOD_TTM.csv'
+                                      : newBotCheckType === 'API_STATUS'
+                                      ? 'vd: http://oms.mxv.vn/api/v1/health'
+                                      : 'vd: {"allowDiffer": 0}'
+                                  }
                                   value={newBotCheckTarget}
                                   onChange={(e) => setNewBotCheckTarget(e.target.value)}
                                   style={{ width: '100%' }}
@@ -1050,12 +1072,26 @@ export default function AdminTemplatesPage() {
                               </div>
                               <div>
                                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE' ? 'Từ khóa thành công (vd: successfully)' : newBotCheckType === 'FILE_EXISTS' ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})' : 'Điều kiện API thành công (vd: {"status": "UP"})'}
+                                  {newBotCheckType === 'EMAIL_PARSE'
+                                    ? 'Từ khóa thành công (vd: successfully)'
+                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
+                                    : newBotCheckType === 'API_STATUS'
+                                    ? 'Điều kiện API thành công (vd: {"status": "UP"})'
+                                    : 'Điều kiện kết quả đối chiếu (để trống nếu dùng mặc định)'}
                                 </label>
                                 <input
                                   type="text"
                                   className="form-input"
-                                  placeholder={newBotCheckType === 'EMAIL_PARSE' ? 'successfully' : newBotCheckType === 'FILE_EXISTS' ? '{"minSizeKb": 10}' : '{"status": "UP"}'}
+                                  placeholder={
+                                    newBotCheckType === 'EMAIL_PARSE'
+                                      ? 'successfully'
+                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                      ? '{"minSizeKb": 10}'
+                                      : newBotCheckType === 'API_STATUS'
+                                      ? '{"status": "UP"}'
+                                      : '{"allowDiffer": 0}'
+                                  }
                                   value={newBotSuccessCondition}
                                   onChange={(e) => setNewBotSuccessCondition(e.target.value)}
                                   style={{ width: '100%' }}
@@ -1072,7 +1108,7 @@ export default function AdminTemplatesPage() {
                         )}
                         <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ marginLeft: editingTaskId ? '0' : 'auto', padding: '10px 24px' }}>
                           {editingTaskId ? <Save size={16} /> : <Plus size={16} />}
-                          {editingTaskId ? ' Cập nhật tác vụ' : ' Thêm tác vụ'}
+                          {editingTaskId ? ' Lưu thay đổi' : ' Thêm tác vụ'}
                         </button>
                       </div>
                     </div>
