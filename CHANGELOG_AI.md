@@ -4,6 +4,44 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 15:49:00] - Feature: Cải Tiến Giao Diện Cấu Hình email Với downloadDir Cho EMAIL_PARSE
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu**: Người dùng thắc mắc về nơi cấu hình đường dẫn tải file đính kèm (`downloadDir`) riêng cho từng tác vụ check mail.
+- **Giải pháp**:
+  - Chỉnh sửa nhãn (label) nhập liệu của trường Tham số Email từ `Tham số Email (JSON: subject, sender)` thành `Tham số Email (JSON: subject, sender, downloadDir)` tại [`templates/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx).
+  - Cập nhật text placeholder hướng dẫn mẫu để hiển thị trực quan cấu trúc JSON đính kèm tham số `"downloadDir"`.
+
+### 2. Danh sách file chỉnh sửa
+- [templates/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Thay đổi nhãn hiển thị và cập nhật chuỗi gợi ý placeholder của trường nạp tham số trong form thêm mới/sửa tác vụ.
+
+### 4. Xác nhận Build/Kiểm thử
+- Frontend: Biên dịch thành công 100% không phát sinh lỗi.
+
+---
+
+## [2026-07-24 15:35:00] - Feature: Tạm Thời Đóng Tính Năng Quét & Cảnh Báo Tài Khoản Âm Ký Quỹ Post-EOD Qua Telegram
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Trực ca chưa được cấp cấu hình đọc mail hệ thống chính thức và muốn tạm thời tắt tính năng tự động quét tài khoản âm ký quỹ đầu ngày & bắn cảnh báo lên group Telegram vận hành khi task email EOD hoàn thành.
+- **Giải pháp**:
+  - Comment block code xử lý Post-EOD Negative Margin và Telegram alert trong [`bot-engine.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) (dòng 172 đến 230).
+  - Đảm bảo biên dịch backend sạch sẽ, không ảnh hưởng đến luồng check mail chung.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Đưa toàn bộ điều kiện `if (isEodTask)` và logic xử lý file đính kèm để quét tài khoản âm ký quỹ vào khối comment `/* ... */`.
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `node node_modules/typescript/bin/tsc --noEmit` → **Pass.**
+
+---
+
 ## [2026-07-24 15:25:00] - Fix: Đồng Bộ Giao Diện Toàn Diện Cho Tất Cả Các Tab Còn Lại Trong TradingReportModal
 
 ### 1. Mục tiêu Thay đổi

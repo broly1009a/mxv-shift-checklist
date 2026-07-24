@@ -1046,7 +1046,7 @@ export default function AdminTemplatesPage() {
                               <div>
                                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                                   {newBotCheckType === 'EMAIL_PARSE'
-                                    ? 'Tham số Email (JSON: subject, sender)'
+                                    ? 'Tham số Email (JSON: subject, sender, downloadDir)'
                                     : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
                                     ? 'Đường dẫn tệp tin / Thư mục'
                                     : newBotCheckType === 'API_STATUS'
@@ -1058,7 +1058,7 @@ export default function AdminTemplatesPage() {
                                   className="form-input"
                                   placeholder={
                                     newBotCheckType === 'EMAIL_PARSE'
-                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn"}'
+                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
                                       : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
                                       ? 'vd: C:\\Backup\\EOD_TTM.csv'
                                       : newBotCheckType === 'API_STATUS'

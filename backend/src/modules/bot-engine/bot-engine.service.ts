@@ -169,7 +169,8 @@ export class BotEngineService {
           if (checkType === 'EMAIL_PARSE') {
             checkResult = await this.emailWatcherService.checkEmailTask(target, condition);
             
-            // Post-EOD processing logic for Negative Margin Accounts Check
+            // Post-EOD processing logic for Negative Margin Accounts Check (Tạm thời đóng tính năng này, comment lại chưa dùng)
+            /*
             if (checkResult.success) {
               const isEodTask = task.taskId.toLowerCase().includes('eod') || 
                                 task.taskNameSnapshot.toLowerCase().includes('eod') || 
@@ -229,6 +230,7 @@ export class BotEngineService {
                 }
               }
             }
+            */
           } else if (checkType === 'FILE_EXISTS') {
             // Fallback to target if fileLocation is not set
             const filePath = task.fileLocationSnapshot || target;
