@@ -2631,9 +2631,9 @@ export class ReconciliationService {
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
     const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
     
-    const acmTradesPath = this.findLatestFile(acmDailyPath, /Straits/i)
-      || this.findLatestFile(castDownloadsDir, /Straits/i)
-      || this.findLatestFile(userDownloadsDir, /Straits/i);
+    const acmTradesPath = this.findLatestFile(acmDailyPath, /Nano|Fill/i)
+      || this.findLatestFile(castDownloadsDir, /Nano|Fill/i)
+      || this.findLatestFile(userDownloadsDir, /Nano|Fill/i);
 
     const cqgFrPath = this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i)
       || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)

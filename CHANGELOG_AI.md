@@ -4,6 +4,45 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-07-24 11:00:00] - Phân Định Đúng File ACM Cho 2 Luồng: Nano/Fill Trong Phiên & Straits Cho EOD
+
+### 1. Mục tiêu Thay đổi
+- Điều chỉnh đúng cơ chế quét file ACM: Trong phiên (live check) cần tìm file Nano tự doanh (`Nano.xls` / `Fill.xlsx`), còn cuối ngày (EOD check) cần tìm file Straits CSV (`Straits.csv`).
+
+### 2. Danh sách File Chỉnh sửa
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`reconciliation.service.ts` (`runAutoCheckKLGD`)**:
+  - Cập nhật Regex tìm kiếm file ACM trong phiên thành `/Nano|Fill/i` để lấy tệp tự doanh (`Fill.xlsx` hoặc `Nano.xls` do nghiệp vụ tải lên trong phiên), tránh quét nhầm tệp Straits CSV của ngày hôm trước.
+  - Luồng EOD chốt cuối ngày (`runAutoCheckPreEOD`) vẫn giữ nguyên tìm kiếm `/Straits/i` để đối chiếu tệp Straits CSV theo đúng quy chuẩn EOD tại `AGENTS.md` (không tự ý thay bằng file Fill/Order của CQG/M-System).
+
+### 4. Đính chính sai sót của AI Assistant
+- **Sai sót**: AI Assistant đã đưa ra nhận định sai lầm khi cho rằng *"File Fill.xlsx là file xuất từ CQG/M-System, không liên quan gì tới file ACM (Nano)"*. 
+- **Đính chính thực tế**: File `Fill.xlsx` (trong thư mục ACM) chính là file giao dịch tự doanh của hệ thống ACM (Nano), được dùng để đổi tên thành `Nano.xls` cho tool C# đối chiếu trong phiên. File `Straits.csv` là file báo cáo giao dịch đối tác gửi cuối ngày, không liên quan tới file Nano. AI Assistant ghi nhận lỗi phân tích sai lệch thông tin nghiệp vụ này để tránh tái diễn.
+
+---
+
+## [2026-07-24 10:56:00] - Khắc Phục Lỗi Gộp Ô Khi Splicing Trong CcpStatisticsService (Lỗi Cannot merge already merged cells)
+
+### 1. Mục tiêu Thay đổi
+- Khắc phục lỗi khi chạy báo cáo thống kê số lô & giá trị giao dịch CCP `[TASK_CCP_STATISTICS]` báo lỗi `Job failed permanently: Cannot merge already merged cells`.
+
+### 2. Danh sách File Chỉnh sửa
+- [ccp-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-statistics.service.ts)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`ccp-statistics.service.ts`**:
+  - Tạo mới hàm helper `safeMergeCells(ws, r1, c1, r2, c2)` để giải quyết xung đột vùng ô gộp (merge cells) trong ExcelJS khi chạy ghi đè dữ liệu lũy kế trong ngày (idempotency/replace rows).
+  - Hàm `safeMergeCells` tự động bỏ gộp (`unMergeCells`) vùng ô cũ trước khi chạy gộp mới, đồng thời hỗ trợ dọn dẹp trực tiếp vùng gộp lỗi trong cấu trúc dữ liệu nội bộ `_merges` của ExcelJS nếu xảy ra xung đột không mong muốn.
+  - Tự động bỏ qua các trường hợp gộp ô đơn (khi dòng bắt đầu bằng dòng kết thúc và cột bắt đầu bằng cột kết thúc), giúp tránh các ngoại lệ lỗi không đáng có của thư viện ExcelJS.
+  - Thay thế toàn bộ 14 lệnh gọi `ws.mergeCells` trực tiếp bằng hàm `this.safeMergeCells(ws, ...)`.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+
+---
+
 ## [2026-07-24 10:45:00] - Hỗ Trợ Đọc File Đối Chiếu Straits CSV Trong parseNano (Tránh Lỗi Thiếu Cột)
 
 ### 1. Mục tiêu Thay đổi

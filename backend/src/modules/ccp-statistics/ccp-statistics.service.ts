@@ -228,12 +228,12 @@ export class CcpStatisticsService {
 
     // Merge and set STT & Date
     if (gdGroups.length > 0) {
-      ws.mergeCells(pos.insertRow, 2, pos.insertRow + gdGroups.length - 1, 2);
+      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + gdGroups.length - 1, 2);
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      ws.mergeCells(pos.insertRow, 3, pos.insertRow + gdGroups.length - 1, 3);
+      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + gdGroups.length - 1, 3);
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -317,7 +317,7 @@ export class CcpStatisticsService {
         }
       });
 
-      ws.mergeCells(pos.insertRow, 1, pos.insertRow + filtered.length - 1, 1);
+      this.safeMergeCells(ws, pos.insertRow, 1, pos.insertRow + filtered.length - 1, 1);
       const cellDate = ws.getCell(pos.insertRow, 1);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -350,19 +350,19 @@ export class CcpStatisticsService {
       ws.getCell('B2').font = { bold: true };
 
       ws.getCell('B4').value = 'STT';
-      ws.mergeCells(4, 2, 5, 2);
+      this.safeMergeCells(ws, 4, 2, 5, 2);
       ws.getCell('C4').value = 'Ngày';
-      ws.mergeCells(4, 3, 5, 3);
+      this.safeMergeCells(ws, 4, 3, 5, 3);
       ws.getCell('D4').value = 'TVKD';
-      ws.mergeCells(4, 4, 5, 4);
+      this.safeMergeCells(ws, 4, 4, 5, 4);
 
       ws.getCell('E4').value = 'Nộp tiền';
-      ws.mergeCells(4, 5, 4, 6);
+      this.safeMergeCells(ws, 4, 5, 4, 6);
       ws.getCell('E5').value = 'Số lệnh';
       ws.getCell('F5').value = 'Giá trị';
 
       ws.getCell('G4').value = 'Rút tiền';
-      ws.mergeCells(4, 7, 4, 8);
+      this.safeMergeCells(ws, 4, 7, 4, 8);
       ws.getCell('G5').value = 'Số lệnh';
       ws.getCell('H5').value = 'Giá trị';
 
@@ -433,12 +433,12 @@ export class CcpStatisticsService {
     });
 
     if (fixedMembers.length > 0) {
-      ws.mergeCells(pos.insertRow, 2, pos.insertRow + fixedMembers.length - 1, 2);
+      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + fixedMembers.length - 1, 2);
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      ws.mergeCells(pos.insertRow, 3, pos.insertRow + fixedMembers.length - 1, 3);
+      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + fixedMembers.length - 1, 3);
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -519,12 +519,12 @@ export class CcpStatisticsService {
     });
 
     if (ttmGroups.length > 0) {
-      ws.mergeCells(pos.insertRow, 2, pos.insertRow + ttmGroups.length - 1, 2);
+      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + ttmGroups.length - 1, 2);
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      ws.mergeCells(pos.insertRow, 3, pos.insertRow + ttmGroups.length - 1, 3);
+      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + ttmGroups.length - 1, 3);
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -601,12 +601,12 @@ export class CcpStatisticsService {
     });
 
     if (ttttGroups.length > 0) {
-      ws.mergeCells(pos.insertRow, 2, pos.insertRow + ttttGroups.length - 1, 2);
+      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + ttttGroups.length - 1, 2);
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      ws.mergeCells(pos.insertRow, 3, pos.insertRow + ttttGroups.length - 1, 3);
+      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + ttttGroups.length - 1, 3);
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -707,6 +707,41 @@ export class CcpStatisticsService {
         }
       });
       col.width = maxLen + 4;
+    }
+  }
+
+  private safeMergeCells(ws: ExcelJS.Worksheet, r1: number, c1: number, r2: number, c2: number) {
+    if (r1 > r2 || c1 > c2) return;
+    if (r1 === r2 && c1 === c2) return; // Skip single cell merges
+
+    try {
+      ws.unMergeCells(r1, c1, r2, c2);
+    } catch (e) {
+      // Ignore
+    }
+
+    try {
+      ws.mergeCells(r1, c1, r2, c2);
+    } catch (err: any) {
+      const sheetPriv = ws as any;
+      if (sheetPriv._merges) {
+        const toDelete: string[] = [];
+        for (const key of Object.keys(sheetPriv._merges)) {
+          const m = sheetPriv._merges[key];
+          if (m && !(m.bottom < r1 || m.top > r2 || m.right < c1 || m.left > c2)) {
+            toDelete.push(key);
+          }
+        }
+        toDelete.forEach(key => {
+          delete sheetPriv._merges[key];
+        });
+      }
+
+      try {
+        ws.mergeCells(r1, c1, r2, c2);
+      } catch (err2: any) {
+        this.logger.error(`Failed to merge cells (${r1},${c1}) to (${r2},${c2}): ${err2.message}`);
+      }
     }
   }
 }
