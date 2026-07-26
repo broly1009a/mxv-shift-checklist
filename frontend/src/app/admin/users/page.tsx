@@ -360,12 +360,7 @@ export default function AdminUsersPage() {
                 <span>Bộ lọc tìm kiếm</span>
               </div>
               
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '16px',
-                alignItems: 'end'
-              }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
                 {/* Search Text Input */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tìm kiếm tài khoản / họ tên</label>
@@ -422,7 +417,7 @@ export default function AdminUsersPage() {
 
                 {/* Department Filter */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Phòng ban trực</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Phòng ban</label>
                   <select
                     className="form-input"
                     value={filterDepartment}
@@ -432,11 +427,11 @@ export default function AdminUsersPage() {
                     }}
                     style={{ background: 'var(--bg-app)' }}
                   >
-                    <option value="">-- Tất cả phòng ban --</option>
+                    <option value="">-- Tất cả Phòng ban --</option>
                     {departments
                       .filter(d => {
                         if (!filterDivision) return true;
-                        const deptDivId = typeof d.divisionId === 'object' && d.divisionId !== null ? d.divisionId._id : d.divisionId;
+                        const deptDivId = typeof d.divisionId === 'object' && d.divisionId !== null ? (d.divisionId as any)._id : d.divisionId;
                         return deptDivId === filterDivision;
                       })
                       .map(d => (
@@ -502,7 +497,7 @@ export default function AdminUsersPage() {
                 <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Đang tải người dùng...</div>
               ) : (
                 <>
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="table-responsive-wrapper" style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>

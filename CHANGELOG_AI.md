@@ -985,3 +985,32 @@ export interface CheckKLGDResult {
 ### 4. Kết quả Kiểm thử & Build
 - **Backend (`npm run build`)**: PASSED (0 lỗi)
 - **Frontend (`npx tsc --noEmit`)**: PASSED (0 lỗi)
+
+---
+
+## [2026-07-26 23:48:00] - Rà Soát & Tối Ưu Hóa Giao Diện Responsive Trải Nghiệm Thiết Bị Di Động (Mobile & Tablet)
+
+### 1. Mục tiêu Thay đổi
+- Rà soát toàn bộ các trang trên ứng dụng Frontend (Admin Templates, Users, Bot Config, Shift Slots, Departments, Checklist TaskTable, History) để khắc phục các vấn đề hiển thị tràn viền, vỡ layout và thiếu tương thích trên thiết bị di động (mobile/tablet).
+- Bổ sung chuyển đổi Tab thông minh (Mobile Tab Switcher) và bộ wrapper cuộn ngang tự động cho các bảng dữ liệu.
+
+### 2. Danh sách File Chỉnh sửa
+- [globals.css](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/globals.css)
+- [page.tsx (Admin Templates)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+- [page.tsx (Admin Users)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx)
+- [page.tsx (Admin Bot Config)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/admin/bot-config/page.tsx)
+- [page.tsx (Admin Departments)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/admin/departments/page.tsx)
+- [page.tsx (Admin Shift Slots)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx)
+- [TaskTable.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx)
+- [page.tsx (History)](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/history/page.tsx)
+
+### 3. Tóm tắt Nội dung Chỉnh sửa
+- **`globals.css`**: Bổ sung utility class `.table-responsive-wrapper`, `@media (max-width: 640px)` tinh chỉnh spacing main content, modal container và flex/grid responsive helpers.
+- **`Admin Templates page.tsx`**: Thêm state `mobileTab ('list' | 'editor')` cùng thanh chuyển tab di động giúp hiển thị độc lập Danh sách mẫu và Nội dung Task trên màn hình nhỏ `< 1024px`.
+- **`TaskTable.tsx`**: Tinh chỉnh thanh tìm kiếm và bộ lọc ưu tiên/trạng thái dạng flex column trên mobile và flex row trên sm+, giúp không bị đè chữ hay tràn lề.
+- **`Admin Users / Bot Config / Departments / Shift Slots / History`**: Bọc table trong `.table-responsive-wrapper` và tối ưu hóa layout điều khiển.
+
+### 4. Kết quả Kiểm thử & Build
+- **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+- **Frontend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+

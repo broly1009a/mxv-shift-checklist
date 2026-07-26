@@ -128,6 +128,10 @@ export default function AdminTemplatesPage() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // Mobile active tab ('list' | 'editor') for responsive switching on screens < 1024px
+  const [mobileTab, setMobileTab] = useState<'list' | 'editor'>('list');
+
+
   // Redirect if not admin or manager
   useEffect(() => {
     if (user) {
@@ -202,7 +206,9 @@ export default function AdminTemplatesPage() {
 
   const handleSelectTemplate = (tpl: Template) => {
     setSelectedTemplate(tpl);
+    setMobileTab('editor');
     setEditingTaskId(null);
+
     setNewTaskId('');
     setNewTaskName('');
     setNewFunctionUrl('');
@@ -633,10 +639,37 @@ export default function AdminTemplatesPage() {
           )}
         </div>
 
+        {/* Mobile Tab Switcher for screens < 1024px */}
+        <div className="flex lg:hidden gap-2 p-1 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl mb-2">
+          <button
+            type="button"
+            onClick={() => setMobileTab('list')}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+              mobileTab === 'list' 
+                ? 'bg-[var(--color-accent)] text-white shadow-md' 
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            📋 Danh sách mẫu ({templates.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('editor')}
+            disabled={!selectedTemplate}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+              mobileTab === 'editor' 
+                ? 'bg-[var(--color-accent)] text-white shadow-md' 
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            } ${!selectedTemplate ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            ⚙️ Nội dung Task {selectedTemplate ? `(${selectedTemplate.tasks?.length || 0})` : ''}
+          </button>
+        </div>
+
         {/* Layout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
           {/* Templates list panel */}
-          <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={`glass-panel ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
               <Layers size={18} color="var(--color-accent)" /> Các mẫu checklist
             </h3>
@@ -677,9 +710,11 @@ export default function AdminTemplatesPage() {
             )}
           </div>
 
+
           {/* Active template workspace panel */}
           {selectedTemplate ? (
-            <div className="glass-panel" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className={`glass-panel ${mobileTab === 'editor' ? 'block' : 'hidden lg:block'}`} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
               
               {/* Template Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>

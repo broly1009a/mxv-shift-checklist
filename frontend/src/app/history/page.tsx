@@ -193,7 +193,7 @@ function HistoryAudit() {
             <SlidersHorizontal size={18} color="var(--color-accent)" /> Bộ lọc tìm kiếm ca trực
           </h3>
 
-          <form onSubmit={handleSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end' }}>
+          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Phòng Ban</label>
               <select className="form-input" value={selectedDept} onChange={(e) => { setSelectedDept(e.target.value); setCurrentPage(1); }} style={{ background: 'var(--bg-app)' }}>
@@ -239,7 +239,8 @@ function HistoryAudit() {
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Không tìm thấy ca trực nào phù hợp với bộ lọc.</div>
           ) : (
             <>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-responsive-wrapper">
+
                 <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>

@@ -231,67 +231,60 @@ export default function TaskTable({
       </div>
 
       {/* Live Search and Filters group */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        flexWrap: 'wrap',
-        marginBottom: '20px',
-        background: 'rgba(128,128,128,0.02)',
-        padding: '12px',
-        borderRadius: '10px',
-        border: '1px solid var(--border-color)',
-        alignItems: 'center'
-      }}>
+      <div className="flex flex-col sm:flex-row gap-3 mb-5 p-3 bg-[rgba(128,128,128,0.02)] rounded-xl border border-[var(--border-color)] items-stretch sm:items-center">
         {/* Text search */}
-        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+        <div style={{ flex: 1, minWidth: '180px', position: 'relative' }}>
           <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
             placeholder="Tìm nội dung, mã tác vụ..."
             className="form-input"
-            style={{ height: '36px', paddingLeft: '32px', fontSize: '0.82rem' }}
+            style={{ height: '38px', paddingLeft: '32px', fontSize: '0.82rem', width: '100%' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        {/* Priority Select */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
-          <select
-            className="form-input"
-            style={{ width: '130px', height: '36px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-          >
-            <option value="ALL">Mọi ưu tiên</option>
-            <option value="CRITICAL">Khẩn cấp</option>
-            <option value="HIGH">Ưu tiên Cao</option>
-            <option value="MEDIUM">Ưu tiên Trung bình</option>
-            <option value="LOW">Ưu tiên Thấp</option>
-          </select>
-        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {/* Priority Select */}
+          <div className="flex-1 sm:flex-initial flex items-center gap-1.5">
+            <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
+            <select
+              className="form-input w-full sm:w-[130px]"
+              style={{ height: '38px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+            >
+              <option value="ALL">Mọi ưu tiên</option>
+              <option value="CRITICAL">Khẩn cấp</option>
+              <option value="HIGH">Ưu tiên Cao</option>
+              <option value="MEDIUM">Ưu tiên Trung bình</option>
+              <option value="LOW">Ưu tiên Thấp</option>
+            </select>
+          </div>
 
-        {/* Status Select */}
-        <div>
-          <select
-            className="form-input"
-            style={{ width: '130px', height: '36px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="ALL">Mọi trạng thái</option>
-            <option value="CHECKED">Đã kiểm tra</option>
-            <option value="UNCHECKED">Chưa kiểm tra</option>
-            <option value="PENDING">Chưa thực hiện</option>
-            <option value="WAITING">Đang kiểm tra</option>
-            <option value="PASSED">Đạt</option>
-            <option value="FAILED">Không đạt</option>
-            <option value="SKIPPED">Bỏ qua</option>
-            <option value="NEEDS_ATTENTION">Cần chú ý</option>
-          </select>
+          {/* Status Select */}
+          <div className="flex-1 sm:flex-initial">
+            <select
+              className="form-input w-full sm:w-[130px]"
+              style={{ height: '38px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="ALL">Mọi trạng thái</option>
+              <option value="CHECKED">Đã kiểm tra</option>
+              <option value="UNCHECKED">Chưa kiểm tra</option>
+              <option value="PENDING">Chưa thực hiện</option>
+              <option value="WAITING">Đang kiểm tra</option>
+              <option value="PASSED">Đạt</option>
+              <option value="FAILED">Không đạt</option>
+              <option value="SKIPPED">Bỏ qua</option>
+              <option value="NEEDS_ATTENTION">Cần chú ý</option>
+            </select>
+          </div>
         </div>
       </div>
+
 
       {/* Checklist tasks mapping */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
