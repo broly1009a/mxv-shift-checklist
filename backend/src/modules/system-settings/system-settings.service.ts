@@ -143,6 +143,112 @@ export class SystemSettingsService {
     }
   }
 
+  async sendM365TokenExpiredAlert(errorMsg: string): Promise<void> {
+    try {
+      // Throttle: check when the last warning email was sent
+      const lastSentStr = await this.getSetting('m365_token_error_sent_at', '');
+      if (lastSentStr) {
+        const lastSent = new Date(lastSentStr).getTime();
+        const now = Date.now();
+        // Send at most once every 4 hours (14400000 ms)
+        if (now - lastSent < 14400000) {
+          return;
+        }
+      }
+
+      const configStr = await this.getSetting('margin_checker_config', '{}');
+      const config = JSON.parse(configStr);
+      
+      const mailSettings = config.securityAudit || {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+      };
+      if (!mailSettings.isSendWarning) return;
+
+      const smtp = config.smtp || {
+        host: 'smtp.office365.com',
+        port: 587,
+        user: 'it.support@mxv.vn',
+        pass: 'OFmng239',
+        senderEmail: 'it.support@mxv.vn',
+        senderName: 'MXV IT Support',
+      };
+
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+        tls: {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+
+      const subject = `🚨 [MXV BOT WARNING] Cảnh báo: Refresh Token Đọc Email Của Bot Đã Hết Hạn / Bị Thu Hồi`;
+      
+      const htmlBody = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #dc2626;">
+              <div style="padding: 20px;">
+                <h2 style="color: #dc2626; margin-top: 0;">⚠️ Cảnh báo: Mất Kết Nối Hòm Thư Bot (Graph API)</h2>
+                <p>Kính gửi Bộ phận Vận hành,</p>
+                <p>Hệ thống phát hiện lỗi nghiêm trọng khi cố gắng làm mới (refresh) mã Access Token cho hòm thư Bot đọc email:</p>
+                
+                <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 15px 0; border-radius: 4px;">
+                  <strong style="color: #991b1b;">Chi tiết lỗi từ Microsoft:</strong>
+                  <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; margin: 5px 0 0 0; color: #7f1d1d;">${errorMsg}</pre>
+                </div>
+                
+                <p><b>Hậu quả:</b> Robot sẽ <b>không thể tự động quét và tải xuống</b> các báo cáo khớp lệnh/vị thế (Straits, CQG, v.v.) qua email cho đến khi sự cố được khắc phục.</p>
+                
+                <p><b>Hướng dẫn khắc phục:</b></p>
+                <ol>
+                  <li>Truy cập vào Trang Quản trị Hệ thống (Admin Panel) -> Tab <b>Cấu hình hệ thống RPA & Robot</b>.</li>
+                  <li>Tìm phần <b>Cấu hình Đọc Email (M365 / Graph API)</b>.</li>
+                  <li>Nhấn nút <b>Cấp quyền (Authorize)</b> bên phải tiêu đề để thực hiện đăng nhập và cấp lại quyền đọc email cho Bot, hoặc nhập thủ công Refresh Token hợp lệ mới vào ô cấu hình.</li>
+                </ol>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 0.85rem; color: #6b7280; margin: 0;">Lưu ý: Đây là thư cảnh báo tự động từ hệ thống giám sát MXV Shift Checklist.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const recipientEmails = [...mailSettings.email];
+      const watcherEmail = (await this.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+      if (watcherEmail && !recipientEmails.includes(watcherEmail)) {
+        recipientEmails.push(watcherEmail);
+      }
+      if (smtp.senderEmail && !recipientEmails.includes(smtp.senderEmail)) {
+        recipientEmails.push(smtp.senderEmail);
+      }
+
+      await transporter.sendMail({
+        from: `"${smtp.senderName}" <${smtp.senderEmail}>`,
+        to: recipientEmails.join(', '),
+        subject,
+        html: htmlBody,
+      });
+
+      // Update sent warning timestamp in database settings to throttle future alerts
+      await this.setSetting('m365_token_error_sent_at', new Date().toISOString());
+      console.log(`[M365-BOT] Đã gửi cảnh báo lỗi Refresh Token hết hạn qua email tới ${recipientEmails.join(', ')}`);
+    } catch (err: any) {
+      console.error(`Lỗi khi gửi email cảnh báo lỗi Token Bot: ${err.message}`);
+    }
+  }
+
   async findAll(): Promise<SystemSetting[]> {
     return this.systemSettingModel.find().exec();
   }

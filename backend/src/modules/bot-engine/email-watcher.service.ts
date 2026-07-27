@@ -640,7 +640,14 @@ export class EmailWatcherService {
 
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
-      throw new Error(`Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`);
+      const errorMsg = `Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`;
+      
+      // If 400/401, it is a permanent credentials invalidation (expired or revoked token)
+      if (tokenRes.status === 400 || tokenRes.status === 401) {
+        await this.settingsService.sendM365TokenExpiredAlert(errorMsg);
+      }
+      
+      throw new Error(errorMsg);
     }
 
     const tokenData = await tokenRes.json();
@@ -648,6 +655,7 @@ export class EmailWatcherService {
       this.logger.log(`[M365-DELEGATED] Tự động cập nhật Refresh Token mới vào Database.`);
       await this.settingsService.setSetting('m365_refresh_token', tokenData.refresh_token);
       await this.settingsService.setSetting('m365_token_renewed_at', new Date().toISOString());
+      await this.settingsService.setSetting('m365_token_error_sent_at', '1970-01-01T00:00:00.000Z'); // Clear warning throttle timestamp on success
     }
     return tokenData.access_token;
   }

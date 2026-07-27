@@ -157,6 +157,7 @@ export class AuthController {
         if (tokenData.refresh_token) {
           await this.settingsService.setSetting('m365_refresh_token', tokenData.refresh_token);
           await this.settingsService.setSetting('m365_token_renewed_at', new Date().toISOString());
+          await this.settingsService.setSetting('m365_token_error_sent_at', '1970-01-01T00:00:00.000Z');
           this.logger.log(`[M365-BOT] Bot Refresh Token successfully authorized and saved.`);
         } else {
           throw new Error('Không nhận được Refresh Token từ Microsoft (hãy kiểm tra xem đã bật quyền offline_access chưa)');

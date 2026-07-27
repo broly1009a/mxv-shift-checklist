@@ -2557,6 +2557,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         2,
       );
       const lastLogs = job.logs.slice(-20).join('\n');
+      
+      let displayPayload = payloadStr;
+      const mailAttachments: any[] = [];
+      
+      if (payloadStr.length > 3000) {
+        displayPayload = payloadStr.substring(0, 3000) + '\n\n... [NỘI DUNG PAYLOAD QUÁ DÀI - ĐÃ ĐƯỢC RÚT GỌN ĐỂ TRÁNH QUÁ TẢI EMAIL. CHI TIẾT ĐẦY ĐỦ XEM TRONG FILE ĐÍNH KÈM]';
+        mailAttachments.push({
+          filename: `job_payload_${job._id}.json`,
+          content: Buffer.from(payloadStr, 'utf-8'),
+        });
+      }
 
       const subject = `🚨 [MXV BOT FAILURE ALERT] Lỗi Vận Hành Bot Ngầm: ${job.jobType}`;
       const htmlBody = `
@@ -2592,7 +2603,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 </div>
 
                 <h3>Payload của Job</h3>
-                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${payloadStr}</pre>
+                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${displayPayload}</pre>
 
                 <h3>20 Dòng Logs Cuối Cùng của Job</h3>
                 <pre style="background-color: #212121; color: #fff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${lastLogs}</pre>
@@ -2610,6 +2621,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         to: mailSettings.email.join(', '),
         subject,
         html: htmlBody,
+        attachments: mailAttachments,
       });
 
       this.logger.log(
