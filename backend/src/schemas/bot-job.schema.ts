@@ -18,7 +18,11 @@ export class BotJob extends Document {
   @Prop({ type: [String], default: [] })
   logs: string[];
 
-  @Prop({ type: MongooseSchema.Types.Map, of: MongooseSchema.Types.Mixed, default: {} })
+  @Prop({
+    type: MongooseSchema.Types.Map,
+    of: MongooseSchema.Types.Mixed,
+    default: {},
+  })
   payload: Record<string, any>;
 
   createdAt: Date;

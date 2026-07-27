@@ -5,7 +5,10 @@ import * as fs from 'fs';
  * Ensures that target files can only be written to allowed output root paths.
  * Prevents accidental write operations into source backup/production directories.
  */
-export function assertSafeWritePath(filePath: string, allowedOutputRoot: string): void {
+export function assertSafeWritePath(
+  filePath: string,
+  allowedOutputRoot: string,
+): void {
   if (!allowedOutputRoot || allowedOutputRoot.trim() === '') {
     // If no allowed output root configured, skip check (or log warning)
     return;
@@ -17,8 +20,8 @@ export function assertSafeWritePath(filePath: string, allowedOutputRoot: string)
   if (!resolvedTarget.startsWith(resolvedAllowed)) {
     throw new Error(
       `[SECURITY GUARD] Từ chối ghi file ra ngoài thư mục output cho phép!\n` +
-      `  - Thư mục được phép: "${resolvedAllowed}"\n` +
-      `  - Thư mục định ghi: "${resolvedTarget}"`
+        `  - Thư mục được phép: "${resolvedAllowed}"\n` +
+        `  - Thư mục định ghi: "${resolvedTarget}"`,
     );
   }
 }
@@ -49,7 +52,9 @@ export function ensureBaseFileExists(filePath: string): boolean {
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.copyFileSync(sourceCandidate, filePath);
-        console.log(`[AUTO-SYNC] Đã tự động kéo file thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${filePath}"`);
+        console.log(
+          `[AUTO-SYNC] Đã tự động kéo file thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${filePath}"`,
+        );
         return true;
       }
     }
@@ -78,7 +83,10 @@ export function ensureBaseDirectoryExists(dirPath: string): boolean {
       const relativePath = path.relative(resolvedAllowedRoot, resolvedTarget);
       const sourceCandidate = path.join(dataRoot, relativePath);
 
-      if (fs.existsSync(sourceCandidate) && fs.statSync(sourceCandidate).isDirectory()) {
+      if (
+        fs.existsSync(sourceCandidate) &&
+        fs.statSync(sourceCandidate).isDirectory()
+      ) {
         fs.mkdirSync(dirPath, { recursive: true });
         const files = fs.readdirSync(sourceCandidate);
         for (const file of files) {
@@ -88,7 +96,9 @@ export function ensureBaseDirectoryExists(dirPath: string): boolean {
             fs.copyFileSync(srcFile, destFile);
           }
         }
-        console.log(`[AUTO-SYNC] Đã tự động kéo thư mục thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${dirPath}"`);
+        console.log(
+          `[AUTO-SYNC] Đã tự động kéo thư mục thiếu từ DATA_ROOT sang UAT Output:\n  Nguồn: "${sourceCandidate}"\n  Đích: "${dirPath}"`,
+        );
         return true;
       }
     }

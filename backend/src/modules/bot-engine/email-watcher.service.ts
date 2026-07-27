@@ -12,7 +12,10 @@ export class EmailWatcherService {
   /**
    * Check if email condition is met for a given task configuration.
    */
-  async checkEmailTask(target: string, condition: string): Promise<{ success: boolean; message: string }> {
+  async checkEmailTask(
+    target: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
     // 1. Resolve Target parameters (e.g. Subject, Sender, and optional custom downloadDir)
     let filterSubject = '';
     let filterSender = '';
@@ -27,16 +30,40 @@ export class EmailWatcherService {
     }
 
     // 2. Fetch MS Graph API credentials from settings (with environment fallback)
-    const clientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
-    const clientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
-    const tenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
-    const watcherEmail = (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
 
-    const isSimulation = !clientId || !clientSecret || !tenantId || !watcherEmail || process.env.SIMULATE_BOT_CHECKS === 'true';
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
 
     if (isSimulation) {
-      this.logger.debug(`[Simulation] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`);
-      return this.checkMockEmail(filterSubject, filterSender, condition, customDownloadDir);
+      this.logger.debug(
+        `[Simulation] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`,
+      );
+      return this.checkMockEmail(
+        filterSubject,
+        filterSender,
+        condition,
+        customDownloadDir,
+      );
     }
 
     try {
@@ -58,11 +85,13 @@ export class EmailWatcherService {
         throw new Error(`Auth failed: ${tokenRes.statusText}`);
       }
 
-      const tokenData = await tokenRes.json() as any;
+      const tokenData = await tokenRes.json();
       const accessToken = tokenData.access_token;
 
       // 4. Query messages from user's mailbox received in the last 12 hours
-      const timeLimit = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      const timeLimit = new Date(
+        Date.now() - 12 * 60 * 60 * 1000,
+      ).toISOString();
       const filter = `receivedDateTime ge ${timeLimit}`;
       const select = 'subject,sender,bodyPreview,body';
       const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=30`;
@@ -75,33 +104,55 @@ export class EmailWatcherService {
         throw new Error(`Graph API query failed: ${mailRes.statusText}`);
       }
 
-      const mailData = await mailRes.json() as any;
+      const mailData = await mailRes.json();
       const emails = mailData.value || [];
 
       // 5. Scan emails for subject, sender, and success condition
       for (const email of emails) {
-        const subjectMatch = !filterSubject || email.subject.toLowerCase().includes(filterSubject.toLowerCase());
-        const senderMatch = !filterSender || email.sender?.emailAddress?.address.toLowerCase() === filterSender.toLowerCase();
+        const subjectMatch =
+          !filterSubject ||
+          email.subject.toLowerCase().includes(filterSubject.toLowerCase());
+        const senderMatch =
+          !filterSender ||
+          email.sender?.emailAddress?.address.toLowerCase() ===
+            filterSender.toLowerCase();
 
         if (subjectMatch && senderMatch) {
-          const bodyContent = (email.body?.content || email.bodyPreview || '').toLowerCase();
-          const conditionMatch = !condition || bodyContent.includes(condition.toLowerCase());
+          const bodyContent = (
+            email.body?.content ||
+            email.bodyPreview ||
+            ''
+          ).toLowerCase();
+          const conditionMatch =
+            !condition || bodyContent.includes(condition.toLowerCase());
 
           if (conditionMatch) {
             let downloadMsg = '';
-            const rawDownloadDir = customDownloadDir || (await this.settingsService.getSetting('m365_download_directory', ''));
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
             if (rawDownloadDir) {
               const downloadDir = this.formatDownloadDir(rawDownloadDir);
               try {
-                const downloaded = await this.downloadAttachments(accessToken, watcherEmail, email.id, downloadDir);
+                const downloaded = await this.downloadAttachments(
+                  accessToken,
+                  watcherEmail,
+                  email.id,
+                  downloadDir,
+                );
                 if (downloaded.length > 0) {
-                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map(p => path.basename(p)).join(', ')}`;
+                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map((p) => path.basename(p)).join(', ')}`;
                 } else {
                   downloadMsg = `. Không tìm thấy file đính kèm nào để tải.`;
                 }
               } catch (dlErr: any) {
                 downloadMsg = `. Lỗi khi tải file đính kèm: ${dlErr.message}`;
-                this.logger.error(`Error downloading attachments for email ${email.id}: ${dlErr.message}`);
+                this.logger.error(
+                  `Error downloading attachments for email ${email.id}: ${dlErr.message}`,
+                );
               }
             }
 
@@ -144,7 +195,7 @@ export class EmailWatcherService {
       throw new Error(`Failed to fetch attachments: ${res.statusText}`);
     }
 
-    const data = await res.json() as any;
+    const data = await res.json();
     const attachments = data.value || [];
     const downloadedFiles: string[] = [];
 
@@ -153,7 +204,10 @@ export class EmailWatcherService {
     }
 
     for (const attachment of attachments) {
-      if (attachment['@odata.type'] === '#microsoft.graph.fileAttachment' && attachment.contentBytes) {
+      if (
+        attachment['@odata.type'] === '#microsoft.graph.fileAttachment' &&
+        attachment.contentBytes
+      ) {
         const filePath = path.join(downloadDir, attachment.name);
         const buffer = Buffer.from(attachment.contentBytes, 'base64');
         fs.writeFileSync(filePath, buffer);
@@ -186,7 +240,12 @@ export class EmailWatcherService {
   /**
    * Helper to check mock email from mock data file.
    */
-  private async checkMockEmail(subject: string, sender: string, condition: string, customDownloadDir?: string): Promise<{ success: boolean; message: string }> {
+  private async checkMockEmail(
+    subject: string,
+    sender: string,
+    condition: string,
+    customDownloadDir?: string,
+  ): Promise<{ success: boolean; message: string }> {
     const mockFilePath = path.join(__dirname, 'mock-emails.json');
     if (!fs.existsSync(mockFilePath)) {
       // Create empty mock file if it doesn't exist
@@ -204,24 +263,37 @@ export class EmailWatcherService {
           subject: 'Báo cáo chênh lệch KLGD CQG vs M-System',
           body: 'Kết quả đối chiếu khớp lệnh: SUCCESS. Không phát hiện chênh lệch.',
           receivedDateTime: new Date().toISOString(),
-        }
+        },
       ];
-      fs.writeFileSync(mockFilePath, JSON.stringify(defaultMock, null, 2), 'utf8');
+      fs.writeFileSync(
+        mockFilePath,
+        JSON.stringify(defaultMock, null, 2),
+        'utf8',
+      );
     }
 
     try {
       const mockData = JSON.parse(fs.readFileSync(mockFilePath, 'utf8'));
       for (const email of mockData) {
-        const subjectMatch = !subject || email.subject.toLowerCase().includes(subject.toLowerCase());
-        const senderMatch = !sender || email.sender.toLowerCase() === sender.toLowerCase();
+        const subjectMatch =
+          !subject ||
+          email.subject.toLowerCase().includes(subject.toLowerCase());
+        const senderMatch =
+          !sender || email.sender.toLowerCase() === sender.toLowerCase();
 
         if (subjectMatch && senderMatch) {
           const bodyContent = (email.body || '').toLowerCase();
-          const conditionMatch = !condition || bodyContent.includes(condition.toLowerCase());
+          const conditionMatch =
+            !condition || bodyContent.includes(condition.toLowerCase());
 
           if (conditionMatch) {
             let downloadMsg = '';
-            const rawDownloadDir = customDownloadDir || (await this.settingsService.getSetting('m365_download_directory', ''));
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
             if (rawDownloadDir) {
               const downloadDir = this.formatDownloadDir(rawDownloadDir);
               if (!fs.existsSync(downloadDir)) {
@@ -231,12 +303,17 @@ export class EmailWatcherService {
               // Create simulated files depending on the type of email
               let fileName = '';
               let fileContent = '';
-              if (email.subject.toLowerCase().includes('eod') || email.subject.toLowerCase().includes('đối chiếu')) {
+              if (
+                email.subject.toLowerCase().includes('eod') ||
+                email.subject.toLowerCase().includes('đối chiếu')
+              ) {
                 fileName = `EOD_report_${new Date().toISOString().split('T')[0]}.xlsx`;
-                fileContent = 'Mock Excel EOD Content\nAccount,InitialMargin\nTK001,-50000\nTK002,150000\nTK003,-12000\nTK004,-450000';
+                fileContent =
+                  'Mock Excel EOD Content\nAccount,InitialMargin\nTK001,-50000\nTK002,150000\nTK003,-12000\nTK004,-450000';
               } else {
                 fileName = `Job_Snapshot_${new Date().toISOString().split('T')[0]}.txt`;
-                fileContent = 'Job Snapshot SUCCESS\nAll databases are backup ready.';
+                fileContent =
+                  'Job Snapshot SUCCESS\nAll databases are backup ready.';
               }
 
               const filePath = path.join(downloadDir, fileName);
@@ -264,13 +341,33 @@ export class EmailWatcherService {
   /**
    * Fetch the latest matching email from MS Graph API or Mock Emails
    */
-  async getLatestEmail(subject: string, sender: string): Promise<{ subject: string; sender: string; body: string } | null> {
-    const clientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
-    const clientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
-    const tenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
-    const watcherEmail = (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+  async getLatestEmail(
+    subject: string,
+    sender: string,
+  ): Promise<{ subject: string; sender: string; body: string } | null> {
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
 
-    const isSimulation = !clientId || !clientSecret || !tenantId || !watcherEmail || process.env.SIMULATE_BOT_CHECKS === 'true';
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
 
     if (isSimulation) {
       const mockFilePath = path.join(__dirname, 'mock-emails.json');
@@ -278,8 +375,11 @@ export class EmailWatcherService {
         try {
           const mockData = JSON.parse(fs.readFileSync(mockFilePath, 'utf8'));
           for (const email of mockData) {
-            const subjectMatch = !subject || email.subject.toLowerCase().includes(subject.toLowerCase());
-            const senderMatch = !sender || email.sender.toLowerCase() === sender.toLowerCase();
+            const subjectMatch =
+              !subject ||
+              email.subject.toLowerCase().includes(subject.toLowerCase());
+            const senderMatch =
+              !sender || email.sender.toLowerCase() === sender.toLowerCase();
             if (subjectMatch && senderMatch) {
               return {
                 subject: email.subject,
@@ -313,10 +413,12 @@ export class EmailWatcherService {
         throw new Error(`Auth failed: ${tokenRes.statusText}`);
       }
 
-      const tokenData = await tokenRes.json() as any;
+      const tokenData = await tokenRes.json();
       const accessToken = tokenData.access_token;
 
-      const timeLimit = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const timeLimit = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
       const filter = `receivedDateTime ge ${timeLimit}`;
       const select = 'subject,sender,body';
       const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`;
@@ -329,12 +431,17 @@ export class EmailWatcherService {
         throw new Error(`Graph API query failed: ${mailRes.statusText}`);
       }
 
-      const mailData = await mailRes.json() as any;
+      const mailData = await mailRes.json();
       const emails = mailData.value || [];
 
       for (const email of emails) {
-        const subjectMatch = !subject || email.subject.toLowerCase().includes(subject.toLowerCase());
-        const senderMatch = !sender || email.sender?.emailAddress?.address.toLowerCase() === sender.toLowerCase();
+        const subjectMatch =
+          !subject ||
+          email.subject.toLowerCase().includes(subject.toLowerCase());
+        const senderMatch =
+          !sender ||
+          email.sender?.emailAddress?.address.toLowerCase() ===
+            sender.toLowerCase();
 
         if (subjectMatch && senderMatch) {
           return {

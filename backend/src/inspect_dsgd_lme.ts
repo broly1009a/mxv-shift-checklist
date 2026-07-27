@@ -2,7 +2,8 @@ import * as ExcelJS from 'exceljs';
 import * as path from 'path';
 
 async function inspect() {
-  const filePath = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\DSGD.xlsx';
+  const filePath =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\DSGD.xlsx';
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
   const ws = wb.worksheets[0];

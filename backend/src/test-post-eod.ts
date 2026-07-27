@@ -17,7 +17,11 @@ async function testPostEod() {
   const postEodHandlerService = app.get(PostEodHandlerService);
 
   // 1. Cấu hình thư mục tải file tạm trong workspace
-  const tempDownloadDir = path.join(process.cwd(), 'temp', 'test_eod_downloads');
+  const tempDownloadDir = path.join(
+    process.cwd(),
+    'temp',
+    'test_eod_downloads',
+  );
   console.log(`Cấu hình m365_download_directory: ${tempDownloadDir}`);
   await settingsService.setSetting('m365_download_directory', tempDownloadDir);
 
@@ -35,9 +39,14 @@ async function testPostEod() {
     subject: 'đối chiếu',
     sender: 'backoffice@mxv.vn',
   });
-  
+
   // Chúng ta sẽ add một mock email vào mock-emails.json để đảm bảo khớp
-  const mockEmailsPath = path.join(__dirname, 'modules', 'bot-engine', 'mock-emails.json');
+  const mockEmailsPath = path.join(
+    __dirname,
+    'modules',
+    'bot-engine',
+    'mock-emails.json',
+  );
   const testMockEmails = [
     {
       id: 'eod-test-1',
@@ -45,12 +54,19 @@ async function testPostEod() {
       subject: 'Báo cáo chênh lệch KLGD CQG vs M-System - Đối chiếu EOD',
       body: 'Kết quả đối chiếu EOD thành công: SUCCESS.',
       receivedDateTime: new Date().toISOString(),
-    }
+    },
   ];
-  fs.writeFileSync(mockEmailsPath, JSON.stringify(testMockEmails, null, 2), 'utf8');
+  fs.writeFileSync(
+    mockEmailsPath,
+    JSON.stringify(testMockEmails, null, 2),
+    'utf8',
+  );
   console.log(`Đã ghi mock email vào: ${mockEmailsPath}`);
 
-  const checkResult = await emailWatcherService.checkEmailTask(targetFilter, 'SUCCESS');
+  const checkResult = await emailWatcherService.checkEmailTask(
+    targetFilter,
+    'SUCCESS',
+  );
   console.log('Kết quả check email:', checkResult);
 
   if (!checkResult.success) {
@@ -69,7 +85,7 @@ async function testPostEod() {
     throw new Error('Không thấy file đính kèm nào được tải về!');
   }
 
-  const eodReportFile = downloadedFiles.find(f => f.includes('EOD_report'));
+  const eodReportFile = downloadedFiles.find((f) => f.includes('EOD_report'));
   if (!eodReportFile) {
     throw new Error('Không tìm thấy file báo cáo EOD!');
   }
@@ -78,17 +94,25 @@ async function testPostEod() {
 
   // 4. Kiểm tra tài khoản âm ký quỹ đầu ngày
   console.log('\n--- BƯỚC 3: Đọc file EOD quét tài khoản âm ký quỹ ---');
-  const negativeAccounts = await postEodHandlerService.scanNegativeMarginAccounts(eodFilePath);
-  console.log('Danh sách tài khoản âm ký quỹ phát hiện được:', negativeAccounts);
+  const negativeAccounts =
+    await postEodHandlerService.scanNegativeMarginAccounts(eodFilePath);
+  console.log(
+    'Danh sách tài khoản âm ký quỹ phát hiện được:',
+    negativeAccounts,
+  );
 
   // File mock sinh ra bởi email-watcher.service.ts ở dòng:
   // Account,InitialMargin\nTK001,-50000\nTK002,150000\nTK003,-12000\nTK004,-450000
   // Nên có đúng 3 tài khoản âm: TK001, TK003, TK004
   if (negativeAccounts.length !== 3) {
-    throw new Error(`Số lượng tài khoản âm không khớp! Kỳ vọng: 3, Thực tế: ${negativeAccounts.length}`);
+    throw new Error(
+      `Số lượng tài khoản âm không khớp! Kỳ vọng: 3, Thực tế: ${negativeAccounts.length}`,
+    );
   }
 
-  console.log('\n✅ KIỂM THỬ POST-EOD HOÀN TẤT THÀNH CÔNG VỚI KẾT QUẢ CHÍNH XÁC!');
+  console.log(
+    '\n✅ KIỂM THỬ POST-EOD HOÀN TẤT THÀNH CÔNG VỚI KẾT QUẢ CHÍNH XÁC!',
+  );
 
   // Dọn dẹp
   try {

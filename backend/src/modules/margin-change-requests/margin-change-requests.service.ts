@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
@@ -33,9 +40,14 @@ export class MarginChangeRequestsService {
     },
     user: any,
   ): Promise<MarginChangeRequest> {
-    const hasAccess = await this.accessControlService.canAccessFeature(user, 'MARGIN_CHANGE');
+    const hasAccess = await this.accessControlService.canAccessFeature(
+      user,
+      'MARGIN_CHANGE',
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Tài khoản của bạn không thuộc khối QLGD để tạo yêu cầu ký quỹ.');
+      throw new ForbiddenException(
+        'Tài khoản của bạn không thuộc khối QLGD để tạo yêu cầu ký quỹ.',
+      );
     }
 
     const request = new this.requestModel({
@@ -62,8 +74,14 @@ export class MarginChangeRequestsService {
     return saved;
   }
 
-  async listRequests(user: any, status?: string): Promise<MarginChangeRequest[]> {
-    const hasAccess = await this.accessControlService.canAccessFeature(user, 'MARGIN_CHANGE');
+  async listRequests(
+    user: any,
+    status?: string,
+  ): Promise<MarginChangeRequest[]> {
+    const hasAccess = await this.accessControlService.canAccessFeature(
+      user,
+      'MARGIN_CHANGE',
+    );
     if (!hasAccess) {
       return [];
     }
@@ -76,7 +94,6 @@ export class MarginChangeRequestsService {
       .sort({ createdAt: -1 })
       .exec();
   }
-
 
   async approveRequest(
     id: string,
@@ -93,9 +110,11 @@ export class MarginChangeRequestsService {
     }
 
     // Maker-Checker constraint: Maker cannot be Checker
-    const makerIdStr = request.createdBy instanceof Types.ObjectId
-      ? request.createdBy.toString()
-      : (request.createdBy as any)._id?.toString() || (request.createdBy as any).id?.toString();
+    const makerIdStr =
+      request.createdBy instanceof Types.ObjectId
+        ? request.createdBy.toString()
+        : (request.createdBy as any)._id?.toString() ||
+          (request.createdBy as any).id?.toString();
 
     const checkerIdStr = (checkerUser.id || checkerUser._id).toString();
 
@@ -106,14 +125,23 @@ export class MarginChangeRequestsService {
     }
 
     // Role-based Checker authorization
-    const checkerRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+    const checkerRoles = [
+      'ADMIN',
+      'CHAIRMAN',
+      'CEO',
+      'DIVISION_DIRECTOR',
+      'DEPARTMENT_HEAD',
+    ];
     if (!checkerRoles.includes(checkerUser.role)) {
       throw new ForbiddenException(
         'Tài khoản của bạn không có vai trò phê duyệt yêu cầu này (Chỉ dành cho Approver).',
       );
     }
 
-    const hasAccess = await this.accessControlService.canAccessFeature(checkerUser, 'MARGIN_CHANGE');
+    const hasAccess = await this.accessControlService.canAccessFeature(
+      checkerUser,
+      'MARGIN_CHANGE',
+    );
     if (!hasAccess) {
       throw new ForbiddenException(
         'Tài khoản của bạn không thuộc khối QLGD để phê duyệt yêu cầu ký quỹ.',
@@ -161,9 +189,11 @@ export class MarginChangeRequestsService {
     }
 
     // Maker-Checker constraint
-    const makerIdStr = request.createdBy instanceof Types.ObjectId
-      ? request.createdBy.toString()
-      : (request.createdBy as any)._id?.toString() || (request.createdBy as any).id?.toString();
+    const makerIdStr =
+      request.createdBy instanceof Types.ObjectId
+        ? request.createdBy.toString()
+        : (request.createdBy as any)._id?.toString() ||
+          (request.createdBy as any).id?.toString();
 
     const checkerIdStr = (checkerUser.id || checkerUser._id).toString();
 
@@ -174,14 +204,23 @@ export class MarginChangeRequestsService {
     }
 
     // Role-based Checker authorization
-    const checkerRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+    const checkerRoles = [
+      'ADMIN',
+      'CHAIRMAN',
+      'CEO',
+      'DIVISION_DIRECTOR',
+      'DEPARTMENT_HEAD',
+    ];
     if (!checkerRoles.includes(checkerUser.role)) {
       throw new ForbiddenException(
         'Tài khoản của bạn không có vai trò từ chối yêu cầu này (Chỉ dành cho Approver).',
       );
     }
 
-    const hasAccess = await this.accessControlService.canAccessFeature(checkerUser, 'MARGIN_CHANGE');
+    const hasAccess = await this.accessControlService.canAccessFeature(
+      checkerUser,
+      'MARGIN_CHANGE',
+    );
     if (!hasAccess) {
       throw new ForbiddenException(
         'Tài khoản của bạn không thuộc khối QLGD để từ chối yêu cầu ký quỹ.',
@@ -211,9 +250,14 @@ export class MarginChangeRequestsService {
   }
 
   async scanDecisionDocument(user: any): Promise<any> {
-    const hasAccess = await this.accessControlService.canAccessFeature(user, 'MARGIN_CHANGE');
+    const hasAccess = await this.accessControlService.canAccessFeature(
+      user,
+      'MARGIN_CHANGE',
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Tài khoản của bạn không thuộc khối QLGD để thực hiện quét quyết định.');
+      throw new ForbiddenException(
+        'Tài khoản của bạn không thuộc khối QLGD để thực hiện quét quyết định.',
+      );
     }
 
     const folderPath = await this.systemSettingsService.getSetting(
@@ -224,20 +268,28 @@ export class MarginChangeRequestsService {
     let targetDir = folderPath;
     if (!fs.existsSync(targetDir)) {
       // Local fallback in workspace
-      const localFallback = path.resolve(__dirname, '../../../../Quanlygiaodich/Tai lieu hoat dong/Quyết định - Thông báo');
+      const localFallback = path.resolve(
+        __dirname,
+        '../../../../Quanlygiaodich/Tai lieu hoat dong/Quyết định - Thông báo',
+      );
       if (fs.existsSync(localFallback)) {
         targetDir = localFallback;
       } else {
-        throw new BadRequestException(`Thư mục quyết định ký quỹ không tồn tại: ${folderPath}`);
+        throw new BadRequestException(
+          `Thư mục quyết định ký quỹ không tồn tại: ${folderPath}`,
+        );
       }
     }
 
     // Format shiftDate to check against filenames
-    let shiftDateStr = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+    let shiftDateStr = new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
     let activeShift: any = null;
     try {
-      const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
-      activeShift = activeShifts.find(s => s.status === 'PENDING');
+      const activeShifts =
+        await this.shiftsService.getActiveShiftsByDepartment(user);
+      activeShift = activeShifts.find((s) => s.status === 'PENDING');
       if (activeShift) {
         shiftDateStr = activeShift.shiftDate;
       }
@@ -248,16 +300,20 @@ export class MarginChangeRequestsService {
     const yyyyMMdd_dot = shiftDateStr.replace(/-/g, '.'); // e.g. "2026.07.10"
     const yyyyMMdd_dash = shiftDateStr; // e.g. "2026-07-10"
     const parts = shiftDateStr.split('-');
-    const ddMMmmyyyy_dot = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : ''; // e.g. "10.07.2026"
+    const ddMMmmyyyy_dot =
+      parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : ''; // e.g. "10.07.2026"
 
-    const files = fs.readdirSync(targetDir)
-      .filter(file => file.endsWith('.docx') && !file.startsWith('~$'))
-      .filter(file => {
-        return (yyyyMMdd_dot && file.includes(yyyyMMdd_dot)) || 
-               (yyyyMMdd_dash && file.includes(yyyyMMdd_dash)) || 
-               (ddMMmmyyyy_dot && file.includes(ddMMmmyyyy_dot));
+    const files = fs
+      .readdirSync(targetDir)
+      .filter((file) => file.endsWith('.docx') && !file.startsWith('~$'))
+      .filter((file) => {
+        return (
+          (yyyyMMdd_dot && file.includes(yyyyMMdd_dot)) ||
+          (yyyyMMdd_dash && file.includes(yyyyMMdd_dash)) ||
+          (ddMMmmyyyy_dot && file.includes(ddMMmmyyyy_dot))
+        );
       })
-      .map(file => {
+      .map((file) => {
         const filePath = path.join(targetDir, file);
         const stat = fs.statSync(filePath);
         return { file, filePath, mtime: stat.mtime };
@@ -267,7 +323,9 @@ export class MarginChangeRequestsService {
     if (files.length === 0) {
       if (activeShift) {
         try {
-          const task = activeShift.details.find((d: any) => d.taskId === 'ops_during_01');
+          const task = activeShift.details.find(
+            (d: any) => d.taskId === 'ops_during_01',
+          );
           if (task && activeShift.status === 'PENDING') {
             const noteText = `[Tự động] Không tìm thấy quyết định thay đổi ký quỹ cho ngày ${shiftDateStr}. Mức ký quỹ giữ nguyên.`;
             await this.shiftsService.updateTaskStatus(
@@ -276,11 +334,14 @@ export class MarginChangeRequestsService {
               'PASSED',
               user,
               noteText,
-              true
+              true,
             );
           }
         } catch (shiftErr) {
-          console.error('Error updating checklist task when no file found:', shiftErr);
+          console.error(
+            'Error updating checklist task when no file found:',
+            shiftErr,
+          );
         }
       }
 
@@ -291,22 +352,34 @@ export class MarginChangeRequestsService {
         effectiveSession: null,
         totalExtracted: 0,
         totalCreated: 0,
-        requests: []
+        requests: [],
       };
     }
 
     const latestDocx = files[0].filePath;
-    
+
     // Resolve python script path with fallback for src/dist directories
-    let scriptPath = path.resolve(__dirname, '../../scripts/parse_margin_decision.py');
+    let scriptPath = path.resolve(
+      __dirname,
+      '../../scripts/parse_margin_decision.py',
+    );
     if (!fs.existsSync(scriptPath)) {
-      scriptPath = path.resolve(__dirname, '../../../src/scripts/parse_margin_decision.py');
+      scriptPath = path.resolve(
+        __dirname,
+        '../../../src/scripts/parse_margin_decision.py',
+      );
     }
     if (!fs.existsSync(scriptPath)) {
-      scriptPath = path.resolve(process.cwd(), 'src/scripts/parse_margin_decision.py');
+      scriptPath = path.resolve(
+        process.cwd(),
+        'src/scripts/parse_margin_decision.py',
+      );
     }
     if (!fs.existsSync(scriptPath)) {
-      scriptPath = path.resolve(process.cwd(), 'backend/src/scripts/parse_margin_decision.py');
+      scriptPath = path.resolve(
+        process.cwd(),
+        'backend/src/scripts/parse_margin_decision.py',
+      );
     }
 
     const commodityXlsxPath = path.resolve(
@@ -317,7 +390,11 @@ export class MarginChangeRequestsService {
     const { spawn } = require('child_process');
 
     return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python', [scriptPath, latestDocx, commodityXlsxPath]);
+      const pythonProcess = spawn('python', [
+        scriptPath,
+        latestDocx,
+        commodityXlsxPath,
+      ]);
       let stdoutData = '';
       let stderrData = '';
 
@@ -331,13 +408,21 @@ export class MarginChangeRequestsService {
 
       pythonProcess.on('close', async (code: any) => {
         if (code !== 0) {
-          return reject(new BadRequestException(`Lỗi phân tích file quyết định (Python code ${code}): ${stderrData}`));
+          return reject(
+            new BadRequestException(
+              `Lỗi phân tích file quyết định (Python code ${code}): ${stderrData}`,
+            ),
+          );
         }
 
         try {
           const parsed = JSON.parse(stdoutData);
           if (!parsed.success) {
-            return reject(new BadRequestException(parsed.error || 'Lỗi phân tích file quyết định từ Python.'));
+            return reject(
+              new BadRequestException(
+                parsed.error || 'Lỗi phân tích file quyết định từ Python.',
+              ),
+            );
           }
 
           const changes = parsed.changes || [];
@@ -377,9 +462,12 @@ export class MarginChangeRequestsService {
 
           // Update checklist task if there is an active shift log
           try {
-            const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
+            const activeShifts =
+              await this.shiftsService.getActiveShiftsByDepartment(user);
             for (const shift of activeShifts) {
-              const task = shift.details.find((d: any) => d.taskId === 'ops_during_01');
+              const task = shift.details.find(
+                (d: any) => d.taskId === 'ops_during_01',
+              );
               if (task && shift.status === 'PENDING') {
                 const summaryLines = [
                   `[Tự động] Đã quét quyết định: "${path.basename(latestDocx)}"`,
@@ -387,24 +475,28 @@ export class MarginChangeRequestsService {
                   `Phát hiện ${changes.length} mặt hàng thay đổi mức ký quỹ.`,
                   createdRequests.length > 0
                     ? `Đã tự động tạo mới ${createdRequests.length} yêu cầu thay đổi ký quỹ chờ duyệt.`
-                    : `Không có yêu cầu thay đổi mới nào cần tạo.`
+                    : `Không có yêu cầu thay đổi mới nào cần tạo.`,
                 ];
                 const noteText = summaryLines.join('\n');
-                const taskStatus = createdRequests.length > 0 ? 'WAITING' : 'PASSED';
-                
+                const taskStatus =
+                  createdRequests.length > 0 ? 'WAITING' : 'PASSED';
+
                 await this.shiftsService.updateTaskStatus(
                   shift._id.toString(),
                   'ops_during_01',
                   taskStatus,
                   user,
                   noteText,
-                  true
+                  true,
                 );
-                break; 
+                break;
               }
             }
           } catch (shiftErr) {
-            console.error('Error updating checklist task ops_during_01:', shiftErr);
+            console.error(
+              'Error updating checklist task ops_during_01:',
+              shiftErr,
+            );
           }
 
           resolve({
@@ -416,7 +508,11 @@ export class MarginChangeRequestsService {
             requests: createdRequests,
           });
         } catch (err) {
-          reject(new BadRequestException(`Lỗi phân tích kết quả JSON: ${err.message}`));
+          reject(
+            new BadRequestException(
+              `Lỗi phân tích kết quả JSON: ${err.message}`,
+            ),
+          );
         }
       });
     });
@@ -430,9 +526,12 @@ export class MarginChangeRequestsService {
       });
 
       if (pendingCount === 0) {
-        const activeShifts = await this.shiftsService.getActiveShiftsByDepartment(user);
+        const activeShifts =
+          await this.shiftsService.getActiveShiftsByDepartment(user);
         for (const shift of activeShifts) {
-          const task = shift.details.find((d: any) => d.taskId === 'ops_during_01');
+          const task = shift.details.find(
+            (d: any) => d.taskId === 'ops_during_01',
+          );
           if (task && shift.status === 'PENDING') {
             const rejectedCount = await this.requestModel.countDocuments({
               taskId: 'ops_during_01',
@@ -440,10 +539,12 @@ export class MarginChangeRequestsService {
             });
 
             const taskStatus = rejectedCount > 0 ? 'NEEDS_ATTENTION' : 'PASSED';
-            
+
             const currentNote = task.resultNote || '';
             const appendNote = `\n[Tự động] Tất cả yêu cầu thay đổi ký quỹ đã được xử lý (Duyệt thành công, Từ chối: ${rejectedCount}).`;
-            const noteText = currentNote.includes('[Tự động] Tất cả yêu cầu') ? currentNote : (currentNote + appendNote);
+            const noteText = currentNote.includes('[Tự động] Tất cả yêu cầu')
+              ? currentNote
+              : currentNote + appendNote;
 
             await this.shiftsService.updateTaskStatus(
               shift._id.toString(),
@@ -451,7 +552,7 @@ export class MarginChangeRequestsService {
               taskStatus,
               user,
               noteText,
-              true
+              true,
             );
             break;
           }

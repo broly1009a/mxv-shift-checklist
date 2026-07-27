@@ -16,7 +16,9 @@ export class IncidentTimelineEvent {
   actor: string;
 }
 
-export const IncidentTimelineEventSchema = SchemaFactory.createForClass(IncidentTimelineEvent);
+export const IncidentTimelineEventSchema = SchemaFactory.createForClass(
+  IncidentTimelineEvent,
+);
 
 @Schema({ timestamps: true, collection: 'incidents' })
 export class Incident extends Document {
@@ -29,13 +31,22 @@ export class Incident extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ShiftLog', required: true, index: true })
   shiftLogId: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], default: 'MEDIUM' })
+  @Prop({
+    required: true,
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    default: 'MEDIUM',
+  })
   severity: string;
 
   @Prop({ required: true, default: '' })
   requiredAction: string;
 
-  @Prop({ required: true, enum: ['PENDING', 'RESOLVED'], default: 'PENDING', index: true })
+  @Prop({
+    required: true,
+    enum: ['PENDING', 'RESOLVED'],
+    default: 'PENDING',
+    index: true,
+  })
   status: string;
 
   @Prop({ required: true, type: Date, default: Date.now })
@@ -50,8 +61,17 @@ export class Incident extends Document {
   @Prop({
     type: String,
     required: false,
-    enum: ['MISSING_CONFIGURATION', 'MESSAGE_SYNC_LOSS', 'SOFTWARE_BUG', 'NETWORK_DISRUPTION', 'DATA_FILE_ERROR', 'THIRD_PARTY_ERROR', 'OTHER', null],
-    default: null
+    enum: [
+      'MISSING_CONFIGURATION',
+      'MESSAGE_SYNC_LOSS',
+      'SOFTWARE_BUG',
+      'NETWORK_DISRUPTION',
+      'DATA_FILE_ERROR',
+      'THIRD_PARTY_ERROR',
+      'OTHER',
+      null,
+    ],
+    default: null,
   })
   rootCause?: string | null;
 

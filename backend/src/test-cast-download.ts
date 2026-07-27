@@ -631,10 +631,11 @@ async function main() {
   }
 
   // Khởi chạy trình duyệt Edge có giao diện
-  const msEdgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+  const msEdgePath =
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
   const launchOptions: any = {
     headless: false,
-    args: ['--start-maximized']
+    args: ['--start-maximized'],
   };
 
   if (fs.existsSync(msEdgePath)) {
@@ -657,10 +658,10 @@ async function main() {
   page.setDefaultTimeout(30000);
 
   // Pipe browser console messages and errors to terminal
-  page.on('console', msg => {
+  page.on('console', (msg) => {
     console.log(`[Browser Console] [${msg.type()}] ${msg.text()}`);
   });
-  page.on('pageerror', err => {
+  page.on('pageerror', (err) => {
     console.log(`[Browser PageError] ${err.message}`);
   });
 
@@ -668,30 +669,47 @@ async function main() {
   let userIndexXmlText = '';
 
   // Intercept XML/XSL/ASP requests to clean leading whitespace/BOM characters before the browser engine parses them
-  await page.route('**/*', async route => {
+  await page.route('**/*', async (route) => {
     const request = route.request();
     const url = request.url().toLowerCase();
-    
+
     const isAsp = url.includes('.asp') && !url.includes('.aspx');
     if (url.includes('.xml') || url.includes('.xsl') || isAsp) {
       try {
         const response = await route.fetch();
-        const contentType = (response.headers()['content-type'] || '').toLowerCase();
-        
-        if (contentType.includes('xml') || contentType.includes('xsl') || contentType.includes('text') || isAsp) {
+        const contentType = (
+          response.headers()['content-type'] || ''
+        ).toLowerCase();
+
+        if (
+          contentType.includes('xml') ||
+          contentType.includes('xsl') ||
+          contentType.includes('text') ||
+          isAsp
+        ) {
           const rawBody = await response.text();
           let cleanedBody = rawBody.replace(/^\s+/, '').trimStart();
-          
+
           if (url.includes('searchframe.xml.asp')) {
             searchFrameXmlText = cleanedBody;
           }
-          if (url.includes('userindex.asp') && !url.includes('userindex.xsl.asp') && !url.includes('userindex.js.asp')) {
+          if (
+            url.includes('userindex.asp') &&
+            !url.includes('userindex.xsl.asp') &&
+            !url.includes('userindex.js.asp')
+          ) {
             userIndexXmlText = cleanedBody;
           }
 
           // Translate obsolete Microsoft WD-xsl to standard W3C XSLT 1.0
-          if (url.includes('.xsl') || cleanedBody.includes('http://www.w3.org/TR/WD-xsl')) {
-            cleanedBody = cleanedBody.replace(/http:\/\/www\.w3\.org\/TR\/WD-xsl/g, 'http://www.w3.org/1999/XSL/Transform');
+          if (
+            url.includes('.xsl') ||
+            cleanedBody.includes('http://www.w3.org/TR/WD-xsl')
+          ) {
+            cleanedBody = cleanedBody.replace(
+              /http:\/\/www\.w3\.org\/TR\/WD-xsl/g,
+              'http://www.w3.org/1999/XSL/Transform',
+            );
             // Fix legacy WD-xsl style node/attribute test .[@attr='val'] -> @attr='val'
             cleanedBody = cleanedBody.replace(/\.\[@([^\]]+)\]/g, '@$1');
           }
@@ -701,7 +719,7 @@ async function main() {
             const b64 = Buffer.from(searchFrameXmlText).toString('base64');
             cleanedBody = cleanedBody.replace(
               `<script type='text/javascript' src='/CAST/Script/DataScripts.js.asp'></script>`,
-              `<script type='text/javascript'>window.__originalXMLText = atob('${b64}');</script>\n<script type='text/javascript' src='/CAST/Script/DataScripts.js.asp'></script>`
+              `<script type='text/javascript'>window.__originalXMLText = atob('${b64}');</script>\n<script type='text/javascript' src='/CAST/Script/DataScripts.js.asp'></script>`,
             );
           }
 
@@ -710,36 +728,46 @@ async function main() {
             const b64 = Buffer.from(userIndexXmlText).toString('base64');
             cleanedBody = cleanedBody.replace(
               /<script\s+language=["']JScript["']\s+src=["']UserIndex\.js\.asp\?language=EN["']\s+charset=["']UTF-8["']>/i,
-              `<SCRIPT TYPE="text/javascript">window.__originalXMLText = atob('${b64}');</SCRIPT>\n<SCRIPT LANGUAGE="JScript" SRC="UserIndex.js.asp?language=EN" charset="UTF-8">`
+              `<SCRIPT TYPE="text/javascript">window.__originalXMLText = atob('${b64}');</SCRIPT>\n<SCRIPT LANGUAGE="JScript" SRC="UserIndex.js.asp?language=EN" charset="UTF-8">`,
             );
           }
-          
+
           if (url.includes('datascripts.js.asp')) {
             const fs = require('fs');
             const debugFilePath = path.join(DEBUG_DIR, 'DataScripts.js.asp');
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic DataScripts.js.asp to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic DataScripts.js.asp to ${debugFilePath}`,
+            );
           }
           if (url.includes('helpmenu.asp') || url.includes('utilitymenu.asp')) {
             const fs = require('fs');
             const basename = url.substring(url.lastIndexOf('/') + 1);
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
           if (url.includes('.xsl') || url.includes('searchframe.xml.asp')) {
             const fs = require('fs');
-            const basename = url.includes('?') ? url.substring(url.lastIndexOf('/') + 1, url.indexOf('?')) : url.substring(url.lastIndexOf('/') + 1);
+            const basename = url.includes('?')
+              ? url.substring(url.lastIndexOf('/') + 1, url.indexOf('?'))
+              : url.substring(url.lastIndexOf('/') + 1);
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
           if (url.includes('searchframe.js.asp')) {
             const fs = require('fs');
             const basename = 'SearchFrame.js.asp';
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
 
           if (url.includes('searchframe.js.asp')) {
@@ -747,80 +775,103 @@ async function main() {
             const basename = 'SearchFrame.js.asp';
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
           if (url.includes('innerframe.asp')) {
             const fs = require('fs');
             const basename = 'InnerFrame.asp';
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
           if (url.includes('userindex.js.asp')) {
             // Fix event handler parameter
-            cleanedBody = cleanedBody.replace(/function anonymous\s*\(\s*\)/g, 'function anonymous(event)');
-            
+            cleanedBody = cleanedBody.replace(
+              /function anonymous\s*\(\s*\)/g,
+              'function anonymous(event)',
+            );
+
             // Fix jumpToLink event srcElement resolution
             cleanedBody = cleanedBody.replace(
               /if\s*\(\s*obj\s*==\s*null\s*\)\s*\r?\n?\s*obj\s*=\s*event\.srcElement\s*;/g,
               `var event = window.event;
               if (obj == null) obj = event ? (event.srcElement || event.target) : null;
-              if (!obj) return;`
+              if (!obj) return;`,
             );
-            
+
             // Add null guards to all obj.tagName and obj.pageLink checks
-            cleanedBody = cleanedBody.replace(/if\s*\(\s*obj\.tagName/g, 'if (obj && obj.tagName');
-            cleanedBody = cleanedBody.replace(/if\s*\(\s*event\s*!=\s*null/g, 'if (typeof event !== "undefined" && event != null');
+            cleanedBody = cleanedBody.replace(
+              /if\s*\(\s*obj\.tagName/g,
+              'if (obj && obj.tagName',
+            );
+            cleanedBody = cleanedBody.replace(
+              /if\s*\(\s*event\s*!=\s*null/g,
+              'if (typeof event !== "undefined" && event != null',
+            );
 
             // Fix IE document.all(id) -> document.getElementById(id) (IE method call syntax)
             cleanedBody = cleanedBody.replace(
               /dataFrameLink\.document\.all\(([^)]+)\)/g,
-              'dataFrameLink.document.getElementById($1)'
+              'dataFrameLink.document.getElementById($1)',
             );
 
             // Fix &amp; literal check — HTML parser converts &amp; to & in attributes,
             // so obj.pageLink ends with "&" not "&amp;"
             cleanedBody = cleanedBody.replace(
               /obj\.pageLink\.slice\(-5\) == "&amp;"/g,
-              '(obj.pageLink.slice(-5) === "&amp;" || obj.pageLink.slice(-1) === "&")'
+              '(obj.pageLink.slice(-5) === "&amp;" || obj.pageLink.slice(-1) === "&")',
             );
 
             // Wrap searchFrameLink.show() in try/catch to prevent frame-not-ready crashes
             cleanedBody = cleanedBody.replace(
               /searchFrameLink\.show\(/g,
-              'try { searchFrameLink.show('
+              'try { searchFrameLink.show(',
             );
             cleanedBody = cleanedBody.replace(
               /(searchFrameLink\.show\([^;]+;)/g,
-              '$1 } catch(e) { console.warn("[IE-MOCK] searchFrameLink.show failed:", e.message); }'
+              '$1 } catch(e) { console.warn("[IE-MOCK] searchFrameLink.show failed:", e.message); }',
             );
           }
 
           if (url.includes('userindex.')) {
             const fs = require('fs');
-            const basename = url.includes('?') ? url.substring(url.lastIndexOf('/') + 1, url.indexOf('?')) : url.substring(url.lastIndexOf('/') + 1);
+            const basename = url.includes('?')
+              ? url.substring(url.lastIndexOf('/') + 1, url.indexOf('?'))
+              : url.substring(url.lastIndexOf('/') + 1);
             const debugFilePath = path.join(DEBUG_DIR, basename);
             fs.writeFileSync(debugFilePath, cleanedBody);
-            console.log(`[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`);
+            console.log(
+              `[DEBUG] Saved dynamic ${basename} to ${debugFilePath}`,
+            );
           }
 
-          console.log(`[XML-ROUTE] Cleaned leading whitespace/BOM for: ${request.url()}`);
-          
+          console.log(
+            `[XML-ROUTE] Cleaned leading whitespace/BOM for: ${request.url()}`,
+          );
+
           await route.fulfill({
             response,
             body: cleanedBody,
             headers: {
               ...response.headers(),
-              'content-type': url.includes('xsl') ? 'text/xml' : response.headers()['content-type']
-            }
+              'content-type': url.includes('xsl')
+                ? 'text/xml'
+                : response.headers()['content-type'],
+            },
           });
           return;
         }
       } catch (e: any) {
-        console.log(`[XML-ROUTE-ERROR] Failed to clean ${request.url()}: ${e.message}`);
+        console.log(
+          `[XML-ROUTE-ERROR] Failed to clean ${request.url()}: ${e.message}`,
+        );
       }
     }
-    
+
     await route.continue().catch(() => {});
   });
 
@@ -834,7 +885,9 @@ async function main() {
     await page.locator('#passwordInput').fill(PASSWORD);
 
     log('⚡ Gọi doLogon() trực tiếp để đăng nhập...');
-    await page.waitForFunction(() => typeof (window as any).doLogon === 'function');
+    await page.waitForFunction(
+      () => typeof (window as any).doLogon === 'function',
+    );
     await page.evaluate(() => {
       (window as any).doLogon();
     });
@@ -842,7 +895,7 @@ async function main() {
     log('⚡ Chờ đăng nhập và chuyển hướng...');
     await page.waitForURL('**/CastMain.asp', { timeout: 30000 });
     log('🎉 ĐĂNG NHẬP THÀNH CÔNG!');
-    
+
     // Đợi thêm 5 giây để frameset và menu XML tải hoàn toàn
     log('⚡ Đợi 5 giây để menu tải...');
     await page.waitForTimeout(5000);
@@ -859,16 +912,28 @@ async function main() {
     // Tìm frame userIndex (menu frame bên trái)
     const allFrames = page.frames();
     log(`[FRAMES] Tổng số frames: ${allFrames.length}`);
-    allFrames.forEach((f, i) => log(`  [${i}] name=${f.name()} url=${f.url()}`));
+    allFrames.forEach((f, i) =>
+      log(`  [${i}] name=${f.name()} url=${f.url()}`),
+    );
 
     // Tìm frame có tên userIndex hoặc URL chứa UserIndex.asp
-    let userIndexFrame = allFrames.find(f => f.name() === 'userIndex' || f.url().includes('UserIndex.asp'));
+    let userIndexFrame = allFrames.find(
+      (f) => f.name() === 'userIndex' || f.url().includes('UserIndex.asp'),
+    );
     if (!userIndexFrame) {
-      log('⚠️ Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...');
+      log(
+        '⚠️ Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...',
+      );
       for (const f of allFrames) {
         const childFrames = f.childFrames();
-        const found = childFrames.find(cf => cf.name() === 'userIndex' || cf.url().includes('UserIndex.asp'));
-        if (found) { userIndexFrame = found; break; }
+        const found = childFrames.find(
+          (cf) =>
+            cf.name() === 'userIndex' || cf.url().includes('UserIndex.asp'),
+        );
+        if (found) {
+          userIndexFrame = found;
+          break;
+        }
       }
     }
 
@@ -878,52 +943,80 @@ async function main() {
       // Tìm span LEAFITEM "Reporting Tool" và gọi jumpToLink trực tiếp
       const result = await userIndexFrame.evaluate(() => {
         const spans = Array.from(document.querySelectorAll('span.LEAFITEM'));
-        const target = spans.find(s => s.textContent && s.textContent.trim() === 'Reporting Tool');
+        const target = spans.find(
+          (s) => s.textContent && s.textContent.trim() === 'Reporting Tool',
+        );
         if (!target) {
-          return { found: false, items: spans.map(s => s.textContent?.trim()) };
+          return {
+            found: false,
+            items: spans.map((s) => s.textContent?.trim()),
+          };
         }
-        const pageLink = (target as any).getAttribute('pageLink') || (target as any).pageLink;
+        const pageLink =
+          (target as any).getAttribute('pageLink') || (target as any).pageLink;
         const win = window as any;
 
         // Diagnostic: check frame chain
         const diag: any = {
           hasParent: !!win.parent,
           hasParentParent: !!(win.parent && win.parent.parent),
-          innerFrame: !!(win.parent && win.parent.parent && win.parent.parent.innerFrame),
-          dataFrame: !!(win.parent && win.parent.parent && win.parent.parent.innerFrame && win.parent.parent.innerFrame.dataFrame),
+          innerFrame: !!(
+            win.parent &&
+            win.parent.parent &&
+            win.parent.parent.innerFrame
+          ),
+          dataFrame: !!(
+            win.parent &&
+            win.parent.parent &&
+            win.parent.parent.innerFrame &&
+            win.parent.parent.innerFrame.dataFrame
+          ),
           jumpToLinkExists: typeof win.jumpToLink === 'function',
-          dataFrameLinkVar: !!(win.dataFrameLink),
-          searchFrameLinkVar: !!(win.searchFrameLink),
+          dataFrameLinkVar: !!win.dataFrameLink,
+          searchFrameLinkVar: !!win.searchFrameLink,
         };
-        
+
         // Try to navigate dataFrame directly without going through jumpToLink
         try {
-          const df = win.parent && win.parent.parent && win.parent.parent.innerFrame && win.parent.parent.innerFrame.dataFrame;
+          const df =
+            win.parent &&
+            win.parent.parent &&
+            win.parent.parent.innerFrame &&
+            win.parent.parent.innerFrame.dataFrame;
           if (df) {
             diag.dfUrl = df.location ? df.location.href : 'no location';
             df.location.href = pageLink;
             diag.navigated = true;
           }
-        } catch(e: any) {
+        } catch (e: any) {
           diag.navError = e.message;
         }
-        
+
         return { found: true, pageLink, diag };
       });
 
       log(`[CLICK-TEST] Kết quả: ${JSON.stringify(result)}`);
       await page.waitForTimeout(3000);
-      const afterClickPath = path.join(DEBUG_DIR, 'after-reporting-tool-click.png');
+      const afterClickPath = path.join(
+        DEBUG_DIR,
+        'after-reporting-tool-click.png',
+      );
       await page.screenshot({ path: afterClickPath });
       log(`📸 Chụp ảnh sau click: ${afterClickPath}`);
 
       // Tìm lại dataFrame sau khi navigate
-      let dataFrame = page.frames().find(f => f.name() === 'dataFrame' || f.url().includes('ReportingTool'));
+      let dataFrame = page
+        .frames()
+        .find(
+          (f) => f.name() === 'dataFrame' || f.url().includes('ReportingTool'),
+        );
       if (dataFrame) {
         log(`✅ dataFrame URL: ${dataFrame.url()}`);
 
         if (dataFrame.url().includes('ReportingTool')) {
-          log('🔧 Đang tự động chọn template "Accounts: Balances" và submit form...');
+          log(
+            '🔧 Đang tự động chọn template "Accounts: Balances" và submit form...',
+          );
           await dataFrame.waitForLoadState('domcontentloaded');
           await page.waitForTimeout(2000);
 
@@ -933,27 +1026,38 @@ async function main() {
             const win = window as any;
 
             // Tìm template dropdown
-            const templateSelect = doc.getElementById('ctl00_mainContent_ddlTemplates') ||
+            const templateSelect =
+              doc.getElementById('ctl00_mainContent_ddlTemplates') ||
               doc.querySelector('select[name*="Template"]') ||
               doc.querySelector('select[id*="Template"]') ||
               Array.from(doc.querySelectorAll('select')).find((s: any) =>
-                Array.from(s.options).some((o: any) => o.text.includes('Balances'))
+                Array.from(s.options).some((o: any) =>
+                  o.text.includes('Balances'),
+                ),
               );
 
             if (!templateSelect) {
-              const allSelects = Array.from(doc.querySelectorAll('select')).map((s: any) => ({
-                id: s.id, name: s.name, options: Array.from(s.options).map((o: any) => o.text).slice(0, 5)
-              }));
+              const allSelects = Array.from(doc.querySelectorAll('select')).map(
+                (s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  options: Array.from(s.options)
+                    .map((o: any) => o.text)
+                    .slice(0, 5),
+                }),
+              );
               return { error: 'Template select not found', allSelects };
             }
 
             // Tìm option có text "Balances"
-            const balancesOption = Array.from(templateSelect.options).find((o: any) =>
-              o.text.includes('Balances')
+            const balancesOption = Array.from(templateSelect.options).find(
+              (o: any) => o.text.includes('Balances'),
             ) as any;
 
             if (!balancesOption) {
-              const allOptions = Array.from(templateSelect.options).map((o: any) => ({ text: o.text, value: o.value }));
+              const allOptions = Array.from(templateSelect.options).map(
+                (o: any) => ({ text: o.text, value: o.value }),
+              );
               return { error: 'Balances option not found', allOptions };
             }
 
@@ -961,18 +1065,32 @@ async function main() {
             templateSelect.value = balancesOption.value;
 
             // Tìm hidden selectedReport field
-            const selectedReport = doc.getElementById('ctl00_mainContent_selectedReport') ||
+            const selectedReport =
+              doc.getElementById('ctl00_mainContent_selectedReport') ||
               doc.querySelector('input[name*="selectedReport"]');
 
             // Gọi reportTemplateChanged để trigger postback
             if (typeof win.reportTemplateChanged === 'function') {
-              win.reportTemplateChanged(templateSelect, selectedReport || { value: '' });
-              return { triggered: 'reportTemplateChanged', value: balancesOption.value, text: balancesOption.text };
+              win.reportTemplateChanged(
+                templateSelect,
+                selectedReport || { value: '' },
+              );
+              return {
+                triggered: 'reportTemplateChanged',
+                value: balancesOption.value,
+                text: balancesOption.text,
+              };
             }
 
             // Fallback: trigger change event
-            templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            return { triggered: 'change event', value: balancesOption.value, text: balancesOption.text };
+            templateSelect.dispatchEvent(
+              new Event('change', { bubbles: true }),
+            );
+            return {
+              triggered: 'change event',
+              value: balancesOption.value,
+              text: balancesOption.text,
+            };
           });
 
           log(`[SELECT-TEMPLATE] ${JSON.stringify(selectResult)}`);
@@ -981,14 +1099,23 @@ async function main() {
           if ((selectResult as any).triggered) {
             log('⏳ Chờ postback/reload sau khi chọn template...');
             try {
-              await dataFrame.waitForNavigation({ timeout: 15000, waitUntil: 'domcontentloaded' });
-            } catch(e) {
+              await dataFrame.waitForNavigation({
+                timeout: 15000,
+                waitUntil: 'domcontentloaded',
+              });
+            } catch (e) {
               await page.waitForTimeout(3000);
             }
           }
 
           // Bước 3: Lấy lại dataFrame sau reload
-          dataFrame = page.frames().find(f => f.name() === 'dataFrame' || f.url().includes('ReportingTool')) || dataFrame;
+          dataFrame =
+            page
+              .frames()
+              .find(
+                (f) =>
+                  f.name() === 'dataFrame' || f.url().includes('ReportingTool'),
+              ) || dataFrame;
           await page.waitForTimeout(2000);
 
           // Bước 4: Dump HTML để debug saveButton onclick
@@ -998,12 +1125,15 @@ async function main() {
           log(`📄 Saved dataFrame HTML: ${htmlPath}`);
 
           // Tìm saveButton onclick từ HTML
-          const saveButtonMatch = htmlDump.match(/id="saveButton"[^>]*>|saveButton[^}]{0,200}/g);
-          log(`[SAVE-BUTTON-HTML] ${JSON.stringify(saveButtonMatch?.slice(0, 3))}`);
+          const saveButtonMatch = htmlDump.match(
+            /id="saveButton"[^>]*>|saveButton[^}]{0,200}/g,
+          );
+          log(
+            `[SAVE-BUTTON-HTML] ${JSON.stringify(saveButtonMatch?.slice(0, 3))}`,
+          );
 
           // Intercept network request và submit form
           log('🔍 Bắt đầu monitor network requests...');
-
 
           // Lắng nghe tất cả responses trong dataFrame
           const reportResponses: string[] = [];
@@ -1011,18 +1141,32 @@ async function main() {
             const url = response.url();
             const status = response.status();
             const contentType = response.headers()['content-type'] || '';
-            if (!url.includes('titleBarMenus') && !url.includes('utilitymenu') && !url.includes('helpmenu')) {
-              log(`[NET] ${status} ${contentType.slice(0, 40)} ${url.slice(0, 100)}`);
+            if (
+              !url.includes('titleBarMenus') &&
+              !url.includes('utilitymenu') &&
+              !url.includes('helpmenu')
+            ) {
+              log(
+                `[NET] ${status} ${contentType.slice(0, 40)} ${url.slice(0, 100)}`,
+              );
             }
-            if (contentType.includes('excel') || contentType.includes('csv') || contentType.includes('application/octet') || contentType.includes('vnd.ms')) {
+            if (
+              contentType.includes('excel') ||
+              contentType.includes('csv') ||
+              contentType.includes('application/octet') ||
+              contentType.includes('vnd.ms')
+            ) {
               log(`🎯 Phát hiện file download: ${url}`);
               try {
                 const buffer = await response.body();
-                const downloadPath = path.join(DEBUG_DIR, `report-${Date.now()}.csv`);
+                const downloadPath = path.join(
+                  DEBUG_DIR,
+                  `report-${Date.now()}.csv`,
+                );
                 require('fs').writeFileSync(downloadPath, buffer);
                 log(`✅ ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
                 reportResponses.push(downloadPath);
-              } catch(e: any) {
+              } catch (e: any) {
                 log(`⚠️ Không thể lấy body: ${e.message}`);
               }
             }
@@ -1036,16 +1180,20 @@ async function main() {
             const $ = win.jQuery;
 
             // Polyfill / Mock cho biến global cblist$ của ASP.NET WebForms để tránh lỗi ReferenceError khi dispatch change event
-            doc.querySelectorAll('select[onchange]').forEach(sel => {
+            doc.querySelectorAll('select[onchange]').forEach((sel) => {
               const onchangeAttr = sel.getAttribute('onchange') || '';
               const match = onchangeAttr.match(/cblist\$\d+/);
               if (match) {
                 const varName = match[0];
                 if (!(varName in win)) {
                   const row = sel.closest('tr');
-                  const cbContainer = row ? row.querySelector('[data-js="dictionary-checkboxes"]') : null;
+                  const cbContainer = row
+                    ? row.querySelector('[data-js="dictionary-checkboxes"]')
+                    : null;
                   win[varName] = cbContainer || {};
-                  console.log(`[FILTER-PATCH] Defined dummy global for ${varName}`);
+                  console.log(
+                    `[FILTER-PATCH] Defined dummy global for ${varName}`,
+                  );
                 }
               }
             });
@@ -1054,16 +1202,22 @@ async function main() {
 
             // Helper to set select value
             const setSelectValue = (row: any, value: string) => {
-              const select = row.querySelector('[data-js="filter-operation"] select');
+              const select = row.querySelector(
+                '[data-js="filter-operation"] select',
+              );
               if (select) {
                 select.value = value;
                 select.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log(`[FILTER-PATCH] Đã đặt filter operation thành ${value}`);
+                console.log(
+                  `[FILTER-PATCH] Đã đặt filter operation thành ${value}`,
+                );
               }
             };
 
             // 1. FCM -> MXV
-            const fcmRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const fcmRow = Array.from(
+              doc.querySelectorAll('tr#reportDetailName'),
+            ).find((tr) => {
               const nameEl = tr.querySelector('[data-js="name"]');
               return nameEl && nameEl.textContent.trim() === 'FCM';
             });
@@ -1071,22 +1225,35 @@ async function main() {
               console.log('[FILTER-PATCH] Tìm thấy FCM row');
 
               // Tìm checkbox MXV
-              const mxvCheckbox = Array.from(fcmRow.querySelectorAll('input[type="checkbox"]')).find(cb => {
+              const mxvCheckbox = Array.from(
+                fcmRow.querySelectorAll('input[type="checkbox"]'),
+              ).find((cb) => {
                 const label = cb.closest('label') || cb.parentElement;
-                return label && label.textContent.trim().toUpperCase() === 'MXV';
+                return (
+                  label && label.textContent.trim().toUpperCase() === 'MXV'
+                );
               }) as HTMLInputElement;
 
               if (mxvCheckbox) {
                 mxvCheckbox.checked = true;
-                mxvCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log('[FILTER-PATCH] Đã check MXV checkbox:', mxvCheckbox.id);
-                
+                mxvCheckbox.dispatchEvent(
+                  new Event('change', { bubbles: true }),
+                );
+                console.log(
+                  '[FILTER-PATCH] Đã check MXV checkbox:',
+                  mxvCheckbox.id,
+                );
+
                 // Đồng bộ với Select2 sử dụng ID chính xác làm option value
                 try {
-                  const select2El = fcmRow.querySelector('select[data-js="dictionary"]');
+                  const select2El = fcmRow.querySelector(
+                    'select[data-js="dictionary"]',
+                  );
                   if (select2El && $) {
                     const val = mxvCheckbox.id; // Dùng ID chính xác (cb$26400$4641) để đồng bộ với select2
-                    let opt = Array.from((select2El as HTMLSelectElement).options).find(o => o.value === val);
+                    let opt = Array.from(
+                      (select2El as HTMLSelectElement).options,
+                    ).find((o) => o.value === val);
                     if (!opt) {
                       opt = doc.createElement('option');
                       opt.value = val;
@@ -1095,121 +1262,219 @@ async function main() {
                     }
                     opt.selected = true;
                     $(select2El).val([val]).trigger('change');
-                    console.log('[FILTER-PATCH] Đã đồng bộ Select2 cho FCM: MXV với value:', val);
+                    console.log(
+                      '[FILTER-PATCH] Đã đồng bộ Select2 cho FCM: MXV với value:',
+                      val,
+                    );
                   }
                 } catch (e: any) {
-                  console.warn('[FILTER-PATCH] Lỗi đồng bộ Select2:', e.message);
+                  console.warn(
+                    '[FILTER-PATCH] Lỗi đồng bộ Select2:',
+                    e.message,
+                  );
                 }
               } else {
                 console.error('[FILTER-PATCH] Không tìm thấy checkbox MXV!');
               }
 
               // Thiết lập filter operation thành Equals (2)
-              setSelectValue(fcmRow, "2");
+              setSelectValue(fcmRow, '2');
             } else {
               console.error('[FILTER-PATCH] Không tìm thấy FCM row!');
             }
 
             // 2. Currency -> USD
-            const currencyRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const currencyRow = Array.from(
+              doc.querySelectorAll('tr#reportDetailName'),
+            ).find((tr) => {
               const nameEl = tr.querySelector('[data-js="name"]');
               return nameEl && nameEl.textContent.trim() === 'Currency';
             });
             if (currencyRow) {
               console.log('[FILTER-PATCH] Tìm thấy Currency row');
 
-              const input = currencyRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+              const input = currencyRow.querySelector(
+                '[data-js="value"] input[type="text"]',
+              ) as HTMLInputElement;
               if (input) {
                 input.value = 'USD';
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
                 console.log('[FILTER-PATCH] Đã điền Currency: USD');
               } else {
-                console.error('[FILTER-PATCH] Không tìm thấy input text cho Currency!');
+                console.error(
+                  '[FILTER-PATCH] Không tìm thấy input text cho Currency!',
+                );
               }
 
               // Set select value to Like (1) AFTER setting input value
-              setSelectValue(currencyRow, "1");
+              setSelectValue(currencyRow, '1');
             } else {
               console.error('[FILTER-PATCH] Không tìm thấy Currency row!');
             }
 
             // 3. Record Description -> current
-            const rdRow = Array.from(doc.querySelectorAll('tr#reportDetailName')).find(tr => {
+            const rdRow = Array.from(
+              doc.querySelectorAll('tr#reportDetailName'),
+            ).find((tr) => {
               const nameEl = tr.querySelector('[data-js="name"]');
-              return nameEl && nameEl.textContent.trim() === 'Record Description';
+              return (
+                nameEl && nameEl.textContent.trim() === 'Record Description'
+              );
             });
             if (rdRow) {
               console.log('[FILTER-PATCH] Tìm thấy Record Description row');
 
-              const input = rdRow.querySelector('[data-js="value"] input[type="text"]') as HTMLInputElement;
+              const input = rdRow.querySelector(
+                '[data-js="value"] input[type="text"]',
+              ) as HTMLInputElement;
               if (input) {
                 input.value = 'current';
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log('[FILTER-PATCH] Đã điền Record Description: current');
+                console.log(
+                  '[FILTER-PATCH] Đã điền Record Description: current',
+                );
               } else {
-                console.error('[FILTER-PATCH] Không tìm thấy input text cho Record Description!');
+                console.error(
+                  '[FILTER-PATCH] Không tìm thấy input text cho Record Description!',
+                );
               }
 
               // Set select value to Like (1) AFTER setting input value
-              setSelectValue(rdRow, "1");
+              setSelectValue(rdRow, '1');
             } else {
-              console.error('[FILTER-PATCH] Không tìm thấy Record Description row!');
+              console.error(
+                '[FILTER-PATCH] Không tìm thấy Record Description row!',
+              );
             }
 
             // Patch checkPage with submission logging
-            win.checkPage = function() {
+            win.checkPage = function () {
               const rows = document.getElementsByName('reportDetailName');
               let hasSelected = false;
               for (let i = 0; i < rows.length; i++) {
-                const cb = rows[i].children[1]?.firstElementChild as HTMLInputElement;
-                if (cb && cb.checked) { hasSelected = true; break; }
+                const cb = rows[i].children[1]
+                  ?.firstElementChild as HTMLInputElement;
+                if (cb && cb.checked) {
+                  hasSelected = true;
+                  break;
+                }
               }
-              if (!hasSelected) { alert('No selected fields'); return false; }
+              if (!hasSelected) {
+                alert('No selected fields');
+                return false;
+              }
               try {
-                if (typeof win.removeHiddenSortOrderDDLs === 'function') win.removeHiddenSortOrderDDLs();
-                if (typeof win.unformatAllLocalFilterValues === 'function') win.unformatAllLocalFilterValues(rows);
+                if (typeof win.removeHiddenSortOrderDDLs === 'function')
+                  win.removeHiddenSortOrderDDLs();
+                if (typeof win.unformatAllLocalFilterValues === 'function')
+                  win.unformatAllLocalFilterValues(rows);
 
                 // LOG THE VALUES AFTER UNFORMATTING!
                 console.log('[SUBMIT-LOG] Trạng thái ngay trước khi submit:');
-                const logFcmRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'FCM');
+                const logFcmRow = Array.from(
+                  document.querySelectorAll('tr#reportDetailName'),
+                ).find(
+                  (tr) =>
+                    tr
+                      .querySelector('[data-js="name"]')
+                      ?.textContent?.trim() === 'FCM',
+                );
                 if (logFcmRow) {
                   const cb = logFcmRow.querySelector('input[type="checkbox"]');
-                  console.log('[SUBMIT-LOG] FCM MXV Checkbox checked:', cb ? (cb as any).checked : 'not found');
-                  const select = logFcmRow.querySelector('[data-js="filter-operation"] select') as any;
-                  console.log('[SUBMIT-LOG] FCM Filter Operation value:', select ? select.value : 'not found');
+                  console.log(
+                    '[SUBMIT-LOG] FCM MXV Checkbox checked:',
+                    cb ? (cb as any).checked : 'not found',
+                  );
+                  const select = logFcmRow.querySelector(
+                    '[data-js="filter-operation"] select',
+                  );
+                  console.log(
+                    '[SUBMIT-LOG] FCM Filter Operation value:',
+                    select ? select.value : 'not found',
+                  );
                 }
-                
-                const logCurRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'Currency');
+
+                const logCurRow = Array.from(
+                  document.querySelectorAll('tr#reportDetailName'),
+                ).find(
+                  (tr) =>
+                    tr
+                      .querySelector('[data-js="name"]')
+                      ?.textContent?.trim() === 'Currency',
+                );
                 if (logCurRow) {
-                  const input = logCurRow.querySelector('[data-js="value"] input[type="text"]') as any;
-                  console.log('[SUBMIT-LOG] Currency Value:', input ? input.value : 'not found');
-                  const select = logCurRow.querySelector('[data-js="filter-operation"] select') as any;
-                  console.log('[SUBMIT-LOG] Currency Filter Operation value:', select ? select.value : 'not found');
-                  const hidden = document.getElementById(input?.getAttribute('hiddenFieldID')) as any;
-                  console.log('[SUBMIT-LOG] Currency Hidden Value:', hidden ? hidden.value : 'not found');
+                  const input = logCurRow.querySelector(
+                    '[data-js="value"] input[type="text"]',
+                  );
+                  console.log(
+                    '[SUBMIT-LOG] Currency Value:',
+                    input ? input.value : 'not found',
+                  );
+                  const select = logCurRow.querySelector(
+                    '[data-js="filter-operation"] select',
+                  );
+                  console.log(
+                    '[SUBMIT-LOG] Currency Filter Operation value:',
+                    select ? select.value : 'not found',
+                  );
+                  const hidden = document.getElementById(
+                    input?.getAttribute('hiddenFieldID'),
+                  ) as any;
+                  console.log(
+                    '[SUBMIT-LOG] Currency Hidden Value:',
+                    hidden ? hidden.value : 'not found',
+                  );
                 }
 
-                const logRdRow = Array.from(document.querySelectorAll('tr#reportDetailName')).find(tr => tr.querySelector('[data-js="name"]')?.textContent?.trim() === 'Record Description');
+                const logRdRow = Array.from(
+                  document.querySelectorAll('tr#reportDetailName'),
+                ).find(
+                  (tr) =>
+                    tr
+                      .querySelector('[data-js="name"]')
+                      ?.textContent?.trim() === 'Record Description',
+                );
                 if (logRdRow) {
-                  const input = logRdRow.querySelector('[data-js="value"] input[type="text"]') as any;
-                  console.log('[SUBMIT-LOG] Record Description Value:', input ? input.value : 'not found');
-                  const select = logRdRow.querySelector('[data-js="filter-operation"] select') as any;
-                  console.log('[SUBMIT-LOG] Record Description Filter Operation value:', select ? select.value : 'not found');
-                  const hidden = document.getElementById(input?.getAttribute('hiddenFieldID')) as any;
-                  console.log('[SUBMIT-LOG] Record Description Hidden Value:', hidden ? hidden.value : 'not found');
+                  const input = logRdRow.querySelector(
+                    '[data-js="value"] input[type="text"]',
+                  );
+                  console.log(
+                    '[SUBMIT-LOG] Record Description Value:',
+                    input ? input.value : 'not found',
+                  );
+                  const select = logRdRow.querySelector(
+                    '[data-js="filter-operation"] select',
+                  );
+                  console.log(
+                    '[SUBMIT-LOG] Record Description Filter Operation value:',
+                    select ? select.value : 'not found',
+                  );
+                  const hidden = document.getElementById(
+                    input?.getAttribute('hiddenFieldID'),
+                  ) as any;
+                  console.log(
+                    '[SUBMIT-LOG] Record Description Hidden Value:',
+                    hidden ? hidden.value : 'not found',
+                  );
                 }
 
-                if (typeof win.startWaitingForDownload === 'function') win.startWaitingForDownload();
-              } catch(e: any) {
-                console.error('[SUBMIT-LOG] Error in overridden checkPage:', e.message);
+                if (typeof win.startWaitingForDownload === 'function')
+                  win.startWaitingForDownload();
+              } catch (e: any) {
+                console.error(
+                  '[SUBMIT-LOG] Error in overridden checkPage:',
+                  e.message,
+                );
               }
               return true;
             };
           });
 
-          const downloadPromise = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
+          const downloadPromise = page
+            .waitForEvent('download', { timeout: 30000 })
+            .catch(() => null);
           await dataFrame.locator('#saveButton').click({ timeout: 5000 });
           log('✅ Đã click saveButton');
 
@@ -1217,43 +1482,56 @@ async function main() {
           log('⏳ Chờ download (30 giây)...');
           const download = await downloadPromise;
           if (download) {
-            const downloadPath = path.join(DEBUG_DIR, `report-${Date.now()}.csv`);
+            const downloadPath = path.join(
+              DEBUG_DIR,
+              `report-${Date.now()}.csv`,
+            );
             await download.saveAs(downloadPath);
             log(`✅ ĐÃ TẢI FILE THÀNH CÔNG (event): ${downloadPath}`);
           } else {
             await page.waitForTimeout(5000);
-            log(`⚠️ Không có download event. Network responses: ${reportResponses.length}`);
+            log(
+              `⚠️ Không có download event. Network responses: ${reportResponses.length}`,
+            );
           }
 
           page.off('response', responseHandler);
 
           await page.waitForTimeout(3000);
-          const screenshotPath = path.join(DEBUG_DIR, 'after-create-report.png');
+          const screenshotPath = path.join(
+            DEBUG_DIR,
+            'after-create-report.png',
+          );
           await page.screenshot({ path: screenshotPath });
           log(`📸 Screenshot sau Create Report: ${screenshotPath}`);
         }
       } else {
         log(`⚠️ dataFrame chưa navigate tới ReportingTool`);
-        page.frames().forEach((f, i) => log(`  [${i}] name=${f.name()} url=${f.url()}`));
+        page
+          .frames()
+          .forEach((f, i) => log(`  [${i}] name=${f.name()} url=${f.url()}`));
       }
     } else {
-      log('❌ Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...');
+      log(
+        '❌ Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...',
+      );
       try {
-        const span = page.frameLocator('frame[name="userIndex"], iframe[name="userIndex"]')
+        const span = page
+          .frameLocator('frame[name="userIndex"], iframe[name="userIndex"]')
           .locator('span.LEAFITEM', { hasText: 'Reporting Tool' });
         await span.click({ timeout: 5000 });
         log('✅ Đã click Reporting Tool qua Playwright locator');
         await page.waitForTimeout(3000);
-        await page.screenshot({ path: path.join(DEBUG_DIR, 'after-reporting-tool-click.png') });
-      } catch(e: any) {
+        await page.screenshot({
+          path: path.join(DEBUG_DIR, 'after-reporting-tool-click.png'),
+        });
+      } catch (e: any) {
         log(`❌ Fallback click cũng thất bại: ${e.message}`);
       }
     }
 
     log('⏳ Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
     await page.waitForTimeout(300000);
-
-
   } catch (error: any) {
     log(`❌ Lỗi trong quá trình chạy: ${error.message}`);
     const errorPath = path.join(DEBUG_DIR, 'login-error.png');

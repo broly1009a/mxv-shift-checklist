@@ -2,7 +2,8 @@ import * as crypto from 'crypto';
 
 // Stretch any environment key to exactly 32 bytes (256 bits) for AES-256
 const getSecretKey = (): Buffer => {
-  const rawKey = process.env.ENCRYPTION_KEY || 'mxv_default_secret_key_32_chars_long!';
+  const rawKey =
+    process.env.ENCRYPTION_KEY || 'mxv_default_secret_key_32_chars_long!';
   return crypto.createHash('sha256').update(rawKey).digest();
 };
 

@@ -22,7 +22,11 @@ const SIDEBAR_ITEMS_TO_TEST: SidebarItem[] = [
 
   // 2. QL hệ thống
   { name: 'QL hệ thống (Menu cha)', path: ['QL hệ thống'] },
-  { name: 'Nhật ký thao tác hệ thống', path: ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'], expectedHash: '#/systemManagement/auditLog' },
+  {
+    name: 'Nhật ký thao tác hệ thống',
+    path: ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'],
+    expectedHash: '#/systemManagement/auditLog',
+  },
 
   // 3. QL người dùng
   { name: 'QL người dùng (Menu cha)', path: ['QL người dùng'] },
@@ -31,30 +35,59 @@ const SIDEBAR_ITEMS_TO_TEST: SidebarItem[] = [
   { name: 'QL khách hàng -> QL TVKD', path: ['QL khách hàng', 'QL TVKD'] },
   { name: 'QL khách hàng -> QL MG', path: ['QL khách hàng', 'QL MG'] },
   { name: 'QL khách hàng -> QL CTV', path: ['QL khách hàng', 'QL CTV'] },
-  { name: 'QL khách hàng -> QL TKGD -> Danh sách TKGD', path: ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'], expectedHash: '#/clientManagement/investorManagement' },
-  { name: 'QL khách hàng -> QL TKGD -> QL TT TKGD', path: ['QL khách hàng', 'QL TKGD', 'QL TT TKGD'], expectedHash: '#/clientManagement/marginStatusManagement' },
-  { name: 'QL khách hàng -> QL TKGD -> Nộp rút ký quỹ TKGD', path: ['QL khách hàng', 'QL TKGD', 'Nộp rút ký quỹ TKGD'] },
-  { name: 'QL khách hàng -> QL TKGD -> Lịch sử giao dịch tiền TKGD', path: ['QL khách hàng', 'QL TKGD', 'Lịch sử giao dịch tiền TKGD'], expectedHash: '#/clientManagement/transactionHistory' },
-  { name: 'QL khách hàng -> QL Trader -> Danh sách Trader', path: ['QL khách hàng', 'QL Trader', 'Danh sách Trader'] },
+  {
+    name: 'QL khách hàng -> QL TKGD -> Danh sách TKGD',
+    path: ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
+    expectedHash: '#/clientManagement/investorManagement',
+  },
+  {
+    name: 'QL khách hàng -> QL TKGD -> QL TT TKGD',
+    path: ['QL khách hàng', 'QL TKGD', 'QL TT TKGD'],
+    expectedHash: '#/clientManagement/marginStatusManagement',
+  },
+  {
+    name: 'QL khách hàng -> QL TKGD -> Nộp rút ký quỹ TKGD',
+    path: ['QL khách hàng', 'QL TKGD', 'Nộp rút ký quỹ TKGD'],
+  },
+  {
+    name: 'QL khách hàng -> QL TKGD -> Lịch sử giao dịch tiền TKGD',
+    path: ['QL khách hàng', 'QL TKGD', 'Lịch sử giao dịch tiền TKGD'],
+    expectedHash: '#/clientManagement/transactionHistory',
+  },
+  {
+    name: 'QL khách hàng -> QL Trader -> Danh sách Trader',
+    path: ['QL khách hàng', 'QL Trader', 'Danh sách Trader'],
+  },
 
   // 5. QL tiền tệ & tỷ giá
   { name: 'QL tiền tệ & tỷ giá (Menu cha)', path: ['QL tiền tệ & tỷ giá'] },
 
   // 6. QL hàng hoá - hợp đồng
-  { name: 'QL hàng hoá - hợp đồng (Menu cha)', path: ['QL hàng hoá - hợp đồng'] },
+  {
+    name: 'QL hàng hoá - hợp đồng (Menu cha)',
+    path: ['QL hàng hoá - hợp đồng'],
+  },
 
   // 7. QL giá
   { name: 'QL giá -> Bảng giá', path: ['QL giá', 'Bảng giá'] },
 
   // 8. QL giao dịch
   { name: 'QL giao dịch (Menu cha)', path: ['QL giao dịch'] },
-  { name: 'QL vị thế -> Danh sách kết quả giao dịch', path: ['QL vị thế', 'Danh sách kết quả giao dịch'], expectedHash: '#/positionManagement/marginList' },
+  {
+    name: 'QL vị thế -> Danh sách kết quả giao dịch',
+    path: ['QL vị thế', 'Danh sách kết quả giao dịch'],
+    expectedHash: '#/positionManagement/marginList',
+  },
 ];
 
 async function runSidebarClickTest() {
-  console.log('====================================================================');
+  console.log(
+    '====================================================================',
+  );
   console.log('🚀 SCRIPT KIỂM THỬ CLICK SIDEBAR M-SYSTEM TỰ ĐỘNG (PLAYWRIGHT)');
-  console.log('====================================================================');
+  console.log(
+    '====================================================================',
+  );
 
   const app = await NestFactory.createApplicationContext(AppModule);
   await new Promise((r) => setTimeout(r, 1500));
@@ -66,11 +99,16 @@ async function runSidebarClickTest() {
   let msystemUrl = process.env.MS_URL || 'https://msystem.mxv.vn/';
 
   if (!username || !password || !pin) {
-    let credentialsRaw = await settingsService.getSetting('bot_credentials_msystem', '');
+    let credentialsRaw = await settingsService.getSetting(
+      'bot_credentials_msystem',
+      '',
+    );
     if (!credentialsRaw) {
       const mongoose = require('mongoose');
       const SettingModel = mongoose.model('SystemSetting');
-      const doc = await SettingModel.findOne({ key: 'bot_credentials_msystem' });
+      const doc = await SettingModel.findOne({
+        key: 'bot_credentials_msystem',
+      });
       if (doc) credentialsRaw = doc.value;
     }
     if (credentialsRaw) {
@@ -102,7 +140,7 @@ async function runSidebarClickTest() {
     'operate-transaction-app',
     'Chrome',
     'chrome-win',
-    'chrome.exe'
+    'chrome.exe',
   );
 
   const launchOptions: any = {
@@ -115,7 +153,9 @@ async function runSidebarClickTest() {
   }
 
   const browser = await chromium.launch(launchOptions);
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
 
@@ -125,12 +165,16 @@ async function runSidebarClickTest() {
     logLines.push(msg);
   };
 
-  appendLog(`====================================================================`);
+  appendLog(
+    `====================================================================`,
+  );
   appendLog(`BÁO CÁO KIỂM THỬ NAVIGATION CLICK SIDEBAR M-SYSTEM`);
   appendLog(`Thời gian thực thi: ${new Date().toLocaleString('vi-VN')}`);
   appendLog(`URL M-System: ${msystemUrl}`);
   appendLog(`Tài khoản: ${username}`);
-  appendLog(`====================================================================\n`);
+  appendLog(
+    `====================================================================\n`,
+  );
 
   try {
     // 1. Đăng nhập M-System
@@ -141,7 +185,10 @@ async function runSidebarClickTest() {
     await page.fill('input[name="password"]', password);
     await page.click('button.btn-primary');
 
-    await page.waitForSelector('div.pincode', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('div.pincode', {
+      state: 'visible',
+      timeout: 15000,
+    });
     const pinDigits = pin.split('');
     for (const digit of pinDigits) {
       const digitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
@@ -150,16 +197,26 @@ async function runSidebarClickTest() {
       await page.waitForTimeout(400);
     }
 
-    await page.waitForSelector('xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]', {
-      state: 'visible',
-      timeout: 15000,
-    });
+    await page.waitForSelector(
+      'xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]',
+      {
+        state: 'visible',
+        timeout: 15000,
+      },
+    );
     appendLog('✅ Đăng nhập M-System thành công!\n');
 
     // 2. Bắt đầu test click từng item trong sidebar
     appendLog('[STEP 2] Bắt đầu kiểm thử click lần lượt các mục Sidebar:\n');
     appendLog(
-      sprintf('%-45s | %-10s | %-10s | %-45s | %-30s', 'TÊN MỤC MENU / ĐƯỜNG DẪN', 'KẾT QUẢ', 'THỜI GIAN', 'URL HASH HIỆN TẠI', 'GHI CHÚ')
+      sprintf(
+        '%-45s | %-10s | %-10s | %-45s | %-30s',
+        'TÊN MỤC MENU / ĐƯỜNG DẪN',
+        'KẾT QUẢ',
+        'THỜI GIAN',
+        'URL HASH HIỆN TẠI',
+        'GHI CHÚ',
+      ),
     );
     appendLog('-'.repeat(150));
 
@@ -193,10 +250,15 @@ async function runSidebarClickTest() {
               if (await el.isVisible({ timeout: 2000 })) {
                 // Kiểm tra xem menu cha đã mở sẵn chưa
                 if (!isLast) {
-                  const isOpen = await el.evaluate((node) => {
-                    const li = node.closest('li');
-                    return li ? (li.classList.contains('open') || li.classList.contains('show')) : false;
-                  }).catch(() => false);
+                  const isOpen = await el
+                    .evaluate((node) => {
+                      const li = node.closest('li');
+                      return li
+                        ? li.classList.contains('open') ||
+                            li.classList.contains('show')
+                        : false;
+                    })
+                    .catch(() => false);
                   if (isOpen) {
                     clicked = true;
                     break;
@@ -214,14 +276,18 @@ async function runSidebarClickTest() {
           }
 
           if (!clicked) {
-            throw new Error(`Không tìm thấy hoặc không thể click menu: "${menuText}"`);
+            throw new Error(
+              `Không tìm thấy hoặc không thể click menu: "${menuText}"`,
+            );
           }
         }
 
         // Lấy Hash URL hiện tại
         await page.waitForTimeout(1000);
         currentUrl = page.url();
-        const urlHash = currentUrl.includes('#') ? '#' + currentUrl.split('#')[1] : currentUrl;
+        const urlHash = currentUrl.includes('#')
+          ? '#' + currentUrl.split('#')[1]
+          : currentUrl;
 
         // Nếu có URL Hash kỳ vọng, đối chiếu xem khớp không
         if (item.expectedHash) {
@@ -245,10 +311,19 @@ async function runSidebarClickTest() {
 
       const duration = `${Date.now() - startTime}ms`;
       const statusStr = isSuccess ? '✅ SUCCESS' : '❌ FAILED';
-      const hashStr = currentUrl.includes('#') ? '#' + currentUrl.split('#')[1] : 'N/A';
+      const hashStr = currentUrl.includes('#')
+        ? '#' + currentUrl.split('#')[1]
+        : 'N/A';
 
       appendLog(
-        sprintf('%-45s | %-10s | %-10s | %-45s | %-30s', item.name, statusStr, duration, hashStr, note)
+        sprintf(
+          '%-45s | %-10s | %-10s | %-45s | %-30s',
+          item.name,
+          statusStr,
+          duration,
+          hashStr,
+          note,
+        ),
       );
     }
 
@@ -257,9 +332,10 @@ async function runSidebarClickTest() {
     appendLog(`- Tổng số mục menu đã test: ${SIDEBAR_ITEMS_TO_TEST.length}`);
     appendLog(`- Click thành công (SUCCESS): ${passCount}`);
     appendLog(`- Thất bại (FAILED): ${failCount}`);
-    appendLog(`- Đánh giá khả thi: ${failCount === 0 ? '🟢 100% Khả thi (Cơ chế Click sidebar chạy rất tốt)' : '⚠️ Cần điều chỉnh một số Selector XPath hoặc chuyển hẳn sang Direct Hash URL'}`);
+    appendLog(
+      `- Đánh giá khả thi: ${failCount === 0 ? '🟢 100% Khả thi (Cơ chế Click sidebar chạy rất tốt)' : '⚠️ Cần điều chỉnh một số Selector XPath hoặc chuyển hẳn sang Direct Hash URL'}`,
+    );
     appendLog('='.repeat(150));
-
   } catch (err: any) {
     appendLog(`\n❌ Lỗi nghiêm trọng khi thực thi test script: ${err.message}`);
   } finally {
@@ -294,7 +370,7 @@ function sprintf(format: string, ...args: any[]): string {
   });
 }
 
-runSidebarClickTest().catch(err => {
+runSidebarClickTest().catch((err) => {
   console.error('❌ Unhandled error in sidebar test script:', err);
   process.exit(1);
 });

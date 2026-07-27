@@ -71,8 +71,12 @@ export class ShiftSlotsService {
 
   async remove(id: string): Promise<any> {
     const [hasLog, hasTemplate] = await Promise.all([
-      this.shiftLogModel.findOne({ shiftSlotId: new Types.ObjectId(id) }).exec(),
-      this.templateModel.findOne({ shiftSlotId: new Types.ObjectId(id) }).exec(),
+      this.shiftLogModel
+        .findOne({ shiftSlotId: new Types.ObjectId(id) })
+        .exec(),
+      this.templateModel
+        .findOne({ shiftSlotId: new Types.ObjectId(id) })
+        .exec(),
     ]);
 
     if (hasLog || hasTemplate) {

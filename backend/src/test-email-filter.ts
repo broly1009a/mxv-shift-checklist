@@ -21,11 +21,16 @@ async function run() {
   }
 
   // Sử dụng ngày ca trực hôm trước (ví dụ ngày 13/07/2026) để kiểm tra tính năng filter
-  const targetDate = '2026-07-13'; 
-  console.log(`📅 Chạy test tự động đăng nhập MS, lọc ngày: ${targetDate} và tải file...`);
+  const targetDate = '2026-07-13';
+  console.log(
+    `📅 Chạy test tự động đăng nhập MS, lọc ngày: ${targetDate} và tải file...`,
+  );
 
   try {
-    const filePath = await rpaDownloader.downloadEmailHistoryReport(tempDir, targetDate);
+    const filePath = await rpaDownloader.downloadEmailHistoryReport(
+      tempDir,
+      targetDate,
+    );
     console.log(`\n✅ THÀNH CÔNG! Đã tải file lịch sử email về: ${filePath}`);
   } catch (err: any) {
     console.error(`\n❌ THẤT BẠI:`, err.message);

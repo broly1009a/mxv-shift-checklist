@@ -16,11 +16,15 @@ import { Division } from '../../schemas/division.schema';
 
 @Injectable()
 export class AuthService {
-  private readonly exchangeCodes = new Map<string, { token: string; user: any; expiresAt: number }>();
+  private readonly exchangeCodes = new Map<
+    string,
+    { token: string; user: any; expiresAt: number }
+  >();
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
-    @InjectModel(Department.name) private readonly departmentModel: Model<Department>,
+    @InjectModel(Department.name)
+    private readonly departmentModel: Model<Department>,
     @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
     private readonly jwtService: JwtService,
   ) {
@@ -89,7 +93,9 @@ export class AuthService {
     role: string,
   ) {
     const lowerUsername = username.toLowerCase();
-    const existing = await this.userModel.findOne({ username: lowerUsername }).exec();
+    const existing = await this.userModel
+      .findOne({ username: lowerUsername })
+      .exec();
     if (existing) {
       throw new ConflictException('Username already exists');
     }
@@ -194,20 +200,29 @@ export class AuthService {
     // User does not exist - read mapping config to see if we should auto-assign
     let autoAssignedUser: any = null;
     try {
-      const configPath = path.join(process.cwd(), 'sso-auto-assign.config.json');
+      const configPath = path.join(
+        process.cwd(),
+        'sso-auto-assign.config.json',
+      );
       if (fs.existsSync(configPath)) {
         const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        const matched = configData.find((item: any) => item.email.toLowerCase() === email.toLowerCase());
+        const matched = configData.find(
+          (item: any) => item.email.toLowerCase() === email.toLowerCase(),
+        );
         if (matched) {
           let divisionId = null;
           let departmentId = null;
 
           if (matched.divisionCode) {
-            const div = await this.divisionModel.findOne({ code: matched.divisionCode }).exec();
+            const div = await this.divisionModel
+              .findOne({ code: matched.divisionCode })
+              .exec();
             if (div) divisionId = div._id;
           }
           if (matched.departmentCode) {
-            const dept = await this.departmentModel.findOne({ code: matched.departmentCode }).exec();
+            const dept = await this.departmentModel
+              .findOne({ code: matched.departmentCode })
+              .exec();
             if (dept) departmentId = dept._id;
           }
 
@@ -216,7 +231,7 @@ export class AuthService {
             divisionId,
             departmentId,
             fullName: matched.fullName || fullName,
-            isActive: true // Activated immediately!
+            isActive: true, // Activated immediately!
           };
         }
       }
@@ -225,19 +240,28 @@ export class AuthService {
     }
 
     // User does not exist - create automatically
-    const dummyHash = await bcrypt.hash(process.env.DUMMY_SSO_PASS || 'dummy_sso_pass_2026', 10);
-    const isInitialAdmin = username === 'admin_sso' && process.env.NODE_ENV !== 'production';
+    const dummyHash = await bcrypt.hash(
+      process.env.DUMMY_SSO_PASS || 'dummy_sso_pass_2026',
+      10,
+    );
+    const isInitialAdmin =
+      username === 'admin_sso' && process.env.NODE_ENV !== 'production';
 
     const newUser = new this.userModel({
       username,
       passwordHash: dummyHash,
       fullName: autoAssignedUser
         ? autoAssignedUser.fullName
-        : (fullName || `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`),
+        : fullName ||
+          `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
       departmentId: autoAssignedUser ? autoAssignedUser.departmentId : null,
       divisionId: autoAssignedUser ? autoAssignedUser.divisionId : null,
-      role: autoAssignedUser ? autoAssignedUser.role : (isInitialAdmin ? 'ADMIN' : 'STAFF'),
-      isActive: autoAssignedUser ? true : (isInitialAdmin ? true : false),
+      role: autoAssignedUser
+        ? autoAssignedUser.role
+        : isInitialAdmin
+          ? 'ADMIN'
+          : 'STAFF',
+      isActive: autoAssignedUser ? true : isInitialAdmin ? true : false,
     });
 
     await newUser.save();
@@ -322,7 +346,9 @@ export class AuthService {
   exchangeToken(code: string) {
     const data = this.exchangeCodes.get(code);
     if (!data) {
-      throw new UnauthorizedException('Mã xác thực không hợp lệ hoặc đã hết hạn.');
+      throw new UnauthorizedException(
+        'Mã xác thực không hợp lệ hoặc đã hết hạn.',
+      );
     }
     if (data.expiresAt < Date.now()) {
       this.exchangeCodes.delete(code);

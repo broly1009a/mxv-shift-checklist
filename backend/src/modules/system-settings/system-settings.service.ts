@@ -37,13 +37,20 @@ export class SystemSettingsService {
     return saved;
   }
 
-  private async sendSecurityAuditEmail(key: string, oldValue: string, newValue: string) {
+  private async sendSecurityAuditEmail(
+    key: string,
+    oldValue: string,
+    newValue: string,
+  ) {
     try {
       if (oldValue === newValue) return;
 
       const configStr = await this.getSetting('margin_checker_config', '{}');
       const config = JSON.parse(configStr);
-      const mailSettings = config.securityAudit || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      const mailSettings = config.securityAudit || {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+      };
       if (!mailSettings.isSendWarning) return;
 
       const smtp = config.smtp || {
@@ -69,8 +76,8 @@ export class SystemSettingsService {
           rejectUnauthorized: false,
         },
         connectionTimeout: 10000, // 10s
-        greetingTimeout: 10000,   // 10s
-        socketTimeout: 15000,     // 15s
+        greetingTimeout: 10000, // 10s
+        socketTimeout: 15000, // 15s
       });
 
       const subject = `⚠️ [MXV SECURITY AUDIT] Cảnh báo Thay đổi Cấu hình Hệ thống Quan trọng`;
@@ -129,9 +136,10 @@ export class SystemSettingsService {
         subject,
         html: htmlBody,
       });
-
     } catch (err: any) {
-      console.error(`Không thể gửi email audit thay đổi cấu hình: ${err.message}`);
+      console.error(
+        `Không thể gửi email audit thay đổi cấu hình: ${err.message}`,
+      );
     }
   }
 

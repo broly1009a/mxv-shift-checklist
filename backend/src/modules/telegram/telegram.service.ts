@@ -43,7 +43,10 @@ export class TelegramService implements OnModuleInit {
 
     const targetChatId = customChatId;
 
-    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
+    if (
+      process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'dev'
+    ) {
       this.logger.log(
         `[DEV MODE] Giả lập gửi Telegram cá nhân đến ${targetChatId}: ${text.replace(/<[^>]*>/g, '')}`,
       );

@@ -5,7 +5,7 @@ const folder = `c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Do
 
 const files = [
   'Thong ke so lot giao dich 2026 2.xlsx',
-  'Thong ke so lot giao dich ACM 2026 2.xlsx'
+  'Thong ke so lot giao dich ACM 2026 2.xlsx',
 ];
 
 async function main() {
@@ -14,7 +14,7 @@ async function main() {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(filePath);
     const lastSheet = wb.worksheets[wb.worksheets.length - 1];
-    
+
     console.log(`\n=== FILE: ${filename} (Sheet: ${lastSheet.name}) ===`);
     for (let r = 1; r <= 4; r++) {
       const row = lastSheet.getRow(r);
@@ -23,12 +23,15 @@ async function main() {
         const val = row.getCell(c).value;
         vals.push(val);
       }
-      console.log(`Row ${r}:`, vals.map(v => {
-        if (v && typeof v === 'object' && 'richText' in v) {
-          return (v as any).richText.map((rt: any) => rt.text).join('');
-        }
-        return v;
-      }));
+      console.log(
+        `Row ${r}:`,
+        vals.map((v) => {
+          if (v && typeof v === 'object' && 'richText' in v) {
+            return v.richText.map((rt: any) => rt.text).join('');
+          }
+          return v;
+        }),
+      );
     }
   }
 }

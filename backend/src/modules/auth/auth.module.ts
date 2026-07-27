@@ -22,7 +22,9 @@ import { AccessControlService } from './access-control.service';
       useFactory: () => {
         const secret = process.env.JWT_SECRET;
         if (!secret && process.env.NODE_ENV === 'production') {
-          throw new Error('CRITICAL CONFIGURATION ERROR: JWT_SECRET environment variable is not defined!');
+          throw new Error(
+            'CRITICAL CONFIGURATION ERROR: JWT_SECRET environment variable is not defined!',
+          );
         }
         return {
           secret: secret || 'trading_mxv_secret_key_2026',
@@ -35,5 +37,4 @@ import { AccessControlService } from './access-control.service';
   controllers: [AuthController], // khai báo controller
   exports: [AuthService, MongooseModule, JwtModule, AccessControlService], // export các module và service
 })
-export class AuthModule { }
-
+export class AuthModule {}

@@ -37,12 +37,20 @@ export class ValueStatisticsController {
   }
 
   @Put('config')
-  async saveConfig(@Body() config: { macroPath?: string; targetRoot?: string }) {
+  async saveConfig(
+    @Body() config: { macroPath?: string; targetRoot?: string },
+  ) {
     if (config.macroPath !== undefined) {
-      await this.settingsService.setSetting('bot_macro_value_path', config.macroPath);
+      await this.settingsService.setSetting(
+        'bot_macro_value_path',
+        config.macroPath,
+      );
     }
     if (config.targetRoot !== undefined) {
-      await this.settingsService.setSetting('bot_lot_macro_target_root', config.targetRoot);
+      await this.settingsService.setSetting(
+        'bot_lot_macro_target_root',
+        config.targetRoot,
+      );
     }
     return { success: true };
   }
@@ -78,7 +86,8 @@ export class ValueStatisticsController {
         macroPath: macroPath || undefined,
         targetRoot: targetRoot || undefined,
         dsgdPath: dsgdPath || undefined,
-        updateCumulative: updateCumulative === true || updateCumulative === 'true',
+        updateCumulative:
+          updateCumulative === true || updateCumulative === 'true',
         pathNormal: pathNormal || undefined,
         pathAcm: pathAcm || undefined,
         pathLme: pathLme || undefined,
@@ -92,7 +101,10 @@ export class ValueStatisticsController {
       );
       return result;
     } catch (err) {
-      this.logger.error(`Lỗi xử lý value statistics cho ngày "${ngayGD}"`, err?.stack);
+      this.logger.error(
+        `Lỗi xử lý value statistics cho ngày "${ngayGD}"`,
+        err?.stack,
+      );
       throw new HttpException(
         err?.message ?? 'Lỗi xử lý thống kê giá trị',
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -39,9 +39,12 @@ export class MarginChangeRequest extends Document {
   comments?: string | null;
 }
 
-export const MarginChangeRequestSchema = SchemaFactory.createForClass(MarginChangeRequest);
+export const MarginChangeRequestSchema =
+  SchemaFactory.createForClass(MarginChangeRequest);
 
-MarginChangeRequestSchema.virtual('id').get(function (this: MarginChangeRequest) {
+MarginChangeRequestSchema.virtual('id').get(function (
+  this: MarginChangeRequest,
+) {
   return this._id.toHexString();
 });
 MarginChangeRequestSchema.set('toJSON', { virtuals: true });

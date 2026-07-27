@@ -21,21 +21,29 @@ async function run() {
   }
 
   const targetDate = '2026-07-22';
-  console.log(`📅 Running email history report download test in headless mode for date: ${targetDate}`);
+  console.log(
+    `📅 Running email history report download test in headless mode for date: ${targetDate}`,
+  );
 
   // We will intercept loginMSystem or modify page object to capture screenshots
   // Let's monkeypatch loginMSystem to get reference to the page or just handle it here
   const originalLogin = rpaDownloader.loginMSystem.bind(rpaDownloader);
   let activePage: any = null;
 
-  rpaDownloader.loginMSystem = async function(downloadDir: string, overrideUrl?: string) {
+  rpaDownloader.loginMSystem = async function (
+    downloadDir: string,
+    overrideUrl?: string,
+  ) {
     const result = await originalLogin(downloadDir, overrideUrl);
     activePage = result.page;
     return result;
   };
 
   try {
-    const filePath = await rpaDownloader.downloadEmailHistoryReport(tempDir, targetDate);
+    const filePath = await rpaDownloader.downloadEmailHistoryReport(
+      tempDir,
+      targetDate,
+    );
     console.log(`\n✅ SUCCESS! File downloaded: ${filePath}`);
   } catch (err: any) {
     console.error(`\n❌ FAILED:`, err.message);

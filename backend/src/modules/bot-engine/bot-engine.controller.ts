@@ -1,4 +1,19 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpException, HttpStatus, UploadedFile, UseInterceptors, Logger, Res, Query, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+  UploadedFile,
+  UseInterceptors,
+  Logger,
+  Res,
+  Query,
+  Headers,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -18,7 +33,10 @@ import { CqgSyncService } from './cqg-sync.service';
 import { OmsWatcherService } from './oms-watcher.service';
 import { BotEngineService } from './bot-engine.service';
 import { EmailWatcherService } from './email-watcher.service';
-import { TeamsNotifierService, ExpiringContract } from '../notifications/teams-notifier.service';
+import {
+  TeamsNotifierService,
+  ExpiringContract,
+} from '../notifications/teams-notifier.service';
 import { ShiftsService } from '../shifts/shifts.service';
 
 @Controller('api/v1/bot-engine')
@@ -46,15 +64,44 @@ export class BotEngineController {
    */
   @Get('config')
   async getConfig() {
-    const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
-    const cqgRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
-    const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
-    const castRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
-    const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
-    const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+    const msystemRaw = await this.settingsService.getSetting(
+      'bot_credentials_msystem',
+      '',
+    );
+    const cqgRaw = await this.settingsService.getSetting(
+      'bot_credentials_cqg',
+      '',
+    );
+    const acmRaw = await this.settingsService.getSetting(
+      'bot_credentials_acm',
+      '',
+    );
+    const castRaw = await this.settingsService.getSetting(
+      'bot_credentials_cast',
+      '',
+    );
+    const ccpRaw = await this.settingsService.getSetting(
+      'bot_credentials_ccp',
+      '',
+    );
+    const ceRaw = await this.settingsService.getSetting(
+      'bot_credentials_ce',
+      '',
+    );
 
-    let msystem = { url: 'https://msystem.mxv.vn/', username: '', password: '', pin: '' };
-    let cqg = { url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced', username: '', password: '', username2: '', password2: '' };
+    let msystem = {
+      url: 'https://msystem.mxv.vn/',
+      username: '',
+      password: '',
+      pin: '',
+    };
+    let cqg = {
+      url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+      username: '',
+      password: '',
+      username2: '',
+      password2: '',
+    };
     let acm = {
       url: 'https://acm.member-url.vn/login',
       username: '',
@@ -69,9 +116,21 @@ export class BotEngineController {
       sftpRemoteDir: '',
       sftpFileExtensions: '',
     };
-    let cast = { url: 'https://www.cqgtrader.com/CAST/Logon/Logon.asp', username: '', password: '' };
-    let ccp = { url: 'https://uat-coreccp.mxv.com.vn/', username: '', password: '' };
-    let ce = { url: 'https://uat-corece.mxv.com.vn/', username: '', password: '' };
+    let cast = {
+      url: 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+      username: '',
+      password: '',
+    };
+    let ccp = {
+      url: 'https://uat-coreccp.mxv.com.vn/',
+      username: '',
+      password: '',
+    };
+    let ce = {
+      url: 'https://uat-corece.mxv.com.vn/',
+      username: '',
+      password: '',
+    };
 
     if (msystemRaw) {
       try {
@@ -89,11 +148,13 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(cqgRaw));
         cqg = {
-          url: decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+          url:
+            decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
           username2: decrypted.username2 || decrypted.usernameCQG2 || '',
-          password2: decrypted.password2 || decrypted.passwordCQG2 ? '********' : '',
+          password2:
+            decrypted.password2 || decrypted.passwordCQG2 ? '********' : '',
         };
       } catch (err) {}
     }
@@ -122,7 +183,8 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(castRaw));
         cast = {
-          url: decrypted.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+          url:
+            decrypted.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
         };
@@ -151,17 +213,37 @@ export class BotEngineController {
       } catch (err) {}
     }
 
-    const schedulerConfigRaw = await this.settingsService.getSetting('bot_scheduler_config', '[]');
+    const schedulerConfigRaw = await this.settingsService.getSetting(
+      'bot_scheduler_config',
+      '[]',
+    );
     let schedulerConfig = [];
     try {
       schedulerConfig = JSON.parse(schedulerConfigRaw);
     } catch (e) {}
 
-    const sessionStartTime = await this.settingsService.getSetting('session_start_time', '05:00');
-    const usdExchangeRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25220');
+    const sessionStartTime = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const usdExchangeRateStr = await this.settingsService.getSetting(
+      'usd_exchange_rate',
+      '25220',
+    );
     const usdExchangeRate = parseFloat(usdExchangeRateStr) || 25220;
 
-    return { msystem, cqg, acm, cast, ccp, cpp: ccp, ce, schedulerConfig, sessionStartTime, usdExchangeRate };
+    return {
+      msystem,
+      cqg,
+      acm,
+      cast,
+      ccp,
+      cpp: ccp,
+      ce,
+      schedulerConfig,
+      sessionStartTime,
+      usdExchangeRate,
+    };
   }
 
   /**
@@ -169,23 +251,46 @@ export class BotEngineController {
    */
   @Post('config')
   async saveConfig(@Body() body: any) {
-    const { msystem, cqg, acm, cast, ccp, cpp, ce, schedulerConfig, sessionStartTime, usdExchangeRate } = body;
+    const {
+      msystem,
+      cqg,
+      acm,
+      cast,
+      ccp,
+      cpp,
+      ce,
+      schedulerConfig,
+      sessionStartTime,
+      usdExchangeRate,
+    } = body;
     const targetCcp = ccp || cpp;
 
     if (schedulerConfig) {
-      await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(schedulerConfig, null, 2));
+      await this.settingsService.setSetting(
+        'bot_scheduler_config',
+        JSON.stringify(schedulerConfig, null, 2),
+      );
     }
 
     if (sessionStartTime) {
-      await this.settingsService.setSetting('session_start_time', sessionStartTime);
+      await this.settingsService.setSetting(
+        'session_start_time',
+        sessionStartTime,
+      );
     }
 
     if (usdExchangeRate !== undefined) {
-      await this.settingsService.setSetting('usd_exchange_rate', usdExchangeRate.toString());
+      await this.settingsService.setSetting(
+        'usd_exchange_rate',
+        usdExchangeRate.toString(),
+      );
     }
 
     if (msystem) {
-      const msystemRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
+      const msystemRaw = await this.settingsService.getSetting(
+        'bot_credentials_msystem',
+        '',
+      );
       let currentMsystem: any = {};
       if (msystemRaw) {
         try {
@@ -195,16 +300,31 @@ export class BotEngineController {
 
       const mergedMsystem = {
         url: msystem.url || currentMsystem.url || 'https://msystem.mxv.vn/',
-        username: msystem.username !== undefined ? msystem.username : currentMsystem.username,
-        password: msystem.password && msystem.password !== '********' ? msystem.password : currentMsystem.password,
-        pin: msystem.pin && msystem.pin !== '****' ? msystem.pin : currentMsystem.pin,
+        username:
+          msystem.username !== undefined
+            ? msystem.username
+            : currentMsystem.username,
+        password:
+          msystem.password && msystem.password !== '********'
+            ? msystem.password
+            : currentMsystem.password,
+        pin:
+          msystem.pin && msystem.pin !== '****'
+            ? msystem.pin
+            : currentMsystem.pin,
       };
 
-      await this.settingsService.setSetting('bot_credentials_msystem', encrypt(JSON.stringify(mergedMsystem)));
+      await this.settingsService.setSetting(
+        'bot_credentials_msystem',
+        encrypt(JSON.stringify(mergedMsystem)),
+      );
     }
 
     if (cqg) {
-      const cqgRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+      const cqgRaw = await this.settingsService.getSetting(
+        'bot_credentials_cqg',
+        '',
+      );
       let currentCqg: any = {};
       if (cqgRaw) {
         try {
@@ -213,18 +333,35 @@ export class BotEngineController {
       }
 
       const mergedCqg = {
-        url: cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
-        username: cqg.username !== undefined ? cqg.username : currentCqg.username,
-        password: cqg.password && cqg.password !== '********' ? cqg.password : currentCqg.password,
-        username2: cqg.username2 !== undefined ? cqg.username2 : currentCqg.username2,
-        password2: cqg.password2 && cqg.password2 !== '********' ? cqg.password2 : currentCqg.password2,
+        url:
+          cqg.url ||
+          currentCqg.url ||
+          'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        username:
+          cqg.username !== undefined ? cqg.username : currentCqg.username,
+        password:
+          cqg.password && cqg.password !== '********'
+            ? cqg.password
+            : currentCqg.password,
+        username2:
+          cqg.username2 !== undefined ? cqg.username2 : currentCqg.username2,
+        password2:
+          cqg.password2 && cqg.password2 !== '********'
+            ? cqg.password2
+            : currentCqg.password2,
       };
 
-      await this.settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(mergedCqg)));
+      await this.settingsService.setSetting(
+        'bot_credentials_cqg',
+        encrypt(JSON.stringify(mergedCqg)),
+      );
     }
 
     if (acm) {
-      const acmRaw = await this.settingsService.getSetting('bot_credentials_acm', '');
+      const acmRaw = await this.settingsService.getSetting(
+        'bot_credentials_acm',
+        '',
+      );
       let currentAcm: any = {};
       if (acmRaw) {
         try {
@@ -234,24 +371,57 @@ export class BotEngineController {
 
       const mergedAcm = {
         url: acm.url || currentAcm.url || 'https://acm.member-url.vn/login',
-        username: acm.username !== undefined ? acm.username : currentAcm.username,
-        password: acm.password && acm.password !== '********' ? acm.password : currentAcm.password,
-        geminiApiKey: acm.geminiApiKey && acm.geminiApiKey !== '********' ? acm.geminiApiKey : currentAcm.geminiApiKey,
-        downloadUrl: acm.downloadUrl !== undefined ? acm.downloadUrl : currentAcm.downloadUrl,
-        downloadBtnSelector: acm.downloadBtnSelector !== undefined ? acm.downloadBtnSelector : currentAcm.downloadBtnSelector,
-        sftpHost: acm.sftpHost !== undefined ? acm.sftpHost : currentAcm.sftpHost,
-        sftpPort: acm.sftpPort !== undefined ? acm.sftpPort : currentAcm.sftpPort,
-        sftpUsername: acm.sftpUsername !== undefined ? acm.sftpUsername : currentAcm.sftpUsername,
-        sftpPassword: acm.sftpPassword && acm.sftpPassword !== '********' ? acm.sftpPassword : currentAcm.sftpPassword,
-        sftpRemoteDir: acm.sftpRemoteDir !== undefined ? acm.sftpRemoteDir : currentAcm.sftpRemoteDir,
-        sftpFileExtensions: acm.sftpFileExtensions !== undefined ? acm.sftpFileExtensions : currentAcm.sftpFileExtensions,
+        username:
+          acm.username !== undefined ? acm.username : currentAcm.username,
+        password:
+          acm.password && acm.password !== '********'
+            ? acm.password
+            : currentAcm.password,
+        geminiApiKey:
+          acm.geminiApiKey && acm.geminiApiKey !== '********'
+            ? acm.geminiApiKey
+            : currentAcm.geminiApiKey,
+        downloadUrl:
+          acm.downloadUrl !== undefined
+            ? acm.downloadUrl
+            : currentAcm.downloadUrl,
+        downloadBtnSelector:
+          acm.downloadBtnSelector !== undefined
+            ? acm.downloadBtnSelector
+            : currentAcm.downloadBtnSelector,
+        sftpHost:
+          acm.sftpHost !== undefined ? acm.sftpHost : currentAcm.sftpHost,
+        sftpPort:
+          acm.sftpPort !== undefined ? acm.sftpPort : currentAcm.sftpPort,
+        sftpUsername:
+          acm.sftpUsername !== undefined
+            ? acm.sftpUsername
+            : currentAcm.sftpUsername,
+        sftpPassword:
+          acm.sftpPassword && acm.sftpPassword !== '********'
+            ? acm.sftpPassword
+            : currentAcm.sftpPassword,
+        sftpRemoteDir:
+          acm.sftpRemoteDir !== undefined
+            ? acm.sftpRemoteDir
+            : currentAcm.sftpRemoteDir,
+        sftpFileExtensions:
+          acm.sftpFileExtensions !== undefined
+            ? acm.sftpFileExtensions
+            : currentAcm.sftpFileExtensions,
       };
 
-      await this.settingsService.setSetting('bot_credentials_acm', encrypt(JSON.stringify(mergedAcm)));
+      await this.settingsService.setSetting(
+        'bot_credentials_acm',
+        encrypt(JSON.stringify(mergedAcm)),
+      );
     }
 
     if (cast) {
-      const castRaw = await this.settingsService.getSetting('bot_credentials_cast', '');
+      const castRaw = await this.settingsService.getSetting(
+        'bot_credentials_cast',
+        '',
+      );
       let currentCast: any = {};
       if (castRaw) {
         try {
@@ -260,16 +430,29 @@ export class BotEngineController {
       }
 
       const mergedCast = {
-        url: cast.url || currentCast.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
-        username: cast.username !== undefined ? cast.username : currentCast.username,
-        password: cast.password && cast.password !== '********' ? cast.password : currentCast.password,
+        url:
+          cast.url ||
+          currentCast.url ||
+          'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+        username:
+          cast.username !== undefined ? cast.username : currentCast.username,
+        password:
+          cast.password && cast.password !== '********'
+            ? cast.password
+            : currentCast.password,
       };
 
-      await this.settingsService.setSetting('bot_credentials_cast', encrypt(JSON.stringify(mergedCast)));
+      await this.settingsService.setSetting(
+        'bot_credentials_cast',
+        encrypt(JSON.stringify(mergedCast)),
+      );
     }
 
     if (targetCcp) {
-      const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+      const ccpRaw = await this.settingsService.getSetting(
+        'bot_credentials_ccp',
+        '',
+      );
       let currentCcp: any = {};
       if (ccpRaw) {
         try {
@@ -278,16 +461,29 @@ export class BotEngineController {
       }
 
       const mergedCcp = {
-        url: targetCcp.url || currentCcp.url || 'https://uat-coreccp.mxv.com.vn/',
-        username: targetCcp.username !== undefined ? targetCcp.username : currentCcp.username,
-        password: targetCcp.password && targetCcp.password !== '********' ? targetCcp.password : currentCcp.password,
+        url:
+          targetCcp.url || currentCcp.url || 'https://uat-coreccp.mxv.com.vn/',
+        username:
+          targetCcp.username !== undefined
+            ? targetCcp.username
+            : currentCcp.username,
+        password:
+          targetCcp.password && targetCcp.password !== '********'
+            ? targetCcp.password
+            : currentCcp.password,
       };
 
-      await this.settingsService.setSetting('bot_credentials_ccp', encrypt(JSON.stringify(mergedCcp)));
+      await this.settingsService.setSetting(
+        'bot_credentials_ccp',
+        encrypt(JSON.stringify(mergedCcp)),
+      );
     }
 
     if (ce) {
-      const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+      const ceRaw = await this.settingsService.getSetting(
+        'bot_credentials_ce',
+        '',
+      );
       let currentCe: any = {};
       if (ceRaw) {
         try {
@@ -298,13 +494,22 @@ export class BotEngineController {
       const mergedCe = {
         url: ce.url || currentCe.url || 'https://uat-corece.mxv.com.vn/',
         username: ce.username !== undefined ? ce.username : currentCe.username,
-        password: ce.password && ce.password !== '********' ? ce.password : currentCe.password,
+        password:
+          ce.password && ce.password !== '********'
+            ? ce.password
+            : currentCe.password,
       };
 
-      await this.settingsService.setSetting('bot_credentials_ce', encrypt(JSON.stringify(mergedCe)));
+      await this.settingsService.setSetting(
+        'bot_credentials_ce',
+        encrypt(JSON.stringify(mergedCe)),
+      );
     }
 
-    return { success: true, message: 'Cấu hình tài khoản robot đã được cập nhật thành công.' };
+    return {
+      success: true,
+      message: 'Cấu hình tài khoản robot đã được cập nhật thành công.',
+    };
   }
 
   /**
@@ -322,22 +527,35 @@ export class BotEngineController {
     if (taskId) {
       query['payload.taskId'] = taskId;
     }
-    return this.botJobModel.find(query).sort({ createdAt: -1 }).limit(50).exec();
+    return this.botJobModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .exec();
   }
 
   /**
    * Manually triggers a task's RPA download.
    */
   @Post('trigger/:shiftLogId/:taskId')
-  async triggerTaskRpa(@Param('shiftLogId') shiftLogId: string, @Param('taskId') taskId: string) {
+  async triggerTaskRpa(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string,
+  ) {
     const log = await this.shiftLogModel.findById(shiftLogId).exec();
     if (!log) {
-      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const task = log.details.find((t) => t.taskId === taskId);
     if (!task) {
-      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const targetStr = task.botCheckTargetSnapshot || '';
@@ -372,7 +590,11 @@ export class BotEngineController {
     // Force enqueue a fresh RPA job
     const job = await this.jobQueueService.enqueue(jobType, payload);
 
-    return { success: true, message: `Đã đưa yêu cầu chạy tác vụ ${jobType} vào hàng đợi.`, jobId: job._id };
+    return {
+      success: true,
+      message: `Đã đưa yêu cầu chạy tác vụ ${jobType} vào hàng đợi.`,
+      jobId: job._id,
+    };
   }
 
   /**
@@ -381,20 +603,29 @@ export class BotEngineController {
   @Post('trigger-oms-check/:shiftLogId/:taskId')
   async triggerOmsCheck(
     @Param('shiftLogId') shiftLogId: string,
-    @Param('taskId') taskId: string
+    @Param('taskId') taskId: string,
   ) {
     if (this.omsWatcherService.isRunning()) {
-      throw new HttpException('Hệ thống đang chạy một phiên kiểm tra OMS khác. Vui lòng đợi.', HttpStatus.CONFLICT);
+      throw new HttpException(
+        'Hệ thống đang chạy một phiên kiểm tra OMS khác. Vui lòng đợi.',
+        HttpStatus.CONFLICT,
+      );
     }
 
     const log = await this.shiftLogModel.findById(shiftLogId).exec();
     if (!log) {
-      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const task = log.details.find((t) => t.taskId === taskId);
     if (!task) {
-      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     // Set task status to WAITING (checking)
@@ -403,9 +634,10 @@ export class BotEngineController {
       {
         $set: {
           'details.$.status': 'WAITING',
-          'details.$.resultNote': 'Đang bắt đầu kích hoạt kiểm tra OMS tự động (Playwright)...',
+          'details.$.resultNote':
+            'Đang bắt đầu kích hoạt kiểm tra OMS tự động (Playwright)...',
         },
-      }
+      },
     );
 
     // Run the check asynchronously
@@ -416,7 +648,7 @@ export class BotEngineController {
         const resultNoteStr = JSON.stringify({
           message: result?.message || 'Không có phản hồi.',
           timestamp: new Date().toISOString(),
-          data: result?.data || null
+          data: result?.data || null,
         });
 
         await this.shiftLogModel.updateOne(
@@ -428,7 +660,7 @@ export class BotEngineController {
               'details.$.isChecked': result?.success || false,
               'details.$.checkedAt': new Date(),
             },
-          }
+          },
         );
       } catch (err: any) {
         await this.shiftLogModel.updateOne(
@@ -439,15 +671,18 @@ export class BotEngineController {
               'details.$.resultNote': JSON.stringify({
                 message: `Lỗi kích hoạt bot: ${err.message}`,
                 timestamp: new Date().toISOString(),
-                data: null
+                data: null,
               }),
             },
-          }
+          },
         );
       }
     })();
 
-    return { success: true, message: 'Đã kích hoạt quét kiểm tra OMS CCP/CE trong nền.' };
+    return {
+      success: true,
+      message: 'Đã kích hoạt quét kiểm tra OMS CCP/CE trong nền.',
+    };
   }
 
   /**
@@ -456,27 +691,38 @@ export class BotEngineController {
   @Post('trigger-email-check/:shiftLogId/:taskId')
   async triggerEmailCheck(
     @Param('shiftLogId') shiftLogId: string,
-    @Param('taskId') taskId: string
+    @Param('taskId') taskId: string,
   ) {
     const log = await this.shiftLogModel.findById(shiftLogId).exec();
     if (!log) {
-      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const task = log.details.find((t) => t.taskId === taskId);
     if (!task) {
-      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    const existingJob = await this.botJobModel.findOne({
-      shiftLogId,
-      taskId,
-      jobType: 'VERIFY_EMAIL_STATUS',
-      status: { $in: ['PENDING', 'PROCESSING'] }
-    }).exec();
+    const existingJob = await this.botJobModel
+      .findOne({
+        shiftLogId,
+        taskId,
+        jobType: 'VERIFY_EMAIL_STATUS',
+        status: { $in: ['PENDING', 'PROCESSING'] },
+      })
+      .exec();
 
     if (existingJob) {
-      throw new HttpException('Hệ thống đang chạy xác minh email cho tác vụ này. Vui lòng đợi.', HttpStatus.CONFLICT);
+      throw new HttpException(
+        'Hệ thống đang chạy xác minh email cho tác vụ này. Vui lòng đợi.',
+        HttpStatus.CONFLICT,
+      );
     }
 
     await this.shiftLogModel.updateOne(
@@ -484,13 +730,14 @@ export class BotEngineController {
       {
         $set: {
           'details.$.status': 'WAITING',
-          'details.$.resultNote': 'Đang bắt đầu kích hoạt xác minh gửi email sao kê tự động...',
+          'details.$.resultNote':
+            'Đang bắt đầu kích hoạt xác minh gửi email sao kê tự động...',
           'details.$.isBotCheckSnapshot': true,
           'details.$.botCheckTypeSnapshot': 'EMAIL_STATUS_CHECK',
           'details.$.botTriggerTimeSnapshot': '07:30',
           'details.$.slaDeadlineSnapshot': '08:00',
         },
-      }
+      },
     );
 
     await this.jobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
@@ -500,7 +747,10 @@ export class BotEngineController {
       maxAttempts: 1,
     });
 
-    return { success: true, message: 'Đã kích hoạt xác minh email sao kê tự động.' };
+    return {
+      success: true,
+      message: 'Đã kích hoạt xác minh email sao kê tự động.',
+    };
   }
 
   /**
@@ -509,16 +759,22 @@ export class BotEngineController {
   @Post('trigger-maturity-check/:shiftLogId/:taskId')
   async triggerMaturityCheck(
     @Param('shiftLogId') shiftLogId: string,
-    @Param('taskId') taskId: string
+    @Param('taskId') taskId: string,
   ) {
     const log = await this.shiftLogModel.findById(shiftLogId).exec();
     if (!log) {
-      throw new HttpException('Không tìm thấy ca trực tương ứng.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const task = log.details.find((t) => t.taskId === taskId);
     if (!task) {
-      throw new HttpException('Không tìm thấy tác vụ tương ứng trong ca trực.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     // Set task status to WAITING
@@ -527,9 +783,10 @@ export class BotEngineController {
       {
         $set: {
           'details.$.status': 'WAITING',
-          'details.$.resultNote': 'Đang bắt đầu kích hoạt đối chiếu và gửi thông báo đáo hạn hợp đồng...',
+          'details.$.resultNote':
+            'Đang bắt đầu kích hoạt đối chiếu và gửi thông báo đáo hạn hợp đồng...',
         },
-      }
+      },
     );
 
     const systemUser = {
@@ -543,21 +800,36 @@ export class BotEngineController {
     (async () => {
       try {
         let expiringContracts: ExpiringContract[] = [];
-        const email = await this.emailWatcherService.getLatestEmail('Thông báo tất toán hợp đồng', 'daonguyen@mxv.vn');
+        const email = await this.emailWatcherService.getLatestEmail(
+          'Thông báo tất toán hợp đồng',
+          'daonguyen@mxv.vn',
+        );
         if (email) {
-          expiringContracts = this.botEngineService.parseMaturityEmail(email.body);
+          expiringContracts = this.botEngineService.parseMaturityEmail(
+            email.body,
+          );
         } else {
           // TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email thật thành công
-          const fallbackPath = path.join(process.cwd(), 'temp', 'downloads', 'mail.txt');
+          const fallbackPath = path.join(
+            process.cwd(),
+            'temp',
+            'downloads',
+            'mail.txt',
+          );
           if (fs.existsSync(fallbackPath)) {
             const fallbackContent = fs.readFileSync(fallbackPath, 'utf8');
-            expiringContracts = this.botEngineService.parseEmailText(fallbackContent);
-            this.logger.log(`Using fallback mock email content from: ${fallbackPath} (${expiringContracts.length} contracts)`);
+            expiringContracts =
+              this.botEngineService.parseEmailText(fallbackContent);
+            this.logger.log(
+              `Using fallback mock email content from: ${fallbackPath} (${expiringContracts.length} contracts)`,
+            );
           }
         }
 
         if (expiringContracts.length === 0) {
-          throw new Error('Chưa nhận được email Thông báo tất toán hợp đồng từ daonguyen@mxv.vn và không tìm thấy tệp mock fallback.');
+          throw new Error(
+            'Chưa nhận được email Thông báo tất toán hợp đồng từ daonguyen@mxv.vn và không tìm thấy tệp mock fallback.',
+          );
         }
 
         const today = new Date(Date.now() + 7 * 60 * 60 * 1000);
@@ -567,7 +839,9 @@ export class BotEngineController {
         const dateStr = `${yyyy}-${mm}-${dd}`;
         const todayStr = `${dd}/${mm}/${yyyy}`;
 
-        const todayContracts = expiringContracts.filter(c => c.deadline.includes(todayStr));
+        const todayContracts = expiringContracts.filter((c) =>
+          c.deadline.includes(todayStr),
+        );
         if (todayContracts.length === 0) {
           const msg = `Không có hợp đồng nào đến hạn tất toán trong ngày hôm nay (${todayStr}).`;
           await this.shiftsService.updateTaskStatus(
@@ -576,12 +850,17 @@ export class BotEngineController {
             'PASSED',
             systemUser,
             msg,
-            true
+            true,
           );
           return;
         }
 
-        const tempDir = path.join(process.cwd(), 'temp', 'reconciliation', dateStr);
+        const tempDir = path.join(
+          process.cwd(),
+          'temp',
+          'reconciliation',
+          dateStr,
+        );
         if (!fs.existsSync(tempDir)) {
           fs.mkdirSync(tempDir, { recursive: true });
         }
@@ -590,13 +869,73 @@ export class BotEngineController {
         const pendingOrdersPath = path.join(tempDir, 'pending_orders.xlsx');
 
         const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true';
-        if (isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+        if (
+          isSimulation &&
+          (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))
+        ) {
           // Generate mock open_positions
           const opWorkbook = XLSX.utils.book_new();
           const opRows = [
-            ['STT', 'Mã thành viên', 'Tên thành viên', 'Số HĐ', 'Tên khách hàng', 'SĐT', 'Email', 'Mã TKGD', 'Tên tài khoản', 'Mã HĐ', 'Tên hợp đồng', 'KL Mua', 'KL Bán', 'Giá khớp', 'Giá TT', 'Ký quỹ y/c', 'Lãi lỗ thực tế', 'Lãi lỗ ròng'],
-            [1, '003', 'Gia Cát Lợi', '003001', 'Nguyễn Văn A', '', '', '003C111111', 'Nguyễn Văn A', 'TRUN26', 'Cao su RSS3 7/26', 5, 0, 0, 0, 0, 0, 0],
-            [2, '003', 'Gia Cát Lợi', '003002', 'Trần Thị B', '', '', '003C222222', 'Trần Thị B', 'ZFTQ26', 'Cao su TSR20 8/26', 0, 10, 0, 0, 0, 0, 0]
+            [
+              'STT',
+              'Mã thành viên',
+              'Tên thành viên',
+              'Số HĐ',
+              'Tên khách hàng',
+              'SĐT',
+              'Email',
+              'Mã TKGD',
+              'Tên tài khoản',
+              'Mã HĐ',
+              'Tên hợp đồng',
+              'KL Mua',
+              'KL Bán',
+              'Giá khớp',
+              'Giá TT',
+              'Ký quỹ y/c',
+              'Lãi lỗ thực tế',
+              'Lãi lỗ ròng',
+            ],
+            [
+              1,
+              '003',
+              'Gia Cát Lợi',
+              '003001',
+              'Nguyễn Văn A',
+              '',
+              '',
+              '003C111111',
+              'Nguyễn Văn A',
+              'TRUN26',
+              'Cao su RSS3 7/26',
+              5,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+            ],
+            [
+              2,
+              '003',
+              'Gia Cát Lợi',
+              '003002',
+              'Trần Thị B',
+              '',
+              '',
+              '003C222222',
+              'Trần Thị B',
+              'ZFTQ26',
+              'Cao su TSR20 8/26',
+              0,
+              10,
+              0,
+              0,
+              0,
+              0,
+              0,
+            ],
           ];
           const opSheet = XLSX.utils.aoa_to_sheet(opRows);
           XLSX.utils.book_append_sheet(opWorkbook, opSheet, 'Sheet1');
@@ -605,9 +944,54 @@ export class BotEngineController {
           // Generate mock pending_orders
           const poWorkbook = XLSX.utils.book_new();
           const poRows = [
-            ['STT', 'Mã lệnh', 'Mã TV', 'Mã TKGD', 'Mã ĐV', 'Mã HĐ', 'Mã hàng hóa', 'Kỳ hạn', 'Lệnh', 'Chiều mua bán', 'KL đặt lệnh', 'KL khớp', 'Giá giới hạn', 'Trạng thái'],
-            [1, 'L001', '003', '003C111111', '003', 'TRUN26', 'TRU', '7/26', 'LMT', 'BUY', 2, 0, 100, 'Đang chờ khớp'],
-            [2, 'L002', '003', '003C222222', '003', 'ZFTQ26', 'ZFT', '8/26', 'LMT', 'SELL', 3, 0, 200, 'Đang chờ khớp']
+            [
+              'STT',
+              'Mã lệnh',
+              'Mã TV',
+              'Mã TKGD',
+              'Mã ĐV',
+              'Mã HĐ',
+              'Mã hàng hóa',
+              'Kỳ hạn',
+              'Lệnh',
+              'Chiều mua bán',
+              'KL đặt lệnh',
+              'KL khớp',
+              'Giá giới hạn',
+              'Trạng thái',
+            ],
+            [
+              1,
+              'L001',
+              '003',
+              '003C111111',
+              '003',
+              'TRUN26',
+              'TRU',
+              '7/26',
+              'LMT',
+              'BUY',
+              2,
+              0,
+              100,
+              'Đang chờ khớp',
+            ],
+            [
+              2,
+              'L002',
+              '003',
+              '003C222222',
+              '003',
+              'ZFTQ26',
+              'ZFT',
+              '8/26',
+              'LMT',
+              'SELL',
+              3,
+              0,
+              200,
+              'Đang chờ khớp',
+            ],
           ];
           const poSheet = XLSX.utils.aoa_to_sheet(poRows);
           XLSX.utils.book_append_sheet(poWorkbook, poSheet, 'Sheet1');
@@ -615,11 +999,17 @@ export class BotEngineController {
         }
 
         // Playwright RPA download if not exists and not in simulation
-        if (!isSimulation && (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))) {
+        if (
+          !isSimulation &&
+          (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath))
+        ) {
           if (!fs.existsSync(openPosPath)) {
             const browserInstance = await this.rpaService.loginMSystem(tempDir);
             try {
-              await this.rpaService.downloadTTM(browserInstance.page, openPosPath);
+              await this.rpaService.downloadTTM(
+                browserInstance.page,
+                openPosPath,
+              );
             } finally {
               await browserInstance.browser.close().catch(() => {});
             }
@@ -627,7 +1017,10 @@ export class BotEngineController {
           if (!fs.existsSync(pendingOrdersPath)) {
             const browserInstance = await this.rpaService.loginMSystem(tempDir);
             try {
-              await this.rpaService.downloadDSLCK(browserInstance.page, pendingOrdersPath);
+              await this.rpaService.downloadDSLCK(
+                browserInstance.page,
+                pendingOrdersPath,
+              );
             } finally {
               await browserInstance.browser.close().catch(() => {});
             }
@@ -635,18 +1028,21 @@ export class BotEngineController {
         }
 
         if (!fs.existsSync(openPosPath) || !fs.existsSync(pendingOrdersPath)) {
-          throw new Error('Thiếu file báo cáo open_positions.xlsx hoặc pending_orders.xlsx để đối chiếu.');
+          throw new Error(
+            'Thiếu file báo cáo open_positions.xlsx hoặc pending_orders.xlsx để đối chiếu.',
+          );
         }
 
         const openPosBuffer = fs.readFileSync(openPosPath);
         const pendingOrdersBuffer = fs.readFileSync(pendingOrdersPath);
-        
-        const res = await this.teamsNotifierService.checkMaturityAndNotifyFromMSystem(
-          openPosBuffer,
-          pendingOrdersBuffer,
-          expiringContracts,
-          'Manual trigger check'
-        );
+
+        const res =
+          await this.teamsNotifierService.checkMaturityAndNotifyFromMSystem(
+            openPosBuffer,
+            pendingOrdersBuffer,
+            expiringContracts,
+            'Manual trigger check',
+          );
 
         await this.shiftsService.updateTaskStatus(
           shiftLogId,
@@ -654,7 +1050,7 @@ export class BotEngineController {
           res.success ? 'PASSED' : 'FAILED',
           systemUser,
           res.message,
-          true
+          true,
         );
       } catch (err: any) {
         await this.shiftsService.updateTaskStatus(
@@ -663,12 +1059,15 @@ export class BotEngineController {
           'FAILED',
           systemUser,
           `Lỗi đối chiếu đáo hạn: ${err.message}`,
-          true
+          true,
         );
       }
     })();
 
-    return { success: true, message: 'Đã kích hoạt quét kiểm tra đáo hạn hợp đồng và gửi tin nhắn.' };
+    return {
+      success: true,
+      message: 'Đã kích hoạt quét kiểm tra đáo hạn hợp đồng và gửi tin nhắn.',
+    };
   }
 
   /**
@@ -684,7 +1083,11 @@ export class BotEngineController {
     try {
       const { browser } = await this.rpaService.loginMSystem(tempDir);
       await browser.close();
-      return { success: true, message: 'Kết nối thử nghiệm thành công! Robot đăng nhập M-System và vượt mã PIN ảo hoàn tất.' };
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm thành công! Robot đăng nhập M-System và vượt mã PIN ảo hoàn tất.',
+      };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -706,7 +1109,11 @@ export class BotEngineController {
     try {
       const { browser } = await this.rpaService.loginCQG(tempDir);
       await browser.close();
-      return { success: true, message: 'Kết nối thử nghiệm CQG thành công! Robot đăng nhập CQG hoàn tất.' };
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm CQG thành công! Robot đăng nhập CQG hoàn tất.',
+      };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CQG thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -728,7 +1135,11 @@ export class BotEngineController {
     try {
       const { browser } = await this.rpaService.loginACM(tempDir);
       await browser.close();
-      return { success: true, message: 'Kết nối thử nghiệm ACM thành công! Robot đăng nhập ACM và vượt mã captcha hoàn tất.' };
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm ACM thành công! Robot đăng nhập ACM và vượt mã captcha hoàn tất.',
+      };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm ACM thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -747,7 +1158,11 @@ export class BotEngineController {
       backupPath: backupPath || '',
       targetDate: targetDate || '',
     });
-    return { success: true, message: 'Đã đưa yêu cầu tải báo cáo CQG CAST vào hàng đợi.', jobId: job._id };
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải báo cáo CQG CAST vào hàng đợi.',
+      jobId: job._id,
+    };
   }
 
   /**
@@ -766,7 +1181,11 @@ export class BotEngineController {
       if (fs.existsSync(testFile)) {
         fs.unlinkSync(testFile);
       }
-      return { success: true, message: 'Kết nối thử nghiệm CQG CAST thành công! Robot đăng nhập và tải file thử nghiệm hoàn tất.' };
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm CQG CAST thành công! Robot đăng nhập và tải file thử nghiệm hoàn tất.',
+      };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CQG CAST thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -826,7 +1245,11 @@ export class BotEngineController {
       fs.writeFileSync(targetPath, buffer);
 
       this.logger.log(`GTT.xlsx uploaded successfully to: ${targetPath}`);
-      return { success: true, message: 'Upload GTT.xlsx thành công!', path: targetPath };
+      return {
+        success: true,
+        message: 'Upload GTT.xlsx thành công!',
+        path: targetPath,
+      };
     } catch (err: any) {
       throw new HttpException(
         `Upload GTT.xlsx thất bại: ${err.message}`,
@@ -851,7 +1274,11 @@ export class BotEngineController {
       fs.writeFileSync(targetPath, buffer);
 
       this.logger.log(`market.csv uploaded successfully to: ${targetPath}`);
-      return { success: true, message: 'Upload market.csv thành công!', path: targetPath };
+      return {
+        success: true,
+        message: 'Upload market.csv thành công!',
+        path: targetPath,
+      };
     } catch (err: any) {
       throw new HttpException(
         `Upload market.csv thất bại: ${err.message}`,
@@ -864,7 +1291,9 @@ export class BotEngineController {
    * Upload hang_hoa.xlsx file manually containing commodity specifications.
    */
   @Post('commodity-upload')
-  async uploadCommodityFile(@Body() body: { base64: string; filename?: string }) {
+  async uploadCommodityFile(
+    @Body() body: { base64: string; filename?: string },
+  ) {
     try {
       const targetPath = this.gttService.getHangHoaXlsxPath();
 
@@ -876,7 +1305,11 @@ export class BotEngineController {
       fs.writeFileSync(targetPath, buffer);
 
       this.logger.log(`hang_hoa.xlsx uploaded successfully to: ${targetPath}`);
-      return { success: true, message: 'Upload file hàng hóa thành công!', path: targetPath };
+      return {
+        success: true,
+        message: 'Upload file hàng hóa thành công!',
+        path: targetPath,
+      };
     } catch (err: any) {
       throw new HttpException(
         `Upload file hàng hóa thất bại: ${err.message}`,
@@ -914,7 +1347,10 @@ export class BotEngineController {
   async getGttReport() {
     const report = this.gttService.getLatestReport();
     if (!report) {
-      return { success: false, message: 'Chưa có báo cáo GTT nào. Hãy chạy kiểm tra GTT trước.' };
+      return {
+        success: false,
+        message: 'Chưa có báo cáo GTT nào. Hãy chạy kiểm tra GTT trước.',
+      };
     }
     return { success: true, report };
   }
@@ -929,15 +1365,21 @@ export class BotEngineController {
   ) {
     try {
       if (type !== 'settlement' && type !== 'first_match') {
-        throw new HttpException('Loại giá không hợp lệ. Chỉ chấp nhận settlement hoặc first_match.', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Loại giá không hợp lệ. Chỉ chấp nhận settlement hoặc first_match.',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const filePath = await this.gttService.generateCorrectionFile(type);
       const filename = path.basename(filePath);
-      
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
       res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-      
+
       return res.download(filePath);
     } catch (err: any) {
       throw new HttpException(
@@ -986,11 +1428,14 @@ export class BotEngineController {
       'Markettruoc6h',
     ];
 
-    const actualTargets = targets && targets.length > 0 ? targets : defaultTargets;
+    const actualTargets =
+      targets && targets.length > 0 ? targets : defaultTargets;
 
     const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
       targets: actualTargets,
-      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0],
       maxAttempts: 1, // Only 1 attempt for manual triggers
     });
 
@@ -1008,21 +1453,33 @@ export class BotEngineController {
   async downloadJobZip(@Param('id') jobId: string, @Res() res: Response) {
     const job = await this.botJobModel.findById(jobId).exec();
     if (!job) {
-      throw new HttpException('Không tìm thấy background job tương ứng.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy background job tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     if (job.status !== 'COMPLETED') {
-      throw new HttpException(`Job chưa hoàn thành. Trạng thái hiện tại: ${job.status}`, HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        `Job chưa hoàn thành. Trạng thái hiện tại: ${job.status}`,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const jobDir = path.join(process.cwd(), 'temp', 'reports', jobId);
     if (!fs.existsSync(jobDir)) {
-      throw new HttpException('Thư mục lưu trữ báo cáo của Job này không tồn tại hoặc đã bị xóa.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Thư mục lưu trữ báo cáo của Job này không tồn tại hoặc đã bị xóa.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const files = fs.readdirSync(jobDir);
     if (files.length === 0) {
-      throw new HttpException('Không có báo cáo nào được tải về trong Job này.', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không có báo cáo nào được tải về trong Job này.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const zip = new JSZip();
@@ -1038,7 +1495,10 @@ export class BotEngineController {
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename=BaoCao_MXV_${jobId}.zip`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=BaoCao_MXV_${jobId}.zip`,
+    );
     return res.send(zipBuffer);
   }
 
@@ -1064,9 +1524,15 @@ export class BotEngineController {
   @Post('backup-ms/config')
   async saveBackupMsConfig(@Body('backupPath') backupPath: string) {
     if (!backupPath || typeof backupPath !== 'string') {
-      throw new HttpException('backupPath không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'backupPath không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
-    await this.settingsService.setSetting('bot_backup_path_ms', backupPath.trim());
+    await this.settingsService.setSetting(
+      'bot_backup_path_ms',
+      backupPath.trim(),
+    );
     return { success: true, message: 'Đã lưu đường dẫn thư mục backup MS.' };
   }
 
@@ -1097,15 +1563,23 @@ export class BotEngineController {
       );
     }
 
-    const results = await this.jobQueueService.scanMsBackupFiles(scanPath, targetDate);
-    const okCount = results.filter(r => r.status === 'OK').length;
-    const missingCount = results.filter(r => r.status === 'MISSING').length;
-    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+    const results = await this.jobQueueService.scanMsBackupFiles(
+      scanPath,
+      targetDate,
+    );
+    const okCount = results.filter((r) => r.status === 'OK').length;
+    const missingCount = results.filter((r) => r.status === 'MISSING').length;
+    const outdatedCount = results.filter((r) => r.status === 'OUTDATED').length;
 
     return {
       success: true,
       backupPath: scanPath,
-      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      summary: {
+        total: results.length,
+        ok: okCount,
+        missing: missingCount,
+        outdated: outdatedCount,
+      },
       files: results,
     };
   }
@@ -1129,7 +1603,8 @@ export class BotEngineController {
 
     return {
       success: true,
-      message: 'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup MS vào hàng đợi.',
+      message:
+        'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup MS vào hàng đợi.',
       jobId: job._id,
     };
   }
@@ -1143,7 +1618,9 @@ export class BotEngineController {
    */
   @Get('backup-cqg/config')
   async getBackupCqgConfig() {
-    const { baseDir, fullPath } = await this.cqgSyncService.getDailyBackupPath(new Date());
+    const { baseDir, fullPath } = await this.cqgSyncService.getDailyBackupPath(
+      new Date(),
+    );
     return { backupPath: baseDir, fullPath };
   }
 
@@ -1153,9 +1630,15 @@ export class BotEngineController {
   @Post('backup-cqg/config')
   async saveBackupCqgConfig(@Body('backupPath') backupPath: string) {
     if (!backupPath || typeof backupPath !== 'string') {
-      throw new HttpException('backupPath không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'backupPath không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
-    await this.settingsService.setSetting('bot_backup_path_cqg', backupPath.trim());
+    await this.settingsService.setSetting(
+      'bot_backup_path_cqg',
+      backupPath.trim(),
+    );
     return { success: true, message: 'Đã lưu đường dẫn thư mục backup CQG.' };
   }
 
@@ -1165,17 +1648,23 @@ export class BotEngineController {
   @Post('audit-cqg-backup')
   async auditCqgBackup(@Body('targetDate') targetDateStr?: string) {
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
-    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+    const { fullPath } =
+      await this.cqgSyncService.getDailyBackupPath(targetDate);
 
     const results = await this.cqgSyncService.scanCqgBackupFiles(targetDate);
-    const okCount = results.filter(r => r.status === 'OK').length;
-    const missingCount = results.filter(r => r.status === 'MISSING').length;
-    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+    const okCount = results.filter((r) => r.status === 'OK').length;
+    const missingCount = results.filter((r) => r.status === 'MISSING').length;
+    const outdatedCount = results.filter((r) => r.status === 'OUTDATED').length;
 
     return {
       success: true,
       backupPath: fullPath,
-      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      summary: {
+        total: results.length,
+        ok: okCount,
+        missing: missingCount,
+        outdated: outdatedCount,
+      },
       files: results,
     };
   }
@@ -1216,7 +1705,10 @@ export class BotEngineController {
    */
   @Post('backup-acm/config')
   async saveBackupAcmConfig(@Body('backupPath') backupPath: string) {
-    return { success: true, message: 'Đường dẫn ACM được tự động đồng bộ theo Backup MS.' };
+    return {
+      success: true,
+      message: 'Đường dẫn ACM được tự động đồng bộ theo Backup MS.',
+    };
   }
 
   /**
@@ -1239,15 +1731,23 @@ export class BotEngineController {
       fs.mkdirSync(scanPath, { recursive: true });
     }
 
-    const results = await this.jobQueueService.scanAcmBackupFiles(scanPath, targetDate);
-    const okCount = results.filter(r => r.status === 'OK').length;
-    const missingCount = results.filter(r => r.status === 'MISSING').length;
-    const outdatedCount = results.filter(r => r.status === 'OUTDATED').length;
+    const results = await this.jobQueueService.scanAcmBackupFiles(
+      scanPath,
+      targetDate,
+    );
+    const okCount = results.filter((r) => r.status === 'OK').length;
+    const missingCount = results.filter((r) => r.status === 'MISSING').length;
+    const outdatedCount = results.filter((r) => r.status === 'OUTDATED').length;
 
     return {
       success: true,
       backupPath: scanPath,
-      summary: { total: results.length, ok: okCount, missing: missingCount, outdated: outdatedCount },
+      summary: {
+        total: results.length,
+        ok: okCount,
+        missing: missingCount,
+        outdated: outdatedCount,
+      },
       files: results,
     };
   }
@@ -1267,7 +1767,8 @@ export class BotEngineController {
 
     return {
       success: true,
-      message: 'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup ACM vào hàng đợi.',
+      message:
+        'Đã đưa yêu cầu kiểm tra và tải bổ sung file backup ACM vào hàng đợi.',
       jobId: job._id,
     };
   }
@@ -1276,14 +1777,23 @@ export class BotEngineController {
    * Cung cấp Captcha gõ tay từ UI cho Job đang chờ.
    */
   @Post('jobs/:id/submit-captcha')
-  async submitCaptcha(@Param('id') jobId: string, @Body('captchaText') captchaText: string) {
+  async submitCaptcha(
+    @Param('id') jobId: string,
+    @Body('captchaText') captchaText: string,
+  ) {
     if (!captchaText || typeof captchaText !== 'string') {
-      throw new HttpException('Mã captcha không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Mã captcha không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
       await this.jobQueueService.submitCaptcha(jobId, captchaText.trim());
-      return { success: true, message: 'Đã gửi captcha thành công. Job đang tiếp tục chạy.' };
+      return {
+        success: true,
+        message: 'Đã gửi captcha thành công. Job đang tiếp tục chạy.',
+      };
     } catch (err: any) {
       throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
     }
@@ -1299,36 +1809,66 @@ export class BotEngineController {
   @Get('macro-lot/config')
   async getMacroLotConfig() {
     const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
+      ? path.join(
+          process.cwd(),
+          'marco',
+          'Thong ke so lot giao dich có ACM',
+          'Macro thong ke so lot giao dich có ACM.xlsm',
+        )
+      : path.join(
+          process.cwd(),
+          '..',
+          'marco',
+          'Thong ke so lot giao dich có ACM',
+          'Macro thong ke so lot giao dich có ACM.xlsm',
+        );
 
     const macroPath = await this.settingsService.getSetting(
       'bot_macro_lot_path',
-      defaultMacroPath
+      defaultMacroPath,
     );
     const backupMs = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
     const backupCqg = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
     const defaultScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_lot_macro.py');
+      const relPath = path.join(
+        process.cwd(),
+        '..',
+        'POC',
+        'scripts',
+        'run_lot_macro.py',
+      );
       const relPath2 = path.join(process.cwd(), 'scripts', 'run_lot_macro.py');
       if (fs.existsSync(relPath)) return relPath;
       if (fs.existsSync(relPath2)) return relPath2;
       return path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
     })();
 
-    const pythonExe = await this.settingsService.getSetting('bot_python_path', 'python');
-    const scriptPath = await this.settingsService.getSetting('bot_lot_script_path', defaultScriptPath);
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python',
+    );
+    const scriptPath = await this.settingsService.getSetting(
+      'bot_lot_script_path',
+      defaultScriptPath,
+    );
     const targetRoot = await this.settingsService.getSetting(
       'bot_lot_macro_target_root',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong'
+      'M:\\Quanlygiaodich\\Tai lieu hoat dong',
     );
-    return { macroPath, backupMs, backupCqg, pythonExe, scriptPath, targetRoot };
+    return {
+      macroPath,
+      backupMs,
+      backupCqg,
+      pythonExe,
+      scriptPath,
+      targetRoot,
+    };
   }
 
   /**
@@ -1342,18 +1882,33 @@ export class BotEngineController {
     @Body('targetRoot') targetRoot?: string,
   ) {
     if (macroPath !== undefined) {
-      await this.settingsService.setSetting('bot_macro_lot_path', macroPath.trim());
+      await this.settingsService.setSetting(
+        'bot_macro_lot_path',
+        macroPath.trim(),
+      );
     }
     if (scriptPath !== undefined) {
-      await this.settingsService.setSetting('bot_lot_script_path', scriptPath.trim());
+      await this.settingsService.setSetting(
+        'bot_lot_script_path',
+        scriptPath.trim(),
+      );
     }
     if (pythonExe !== undefined) {
-      await this.settingsService.setSetting('bot_python_path', pythonExe.trim());
+      await this.settingsService.setSetting(
+        'bot_python_path',
+        pythonExe.trim(),
+      );
     }
     if (targetRoot !== undefined) {
-      await this.settingsService.setSetting('bot_lot_macro_target_root', targetRoot.trim());
+      await this.settingsService.setSetting(
+        'bot_lot_macro_target_root',
+        targetRoot.trim(),
+      );
     }
-    return { success: true, message: 'Đã cập nhật cấu hình chạy Excel Macro thống kê số lot.' };
+    return {
+      success: true,
+      message: 'Đã cập nhật cấu hình chạy Excel Macro thống kê số lot.',
+    };
   }
 
   /**
@@ -1362,32 +1917,58 @@ export class BotEngineController {
   @Post('trigger-lot-macro')
   async triggerLotMacro(@Body('targetDate') targetDateStr?: string) {
     const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke so lot giao dich có ACM', 'Macro thong ke so lot giao dich có ACM.xlsm');
+      ? path.join(
+          process.cwd(),
+          'marco',
+          'Thong ke so lot giao dich có ACM',
+          'Macro thong ke so lot giao dich có ACM.xlsm',
+        )
+      : path.join(
+          process.cwd(),
+          '..',
+          'marco',
+          'Thong ke so lot giao dich có ACM',
+          'Macro thong ke so lot giao dich có ACM.xlsm',
+        );
 
-    const macroPath = await this.settingsService.getSetting('bot_macro_lot_path', defaultMacroPath);
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_lot_path',
+      defaultMacroPath,
+    );
     const backupPathMs = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
     const backupPathCqg = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
-    const pythonExe = await this.settingsService.getSetting('bot_python_path', 'python');
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python',
+    );
     const targetRoot = await this.settingsService.getSetting(
       'bot_lot_macro_target_root',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong'
+      'M:\\Quanlygiaodich\\Tai lieu hoat dong',
     );
 
     const defaultScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_lot_macro.py');
+      const relPath = path.join(
+        process.cwd(),
+        '..',
+        'POC',
+        'scripts',
+        'run_lot_macro.py',
+      );
       const relPath2 = path.join(process.cwd(), 'scripts', 'run_lot_macro.py');
       if (fs.existsSync(relPath)) return relPath;
       if (fs.existsSync(relPath2)) return relPath2;
       return path.join('C:', 'POC', 'scripts', 'run_lot_macro.py');
     })();
-    const scriptPath = await this.settingsService.getSetting('bot_lot_script_path', defaultScriptPath);
+    const scriptPath = await this.settingsService.getSetting(
+      'bot_lot_script_path',
+      defaultScriptPath,
+    );
 
     let targetDate = new Date();
     if (targetDateStr) {
@@ -1426,20 +2007,50 @@ export class BotEngineController {
   @Get('macro-value/config')
   async getMacroValueConfig() {
     const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm');
+      ? path.join(
+          process.cwd(),
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        )
+      : path.join(
+          process.cwd(),
+          '..',
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        );
 
     const defaultScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_value_macro.py');
-      const relPath2 = path.join(process.cwd(), 'scripts', 'run_value_macro.py');
+      const relPath = path.join(
+        process.cwd(),
+        '..',
+        'POC',
+        'scripts',
+        'run_value_macro.py',
+      );
+      const relPath2 = path.join(
+        process.cwd(),
+        'scripts',
+        'run_value_macro.py',
+      );
       if (fs.existsSync(relPath)) return relPath;
       if (fs.existsSync(relPath2)) return relPath2;
       return path.join('C:', 'POC', 'scripts', 'run_value_macro.py');
     })();
 
-    const macroPath = await this.settingsService.getSetting('bot_macro_value_path', defaultMacroPath);
-    const scriptPath = await this.settingsService.getSetting('bot_value_script_path', defaultScriptPath);
-    const pythonExe = await this.settingsService.getSetting('bot_python_path', 'python');
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_value_path',
+      defaultMacroPath,
+    );
+    const scriptPath = await this.settingsService.getSetting(
+      'bot_value_script_path',
+      defaultScriptPath,
+    );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python',
+    );
     return { macroPath, scriptPath, pythonExe };
   }
 
@@ -1453,15 +2064,27 @@ export class BotEngineController {
     @Body('pythonExe') pythonExe?: string,
   ) {
     if (macroPath !== undefined) {
-      await this.settingsService.setSetting('bot_macro_value_path', macroPath.trim());
+      await this.settingsService.setSetting(
+        'bot_macro_value_path',
+        macroPath.trim(),
+      );
     }
     if (scriptPath !== undefined) {
-      await this.settingsService.setSetting('bot_value_script_path', scriptPath.trim());
+      await this.settingsService.setSetting(
+        'bot_value_script_path',
+        scriptPath.trim(),
+      );
     }
     if (pythonExe !== undefined) {
-      await this.settingsService.setSetting('bot_python_path', pythonExe.trim());
+      await this.settingsService.setSetting(
+        'bot_python_path',
+        pythonExe.trim(),
+      );
     }
-    return { success: true, message: 'Đã cập nhật cấu hình chạy Excel Macro thống kê giá trị.' };
+    return {
+      success: true,
+      message: 'Đã cập nhật cấu hình chạy Excel Macro thống kê giá trị.',
+    };
   }
 
   /**
@@ -1470,21 +2093,51 @@ export class BotEngineController {
   @Post('trigger-value-macro')
   async triggerValueMacro(@Body('targetDate') targetDateStr?: string) {
     const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
-      ? path.join(process.cwd(), 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm')
-      : path.join(process.cwd(), '..', 'marco', 'Thong ke gia tri giao dich có ACM', 'Macro thong ke gia tri giao dich có ACM.xlsm');
+      ? path.join(
+          process.cwd(),
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        )
+      : path.join(
+          process.cwd(),
+          '..',
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        );
 
-    const macroPath = await this.settingsService.getSetting('bot_macro_value_path', defaultMacroPath);
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_value_path',
+      defaultMacroPath,
+    );
 
     const defaultScriptPath = (() => {
-      const relPath = path.join(process.cwd(), '..', 'POC', 'scripts', 'run_value_macro.py');
-      const relPath2 = path.join(process.cwd(), 'scripts', 'run_value_macro.py');
+      const relPath = path.join(
+        process.cwd(),
+        '..',
+        'POC',
+        'scripts',
+        'run_value_macro.py',
+      );
+      const relPath2 = path.join(
+        process.cwd(),
+        'scripts',
+        'run_value_macro.py',
+      );
       if (fs.existsSync(relPath)) return relPath;
       if (fs.existsSync(relPath2)) return relPath2;
       return path.join('C:', 'POC', 'scripts', 'run_value_macro.py');
     })();
 
-    const scriptPath = await this.settingsService.getSetting('bot_value_script_path', defaultScriptPath);
-    const pythonExe = await this.settingsService.getSetting('bot_python_path', 'python');
+    const scriptPath = await this.settingsService.getSetting(
+      'bot_value_script_path',
+      defaultScriptPath,
+    );
+    const pythonExe = await this.settingsService.getSetting(
+      'bot_python_path',
+      'python',
+    );
 
     let targetDate = new Date();
     if (targetDateStr) {
@@ -1516,14 +2169,18 @@ export class BotEngineController {
   @Get('agent-status')
   async getAgentStatus() {
     const statuses = Array.from(AgentController.agentStatuses.values());
-    const activeAgents = statuses.filter(s => (Date.now() - s.lastSeen.getTime()) < 180_000);
+    const activeAgents = statuses.filter(
+      (s) => Date.now() - s.lastSeen.getTime() < 180_000,
+    );
     const online = activeAgents.length > 0;
     if (!online) {
       return { online: false, hostname: '', platform: '', agents: [] };
     }
-    const hostname = activeAgents.map(a => a.hostname).join(', ');
-    const platform = activeAgents.map(a => a.platform).join(', ');
-    const lastSeen = activeAgents.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime())[0].lastSeen;
+    const hostname = activeAgents.map((a) => a.hostname).join(', ');
+    const platform = activeAgents.map((a) => a.platform).join(', ');
+    const lastSeen = activeAgents.sort(
+      (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
+    )[0].lastSeen;
     const diffMs = Date.now() - lastSeen.getTime();
     return {
       online: true,
@@ -1536,7 +2193,6 @@ export class BotEngineController {
   }
 }
 
-
 // ─── RPA Agent API Controller (secured by API Key, no JWT) ───────────────────
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -1544,8 +2200,14 @@ import { diskStorage } from 'multer';
 @Controller('api/v1/bot-engine/agent')
 export class AgentController {
   private readonly logger = new Logger('AgentController');
-  public static agentStatuses = new Map<string, { hostname: string; platform: string; lastSeen: Date }>();
-  private static sessionTokens = new Map<string, { hostname: string; expireAt: number }>();
+  public static agentStatuses = new Map<
+    string,
+    { hostname: string; platform: string; lastSeen: Date }
+  >();
+  private static sessionTokens = new Map<
+    string,
+    { hostname: string; expireAt: number }
+  >();
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
@@ -1570,7 +2232,10 @@ export class AgentController {
       return;
     }
 
-    throw new HttpException('Unauthorized: Invalid Agent API Key or Session Token', HttpStatus.UNAUTHORIZED);
+    throw new HttpException(
+      'Unauthorized: Invalid Agent API Key or Session Token',
+      HttpStatus.UNAUTHORIZED,
+    );
   }
 
   // POST /api/v1/bot-engine/agent/login
@@ -1578,18 +2243,30 @@ export class AgentController {
   async login(@Body() body: { apiKey: string; hostname: string }) {
     const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
     if (!body.apiKey || body.apiKey !== expected) {
-      throw new HttpException('Unauthorized: Invalid Agent API Key', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Unauthorized: Invalid Agent API Key',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
-    const token = 'sess_' + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+    const token =
+      'sess_' +
+      Math.random().toString(36).substring(2) +
+      Math.random().toString(36).substring(2);
     const expireAt = Date.now() + 60 * 60 * 1000; // 1 hour
-    AgentController.sessionTokens.set(token, { hostname: body.hostname || 'unknown', expireAt });
+    AgentController.sessionTokens.set(token, {
+      hostname: body.hostname || 'unknown',
+      expireAt,
+    });
     this.logger.log(`Session login successful for agent: ${body.hostname}`);
     return { token, expireAt: new Date(expireAt).toISOString() };
   }
 
   // POST /api/v1/bot-engine/agent/logout
   @Post('logout')
-  async logout(@Headers() headers: Record<string, string>, @Body() body?: { hostname?: string }) {
+  async logout(
+    @Headers() headers: Record<string, string>,
+    @Body() body?: { hostname?: string },
+  ) {
     const authHeader = headers['authorization'];
     let hostname = body?.hostname || 'unknown';
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -1617,7 +2294,10 @@ export class AgentController {
 
   // POST /api/v1/bot-engine/agent/heartbeat
   @Post('heartbeat')
-  async heartbeat(@Headers() headers: Record<string, string>, @Body() body: any) {
+  async heartbeat(
+    @Headers() headers: Record<string, string>,
+    @Body() body: any,
+  ) {
     this.validateKey(headers);
     const hostname = body.hostname || 'unknown';
     AgentController.agentStatuses.set(hostname, {
@@ -1631,7 +2311,10 @@ export class AgentController {
 
   // GET /api/v1/bot-engine/agent/status
   @Get('status')
-  async status(@Headers() headers: Record<string, string>, @Query('hostname') queryHostname?: string) {
+  async status(
+    @Headers() headers: Record<string, string>,
+    @Query('hostname') queryHostname?: string,
+  ) {
     this.validateKey(headers);
     if (queryHostname) {
       const status = AgentController.agentStatuses.get(queryHostname);
@@ -1642,7 +2325,9 @@ export class AgentController {
     }
     const statuses = Array.from(AgentController.agentStatuses.values());
     if (statuses.length === 0) return { online: false };
-    const sorted = statuses.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime());
+    const sorted = statuses.sort(
+      (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
+    );
     const status = sorted[0];
     const diffMs = Date.now() - status.lastSeen.getTime();
     const online = diffMs < 180_000;
@@ -1654,9 +2339,13 @@ export class AgentController {
   async poll(@Headers() headers: Record<string, string>) {
     this.validateKey(headers);
     const REMOTE_JOB_TYPES = [
-      'RUN_LOT_MACRO', 'RUN_VALUE_MACRO',
-      'RPA_DOWNLOAD_REPORTS', 'DOWNLOAD_CAST',
-      'FILE_AUDIT_MS', 'FILE_AUDIT_CQG', 'FILE_AUDIT_ACM',
+      'RUN_LOT_MACRO',
+      'RUN_VALUE_MACRO',
+      'RPA_DOWNLOAD_REPORTS',
+      'DOWNLOAD_CAST',
+      'FILE_AUDIT_MS',
+      'FILE_AUDIT_CQG',
+      'FILE_AUDIT_ACM',
     ];
     const job = await this.botJobModel
       .findOne({ status: 'PENDING', jobType: { $in: REMOTE_JOB_TYPES } })
@@ -1667,7 +2356,10 @@ export class AgentController {
 
   // POST /api/v1/bot-engine/agent/jobs/:id/start
   @Post('jobs/:id/start')
-  async start(@Headers() headers: Record<string, string>, @Param('id') id: string) {
+  async start(
+    @Headers() headers: Record<string, string>,
+    @Param('id') id: string,
+  ) {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
@@ -1679,7 +2371,11 @@ export class AgentController {
 
   // POST /api/v1/bot-engine/agent/jobs/:id/log
   @Post('jobs/:id/log')
-  async appendLog(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { message: string }) {
+  async appendLog(
+    @Headers() headers: Record<string, string>,
+    @Param('id') id: string,
+    @Body() body: { message: string },
+  ) {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
@@ -1690,16 +2386,26 @@ export class AgentController {
 
   // POST /api/v1/bot-engine/agent/jobs/:id/complete
   @Post('jobs/:id/complete')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: (req: Express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-        const dir = path.join(process.cwd(), 'uploads', 'agent-results');
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-      },
-      filename: (_req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => cb(null, `${Date.now()}_${file.originalname}`),
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (
+          req: Express.Request,
+          _file: Express.Multer.File,
+          cb: (error: Error | null, destination: string) => void,
+        ) => {
+          const dir = path.join(process.cwd(), 'uploads', 'agent-results');
+          fs.mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (
+          _req: Express.Request,
+          file: Express.Multer.File,
+          cb: (error: Error | null, filename: string) => void,
+        ) => cb(null, `${Date.now()}_${file.originalname}`),
+      }),
     }),
-  }))
+  )
   async complete(
     @Headers() headers: Record<string, string>,
     @Param('id') id: string,
@@ -1711,42 +2417,68 @@ export class AgentController {
     const now = new Date().toISOString();
     job.logs.push(`[${now}] Job completed by Agent.`);
     if (file) {
-      const p = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+      const p =
+        job.payload instanceof Map
+          ? Object.fromEntries(job.payload)
+          : job.payload || {};
       p.agentUploadedFile = file.path;
       job.payload = p;
-      job.logs.push(`[${now}] File uploaded: ${file.originalname} -> ${file.path}`);
+      job.logs.push(
+        `[${now}] File uploaded: ${file.originalname} -> ${file.path}`,
+      );
     }
     await this.jobQueueService.syncJobToChecklist(job, 'COMPLETED');
-    this.logger.log(`Job ${id} marked COMPLETED by agent. File: ${file?.path || 'none'}`);
+    this.logger.log(
+      `Job ${id} marked COMPLETED by agent. File: ${file?.path || 'none'}`,
+    );
     return { ok: true };
   }
 
   // POST /api/v1/bot-engine/agent/jobs/:id/fail
   @Post('jobs/:id/fail')
-  async fail(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { error: string }) {
+  async fail(
+    @Headers() headers: Record<string, string>,
+    @Param('id') id: string,
+    @Body() body: { error: string },
+  ) {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
     const targetStatus = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
-    job.logs.push(`[${new Date().toISOString()}] [Agent] FAILED: ${body.error}`);
-    await this.jobQueueService.syncJobToChecklist(job, targetStatus, body.error);
+    job.logs.push(
+      `[${new Date().toISOString()}] [Agent] FAILED: ${body.error}`,
+    );
+    await this.jobQueueService.syncJobToChecklist(
+      job,
+      targetStatus,
+      body.error,
+    );
     this.logger.warn(`Job ${id} failed by agent: ${body.error}`);
     return { ok: true };
   }
 
   // POST /api/v1/bot-engine/agent/jobs/:id/captcha
   @Post('jobs/:id/captcha')
-  async captcha(@Headers() headers: Record<string, string>, @Param('id') id: string, @Body() body: { captchaImage?: string; captchaText?: string }) {
+  async captcha(
+    @Headers() headers: Record<string, string>,
+    @Param('id') id: string,
+    @Body() body: { captchaImage?: string; captchaText?: string },
+  ) {
     this.validateKey(headers);
     const job = await this.botJobModel.findById(id).exec();
     if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
-    const p = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const p =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     let targetStatus = job.status;
     if (body.captchaImage) {
       // Agent uploads captcha image for UI to display
       p.captchaImage = body.captchaImage;
       targetStatus = 'AWAITING_CAPTCHA';
-      job.logs.push(`[${new Date().toISOString()}] Captcha required. Waiting for user input.`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Captcha required. Waiting for user input.`,
+      );
     }
     if (body.captchaText) {
       // UI submits captcha text for agent to retrieve

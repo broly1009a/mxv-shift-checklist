@@ -62,10 +62,15 @@ export class SystemLogsService {
       });
 
       const saved = await newLog.save();
-      this.logger.log(`[SystemLog] [${logData.source}] [${logData.status}] ${logData.eventType}: ${logData.message}`);
+      this.logger.log(
+        `[SystemLog] [${logData.source}] [${logData.status}] ${logData.eventType}: ${logData.message}`,
+      );
       return saved;
     } catch (error) {
-      this.logger.error(`Failed to write SystemLog: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to write SystemLog: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }

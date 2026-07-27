@@ -31,12 +31,20 @@ async function runCqgBackupTest() {
   if (credRaw) {
     try {
       creds = JSON.parse(decrypt(credRaw));
-      console.log('✅ Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.');
+      console.log(
+        '✅ Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.',
+      );
       console.log(`- URL: ${creds.url || 'Mặc định'}`);
-      console.log(`- Username CQG1: ${creds.username1 || creds.usernameCQG1 || creds.username || 'Không cấu hình'}`);
-      console.log(`- Username CQG2: ${creds.username2 || creds.usernameCQG2 || 'Không cấu hình'}`);
+      console.log(
+        `- Username CQG1: ${creds.username1 || creds.usernameCQG1 || creds.username || 'Không cấu hình'}`,
+      );
+      console.log(
+        `- Username CQG2: ${creds.username2 || creds.usernameCQG2 || 'Không cấu hình'}`,
+      );
     } catch (e) {
-      console.warn('⚠️ Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.');
+      console.warn(
+        '⚠️ Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.',
+      );
     }
   }
 
@@ -48,15 +56,22 @@ async function runCqgBackupTest() {
   const envUrl = process.env.CQG_URL;
 
   if (envUser1 && envPass1) {
-    console.log('📝 Phát hiện thông tin tài khoản CQG từ biến môi trường. Đang cập nhật/ghi đè...');
+    console.log(
+      '📝 Phát hiện thông tin tài khoản CQG từ biến môi trường. Đang cập nhật/ghi đè...',
+    );
     const newCreds = {
-      url: envUrl || (creds ? creds.url : 'https://m.cqg.com/cqg/desktop/logon?ref=forced'),
+      url:
+        envUrl ||
+        (creds ? creds.url : 'https://m.cqg.com/cqg/desktop/logon?ref=forced'),
       username1: envUser1,
       password1: envPass1,
       username2: envUser2 || (creds ? creds.username2 : ''),
       password2: envPass2 || (creds ? creds.password2 : ''),
     };
-    await settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(newCreds)));
+    await settingsService.setSetting(
+      'bot_credentials_cqg',
+      encrypt(JSON.stringify(newCreds)),
+    );
     console.log('✅ Đã cập nhật bot_credentials_cqg vào CSDL.');
     creds = newCreds;
   }
@@ -64,7 +79,9 @@ async function runCqgBackupTest() {
   if (!creds || (!creds.username1 && !creds.usernameCQG1 && !creds.username)) {
     console.log('\n❌ THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
     console.log('Vui lòng thiết lập biến môi trường để chạy test, ví dụ:');
-    console.log('   $env:CQG_USER="account1"; $env:CQG_PASS="pass1"; cmd.exe /c npm run test:cqg-backup');
+    console.log(
+      '   $env:CQG_USER="account1"; $env:CQG_PASS="pass1"; cmd.exe /c npm run test:cqg-backup',
+    );
     console.log('Hoặc cấu hình qua CSDL.');
     await app.close();
     process.exit(1);
@@ -100,19 +117,23 @@ async function runCqgBackupTest() {
 
   try {
     // Chuyển status sang PROCESSING
-    testJob.status = 'PROCESSING' as any;
+    testJob.status = 'PROCESSING';
     testJob.attempts = 1;
     await testJob.save();
 
     await botJobQueueService.executeJobDirectly(testJob);
 
-    testJob.status = 'COMPLETED' as any;
-    testJob.logs.push(`[${new Date().toISOString()}] Job hoàn thành thành công.`);
+    testJob.status = 'COMPLETED';
+    testJob.logs.push(
+      `[${new Date().toISOString()}] Job hoàn thành thành công.`,
+    );
     await testJob.save();
     console.log('\n🎉 KẾT QUẢ: JOB CHẠY THÀNH CÔNG RỰC RỠ!');
   } catch (err: any) {
-    testJob.status = 'FAILED' as any;
-    testJob.logs.push(`[${new Date().toISOString()}] Job thất bại: ${err.message}`);
+    testJob.status = 'FAILED';
+    testJob.logs.push(
+      `[${new Date().toISOString()}] Job thất bại: ${err.message}`,
+    );
     await testJob.save();
     console.error('\n❌ KẾT QUẢ: JOB THẤT BẠI!');
     console.error(`Chi tiết lỗi: ${err.message}`);

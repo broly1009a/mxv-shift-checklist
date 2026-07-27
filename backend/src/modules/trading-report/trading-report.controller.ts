@@ -12,7 +12,10 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import * as express from 'express';
 import * as fs from 'fs';
 import { TradingReportService } from './trading-report.service';
@@ -50,7 +53,10 @@ export class TradingReportController {
   @UseInterceptors(FileInterceptor('file'))
   async importExchangeRates(@UploadedFile() file: any) {
     if (!file) {
-      throw new HttpException('Vui lòng tải lên file Excel tỷ giá.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Vui lòng tải lên file Excel tỷ giá.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     return this.tradingReportService.importExchangeRates(file.buffer);
   }
@@ -76,16 +82,25 @@ export class TradingReportController {
     @Res() res: express.Response,
   ) {
     if (!files?.monthDSGDT || files.monthDSGDT.length === 0) {
-      throw new HttpException('Thiếu danh sách giao dịch tháng này (DSGDT).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu danh sách giao dịch tháng này (DSGDT).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (!files?.monthDSGDT1 || files.monthDSGDT1.length === 0) {
-      throw new HttpException('Thiếu danh sách giao dịch tháng trước (DSGDT1).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu danh sách giao dịch tháng trước (DSGDT1).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const month = parseInt(monthStr, 10);
     const year = parseInt(yearStr, 10);
     if (isNaN(month) || isNaN(year)) {
-      throw new HttpException('Tháng/Năm không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Tháng/Năm không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     let reportTypes: Record<string, boolean> = {
@@ -115,11 +130,15 @@ export class TradingReportController {
       );
 
       if (!fs.existsSync(outputPath)) {
-        throw new HttpException('Không tạo được file báo cáo tháng.', HttpStatus.INTERNAL_SERVER_ERROR);
+        throw new HttpException(
+          'Không tạo được file báo cáo tháng.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="Bao_cao_giao_dich_thang_${month}_${year}.xlsx"`,
       });
 
@@ -152,29 +171,46 @@ export class TradingReportController {
     @Res() res: express.Response,
   ) {
     if (!files?.quarterDSGD || files.quarterDSGD.length === 0) {
-      throw new HttpException('Thiếu file Danh sách giao dịch (DSGD).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu file Danh sách giao dịch (DSGD).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (!files?.quarterTTTT || files.quarterTTTT.length === 0) {
-      throw new HttpException('Thiếu file Trạng thái tất toán (TTTT).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu file Trạng thái tất toán (TTTT).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (!files?.quarterWaitingTTTT || files.quarterWaitingTTTT.length === 0) {
-      throw new HttpException('Thiếu file Chờ tất toán (Waiting TTTT).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu file Chờ tất toán (Waiting TTTT).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (!startDateStr || !endDateStr) {
-      throw new HttpException('Thiếu ngày bắt đầu hoặc ngày kết thúc.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu ngày bắt đầu hoặc ngày kết thúc.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const startDate = new Date(startDateStr);
     const endDate = new Date(endDateStr);
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new HttpException('Ngày bắt đầu hoặc ngày kết thúc không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Ngày bắt đầu hoặc ngày kết thúc không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
       const outputPath = await this.tradingReportService.processQuarterReport(
         files.quarterDSGD.map((f) => f.buffer),
-        files.quarterConvertExchange ? files.quarterConvertExchange.map((f) => f.buffer) : [],
+        files.quarterConvertExchange
+          ? files.quarterConvertExchange.map((f) => f.buffer)
+          : [],
         files.quarterTTTT.map((f) => f.buffer),
         files.quarterWaitingTTTT.map((f) => f.buffer),
         startDate,
@@ -182,12 +218,17 @@ export class TradingReportController {
       );
 
       if (!fs.existsSync(outputPath)) {
-        throw new HttpException('Không tạo được file báo cáo quý.', HttpStatus.INTERNAL_SERVER_ERROR);
+        throw new HttpException(
+          'Không tạo được file báo cáo quý.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="Bao_cao_khoi_luong_doanh_thu_quy.xlsx"',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition':
+          'attachment; filename="Bao_cao_khoi_luong_doanh_thu_quy.xlsx"',
       });
 
       const stream = fs.createReadStream(outputPath);
@@ -214,10 +255,16 @@ export class TradingReportController {
     @Res() res: express.Response,
   ) {
     if (!files?.ttttT || files.ttttT.length === 0) {
-      throw new HttpException('Thiếu file tất toán tháng này (TTTT T).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu file tất toán tháng này (TTTT T).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (!files?.ttttT1 || files.ttttT1.length === 0) {
-      throw new HttpException('Thiếu file tất toán tháng trước (TTTT T-1).', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Thiếu file tất toán tháng trước (TTTT T-1).',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     let reportTypes: Record<string, boolean> = {
@@ -240,12 +287,17 @@ export class TradingReportController {
       );
 
       if (!fs.existsSync(outputPath)) {
-        throw new HttpException('Không tạo được file báo cáo tất toán.', HttpStatus.INTERNAL_SERVER_ERROR);
+        throw new HttpException(
+          'Không tạo được file báo cáo tất toán.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="Bao_cao_tat_toan_doi_chieu.xlsx"',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition':
+          'attachment; filename="Bao_cao_tat_toan_doi_chieu.xlsx"',
       });
 
       const stream = fs.createReadStream(outputPath);

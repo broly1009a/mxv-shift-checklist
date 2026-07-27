@@ -24,9 +24,12 @@ async function runE2ETest() {
   if (!loginRes.ok) {
     throw new Error(`Đăng nhập thất bại: ${loginRes.statusText}`);
   }
-  const loginData = (await loginRes.json()) as any;
+  const loginData = await loginRes.json();
   const token = loginData.access_token;
-  console.log('✅ Đăng nhập thành công! Token:', token.substring(0, 15) + '...');
+  console.log(
+    '✅ Đăng nhập thành công! Token:',
+    token.substring(0, 15) + '...',
+  );
 
   // 2. Trigger download job
   console.log('2. Gửi yêu cầu trigger download báo cáo...');
@@ -43,14 +46,17 @@ async function runE2ETest() {
   if (!triggerRes.ok) {
     throw new Error(`Trigger thất bại: ${triggerRes.statusText}`);
   }
-  const triggerData = (await triggerRes.json()) as any;
+  const triggerData = await triggerRes.json();
   const jobId = triggerData.jobId;
   console.log(`✅ Tạo job thành công! Job ID: ${jobId}`);
 
   // 3. Giả lập quá trình chạy Job thành công (để không cần chạy thật qua Playwright)
   // Kết nối DB trực tiếp để giả lập trạng thái COMPLETED và lưu file giả lập
-  console.log('3. Kết nối DB để giả lập lưu file và chuyển trạng thái job sang COMPLETED...');
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mxv-shift-checklist';
+  console.log(
+    '3. Kết nối DB để giả lập lưu file và chuyển trạng thái job sang COMPLETED...',
+  );
+  const mongoUri =
+    process.env.MONGODB_URI || 'mongodb://localhost:27017/mxv-shift-checklist';
   const connection = await connect(mongoUri);
   const db = connection.connection.db;
   if (!db) {
@@ -63,10 +69,18 @@ async function runE2ETest() {
   if (!fs.existsSync(tempJobDir)) {
     fs.mkdirSync(tempJobDir, { recursive: true });
   }
-  fs.writeFileSync(path.join(tempJobDir, 'NKTTHT.xlsx'), 'NKTTHT Mock Excel Data');
-  fs.writeFileSync(path.join(tempJobDir, 'DSTKGD-Futures.xlsx'), 'Futures Mock Excel Data');
+  fs.writeFileSync(
+    path.join(tempJobDir, 'NKTTHT.xlsx'),
+    'NKTTHT Mock Excel Data',
+  );
+  fs.writeFileSync(
+    path.join(tempJobDir, 'DSTKGD-Futures.xlsx'),
+    'Futures Mock Excel Data',
+  );
   fs.writeFileSync(path.join(tempJobDir, 'NR.xlsx'), 'NR Mock Excel Data');
-  console.log(`✅ Đã tạo các file báo cáo giả lập tại thư mục: temp/reports/${jobId}`);
+  console.log(
+    `✅ Đã tạo các file báo cáo giả lập tại thư mục: temp/reports/${jobId}`,
+  );
 
   // Cập nhật trạng thái job thành COMPLETED
   console.log(`Kết nối MongoDB URI: ${mongoUri.replace(/:[^@]+@/, ':***@')}`);
@@ -84,18 +98,27 @@ async function runE2ETest() {
           'Job completed successfully.',
         ],
       },
-    }
+    },
   );
-  console.log(`✅ Cập nhật trạng thái Job sang COMPLETED thành công! Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`);
+  console.log(
+    `✅ Cập nhật trạng thái Job sang COMPLETED thành công! Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`,
+  );
 
   // 4. Download file ZIP qua API
-  console.log(`4. Gửi yêu cầu tải file ZIP từ endpoint /bot-engine/jobs/${jobId}/download-zip...`);
-  const downloadRes = await fetch(`${API_BASE}/bot-engine/jobs/${jobId}/download-zip`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  console.log(
+    `4. Gửi yêu cầu tải file ZIP từ endpoint /bot-engine/jobs/${jobId}/download-zip...`,
+  );
+  const downloadRes = await fetch(
+    `${API_BASE}/bot-engine/jobs/${jobId}/download-zip`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
   if (!downloadRes.ok) {
     const errText = await downloadRes.text();
-    throw new Error(`Tải file ZIP thất bại: ${downloadRes.statusText} - Chi tiết: ${errText}`);
+    throw new Error(
+      `Tải file ZIP thất bại: ${downloadRes.statusText} - Chi tiết: ${errText}`,
+    );
   }
 
   const zipArrayBuffer = await downloadRes.arrayBuffer();
@@ -103,7 +126,9 @@ async function runE2ETest() {
   console.log(`✅ Nhận được file ZIP. Dung lượng: ${zipBuffer.length} bytes`);
 
   // 5. Kiểm tra giải nén và cấu trúc file
-  console.log('5. Đang giải nén file ZIP để kiểm tra cấu trúc và tính đúng đắn của file...');
+  console.log(
+    '5. Đang giải nén file ZIP để kiểm tra cấu trúc và tính đúng đắn của file...',
+  );
   const zip = await JSZip.loadAsync(zipBuffer);
   const zipFiles = Object.keys(zip.files);
   console.log('Danh sách các file trong ZIP:', zipFiles);
@@ -113,7 +138,9 @@ async function runE2ETest() {
   for (const exp of expectedFiles) {
     if (zipFiles.includes(exp)) {
       const content = await zip.file(exp)?.async('string');
-      console.log(`- [OK] ${exp} tồn tại trong file ZIP. Nội dung mẫu: "${content}"`);
+      console.log(
+        `- [OK] ${exp} tồn tại trong file ZIP. Nội dung mẫu: "${content}"`,
+      );
     } else {
       console.error(`- [FAIL] Không tìm thấy file ${exp} trong file ZIP!`);
       passed = false;

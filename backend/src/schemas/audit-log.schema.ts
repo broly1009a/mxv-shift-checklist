@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'audit_logs' })
+@Schema({
+  timestamps: { createdAt: true, updatedAt: false },
+  collection: 'audit_logs',
+})
 export class AuditLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ShiftLog', required: true, index: true })
   shiftLogId: Types.ObjectId;
@@ -15,8 +18,24 @@ export class AuditLog extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['CHECK', 'UNCHECK', 'NOTE_UPDATE', 'INCIDENT_CREATED', 'INCIDENT_RESOLVED', 'ADD_TASK'] })
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED' | 'ADD_TASK';
+  @Prop({
+    required: true,
+    enum: [
+      'CHECK',
+      'UNCHECK',
+      'NOTE_UPDATE',
+      'INCIDENT_CREATED',
+      'INCIDENT_RESOLVED',
+      'ADD_TASK',
+    ],
+  })
+  action:
+    | 'CHECK'
+    | 'UNCHECK'
+    | 'NOTE_UPDATE'
+    | 'INCIDENT_CREATED'
+    | 'INCIDENT_RESOLVED'
+    | 'ADD_TASK';
 
   @Prop({ required: true })
   details: string;

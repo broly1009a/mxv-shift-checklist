@@ -49,7 +49,10 @@ export async function createResultExcel(
 
 // ─── Sheet builders ───────────────────────────────────────────────────────────
 
-function addSummarySheet(ws: ExcelJS.Worksheet, result: LotSummaryResult): void {
+function addSummarySheet(
+  ws: ExcelJS.Worksheet,
+  result: LotSummaryResult,
+): void {
   const ngayStr =
     result.ngayGD instanceof Date
       ? result.ngayGD.toLocaleDateString('vi-VN')
@@ -61,7 +64,12 @@ function addSummarySheet(ws: ExcelJS.Worksheet, result: LotSummaryResult): void 
 
   // Header row
   const headerRow = ws.addRow([
-    'Chỉ tiêu', 'Product', 'Spread', 'LME', 'Options', 'Tổng'
+    'Chỉ tiêu',
+    'Product',
+    'Spread',
+    'LME',
+    'Options',
+    'Tổng',
   ]);
   headerRow.font = { bold: true };
   headerRow.fill = {
@@ -73,7 +81,13 @@ function addSummarySheet(ws: ExcelJS.Worksheet, result: LotSummaryResult): void 
 
   const s = result.summary;
 
-  const addDataRow = (label: string, product: number, spread: number, lme: number, options: number) => {
+  const addDataRow = (
+    label: string,
+    product: number,
+    spread: number,
+    lme: number,
+    options: number,
+  ) => {
     const row = ws.addRow([
       label,
       product,
@@ -90,10 +104,28 @@ function addSummarySheet(ws: ExcelJS.Worksheet, result: LotSummaryResult): void 
     return row;
   };
 
-  addDataRow('DSGD (CQG)', s.dsgdProduct, s.dsgdSpread, s.dsgdLme, s.dsgdOptions);
+  addDataRow(
+    'DSGD (CQG)',
+    s.dsgdProduct,
+    s.dsgdSpread,
+    s.dsgdLme,
+    s.dsgdOptions,
+  );
   addDataRow('FR (MXV)', s.frProduct, s.frSpread, s.frLme, s.frOptions);
-  addDataRow('Tất toán (TTTT)', s.ttttProduct, s.ttttSpread, s.ttttLme, s.ttttOptions);
-  addDataRow('Trạng thái mở (TTM)', s.ttmProduct, s.ttmSpread, s.ttmLme, s.ttmOptions);
+  addDataRow(
+    'Tất toán (TTTT)',
+    s.ttttProduct,
+    s.ttttSpread,
+    s.ttttLme,
+    s.ttttOptions,
+  );
+  addDataRow(
+    'Trạng thái mở (TTM)',
+    s.ttmProduct,
+    s.ttmSpread,
+    s.ttmLme,
+    s.ttmOptions,
+  );
   addDataRow('OP', s.opProduct, s.opSpread, s.opLme, s.opOptions);
   addDataRow('PS', s.psProduct, s.psSpread, s.psLme, s.psOptions);
 
@@ -101,21 +133,30 @@ function addSummarySheet(ws: ExcelJS.Worksheet, result: LotSummaryResult): void 
   ws.addRow(['ACM', s.acmLot]).getCell(2).numFmt = '#,##0';
 
   // Auto width
-  ws.columns.forEach((col) => { col.width = 20; });
+  ws.columns.forEach((col) => {
+    col.width = 20;
+  });
   ws.getColumn(1).width = 25;
 }
 
 function addByProductSheet(ws: ExcelJS.Worksheet, data: LotByProduct[]): void {
   const header = ws.addRow(['Mã SP', 'KLM (Mua)', 'KLB (Bán)', 'Tổng']);
   header.font = { bold: true };
-  header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+  header.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4472C4' },
+  };
   header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  let totalKlm = 0, totalKlb = 0;
+  let totalKlm = 0,
+    totalKlb = 0;
   for (const row of data) {
-    ws.addRow([row.maSP, row.klm, row.klb, row.total]).eachCell((cell, colNum) => {
-      if (colNum > 1) cell.numFmt = '#,##0';
-    });
+    ws.addRow([row.maSP, row.klm, row.klb, row.total]).eachCell(
+      (cell, colNum) => {
+        if (colNum > 1) cell.numFmt = '#,##0';
+      },
+    );
     totalKlm += row.klm;
     totalKlb += row.klb;
   }
@@ -126,20 +167,29 @@ function addByProductSheet(ws: ExcelJS.Worksheet, data: LotByProduct[]): void {
     if (colNum > 1) cell.numFmt = '#,##0';
   });
 
-  ws.columns.forEach((col) => { col.width = 15; });
+  ws.columns.forEach((col) => {
+    col.width = 15;
+  });
 }
 
 function addByTvkdSheet(ws: ExcelJS.Worksheet, data: LotByTvkd[]): void {
   const header = ws.addRow(['TVKD', 'KLM (Mua)', 'KLB (Bán)', 'Tổng']);
   header.font = { bold: true };
-  header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF70AD47' } };
+  header.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF70AD47' },
+  };
   header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  let totalKlm = 0, totalKlb = 0;
+  let totalKlm = 0,
+    totalKlb = 0;
   for (const row of data) {
-    ws.addRow([row.tvkd, row.klm, row.klb, row.total]).eachCell((cell, colNum) => {
-      if (colNum > 1) cell.numFmt = '#,##0';
-    });
+    ws.addRow([row.tvkd, row.klm, row.klb, row.total]).eachCell(
+      (cell, colNum) => {
+        if (colNum > 1) cell.numFmt = '#,##0';
+      },
+    );
     totalKlm += row.klm;
     totalKlb += row.klb;
   }
@@ -150,18 +200,30 @@ function addByTvkdSheet(ws: ExcelJS.Worksheet, data: LotByTvkd[]): void {
     if (colNum > 1) cell.numFmt = '#,##0';
   });
 
-  ws.columns.forEach((col) => { col.width = 15; });
+  ws.columns.forEach((col) => {
+    col.width = 15;
+  });
 }
 
 function addValidationSheet(
   ws: ExcelJS.Worksheet,
   validations: LotSummaryResult['validations'],
 ): void {
-  const header = ws.addRow(['Chỉ tiêu', 'Giá trị kỳ vọng', 'Giá trị thực tế', 'Kết quả']);
+  const header = ws.addRow([
+    'Chỉ tiêu',
+    'Giá trị kỳ vọng',
+    'Giá trị thực tế',
+    'Kết quả',
+  ]);
   header.font = { bold: true };
 
   for (const v of validations) {
-    const row = ws.addRow([v.field, v.expected, v.actual, v.passed ? 'OK' : 'LỆCH']);
+    const row = ws.addRow([
+      v.field,
+      v.expected,
+      v.actual,
+      v.passed ? 'OK' : 'LỆCH',
+    ]);
     row.getCell(2).numFmt = '#,##0';
     row.getCell(3).numFmt = '#,##0';
     if (!v.passed) {
@@ -181,7 +243,9 @@ function addValidationSheet(
     }
   }
 
-  ws.columns.forEach((col) => { col.width = 30; });
+  ws.columns.forEach((col) => {
+    col.width = 30;
+  });
 }
 
 /**

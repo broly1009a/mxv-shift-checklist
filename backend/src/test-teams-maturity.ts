@@ -19,12 +19,12 @@ async function runMaturityTest() {
 
   console.log('Booting NestJS application context...');
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   const shiftsService = app.get(ShiftsService);
   const botEngineService = app.get(BotEngineService);
   const settingsService = app.get(SystemSettingsService);
   const seedService = app.get(SeedService);
-  
+
   const userModel = app.get<any>(getModelToken(User.name));
   const templateModel = app.get<any>(getModelToken(ChecklistTemplate.name));
   const shiftLogModel = app.get<any>(getModelToken(ShiftLog.name));
@@ -41,7 +41,10 @@ async function runMaturityTest() {
 
   // Create a Teams webhook config in System Settings
   console.log('Configuring default Teams webhook in System Settings...');
-  await settingsService.setSetting('default_teams_webhook', 'https://httpbin.org/post');
+  await settingsService.setSetting(
+    'default_teams_webhook',
+    'https://httpbin.org/post',
+  );
 
   // Also create a channel-specific Teams config for member '002' to test dynamic resolution
   console.log('Creating specific Teams channel for Member 002...');
@@ -52,8 +55,8 @@ async function runMaturityTest() {
     type: 'TEAMS',
     isActive: true,
     config: {
-      webhookUrl: 'https://httpbin.org/post'
-    }
+      webhookUrl: 'https://httpbin.org/post',
+    },
   });
   await testChannel.save();
 
@@ -65,20 +68,30 @@ async function runMaturityTest() {
 
   // Find the template that contains the NOTIFY_MATURITY task
   console.log('Finding Checklist Trong Phiên - Trading Operations template...');
-  const template = await templateModel.findOne({ title: 'Checklist Trong Phiên - Trading Operations' }).exec();
+  const template = await templateModel
+    .findOne({ title: 'Checklist Trong Phiên - Trading Operations' })
+    .exec();
   if (!template) {
     throw new Error('Khối Quản lý Giao dịch in-session template not found!');
   }
 
   const shiftDate = new Date().toISOString().split('T')[0];
   console.log(`Initializing shift log for ${shiftDate}...`);
-  await shiftLogModel.deleteMany({ shiftDate, templateId: template._id }).exec();
-  const shiftLog = await shiftsService.initializeShift(template._id.toString(), adminUser, shiftDate);
+  await shiftLogModel
+    .deleteMany({ shiftDate, templateId: template._id })
+    .exec();
+  const shiftLog = await shiftsService.initializeShift(
+    template._id.toString(),
+    adminUser,
+    shiftDate,
+  );
 
   // Force trigger times to 00:00 to guarantee immediate execution
   console.log('--- Initialized Shift Log Details: ---');
   for (const t of shiftLog.details) {
-    console.log(`Task: ${t.taskId}, Name: ${t.taskNameSnapshot}, isBotCheck: ${t.isBotCheckSnapshot}, botCheckType: ${t.botCheckTypeSnapshot}`);
+    console.log(
+      `Task: ${t.taskId}, Name: ${t.taskNameSnapshot}, isBotCheck: ${t.isBotCheckSnapshot}, botCheckType: ${t.botCheckTypeSnapshot}`,
+    );
     if (t.isBotCheckSnapshot) {
       t.botTriggerTimeSnapshot = '00:00';
     }
@@ -94,7 +107,7 @@ async function runMaturityTest() {
 
   console.log('Fetching updated shift log...');
   const updatedLog = await shiftLogModel.findById(shiftLog._id).exec();
-  
+
   let maturityTaskStatus = 'NOT_FOUND';
   let maturityTaskNote = '';
   for (const t of updatedLog.details) {
@@ -108,10 +121,14 @@ async function runMaturityTest() {
   console.log(`Maturity Task note: ${maturityTaskNote}`);
 
   console.log('Checking generated notification logs...');
-  const notificationLogs = await logModel.find({ eventType: 'MATURITY_ALERT' }).exec();
+  const notificationLogs = await logModel
+    .find({ eventType: 'MATURITY_ALERT' })
+    .exec();
   console.log(`Found ${notificationLogs.length} Teams notification logs.`);
   for (const log of notificationLogs) {
-    console.log(`- Recipient: ${log.recipient}, Status: ${log.status}, Error: ${log.errorMessage}`);
+    console.log(
+      `- Recipient: ${log.recipient}, Status: ${log.status}, Error: ${log.errorMessage}`,
+    );
     if (log.payload) {
       console.log(`  Payload body title: ${log.payload.body?.[0]?.text}`);
     }
@@ -122,7 +139,9 @@ async function runMaturityTest() {
   await channelModel.deleteOne({ _id: testChannel._id }).exec();
 
   if (notificationLogs.length > 0) {
-    console.log('✅ End-to-End Microsoft Teams Contract Maturity Alert Test passed successfully!');
+    console.log(
+      '✅ End-to-End Microsoft Teams Contract Maturity Alert Test passed successfully!',
+    );
   } else {
     throw new Error('❌ Test failed: No Teams notifications were dispatched.');
   }
@@ -130,7 +149,7 @@ async function runMaturityTest() {
   await app.close();
 }
 
-runMaturityTest().catch(err => {
+runMaturityTest().catch((err) => {
   console.error('❌ Maturity Test execution failed:', err);
   process.exit(1);
 });

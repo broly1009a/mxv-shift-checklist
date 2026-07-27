@@ -103,7 +103,7 @@
 //   }
 
 //   const dsgdParsed = await parseExcelBuffer(files.fileDsgd, 0, true);
-  
+
 //   // Test session filtering for FR
 //   const frParsedSession = await parseExcelBuffer(files.fileFr, 0, true);
 //   const startSession = new Date('2026-07-06T05:00:00+07:00');
@@ -121,7 +121,7 @@
 //   let sessionL = 0;
 
 //   const targetNgayGD = new Date('2026-07-06');
-  
+
 //   frParsedSession.rows.forEach((r: any) => {
 //     const timeVal = r['Time'] ?? r['Thời gian'] ?? r['col2'];
 //     if (!timeVal) return;
@@ -205,7 +205,7 @@
 //   console.log(`Special (QO/QP/BM/MPO): ${sessionSpecial}`);
 //   console.log(`L (MX1111111111): ${sessionL}`);
 //   console.log(`Calculated FR Product: ${sessionFrProduct}`);
-  
+
 //   // Print breakdown of session-filtered products
 //   const sessionProductCounts: { [sp: string]: number } = {};
 //   frParsedSession.rows.forEach((r: any) => {
@@ -229,10 +229,6 @@
 //   console.log('Session Filtered Product Lots:', sessionProductCounts);
 //   console.log(`---------------------------`);
 
-
-
-
-
 //   console.log(`PS Classified Sample 2:`, ps[1]);
 
 //   const { sumPsLot } = require('./modules/lot-statistics/helpers/lot-aggregator.helper');
@@ -242,7 +238,6 @@
 //   const psLmeLot = sumPsLot(psLme);
 //   const psOptionsLot = sumPsLot(psOptions);
 //   console.log(`PS Raw Sums - psTotal: ${psTotal}, psSpreadLot: ${psSpreadLot}, psLmeLot: ${psLmeLot}, psOptionsLot: ${psOptionsLot}`);
-
 
 //   const frParsed = await parseExcelBuffer(files.fileFr!, 0, true);
 //   const uniqueProducts = new Set<string>();
@@ -279,7 +274,6 @@
 //     frGroups[sp][dateStr] = (frGroups[sp][dateStr] || 0) + qty;
 //   });
 //   console.log('FR Product & Date Breakdown:', frGroups);
-
 
 //   // Audit TTTT and PS
 //   console.log('--- AUDITING TTTT vs PS ---');
@@ -408,7 +402,7 @@
 //       const cellVal = ws.getCell(r, 2).value;
 //       if (cellVal) {
 //         console.log(`Row ${r}: Date cell =`, JSON.stringify(cellVal));
-//         if (valStr.includes('2026-07-07') || valStr.includes('7/7/26') || valStr.includes('7/7/2026') || 
+//         if (valStr.includes('2026-07-07') || valStr.includes('7/7/26') || valStr.includes('7/7/2026') ||
 //             (typeof cellVal === 'object' && cellVal !== null && String((cellVal as any).result || '').includes('2026-07-07'))) {
 //           targetRowIndex = r;
 //         }

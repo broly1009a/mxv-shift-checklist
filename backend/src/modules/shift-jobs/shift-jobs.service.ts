@@ -98,8 +98,8 @@ export class ShiftJobsService {
           eventType: 'JOB_GENERATION_SKIPPED',
           source: triggerType,
           actorUserId: userId || null,
-          departmentId: template.departmentId as any,
-          shiftSlotId: template.shiftSlotId as any,
+          departmentId: template.departmentId,
+          shiftSlotId: template.shiftSlotId,
           status: 'SKIPPED',
           message: `Ca trực "${template.title}" đã tồn tại cho ngày ${dateStr}. Bỏ qua.`,
           metadata: { templateTitle: template.title, date: dateStr },
@@ -154,7 +154,9 @@ export class ShiftJobsService {
           ? new Types.ObjectId(template.departmentId as any)
           : null,
         divisionId: (template.departmentId as any)?.divisionId
-          ? new Types.ObjectId((template.departmentId as any).divisionId as string)
+          ? new Types.ObjectId(
+              (template.departmentId as any).divisionId as string,
+            )
           : null,
         shiftDate: dateStr,
         status: 'PENDING',
@@ -178,9 +180,9 @@ export class ShiftJobsService {
         eventType: 'JOB_GENERATED',
         source: triggerType,
         actorUserId: userId || null,
-        jobId: savedLog._id as any,
-        departmentId: template.departmentId as any,
-        shiftSlotId: template.shiftSlotId as any,
+        jobId: savedLog._id,
+        departmentId: template.departmentId,
+        shiftSlotId: template.shiftSlotId,
         status: 'SUCCESS',
         message: `Khởi tạo thành công ca trực "${template.title}" ngày ${dateStr}.`,
         metadata: { templateTitle: template.title, date: dateStr },
@@ -207,8 +209,22 @@ export class ShiftJobsService {
     }
 
     // Emit WS events
-    this.shiftsGateway.emitEvent('SHIFT_JOB_GENERATED', null, null, null, dateStr, { createdCount, skippedCount });
-    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, dateStr, {});
+    this.shiftsGateway.emitEvent(
+      'SHIFT_JOB_GENERATED',
+      null,
+      null,
+      null,
+      dateStr,
+      { createdCount, skippedCount },
+    );
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      null,
+      null,
+      null,
+      dateStr,
+      {},
+    );
 
     return {
       success: true,

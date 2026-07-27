@@ -92,7 +92,15 @@ export class NotificationsController {
   }
 
   @Post('test')
-  async triggerTest(@Body() data: { eventType: string; ruleId?: string; recipient: string; payload?: any }) {
+  async triggerTest(
+    @Body()
+    data: {
+      eventType: string;
+      ruleId?: string;
+      recipient: string;
+      payload?: any;
+    },
+  ) {
     return this.notificationsService.triggerTestNotification(data);
   }
 }

@@ -82,7 +82,9 @@ export class MarginCheckerService {
     );
     try {
       const parsed = JSON.parse(configStr);
-      const fallbackEmails = parsed.marginOnOrder?.email || ['it.support@mxv.vn'];
+      const fallbackEmails = parsed.marginOnOrder?.email || [
+        'it.support@mxv.vn',
+      ];
       const fallbackChatId = parsed.marginOnOrder?.telegramChatId || '';
 
       if (!parsed.sodCheck) {
@@ -152,7 +154,7 @@ export class MarginCheckerService {
   cleanFormula(formula: string): string {
     return formula
       .replace(/\b(\d+(\.\d+)?)m\b/gi, '$1') // Remove C# decimal 'm' suffix
-      .replace(/\(decimal\)/g, '')            // Remove C# typecast
+      .replace(/\(decimal\)/g, '') // Remove C# typecast
       .replace(/,\s*MidpointRounding\.AwayFromZero/gi, '') // Remove MidpointRounding
       .replace(/,\s*,/g, ',')
       .replace(/,\s*\)/g, ')')
@@ -165,7 +167,7 @@ export class MarginCheckerService {
   evaluateFormula(formula: string, context: Record<string, number>): number {
     const cleaned = this.cleanFormula(formula);
     let jsExpr = cleaned;
-    
+
     // Sort keys by length descending to prevent substring matching issues
     const sortedKeys = Object.keys(context).sort((a, b) => b.length - a.length);
     for (const key of sortedKeys) {
@@ -187,7 +189,9 @@ export class MarginCheckerService {
       const result = script.runInNewContext(sandbox);
       return Number(result);
     } catch (err) {
-      this.logger.error(`Lỗi đánh giá công thức: ${formula} -> ${jsExpr}. Lỗi: ${err.message}`);
+      this.logger.error(
+        `Lỗi đánh giá công thức: ${formula} -> ${jsExpr}. Lỗi: ${err.message}`,
+      );
       throw err;
     }
   }
@@ -244,8 +248,8 @@ export class MarginCheckerService {
           rejectUnauthorized: false,
         },
         connectionTimeout: 10000, // 10s
-        greetingTimeout: 10000,   // 10s
-        socketTimeout: 15000,     // 15s
+        greetingTimeout: 10000, // 10s
+        socketTimeout: 15000, // 15s
       });
 
       const info = await transporter.sendMail({
@@ -277,20 +281,37 @@ export class MarginCheckerService {
   // File parsers
   parseMarketData(buffer: Buffer): Array<{ MaHD: string; GTT: number }> {
     const text = buffer.toString('utf-8');
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 1) throw new Error("File market.csv không có dữ liệu");
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length < 1) throw new Error('File market.csv không có dữ liệu');
 
-    const headers = lines[0].split(',').map((h: any) => String(h || '').trim().replace(/"/g, ''));
-    const maHDIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hợp đồng');
-    const gttIndex = headers.findIndex((h: any) => h.toLowerCase() === 'giá thanh toán');
+    const headers = lines[0].split(',').map((h: any) =>
+      String(h || '')
+        .trim()
+        .replace(/"/g, ''),
+    );
+    const maHDIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'mã hợp đồng',
+    );
+    const gttIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'giá thanh toán',
+    );
 
     if (maHDIndex === -1 || gttIndex === -1) {
-      throw new Error("Không tìm thấy cột 'Mã hợp đồng' hoặc 'Giá thanh toán' trong file market.csv");
+      throw new Error(
+        "Không tìm thấy cột 'Mã hợp đồng' hoặc 'Giá thanh toán' trong file market.csv",
+      );
     }
 
     const result: Array<{ MaHD: string; GTT: number }> = [];
     for (let i = 1; i < lines.length; i++) {
-      const columns = lines[i].split(',').map((c: any) => String(c || '').trim().replace(/"/g, ''));
+      const columns = lines[i].split(',').map((c: any) =>
+        String(c || '')
+          .trim()
+          .replace(/"/g, ''),
+      );
       if (columns.length <= Math.max(maHDIndex, gttIndex)) continue;
 
       const maHD = columns[maHDIndex];
@@ -315,18 +336,40 @@ export class MarginCheckerService {
       if (rows.length < 2) continue;
 
       const headers = rows[0].map((h: any) => String(h || '').trim());
-      const maHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hàng hóa');
-      const tenHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase() === 'tên hàng hóa');
-      const soGDIndex = headers.findIndex((h: any) => h.toLowerCase() === 'sở giao dịch');
-      const tienTeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'tiền tệ');
-      const donViYetGiaIndex = headers.findIndex((h: any) => h.toLowerCase().startsWith('đơn vị yết giá'));
-      const doLonHDIndex = headers.findIndex((h: any) => h.toLowerCase() === 'độ lớn hđ');
-      const mucKyQuyNgoaiTeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mức ký quý ban đầu mxv(ngoại tệ)');
+      const maHangHoaIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mã hàng hóa',
+      );
+      const tenHangHoaIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'tên hàng hóa',
+      );
+      const soGDIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'sở giao dịch',
+      );
+      const tienTeIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'tiền tệ',
+      );
+      const donViYetGiaIndex = headers.findIndex((h: any) =>
+        h.toLowerCase().startsWith('đơn vị yết giá'),
+      );
+      const doLonHDIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'độ lớn hđ',
+      );
+      const mucKyQuyNgoaiTeIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mức ký quý ban đầu mxv(ngoại tệ)',
+      );
 
-      if (maHangHoaIndex === -1 || tenHangHoaIndex === -1 || soGDIndex === -1 ||
-          tienTeIndex === -1 || donViYetGiaIndex === -1 || doLonHDIndex === -1 ||
-          mucKyQuyNgoaiTeIndex === -1) {
-        throw new Error("Không tìm thấy đủ các cột trong file danh sách hàng hóa");
+      if (
+        maHangHoaIndex === -1 ||
+        tenHangHoaIndex === -1 ||
+        soGDIndex === -1 ||
+        tienTeIndex === -1 ||
+        donViYetGiaIndex === -1 ||
+        doLonHDIndex === -1 ||
+        mucKyQuyNgoaiTeIndex === -1
+      ) {
+        throw new Error(
+          'Không tìm thấy đủ các cột trong file danh sách hàng hóa',
+        );
       }
 
       for (let r = 1; r < rows.length; r++) {
@@ -337,11 +380,23 @@ export class MarginCheckerService {
         const tenHangHoa = String(row[tenHangHoaIndex] || '').trim();
         const soGD = String(row[soGDIndex] || '').trim();
         const tienTe = String(row[tienTeIndex] || '').trim();
-        const donViYetGia = parseFloat(String(row[donViYetGiaIndex]).replace(/,/g, ''));
+        const donViYetGia = parseFloat(
+          String(row[donViYetGiaIndex]).replace(/,/g, ''),
+        );
         const doLonHD = parseFloat(String(row[doLonHDIndex]).replace(/,/g, ''));
-        const mucKyQuyNgoaiTe = parseFloat(String(row[mucKyQuyNgoaiTeIndex]).replace(/,/g, ''));
+        const mucKyQuyNgoaiTe = parseFloat(
+          String(row[mucKyQuyNgoaiTeIndex]).replace(/,/g, ''),
+        );
 
-        if (maHangHoa && tenHangHoa && soGD && tienTe && !isNaN(donViYetGia) && !isNaN(doLonHD) && !isNaN(mucKyQuyNgoaiTe)) {
+        if (
+          maHangHoa &&
+          tenHangHoa &&
+          soGD &&
+          tienTe &&
+          !isNaN(donViYetGia) &&
+          !isNaN(doLonHD) &&
+          !isNaN(mucKyQuyNgoaiTe)
+        ) {
           result.push({
             MaHangHoa: maHangHoa,
             TenHangHoa: tenHangHoa,
@@ -368,13 +423,26 @@ export class MarginCheckerService {
       if (rows.length < 2) continue;
 
       const headers = rows[0].map((h: any) => String(h || '').trim());
-      const maHDIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hđ');
-      const maHHIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hàng hóa');
-      const ngayGDCuoiCungIndex = headers.findIndex((h: any) => h.toLowerCase() === 'ngày giao dịch cuối cùng');
-      const trangThaiIndex = headers.findIndex((h: any) => h.toLowerCase() === 'trạng thái');
+      const maHDIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mã hđ',
+      );
+      const maHHIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mã hàng hóa',
+      );
+      const ngayGDCuoiCungIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'ngày giao dịch cuối cùng',
+      );
+      const trangThaiIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'trạng thái',
+      );
 
-      if (maHDIndex === -1 || maHHIndex === -1 || ngayGDCuoiCungIndex === -1 || trangThaiIndex === -1) {
-        throw new Error("Không tìm thấy đủ các cột trong file hợp đồng");
+      if (
+        maHDIndex === -1 ||
+        maHHIndex === -1 ||
+        ngayGDCuoiCungIndex === -1 ||
+        trangThaiIndex === -1
+      ) {
+        throw new Error('Không tìm thấy đủ các cột trong file hợp đồng');
       }
 
       for (let r = 1; r < rows.length; r++) {
@@ -410,11 +478,15 @@ export class MarginCheckerService {
       if (rows.length < 2) continue;
 
       const headers = rows[0].map((h: any) => String(h || '').trim());
-      const maHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hàng hóa');
-      const marginIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mức ký quý ban đầu mxv(ngoại tệ)');
+      const maHangHoaIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mã hàng hóa',
+      );
+      const marginIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'mức ký quý ban đầu mxv(ngoại tệ)',
+      );
 
       if (maHangHoaIndex === -1 || marginIndex === -1) {
-        throw new Error("Không tìm thấy đủ các cột trong file hàng hóa margin");
+        throw new Error('Không tìm thấy đủ các cột trong file hàng hóa margin');
       }
 
       for (let r = 1; r < rows.length; r++) {
@@ -422,7 +494,9 @@ export class MarginCheckerService {
         if (!row || row.length === 0) continue;
 
         const maHangHoa = String(row[maHangHoaIndex] || '').trim();
-        const marginVal = parseFloat(String(row[marginIndex]).replace(/,/g, ''));
+        const marginVal = parseFloat(
+          String(row[marginIndex]).replace(/,/g, ''),
+        );
 
         if (maHangHoa && !isNaN(marginVal)) {
           result.push({
@@ -453,19 +527,40 @@ export class MarginCheckerService {
     const sheetName = wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
     const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-    if (rows.length < 2) throw new Error('File Commodity.xlsx không có dữ liệu');
+    if (rows.length < 2)
+      throw new Error('File Commodity.xlsx không có dữ liệu');
 
     const headers = rows[0].map((h: any) => String(h || '').trim());
-    const tenHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase() === 'tên hàng hóa');
-    const maHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase() === 'mã hàng hóa');
-    const nhomHangHoaIndex = headers.findIndex((h: any) => h.toLowerCase().startsWith('nhóm hàng hóa'));
-    const soGDIndex = headers.findIndex((h: any) => h.toLowerCase() === 'sở giao dịch hàng hóa có liên thông');
-    const tienTeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'tiền tệ');
-    const congThucIndex = headers.findIndex((h: any) => h.toLowerCase().startsWith('công thức'));
-    const productCodeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'product code');
-    const combinedCommodityIndex = headers.findIndex((h: any) => h.toLowerCase() === 'combined commodity');
-    const tyLeEx1Index = headers.findIndex((h: any) => h.toLowerCase() === 'tỷ lệ exchange 1');
-    const tyLeEx2Index = headers.findIndex((h: any) => h.toLowerCase() === 'tỷ lệ exchange 2');
+    const tenHangHoaIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'tên hàng hóa',
+    );
+    const maHangHoaIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'mã hàng hóa',
+    );
+    const nhomHangHoaIndex = headers.findIndex((h: any) =>
+      h.toLowerCase().startsWith('nhóm hàng hóa'),
+    );
+    const soGDIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'sở giao dịch hàng hóa có liên thông',
+    );
+    const tienTeIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'tiền tệ',
+    );
+    const congThucIndex = headers.findIndex((h: any) =>
+      h.toLowerCase().startsWith('công thức'),
+    );
+    const productCodeIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'product code',
+    );
+    const combinedCommodityIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'combined commodity',
+    );
+    const tyLeEx1Index = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'tỷ lệ exchange 1',
+    );
+    const tyLeEx2Index = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'tỷ lệ exchange 2',
+    );
 
     if (
       maHangHoaIndex === -1 ||
@@ -494,11 +589,20 @@ export class MarginCheckerService {
       const nhomHH = String(row[nhomHangHoaIndex] || '').trim();
       const congThuc = String(row[congThucIndex] || '').trim();
       const productCode = String(row[productCodeIndex] || '').trim();
-      const combinedCommodity = String(row[combinedCommodityIndex] || '').trim();
+      const combinedCommodity = String(
+        row[combinedCommodityIndex] || '',
+      ).trim();
       const tyLeEx1 = String(row[tyLeEx1Index] || '').trim();
       const tyLeEx2 = String(row[tyLeEx2Index] || '').trim();
 
-      if (maHangHoa && tenHangHoa && soGD && tienTe && nhomHH && combinedCommodity) {
+      if (
+        maHangHoa &&
+        tenHangHoa &&
+        soGD &&
+        tienTe &&
+        nhomHH &&
+        combinedCommodity
+      ) {
         result.push({
           MaHangHoa: maHangHoa,
           TenHangHoa: tenHangHoa,
@@ -528,21 +632,43 @@ export class MarginCheckerService {
       const rows: any[] = XLSX.utils.sheet_to_json(tocSheet, { header: 1 });
       if (rows.length > 8) {
         const headers = rows[7].map((h: any) => String(h || '').trim());
-        const combinedCommodityIndex = headers.findIndex((h: any) => h.toLowerCase() === 'combined commodity');
-        const productCodeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'product code');
-        const nameIndex = headers.findIndex((h: any) => h.toLowerCase() === 'name');
-        const scalingFactorIndex = headers.findIndex((h: any) => h.toLowerCase() === 'scaling factor');
+        const combinedCommodityIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'combined commodity',
+        );
+        const productCodeIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'product code',
+        );
+        const nameIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'name',
+        );
+        const scalingFactorIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'scaling factor',
+        );
 
-        if (combinedCommodityIndex !== -1 && productCodeIndex !== -1 && nameIndex !== -1 && scalingFactorIndex !== -1) {
+        if (
+          combinedCommodityIndex !== -1 &&
+          productCodeIndex !== -1 &&
+          nameIndex !== -1 &&
+          scalingFactorIndex !== -1
+        ) {
           for (let r = 8; r < rows.length; r++) {
             const row = rows[r];
             if (!row || row.length === 0) continue;
-            const combinedCommodity = String(row[combinedCommodityIndex] || '').trim();
+            const combinedCommodity = String(
+              row[combinedCommodityIndex] || '',
+            ).trim();
             const productCode = String(row[productCodeIndex] || '').trim();
             const name = String(row[nameIndex] || '').trim();
-            const scalingFactor = parseFloat(String(row[scalingFactorIndex]).replace(/,/g, ''));
+            const scalingFactor = parseFloat(
+              String(row[scalingFactorIndex]).replace(/,/g, ''),
+            );
 
-            if (combinedCommodity && productCode && name && !isNaN(scalingFactor)) {
+            if (
+              combinedCommodity &&
+              productCode &&
+              name &&
+              !isNaN(scalingFactor)
+            ) {
               contents.push({
                 CombinedCommodity: combinedCommodity,
                 ProductCode: productCode,
@@ -557,19 +683,29 @@ export class MarginCheckerService {
 
     const outrightSheet = wb.Sheets['Outright'];
     if (outrightSheet) {
-      const rows: any[] = XLSX.utils.sheet_to_json(outrightSheet, { header: 1 });
+      const rows: any[] = XLSX.utils.sheet_to_json(outrightSheet, {
+        header: 1,
+      });
       if (rows.length > 4) {
         const headers = rows[3].map((h: any) => String(h || '').trim());
-        const combinedCommodityIndex = headers.findIndex((h: any) => h.toLowerCase() === 'combined commodity');
-        const newMarginIndex = headers.findIndex((h: any) => h.toLowerCase() === 'new margin');
+        const combinedCommodityIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'combined commodity',
+        );
+        const newMarginIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'new margin',
+        );
 
         if (combinedCommodityIndex !== -1 && newMarginIndex !== -1) {
           const tempOutrights: any[] = [];
           for (let r = 4; r < rows.length; r++) {
             const row = rows[r];
             if (!row || row.length === 0) continue;
-            const combinedCommodity = String(row[combinedCommodityIndex] || '').trim();
-            const newMargin = parseFloat(String(row[newMarginIndex]).replace(/,/g, ''));
+            const combinedCommodity = String(
+              row[combinedCommodityIndex] || '',
+            ).trim();
+            const newMargin = parseFloat(
+              String(row[newMarginIndex]).replace(/,/g, ''),
+            );
 
             if (combinedCommodity && !isNaN(newMargin)) {
               tempOutrights.push({
@@ -586,19 +722,22 @@ export class MarginCheckerService {
               groups.set(item.CombinedCommodity, item.NewMargin);
             }
           }
-          outrights = Array.from(groups.entries()).map(([CombinedCommodity, NewMargin]) => ({
-            CombinedCommodity,
-            NewMargin,
-          }));
+          outrights = Array.from(groups.entries()).map(
+            ([CombinedCommodity, NewMargin]) => ({
+              CombinedCommodity,
+              NewMargin,
+            }),
+          );
         }
       }
     }
 
     const seen = new Set<string>();
     const pdf = new PDFParse({ data: pdfBuffer });
-    await (pdf as any).load();
+    await pdf.load();
     const text = (await pdf.getText()).text;
-    const regex = /^([A-Z0-9]{2,5})\b.*?\bUSD\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/gm;
+    const regex =
+      /^([A-Z0-9]{2,5})\b.*?\bUSD\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/gm;
     let match;
     while ((match = regex.exec(text)) !== null) {
       const cc = match[1].trim();
@@ -622,23 +761,47 @@ export class MarginCheckerService {
     for (const buffer of buffers) {
       if (!buffer) continue;
       const text = buffer.toString('utf-8');
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const lines = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
       if (lines.length < 2) continue;
 
-      const headers = lines[0].split(',').map((h: any) => String(h || '').trim().replace(/"/g, ''));
-      const logicalCommodityCodeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'logical commodity code');
-      const newAppliedMarginRateIndex = headers.findIndex((h: any) => h.toLowerCase() === 'new applied margin rate');
+      const headers = lines[0].split(',').map((h: any) =>
+        String(h || '')
+          .trim()
+          .replace(/"/g, ''),
+      );
+      const logicalCommodityCodeIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'logical commodity code',
+      );
+      const newAppliedMarginRateIndex = headers.findIndex(
+        (h: any) => h.toLowerCase() === 'new applied margin rate',
+      );
 
-      if (logicalCommodityCodeIndex === -1 || newAppliedMarginRateIndex === -1) {
+      if (
+        logicalCommodityCodeIndex === -1 ||
+        newAppliedMarginRateIndex === -1
+      ) {
         throw new Error('Không tìm thấy đủ các cột trong file ICE');
       }
 
       for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(',').map((p: any) => String(p || '').trim().replace(/"/g, ''));
-        if (parts.length <= Math.max(logicalCommodityCodeIndex, newAppliedMarginRateIndex)) continue;
+        const parts = lines[i].split(',').map((p: any) =>
+          String(p || '')
+            .trim()
+            .replace(/"/g, ''),
+        );
+        if (
+          parts.length <=
+          Math.max(logicalCommodityCodeIndex, newAppliedMarginRateIndex)
+        )
+          continue;
 
         const logicalCommodityCode = parts[logicalCommodityCodeIndex];
-        const newAppliedMarginRate = parseFloat(parts[newAppliedMarginRateIndex].replace(/,/g, ''));
+        const newAppliedMarginRate = parseFloat(
+          parts[newAppliedMarginRateIndex].replace(/,/g, ''),
+        );
 
         if (logicalCommodityCode && !isNaN(newAppliedMarginRate)) {
           iceData.push({
@@ -656,10 +819,12 @@ export class MarginCheckerService {
         groups.set(item.LogicalCommodityCode, item.NewAppliedMarginRate);
       }
     }
-    return Array.from(groups.entries()).map(([LogicalCommodityCode, NewAppliedMarginRate]) => ({
-      LogicalCommodityCode,
-      NewAppliedMarginRate,
-    }));
+    return Array.from(groups.entries()).map(
+      ([LogicalCommodityCode, NewAppliedMarginRate]) => ({
+        LogicalCommodityCode,
+        NewAppliedMarginRate,
+      }),
+    );
   }
 
   // SGX Excel parser
@@ -671,15 +836,21 @@ export class MarginCheckerService {
       const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
       if (rows.length > 1) {
         const headers = rows[0].map((h: any) => String(h || '').trim());
-        const contractCodeIndex = headers.findIndex((h: any) => h.toLowerCase() === 'contract code');
-        const initialMarginIndex = headers.findIndex((h: any) => h.toLowerCase() === 'initial margin');
+        const contractCodeIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'contract code',
+        );
+        const initialMarginIndex = headers.findIndex(
+          (h: any) => h.toLowerCase() === 'initial margin',
+        );
 
         if (contractCodeIndex !== -1 && initialMarginIndex !== -1) {
           for (let r = 1; r < rows.length; r++) {
             const row = rows[r];
             if (!row || row.length === 0) continue;
             const contractCode = String(row[contractCodeIndex] || '').trim();
-            const initialMargin = parseFloat(String(row[initialMarginIndex]).replace(/,/g, ''));
+            const initialMargin = parseFloat(
+              String(row[initialMarginIndex]).replace(/,/g, ''),
+            );
             if (contractCode && !isNaN(initialMargin)) {
               sgxData.push({
                 ContractCode: contractCode,
@@ -698,21 +869,33 @@ export class MarginCheckerService {
         groups.set(item.ContractCode, item.InitialMargin);
       }
     }
-    return Array.from(groups.entries()).map(([ContractCode, InitialMargin]) => ({
-      ContractCode,
-      InitialMargin,
-    }));
+    return Array.from(groups.entries()).map(
+      ([ContractCode, InitialMargin]) => ({
+        ContractCode,
+        InitialMargin,
+      }),
+    );
   }
 
   // JPX CSV parser
   getJPXData(csvBuffer: Buffer): any[] {
     const jpxData: any[] = [];
     const text = csvBuffer.toString('utf-8');
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 1) throw new Error('File JPX Excel.csv không có dữ liệu');
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length < 1)
+      throw new Error('File JPX Excel.csv không có dữ liệu');
 
-    const headers = lines[0].split(',').map((h: any) => String(h || '').trim().replace(/"/g, ''));
-    const combinedCommodityGroupIndex = headers.findIndex((h: any) => h.toLowerCase() === 'combined commodity group');
+    const headers = lines[0].split(',').map((h: any) =>
+      String(h || '')
+        .trim()
+        .replace(/"/g, ''),
+    );
+    const combinedCommodityGroupIndex = headers.findIndex(
+      (h: any) => h.toLowerCase() === 'combined commodity group',
+    );
     const bplIndex = headers.findIndex((h: any) => h.toLowerCase() === 'bpl');
 
     if (combinedCommodityGroupIndex === -1 || bplIndex === -1) {
@@ -720,8 +903,13 @@ export class MarginCheckerService {
     }
 
     for (let i = 1; i < lines.length; i++) {
-      const columns = lines[i].split(',').map((c: any) => String(c || '').trim().replace(/"/g, ''));
-      if (columns.length <= Math.max(combinedCommodityGroupIndex, bplIndex)) continue;
+      const columns = lines[i].split(',').map((c: any) =>
+        String(c || '')
+          .trim()
+          .replace(/"/g, ''),
+      );
+      if (columns.length <= Math.max(combinedCommodityGroupIndex, bplIndex))
+        continue;
 
       const combinedCommodityGroup = columns[combinedCommodityGroupIndex];
       const bpl = parseFloat(columns[bplIndex].replace(/,/g, ''));
@@ -740,10 +928,12 @@ export class MarginCheckerService {
         groups.set(item.CombinedCommodityGroup, item.BPL);
       }
     }
-    return Array.from(groups.entries()).map(([CombinedCommodityGroup, BPL]) => ({
-      CombinedCommodityGroup,
-      BPL,
-    }));
+    return Array.from(groups.entries()).map(
+      ([CombinedCommodityGroup, BPL]) => ({
+        CombinedCommodityGroup,
+        BPL,
+      }),
+    );
   }
 
   // LME Excel parser
@@ -772,7 +962,9 @@ export class MarginCheckerService {
             const row = rows[r];
             if (!row || row.length === 0) continue;
             const code = String(row[codeIndex] || '').trim();
-            const perLot = parseFloat(String(row[perLotIndex]).replace(/,/g, ''));
+            const perLot = parseFloat(
+              String(row[perLotIndex]).replace(/,/g, ''),
+            );
             if (code && !isNaN(perLot)) {
               lmeData.push({
                 Code: code,
@@ -800,16 +992,22 @@ export class MarginCheckerService {
   async getBursaData(bursaBuffer: Buffer): Promise<any[]> {
     const bursaData: any[] = [];
     const bursaPdf = new PDFParse({ data: bursaBuffer });
-    await (bursaPdf as any).load();
+    await bursaPdf.load();
     const text = (await bursaPdf.getText()).text;
-    const lines = text.split('\n').map((l: any) => l.trim()).filter(Boolean);
+    const lines = text
+      .split('\n')
+      .map((l: any) => l.trim())
+      .filter(Boolean);
     let inCommodityTable = false;
     for (const line of lines) {
       if (line.toLowerCase().startsWith('commodity')) {
         inCommodityTable = true;
         continue;
       }
-      if (inCommodityTable && line.toLowerCase().startsWith('cpo intracommodity')) {
+      if (
+        inCommodityTable &&
+        line.toLowerCase().startsWith('cpo intracommodity')
+      ) {
         inCommodityTable = false;
         break;
       }
@@ -853,26 +1051,43 @@ export class MarginCheckerService {
     });
 
     const current = this.adjustBackDate(now);
-    const yesterday = this.adjustBackDate(new Date(current.getTime() - 24 * 60 * 60 * 1000));
-    const tomorrow = this.adjustForwardDate(new Date(current.getTime() + 24 * 60 * 60 * 1000));
+    const yesterday = this.adjustBackDate(
+      new Date(current.getTime() - 24 * 60 * 60 * 1000),
+    );
+    const tomorrow = this.adjustForwardDate(
+      new Date(current.getTime() + 24 * 60 * 60 * 1000),
+    );
 
     const currentStr = this.formatDateString(current, 'dd/MM/yyyy');
     const yesterdayStr = this.formatDateString(yesterday, 'dd/MM/yyyy');
     const tomorrowStr = this.formatDateString(tomorrow, 'dd/MM/yyyy');
 
     if (!files.futures || !files.lme || !files.acm || !files.market) {
-      throw new Error('Thiếu các file bắt buộc: DSHHFutures, DSHHLME, DSHHACM hoặc MarketData');
+      throw new Error(
+        'Thiếu các file bắt buộc: DSHHFutures, DSHHLME, DSHHACM hoặc MarketData',
+      );
     }
 
-    const commodities = this.parseCommodities([files.futures, files.lme, files.acm]);
-    const contracts = this.parseContracts([files.futures, files.lme, files.acm]);
+    const commodities = this.parseCommodities([
+      files.futures,
+      files.lme,
+      files.acm,
+    ]);
+    const contracts = this.parseContracts([
+      files.futures,
+      files.lme,
+      files.acm,
+    ]);
     const market = this.parseMarketData(files.market);
     const commodityConfig = this.parseCommodityConfig(files.commodityConfig);
 
     const marginData: any[] = [];
     for (const commodity of commodities) {
       const relatedContracts = contracts
-        .filter((c: any) => c.MaHangHoa === commodity.MaHangHoa && c.TrangThai === 'Hoạt động')
+        .filter(
+          (c: any) =>
+            c.MaHangHoa === commodity.MaHangHoa && c.TrangThai === 'Hoạt động',
+        )
         .map((c: any) => {
           const parsed = this.parseDate(c.NgayGDCuoiCung);
           return {
@@ -896,8 +1111,8 @@ export class MarginCheckerService {
       const matchedItem = specialCodes.includes(commodity.MaHangHoa)
         ? market.find((m: any) => m.MaHD === commodity.MaHangHoa)
         : chosenContract
-        ? market.find((m: any) => m.MaHD === chosenContract.MaHD)
-        : null;
+          ? market.find((m: any) => m.MaHD === chosenContract.MaHD)
+          : null;
 
       if (matchedItem) {
         marginData.push({
@@ -950,7 +1165,8 @@ export class MarginCheckerService {
         DonViYetGia: item.DonViYetGia,
         KQExchangeApDung: kqExchangeApDung,
         TyTrongKQExchangeApDung: kqExchangeApDung / giaTriHH,
-        ChenhMxvExchange: (item.MucKyQuyNgoaiTe - kqExchangeApDung) / kqExchangeApDung,
+        ChenhMxvExchange:
+          (item.MucKyQuyNgoaiTe - kqExchangeApDung) / kqExchangeApDung,
       };
 
       excelData.push(data);
@@ -1021,7 +1237,10 @@ export class MarginCheckerService {
           `📅 Ngày phiên: ${currentStr}\n` +
           `🔴 Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo đính kèm.`;
-        await this.sendTelegramNotification(config.marginOnOrder.telegramChatId, teleMessage);
+        await this.sendTelegramNotification(
+          config.marginOnOrder.telegramChatId,
+          teleMessage,
+        );
       }
     }
 
@@ -1070,17 +1289,27 @@ export class MarginCheckerService {
 
     const iceData =
       files.iceEUAg || files.iceSG || files.iceUS
-        ? this.getICEData([files.iceEUAg, files.iceSG, files.iceUS].filter(Boolean) as Buffer[])
+        ? this.getICEData(
+            [files.iceEUAg, files.iceSG, files.iceUS].filter(
+              Boolean,
+            ) as Buffer[],
+          )
         : [];
 
-    const bursaData = files.bursaPdf ? await this.getBursaData(files.bursaPdf) : [];
+    const bursaData = files.bursaPdf
+      ? await this.getBursaData(files.bursaPdf)
+      : [];
     const sgxData = files.sgxExcel ? this.getSGXData(files.sgxExcel) : [];
     const jpxData = files.jpxExcel ? this.getJPXData(files.jpxExcel) : [];
     const lmeData = files.lmeExcel ? this.getLMEData(files.lmeExcel) : [];
 
     const commodityMargin =
       files.futures || files.lmeMargin || files.options
-        ? this.parseCommodityMargin([files.futures, files.lmeMargin, files.options].filter(Boolean) as Buffer[])
+        ? this.parseCommodityMargin(
+            [files.futures, files.lmeMargin, files.options].filter(
+              Boolean,
+            ) as Buffer[],
+          )
         : [];
 
     const commodityConfig = this.parseCommodityConfig(files.commodityConfig);
@@ -1092,15 +1321,29 @@ export class MarginCheckerService {
 
       const dataSources = [
         () => lmeData.find((x: any) => x.Code === c.CombinedCommodity),
-        () => jpxData.find((x: any) => x.CombinedCommodityGroup === c.CombinedCommodity),
+        () =>
+          jpxData.find(
+            (x: any) => x.CombinedCommodityGroup === c.CombinedCommodity,
+          ),
         () => sgxData.find((x: any) => x.ContractCode === c.CombinedCommodity),
-        () => bursaData.find((x: any) => x.CombinedCommodity === c.CombinedCommodity),
-        () => iceData.find((x: any) => x.LogicalCommodityCode === c.CombinedCommodity),
-        () => cmeData.maintenanceItems.find((x: any) => x.CC === c.CombinedCommodity),
+        () =>
+          bursaData.find(
+            (x: any) => x.CombinedCommodity === c.CombinedCommodity,
+          ),
+        () =>
+          iceData.find(
+            (x: any) => x.LogicalCommodityCode === c.CombinedCommodity,
+          ),
+        () =>
+          cmeData.maintenanceItems.find(
+            (x: any) => x.CC === c.CombinedCommodity,
+          ),
         () => {
           if (!c.ProductCode) return null;
           const content = cmeData.contents.find(
-            (x: any) => x.CombinedCommodity === c.CombinedCommodity && x.ProductCode === c.ProductCode,
+            (x: any) =>
+              x.CombinedCommodity === c.CombinedCommodity &&
+              x.ProductCode === c.ProductCode,
           );
           const outright = cmeData.outrights.find(
             (x: any) => x.CombinedCommodity === c.CombinedCommodity,
@@ -1137,7 +1380,7 @@ export class MarginCheckerService {
       }
 
       if (!foundData) {
-        const cm = commodityMargin.find(x => x.MaHangHoa === c.MaHangHoa);
+        const cm = commodityMargin.find((x) => x.MaHangHoa === c.MaHangHoa);
         if (cm) {
           kyQuy = cm.Margin;
           foundData = cm;
@@ -1157,13 +1400,15 @@ export class MarginCheckerService {
 
     // Compare with current values to identify changes
     for (const item of excelData) {
-      const matched = commodityMargin.find(m => m.MaHangHoa === item.MaHangHoa);
+      const matched = commodityMargin.find(
+        (m) => m.MaHangHoa === item.MaHangHoa,
+      );
       if (matched && item.KyQuy !== matched.Margin) {
         item.IsNew = true;
       }
     }
 
-    const countNew = excelData.filter(x => x.IsNew).length;
+    const countNew = excelData.filter((x) => x.IsNew).length;
     const excelReportBuffer = this.exportMarginChangeExcel(excelData);
 
     if (config.marginChange.isSendWarning && countNew > 0) {
@@ -1220,7 +1465,10 @@ export class MarginCheckerService {
           `📅 Ngày phiên: ${this.formatDateString(now, 'dd/MM/yyyy')}\n` +
           `🔵 Số lượng thay đổi: ${countNew} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo thay đổi đính kèm.`;
-        await this.sendTelegramNotification(config.marginChange.telegramChatId, teleMessage);
+        await this.sendTelegramNotification(
+          config.marginChange.telegramChatId,
+          teleMessage,
+        );
       }
     }
 

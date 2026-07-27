@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import { parseExcelBuffer } from './modules/lot-statistics/helpers/excel-parser.helper';
 
 async function main() {
-  const ttttPath = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\TTTT.xlsx';
+  const ttttPath =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\TTTT.xlsx';
   const buf = fs.readFileSync(ttttPath);
   const sheet = await parseExcelBuffer(buf);
 
@@ -14,7 +15,7 @@ async function main() {
 
   console.log(`Found ${vqbRows.length} rows for VQB (041) in TTTT.xlsx:`);
   vqbRows.forEach((r, idx) => {
-    console.log(`Row ${idx+1}:`, JSON.stringify(r));
+    console.log(`Row ${idx + 1}:`, JSON.stringify(r));
   });
 }
 

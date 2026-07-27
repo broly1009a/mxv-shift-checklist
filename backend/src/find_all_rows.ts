@@ -27,7 +27,8 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
 }
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const targetDate = new Date(2026, 6, 16); // 16-Jul-2026
 
   const files = [
@@ -44,15 +45,17 @@ async function main() {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(filePath);
     const ws = wb.worksheets[wb.worksheets.length - 1];
-    
-    let matchedRows: number[] = [];
+
+    const matchedRows: number[] = [];
     for (let r = 1; r <= ws.rowCount; r++) {
       const v = ws.getCell(r, 2).value;
       if (isSameDate(v, targetDate)) {
         matchedRows.push(r);
       }
     }
-    console.log(`${file}: matched rows for 16-Jul = ${JSON.stringify(matchedRows)}`);
+    console.log(
+      `${file}: matched rows for 16-Jul = ${JSON.stringify(matchedRows)}`,
+    );
   }
 }
 

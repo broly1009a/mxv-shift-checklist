@@ -13,11 +13,13 @@ export class CcpConfig {
 @Injectable()
 export class CcpStatisticsService {
   private readonly logger = new Logger(CcpStatisticsService.name);
-  private readonly uploadDir = path.join(process.cwd(), 'uploads', 'ccp-statistics');
+  private readonly uploadDir = path.join(
+    process.cwd(),
+    'uploads',
+    'ccp-statistics',
+  );
 
-  constructor(
-    private readonly systemSettingsService: SystemSettingsService,
-  ) {
+  constructor(private readonly systemSettingsService: SystemSettingsService) {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
@@ -25,7 +27,17 @@ export class CcpStatisticsService {
 
   async getConfig(): Promise<CcpConfig> {
     const defaultVal = JSON.stringify({
-      fixedMembers: ['001', '003', '012', '045', '046', '048', '082', '083', '999'],
+      fixedMembers: [
+        '001',
+        '003',
+        '012',
+        '045',
+        '046',
+        '048',
+        '082',
+        '083',
+        '999',
+      ],
       tkMmCodes: ['082E9999999-M'],
     });
 
@@ -53,7 +65,7 @@ export class CcpStatisticsService {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    return XLSX.utils.sheet_to_json(sheet, { header: 1 });
   }
 
   private parseVal(val: any): number {
@@ -77,7 +89,7 @@ export class CcpStatisticsService {
     const config = await this.getConfig();
     const tkMmCodes = config.tkMmCodes || [];
     const fixedMembers = [...(config.fixedMembers || [])];
-    
+
     // Add MM codes to fixed members list and sort them
     for (const code of tkMmCodes) {
       if (!fixedMembers.includes(code)) {
@@ -112,31 +124,73 @@ export class CcpStatisticsService {
       try {
         await workbook.xlsx.readFile(outputPath);
       } catch (err) {
-        this.logger.error(`Error reading existing file: ${err.message}. Starting fresh.`);
+        this.logger.error(
+          `Error reading existing file: ${err.message}. Starting fresh.`,
+        );
       }
     }
 
     // Initialize or get worksheets
-    const wsGiaoDich = workbook.getWorksheet('Giao dịch') || workbook.addWorksheet('Giao dịch');
-    const wsTaiKhoan = workbook.getWorksheet('Tài khoản') || workbook.addWorksheet('Tài khoản');
-    const wsNopRut = workbook.getWorksheet('Nộp Rút') || workbook.addWorksheet('Nộp Rút');
-    const wsTtm = workbook.getWorksheet('Trạng thái mở') || workbook.addWorksheet('Trạng thái mở');
-    const wsTttt = workbook.getWorksheet('Trạng thái tất toán') || workbook.addWorksheet('Trạng thái tất toán');
+    const wsGiaoDich =
+      workbook.getWorksheet('Giao dịch') || workbook.addWorksheet('Giao dịch');
+    const wsTaiKhoan =
+      workbook.getWorksheet('Tài khoản') || workbook.addWorksheet('Tài khoản');
+    const wsNopRut =
+      workbook.getWorksheet('Nộp Rút') || workbook.addWorksheet('Nộp Rút');
+    const wsTtm =
+      workbook.getWorksheet('Trạng thái mở') ||
+      workbook.addWorksheet('Trạng thái mở');
+    const wsTttt =
+      workbook.getWorksheet('Trạng thái tất toán') ||
+      workbook.addWorksheet('Trạng thái tất toán');
 
     // 2. PROCESS GIAO DỊCH
-    this.processGiaoDichSheet(wsGiaoDich, mergedDsgd, fixedMembers, tkMmCodes, todayStrDate, selectedDate);
+    this.processGiaoDichSheet(
+      wsGiaoDich,
+      mergedDsgd,
+      fixedMembers,
+      tkMmCodes,
+      todayStrDate,
+      selectedDate,
+    );
 
     // 3. PROCESS TÀI KHOẢN MỞ MỚI
-    this.processTaiKhoanSheet(wsTaiKhoan, dstkgdRows, todayStrDate, selectedDate);
+    this.processTaiKhoanSheet(
+      wsTaiKhoan,
+      dstkgdRows,
+      todayStrDate,
+      selectedDate,
+    );
 
     // 4. PROCESS NỘP RÚT
-    this.processNopRutSheet(wsNopRut, nrRows, fixedMembers, tkMmCodes, todayStrDate, selectedDate);
+    this.processNopRutSheet(
+      wsNopRut,
+      nrRows,
+      fixedMembers,
+      tkMmCodes,
+      todayStrDate,
+      selectedDate,
+    );
 
     // 5. PROCESS TRẠNG THÁI MỞ
-    this.processTtmSheet(wsTtm, ttmRows, fixedMembers, tkMmCodes, todayStrDate, selectedDate);
+    this.processTtmSheet(
+      wsTtm,
+      ttmRows,
+      fixedMembers,
+      tkMmCodes,
+      todayStrDate,
+      selectedDate,
+    );
 
     // 6. PROCESS TRẠNG THÁI TẤT TOÁN
-    this.processTtttSheet(wsTttt, ttttRows, fixedMembers, tkMmCodes, todayStrDate, selectedDate);
+    this.processTtttSheet(
+      wsTttt,
+      ttttRows,
+      fixedMembers,
+      tkMmCodes,
+      todayStrDate,
+      selectedDate,
+    );
 
     // Save final report
     await workbook.xlsx.writeFile(outputPath);
@@ -157,10 +211,19 @@ export class CcpStatisticsService {
     ws.getCell('J2').value = tkMmCodes.join(', ');
 
     if (isNew) {
-      ws.getCell('B2').value = 'THỐNG KÊ GIAO DỊCH TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
+      ws.getCell('B2').value =
+        'THỐNG KÊ GIAO DỊCH TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
       ws.getCell('B2').font = { bold: true };
 
-      const headers = ['STT', 'Ngày', 'TVKD', 'Số lot giao dịch', 'Giá trị giao dịch', 'Thực hiện giao dịch đủ cả 4 loại lệnh hay k (Y/N)', 'Nếu là N thì thiếu loại lệnh nào'];
+      const headers = [
+        'STT',
+        'Ngày',
+        'TVKD',
+        'Số lot giao dịch',
+        'Giá trị giao dịch',
+        'Thực hiện giao dịch đủ cả 4 loại lệnh hay k (Y/N)',
+        'Nếu là N thì thiếu loại lệnh nào',
+      ];
       headers.forEach((h, idx) => {
         const cell = ws.getCell(4, idx + 2);
         cell.value = h;
@@ -183,13 +246,15 @@ export class CcpStatisticsService {
     }
 
     const requiredCommands = ['STP', 'STL', 'LMT', 'MKT'];
-    const gdGroups = fixedMembers.map(mem => {
+    const gdGroups = fixedMembers.map((mem) => {
       const g = groupsRaw[mem] || [];
       const commands = g
-        .map(row => (row[8] ? String(row[8]).trim().toUpperCase() : ''))
-        .filter(cmd => cmd !== '');
+        .map((row) => (row[8] ? String(row[8]).trim().toUpperCase() : ''))
+        .filter((cmd) => cmd !== '');
       const uniqueCommands = Array.from(new Set(commands));
-      const missingCommands = requiredCommands.filter(c => !uniqueCommands.includes(c));
+      const missingCommands = requiredCommands.filter(
+        (c) => !uniqueCommands.includes(c),
+      );
 
       const soLot = g.reduce((sum, row) => sum + this.parseVal(row[10]), 0);
       const giaTri = g.reduce((sum, row) => {
@@ -208,7 +273,7 @@ export class CcpStatisticsService {
     });
 
     const pos = this.getAppendPosition(ws, 5, 2, 3, todayStrDate, selectedDate);
-    
+
     // Add rows
     gdGroups.forEach((grp, idx) => {
       const r = pos.insertRow + idx;
@@ -228,12 +293,24 @@ export class CcpStatisticsService {
 
     // Merge and set STT & Date
     if (gdGroups.length > 0) {
-      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + gdGroups.length - 1, 2);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        2,
+        pos.insertRow + gdGroups.length - 1,
+        2,
+      );
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + gdGroups.length - 1, 3);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        3,
+        pos.insertRow + gdGroups.length - 1,
+        3,
+      );
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -277,7 +354,7 @@ export class CcpStatisticsService {
     const todayStr3 = `${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${String(selectedDate.getDate()).padStart(2, '0')}/${selectedDate.getFullYear()}`;
 
     const filtered = dstkgdRows
-      .filter(row => {
+      .filter((row) => {
         const ngayMo = row[7];
         if (!ngayMo) return false;
         const ngayMoStr = String(ngayMo).trim();
@@ -298,15 +375,22 @@ export class CcpStatisticsService {
         }
         return false;
       })
-      .map(row => ({
+      .map((row) => ({
         maThanhVien: row[3] ? String(row[3]).trim() : '',
         soTKGD: row[1] ? String(row[1]).trim() : '',
       }))
       .sort((a, b) => a.maThanhVien.localeCompare(b.maThanhVien));
 
     if (filtered.length > 0) {
-      const pos = this.getAppendPosition(ws, 2, -1, 1, todayStrDate, selectedDate);
-      
+      const pos = this.getAppendPosition(
+        ws,
+        2,
+        -1,
+        1,
+        todayStrDate,
+        selectedDate,
+      );
+
       filtered.forEach((item, idx) => {
         const r = pos.insertRow + idx;
         ws.getCell(r, 2).value = item.maThanhVien;
@@ -317,7 +401,13 @@ export class CcpStatisticsService {
         }
       });
 
-      this.safeMergeCells(ws, pos.insertRow, 1, pos.insertRow + filtered.length - 1, 1);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        1,
+        pos.insertRow + filtered.length - 1,
+        1,
+      );
       const cellDate = ws.getCell(pos.insertRow, 1);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -346,7 +436,8 @@ export class CcpStatisticsService {
     ws.getCell('J2').value = tkMmCodes.join(', ');
 
     if (isNew) {
-      ws.getCell('B2').value = 'THỐNG KÊ NỘP RÚT TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
+      ws.getCell('B2').value =
+        'THỐNG KÊ NỘP RÚT TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
       ws.getCell('B2').font = { bold: true };
 
       ws.getCell('B4').value = 'STT';
@@ -402,11 +493,11 @@ export class CcpStatisticsService {
 
       if (groupsRaw[member]) {
         const g = groupsRaw[member];
-        const nop = g.filter(row => {
+        const nop = g.filter((row) => {
           const loai = row[5] ? String(row[5]).toLowerCase() : '';
           return loai.includes('nộp') || loai.includes('nop');
         });
-        const rut = g.filter(row => {
+        const rut = g.filter((row) => {
           const loai = row[5] ? String(row[5]).toLowerCase() : '';
           return loai.includes('rút') || loai.includes('rut');
         });
@@ -421,7 +512,7 @@ export class CcpStatisticsService {
       ws.getCell(r, 5).numFmt = '#,##0';
       ws.getCell(r, 6).value = giaTriNop;
       ws.getCell(r, 6).numFmt = '#,##0';
-      
+
       ws.getCell(r, 7).value = soLenhRut;
       ws.getCell(r, 7).numFmt = '#,##0';
       ws.getCell(r, 8).value = giaTriRut;
@@ -433,12 +524,24 @@ export class CcpStatisticsService {
     });
 
     if (fixedMembers.length > 0) {
-      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + fixedMembers.length - 1, 2);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        2,
+        pos.insertRow + fixedMembers.length - 1,
+        2,
+      );
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + fixedMembers.length - 1, 3);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        3,
+        pos.insertRow + fixedMembers.length - 1,
+        3,
+      );
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -461,10 +564,18 @@ export class CcpStatisticsService {
     ws.getCell('J2').value = tkMmCodes.join(', ');
 
     if (isNew) {
-      ws.getCell('B2').value = 'THỐNG KÊ TRẠNG THÁI MỞ TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
+      ws.getCell('B2').value =
+        'THỐNG KÊ TRẠNG THÁI MỞ TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
       ws.getCell('B2').font = { bold: true };
 
-      const headers = ['STT', 'Ngày', 'TVKD', 'TTM mua', 'TTM bán', 'Lãi lỗ dự kiến'];
+      const headers = [
+        'STT',
+        'Ngày',
+        'TVKD',
+        'TTM mua',
+        'TTM bán',
+        'Lãi lỗ dự kiến',
+      ];
       headers.forEach((h, idx) => {
         const cell = ws.getCell(4, idx + 2);
         cell.value = h;
@@ -487,7 +598,7 @@ export class CcpStatisticsService {
       }
     }
 
-    const ttmGroups = fixedMembers.map(mem => {
+    const ttmGroups = fixedMembers.map((mem) => {
       const g = groupsRaw[mem] || [];
       const ttmMua = g.reduce((sum, row) => sum + this.parseVal(row[8]), 0);
       const ttmBan = g.reduce((sum, row) => sum + this.parseVal(row[9]), 0);
@@ -519,12 +630,24 @@ export class CcpStatisticsService {
     });
 
     if (ttmGroups.length > 0) {
-      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + ttmGroups.length - 1, 2);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        2,
+        pos.insertRow + ttmGroups.length - 1,
+        2,
+      );
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + ttmGroups.length - 1, 3);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        3,
+        pos.insertRow + ttmGroups.length - 1,
+        3,
+      );
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -547,7 +670,8 @@ export class CcpStatisticsService {
     ws.getCell('I2').value = tkMmCodes.join(', ');
 
     if (isNew) {
-      ws.getCell('B2').value = 'THỐNG KÊ TRẠNG THÁI TẤT TOÁN TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
+      ws.getCell('B2').value =
+        'THỐNG KÊ TRẠNG THÁI TẤT TOÁN TRONG GIAI ĐOẠN PILOT BẠC THỎI (từ 08/06/2026 - )';
       ws.getCell('B2').font = { bold: true };
 
       const headers = ['STT', 'Ngày', 'TVKD', 'KLTT', 'Lãi lỗ thực tế'];
@@ -573,7 +697,7 @@ export class CcpStatisticsService {
       }
     }
 
-    const ttttGroups = fixedMembers.map(mem => {
+    const ttttGroups = fixedMembers.map((mem) => {
       const g = groupsRaw[mem] || [];
       const kltt = g.reduce((sum, row) => sum + this.parseVal(row[10]), 0);
       const laiLo = g.reduce((sum, row) => sum + this.parseVal(row[5]), 0);
@@ -601,12 +725,24 @@ export class CcpStatisticsService {
     });
 
     if (ttttGroups.length > 0) {
-      this.safeMergeCells(ws, pos.insertRow, 2, pos.insertRow + ttttGroups.length - 1, 2);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        2,
+        pos.insertRow + ttttGroups.length - 1,
+        2,
+      );
       const cellStt = ws.getCell(pos.insertRow, 2);
       cellStt.value = pos.stt;
       cellStt.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      this.safeMergeCells(ws, pos.insertRow, 3, pos.insertRow + ttttGroups.length - 1, 3);
+      this.safeMergeCells(
+        ws,
+        pos.insertRow,
+        3,
+        pos.insertRow + ttttGroups.length - 1,
+        3,
+      );
       const cellDate = ws.getCell(pos.insertRow, 3);
       cellDate.value = todayStrDate;
       cellDate.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -679,7 +815,7 @@ export class CcpStatisticsService {
 
       if (parsedSelectedDate.getTime() < parsedLastDate.getTime()) {
         throw new Error(
-          `Ngày xử lý (${todayStr}) không được trước ngày cuối cùng trong file (${lastDate}) tại sheet ${ws.name}.`
+          `Ngày xử lý (${todayStr}) không được trước ngày cuối cùng trong file (${lastDate}) tại sheet ${ws.name}.`,
         );
       }
 
@@ -696,7 +832,11 @@ export class CcpStatisticsService {
     return { insertRow: dataStartRow, stt: 1 };
   }
 
-  private autofitColumns(ws: ExcelJS.Worksheet, startCol: number, endCol: number) {
+  private autofitColumns(
+    ws: ExcelJS.Worksheet,
+    startCol: number,
+    endCol: number,
+  ) {
     for (let c = startCol; c <= endCol; c++) {
       const col = ws.getColumn(c);
       let maxLen = 10;
@@ -710,7 +850,13 @@ export class CcpStatisticsService {
     }
   }
 
-  private safeMergeCells(ws: ExcelJS.Worksheet, r1: number, c1: number, r2: number, c2: number) {
+  private safeMergeCells(
+    ws: ExcelJS.Worksheet,
+    r1: number,
+    c1: number,
+    r2: number,
+    c2: number,
+  ) {
     if (r1 > r2 || c1 > c2) return;
     if (r1 === r2 && c1 === c2) return; // Skip single cell merges
 
@@ -728,11 +874,14 @@ export class CcpStatisticsService {
         const toDelete: string[] = [];
         for (const key of Object.keys(sheetPriv._merges)) {
           const m = sheetPriv._merges[key];
-          if (m && !(m.bottom < r1 || m.top > r2 || m.right < c1 || m.left > c2)) {
+          if (
+            m &&
+            !(m.bottom < r1 || m.top > r2 || m.right < c1 || m.left > c2)
+          ) {
             toDelete.push(key);
           }
         }
-        toDelete.forEach(key => {
+        toDelete.forEach((key) => {
           delete sheetPriv._merges[key];
         });
       }
@@ -740,7 +889,9 @@ export class CcpStatisticsService {
       try {
         ws.mergeCells(r1, c1, r2, c2);
       } catch (err2: any) {
-        this.logger.error(`Failed to merge cells (${r1},${c1}) to (${r2},${c2}): ${err2.message}`);
+        this.logger.error(
+          `Failed to merge cells (${r1},${c1}) to (${r2},${c2}): ${err2.message}`,
+        );
       }
     }
   }

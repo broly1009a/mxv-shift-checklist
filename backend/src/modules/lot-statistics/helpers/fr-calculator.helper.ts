@@ -57,10 +57,7 @@ function getPreviousWorkday(date: Date): Date {
  * X2 = ngayGD 05:00:00
  * A15 = prevWorkday of ngayGD
  */
-function normalizeFrTradingDate(
-  row: ParsedRow,
-  ngayGD: Date,
-): Date {
+function normalizeFrTradingDate(row: ParsedRow, ngayGD: Date): Date {
   const val = row['Time'] ?? row['Thời gian'] ?? row['col2'];
   if (val === null || val === undefined) return ngayGD;
 
@@ -106,7 +103,9 @@ function normalizeFrTradingDate(
 /** Lấy mã SP rút gọn từ FR row (VBA: J = LEFT(C, LEN(C)-3)) */
 function getFrMaSP(row: ParsedRow): string {
   const maSP = toStr(row['Symbol'] ?? row['Mã SP'] ?? row['col3']);
-  return maSP.length > 3 ? maSP.substring(0, maSP.length - 3).toUpperCase() : maSP.toUpperCase();
+  return maSP.length > 3
+    ? maSP.substring(0, maSP.length - 3).toUpperCase()
+    : maSP.toUpperCase();
 }
 
 /** So sánh 2 Date chỉ theo ngày */
@@ -135,7 +134,10 @@ function sumFrBySpAndDates(
       const rowDate = normalizeFrTradingDate(r, ngayGD);
       return dates.some((d) => isSameDate(rowDate, d));
     })
-    .reduce((s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']), 0);
+    .reduce(
+      (s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']),
+      0,
+    );
 }
 
 /** Lấy số serial Excel của thời gian giao dịch */
@@ -175,13 +177,28 @@ export function calcFrProduct(
   const frOptionsTotal = sumFrLot(frOptions);
 
   // TRU: 4 ngày (k, k1, k2, k3)
-  const truExcluded = sumFrBySpAndDates(frRows, 'TRU', config.truDates, config.ngayGD);
+  const truExcluded = sumFrBySpAndDates(
+    frRows,
+    'TRU',
+    config.truDates,
+    config.ngayGD,
+  );
 
   // FEF: 2 ngày (r, r1)
-  const fefExcluded = sumFrBySpAndDates(frRows, 'FEF', config.fefDates, config.ngayGD);
+  const fefExcluded = sumFrBySpAndDates(
+    frRows,
+    'FEF',
+    config.fefDates,
+    config.ngayGD,
+  );
 
   // ZFT: 2 ngày (s, s1)
-  const zftExcluded = sumFrBySpAndDates(frRows, 'ZFT', config.zftDates, config.ngayGD);
+  const zftExcluded = sumFrBySpAndDates(
+    frRows,
+    'ZFT',
+    config.zftDates,
+    config.ngayGD,
+  );
 
   // QO/QP/BM/MPO: < deadline (Sheet2!Y1)
   const specialProducts = ['QO', 'QP', 'BM', 'MPO'];
@@ -196,7 +213,10 @@ export function calcFrProduct(
           const serial = getFrSerial(thoiGian, config.ngayGD);
           return serial < (config.deadline ?? Infinity);
         })
-        .reduce((s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']), 0);
+        .reduce(
+          (s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']),
+          0,
+        );
       specialExcluded += excluded;
     }
   }
@@ -207,7 +227,10 @@ export function calcFrProduct(
       const acc = toStr(r['Account'] ?? r['Mã TKGD'] ?? r['col1']);
       return acc === 'MX1111111111';
     })
-    .reduce((s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']), 0);
+    .reduce(
+      (s, r) => s + toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']),
+      0,
+    );
 
   // --- Rule tự động loại trừ & tạo ghi chú cho các ngày khác lọt vào ---
   // Các sản phẩm đặc biệt cần check: TRU, ZFT, FEF, QO, QP, BM, MPO
@@ -228,11 +251,17 @@ export function calcFrProduct(
     if (rowDate < localNgayGD) {
       // Kiểm tra xem đã bị loại trừ ở trên chưa
       let alreadyExcluded = false;
-      if (sp === 'TRU' && config.truDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
-      if (sp === 'FEF' && config.fefDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
-      if (sp === 'ZFT' && config.zftDates.some(d => isSameDate(rowDate, d))) alreadyExcluded = true;
-      
-      if (['QO', 'QP', 'BM', 'MPO'].includes(sp) && config.deadline !== undefined) {
+      if (sp === 'TRU' && config.truDates.some((d) => isSameDate(rowDate, d)))
+        alreadyExcluded = true;
+      if (sp === 'FEF' && config.fefDates.some((d) => isSameDate(rowDate, d)))
+        alreadyExcluded = true;
+      if (sp === 'ZFT' && config.zftDates.some((d) => isSameDate(rowDate, d)))
+        alreadyExcluded = true;
+
+      if (
+        ['QO', 'QP', 'BM', 'MPO'].includes(sp) &&
+        config.deadline !== undefined
+      ) {
         const thoiGian = r['Time'] ?? r['Thời gian'] ?? r['col2'];
         const serial = getFrSerial(thoiGian, config.ngayGD);
         if (serial < config.deadline) {
@@ -243,7 +272,7 @@ export function calcFrProduct(
       if (!alreadyExcluded) {
         const qty = toNum(r['Qty'] ?? r['KL'] ?? r['col6'] ?? r['col9']);
         autoExcludedSum += qty;
-        
+
         if (!autoExclusionsMap.has(sp)) {
           autoExclusionsMap.set(sp, {});
         }

@@ -12,52 +12,146 @@ import { ensureBaseFileExists } from '../../../common/file-guard.helper';
 // ─── Commodity Code Mappings matching Sheet1 ranges ─────────────────────────
 
 export const NORMAL_COMMODITIES = [
-  'ZLE', 'ZCE', 'C.ZCE', 'P.ZCE', 'ZSE', 'C.ZSE', 'P.ZSE', 'ZME', 'ZWA', 'C.ZWA',
-  'P.ZWA', 'KWE', 'ZRE', 'XW', 'XC', 'XB', 'MZW', 'MZC', 'MZS', 'MZL',
-  'MZM', 'CCE', 'CTE', 'KCE', 'C.KCE', 'P.KCE', 'SBE', 'C.SBE', 'P.SBE', 'LRC',
-  'QW', 'MPO', 'TRU', 'ZFT', 'ALI', 'CPE', 'MQC', 'MHG', 'SIE', 'MQI',
-  'SIL', 'PLE', 'FEF', 'CLE', 'C.CLE', 'P.CLE', 'NGE', 'C.NGE', 'P.NGE', 'NQM',
-  'RBE', 'QO', 'C.QO', 'P.QO', 'QP', 'MCLE', 'NQG', 'BM', 'CAD', 'AHD',
-  'PBD', 'SND', 'ZDS', 'NID', 'SSC', 'SSR', 'LHC'
+  'ZLE',
+  'ZCE',
+  'C.ZCE',
+  'P.ZCE',
+  'ZSE',
+  'C.ZSE',
+  'P.ZSE',
+  'ZME',
+  'ZWA',
+  'C.ZWA',
+  'P.ZWA',
+  'KWE',
+  'ZRE',
+  'XW',
+  'XC',
+  'XB',
+  'MZW',
+  'MZC',
+  'MZS',
+  'MZL',
+  'MZM',
+  'CCE',
+  'CTE',
+  'KCE',
+  'C.KCE',
+  'P.KCE',
+  'SBE',
+  'C.SBE',
+  'P.SBE',
+  'LRC',
+  'QW',
+  'MPO',
+  'TRU',
+  'ZFT',
+  'ALI',
+  'CPE',
+  'MQC',
+  'MHG',
+  'SIE',
+  'MQI',
+  'SIL',
+  'PLE',
+  'FEF',
+  'CLE',
+  'C.CLE',
+  'P.CLE',
+  'NGE',
+  'C.NGE',
+  'P.NGE',
+  'NQM',
+  'RBE',
+  'QO',
+  'C.QO',
+  'P.QO',
+  'QP',
+  'MCLE',
+  'NQG',
+  'BM',
+  'CAD',
+  'AHD',
+  'PBD',
+  'SND',
+  'ZDS',
+  'NID',
+  'SSC',
+  'SSR',
+  'LHC',
 ];
 
 export const SPREAD_COMMODITIES = [
-  'ZSE', 'C.ZCE', 'ZLE', 'ZCE', 'P.ZCE', 'ZRE', 'XC', 'TRU', 'MHG'
+  'ZSE',
+  'C.ZCE',
+  'ZLE',
+  'ZCE',
+  'P.ZCE',
+  'ZRE',
+  'XC',
+  'TRU',
+  'MHG',
 ];
 
 export const LME_COMMODITIES = [
-  'CAD', 'AHD', 'PBD', 'SND', 'ZDS', 'NID', 'SSC', 'SSR', 'LHC'
+  'CAD',
+  'AHD',
+  'PBD',
+  'SND',
+  'ZDS',
+  'NID',
+  'SSC',
+  'SSR',
+  'LHC',
 ];
 
 export const OPTIONS_COMMODITIES = [
-  'C.ZCE', 'P.ZCE', 'C.ZSE', 'P.ZSE', 'C.ZWA', 'P.ZWA', 'C.KCE', 'P.KCE',
-  'C.SBE', 'P.SBE', 'C.CLE', 'P.CLE', 'C.NGE', 'P.NGE', 'C.QO', 'P.QO'
+  'C.ZCE',
+  'P.ZCE',
+  'C.ZSE',
+  'P.ZSE',
+  'C.ZWA',
+  'P.ZWA',
+  'C.KCE',
+  'P.KCE',
+  'C.SBE',
+  'P.SBE',
+  'C.CLE',
+  'P.CLE',
+  'C.NGE',
+  'P.NGE',
+  'C.QO',
+  'P.QO',
 ];
 
-export const ACM_COMMODITIES = [
-  'SI5CO', 'PL1NY', 'CP2CO'
-];
+export const ACM_COMMODITIES = ['SI5CO', 'PL1NY', 'CP2CO'];
 
 export interface ValueAccumulatorPaths {
-  pathNormal: string;     // Thong ke gia tri giao dich 2026.xlsx
-  pathSpread: string;     // Thong ke gia tri giao dich Spread 2026.xlsx
-  pathLme: string;        // Thong ke gia tri giao dich LME 2026.xlsx
-  pathOptions: string;    // Thong ke gia tri giao dich Options 2026.xlsx
-  pathAcm: string;        // Thong ke gia tri giao dich ACM 2026.xlsx
+  pathNormal: string; // Thong ke gia tri giao dich 2026.xlsx
+  pathSpread: string; // Thong ke gia tri giao dich Spread 2026.xlsx
+  pathLme: string; // Thong ke gia tri giao dich LME 2026.xlsx
+  pathOptions: string; // Thong ke gia tri giao dich Options 2026.xlsx
+  pathAcm: string; // Thong ke gia tri giao dich ACM 2026.xlsx
 }
 
 /**
  * Value statistics specific target row finder.
  * Assumes Date is in Column A (1) and there is no STT column.
  */
-export function findOrCreateValueTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
+export function findOrCreateValueTargetRow(
+  ws: ExcelJS.Worksheet,
+  ngayGD: Date,
+): number {
   let targetRowIndex = -1;
   let tongRowIndex = -1;
 
   for (let r = 6; r <= ws.rowCount; r++) {
     const dateCellVal = ws.getCell(r, 1).value;
 
-    const dateStr = dateCellVal !== null && dateCellVal !== undefined ? String(dateCellVal).trim().toLowerCase() : '';
+    const dateStr =
+      dateCellVal !== null && dateCellVal !== undefined
+        ? String(dateCellVal).trim().toLowerCase()
+        : '';
 
     if (dateStr === 'tổng') {
       tongRowIndex = r;
@@ -135,7 +229,7 @@ async function updateValueTrackerFile(
   ngayGD: Date,
   commodities: string[],
   valueMap: Map<string, number>,
-  fileType: string
+  fileType: string,
 ) {
   ensureBaseFileExists(filePath);
 
@@ -150,16 +244,22 @@ async function updateValueTrackerFile(
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
-    const timestamp = new Date().toISOString()
+    const timestamp = new Date()
+      .toISOString()
       .replace(/T/, '_')
       .replace(/\..+/, '')
       .replace(/:/g, '-');
     const baseName = path.basename(filePath, path.extname(filePath));
     const extName = path.extname(filePath);
-    const backupPath = path.join(backupDir, `${baseName}_backup_${timestamp}${extName}`);
+    const backupPath = path.join(
+      backupDir,
+      `${baseName}_backup_${timestamp}${extName}`,
+    );
     fs.copyFileSync(filePath, backupPath);
   } catch (err: any) {
-    console.warn(`[WARN] Không thể tự động tạo file sao lưu cho ${fileType}: ${err.message}`);
+    console.warn(
+      `[WARN] Không thể tự động tạo file sao lưu cho ${fileType}: ${err.message}`,
+    );
   }
 
   const wb = new ExcelJS.Workbook();
@@ -200,7 +300,7 @@ export async function updateAllValueCumulativeFiles(
   paths: ValueAccumulatorPaths,
   ngayGD: Date,
   normalGtgdMap: Map<string, number>,
-  spreadGtgdMap: Map<string, number>
+  spreadGtgdMap: Map<string, number>,
 ) {
   // 1. Normal Value Tracker
   ensureDirExists(paths.pathNormal);
@@ -209,7 +309,7 @@ export async function updateAllValueCumulativeFiles(
     ngayGD,
     NORMAL_COMMODITIES,
     normalGtgdMap,
-    'Normal'
+    'Normal',
   );
 
   // 2. Spread Value Tracker
@@ -219,7 +319,7 @@ export async function updateAllValueCumulativeFiles(
     ngayGD,
     SPREAD_COMMODITIES,
     spreadGtgdMap,
-    'Spread'
+    'Spread',
   );
 
   // 3. LME Value Tracker
@@ -229,7 +329,7 @@ export async function updateAllValueCumulativeFiles(
     ngayGD,
     LME_COMMODITIES,
     normalGtgdMap, // LME values are normal GTGD values of LME commodities
-    'LME'
+    'LME',
   );
 
   // 4. Options Value Tracker
@@ -239,7 +339,7 @@ export async function updateAllValueCumulativeFiles(
     ngayGD,
     OPTIONS_COMMODITIES,
     normalGtgdMap, // Options values are normal GTGD values of Options commodities
-    'Options'
+    'Options',
   );
 
   // 5. ACM Value Tracker
@@ -249,6 +349,6 @@ export async function updateAllValueCumulativeFiles(
     ngayGD,
     ACM_COMMODITIES,
     normalGtgdMap, // ACM values are normal GTGD values of ACM/Nano commodities
-    'ACM'
+    'ACM',
   );
 }

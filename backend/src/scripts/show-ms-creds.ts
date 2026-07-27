@@ -9,9 +9,12 @@ async function main() {
   await client.connect();
   const db = client.db('mxv_shift_checklist');
   const settings = await db.collection('system_settings').find({}).toArray();
-  console.log('Available keys in system_settings:', settings.map(s => s.key));
+  console.log(
+    'Available keys in system_settings:',
+    settings.map((s) => s.key),
+  );
 
-  const setting = settings.find(s => s.key === 'bot_credentials_msystem');
+  const setting = settings.find((s) => s.key === 'bot_credentials_msystem');
   if (setting) {
     const creds = JSON.parse(decrypt(setting.value));
     console.log('Decrypted M-System Username:', creds.username);

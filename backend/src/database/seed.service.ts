@@ -31,7 +31,9 @@ export class SeedService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED !== 'false';
     if (!isAutoSeedEnabled) {
-      this.logger.log('Automatic database seeding is DISABLED via ENABLE_AUTO_SEED=false. Skipping.');
+      this.logger.log(
+        'Automatic database seeding is DISABLED via ENABLE_AUTO_SEED=false. Skipping.',
+      );
       return;
     }
 
@@ -430,7 +432,8 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
-        const hasSubTasks = existing.tasks && existing.tasks.some((t: any) => t.parentTaskId);
+        const hasSubTasks =
+          existing.tasks && existing.tasks.some((t: any) => t.parentTaskId);
         const updateData: any = {
           title: tpl.title,
           shiftSlotId: slotId,
@@ -439,10 +442,9 @@ export class SeedService implements OnApplicationBootstrap {
         if (!hasSubTasks) {
           updateData.tasks = tpl.tasks;
         }
-        await this.templateModel.updateOne(
-          { _id: existing._id },
-          { $set: updateData },
-        ).exec();
+        await this.templateModel
+          .updateOne({ _id: existing._id }, { $set: updateData })
+          .exec();
         this.logger.log(`Updated checklist template: ${tpl.title}`);
       }
     }

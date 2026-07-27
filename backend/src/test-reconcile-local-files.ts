@@ -10,15 +10,14 @@ async function testLocalReconciliation() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const reconService = app.get(ReconciliationService);
 
-  const sampleDir = path.join(
-    process.cwd(),
-    '../14.07'
-  );
+  const sampleDir = path.join(process.cwd(), '../14.07');
 
   console.log(`\n📂 Thư mục chứa file mẫu: ${sampleDir}`);
 
   if (!fs.existsSync(sampleDir)) {
-    console.error(`❌ Thư mục ${sampleDir} không tồn tại. Vui lòng kiểm tra lại đường dẫn!`);
+    console.error(
+      `❌ Thư mục ${sampleDir} không tồn tại. Vui lòng kiểm tra lại đường dẫn!`,
+    );
     await app.close();
     process.exit(1);
   }
@@ -54,49 +53,83 @@ async function testLocalReconciliation() {
 
     // Assume trading date is 2026-07-14 based on directory
     const tradingDate = new Date('2026-07-14');
-    const resultKLGD = await reconService.checkKLGD(klgdFiles, tradingDate, [], '05:00');
+    const resultKLGD = await reconService.checkKLGD(
+      klgdFiles,
+      tradingDate,
+      [],
+      '05:00',
+    );
 
     console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU KHỚP LỆNH:');
-    console.log(`• Tổng khớp lệnh thường MS:  ${resultKLGD.totals.totalDSGD} lot`);
-    console.log(`• Tổng khớp lệnh thường CQG: ${resultKLGD.totals.totalFR} lot`);
-    console.log(`• Chênh lệch thường (MS-CQG): ${resultKLGD.totals.differ} lot`);
-    console.log(`• Tổng khớp tự doanh MS:      ${resultKLGD.totals.totalACM} lot`);
-    console.log(`• Tổng khớp tự doanh Nano:    ${resultKLGD.totals.totalNano} lot`);
-    console.log(`• Chênh lệch tự doanh:        ${resultKLGD.totals.differACM} lot`);
-    console.log(`• Tổng TTTT MS:               ${resultKLGD.totals.totalTTTT} lot`);
-    console.log(`• Tổng PS CQG:                ${resultKLGD.totals.totalPS} lot`);
-    console.log(`• Chênh lệch TTTT vs PS:      ${resultKLGD.totals.differTTTT} lot`);
-    
-    console.log(`• Số giao dịch lệch chi tiết: ${resultKLGD.mismatchedTrades.length}`);
+    console.log(
+      `• Tổng khớp lệnh thường MS:  ${resultKLGD.totals.totalDSGD} lot`,
+    );
+    console.log(
+      `• Tổng khớp lệnh thường CQG: ${resultKLGD.totals.totalFR} lot`,
+    );
+    console.log(
+      `• Chênh lệch thường (MS-CQG): ${resultKLGD.totals.differ} lot`,
+    );
+    console.log(
+      `• Tổng khớp tự doanh MS:      ${resultKLGD.totals.totalACM} lot`,
+    );
+    console.log(
+      `• Tổng khớp tự doanh Nano:    ${resultKLGD.totals.totalNano} lot`,
+    );
+    console.log(
+      `• Chênh lệch tự doanh:        ${resultKLGD.totals.differACM} lot`,
+    );
+    console.log(
+      `• Tổng TTTT MS:               ${resultKLGD.totals.totalTTTT} lot`,
+    );
+    console.log(
+      `• Tổng PS CQG:                ${resultKLGD.totals.totalPS} lot`,
+    );
+    console.log(
+      `• Chênh lệch TTTT vs PS:      ${resultKLGD.totals.differTTTT} lot`,
+    );
+
+    console.log(
+      `• Số giao dịch lệch chi tiết: ${resultKLGD.mismatchedTrades.length}`,
+    );
     if (resultKLGD.mismatchedTrades.length > 0) {
       console.log('⚠️ Danh sách giao dịch lệch (tối đa 10 dòng):');
       resultKLGD.mismatchedTrades.slice(0, 10).forEach((t, i) => {
-        console.log(`  [${i + 1}] Source: ${t.source} | TK: ${t.maTKGD} | HĐ: ${t.maHD} | Giá: ${t.giaKhop} | Qty: ${t.klGiaoDich} -> Lý do: ${t.reason}`);
+        console.log(
+          `  [${i + 1}] Source: ${t.source} | TK: ${t.maTKGD} | HĐ: ${t.maHD} | Giá: ${t.giaKhop} | Qty: ${t.klGiaoDich} -> Lý do: ${t.reason}`,
+        );
       });
     } else {
       console.log('✓ Không có giao dịch lệch chi tiết.');
     }
 
-    console.log(`• Số tài khoản chênh lệch TTM (Trạng thái mở): ${resultKLGD.mismatchedTTM.length}`);
+    console.log(
+      `• Số tài khoản chênh lệch TTM (Trạng thái mở): ${resultKLGD.mismatchedTTM.length}`,
+    );
     if (resultKLGD.mismatchedTTM.length > 0) {
       console.log('⚠️ Danh sách tài khoản lệch TTM:');
       resultKLGD.mismatchedTTM.forEach((t, i) => {
-        console.log(`  [${i + 1}] TK: ${t.maTKGD} | MS TTM: ${t.ttmValue} | CQG Open: ${t.opValue} | Lệch: ${t.differ}`);
+        console.log(
+          `  [${i + 1}] TK: ${t.maTKGD} | MS TTM: ${t.ttmValue} | CQG Open: ${t.opValue} | Lệch: ${t.differ}`,
+        );
       });
     } else {
       console.log('✓ Không có tài khoản lệch TTM.');
     }
 
-    console.log(`• Số tài khoản chênh lệch TTTT vs PS: ${resultKLGD.mismatchedTTTT ? resultKLGD.mismatchedTTTT.length : 0}`);
+    console.log(
+      `• Số tài khoản chênh lệch TTTT vs PS: ${resultKLGD.mismatchedTTTT ? resultKLGD.mismatchedTTTT.length : 0}`,
+    );
     if (resultKLGD.mismatchedTTTT && resultKLGD.mismatchedTTTT.length > 0) {
       console.log('⚠️ Danh sách tài khoản lệch TTTT vs PS:');
       resultKLGD.mismatchedTTTT.forEach((t, i) => {
-        console.log(`  [${i + 1}] TK: ${t.maTKGD} | MS TTTT: ${t.ttttValue} | CQG PS: ${t.psValue} | Lệch: ${t.differ}`);
+        console.log(
+          `  [${i + 1}] TK: ${t.maTKGD} | MS TTTT: ${t.ttttValue} | CQG PS: ${t.psValue} | Lệch: ${t.differ}`,
+        );
       });
     } else {
       console.log('✓ Không có tài khoản lệch TTTT vs PS.');
     }
-
   } catch (err: any) {
     console.error('❌ Lỗi khi đối chiếu khớp lệnh:', err.message);
   }
@@ -117,21 +150,28 @@ async function testLocalReconciliation() {
     const resultEOD = await reconService.checkEOD(eodFiles);
 
     console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU SỐ DƯ EOD:');
-    console.log(`• Số tài khoản lệch số dư EOD (>= 1,000đ): ${resultEOD.mismatchedEOD.length}`);
+    console.log(
+      `• Số tài khoản lệch số dư EOD (>= 1,000đ): ${resultEOD.mismatchedEOD.length}`,
+    );
     if (resultEOD.mismatchedEOD.length > 0) {
       console.log('⚠️ Danh sách tài khoản lệch EOD (tối đa 10 dòng):');
       resultEOD.mismatchedEOD.slice(0, 10).forEach((t, i) => {
-        console.log(`  [${i + 1}] TK: ${t.maTKGD} | Tính toán: ${t.calculatedBalance.toLocaleString()}đ | EOD: ${t.eodBalance.toLocaleString()}đ | Lệch: ${t.differ.toLocaleString()}đ`);
+        console.log(
+          `  [${i + 1}] TK: ${t.maTKGD} | Tính toán: ${t.calculatedBalance.toLocaleString()}đ | EOD: ${t.eodBalance.toLocaleString()}đ | Lệch: ${t.differ.toLocaleString()}đ`,
+        );
       });
     } else {
       console.log('✓ Số dư khớp hoàn toàn hoặc không lệch vượt ngưỡng.');
     }
 
-    console.log(`• Số tài khoản âm ký quỹ khả dụng (IMR): ${resultEOD.negativeIMRAcc.length}`);
+    console.log(
+      `• Số tài khoản âm ký quỹ khả dụng (IMR): ${resultEOD.negativeIMRAcc.length}`,
+    );
     if (resultEOD.negativeIMRAcc.length > 0) {
-      console.log(`🚨 Tài khoản âm ký quỹ: ${resultEOD.negativeIMRAcc.join(', ')}`);
+      console.log(
+        `🚨 Tài khoản âm ký quỹ: ${resultEOD.negativeIMRAcc.join(', ')}`,
+      );
     }
-
   } catch (err: any) {
     console.error('❌ Lỗi khi đối chiếu EOD:', err.message);
   }
@@ -152,16 +192,19 @@ async function testLocalReconciliation() {
     const resultCQG = await reconService.checkEODCQG(cqgFiles, usdRate);
 
     console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU SỐ DƯ CQG:');
-    console.log(`• Số tài khoản lệch số dư CQG (> 100 USD): ${resultCQG.length}`);
+    console.log(
+      `• Số tài khoản lệch số dư CQG (> 100 USD): ${resultCQG.length}`,
+    );
     if (resultCQG.length > 0) {
       console.log('⚠️ Danh sách tài khoản lệch CQG (tối đa 10 dòng):');
       resultCQG.slice(0, 10).forEach((t, i) => {
-        console.log(`  [${i + 1}] TK: ${t.maTKGD} | MS: $${t.calculatedBalance} | CQG: $${t.cqgBalance} | Lệch: $${t.differ.toFixed(2)} | In MS: ${t.inMS} | In CQG: ${t.inCQG}`);
+        console.log(
+          `  [${i + 1}] TK: ${t.maTKGD} | MS: $${t.calculatedBalance} | CQG: $${t.cqgBalance} | Lệch: $${t.differ.toFixed(2)} | In MS: ${t.inMS} | In CQG: ${t.inCQG}`,
+        );
       });
     } else {
       console.log('✓ Số dư CQG khớp hoàn toàn.');
     }
-
   } catch (err: any) {
     console.error('❌ Lỗi khi đối chiếu CQG:', err.message);
   }
@@ -171,7 +214,7 @@ async function testLocalReconciliation() {
   await app.close();
 }
 
-testLocalReconciliation().catch(err => {
+testLocalReconciliation().catch((err) => {
   console.error('❌ Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

@@ -59,7 +59,6 @@ export class AccessControlService {
       throw new ForbiddenException('Yêu cầu đăng nhập để truy cập tài nguyên.');
     }
 
-
     const { role } = user;
 
     // General admins can access everything
@@ -67,8 +66,10 @@ export class AccessControlService {
       return true;
     }
 
-    const userDivIdStr = (user.divisionId?._id || user.divisionId)?.toString() || null;
-    const userDeptIdStr = (user.departmentId?._id || user.departmentId)?.toString() || null;
+    const userDivIdStr =
+      (user.divisionId?._id || user.divisionId)?.toString() || null;
+    const userDeptIdStr =
+      (user.departmentId?._id || user.departmentId)?.toString() || null;
 
     if (role === 'DIVISION_DIRECTOR') {
       // Must match division
@@ -107,7 +108,10 @@ export class AccessControlService {
 
     const { role } = user;
     if (role === 'ADMIN') return true;
-    if ((role === 'CEO' || role === 'CHAIRMAN') && feature === 'MARGIN_CHANGE') {
+    if (
+      (role === 'CEO' || role === 'CHAIRMAN') &&
+      feature === 'MARGIN_CHANGE'
+    ) {
       return true;
     }
 

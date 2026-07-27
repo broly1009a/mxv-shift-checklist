@@ -3,15 +3,26 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { LotSummaryResult } from '../lot-statistics.service';
 import { DsgdClassified } from './trade-classifier.helper';
-import { aggregateByTvkd, sumDsgdLot, sumTtmLot, sumTtttLot, aggregateByProduct, getSPFromDsgd, getSPFromSpread } from './lot-aggregator.helper';
-import { assertSafeWritePath, ensureBaseFileExists } from '../../../common/file-guard.helper';
+import {
+  aggregateByTvkd,
+  sumDsgdLot,
+  sumTtmLot,
+  sumTtttLot,
+  aggregateByProduct,
+  getSPFromDsgd,
+  getSPFromSpread,
+} from './lot-aggregator.helper';
+import {
+  assertSafeWritePath,
+  ensureBaseFileExists,
+} from '../../../common/file-guard.helper';
 export interface AccumulatorPaths {
-  pathDsgdCumulative: string;   // DSGD T[MM].[YYYY].xlsx
-  pathNormal: string;           // Thong ke so lot giao dich 2026 2.xlsx
-  pathAcm: string;              // Thong ke so lot giao dich ACM 2026 2.xlsx
-  pathLme: string;              // Thong ke so lot giao dich LME 2026.xlsx
-  pathOptions: string;          // Thong ke so lot giao dich Options 2026.xlsx
-  pathSpread: string;           // Thong ke so lot giao dich Spread 2026.xlsx
+  pathDsgdCumulative: string; // DSGD T[MM].[YYYY].xlsx
+  pathNormal: string; // Thong ke so lot giao dich 2026 2.xlsx
+  pathAcm: string; // Thong ke so lot giao dich ACM 2026 2.xlsx
+  pathLme: string; // Thong ke so lot giao dich LME 2026.xlsx
+  pathOptions: string; // Thong ke so lot giao dich Options 2026.xlsx
+  pathSpread: string; // Thong ke so lot giao dich Spread 2026.xlsx
 }
 
 /**
@@ -53,8 +64,14 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
   const targetM = targetDate.getUTCMonth();
   const targetD = targetDate.getUTCDate();
 
-  const utcMatch = d.getUTCFullYear() === targetY && d.getUTCMonth() === targetM && d.getUTCDate() === targetD;
-  const localMatch = d.getFullYear() === targetY && d.getMonth() === targetM && d.getDate() === targetD;
+  const utcMatch =
+    d.getUTCFullYear() === targetY &&
+    d.getUTCMonth() === targetM &&
+    d.getUTCDate() === targetD;
+  const localMatch =
+    d.getFullYear() === targetY &&
+    d.getMonth() === targetM &&
+    d.getDate() === targetD;
 
   return utcMatch || localMatch;
 }
@@ -62,7 +79,10 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
 /**
  * Helper to find or create target row index by scanning until "Tổng" or matching date
  */
-export function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): number {
+export function findOrCreateTargetRow(
+  ws: ExcelJS.Worksheet,
+  ngayGD: Date,
+): number {
   let targetRowIndex = -1;
   let tongRowIndex = -1;
 
@@ -70,8 +90,14 @@ export function findOrCreateTargetRow(ws: ExcelJS.Worksheet, ngayGD: Date): numb
     const sttVal = ws.getCell(r, 1).value;
     const dateCellVal = ws.getCell(r, 2).value;
 
-    const sttStr = sttVal !== null && sttVal !== undefined ? String(sttVal).trim().toLowerCase() : '';
-    const dateStr = dateCellVal !== null && dateCellVal !== undefined ? String(dateCellVal).trim().toLowerCase() : '';
+    const sttStr =
+      sttVal !== null && sttVal !== undefined
+        ? String(sttVal).trim().toLowerCase()
+        : '';
+    const dateStr =
+      dateCellVal !== null && dateCellVal !== undefined
+        ? String(dateCellVal).trim().toLowerCase()
+        : '';
 
     if (sttStr === 'tổng' || dateStr === 'tổng') {
       tongRowIndex = r;
@@ -139,7 +165,7 @@ function matchTvkdHeader(header: string, tvkdCode: string): boolean {
   const normalized = header.replace(/\s+/g, '').toUpperCase();
   const normalizedCode = tvkdCode.trim().toUpperCase();
   const parts = normalized.split(',');
-  return parts.some(p => p.includes(normalizedCode));
+  return parts.some((p) => p.includes(normalizedCode));
 }
 
 function matchProductHeader(header: string, productCode: string): boolean {
@@ -148,8 +174,6 @@ function matchProductHeader(header: string, productCode: string): boolean {
   const normalizedProd = productCode.replace(/[\s.]+/g, '').toUpperCase();
   return normalizedHeader === normalizedProd;
 }
-
-
 
 /**
  * Ensures directory exists and validates safety against allowed root
@@ -176,16 +200,22 @@ function backupFile(filePath: string) {
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
-    const timestamp = new Date().toISOString()
+    const timestamp = new Date()
+      .toISOString()
       .replace(/T/, '_')
       .replace(/\..+/, '')
       .replace(/:/g, '-');
     const baseName = path.basename(filePath, path.extname(filePath));
     const extName = path.extname(filePath);
-    const backupPath = path.join(backupDir, `${baseName}_backup_${timestamp}${extName}`);
+    const backupPath = path.join(
+      backupDir,
+      `${baseName}_backup_${timestamp}${extName}`,
+    );
     fs.copyFileSync(filePath, backupPath);
   } catch (err: any) {
-    console.warn(`[WARN] Không thể tự động tạo file sao lưu cho ${path.basename(filePath)}: ${err.message}`);
+    console.warn(
+      `[WARN] Không thể tự động tạo file sao lưu cho ${path.basename(filePath)}: ${err.message}`,
+    );
   }
 }
 
@@ -213,7 +243,10 @@ export async function appendRawDsgd(
 
   if (fs.existsSync(targetFilePath)) {
     await targetWb.xlsx.readFile(targetFilePath);
-    const existingWs = targetWb.getWorksheet('sheet1') || targetWb.getWorksheet('Sheet1') || targetWb.worksheets[0];
+    const existingWs =
+      targetWb.getWorksheet('sheet1') ||
+      targetWb.getWorksheet('Sheet1') ||
+      targetWb.worksheets[0];
     if (existingWs) {
       for (let r = 2; r <= existingWs.rowCount; r++) {
         const row = existingWs.getRow(r);
@@ -365,12 +398,12 @@ async function updateAcmTrackerFile(
 
   // Update summary columns
   ws.getCell(targetRowIndex, 3).value = sumDsgdLot(classified.dsgdAcm); // CQG lot
-  ws.getCell(targetRowIndex, 4).value = sumTtttLot(ttttAcm);           // TTTT lot
-  ws.getCell(targetRowIndex, 5).value = sumTtmLot(ttmAcm);             // TTM lot
-  ws.getCell(targetRowIndex, 6).value = null;                             // Placeholder/formula
-  ws.getCell(targetRowIndex, 7).value = null;                             // Placeholder/formula
-  ws.getCell(targetRowIndex, 8).value = null;                             // Placeholder/formula
-  ws.getCell(targetRowIndex, 9).value = '';                            // Ghi chú
+  ws.getCell(targetRowIndex, 4).value = sumTtttLot(ttttAcm); // TTTT lot
+  ws.getCell(targetRowIndex, 5).value = sumTtmLot(ttmAcm); // TTM lot
+  ws.getCell(targetRowIndex, 6).value = null; // Placeholder/formula
+  ws.getCell(targetRowIndex, 7).value = null; // Placeholder/formula
+  ws.getCell(targetRowIndex, 8).value = null; // Placeholder/formula
+  ws.getCell(targetRowIndex, 9).value = ''; // Ghi chú
 
   // Update TVKD columns: 11 to 71
   const tvkdLots = aggregateByTvkd(classified.dsgdAcm);
@@ -439,16 +472,16 @@ async function updateNormalTrackerFile(
 
   // ── Block 1: M-System (cols 3-16) ──────────────────────────────────────────
   // Futures (DSGD/TTTT/TTM)
-  ws.getCell(targetRowIndex, 3).value = s.dsgdProduct;   // Số Lot giao dịch M-System
-  ws.getCell(targetRowIndex, 4).value = s.ttttProduct;   // Số lot tất toán
-  ws.getCell(targetRowIndex, 5).value = s.ttmProduct;    // Vị thế mở
+  ws.getCell(targetRowIndex, 3).value = s.dsgdProduct; // Số Lot giao dịch M-System
+  ws.getCell(targetRowIndex, 4).value = s.ttttProduct; // Số lot tất toán
+  ws.getCell(targetRowIndex, 5).value = s.ttmProduct; // Vị thế mở
   // Spread
   ws.getCell(targetRowIndex, 6).value = s.dsgdSpread;
   ws.getCell(targetRowIndex, 7).value = s.ttttSpread;
   ws.getCell(targetRowIndex, 8).value = s.ttmSpread;
   // LME
   ws.getCell(targetRowIndex, 9).value = s.dsgdLme;
-  ws.getCell(targetRowIndex, 10).value = s.psLme - lmeExpiredLot;          // Số lot tất toán LME (lấy từ số liệu CQG PS để đồng bộ)
+  ws.getCell(targetRowIndex, 10).value = s.psLme - lmeExpiredLot; // Số lot tất toán LME (lấy từ số liệu CQG PS để đồng bộ)
   ws.getCell(targetRowIndex, 11).value = s.ttmLme;
   // Options
   ws.getCell(targetRowIndex, 12).value = s.dsgdOptions;
@@ -459,9 +492,9 @@ async function updateNormalTrackerFile(
 
   // ── Block 2: CQG (cols 17-30) ───────────────────────────────────────────────
   // Futures
-  ws.getCell(targetRowIndex, 17).value = s.frProduct;    // FR Số Lot giao dịch
-  ws.getCell(targetRowIndex, 18).value = s.psProduct;    // PS Số lot tất toán
-  ws.getCell(targetRowIndex, 19).value = s.opProduct;    // OP Vị thế mở
+  ws.getCell(targetRowIndex, 17).value = s.frProduct; // FR Số Lot giao dịch
+  ws.getCell(targetRowIndex, 18).value = s.psProduct; // PS Số lot tất toán
+  ws.getCell(targetRowIndex, 19).value = s.opProduct; // OP Vị thế mở
   // Spread
   ws.getCell(targetRowIndex, 20).value = s.frSpread;
   ws.getCell(targetRowIndex, 21).value = s.psSpread;
@@ -479,19 +512,27 @@ async function updateNormalTrackerFile(
 
   // Ghi nhận ghi chú tự động từ bot và bảo toàn ghi chú thủ công của user
   const existingNote = ws.getCell(targetRowIndex, 31).value;
-  const autoNoteStr = result.autoNotes && result.autoNotes.length > 0 ? result.autoNotes.join('; ').trim() : '';
+  const autoNoteStr =
+    result.autoNotes && result.autoNotes.length > 0
+      ? result.autoNotes.join('; ').trim()
+      : '';
 
-  if (existingNote === null || existingNote === undefined || String(existingNote).trim() === '') {
+  if (
+    existingNote === null ||
+    existingNote === undefined ||
+    String(existingNote).trim() === ''
+  ) {
     ws.getCell(targetRowIndex, 31).value = autoNoteStr;
   } else {
     // Nếu đã có ghi chú cũ, chỉ append thêm các ghi chú tự động chưa tồn tại
     if (result.autoNotes && result.autoNotes.length > 0) {
       const existingStr = String(existingNote).trim();
       const newNotesToAppend = result.autoNotes
-        .map(note => note.trim())
-        .filter(note => note && !existingStr.includes(note));
+        .map((note) => note.trim())
+        .filter((note) => note && !existingStr.includes(note));
       if (newNotesToAppend.length > 0) {
-        ws.getCell(targetRowIndex, 31).value = existingStr + '; ' + newNotesToAppend.join('; ');
+        ws.getCell(targetRowIndex, 31).value =
+          existingStr + '; ' + newNotesToAppend.join('; ');
       }
     }
   }
@@ -530,7 +571,12 @@ async function updateNormalTrackerFile(
   }
 
   // ── Block 3: Parity styling and highlights ──────────────────────────────────
-  const compareAndHighlight = (colMs: number, colCqg: number, valMs: number, valCqg: number) => {
+  const compareAndHighlight = (
+    colMs: number,
+    colCqg: number,
+    valMs: number,
+    valCqg: number,
+  ) => {
     const cellMs = ws.getCell(targetRowIndex, colMs);
     const cellCqg = ws.getCell(targetRowIndex, colCqg);
 
@@ -538,11 +584,11 @@ async function updateNormalTrackerFile(
       const redFill: ExcelJS.Fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFFFC7CE' } // Light red background
+        fgColor: { argb: 'FFFFC7CE' }, // Light red background
       };
       const redFont: Partial<ExcelJS.Font> = {
         color: { argb: 'FF9C0006' }, // Dark red text
-        bold: true
+        bold: true,
       };
       cellMs.style = { ...cellMs.style, fill: redFill, font: redFont };
       cellCqg.style = { ...cellCqg.style, fill: redFill, font: redFont };
@@ -552,16 +598,20 @@ async function updateNormalTrackerFile(
         type: 'pattern',
         pattern: 'solid',
         fgColor: { theme: 9, tint: 0.5999938962981048 } as any,
-        bgColor: { indexed: 64 } as any
+        bgColor: { indexed: 64 } as any,
       };
       const defaultFont: Partial<ExcelJS.Font> = {
         size: 11,
-        color: { argb: 'FF000000' } as any,
+        color: { argb: 'FF000000' },
         name: 'Times New Roman',
-        family: 1
+        family: 1,
       };
       cellMs.style = { ...cellMs.style, fill: defaultFill, font: defaultFont };
-      cellCqg.style = { ...cellCqg.style, fill: defaultFill, font: defaultFont };
+      cellCqg.style = {
+        ...cellCqg.style,
+        fill: defaultFill,
+        font: defaultFont,
+      };
     }
   };
 
@@ -585,31 +635,61 @@ export async function updateAllCumulativeFiles(
 ) {
   // 1. Append raw DSGD
   if (paths.pathDsgdCumulative) {
-    await appendRawDsgd(dailyDsgdBuffer, paths.pathDsgdCumulative, result.ngayGD);
+    await appendRawDsgd(
+      dailyDsgdBuffer,
+      paths.pathDsgdCumulative,
+      result.ngayGD,
+    );
   }
 
   // 2. Update LME
   if (paths.pathLme) {
-    await updateTvkdTrackerFile(paths.pathLme, classifiedDsgd.dsgdLme, result.ngayGD, 'LME');
+    await updateTvkdTrackerFile(
+      paths.pathLme,
+      classifiedDsgd.dsgdLme,
+      result.ngayGD,
+      'LME',
+    );
   }
 
   // 3. Update Options
   if (paths.pathOptions) {
-    await updateTvkdTrackerFile(paths.pathOptions, classifiedDsgd.dsgdOptions, result.ngayGD, 'Options');
+    await updateTvkdTrackerFile(
+      paths.pathOptions,
+      classifiedDsgd.dsgdOptions,
+      result.ngayGD,
+      'Options',
+    );
   }
 
   // 4. Update Spread
   if (paths.pathSpread) {
-    await updateTvkdTrackerFile(paths.pathSpread, classifiedDsgd.dsgdSpread, result.ngayGD, 'Spread');
+    await updateTvkdTrackerFile(
+      paths.pathSpread,
+      classifiedDsgd.dsgdSpread,
+      result.ngayGD,
+      'Spread',
+    );
   }
 
   // 5. Update ACM
   if (paths.pathAcm) {
-    await updateAcmTrackerFile(paths.pathAcm, classifiedDsgd, ttttAcmRows, ttmAcmRows, result.ngayGD);
+    await updateAcmTrackerFile(
+      paths.pathAcm,
+      classifiedDsgd,
+      ttttAcmRows,
+      ttmAcmRows,
+      result.ngayGD,
+    );
   }
 
   // 6. Update Normal
   if (paths.pathNormal) {
-    await updateNormalTrackerFile(paths.pathNormal, result, classifiedDsgd, lmeExpiredLot);
+    await updateNormalTrackerFile(
+      paths.pathNormal,
+      result,
+      classifiedDsgd,
+      lmeExpiredLot,
+    );
   }
 }

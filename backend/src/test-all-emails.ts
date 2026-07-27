@@ -25,7 +25,10 @@ async function testAllEmails() {
   }
 
   // Intercept sendEmailNotification or nodemailer transporters to capture emails
-  const capturedEmails: Record<string, { subject: string; body: string; to: string[] }> = {};
+  const capturedEmails: Record<
+    string,
+    { subject: string; body: string; to: string[] }
+  > = {};
 
   // Mock sendEmailNotification
   marginCheckerService.sendEmailNotification = async (
@@ -36,10 +39,11 @@ async function testAllEmails() {
   ) => {
     let key = 'unknown';
     if (subject.includes('PRE-EOD')) key = 'pre-eod';
-    else if (subject.includes('EOD BALANCE') || subject.includes('SOD')) key = 'eod-balance';
+    else if (subject.includes('EOD BALANCE') || subject.includes('SOD'))
+      key = 'eod-balance';
     else if (subject.includes('Negative Margin')) key = 'negative-margin';
     else if (subject.includes('HANDOVER')) key = 'shift-handover';
-    
+
     capturedEmails[key] = { subject, body: htmlBody, to: toEmails };
     console.log(`[Email Intercepted] Subject: ${subject}`);
     return { success: true, messageId: `mock-id-${key}` };
@@ -48,7 +52,7 @@ async function testAllEmails() {
   // Mock global nodemailer sendMail if called directly via transporter
   const nodemailer = require('nodemailer');
   const originalCreateTransport = nodemailer.createTransport;
-  nodemailer.createTransport = function(options: any) {
+  nodemailer.createTransport = function (options: any) {
     return {
       sendMail: async (mailOptions: any) => {
         let key = 'unknown';
@@ -59,11 +63,14 @@ async function testAllEmails() {
         capturedEmails[key] = {
           subject,
           body: mailOptions.html || mailOptions.text,
-          to: typeof mailOptions.to === 'string' ? mailOptions.to.split(', ') : mailOptions.to || [],
+          to:
+            typeof mailOptions.to === 'string'
+              ? mailOptions.to.split(', ')
+              : mailOptions.to || [],
         };
         console.log(`[Nodemailer Intercepted] Subject: ${subject}`);
         return { messageId: `mock-id-${key}` };
-      }
+      },
     };
   };
 
@@ -124,10 +131,20 @@ async function testAllEmails() {
   console.log('\n--- 2. Testing EOD Balance Email Report ---');
   try {
     const discrepancies = [
-      { maTKGD: '000100', calculatedBalance: 12500, cqgBalance: 12000, differ: 500 },
-      { maTKGD: '000200', calculatedBalance: 4500, cqgBalance: 4500, differ: 0 },
+      {
+        maTKGD: '000100',
+        calculatedBalance: 12500,
+        cqgBalance: 12000,
+        differ: 500,
+      },
+      {
+        maTKGD: '000200',
+        calculatedBalance: 4500,
+        cqgBalance: 4500,
+        differ: 0,
+      },
     ];
-    
+
     // Soạn email tương tự runAutoCheckSOD
     let discrepanciesRowsHtml = '';
     discrepancies.forEach((d) => {
@@ -180,7 +197,10 @@ async function testAllEmails() {
     const balanceAccs = ['000100', '000300'];
     const imrAccs = ['000200', '000400'];
 
-    const html = reconciliationService['buildNegativeMarginEmailHtml'](balanceAccs, imrAccs);
+    const html = reconciliationService['buildNegativeMarginEmailHtml'](
+      balanceAccs,
+      imrAccs,
+    );
     await marginCheckerService.sendEmailNotification(
       await marginCheckerService.loadConfig(),
       ['test-negative-margin@mxv.vn'],
@@ -202,7 +222,9 @@ async function testAllEmails() {
       status: 'FAILED',
       attempts: 3,
       maxAttempts: 3,
-      payload: new Map(Object.entries({ targetDate: '2026-07-11', taskChecklistId: '123' })),
+      payload: new Map(
+        Object.entries({ targetDate: '2026-07-11', taskChecklistId: '123' }),
+      ),
       logs: [
         'Connecting to CQG client...',
         'Timeout error after 60000ms',
@@ -211,7 +233,10 @@ async function testAllEmails() {
       save: async () => mockJob,
     };
 
-    await botJobQueueService['sendOperationalFailureAlert'](mockJob, 'CQG Client Connection Timeout');
+    await botJobQueueService['sendOperationalFailureAlert'](
+      mockJob,
+      'CQG Client Connection Timeout',
+    );
   } catch (err: any) {
     console.error('Lỗi test Bot Failure:', err.message);
   }
@@ -228,11 +253,32 @@ async function testAllEmails() {
       closedBy: { fullName: 'Nguyễn Văn A' },
       closedAt: new Date(),
       progressPercentage: 95.5,
-      handoverNote: 'Ca trực diễn ra bình thường. Các bot chạy ổn định. Lưu ý kiểm tra file excel sao lưu CE.',
+      handoverNote:
+        'Ca trực diễn ra bình thường. Các bot chạy ổn định. Lưu ý kiểm tra file excel sao lưu CE.',
       details: [
-        { taskId: 'TASK01', taskNameSnapshot: 'Kiểm tra trạng thái kết nối server', isChecked: true, status: 'PASSED', updatedBy: { fullName: 'Nguyễn Văn A' }, note: 'OK' },
-        { taskId: 'TASK02', taskNameSnapshot: 'Chạy bot download báo cáo CQG', isChecked: true, status: 'PASSED', updatedBy: { fullName: 'Nguyễn Văn A' } },
-        { taskId: 'TASK03', taskNameSnapshot: 'Đối chiếu số dư SOD', isChecked: false, status: 'FAILED', updatedBy: { fullName: 'Nguyễn Văn A' }, note: 'Lệch $150 ở tài khoản 000100' },
+        {
+          taskId: 'TASK01',
+          taskNameSnapshot: 'Kiểm tra trạng thái kết nối server',
+          isChecked: true,
+          status: 'PASSED',
+          updatedBy: { fullName: 'Nguyễn Văn A' },
+          note: 'OK',
+        },
+        {
+          taskId: 'TASK02',
+          taskNameSnapshot: 'Chạy bot download báo cáo CQG',
+          isChecked: true,
+          status: 'PASSED',
+          updatedBy: { fullName: 'Nguyễn Văn A' },
+        },
+        {
+          taskId: 'TASK03',
+          taskNameSnapshot: 'Đối chiếu số dư SOD',
+          isChecked: false,
+          status: 'FAILED',
+          updatedBy: { fullName: 'Nguyễn Văn A' },
+          note: 'Lệch $150 ở tài khoản 000100',
+        },
       ],
     };
 
@@ -246,15 +292,27 @@ async function testAllEmails() {
   // ==========================================
   console.log('\n--- 6. Testing Security Audit Email Alert ---');
   try {
-    const oldValue = JSON.stringify({
-      smtp: { host: 'smtp.oldserver.com', port: 25 }
-    }, null, 2);
+    const oldValue = JSON.stringify(
+      {
+        smtp: { host: 'smtp.oldserver.com', port: 25 },
+      },
+      null,
+      2,
+    );
 
-    const newValue = JSON.stringify({
-      smtp: { host: 'smtp.office365.com', port: 587 }
-    }, null, 2);
+    const newValue = JSON.stringify(
+      {
+        smtp: { host: 'smtp.office365.com', port: 587 },
+      },
+      null,
+      2,
+    );
 
-    await settingsService['sendSecurityAuditEmail']('margin_checker_config', oldValue, newValue);
+    await settingsService['sendSecurityAuditEmail'](
+      'margin_checker_config',
+      oldValue,
+      newValue,
+    );
   } catch (err: any) {
     console.error('Lỗi test Security Audit:', err.message);
   }
@@ -265,7 +323,7 @@ async function testAllEmails() {
   console.log('\n==========================================');
   console.log('TỔNG HỢP KẾT QUẢ PREVIEW:');
   console.log('==========================================');
-  
+
   Object.entries(capturedEmails).forEach(([key, data]) => {
     const filePath = path.join(tempDir, `${key}-preview.html`);
     fs.writeFileSync(filePath, data.body, 'utf8');
@@ -275,7 +333,9 @@ async function testAllEmails() {
     console.log(`    - To: ${data.to.join(', ')}`);
   });
 
-  console.log('\n✔ Hoàn thành kiểm thử. Tất cả email mock đã được xuất và lưu thành công.');
+  console.log(
+    '\n✔ Hoàn thành kiểm thử. Tất cả email mock đã được xuất và lưu thành công.',
+  );
 
   // Restore original nodemailer
   nodemailer.createTransport = originalCreateTransport;

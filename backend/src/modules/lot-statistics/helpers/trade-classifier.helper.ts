@@ -43,13 +43,13 @@ export function isOptions(loaiHD: string): boolean {
 // VBA: Sheet2!A5, col4 = maTKGD (field:=4 = cột D), col6 = loaiHD, col17 = lot
 
 export interface DsgdClassified {
-  dsgd: ParsedRow[];         // Tất cả Futures (kể cả Spread/LME/Options, trừ ACM)
+  dsgd: ParsedRow[]; // Tất cả Futures (kể cả Spread/LME/Options, trừ ACM)
   dsgdSpread: ParsedRow[];
   dsgdLme: ParsedRow[];
   dsgdOptions: ParsedRow[];
-  acm: ParsedRow[];          // Tất cả ACM
-  dsgdAcm: ParsedRow[];      // ACM thường (không phải test)
-  testAcm: ParsedRow[];      // ACM test (999*)
+  acm: ParsedRow[]; // Tất cả ACM
+  dsgdAcm: ParsedRow[]; // ACM thường (không phải test)
+  testAcm: ParsedRow[]; // ACM test (999*)
 }
 
 /**
@@ -61,7 +61,13 @@ export function classifyDsgd(rows: ParsedRow[]): DsgdClassified {
   const getMaTKGD = (r: ParsedRow) =>
     toStr(r['Mã TKGD'] ?? r['MA_TKGD'] ?? r['col4']);
   const getLoaiHD = (r: ParsedRow) =>
-    toStr(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['Loại HĐ'] ?? r['LOAI_HD'] ?? r['col6']);
+    toStr(
+      r['Mã HĐ'] ??
+        r['Mã Hợp Đồng'] ??
+        r['Loại HĐ'] ??
+        r['LOAI_HD'] ??
+        r['col6'],
+    );
 
   const acm = rows.filter((r) => isAcm(getMaTKGD(r)));
   const dsgd = rows.filter((r) => !isAcm(getMaTKGD(r)));
@@ -114,8 +120,7 @@ export interface TtmClassified {
 }
 
 export function classifyTtm(rows: ParsedRow[]): TtmClassified {
-  const getMaTKGD = (r: ParsedRow) =>
-    toStr(r['Mã TKGD'] ?? r['col8']);
+  const getMaTKGD = (r: ParsedRow) => toStr(r['Mã TKGD'] ?? r['col8']);
   const getLoaiHD = (r: ParsedRow) =>
     toStr(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['Loại HĐ'] ?? r['col10']);
 
@@ -148,8 +153,7 @@ export function classifyTttt(
   rows: ParsedRow[],
   filterLmeKyHan?: string,
 ): TtttClassified {
-  const getMaTKGD = (r: ParsedRow) =>
-    toStr(r['Mã TKGD'] ?? r['col8']);
+  const getMaTKGD = (r: ParsedRow) => toStr(r['Mã TKGD'] ?? r['col8']);
   const getLoaiHD = (r: ParsedRow) =>
     toStr(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['Loại HĐ'] ?? r['col10']);
   // VBA: G2 = RIGHT(J2, 3) → 3 ký tự cuối col10 (maKyHan)
@@ -168,10 +172,9 @@ export function classifyTttt(
   const ttttOptions = tttt.filter((r) => isOptions(getLoaiHD(r)));
 
   // LME Expired: LME + kỳ hạn đã hết hạn
-  const lmeExpired =
-    filterLmeKyHan
-      ? ttttLme.filter((r) => getMaKyHanNgan(r) === filterLmeKyHan)
-      : [];
+  const lmeExpired = filterLmeKyHan
+    ? ttttLme.filter((r) => getMaKyHanNgan(r) === filterLmeKyHan)
+    : [];
 
   return { tttt, ttttSpread, ttttLme, ttttOptions, ttttAcm, lmeExpired };
 }
@@ -195,8 +198,12 @@ export function classifyOp(rows: ParsedRow[]): OpClassified {
 
   const validRows = rows.filter((r) => getMaTKGD(r) !== '');
 
-  const opSpread = validRows.filter((r) => getMaTKGD(r).toUpperCase().endsWith('S'));
-  const opLme = validRows.filter((r) => getMaTKGD(r).toUpperCase().endsWith('L'));
+  const opSpread = validRows.filter((r) =>
+    getMaTKGD(r).toUpperCase().endsWith('S'),
+  );
+  const opLme = validRows.filter((r) =>
+    getMaTKGD(r).toUpperCase().endsWith('L'),
+  );
   const opOptions = validRows.filter((r) => isOptions(getLoaiHD(r)));
 
   return { op: validRows, opSpread, opLme, opOptions };
@@ -220,8 +227,12 @@ export function classifyPs(rows: ParsedRow[]): PsClassified {
 
   const validRows = rows.filter((r) => getMaTKGD(r) !== '');
 
-  const psSpread = validRows.filter((r) => getMaTKGD(r).toUpperCase().endsWith('S'));
-  const psLme = validRows.filter((r) => getMaTKGD(r).toUpperCase().endsWith('L'));
+  const psSpread = validRows.filter((r) =>
+    getMaTKGD(r).toUpperCase().endsWith('S'),
+  );
+  const psLme = validRows.filter((r) =>
+    getMaTKGD(r).toUpperCase().endsWith('L'),
+  );
   const psOptions = validRows.filter((r) => isOptions(getLoaiHD(r)));
 
   return { ps: validRows, psSpread, psLme, psOptions };

@@ -9,7 +9,8 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const reconService = app.get(ReconciliationService);
 
-  const checkEodDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\CHECKEOD';
+  const checkEodDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\CHECKEOD';
   const ttttPath = path.join(checkEodDir, 'TTTT 3.xlsx');
   const psPath = path.join(checkEodDir, 'PS 1.xlsx');
 
@@ -25,13 +26,17 @@ async function main() {
   console.log('\n--- 1. PARSING TTTT ---');
   const ttttParsed = service.parseTTTTForRecon(ttttBuffer);
   console.log(`Total TTTT parsed items: ${ttttParsed.length}`);
-  const targetTttt = ttttParsed.filter((x: any) => x.account.includes('041C0888668'));
+  const targetTttt = ttttParsed.filter((x: any) =>
+    x.account.includes('041C0888668'),
+  );
   console.log('Target account items in TTTT:', targetTttt);
 
   console.log('\n--- 2. PARSING PS ---');
   const psParsed = service.parsePSForRecon(psBuffer, new Date('2026-07-14'));
   console.log(`Total PS parsed items: ${psParsed.length}`);
-  const targetPs = psParsed.filter((x: any) => x.account.includes('041C0888668'));
+  const targetPs = psParsed.filter((x: any) =>
+    x.account.includes('041C0888668'),
+  );
   console.log('Target account items in PS:', targetPs);
 
   // Run Check 4 from checkKLGD (closed trades check)
@@ -69,9 +74,11 @@ async function main() {
     psGrouped[key] = (psGrouped[key] || 0) + item.position;
   });
 
-  const keys = Array.from(new Set([...Object.keys(ttttGrouped), ...Object.keys(psGrouped)]));
-  const targetKeys = keys.filter(k => k.includes('041C0888668'));
-  targetKeys.forEach(k => {
+  const keys = Array.from(
+    new Set([...Object.keys(ttttGrouped), ...Object.keys(psGrouped)]),
+  );
+  const targetKeys = keys.filter((k) => k.includes('041C0888668'));
+  targetKeys.forEach((k) => {
     console.log(`  Key: ${k}`);
     console.log(`    M-System TTTT Realized P&L:`, ttttGrouped[k] || 0);
     console.log(`    CQG PS Realized P&L:`, psGrouped[k] || 0);

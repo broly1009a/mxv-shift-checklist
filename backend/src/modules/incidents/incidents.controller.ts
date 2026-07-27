@@ -1,4 +1,14 @@
-import { Controller, UseGuards, Post, Get, Patch, Body, Param, Request, Res } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Request,
+  Res,
+} from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -9,7 +19,8 @@ export class IncidentsController {
 
   @Post()
   async createIncident(@Request() req: any, @Body() body: any) {
-    const { shiftLogId, taskId, code, severity, requiredAction, slaMinutes } = body;
+    const { shiftLogId, taskId, code, severity, requiredAction, slaMinutes } =
+      body;
     const actor = req.user.fullName || req.user.username;
     return this.incidentsService.createIncident(
       shiftLogId,
@@ -24,7 +35,10 @@ export class IncidentsController {
   }
 
   @Get('shift/:shiftLogId')
-  async getByShift(@Request() req: any, @Param('shiftLogId') shiftLogId: string) {
+  async getByShift(
+    @Request() req: any,
+    @Param('shiftLogId') shiftLogId: string,
+  ) {
     return this.incidentsService.getIncidentsByShift(shiftLogId, req.user);
   }
 
@@ -39,7 +53,11 @@ export class IncidentsController {
     @Request() req: any,
     @Res() res: any,
   ) {
-    return this.incidentsService.exportIncidentReport(incidentId, req.user, res);
+    return this.incidentsService.exportIncidentReport(
+      incidentId,
+      req.user,
+      res,
+    );
   }
 
   @Patch(':id/resolve')

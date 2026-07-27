@@ -40,7 +40,11 @@ export interface TradingReportConfig {
 
 @Injectable()
 export class TradingReportService {
-  private readonly uploadDir = path.join(process.cwd(), 'uploads', 'trading-report');
+  private readonly uploadDir = path.join(
+    process.cwd(),
+    'uploads',
+    'trading-report',
+  );
 
   constructor(
     @InjectModel(ExchangeRate.name)
@@ -54,7 +58,10 @@ export class TradingReportService {
 
   // --- Configuration ---
   async getConfig(): Promise<TradingReportConfig> {
-    const value = await this.systemSettingsService.getSetting('trading_report_config', '');
+    const value = await this.systemSettingsService.getSetting(
+      'trading_report_config',
+      '',
+    );
     if (!value) {
       return {
         LMECode: DEFAULT_LME_CODES,
@@ -76,7 +83,10 @@ export class TradingReportService {
   }
 
   async saveConfig(config: any): Promise<{ success: boolean }> {
-    await this.systemSettingsService.setSetting('trading_report_config', JSON.stringify(config));
+    await this.systemSettingsService.setSetting(
+      'trading_report_config',
+      JSON.stringify(config),
+    );
     return { success: true };
   }
 
@@ -87,9 +97,14 @@ export class TradingReportService {
 
   async saveExchangeRate(body: any): Promise<ExchangeRate> {
     if (body.id) {
-      const updated = await this.exchangeRateModel.findByIdAndUpdate(body.id, body, { new: true }).exec();
+      const updated = await this.exchangeRateModel
+        .findByIdAndUpdate(body.id, body, { new: true })
+        .exec();
       if (!updated) {
-        throw new HttpException('Không tìm thấy tỷ giá để cập nhật', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Không tìm thấy tỷ giá để cập nhật',
+          HttpStatus.NOT_FOUND,
+        );
       }
       return updated;
     }
@@ -101,12 +116,17 @@ export class TradingReportService {
     return { success: true };
   }
 
-  async importExchangeRates(buffer: Buffer): Promise<{ success: boolean; count: number }> {
+  async importExchangeRates(
+    buffer: Buffer,
+  ): Promise<{ success: boolean; count: number }> {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
     if (rows.length < 2) {
-      throw new HttpException('File rỗng hoặc không đúng cấu trúc.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'File rỗng hoặc không đúng cấu trúc.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const headerRow = rows[0];
@@ -116,7 +136,9 @@ export class TradingReportService {
     let dateCol = -1;
 
     for (let col = 0; col < headerRow.length; col++) {
-      const h = String(headerRow[col] || '').trim().toLowerCase();
+      const h = String(headerRow[col] || '')
+        .trim()
+        .toLowerCase();
       if (h === 'đồng tiền yết giá') fromCol = col;
       if (h === 'đồng tiền định giá') toCol = col;
       if (h === 'tỷ giá quy đổi') rateCol = col;
@@ -124,7 +146,10 @@ export class TradingReportService {
     }
 
     if (fromCol === -1 || toCol === -1 || rateCol === -1 || dateCol === -1) {
-      throw new HttpException('Không tìm thấy đủ các cột tiêu chuẩn.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Không tìm thấy đủ các cột tiêu chuẩn.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     let count = 0;
@@ -132,11 +157,14 @@ export class TradingReportService {
 
     for (let row = 1; row < rows.length; row++) {
       const r = rows[row];
-      if (!r || r.length <= Math.max(fromCol, toCol, rateCol, dateCol)) continue;
+      if (!r || r.length <= Math.max(fromCol, toCol, rateCol, dateCol))
+        continue;
 
       const from = String(r[fromCol] || '').trim();
       const to = String(r[toCol] || '').trim();
-      const rateStr = String(r[rateCol] || '').trim().replace(/,/g, '');
+      const rateStr = String(r[rateCol] || '')
+        .trim()
+        .replace(/,/g, '');
       const dateStr = String(r[dateCol] || '').trim();
 
       if (!from || !to || !rateStr || !dateStr) continue;
@@ -144,7 +172,9 @@ export class TradingReportService {
       const rate = parseFloat(rateStr);
       let effectiveFrom: Date;
       if (!isNaN(Number(dateStr))) {
-        effectiveFrom = new Date((Number(dateStr) - (25567 + 2)) * 86400 * 1000);
+        effectiveFrom = new Date(
+          (Number(dateStr) - (25567 + 2)) * 86400 * 1000,
+        );
       } else {
         effectiveFrom = new Date(dateStr);
       }
@@ -161,7 +191,9 @@ export class TradingReportService {
     }
 
     if (ratesToInsert.length > 0) {
-      ratesToInsert.sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime());
+      ratesToInsert.sort(
+        (a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime(),
+      );
 
       const grouped: Record<string, any[]> = {};
       for (const item of ratesToInsert) {
@@ -197,12 +229,19 @@ export class TradingReportService {
   }
 
   // --- Reports processing helper parsers ---
-  private parseDSGD(buffers: Buffer[]): { MaTKGD: string; MaHD: string; KLGiaoDich: number; NgayGiaoDich: string }[] {
+  private parseDSGD(buffers: Buffer[]): {
+    MaTKGD: string;
+    MaHD: string;
+    KLGiaoDich: number;
+    NgayGiaoDich: string;
+  }[] {
     const result: any[] = [];
     for (const buffer of buffers) {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const rows = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+      }) as any[][];
       if (rows.length < 2) continue;
 
       const headerRow = rows[0];
@@ -212,29 +251,50 @@ export class TradingReportService {
       let ngayGDIndex = -1;
 
       for (let col = 0; col < headerRow.length; col++) {
-        const h = String(headerRow[col] || '').trim().toLowerCase();
+        const h = String(headerRow[col] || '')
+          .trim()
+          .toLowerCase();
         if (h === 'mã tkgd') maTKGDIndex = col;
         if (h === 'mã hd' || h === 'mã hđ') maHDIndex = col;
         if (h === 'kl giao dịch') klGiaoDichIndex = col;
         if (h === 'ngày giờ thực hiện') ngayGDIndex = col;
       }
 
-      if (maTKGDIndex === -1 || maHDIndex === -1 || klGiaoDichIndex === -1 || ngayGDIndex === -1) {
-        throw new Error('Không tìm thấy đủ các cột trong file giao dịch (DSGD)');
+      if (
+        maTKGDIndex === -1 ||
+        maHDIndex === -1 ||
+        klGiaoDichIndex === -1 ||
+        ngayGDIndex === -1
+      ) {
+        throw new Error(
+          'Không tìm thấy đủ các cột trong file giao dịch (DSGD)',
+        );
       }
 
       for (let row = 1; row < rows.length; row++) {
         const r = rows[row];
-        if (!r || r.length <= Math.max(maTKGDIndex, maHDIndex, klGiaoDichIndex, ngayGDIndex)) continue;
+        if (
+          !r ||
+          r.length <=
+            Math.max(maTKGDIndex, maHDIndex, klGiaoDichIndex, ngayGDIndex)
+        )
+          continue;
 
         const maTKGD = String(r[maTKGDIndex] || '').trim();
         const maHD = String(r[maHDIndex] || '').trim();
-        const klGiaoDichStr = String(r[klGiaoDichIndex] || '').trim().replace(/,/g, '');
+        const klGiaoDichStr = String(r[klGiaoDichIndex] || '')
+          .trim()
+          .replace(/,/g, '');
         const ngayGD = String(r[ngayGDIndex] || '').trim();
 
         if (!maTKGD || !maHD) continue;
         const klGiaoDich = parseFloat(klGiaoDichStr) || 0;
-        result.push({ MaTKGD: maTKGD, MaHD: maHD, KLGiaoDich: klGiaoDich, NgayGiaoDich: ngayGD });
+        result.push({
+          MaTKGD: maTKGD,
+          MaHD: maHD,
+          KLGiaoDich: klGiaoDich,
+          NgayGiaoDich: ngayGD,
+        });
       }
     }
     return result;
@@ -255,7 +315,9 @@ export class TradingReportService {
     for (const buffer of buffers) {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const rows = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+      }) as any[][];
       if (rows.length < 2) continue;
 
       const headerRow = rows[0];
@@ -270,7 +332,9 @@ export class TradingReportService {
       let ngayPhienGhepIndex = -1;
 
       for (let col = 0; col < headerRow.length; col++) {
-        const h = String(headerRow[col] || '').trim().toLowerCase();
+        const h = String(headerRow[col] || '')
+          .trim()
+          .toLowerCase();
         if (h === 'mã tkgd') maTKGDIndex = col;
         if (h === 'mã hd' || h === 'mã hđ') maHDIndex = col;
         if (h === 'kl mua') klMuaIndex = col;
@@ -298,16 +362,37 @@ export class TradingReportService {
 
       for (let row = 1; row < rows.length; row++) {
         const r = rows[row];
-        if (!r || r.length <= Math.max(maTKGDIndex, maHDIndex, klMuaIndex, klBanIndex, giaMuaIndex, giaBanIndex, laiLoUSDIndex, laiLoVNDIndex, ngayPhienGhepIndex)) continue;
+        if (
+          !r ||
+          r.length <=
+            Math.max(
+              maTKGDIndex,
+              maHDIndex,
+              klMuaIndex,
+              klBanIndex,
+              giaMuaIndex,
+              giaBanIndex,
+              laiLoUSDIndex,
+              laiLoVNDIndex,
+              ngayPhienGhepIndex,
+            )
+        )
+          continue;
 
         const maTKGD = String(r[maTKGDIndex] || '').trim();
         const maHD = String(r[maHDIndex] || '').trim();
-        const klMua = parseFloat(String(r[klMuaIndex] || '').replace(/,/g, '')) || 0;
-        const klBan = parseFloat(String(r[klBanIndex] || '').replace(/,/g, '')) || 0;
-        const giaMua = parseFloat(String(r[giaMuaIndex] || '').replace(/,/g, '')) || 0;
-        const giaBan = parseFloat(String(r[giaBanIndex] || '').replace(/,/g, '')) || 0;
-        const laiLoUSD = parseFloat(String(r[laiLoUSDIndex] || '').replace(/,/g, '')) || 0;
-        const laiLoVND = parseFloat(String(r[laiLoVNDIndex] || '').replace(/,/g, '')) || 0;
+        const klMua =
+          parseFloat(String(r[klMuaIndex] || '').replace(/,/g, '')) || 0;
+        const klBan =
+          parseFloat(String(r[klBanIndex] || '').replace(/,/g, '')) || 0;
+        const giaMua =
+          parseFloat(String(r[giaMuaIndex] || '').replace(/,/g, '')) || 0;
+        const giaBan =
+          parseFloat(String(r[giaBanIndex] || '').replace(/,/g, '')) || 0;
+        const laiLoUSD =
+          parseFloat(String(r[laiLoUSDIndex] || '').replace(/,/g, '')) || 0;
+        const laiLoVND =
+          parseFloat(String(r[laiLoVNDIndex] || '').replace(/,/g, '')) || 0;
         const ngayPhienGhep = String(r[ngayPhienGhepIndex] || '').trim();
 
         if (!maTKGD || !maHD) continue;
@@ -338,7 +423,9 @@ export class TradingReportService {
     for (const buffer of buffers) {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const rows = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+      }) as any[][];
       if (rows.length < 2) continue;
 
       const headerRow = rows[0];
@@ -348,7 +435,9 @@ export class TradingReportService {
       let dateCol = -1;
 
       for (let col = 0; col < headerRow.length; col++) {
-        const h = String(headerRow[col] || '').trim().toLowerCase();
+        const h = String(headerRow[col] || '')
+          .trim()
+          .toLowerCase();
         if (h === 'đồng tiền yết giá') fromCol = col;
         if (h === 'đồng tiền định giá') toCol = col;
         if (h === 'tỷ giá quy đổi') rateCol = col;
@@ -361,18 +450,23 @@ export class TradingReportService {
 
       for (let row = 1; row < rows.length; row++) {
         const r = rows[row];
-        if (!r || r.length <= Math.max(fromCol, toCol, rateCol, dateCol)) continue;
+        if (!r || r.length <= Math.max(fromCol, toCol, rateCol, dateCol))
+          continue;
 
         const from = String(r[fromCol] || '').trim();
         const to = String(r[toCol] || '').trim();
-        const rateStr = String(r[rateCol] || '').trim().replace(/,/g, '');
+        const rateStr = String(r[rateCol] || '')
+          .trim()
+          .replace(/,/g, '');
         const dateStr = String(r[dateCol] || '').trim();
 
         if (!from || !to || !rateStr || !dateStr) continue;
         const rate = parseFloat(rateStr);
         let effectiveFrom: Date;
         if (!isNaN(Number(dateStr))) {
-          effectiveFrom = new Date((Number(dateStr) - (25567 + 2)) * 86400 * 1000);
+          effectiveFrom = new Date(
+            (Number(dateStr) - (25567 + 2)) * 86400 * 1000,
+          );
         } else {
           effectiveFrom = new Date(dateStr);
         }
@@ -391,10 +485,13 @@ export class TradingReportService {
     }
 
     for (const group of Object.values(grouped)) {
-      group.sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime());
+      group.sort(
+        (a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime(),
+      );
       for (let i = 0; i < group.length; i++) {
         const current = group[i];
-        current.effectiveTo = i < group.length - 1 ? group[i + 1].effectiveFrom : undefined;
+        current.effectiveTo =
+          i < group.length - 1 ? group[i + 1].effectiveFrom : undefined;
         result.push(current);
       }
     }
@@ -405,7 +502,8 @@ export class TradingReportService {
   // --- Date helpers ---
   private getFirstWorkingDayOfMonth(year: number, month: number): Date {
     const date = new Date(year, month - 1, 1);
-    while (date.getDay() === 0 || date.getDay() === 6) { // 0 Sunday, 6 Saturday
+    while (date.getDay() === 0 || date.getDay() === 6) {
+      // 0 Sunday, 6 Saturday
       date.setDate(date.getDate() + 1);
     }
     return date;
@@ -442,7 +540,9 @@ export class TradingReportService {
       throw new Error(`Mã hàng hóa ${raw} không đúng định dạng`);
     }
 
-    const mCode = raw.substring(monthCodeIndex, monthCodeIndex + 1).toUpperCase();
+    const mCode = raw
+      .substring(monthCodeIndex, monthCodeIndex + 1)
+      .toUpperCase();
     if (!monthCode[mCode]) {
       throw new Error(`Mã hàng hóa ${raw} không đúng định dạng`);
     }
@@ -507,9 +607,29 @@ export class TradingReportService {
     for (const item of config.members) {
       if (reportTypes.Member) {
         if (item.LoaiHH.includes('ACM')) {
-          memberACMRows.push([item.MaTVKD, item.TenTVKD, 0, 0, 0, 0, defaultDate, 0, defaultDate]);
+          memberACMRows.push([
+            item.MaTVKD,
+            item.TenTVKD,
+            0,
+            0,
+            0,
+            0,
+            defaultDate,
+            0,
+            defaultDate,
+          ]);
         }
-        memberRows.push([item.MaTVKD, item.TenTVKD, 0, 0, 0, 0, defaultDate, 0, defaultDate]);
+        memberRows.push([
+          item.MaTVKD,
+          item.TenTVKD,
+          0,
+          0,
+          0,
+          0,
+          defaultDate,
+          0,
+          defaultDate,
+        ]);
       }
       if (reportTypes.Spread && item.LoaiHH.includes('Spread')) {
         spreadRows.push([item.MaTVKD, item.TenTVKD, 0, 0, 0]);
@@ -524,11 +644,30 @@ export class TradingReportService {
 
     for (const item of config.commodities) {
       if (reportTypes.Commodity) {
-        if (!item.MaHangHoa.startsWith('C.') && !item.MaHangHoa.startsWith('P.')) {
+        if (
+          !item.MaHangHoa.startsWith('C.') &&
+          !item.MaHangHoa.startsWith('P.')
+        ) {
           if (item.TenHangHoa.endsWith('ACM')) {
-            commodityACMRows.push([item.TenHangHoa, 0, 0, 0, 0, '', item.MaHangHoa]);
+            commodityACMRows.push([
+              item.TenHangHoa,
+              0,
+              0,
+              0,
+              0,
+              '',
+              item.MaHangHoa,
+            ]);
           } else {
-            commodityRows.push([item.TenHangHoa, 0, 0, 0, 0, '', item.MaHangHoa]);
+            commodityRows.push([
+              item.TenHangHoa,
+              0,
+              0,
+              0,
+              0,
+              '',
+              item.MaHangHoa,
+            ]);
           }
         }
       }
@@ -573,7 +712,9 @@ export class TradingReportService {
 
       for (const [memberCode, group] of Object.entries(groupedByMember)) {
         const matchedMemberRow = memberRows.find((r) => r[0] === memberCode);
-        const matchedMemberACMRow = memberACMRows.find((r) => r[0] === memberCode);
+        const matchedMemberACMRow = memberACMRows.find(
+          (r) => r[0] === memberCode,
+        );
 
         // ACM items
         const acmItems = group
@@ -588,12 +729,17 @@ export class TradingReportService {
           });
 
         if (acmItems.length > 0 && matchedMemberACMRow) {
-          const totalVolume = acmItems.reduce((sum, item) => sum + item.Volume, 0);
+          const totalVolume = acmItems.reduce(
+            (sum, item) => sum + item.Volume,
+            0,
+          );
           const dateGroups: Record<string, number> = {};
           for (const item of acmItems) {
             dateGroups[item.Date] = (dateGroups[item.Date] || 0) + item.Volume;
           }
-          const sortedDates = Object.entries(dateGroups).map(([date, volume]) => ({ date, volume }));
+          const sortedDates = Object.entries(dateGroups).map(
+            ([date, volume]) => ({ date, volume }),
+          );
           const max = sortedDates.sort((a, b) => b.volume - a.volume)[0];
           const min = sortedDates.sort((a, b) => a.volume - b.volume)[0];
 
@@ -619,12 +765,17 @@ export class TradingReportService {
           });
 
         if (memberItems.length > 0 && matchedMemberRow) {
-          const totalVolume = memberItems.reduce((sum, item) => sum + item.Volume, 0);
+          const totalVolume = memberItems.reduce(
+            (sum, item) => sum + item.Volume,
+            0,
+          );
           const dateGroups: Record<string, number> = {};
           for (const item of memberItems) {
             dateGroups[item.Date] = (dateGroups[item.Date] || 0) + item.Volume;
           }
-          const sortedDates = Object.entries(dateGroups).map(([date, volume]) => ({ date, volume }));
+          const sortedDates = Object.entries(dateGroups).map(
+            ([date, volume]) => ({ date, volume }),
+          );
           const max = sortedDates.sort((a, b) => b.volume - a.volume)[0];
           const min = sortedDates.sort((a, b) => a.volume - b.volume)[0];
 
@@ -659,22 +810,32 @@ export class TradingReportService {
         }
       }
       if (reportTypes.Spread) {
-        const matchedRow = spreadRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
+        const matchedRow = spreadRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
         if (item.MaTKGD.endsWith('S') && matchedRow) {
           matchedRow[3] += item.KLGiaoDich;
           totalSpreadT += item.KLGiaoDich;
         }
       }
       if (reportTypes.LME) {
-        const matchedRow = lmeRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
+        const matchedRow = lmeRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
         if (item.MaTKGD.endsWith('L') && matchedRow) {
           matchedRow[3] += item.KLGiaoDich;
           totalLmeT += item.KLGiaoDich;
         }
       }
       if (reportTypes.Option) {
-        const matchedRow = optionRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
-        if ((item.MaHD.toUpperCase().includes('C.') || item.MaHD.toUpperCase().includes('P.')) && matchedRow) {
+        const matchedRow = optionRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
+        if (
+          (item.MaHD.toUpperCase().includes('C.') ||
+            item.MaHD.toUpperCase().includes('P.')) &&
+          matchedRow
+        ) {
           matchedRow[3] += item.KLGiaoDich;
           totalOptionT += item.KLGiaoDich;
         }
@@ -684,8 +845,12 @@ export class TradingReportService {
     // --- Process DSGDT1 (Month T-1) ---
     for (const item of dsgdT1) {
       if (reportTypes.Member) {
-        const matchedRow = memberRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
-        const matchedACMRow = memberACMRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
+        const matchedRow = memberRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
+        const matchedACMRow = memberACMRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
         if (item.MaTKGD.endsWith('A')) {
           if (matchedACMRow) {
             matchedACMRow[2] += item.KLGiaoDich;
@@ -716,22 +881,32 @@ export class TradingReportService {
         }
       }
       if (reportTypes.Spread) {
-        const matchedRow = spreadRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
+        const matchedRow = spreadRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
         if (item.MaTKGD.endsWith('S') && matchedRow) {
           matchedRow[2] += item.KLGiaoDich;
           totalSpreadT1 += item.KLGiaoDich;
         }
       }
       if (reportTypes.LME) {
-        const matchedRow = lmeRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
+        const matchedRow = lmeRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
         if (item.MaTKGD.endsWith('L') && matchedRow) {
           matchedRow[2] += item.KLGiaoDich;
           totalLmeT1 += item.KLGiaoDich;
         }
       }
       if (reportTypes.Option) {
-        const matchedRow = optionRows.find((r) => r[0] === item.MaTKGD.substring(0, 3));
-        if ((item.MaHD.toUpperCase().includes('C.') || item.MaHD.toUpperCase().includes('P.')) && matchedRow) {
+        const matchedRow = optionRows.find(
+          (r) => r[0] === item.MaTKGD.substring(0, 3),
+        );
+        if (
+          (item.MaHD.toUpperCase().includes('C.') ||
+            item.MaHD.toUpperCase().includes('P.')) &&
+          matchedRow
+        ) {
           matchedRow[2] += item.KLGiaoDich;
           totalOptionT1 += item.KLGiaoDich;
         }
@@ -768,22 +943,28 @@ export class TradingReportService {
 
     // Member Peak & Valley totals across dates
     if (reportTypes.Member) {
-      const dailyTotals = dsgdT.reduce((acc, item) => {
-        const tradeTime = this.parseDateString(item.NgayGiaoDich);
-        const sessionDate = this.getSessionDate(tradeTime, startSession);
-        const dateStr = this.formatDayMonth(sessionDate);
-        if (!acc[dateStr]) {
-          acc[dateStr] = { ACM: 0, nonACM: 0 };
-        }
-        if (item.MaTKGD.endsWith('A')) {
-          acc[dateStr].ACM += item.KLGiaoDich;
-        } else {
-          acc[dateStr].nonACM += item.KLGiaoDich;
-        }
-        return acc;
-      }, {} as Record<string, { ACM: number; nonACM: number }>);
+      const dailyTotals = dsgdT.reduce(
+        (acc, item) => {
+          const tradeTime = this.parseDateString(item.NgayGiaoDich);
+          const sessionDate = this.getSessionDate(tradeTime, startSession);
+          const dateStr = this.formatDayMonth(sessionDate);
+          if (!acc[dateStr]) {
+            acc[dateStr] = { ACM: 0, nonACM: 0 };
+          }
+          if (item.MaTKGD.endsWith('A')) {
+            acc[dateStr].ACM += item.KLGiaoDich;
+          } else {
+            acc[dateStr].nonACM += item.KLGiaoDich;
+          }
+          return acc;
+        },
+        {} as Record<string, { ACM: number; nonACM: number }>,
+      );
 
-      const dailyList = Object.entries(dailyTotals).map(([date, v]) => ({ date, ...v }));
+      const dailyList = Object.entries(dailyTotals).map(([date, v]) => ({
+        date,
+        ...v,
+      }));
 
       if (dailyList.length > 0) {
         const maxA = dailyList.sort((a, b) => b.ACM - a.ACM)[0];
@@ -841,7 +1022,10 @@ export class TradingReportService {
     const totalMemberGrowth = calcGrowth(totalMemberT, totalMemberT1);
     const totalMemberAcmGrowth = calcGrowth(totalMemberAcmT, totalMemberAcmT1);
     const totalCommodityGrowth = calcGrowth(totalCommodityT, totalCommodityT1);
-    const totalCommodityAcmGrowth = calcGrowth(totalCommodityAcmT, totalCommodityAcmT1);
+    const totalCommodityAcmGrowth = calcGrowth(
+      totalCommodityAcmT,
+      totalCommodityAcmT1,
+    );
     const totalSpreadGrowth = calcGrowth(totalSpreadT, totalSpreadT1);
     const totalLmeGrowth = calcGrowth(totalLmeT, totalLmeT1);
     const totalOptionGrowth = calcGrowth(totalOptionT, totalOptionT1);
@@ -856,13 +1040,59 @@ export class TradingReportService {
     optionRows.sort((a, b) => b[3] - a[3]);
 
     // Add totals to lists
-    memberRows.push(['TỔNG (không bao gồm ACM)', '', totalMemberT1, totalMemberT, totalMemberGrowth, totalMemberMaxVal, totalMemberMaxDate, totalMemberMinVal, totalMemberMinDate]);
-    memberACMRows.push(['TỔNG ACM', '', totalMemberAcmT1, totalMemberAcmT, totalMemberAcmGrowth, totalMemberAcmMaxVal, totalMemberAcmMaxDate, totalMemberAcmMinVal, totalMemberAcmMinDate]);
-    commodityRows.push(['TỔNG (không bao gồm ACM)', totalCommodityT1, totalCommodityT, totalCommodityGrowth, '100.00%', '']);
-    commodityACMRows.push(['TỔNG ACM', totalCommodityAcmT1, totalCommodityAcmT, totalCommodityAcmGrowth, '100.00%', '']);
-    spreadRows.push(['TỔNG', '', totalSpreadT1, totalSpreadT, totalSpreadGrowth]);
+    memberRows.push([
+      'TỔNG (không bao gồm ACM)',
+      '',
+      totalMemberT1,
+      totalMemberT,
+      totalMemberGrowth,
+      totalMemberMaxVal,
+      totalMemberMaxDate,
+      totalMemberMinVal,
+      totalMemberMinDate,
+    ]);
+    memberACMRows.push([
+      'TỔNG ACM',
+      '',
+      totalMemberAcmT1,
+      totalMemberAcmT,
+      totalMemberAcmGrowth,
+      totalMemberAcmMaxVal,
+      totalMemberAcmMaxDate,
+      totalMemberAcmMinVal,
+      totalMemberAcmMinDate,
+    ]);
+    commodityRows.push([
+      'TỔNG (không bao gồm ACM)',
+      totalCommodityT1,
+      totalCommodityT,
+      totalCommodityGrowth,
+      '100.00%',
+      '',
+    ]);
+    commodityACMRows.push([
+      'TỔNG ACM',
+      totalCommodityAcmT1,
+      totalCommodityAcmT,
+      totalCommodityAcmGrowth,
+      '100.00%',
+      '',
+    ]);
+    spreadRows.push([
+      'TỔNG',
+      '',
+      totalSpreadT1,
+      totalSpreadT,
+      totalSpreadGrowth,
+    ]);
     lmeRows.push(['TỔNG', '', totalLmeT1, totalLmeT, totalLmeGrowth]);
-    optionRows.push(['TỔNG', '', totalOptionT1, totalOptionT, totalOptionGrowth]);
+    optionRows.push([
+      'TỔNG',
+      '',
+      totalOptionT1,
+      totalOptionT,
+      totalOptionGrowth,
+    ]);
 
     // --- Generate Excel Workbook ---
     const workbook = new ExcelJS.Workbook();
@@ -891,8 +1121,30 @@ export class TradingReportService {
         const row = memberRows[i];
         const isTotal = i === memberRows.length - 1;
         const rowData = isTotal
-          ? [row[0], '', '', row[2], row[3], row[4], row[5], row[6], row[7], row[8]]
-          : [i + 1, row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]];
+          ? [
+              row[0],
+              '',
+              '',
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ]
+          : [
+              i + 1,
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ];
 
         const sheetRow = worksheet.addRow(rowData);
         if (isTotal) {
@@ -932,8 +1184,30 @@ export class TradingReportService {
         const row = memberACMRows[i];
         const isTotal = i === memberACMRows.length - 1;
         const rowData = isTotal
-          ? [row[0], '', '', row[2], row[3], row[4], row[5], row[6], row[7], row[8]]
-          : [i + 1, row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]];
+          ? [
+              row[0],
+              '',
+              '',
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ]
+          : [
+              i + 1,
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ];
 
         const sheetRow = worksheet.addRow(rowData);
         if (isTotal) {
@@ -961,7 +1235,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1058,7 +1336,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1122,7 +1404,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1186,7 +1472,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1250,7 +1540,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1270,8 +1564,14 @@ export class TradingReportService {
       else if (colIdx === 9) col.width = 20;
     });
 
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const outputPath = path.join(this.uploadDir, `bao_cao_thang_${timestamp}.xlsx`);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    const outputPath = path.join(
+      this.uploadDir,
+      `bao_cao_thang_${timestamp}.xlsx`,
+    );
     await workbook.xlsx.writeFile(outputPath);
     return outputPath;
   }
@@ -1331,11 +1631,18 @@ export class TradingReportService {
     for (const item of tttt) {
       if (item.MaTKGD.endsWith('L')) continue;
       const parsedTime = new Date(item.NgayPhienGhep);
-      if (isNaN(parsedTime.getTime()) || parsedTime < startDate || parsedTime > endDate) continue;
+      if (
+        isNaN(parsedTime.getTime()) ||
+        parsedTime < startDate ||
+        parsedTime > endDate
+      )
+        continue;
 
       try {
         const comCode = this.getCommodityCode(item.MaHD, config);
-        const commodity = config.commodities.find((r) => r.MaHangHoa === comCode);
+        const commodity = config.commodities.find(
+          (r) => r.MaHangHoa === comCode,
+        );
         if (!commodity) continue;
 
         const row = comRows.find((r) => r.MaHangHoa === comCode);
@@ -1348,12 +1655,22 @@ export class TradingReportService {
           if (laiLoUSD !== 0) {
             const conversionRate = laiLoVND / laiLoUSD;
             if (item.KLMua > 0 && item.GiaMua > 0) {
-              const delta = item.KLMua * item.GiaMua * doLonHD * donViYetGia * conversionRate;
+              const delta =
+                item.KLMua *
+                item.GiaMua *
+                doLonHD *
+                donViYetGia *
+                conversionRate;
               row.GiaTriMua += delta;
               row.ChenhLech -= delta;
             }
             if (item.KLBan > 0 && item.GiaBan > 0) {
-              const delta = item.KLBan * item.GiaBan * doLonHD * donViYetGia * conversionRate;
+              const delta =
+                item.KLBan *
+                item.GiaBan *
+                doLonHD *
+                donViYetGia *
+                conversionRate;
               row.GiaTriBan += delta;
               row.ChenhLech += delta;
             }
@@ -1368,11 +1685,18 @@ export class TradingReportService {
     for (const item of waitingTTTT) {
       if (!item.MaTKGD.endsWith('L')) continue;
       const parsedTime = new Date(item.NgayPhienGhep);
-      if (isNaN(parsedTime.getTime()) || parsedTime < startDate || parsedTime > endDate) continue;
+      if (
+        isNaN(parsedTime.getTime()) ||
+        parsedTime < startDate ||
+        parsedTime > endDate
+      )
+        continue;
 
       try {
         const comCode = this.getCommodityCode(item.MaHD, config);
-        const commodity = config.commodities.find((r) => r.MaHangHoa === comCode);
+        const commodity = config.commodities.find(
+          (r) => r.MaHangHoa === comCode,
+        );
         if (!commodity) continue;
 
         const row = comRows.find((r) => r.MaHangHoa === comCode);
@@ -1395,12 +1719,22 @@ export class TradingReportService {
           const donViYetGia = parseFloat(commodity.DonViYetGia) || 0;
 
           if (item.KLMua > 0 && item.GiaMua > 0) {
-            const delta = item.KLMua * item.GiaMua * doLonHD * donViYetGia * matchedRate.rate;
+            const delta =
+              item.KLMua *
+              item.GiaMua *
+              doLonHD *
+              donViYetGia *
+              matchedRate.rate;
             row.GiaTriMua += delta;
             row.ChenhLech -= delta;
           }
           if (item.KLBan > 0 && item.GiaBan > 0) {
-            const delta = item.KLBan * item.GiaBan * doLonHD * donViYetGia * matchedRate.rate;
+            const delta =
+              item.KLBan *
+              item.GiaBan *
+              doLonHD *
+              donViYetGia *
+              matchedRate.rate;
             row.GiaTriBan += delta;
             row.ChenhLech += delta;
           }
@@ -1452,7 +1786,11 @@ export class TradingReportService {
       const rowObj = worksheet.getRow(r);
       rowObj.eachCell((cell) => {
         cell.border = thinBorder;
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle',
+          wrapText: true,
+        };
       });
     }
 
@@ -1467,8 +1805,14 @@ export class TradingReportService {
       else if (idx === 7) col.width = 24;
     });
 
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const outputPath = path.join(this.uploadDir, `bao_cao_quy_${timestamp}.xlsx`);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    const outputPath = path.join(
+      this.uploadDir,
+      `bao_cao_quy_${timestamp}.xlsx`,
+    );
     await workbook.xlsx.writeFile(outputPath);
     return outputPath;
   }
@@ -1494,8 +1838,22 @@ export class TradingReportService {
 
     for (const item of config.commodities) {
       if (reportTypes.Commodity) {
-        if (!item.MaHangHoa.startsWith('C.') && !item.MaHangHoa.startsWith('P.')) {
-          commodityRows.push([item.TenHangHoa, 0, 0, 0, 0, 0, 0, 0, 0, item.MaHangHoa]);
+        if (
+          !item.MaHangHoa.startsWith('C.') &&
+          !item.MaHangHoa.startsWith('P.')
+        ) {
+          commodityRows.push([
+            item.TenHangHoa,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            item.MaHangHoa,
+          ]);
         }
       }
     }
@@ -1601,14 +1959,23 @@ export class TradingReportService {
       row[9] = calcGrowth(row[8], row[7]);
     }
     const totalMemberVolGrowth = calcGrowth(totalMemberTVol, totalMemberT1Vol);
-    const totalMemberPLGrowth = calcGrowth(totalMemberTPLVND, totalMemberT1PLVND);
+    const totalMemberPLGrowth = calcGrowth(
+      totalMemberTPLVND,
+      totalMemberT1PLVND,
+    );
 
     for (const row of commodityRows) {
       row[3] = calcGrowth(row[2], row[1]);
       row[8] = calcGrowth(row[7], row[6]);
     }
-    const totalCommodityVolGrowth = calcGrowth(totalCommodityTVol, totalCommodityT1Vol);
-    const totalCommodityPLGrowth = calcGrowth(totalCommodityTPLVND, totalCommodityT1PLVND);
+    const totalCommodityVolGrowth = calcGrowth(
+      totalCommodityTVol,
+      totalCommodityT1Vol,
+    );
+    const totalCommodityPLGrowth = calcGrowth(
+      totalCommodityTPLVND,
+      totalCommodityT1PLVND,
+    );
 
     // Sorting by Month T VND PL Descending
     memberRows.sort((a, b) => b[8] - a[8]);
@@ -1667,8 +2034,30 @@ export class TradingReportService {
         const row = memberRows[i];
         const isTotal = i === memberRows.length - 1;
         const rowData = isTotal
-          ? [row[0], '', '', row[2], row[3], row[4], row[5], row[6], row[7], row[8]]
-          : [i + 1, row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]];
+          ? [
+              row[0],
+              '',
+              '',
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ]
+          : [
+              i + 1,
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              row[8],
+            ];
 
         const sheetRow = worksheet.addRow(rowData);
         if (isTotal) {
@@ -1698,7 +2087,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1726,8 +2119,30 @@ export class TradingReportService {
         const row = commodityRows[i];
         const isTotal = i === commodityRows.length - 1;
         const rowData = isTotal
-          ? [row[0], '', '', row[1], row[2], row[3], row[4], row[5], row[6], row[7]]
-          : [i + 1, row[9], row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]];
+          ? [
+              row[0],
+              '',
+              '',
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+            ]
+          : [
+              i + 1,
+              row[9],
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+            ];
 
         const sheetRow = worksheet.addRow(rowData);
         if (isTotal) {
@@ -1757,7 +2172,11 @@ export class TradingReportService {
         const rowObj = worksheet.getRow(r);
         rowObj.eachCell((cell) => {
           cell.border = thinBorder;
-          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true,
+          };
         });
       }
       currentRow++;
@@ -1776,8 +2195,14 @@ export class TradingReportService {
       else if (idx === 9) col.width = 28;
     });
 
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const outputPath = path.join(this.uploadDir, `bao_cao_tat_toan_thang_${timestamp}.xlsx`);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    const outputPath = path.join(
+      this.uploadDir,
+      `bao_cao_tat_toan_thang_${timestamp}.xlsx`,
+    );
     await workbook.xlsx.writeFile(outputPath);
     return outputPath;
   }

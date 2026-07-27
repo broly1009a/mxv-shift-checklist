@@ -38,11 +38,36 @@ export class GttCheckerService {
 
   // Configured paths
   private readonly workDir = path.join(process.cwd(), 'temp', 'gtt');
-  private readonly marketCsvPath = path.join(process.cwd(), 'temp', 'gtt', 'market.csv');
-  private readonly trangThaiMoPath = path.join(process.cwd(), 'temp', 'gtt', 'trang-thai-mo.xlsx');
-  private readonly gttXlsxPath = path.join(process.cwd(), 'temp', 'gtt', 'GTT.xlsx');
-  private readonly hangHoaXlsxPath = path.join(process.cwd(), 'temp', 'gtt', 'hang_hoa.xlsx');
-  private readonly reportJsonPath = path.join(process.cwd(), 'temp', 'gtt', 'latest-report.json');
+  private readonly marketCsvPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'market.csv',
+  );
+  private readonly trangThaiMoPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'trang-thai-mo.xlsx',
+  );
+  private readonly gttXlsxPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'GTT.xlsx',
+  );
+  private readonly hangHoaXlsxPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'hang_hoa.xlsx',
+  );
+  private readonly reportJsonPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'latest-report.json',
+  );
 
   constructor(
     private readonly rpaService: RpaDownloaderService,
@@ -55,9 +80,11 @@ export class GttCheckerService {
     // Load cached report if exists
     try {
       if (fs.existsSync(this.reportJsonPath)) {
-        this.latestReport = JSON.parse(fs.readFileSync(this.reportJsonPath, 'utf8'));
+        this.latestReport = JSON.parse(
+          fs.readFileSync(this.reportJsonPath, 'utf8'),
+        );
       }
-    } catch { }
+    } catch {}
   }
 
   getWorkDir() {
@@ -91,7 +118,7 @@ export class GttCheckerService {
       'operate-transaction-app',
       'Chrome',
       'chrome-win',
-      'chrome.exe'
+      'chrome.exe',
     );
 
     if (fs.existsSync(bundledPath)) {
@@ -99,7 +126,9 @@ export class GttCheckerService {
       return bundledPath;
     }
 
-    this.logger.warn(`Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`);
+    this.logger.warn(
+      `Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`,
+    );
     return null;
   }
 
@@ -115,7 +144,10 @@ export class GttCheckerService {
     }
 
     const fileStream = fs.createReadStream(csvFilePath, { encoding: 'utf8' });
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
 
     let headerIndex: { symbol: number; settle: number } | null = null;
     let lineNum = 0;
@@ -128,7 +160,7 @@ export class GttCheckerService {
       }
       if (!cleanLine) continue;
 
-      const cols = cleanLine.split(',').map(c => {
+      const cols = cleanLine.split(',').map((c) => {
         let val = c.trim();
         if (val.startsWith('"') && val.endsWith('"')) {
           val = val.substring(1, val.length - 1);
@@ -137,15 +169,26 @@ export class GttCheckerService {
       });
 
       if (lineNum === 1) {
-        const symbolIdx = cols.findIndex(c => c.toLowerCase().includes('mã hợp đồng') || c.toLowerCase() === 'symbol' || c.toLowerCase() === 'contract');
-        const settleIdx = cols.findIndex(c => c.toLowerCase().includes('giá thanh toán') || c.toLowerCase() === 'settlement price');
+        const symbolIdx = cols.findIndex(
+          (c) =>
+            c.toLowerCase().includes('mã hợp đồng') ||
+            c.toLowerCase() === 'symbol' ||
+            c.toLowerCase() === 'contract',
+        );
+        const settleIdx = cols.findIndex(
+          (c) =>
+            c.toLowerCase().includes('giá thanh toán') ||
+            c.toLowerCase() === 'settlement price',
+        );
         if (symbolIdx !== -1 && settleIdx !== -1) {
           headerIndex = { symbol: symbolIdx, settle: settleIdx };
         } else {
           // Fallback to defaults
           headerIndex = { symbol: 0, settle: 18 };
         }
-        this.logger.log(`market.csv headers parsed: Symbol col index = ${headerIndex.symbol}, Settle col index = ${headerIndex.settle}`);
+        this.logger.log(
+          `market.csv headers parsed: Symbol col index = ${headerIndex.symbol}, Settle col index = ${headerIndex.settle}`,
+        );
         continue;
       }
 
@@ -159,7 +202,9 @@ export class GttCheckerService {
       }
     }
 
-    this.logger.log(`Parsed market.csv: ${result.size} contracts with settlement prices`);
+    this.logger.log(
+      `Parsed market.csv: ${result.size} contracts with settlement prices`,
+    );
     return result;
   }
 
@@ -177,7 +222,9 @@ export class GttCheckerService {
     const headers = data[0];
     const contractIndex = headers.indexOf('Mã HĐ');
     if (contractIndex === -1) {
-      this.logger.warn('⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel trang-thai-mo.xlsx!');
+      this.logger.warn(
+        '⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel trang-thai-mo.xlsx!',
+      );
       return [];
     }
 
@@ -194,7 +241,9 @@ export class GttCheckerService {
   /**
    * Legacy parser for uploaded GTT.xlsx (fallback option)
    */
-  async parseGttXlsx(xlsxPath: string): Promise<{ symbol: string; gttFromFile: number | null }[]> {
+  async parseGttXlsx(
+    xlsxPath: string,
+  ): Promise<{ symbol: string; gttFromFile: number | null }[]> {
     if (!fs.existsSync(xlsxPath)) {
       throw new Error(`Không tìm thấy file GTT.xlsx tại: ${xlsxPath}`);
     }
@@ -215,7 +264,9 @@ export class GttCheckerService {
       const symbolCell = sheet.getCell(`A${r}`);
       const gttCell = sheet.getCell(`B${r}`);
 
-      const symbol = String(symbolCell.value || '').trim().toUpperCase();
+      const symbol = String(symbolCell.value || '')
+        .trim()
+        .toUpperCase();
       if (!symbol) continue;
 
       let gttVal: number | null = null;
@@ -267,7 +318,7 @@ export class GttCheckerService {
     XB: 0.125,
     XC: 0.125,
     XW: 0.125,
-    ZCE: 0.25
+    ZCE: 0.25,
   };
 
   /**
@@ -276,7 +327,9 @@ export class GttCheckerService {
   parseCommodityTickSizes(filePath: string): Map<string, number> {
     const result = new Map<string, number>();
     if (!fs.existsSync(filePath)) {
-      this.logger.warn(`Không tìm thấy file hàng hóa tại: ${filePath}. Sẽ sử dụng dữ liệu mặc định.`);
+      this.logger.warn(
+        `Không tìm thấy file hàng hóa tại: ${filePath}. Sẽ sử dụng dữ liệu mặc định.`,
+      );
       return result;
     }
 
@@ -288,25 +341,63 @@ export class GttCheckerService {
       if (data.length < 2) return result;
 
       // Find headers for "Mã hàng hóa" and "Bước giá tối thiểu"
-      const headers = data[0].map(h => String(h || '').trim().toLowerCase());
-      const commodityIdx = headers.findIndex(h => h.includes('mã hàng hóa') || h.includes('commodity code') || h.includes('commodity') || h === 'symbol');
-      const tickSizeIdx = headers.findIndex(h => h.includes('bước giá tối thiểu') || h.includes('minimum tick size') || h.includes('tick size') || h.includes('bước giá'));
+      const headers = data[0].map((h) =>
+        String(h || '')
+          .trim()
+          .toLowerCase(),
+      );
+      const commodityIdx = headers.findIndex(
+        (h) =>
+          h.includes('mã hàng hóa') ||
+          h.includes('commodity code') ||
+          h.includes('commodity') ||
+          h === 'symbol',
+      );
+      const tickSizeIdx = headers.findIndex(
+        (h) =>
+          h.includes('bước giá tối thiểu') ||
+          h.includes('minimum tick size') ||
+          h.includes('tick size') ||
+          h.includes('bước giá'),
+      );
 
       if (commodityIdx === -1 || tickSizeIdx === -1) {
-        this.logger.warn(`Không tìm thấy tiêu đề phù hợp trong file hàng hóa: Mã hàng hóa (${commodityIdx}), Bước giá (${tickSizeIdx}). Tìm kiếm trong các hàng tiếp theo...`);
+        this.logger.warn(
+          `Không tìm thấy tiêu đề phù hợp trong file hàng hóa: Mã hàng hóa (${commodityIdx}), Bước giá (${tickSizeIdx}). Tìm kiếm trong các hàng tiếp theo...`,
+        );
         // Fallback search in first 20 rows to see if headers are shifted
         let foundHeaders = false;
         for (let r = 1; r < Math.min(20, data.length); r++) {
-          const row = data[r].map(h => String(h || '').trim().toLowerCase());
-          const cIdx = row.findIndex(h => h.includes('mã hàng hóa') || h.includes('commodity code') || h.includes('commodity') || h === 'symbol');
-          const tIdx = row.findIndex(h => h.includes('bước giá tối thiểu') || h.includes('minimum tick size') || h.includes('tick size') || h.includes('bước giá'));
+          const row = data[r].map((h) =>
+            String(h || '')
+              .trim()
+              .toLowerCase(),
+          );
+          const cIdx = row.findIndex(
+            (h) =>
+              h.includes('mã hàng hóa') ||
+              h.includes('commodity code') ||
+              h.includes('commodity') ||
+              h === 'symbol',
+          );
+          const tIdx = row.findIndex(
+            (h) =>
+              h.includes('bước giá tối thiểu') ||
+              h.includes('minimum tick size') ||
+              h.includes('tick size') ||
+              h.includes('bước giá'),
+          );
           if (cIdx !== -1 && tIdx !== -1) {
-            this.logger.log(`Tìm thấy tiêu đề tại hàng ${r + 1}: cIdx=${cIdx}, tIdx=${tIdx}`);
+            this.logger.log(
+              `Tìm thấy tiêu đề tại hàng ${r + 1}: cIdx=${cIdx}, tIdx=${tIdx}`,
+            );
             for (let i = r + 1; i < data.length; i++) {
               const itemRow = data[i];
               if (itemRow && itemRow[cIdx]) {
                 const code = String(itemRow[cIdx]).trim().toUpperCase();
-                const tickStr = String(itemRow[tIdx] ?? '').replace(/,/g, '').trim();
+                const tickStr = String(itemRow[tIdx] ?? '')
+                  .replace(/,/g, '')
+                  .trim();
                 const tick = parseFloat(tickStr);
                 if (code && !isNaN(tick)) {
                   result.set(code, tick);
@@ -319,12 +410,16 @@ export class GttCheckerService {
         }
         if (!foundHeaders) {
           // If headers still not found, try hardcoded columns B (index 1) and K (index 10) as fallback
-          this.logger.warn(`Dùng cột mặc định: Mã hàng hóa (Cột B), Bước giá (Cột K)`);
+          this.logger.warn(
+            `Dùng cột mặc định: Mã hàng hóa (Cột B), Bước giá (Cột K)`,
+          );
           for (let i = 1; i < data.length; i++) {
             const row = data[i];
             if (row && row[1]) {
               const code = String(row[1]).trim().toUpperCase();
-              const tickStr = String(row[10] ?? '').replace(/,/g, '').trim();
+              const tickStr = String(row[10] ?? '')
+                .replace(/,/g, '')
+                .trim();
               const tick = parseFloat(tickStr);
               if (code && !isNaN(tick)) {
                 result.set(code, tick);
@@ -338,7 +433,9 @@ export class GttCheckerService {
           const row = data[i];
           if (row && row[commodityIdx]) {
             const code = String(row[commodityIdx]).trim().toUpperCase();
-            const tickStr = String(row[tickSizeIdx] ?? '').replace(/,/g, '').trim();
+            const tickStr = String(row[tickSizeIdx] ?? '')
+              .replace(/,/g, '')
+              .trim();
             const tick = parseFloat(tickStr);
             if (code && !isNaN(tick)) {
               result.set(code, tick);
@@ -347,9 +444,14 @@ export class GttCheckerService {
         }
       }
 
-      this.logger.log(`Đã phân tích file hang_hoa.xlsx: tìm thấy ${result.size} bước giá của các mặt hàng.`);
+      this.logger.log(
+        `Đã phân tích file hang_hoa.xlsx: tìm thấy ${result.size} bước giá của các mặt hàng.`,
+      );
     } catch (err: any) {
-      this.logger.error(`Lỗi khi phân tích file hàng hóa: ${err.message}`, err.stack);
+      this.logger.error(
+        `Lỗi khi phân tích file hàng hóa: ${err.message}`,
+        err.stack,
+      );
     }
 
     return result;
@@ -368,10 +470,12 @@ export class GttCheckerService {
 
     const commodityMap = this.parseCommodityTickSizes(this.hangHoaXlsxPath);
     // Combine with fallbacks and sort descending by length
-    const allCommodityCodes = Array.from(new Set([
-      ...commodityMap.keys(),
-      ...Object.keys(this.FALLBACK_TICK_SIZES)
-    ])).sort((a, b) => b.length - a.length);
+    const allCommodityCodes = Array.from(
+      new Set([
+        ...commodityMap.keys(),
+        ...Object.keys(this.FALLBACK_TICK_SIZES),
+      ]),
+    ).sort((a, b) => b.length - a.length);
 
     for (const symbol of allSymbols) {
       const gttMs = msMap.get(symbol) ?? null;
@@ -392,7 +496,8 @@ export class GttCheckerService {
 
       for (const code of allCommodityCodes) {
         if (cleanSymbol.startsWith(code)) {
-          tickSize = commodityMap.get(code) ?? this.FALLBACK_TICK_SIZES[code] ?? null;
+          tickSize =
+            commodityMap.get(code) ?? this.FALLBACK_TICK_SIZES[code] ?? null;
           break;
         }
       }
@@ -411,7 +516,7 @@ export class GttCheckerService {
         diff = parseFloat(Math.abs(gttCqg - gttMs).toFixed(6));
         status = diff < 0.0001 ? 'MATCH' : 'DIFF';
         // Check if diff is minor (<= tickSize)
-        isMinorDiff = diff <= (tickSize + 0.00001);
+        isMinorDiff = diff <= tickSize + 0.00001;
       }
 
       rows.push({
@@ -426,7 +531,13 @@ export class GttCheckerService {
     }
 
     // Sort priority: DIFF first, then MS_ONLY, CQG_ONLY, NO_PRICE, MATCH last
-    const priority: Record<string, number> = { DIFF: 0, MS_ONLY: 1, CQG_ONLY: 2, NO_PRICE: 3, MATCH: 4 };
+    const priority: Record<string, number> = {
+      DIFF: 0,
+      MS_ONLY: 1,
+      CQG_ONLY: 2,
+      NO_PRICE: 3,
+      MATCH: 4,
+    };
     rows.sort((a, b) => {
       const ap = priority[a.status] ?? 5;
       const bp = priority[b.status] ?? 5;
@@ -440,9 +551,16 @@ export class GttCheckerService {
   /**
    * Helper function for CQG price scraping scroll behavior
    */
-  private async scrapeQSSPrices(page: Page, resultsMap: Map<string, number>): Promise<void> {
+  private async scrapeQSSPrices(
+    page: Page,
+    resultsMap: Map<string, number>,
+  ): Promise<void> {
     const viewportSelector = '.ag-body-viewport';
-    const hasViewport = await page.locator(viewportSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+    const hasViewport = await page
+      .locator(viewportSelector)
+      .first()
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
 
     if (hasViewport) {
       let previousCount = -1;
@@ -458,22 +576,30 @@ export class GttCheckerService {
               const isNegative = parts[0].startsWith('-');
               const main = Math.abs(parseFloat(parts[0]) || 0);
               const fraction = parseFloat(parts[1] || '0');
-              const price = main + (fraction / 8);
+              const price = main + fraction / 8;
               return isNegative ? -price : price;
             }
             return parseFloat(textVal);
           };
 
           const batch: { symbol: string; price: number }[] = [];
-          const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
-          symbolRows.forEach(row => {
+          const symbolRows = document.querySelectorAll(
+            '.ag-pinned-left-cols-container [role="row"]',
+          );
+          symbolRows.forEach((row) => {
             const rowId = row.getAttribute('row-id');
-            const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+            const symbolEl = row.querySelector(
+              '.wpfe-qss-symbol-cell-primary-text',
+            );
             if (symbolEl && rowId) {
               const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
-              const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+              const settleRow = document.querySelector(
+                `.ag-center-cols-container [row-id="${rowId}"]`,
+              );
               if (settleRow) {
-                const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+                const priceEl = settleRow.querySelector(
+                  '[col-id="settle"] .wpfe-price',
+                );
                 if (priceEl) {
                   const price = parseCQGPrice(priceEl.textContent);
                   if (!isNaN(price)) {
@@ -509,7 +635,6 @@ export class GttCheckerService {
         const el = document.querySelector(sel);
         if (el) el.scrollTop = 0;
       }, viewportSelector);
-
     } else {
       const data = await page.evaluate(() => {
         const parseCQGPrice = (textVal: string | null) => {
@@ -520,22 +645,30 @@ export class GttCheckerService {
             const isNegative = parts[0].startsWith('-');
             const main = Math.abs(parseFloat(parts[0]) || 0);
             const fraction = parseFloat(parts[1] || '0');
-            const price = main + (fraction / 8);
+            const price = main + fraction / 8;
             return isNegative ? -price : price;
           }
           return parseFloat(textVal);
         };
 
         const batch: { symbol: string; price: number }[] = [];
-        const symbolRows = document.querySelectorAll('.ag-pinned-left-cols-container [role="row"]');
-        symbolRows.forEach(row => {
+        const symbolRows = document.querySelectorAll(
+          '.ag-pinned-left-cols-container [role="row"]',
+        );
+        symbolRows.forEach((row) => {
           const rowId = row.getAttribute('row-id');
-          const symbolEl = row.querySelector('.wpfe-qss-symbol-cell-primary-text');
+          const symbolEl = row.querySelector(
+            '.wpfe-qss-symbol-cell-primary-text',
+          );
           if (symbolEl && rowId) {
             const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
-            const settleRow = document.querySelector(`.ag-center-cols-container [row-id="${rowId}"]`);
+            const settleRow = document.querySelector(
+              `.ag-center-cols-container [row-id="${rowId}"]`,
+            );
             if (settleRow) {
-              const priceEl = settleRow.querySelector('[col-id="settle"] .wpfe-price');
+              const priceEl = settleRow.querySelector(
+                '[col-id="settle"] .wpfe-price',
+              );
               if (priceEl) {
                 const price = parseCQGPrice(priceEl.textContent);
                 if (!isNaN(price)) {
@@ -557,12 +690,23 @@ export class GttCheckerService {
   /**
    * Helper function to add column S in CQG Quote Spreadsheet
    */
-  private async addSettlementColumn(page: Page, batchNum: number): Promise<void> {
+  private async addSettlementColumn(
+    page: Page,
+    batchNum: number,
+  ): Promise<void> {
     this.logger.log(`📊 Thêm cột S cho Batch ${batchNum}...`);
 
-    await page.waitForSelector('.ag-header-cell[col-id="symbol"]', { state: 'visible', timeout: 10000 }).catch(() => { });
+    await page
+      .waitForSelector('.ag-header-cell[col-id="symbol"]', {
+        state: 'visible',
+        timeout: 10000,
+      })
+      .catch(() => {});
 
-    const sColExists = await page.locator('[class*="column-header"]:has-text("S"), th:has-text("S")').isVisible({ timeout: 2000 }).catch(() => false);
+    const sColExists = await page
+      .locator('[class*="column-header"]:has-text("S"), th:has-text("S")')
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
     if (sColExists) {
       this.logger.log('Cột S đã tồn tại, bỏ qua.');
       return;
@@ -593,13 +737,21 @@ export class GttCheckerService {
 
     await page.waitForTimeout(1000);
 
-    const ADD_COLUMNS_SEL = 'wpfe-dropdown-menu-item-text:has-text("Add columns")';
-    await page.waitForSelector(ADD_COLUMNS_SEL, { state: 'visible', timeout: 5000 });
+    const ADD_COLUMNS_SEL =
+      'wpfe-dropdown-menu-item-text:has-text("Add columns")';
+    await page.waitForSelector(ADD_COLUMNS_SEL, {
+      state: 'visible',
+      timeout: 5000,
+    });
     await page.click(ADD_COLUMNS_SEL);
     await page.waitForTimeout(1500);
 
-    const FILTER_INPUT = '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
-    await page.waitForSelector(FILTER_INPUT, { state: 'visible', timeout: 8000 });
+    const FILTER_INPUT =
+      '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
+    await page.waitForSelector(FILTER_INPUT, {
+      state: 'visible',
+      timeout: 8000,
+    });
     await page.fill(FILTER_INPUT, 'Settlement');
     await page.waitForTimeout(1000);
 
@@ -620,14 +772,18 @@ export class GttCheckerService {
     }
 
     if (!itemClicked) {
-      await page.dblclick('.wpfe-list-item-content').catch(() => { });
+      await page.dblclick('.wpfe-list-item-content').catch(() => {});
     }
 
     await page.waitForTimeout(500);
 
     // Click "Add + Close"
-    const ADD_CLOSE_BTN = 'button:has-text("Add + Close"), .gpc-button-wrapper-content:has-text("Add + Close")';
-    await page.waitForSelector(ADD_CLOSE_BTN, { state: 'visible', timeout: 5000 });
+    const ADD_CLOSE_BTN =
+      'button:has-text("Add + Close"), .gpc-button-wrapper-content:has-text("Add + Close")';
+    await page.waitForSelector(ADD_CLOSE_BTN, {
+      state: 'visible',
+      timeout: 5000,
+    });
     await page.click(ADD_CLOSE_BTN);
     await page.waitForTimeout(2000);
 
@@ -641,10 +797,12 @@ export class GttCheckerService {
    * 3. Fetch settlement prices from CQG
    * 4. Compare and save report
    */
-  async runFullGttCheck(options: {
-    downloadMarketCsv?: boolean;
-    gttXlsxPath?: string;
-  } = {}): Promise<GttReport> {
+  async runFullGttCheck(
+    options: {
+      downloadMarketCsv?: boolean;
+      gttXlsxPath?: string;
+    } = {},
+  ): Promise<GttReport> {
     const runAt = new Date().toISOString();
     this.logger.log('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
 
@@ -662,7 +820,10 @@ export class GttCheckerService {
       let msPass = process.env.MS_PASSWORD || '';
       let msPin = process.env.MS_PIN || '';
 
-      const credentialsRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
+      const credentialsRaw = await this.settingsService.getSetting(
+        'bot_credentials_msystem',
+        '',
+      );
       if (credentialsRaw) {
         try {
           const credentials = JSON.parse(decrypt(credentialsRaw));
@@ -671,12 +832,16 @@ export class GttCheckerService {
           if (credentials.password) msPass = credentials.password;
           if (credentials.pin) msPin = credentials.pin;
         } catch (err) {
-          this.logger.warn('Không thể giải mã cấu hình M-System từ DB, dùng biến môi trường.');
+          this.logger.warn(
+            'Không thể giải mã cấu hình M-System từ DB, dùng biến môi trường.',
+          );
         }
       }
 
       if (!msUser || !msPass || !msPin) {
-        throw new Error('Cấu hình tài khoản M-System không đầy đủ (url, username, password, pin). Vui lòng cấu hình qua Admin UI hoặc file .env');
+        throw new Error(
+          'Cấu hình tài khoản M-System không đầy đủ (url, username, password, pin). Vui lòng cấu hình qua Admin UI hoặc file .env',
+        );
       }
 
       const launchOptions: any = {
@@ -688,7 +853,10 @@ export class GttCheckerService {
       }
 
       const browser = await chromium.launch(launchOptions);
-      const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 800 } });
+      const context = await browser.newContext({
+        acceptDownloads: true,
+        viewport: { width: 1280, height: 800 },
+      });
       const page = await context.newPage();
       page.setDefaultTimeout(30000);
 
@@ -698,7 +866,9 @@ export class GttCheckerService {
         await page.waitForTimeout(2000);
 
         this.logger.log('Nhập tài khoản và mật khẩu...');
-        await page.waitForSelector('input[name="username"]', { state: 'visible' });
+        await page.waitForSelector('input[name="username"]', {
+          state: 'visible',
+        });
         await page.fill('input[name="username"]', msUser);
         await page.fill('input[name="password"]', msPass);
         await page.waitForTimeout(500);
@@ -710,14 +880,22 @@ export class GttCheckerService {
         this.logger.log('Đang đợi bảng nhập mã PIN ảo hiển thị...');
         let pinSelectorVisible = false;
         for (let attempt = 1; attempt <= 3; attempt++) {
-          pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+          pinSelectorVisible = await page
+            .locator('div.pincode')
+            .isVisible({ timeout: 5000 })
+            .catch(() => false);
           if (pinSelectorVisible) break;
-          this.logger.warn(`Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
-          await page.click('button.btn-primary').catch(() => { });
+          this.logger.warn(
+            `Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+          );
+          await page.click('button.btn-primary').catch(() => {});
           await page.waitForTimeout(2000);
         }
 
-        await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
+        await page.waitForSelector('div.pincode', {
+          state: 'visible',
+          timeout: 10000,
+        });
         this.logger.log('Đang tự động click mã PIN ảo...');
         const pinDigits = msPin.split('');
         for (const digit of pinDigits) {
@@ -728,48 +906,69 @@ export class GttCheckerService {
         }
 
         this.logger.log('Xác thực đăng nhập...');
-        await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => { });
+        await page
+          .waitForURL(/.*dashboard.*/, { timeout: 15000 })
+          .catch(() => {});
         await page.waitForTimeout(3000);
         this.logger.log('🎉 ĐĂNG NHẬP M-SYSTEM THÀNH CÔNG!');
 
         // Tải market.csv
         const orderCreatingUrl = `${msUrl.split('#')[0]}#/orderManagement/orderCreating`;
-        this.logger.log(`Điều hướng đến trang bảng giá: ${orderCreatingUrl}...`);
+        this.logger.log(
+          `Điều hướng đến trang bảng giá: ${orderCreatingUrl}...`,
+        );
         await page.goto(orderCreatingUrl);
         await page.waitForTimeout(5000);
 
-        const csvBtn = page.locator('div.edit-icon i.fa-file-csv, div.edit-icon, i.fa-file-csv.green').first();
+        const csvBtn = page
+          .locator(
+            'div.edit-icon i.fa-file-csv, div.edit-icon, i.fa-file-csv.green',
+          )
+          .first();
         if (await csvBtn.isVisible().catch(() => false)) {
           this.logger.log('Tìm thấy nút xuất CSV Bảng giá. Đang tải...');
           const [download] = await Promise.all([
             page.waitForEvent('download', { timeout: 25000 }),
-            csvBtn.click()
+            csvBtn.click(),
           ]);
           await download.saveAs(this.marketCsvPath);
-          this.logger.log(`✅ Đã tải thành công market.csv: ${this.marketCsvPath}`);
+          this.logger.log(
+            `✅ Đã tải thành công market.csv: ${this.marketCsvPath}`,
+          );
         } else {
-          throw new Error('Không tìm thấy nút tải market.csv trên trang orderCreating');
+          throw new Error(
+            'Không tìm thấy nút tải market.csv trên trang orderCreating',
+          );
         }
 
         // Tải trang-thai-mo.xlsx
         const openPositionUrl = `${msUrl.split('#')[0]}#/positionManagement/openPositionInfo`;
-        this.logger.log(`Điều hướng đến trang trạng thái mở: ${openPositionUrl}...`);
+        this.logger.log(
+          `Điều hướng đến trang trạng thái mở: ${openPositionUrl}...`,
+        );
         await page.goto(openPositionUrl);
         await page.waitForTimeout(5000);
 
-        const excelBtn = page.locator('button.ladda-button:has(i.fa-file-csv), button.ladda-button').first();
+        const excelBtn = page
+          .locator(
+            'button.ladda-button:has(i.fa-file-csv), button.ladda-button',
+          )
+          .first();
         if (await excelBtn.isVisible().catch(() => false)) {
           this.logger.log('Tìm thấy nút xuất Excel Trạng thái mở. Đang tải...');
           const [download] = await Promise.all([
             page.waitForEvent('download', { timeout: 25000 }),
-            excelBtn.click()
+            excelBtn.click(),
           ]);
           await download.saveAs(this.trangThaiMoPath);
-          this.logger.log(`✅ Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`);
+          this.logger.log(
+            `✅ Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`,
+          );
         } else {
-          throw new Error('Không tìm thấy nút tải trang-thai-mo.xlsx trên trang openPositionInfo');
+          throw new Error(
+            'Không tìm thấy nút tải trang-thai-mo.xlsx trên trang openPositionInfo',
+          );
         }
-
       } finally {
         await browser.close();
       }
@@ -780,20 +979,28 @@ export class GttCheckerService {
     // =========================================================================
     let contractList: string[] = [];
     if (fs.existsSync(this.trangThaiMoPath)) {
-      this.logger.log(`Đọc danh sách hợp đồng mở từ file Excel trang-thai-mo.xlsx...`);
+      this.logger.log(
+        `Đọc danh sách hợp đồng mở từ file Excel trang-thai-mo.xlsx...`,
+      );
       contractList = this.parseUniqueMSContracts(this.trangThaiMoPath);
     } else {
       const gttFile = options.gttXlsxPath || this.gttXlsxPath;
       if (fs.existsSync(gttFile)) {
-        this.logger.log(`Không tìm thấy trang-thai-mo.xlsx. Đọc từ file fallback GTT.xlsx...`);
+        this.logger.log(
+          `Không tìm thấy trang-thai-mo.xlsx. Đọc từ file fallback GTT.xlsx...`,
+        );
         const rows = await this.parseGttXlsx(gttFile);
-        contractList = rows.map(r => r.symbol);
+        contractList = rows.map((r) => r.symbol);
       }
     }
 
-    this.logger.log(`Tìm thấy ${contractList.length} mã hợp đồng đang hoạt động để đối soát.`);
+    this.logger.log(
+      `Tìm thấy ${contractList.length} mã hợp đồng đang hoạt động để đối soát.`,
+    );
     if (contractList.length === 0) {
-      throw new Error('Không tìm thấy danh sách mã hợp đồng mở để kiểm tra! Vui lòng upload GTT.xlsx hoặc bật chế độ tự động tải.');
+      throw new Error(
+        'Không tìm thấy danh sách mã hợp đồng mở để kiểm tra! Vui lòng upload GTT.xlsx hoặc bật chế độ tự động tải.',
+      );
     }
 
     // =========================================================================
@@ -805,7 +1012,10 @@ export class GttCheckerService {
     let cqgUser = process.env.CQG_USER || '';
     let cqgPass = process.env.CQG_PASSWORD || '';
 
-    const cqgCredentialsRaw = await this.settingsService.getSetting('bot_credentials_cqg', '');
+    const cqgCredentialsRaw = await this.settingsService.getSetting(
+      'bot_credentials_cqg',
+      '',
+    );
     if (cqgCredentialsRaw) {
       try {
         const cqgCredentials = JSON.parse(decrypt(cqgCredentialsRaw));
@@ -813,12 +1023,16 @@ export class GttCheckerService {
         if (cqgCredentials.username) cqgUser = cqgCredentials.username;
         if (cqgCredentials.password) cqgPass = cqgCredentials.password;
       } catch (err) {
-        this.logger.warn('Không thể giải mã cấu hình CQG từ DB, dùng biến môi trường.');
+        this.logger.warn(
+          'Không thể giải mã cấu hình CQG từ DB, dùng biến môi trường.',
+        );
       }
     }
 
     if (!cqgUser || !cqgPass) {
-      throw new Error('Cấu hình tài khoản CQG không đầy đủ (url, username, password). Vui lòng cấu hình qua Admin UI hoặc file .env');
+      throw new Error(
+        'Cấu hình tài khoản CQG không đầy đủ (url, username, password). Vui lòng cấu hình qua Admin UI hoặc file .env',
+      );
     }
 
     this.logger.log(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
@@ -838,12 +1052,18 @@ export class GttCheckerService {
     try {
       this.logger.log('Đăng nhập CQG...');
       await page.goto(cqgUrl);
-      await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 20000 });
+      await page.waitForSelector('input[name="userName"]', {
+        state: 'visible',
+        timeout: 20000,
+      });
       await page.fill('input[name="userName"]', cqgUser);
       await page.fill('input[name="password"]', cqgPass);
       await page.click('button[type="submit"]');
 
-      await page.waitForSelector('div.wpfe-logo-image', { state: 'visible', timeout: 60000 });
+      await page.waitForSelector('div.wpfe-logo-image', {
+        state: 'visible',
+        timeout: 60000,
+      });
       await page.waitForTimeout(3000);
       this.logger.log('✅ Đăng nhập CQG THÀNH CÔNG!');
 
@@ -854,42 +1074,65 @@ export class GttCheckerService {
         batches.push(contractList.slice(i, i + BATCH_LIMIT));
       }
 
-      this.logger.log(`Phân chia thành ${batches.length} batch(es) để tra cứu CQG...`);
+      this.logger.log(
+        `Phân chia thành ${batches.length} batch(es) để tra cứu CQG...`,
+      );
 
       for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
         const batchNum = batchIdx + 1;
         const batchSymbols = batches[batchIdx];
         const symbolStr = batchSymbols.join(', ');
-        this.logger.log(`--- BẮT ĐẦU BATCH ${batchNum}/${batches.length} (${batchSymbols.length} mã) ---`);
+        this.logger.log(
+          `--- BẮT ĐẦU BATCH ${batchNum}/${batches.length} (${batchSymbols.length} mã) ---`,
+        );
 
         // Click Add Tab "+"
-        await page.waitForSelector('.wpfe-add-widget-btn', { state: 'visible', timeout: 15000 });
+        await page.waitForSelector('.wpfe-add-widget-btn', {
+          state: 'visible',
+          timeout: 15000,
+        });
         await page.click('.wpfe-add-widget-btn');
         await page.waitForTimeout(2000);
 
         // Click Quotes
-        await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', { state: 'visible', timeout: 10000 });
+        await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', {
+          state: 'visible',
+          timeout: 10000,
+        });
         await page.click('.wpfe-list-item:has-text("Quotes")');
         await page.waitForTimeout(1000);
 
         // Click Quote spreadsheet widget
-        await page.waitForSelector('[data-widgetclass="wpfe-QuoteSpreadSheet"]', { state: 'visible', timeout: 10000 });
+        await page.waitForSelector(
+          '[data-widgetclass="wpfe-QuoteSpreadSheet"]',
+          { state: 'visible', timeout: 10000 },
+        );
         await page.click('[data-widgetclass="wpfe-QuoteSpreadSheet"]');
         await page.waitForTimeout(3000);
 
         // Click New list
-        await page.waitForSelector('button:has-text("New list")', { state: 'visible', timeout: 10000 });
+        await page.waitForSelector('button:has-text("New list")', {
+          state: 'visible',
+          timeout: 10000,
+        });
         await page.click('button:has-text("New list")');
         await page.waitForTimeout(2000);
 
         // Fill Search input
         const SEARCH_INPUT = 'input[placeholder="Search symbols"]';
-        await page.waitForSelector(SEARCH_INPUT, { state: 'visible', timeout: 15000 });
+        await page.waitForSelector(SEARCH_INPUT, {
+          state: 'visible',
+          timeout: 15000,
+        });
         await page.fill(SEARCH_INPUT, symbolStr);
         await page.waitForTimeout(1500);
 
         // Click OK to load list
-        const okBtn = page.locator('button.wpfe-button-primary:has-text("OK"), button:has-text("OK")').first();
+        const okBtn = page
+          .locator(
+            'button.wpfe-button-primary:has-text("OK"), button:has-text("OK")',
+          )
+          .first();
         await okBtn.click();
         await page.waitForTimeout(5000);
 
@@ -901,7 +1144,6 @@ export class GttCheckerService {
         await this.scrapeQSSPrices(page, cqgPricesMap);
         this.logger.log(`Lũy kế: Đã đọc được ${cqgPricesMap.size} giá từ CQG.`);
       }
-
     } finally {
       await browser.close();
     }
@@ -927,36 +1169,50 @@ export class GttCheckerService {
       cqgOnlyCount,
       rows,
       marketCsvPath: this.marketCsvPath,
-      gttFilePath: fs.existsSync(this.trangThaiMoPath) ? this.trangThaiMoPath : this.gttXlsxPath,
-      hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath) ? this.hangHoaXlsxPath : null,
+      gttFilePath: fs.existsSync(this.trangThaiMoPath)
+        ? this.trangThaiMoPath
+        : this.gttXlsxPath,
+      hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
+        ? this.hangHoaXlsxPath
+        : null,
     };
 
     // Save report to disk
-    fs.writeFileSync(this.reportJsonPath, JSON.stringify(report, null, 2), 'utf8');
+    fs.writeFileSync(
+      this.reportJsonPath,
+      JSON.stringify(report, null, 2),
+      'utf8',
+    );
     this.latestReport = report;
 
-    this.logger.log(`=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`);
+    this.logger.log(
+      `=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
+    );
     return report;
   }
 
   /**
    * Generates a correction Excel file for mismatched prices.
    */
-  async generateCorrectionFile(type: 'settlement' | 'first_match'): Promise<string> {
+  async generateCorrectionFile(
+    type: 'settlement' | 'first_match',
+  ): Promise<string> {
     const report = this.getLatestReport();
     if (!report || !report.rows) {
-      throw new Error('Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.');
+      throw new Error(
+        'Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.',
+      );
     }
 
     // Filter out only DIFF rows (mismatches)
-    const diffRows = report.rows.filter(r => r.status === 'DIFF');
+    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
     if (diffRows.length === 0) {
       throw new Error('Không có hợp đồng nào bị lệch giá để xuất file sửa.');
     }
 
     // Prepare data based on typical IT upload tool formats
     // We map CQG price (as source of truth) for M-System updates
-    const dataToExport = diffRows.map(r => {
+    const dataToExport = diffRows.map((r) => {
       if (type === 'settlement') {
         return {
           'Mã Hợp Đồng': r.symbol,
@@ -978,34 +1234,47 @@ export class GttCheckerService {
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     XLSX.writeFile(wb, exportPath, { compression: true });
 
-    this.logger.log(`Created correction Excel file for ${type} at: ${exportPath}`);
+    this.logger.log(
+      `Created correction Excel file for ${type} at: ${exportPath}`,
+    );
     return exportPath;
   }
 
   /**
    * Pushes the price corrections of majorly discrepant contracts directly to the M-System import price API.
    */
-  async pushCorrectionToMSystem(): Promise<{ success: boolean; message: string; data?: any }> {
+  async pushCorrectionToMSystem(): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
     const report = this.getLatestReport();
     if (!report || !report.rows) {
-      throw new Error('Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.');
+      throw new Error(
+        'Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.',
+      );
     }
 
     // Filter out only DIFF rows that are NOT minor discrepancies
-    const majorDiffRows = report.rows.filter(r => r.status === 'DIFF' && !r.isMinorDiff);
+    const majorDiffRows = report.rows.filter(
+      (r) => r.status === 'DIFF' && !r.isMinorDiff,
+    );
     if (majorDiffRows.length === 0) {
       return {
         success: true,
-        message: 'Không có hợp đồng nào bị lệch giá nhiều ngoài biên bước giá để đẩy lên M-System.',
+        message:
+          'Không có hợp đồng nào bị lệch giá nhiều ngoài biên bước giá để đẩy lên M-System.',
       };
     }
 
     // Generate CSV content
     const csvHeaders = 'contractCode,settlePrice';
-    const csvRows = majorDiffRows.map(r => `${r.symbol},${r.gttCqg}`);
+    const csvRows = majorDiffRows.map((r) => `${r.symbol},${r.gttCqg}`);
     const csvContent = [csvHeaders, ...csvRows].join('\n');
 
-    this.logger.log(`Chuẩn bị đẩy ${majorDiffRows.length} hợp đồng bị lệch lên M-System...`);
+    this.logger.log(
+      `Chuẩn bị đẩy ${majorDiffRows.length} hợp đồng bị lệch lên M-System...`,
+    );
     this.logger.log(`Nội dung CSV:\n${csvContent}`);
 
     try {
@@ -1013,16 +1282,22 @@ export class GttCheckerService {
       const csvBlob = new Blob([csvContent], { type: 'text/csv' });
       formData.append('file', csvBlob, 'import-prices.csv');
 
-      const response = await fetch('https://uat-msapi.mxv.com.vn/market/importPrice', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer a95e60eab94d21e0c994ef714ecec8abb8cbe49a9c8815064c5f98baec24eef6',
+      const response = await fetch(
+        'https://uat-msapi.mxv.com.vn/market/importPrice',
+        {
+          method: 'POST',
+          headers: {
+            Authorization:
+              'Bearer a95e60eab94d21e0c994ef714ecec8abb8cbe49a9c8815064c5f98baec24eef6',
+          },
+          body: formData,
         },
-        body: formData,
-      });
+      );
 
       const responseText = await response.text();
-      this.logger.log(`M-System API response status: ${response.status} - body: ${responseText}`);
+      this.logger.log(
+        `M-System API response status: ${response.status} - body: ${responseText}`,
+      );
 
       if (!response.ok) {
         return {
@@ -1052,4 +1327,3 @@ export class GttCheckerService {
     }
   }
 }
-

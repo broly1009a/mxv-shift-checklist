@@ -11,7 +11,13 @@ class CompactConsoleLogger extends ConsoleLogger {
     // Ẩn bớt các log khởi tạo router/explorer dài dòng của NestJS
     if (
       context &&
-      ['RoutesResolver', 'RouterExplorer', 'InstanceLoader', 'NestFactory', 'NestApplication'].includes(context)
+      [
+        'RoutesResolver',
+        'RouterExplorer',
+        'InstanceLoader',
+        'NestFactory',
+        'NestApplication',
+      ].includes(context)
     ) {
       return;
     }
@@ -33,4 +39,3 @@ async function bootstrap() {
 }
 bootstrap();
 // Trigger reload
-

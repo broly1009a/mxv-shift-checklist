@@ -4,15 +4,16 @@ import * as ExcelJS from 'exceljs';
 import { appendRawDsgd } from './modules/lot-statistics/helpers/excel-accumulator.helper';
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const rootFile = path.join(baseDir, 'root', 'DSGD T07.2026 root.xlsx');
   const tempFile = path.join(__dirname, '..', 'temp_dsgd_append_test.xlsx');
-  
+
   if (fs.existsSync(tempFile)) {
     fs.unlinkSync(tempFile);
   }
   fs.copyFileSync(rootFile, tempFile);
-  
+
   // Let's read some daily DSGD buffer
   const dailyDsgdPath = path.join(baseDir, 'Backup MS', '16.07', 'DSGD.xlsx');
   const dailyDsgdBuffer = fs.readFileSync(dailyDsgdPath);
@@ -24,7 +25,9 @@ async function main() {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(tempFile);
   const ws = wb.worksheets[0];
-  console.log(`After append: Sheet name = ${ws.name}, rowCount = ${ws.rowCount}`);
+  console.log(
+    `After append: Sheet name = ${ws.name}, rowCount = ${ws.rowCount}`,
+  );
 
   const uniqueDates = new Map<string, number>();
   for (let r = 2; r <= ws.rowCount; r++) {

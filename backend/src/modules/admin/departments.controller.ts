@@ -59,9 +59,13 @@ export class DepartmentsController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     const [hasLog, hasUser, hasTemplate] = await Promise.all([
-      this.shiftLogModel.findOne({ departmentId: new Types.ObjectId(id) }).exec(),
+      this.shiftLogModel
+        .findOne({ departmentId: new Types.ObjectId(id) })
+        .exec(),
       this.userModel.findOne({ departmentId: new Types.ObjectId(id) }).exec(),
-      this.templateModel.findOne({ departmentId: new Types.ObjectId(id) }).exec(),
+      this.templateModel
+        .findOne({ departmentId: new Types.ObjectId(id) })
+        .exec(),
     ]);
 
     if (hasLog || hasUser || hasTemplate) {

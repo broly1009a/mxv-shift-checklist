@@ -17,15 +17,17 @@ async function testAcm() {
 
   const jobLogs: string[] = [];
   console.log('Calling loginACM...');
-  
+
   try {
     const { browser, page } = await rpaDownloaderService.loginACM(
       tempDir,
       async (base64Img) => {
-        console.log('HUMAN-IN-THE-LOOP REQUIRED. Please check the image. Code requires manual input!');
+        console.log(
+          'HUMAN-IN-THE-LOOP REQUIRED. Please check the image. Code requires manual input!',
+        );
         return 'MOCKED_CAPTCHA';
       },
-      jobLogs
+      jobLogs,
     );
 
     console.log('loginACM resolved successfully!');
@@ -34,7 +36,7 @@ async function testAcm() {
     console.log('Calling downloadAcmBackup...');
     await rpaDownloaderService.downloadAcmBackup(page, tempDir, jobLogs);
     console.log('downloadAcmBackup resolved successfully!');
-    
+
     await browser.close();
   } catch (err: any) {
     console.error('ACM test failed with error:', err);

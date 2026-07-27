@@ -68,7 +68,10 @@ export class CcpStatisticsController {
 
     const selectedDate = dateStr ? new Date(dateStr) : new Date();
     if (isNaN(selectedDate.getTime())) {
-      throw new HttpException('Ngày chọn không hợp lệ.', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Ngày chọn không hợp lệ.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
@@ -85,12 +88,17 @@ export class CcpStatisticsController {
       );
 
       if (!fs.existsSync(outputPath)) {
-        throw new HttpException('Không tìm thấy file kết quả.', HttpStatus.INTERNAL_SERVER_ERROR);
+        throw new HttpException(
+          'Không tìm thấy file kết quả.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="Thong_ke_kich_ban_Pilot_Bac_Final.xlsx"',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition':
+          'attachment; filename="Thong_ke_kich_ban_Pilot_Bac_Final.xlsx"',
       });
 
       const stream = fs.createReadStream(outputPath);

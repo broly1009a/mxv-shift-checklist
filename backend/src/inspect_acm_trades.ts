@@ -7,7 +7,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const dailyMsDir = path.join(baseDir, 'Backup MS', '16.07');
   const dsgdPath = path.join(dailyMsDir, 'DSGD.xlsx');
 
@@ -19,14 +20,24 @@ async function main() {
   console.log('=== ACM TRADES IN DSGD ===');
   const map = new Map<string, number>();
   for (const r of dsgdAcm) {
-    const maKyHan = String(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['col6'] ?? r['col9']);
-    const lot = Number(r['KL giao dịch'] ?? r['KL'] ?? r['col13'] ?? r['col17'] ?? 0);
+    const maKyHan = String(
+      r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['col6'] ?? r['col9'],
+    );
+    const lot = Number(
+      r['KL giao dịch'] ?? r['KL'] ?? r['col13'] ?? r['col17'] ?? 0,
+    );
     map.set(maKyHan, (map.get(maKyHan) ?? 0) + lot);
   }
 
   for (const [maKyHan, lot] of map.entries()) {
-    const row = dsgdAcm.find(r => String(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['col6'] ?? r['col9']) === maKyHan);
-    console.log(`maKyHan: ${maKyHan} | Lot: ${lot} | getSP: ${getSPFromDsgd(row!)}`);
+    const row = dsgdAcm.find(
+      (r) =>
+        String(r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['col6'] ?? r['col9']) ===
+        maKyHan,
+    );
+    console.log(
+      `maKyHan: ${maKyHan} | Lot: ${lot} | getSP: ${getSPFromDsgd(row!)}`,
+    );
   }
 }
 

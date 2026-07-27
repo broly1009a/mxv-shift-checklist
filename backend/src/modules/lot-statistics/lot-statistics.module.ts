@@ -10,4 +10,3 @@ import { ValueStatisticsController } from './value-statistics.controller';
   exports: [LotStatisticsService, ValueStatisticsService],
 })
 export class LotStatisticsModule {}
-

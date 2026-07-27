@@ -15,9 +15,12 @@ async function run() {
 
   // Find the active shift log for today
   console.log('Finding shift log...');
-  const shiftLog = await shiftLogModel.findOne({
-    'details.taskId': 'TASK_CHECK_CQG_s1'
-  }).sort({ createdAt: -1 }).exec();
+  const shiftLog = await shiftLogModel
+    .findOne({
+      'details.taskId': 'TASK_CHECK_CQG_s1',
+    })
+    .sort({ createdAt: -1 })
+    .exec();
 
   if (!shiftLog) {
     console.error('No shift log found with TASK_CHECK_CQG_s1');
@@ -25,10 +28,14 @@ async function run() {
     return;
   }
 
-  console.log(`Found shift log: ID=${shiftLog._id}, Date=${shiftLog.shiftDate}`);
+  console.log(
+    `Found shift log: ID=${shiftLog._id}, Date=${shiftLog.shiftDate}`,
+  );
 
   // Find the subtask TASK_CHECK_CQG_s1
-  const task = shiftLog.details.find((t: any) => t.taskId === 'TASK_CHECK_CQG_s1');
+  const task = shiftLog.details.find(
+    (t: any) => t.taskId === 'TASK_CHECK_CQG_s1',
+  );
   if (!task) {
     console.error('Subtask TASK_CHECK_CQG_s1 not found in shift log');
     await app.close();
@@ -36,7 +43,9 @@ async function run() {
   }
 
   console.log(`Current status: ${task.status}`);
-  console.log(`Current resultNote snippet: ${task.resultNote?.substring(0, 100)}...`);
+  console.log(
+    `Current resultNote snippet: ${task.resultNote?.substring(0, 100)}...`,
+  );
 
   // Reset status to WAITING to force execution
   console.log('Resetting task status to WAITING...');
@@ -51,7 +60,9 @@ async function run() {
 
   // Refresh shift log
   const updatedShiftLog = await shiftLogModel.findById(shiftLog._id).exec();
-  const updatedTask = updatedShiftLog.details.find((t: any) => t.taskId === 'TASK_CHECK_CQG_s1');
+  const updatedTask = updatedShiftLog.details.find(
+    (t: any) => t.taskId === 'TASK_CHECK_CQG_s1',
+  );
 
   console.log('\n--- AFTER BOT CHECK TICK ---');
   console.log(`Updated status: ${updatedTask.status}`);
@@ -61,7 +72,7 @@ async function run() {
   await app.close();
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('Test execution failed:', err);
   process.exit(1);
 });

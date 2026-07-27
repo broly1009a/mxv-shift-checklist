@@ -19,7 +19,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 function getCookie(req: express.Request, name: string): string | null {
   const cookieHeader = req.headers.cookie;
   if (!cookieHeader) return null;
-  const cookies = cookieHeader.split(';').map(c => c.trim());
+  const cookies = cookieHeader.split(';').map((c) => c.trim());
   for (const cookie of cookies) {
     const [key, ...valParts] = cookie.split('=');
     if (key === name) return valParts.join('=');
@@ -91,9 +91,7 @@ export class AuthController {
         result.user,
       );
 
-      return res.redirect(
-        `${frontendUrl}/login?code=${exchangeCode}`,
-      );
+      return res.redirect(`${frontendUrl}/login?code=${exchangeCode}`);
     } catch (error: any) {
       const errorMsg = error.message || 'Đăng nhập Microsoft thất bại';
       return res.redirect(
@@ -116,7 +114,10 @@ export class AuthController {
 
   @Post('sso')
   async sso(@Body() body: any) {
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SIMULATED_SSO !== 'true') {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.ALLOW_SIMULATED_SSO !== 'true'
+    ) {
       throw new ForbiddenException(
         'Tính năng đăng nhập giả lập SSO bị vô hiệu hóa trên môi trường Production.',
       );

@@ -24,7 +24,10 @@ export class SlaPolicy extends Document {
   @Prop({ required: true, type: Boolean, default: true, index: true })
   isActive: boolean;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'NotificationRule' }], default: [] })
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'NotificationRule' }],
+    default: [],
+  })
   notificationRuleIds: Types.ObjectId[];
 }
 
