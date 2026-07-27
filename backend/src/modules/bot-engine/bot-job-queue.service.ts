@@ -2549,13 +2549,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         socketTimeout: 15000, // 15s
       });
 
-      const payloadStr = JSON.stringify(
-        job.payload instanceof Map
-          ? Object.fromEntries(job.payload)
-          : job.payload,
-        null,
-        2,
-      );
+      const rawPayload = job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+
+      const payloadStr = JSON.stringify(rawPayload, null, 2);
       const lastLogs = job.logs.slice(-20).join('\n');
       
       let displayPayload = payloadStr;
@@ -2566,6 +2564,37 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         mailAttachments.push({
           filename: `job_payload_${job._id}.json`,
           content: Buffer.from(payloadStr, 'utf-8'),
+        });
+      }
+
+      // If it contains mismatched trades list, generate a clean CSV file so the GLGD team can open it directly in Microsoft Excel
+      const mismatchedTrades = rawPayload?.result?.mismatchedTrades || [];
+      if (Array.isArray(mismatchedTrades) && mismatchedTrades.length > 0) {
+        const targetDateStr = rawPayload.sessionDay || rawPayload.targetDate || new Date().toISOString().split('T')[0];
+        
+        const convertMismatchedTradesToCsv = (trades: any[]): string => {
+          const headers = ['Nguồn', 'Mã lệnh', 'Mã TKGD', 'Mã HD', 'Giá khớp', 'KL giao dịch', 'Ngày giờ', 'Lý do lệch'];
+          const rows = trades.map(t => [
+            t.source || '',
+            t.maLenh || '',
+            t.maTKGD || '',
+            t.maHD || '',
+            t.giaKhop !== undefined ? t.giaKhop : '',
+            t.klGiaoDich !== undefined ? t.klGiaoDich : '',
+            t.ngayGio || '',
+            t.reason || ''
+          ]);
+          const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+          ].join('\r\n');
+          return '\ufeff' + csvContent; // UTF-8 BOM
+        };
+
+        const csvContent = convertMismatchedTradesToCsv(mismatchedTrades);
+        mailAttachments.push({
+          filename: `danh_sach_lech_khop_lenh_${targetDateStr}.csv`,
+          content: Buffer.from(csvContent, 'utf-8'),
         });
       }
 
