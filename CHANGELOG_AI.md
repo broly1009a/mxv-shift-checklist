@@ -2,6 +2,31 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 00:22:00] - Refactor: Thay Thế Hộp Thoại Chốt Ca Bằng Custom React Textarea Modal
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Loại bỏ các hộp thoại mặc định thô sơ của trình duyệt (`window.confirm`, `window.prompt`) khi Chốt Ca Trực để cải thiện trải nghiệm người dùng (UX) và giao diện thiết kế (Aesthetics).
+- **Giải pháp**:
+  - **Tạo mới component**: [CloseShiftModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx)
+    - Thiết kế giao diện Glassmorphism đồng bộ, hiển thị thẻ cảnh báo nguy cơ khóa ca (đỏ nổi bật) kèm icon `AlertTriangle`.
+    - Sử dụng ô nhập liệu lớn `textarea` giúp người dùng dễ dàng căn dòng, xuống hàng để nhập thông tin bàn giao chi tiết cho ca sau thay vì ô input 1 dòng chật hẹp của `window.prompt`.
+    - Trạng thái quay tròn Loading trên nút Xác nhận khi đang gọi API chốt ca.
+  - **useChecklist Hook**: [useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts)
+    - Sửa đổi phương thức `handleCloseShift` để nhận trực tiếp chuỗi `handoverNote` từ bên ngoài truyền vào làm tham số, loại bỏ hoàn toàn các hộp thoại mặc định.
+  - **Trang Checklist**: [page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+    - Tích hợp state `isCloseShiftModalOpen` và import component `<CloseShiftModal />`.
+    - Chuyển hướng sự kiện nút bấm "Chốt ca trực" mở modal tùy chọn và truyền kết quả chốt ca về hook xử lý.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [frontend/src/app/checklist/components/CloseShiftModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx) [NEW]
+- [frontend/src/app/checklist/hooks/useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) [MODIFY]
+- [frontend/src/app/checklist/page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch Next.js production build (`npm run build` ở `frontend`) thành công 100% không lỗi.
+
+---
+
 ## [2026-07-28 00:10:00] - Feature: Triển Khai Tính Năng Tìm Kiếm Toàn Cục (Global Search) Phục Vụ Vận Hành
 
 ### 1. Mục tiêu Thay đổi

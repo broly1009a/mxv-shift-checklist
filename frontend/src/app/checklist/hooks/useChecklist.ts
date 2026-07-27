@@ -546,19 +546,8 @@ export function useChecklist() {
     }
   };
 
-  const handleCloseShift = async () => {
+  const handleCloseShift = async (noteInput: string) => {
     if (!log || !token) return;
-
-    const confirmClose = window.confirm(
-      'Bạn có chắc chắn muốn chốt ca trực này? Hành động này sẽ khóa toàn bộ ca trực và không thể chỉnh sửa trạng thái tác vụ sau đó.'
-    );
-    if (!confirmClose) return;
-
-    const noteInput = window.prompt(
-      'Nhập Biên Bản Bàn Giao Ca Trực (Thông tin bàn giao vị thế, trạng thái hệ thống cho ca sau,...):',
-      ''
-    );
-    if (noteInput === null) return;
 
     setLoading(true);
     try {
