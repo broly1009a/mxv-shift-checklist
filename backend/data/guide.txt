@@ -1,3 +1,3 @@
 
-robocopy "c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-shift-checklist\backend\data" "C:\Users\hiepth\Downloads\OperateChecklist_UAT\Quanlygiaodich\Tai lieu hoat dong" /MIR /FFT /Z /NP
-robocopy "C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong" ".\backend\data" /MIR /FFT /Z /NP
+robocopy "c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-shift-checklist\backend\data" "C:\Users\hiepth\Downloads\OperateChecklist_UAT" /MIR /FFT /Z /NP
+robocopy "C:\Users\hiepth\Downloads\OperateChecklist_UAT" "c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-shift-checklist\backend\data" /MIR /FFT /Z /NP

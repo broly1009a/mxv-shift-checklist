@@ -2,7 +2,59 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-27 10:52:00] - Refactor: Tổ Chức Lại Thư Mục Dữ Liệu Data Theo Khối Ban (Quanlygiaodich)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  - Tổ chức lại cấu trúc thư mục trong `backend/data` theo Khối ban cụ thể (trước mắt là khối `Quanlygiaodich`) để chuẩn bị tích hợp thêm các ban khác như `QLRR`, `IT` và chạy tự động kéo file UAT không bị chồng chéo.
+  - Xác nhận vị trí của thư mục `Quyết định - Thông báo` thuộc khối `Quanlygiaodich` (đường dẫn thật: `M:\Quanlygiaodich\Tai lieu hoat dong\Quyết định - Thông báo\2. QĐ ban hành mức ký quỹ`).
+  - Hỗ trợ tạo mới file bản tin hàng ngày lưu sâu trong: `M:\Quanlygiaodich\Tai lieu hoat dong\Thong ke gia tri giao dich\Gửi team bản tin Thong ke gia tri giao dich\Gửi team bản tin`.
+- **Giải pháp**:
+  - Di chuyển các thư mục nghiệp vụ của khối QLGD (`Backup CQG`, `Backup MS`, `Thong ke so lot giao dich`, và `Quyết định - Thông báo`) vào bên trong thư mục đường dẫn chuẩn: `backend/data/Quanlygiaodich/Tai lieu hoat dong/`.
+  - Tạo cấu trúc thư mục sâu chứa bản tin: `backend/data/Quanlygiaodich/Tai lieu hoat dong/Thong ke gia tri giao dich/Gửi team bản tin Thong ke gia tri giao dich/Gửi team bản tin/` và tạo file `.gitkeep` để Git theo dõi.
+  - Sửa mã nguồn file [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts#L372-L377) để biến `newsletterDir` trỏ chuẩn xác vào thư mục sâu của bản tin thay vì thư mục `targetRoot` chung.
+  - Sửa đổi mã nguồn của helper [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts#L43-L49) để tính toán đường dẫn tương đối từ gốc UAT (uatRoot, bằng cách đi ngược lên 2 cấp thư mục cha của allowedRoot) thay vì allowedRoot trực tiếp. Điều này đảm bảo cơ chế tự động đồng bộ file mẫu (`ensureBaseFileExists`) tìm kiếm đúng thư mục nguồn có cấu trúc dạng `/data/<Dept>/<Subfolder>`.
+  - Cập nhật lại các lệnh đồng bộ mẫu Robocopy trong file [guide.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/data/guide.txt) trỏ từ `backend/data` trực tiếp ra gốc `OperateChecklist_UAT`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/common/file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts) [MODIFY]
+- [backend/src/modules/lot-statistics/value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) [MODIFY]
+- [backend/data/guide.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/data/guide.txt) [MODIFY]
+- Tái cấu trúc các thư mục bên trong `backend/data` [REFACTOR]
+
 ---
+
+## [2026-07-27 09:47:00] - Fix: Cập Nhật Cấu Hình Nginx Hỗ Trợ WebSocket Cho Dịch Vụ Realtime (Socket.io)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Người dùng báo cáo tính năng cập nhật trạng thái thời gian thực (Realtime) trên website deploy không hoạt động mặc dù Socket.io vẫn bắn request liên tục.
+- **Phân tích lỗi**:
+  - Khi xem tab Network trong Browser Developer Tools, phát hiện lỗi kết nối liên tục (Upgrade/Websocket loop) đến cổng mặc định 80.
+  - Nguyên nhân do Nginx Gateway (cổng 80) thiếu directive cấu hình cho `/socket.io/`. Do đó, các request WebSockets bị trỏ nhầm về Frontend (cổng 3000) thay vì chuyển tiếp sang cổng API Backend (cổng 3001).
+- **Giải pháp**:
+  - Bổ sung cấu hình route `/socket.io/` vào file cấu hình mẫu [HUONG_DAN_DEPLOY_NATIVE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_DEPLOY_NATIVE.md) để hỗ trợ đầy đủ proxy WebSockets thông qua Nginx.
+  - Hướng dẫn người dùng sửa cấu hình Nginx trên server Linux thực tế.
+
+### 2. Danh sách file chỉnh sửa
+- [HUONG_DAN_DEPLOY_NATIVE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_DEPLOY_NATIVE.md) [MODIFY]
+
+---
+
+## [2026-07-27 08:42:00] - Doc: Tạo File Nhật Ký Triển Khai Cho USER
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Tạo một file log trong thư mục `deployment` để ghi chép và theo dõi tiến độ cập nhật hệ thống của chính mình.
+- **Giải pháp**: Tạo mới tệp tin `DEPLOYMENT_LOG.md` tại thư mục `deployment/` với biểu mẫu checklist đầy đủ các bước triển khai native (Node.js, MongoDB, PM2, Nginx, restore DB) và lịch sử thao tác để người dùng dễ dàng theo dõi tiến độ.
+
+### 2. Danh sách file chỉnh sửa
+- [DEPLOYMENT_LOG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/DEPLOYMENT_LOG.md) [NEW]
+
+### 3. Xác nhận Build/Kiểm thử
+- Không tác động tới code logic, chỉ tạo file tài liệu log theo yêu cầu của USER.
+
+---
+
+
 
 ## [2026-07-24 16:11:00] - Fix: Khắc Phục Lỗi Biên Dịch Build Production Cho Backend (NestJS) & Dọn Dẹp File Rác
 

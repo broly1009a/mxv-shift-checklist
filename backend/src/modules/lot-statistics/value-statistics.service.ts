@@ -369,7 +369,12 @@ export class ValueStatisticsService {
     const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
     const year = targetDate.getFullYear();
 
-    const newsletterDir = path.join(targetRoot, 'Gửi team bản tin');
+    const newsletterDir = path.join(
+      targetRoot,
+      'Thong ke gia tri giao dich',
+      'Gửi team bản tin Thong ke gia tri giao dich',
+      'Gửi team bản tin',
+    );
     if (!fs.existsSync(newsletterDir)) {
       this.logger.warn(
         `Thư mục "Gửi team bản tin" không tồn tại: ${newsletterDir}. Bỏ qua xuất file bản tin.`,

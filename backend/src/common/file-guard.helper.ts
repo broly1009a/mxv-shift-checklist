@@ -43,7 +43,9 @@ export function ensureBaseFileExists(filePath: string): boolean {
     const resolvedAllowedRoot = path.resolve(targetRoot);
 
     if (resolvedTarget.startsWith(resolvedAllowedRoot)) {
-      const relativePath = path.relative(resolvedAllowedRoot, resolvedTarget);
+      // Find UAT/Production root by going up 2 levels from allowed root (which ends with <Dept>/<Subfolder>)
+      const uatRoot = path.dirname(path.dirname(resolvedAllowedRoot));
+      const relativePath = path.relative(uatRoot, resolvedTarget);
       const sourceCandidate = path.join(dataRoot, relativePath);
 
       if (fs.existsSync(sourceCandidate)) {
@@ -80,7 +82,9 @@ export function ensureBaseDirectoryExists(dirPath: string): boolean {
     const resolvedAllowedRoot = path.resolve(targetRoot);
 
     if (resolvedTarget.startsWith(resolvedAllowedRoot)) {
-      const relativePath = path.relative(resolvedAllowedRoot, resolvedTarget);
+      // Find UAT/Production root by going up 2 levels from allowed root (which ends with <Dept>/<Subfolder>)
+      const uatRoot = path.dirname(path.dirname(resolvedAllowedRoot));
+      const relativePath = path.relative(uatRoot, resolvedTarget);
       const sourceCandidate = path.join(dataRoot, relativePath);
 
       if (
