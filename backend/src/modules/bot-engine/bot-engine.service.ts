@@ -40,7 +40,7 @@ export class BotEngineService {
     private readonly rpaDownloaderService: RpaDownloaderService,
     @Inject(forwardRef(() => MarginChangeRequestsService))
     private readonly marginChangeRequestsService: MarginChangeRequestsService,
-  ) {}
+  ) { }
 
   /**
    * Run every 1 minute to check active shift checklists.
@@ -199,7 +199,8 @@ export class BotEngineService {
           );
 
           if (checkType === 'EMAIL_PARSE') {
-            checkResult = await this.emailWatcherService.checkEmailTask(
+            // checkResult = await this.emailWatcherService.checkEmailTask(
+            checkResult = await this.emailWatcherService.checkEmailTaskDelegated(
               target,
               condition,
             );
@@ -1081,7 +1082,7 @@ export class BotEngineService {
                         );
                       }
                     } finally {
-                      await browser.close().catch(() => {});
+                      await browser.close().catch(() => { });
                     }
                   }
 
