@@ -57,7 +57,18 @@ export class ShiftLogDetail {
   @Prop({ required: false, type: String, default: '' })
   botFailureActionSnapshot?: string;
 
-  @Prop({ required: true, enum: ['PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'], default: 'PENDING' })
+  @Prop({
+    required: true,
+    enum: [
+      'PENDING',
+      'WAITING',
+      'PASSED',
+      'FAILED',
+      'SKIPPED',
+      'NEEDS_ATTENTION',
+    ],
+    default: 'PENDING',
+  })
   status: string;
 
   @Prop({ required: false, type: String, default: null })
@@ -111,7 +122,12 @@ export class ShiftLogDetail {
   @Prop({ required: false, type: String, default: null })
   parentTaskIdSnapshot?: string | null;
 
-  @Prop({ required: false, type: String, enum: ['FIXED_TIME', 'DYNAMIC_AFTER_TASK'], default: 'FIXED_TIME' })
+  @Prop({
+    required: false,
+    type: String,
+    enum: ['FIXED_TIME', 'DYNAMIC_AFTER_TASK'],
+    default: 'FIXED_TIME',
+  })
   slaTypeSnapshot?: string;
 }
 
@@ -153,7 +169,12 @@ export class ShiftLog extends Document {
   @Prop({ required: true, index: true })
   shiftDate: string; // YYYY-MM-DD
 
-  @Prop({ required: true, enum: ['PENDING', 'COMPLETED'], default: 'PENDING', index: true })
+  @Prop({
+    required: true,
+    enum: ['PENDING', 'COMPLETED'],
+    default: 'PENDING',
+    index: true,
+  })
   status: string;
 
   @Prop({ required: true, type: Number, default: 0.0 })

@@ -1,4 +1,14 @@
-import { Controller, UseGuards, Post, Get, Patch, Body, Param, Request, Query } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Request,
+  Query,
+} from '@nestjs/common';
 import { MarginChangeRequestsService } from './margin-change-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -11,7 +21,14 @@ export class MarginChangeRequestsController {
 
   @Post()
   async create(@Request() req: any, @Body() body: any) {
-    const { commodity, oldMargin, newMargin, effectiveSession, comments, taskId } = body;
+    const {
+      commodity,
+      oldMargin,
+      newMargin,
+      effectiveSession,
+      comments,
+      taskId,
+    } = body;
     return this.marginChangeRequestsService.createRequest(
       { commodity, oldMargin, newMargin, effectiveSession, comments, taskId },
       req.user,
@@ -35,7 +52,11 @@ export class MarginChangeRequestsController {
     @Body() body?: any,
   ) {
     const comments = body?.comments;
-    return this.marginChangeRequestsService.approveRequest(id, req.user, comments);
+    return this.marginChangeRequestsService.approveRequest(
+      id,
+      req.user,
+      comments,
+    );
   }
 
   @Patch(':id/reject')
@@ -46,6 +67,11 @@ export class MarginChangeRequestsController {
   ) {
     const reason = body?.reason;
     const comments = body?.comments;
-    return this.marginChangeRequestsService.rejectRequest(id, req.user, reason, comments);
+    return this.marginChangeRequestsService.rejectRequest(
+      id,
+      req.user,
+      reason,
+      comments,
+    );
   }
 }

@@ -24,7 +24,9 @@ export class CleanupService {
   // Chạy tự động vào lúc 00:00 hàng ngày
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleRetentionCleanup() {
-    this.logger.log('Bắt đầu quy trình tự động dọn dẹp dữ liệu (Database & Cache)...');
+    this.logger.log(
+      'Bắt đầu quy trình tự động dọn dẹp dữ liệu (Database & Cache)...',
+    );
 
     try {
       // 1. Dọn dẹp cache Telegram
@@ -35,11 +37,15 @@ export class CleanupService {
       const cutOffDate = new Date();
       cutOffDate.setDate(cutOffDate.getDate() - retentionDays);
 
-      this.logger.log(`Xóa dữ liệu nhật ký hệ thống trước ngày: ${cutOffDate.toISOString()}`);
+      this.logger.log(
+        `Xóa dữ liệu nhật ký hệ thống trước ngày: ${cutOffDate.toISOString()}`,
+      );
 
       const [activityDel, notificationDel, systemDel] = await Promise.all([
         this.activityLogModel.deleteMany({ createdAt: { $lt: cutOffDate } }),
-        this.notificationLogModel.deleteMany({ createdAt: { $lt: cutOffDate } }),
+        this.notificationLogModel.deleteMany({
+          createdAt: { $lt: cutOffDate },
+        }),
         this.systemLogModel.deleteMany({ createdAt: { $lt: cutOffDate } }),
       ]);
 

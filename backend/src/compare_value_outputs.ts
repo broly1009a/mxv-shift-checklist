@@ -26,16 +26,32 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
 }
 
 async function compareFiles() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke gia tri';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke gia tri';
   const rootDir = path.join(baseDir, 'root');
   const targetDate = new Date(2026, 6, 16); // 16-Jul-2026
 
   const filesToCompare = [
-    { name: 'Thong ke gia tri giao dich 2026 1.xlsx', rootName: 'Thong ke gia tri giao dich 2026 1.xlsx' },
-    { name: 'Thong ke gia tri giao dich ACM 2026 1.xlsx', rootName: 'Thong ke gia tri giao dich ACM 2026 1.xlsx' },
-    { name: 'Thong ke gia tri giao dich LME 2026.xlsx', rootName: 'Thong ke gia tri giao dich LME 2026.xlsx' },
-    { name: 'Thong ke gia tri giao dich Options 2026.xlsx', rootName: 'Thong ke gia tri giao dich Options 2026.xlsx' },
-    { name: 'Thong ke gia tri giao dich Spread 2026.xlsx', rootName: 'Thong ke gia tri giao dich Spread 2026.xlsx' },
+    {
+      name: 'Thong ke gia tri giao dich 2026 1.xlsx',
+      rootName: 'Thong ke gia tri giao dich 2026 1.xlsx',
+    },
+    {
+      name: 'Thong ke gia tri giao dich ACM 2026 1.xlsx',
+      rootName: 'Thong ke gia tri giao dich ACM 2026 1.xlsx',
+    },
+    {
+      name: 'Thong ke gia tri giao dich LME 2026.xlsx',
+      rootName: 'Thong ke gia tri giao dich LME 2026.xlsx',
+    },
+    {
+      name: 'Thong ke gia tri giao dich Options 2026.xlsx',
+      rootName: 'Thong ke gia tri giao dich Options 2026.xlsx',
+    },
+    {
+      name: 'Thong ke gia tri giao dich Spread 2026.xlsx',
+      rootName: 'Thong ke gia tri giao dich Spread 2026.xlsx',
+    },
   ];
 
   for (const item of filesToCompare) {
@@ -50,13 +66,19 @@ async function compareFiles() {
     await wbRoot.xlsx.readFile(pathRoot);
 
     const findWs = (wb: ExcelJS.Workbook) => {
-      return wb.worksheets.find(s => s.name === 'T07.2026' || s.name === 'T7.2026') || wb.worksheets[wb.worksheets.length - 1];
+      return (
+        wb.worksheets.find(
+          (s) => s.name === 'T07.2026' || s.name === 'T7.2026',
+        ) || wb.worksheets[wb.worksheets.length - 1]
+      );
     };
 
     const wsGen = findWs(wbGen);
     const wsRoot = findWs(wbRoot);
 
-    console.log(`Sheet Gen: ${wsGen.name} (${wsGen.rowCount} rows), Sheet Root: ${wsRoot.name} (${wsRoot.rowCount} rows)`);
+    console.log(
+      `Sheet Gen: ${wsGen.name} (${wsGen.rowCount} rows), Sheet Root: ${wsRoot.name} (${wsRoot.rowCount} rows)`,
+    );
 
     let rowGenIdx = -1;
     let rowRootIdx = -1;
@@ -81,11 +103,15 @@ async function compareFiles() {
     }
 
     if (rowGenIdx === -1 || rowRootIdx === -1) {
-      console.log(`[WARN] Could not find row for 16-Jul-2026. GenRow: ${rowGenIdx}, RootRow: ${rowRootIdx}`);
+      console.log(
+        `[WARN] Could not find row for 16-Jul-2026. GenRow: ${rowGenIdx}, RootRow: ${rowRootIdx}`,
+      );
       continue;
     }
 
-    console.log(`Found 16-Jul-2026 at Gen Row ${rowGenIdx}, Root Row ${rowRootIdx}`);
+    console.log(
+      `Found 16-Jul-2026 at Gen Row ${rowGenIdx}, Root Row ${rowRootIdx}`,
+    );
     const rowGen = wsGen.getRow(rowGenIdx);
     const rowRoot = wsRoot.getRow(rowRootIdx);
 
@@ -96,7 +122,11 @@ async function compareFiles() {
       const valRoot = rowRoot.getCell(c).value;
 
       const isFormula = (val: any) => {
-        return val && typeof val === 'object' && ('formula' in val || 'sharedFormula' in val);
+        return (
+          val &&
+          typeof val === 'object' &&
+          ('formula' in val || 'sharedFormula' in val)
+        );
       };
 
       if (isFormula(valGen) || isFormula(valRoot)) {
@@ -104,7 +134,8 @@ async function compareFiles() {
       }
 
       const cleanVal = (val: any) => {
-        if (val && typeof val === 'object' && 'result' in val) return val.result;
+        if (val && typeof val === 'object' && 'result' in val)
+          return val.result;
         return val;
       };
 
@@ -123,8 +154,13 @@ async function compareFiles() {
 
       if (Math.abs(numGen - numRoot) > 1e-2) {
         diffCount++;
-        const header = wsRoot.getCell(5, c).value || wsRoot.getCell(4, c).value || `Col ${c}`;
-        console.log(`Col ${c} (${header}): Gen=${JSON.stringify(cg)}, Root=${JSON.stringify(cr)}`);
+        const header =
+          wsRoot.getCell(5, c).value ||
+          wsRoot.getCell(4, c).value ||
+          `Col ${c}`;
+        console.log(
+          `Col ${c} (${header}): Gen=${JSON.stringify(cg)}, Root=${JSON.stringify(cr)}`,
+        );
       }
     }
     console.log(`Total differences in 16-Jul-2026 row: ${diffCount}`);

@@ -26,17 +26,33 @@ function isSameDate(cellVal: any, targetDate: Date): boolean {
 }
 
 async function compareFiles() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const rootDir = path.join(baseDir, 'root');
   const targetDate = new Date(2026, 6, 16); // 16-Jul-2026
 
   const filesToCompare = [
     { name: 'DSGD T07.2026.xlsx', rootName: 'DSGD T07.2026 root.xlsx' },
-    { name: 'Thong ke so lot giao dich 2026 2.xlsx', rootName: 'Thong ke so lot giao dich 2026 2 root.xlsx' },
-    { name: 'Thong ke so lot giao dich ACM 2026 2.xlsx', rootName: 'Thong ke so lot giao dich ACM 2026 2 root.xlsx' },
-    { name: 'Thong ke so lot giao dich LME 2026.xlsx', rootName: 'Thong ke so lot giao dich LME 2026 root.xlsx' },
-    { name: 'Thong ke so lot giao dich Options 2026.xlsx', rootName: 'Thong ke so lot giao dich Options 2026 root.xlsx' },
-    { name: 'Thong ke so lot giao dich Spread 2026.xlsx', rootName: 'Thong ke so lot giao dich Spread 2026 root.xlsx' },
+    {
+      name: 'Thong ke so lot giao dich 2026 2.xlsx',
+      rootName: 'Thong ke so lot giao dich 2026 2 root.xlsx',
+    },
+    {
+      name: 'Thong ke so lot giao dich ACM 2026 2.xlsx',
+      rootName: 'Thong ke so lot giao dich ACM 2026 2 root.xlsx',
+    },
+    {
+      name: 'Thong ke so lot giao dich LME 2026.xlsx',
+      rootName: 'Thong ke so lot giao dich LME 2026 root.xlsx',
+    },
+    {
+      name: 'Thong ke so lot giao dich Options 2026.xlsx',
+      rootName: 'Thong ke so lot giao dich Options 2026 root.xlsx',
+    },
+    {
+      name: 'Thong ke so lot giao dich Spread 2026.xlsx',
+      rootName: 'Thong ke so lot giao dich Spread 2026 root.xlsx',
+    },
   ];
 
   for (const item of filesToCompare) {
@@ -53,7 +69,9 @@ async function compareFiles() {
     const wsGen = wbGen.worksheets[wbGen.worksheets.length - 1];
     const wsRoot = wbRoot.worksheets[wbRoot.worksheets.length - 1];
 
-    console.log(`Sheet Gen: ${wsGen.name} (${wsGen.rowCount} rows), Sheet Root: ${wsRoot.name} (${wsRoot.rowCount} rows)`);
+    console.log(
+      `Sheet Gen: ${wsGen.name} (${wsGen.rowCount} rows), Sheet Root: ${wsRoot.name} (${wsRoot.rowCount} rows)`,
+    );
 
     // Let's find Row for 16-Jul-2026 in both
     let rowGenIdx = -1;
@@ -79,11 +97,15 @@ async function compareFiles() {
     }
 
     if (rowGenIdx === -1 || rowRootIdx === -1) {
-      console.log(`[WARN] Could not find row for 16-Jul-2026. GenRow: ${rowGenIdx}, RootRow: ${rowRootIdx}`);
+      console.log(
+        `[WARN] Could not find row for 16-Jul-2026. GenRow: ${rowGenIdx}, RootRow: ${rowRootIdx}`,
+      );
       continue;
     }
 
-    console.log(`Found 16-Jul-2026 at Gen Row ${rowGenIdx}, Root Row ${rowRootIdx}`);
+    console.log(
+      `Found 16-Jul-2026 at Gen Row ${rowGenIdx}, Root Row ${rowRootIdx}`,
+    );
     const rowGen = wsGen.getRow(rowGenIdx);
     const rowRoot = wsRoot.getRow(rowRootIdx);
 
@@ -95,7 +117,11 @@ async function compareFiles() {
 
       // Check if a cell is a formula cell
       const isFormula = (val: any) => {
-        return val && typeof val === 'object' && ('formula' in val || 'sharedFormula' in val);
+        return (
+          val &&
+          typeof val === 'object' &&
+          ('formula' in val || 'sharedFormula' in val)
+        );
       };
 
       if (isFormula(valGen) || isFormula(valRoot)) {
@@ -103,7 +129,8 @@ async function compareFiles() {
       }
 
       const cleanVal = (val: any) => {
-        if (val && typeof val === 'object' && 'result' in val) return val.result;
+        if (val && typeof val === 'object' && 'result' in val)
+          return val.result;
         return val;
       };
 
@@ -117,7 +144,9 @@ async function compareFiles() {
         diffCount++;
         const headerRowIndex = item.name.startsWith('DSGD') ? 1 : 4;
         const header = wsRoot.getCell(headerRowIndex, c).value;
-        console.log(`Col ${c} (${header}): Gen=${JSON.stringify(cg)}, Root=${JSON.stringify(cr)}`);
+        console.log(
+          `Col ${c} (${header}): Gen=${JSON.stringify(cg)}, Root=${JSON.stringify(cr)}`,
+        );
       }
     }
     console.log(`Total differences in 16-Jul-2026 row: ${diffCount}`);

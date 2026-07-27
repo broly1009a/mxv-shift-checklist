@@ -22,7 +22,10 @@ async function runMSystemDownloadTest() {
   let pin = process.env.MS_PIN;
   let msystemUrl = 'https://msadmin.mxv.com.vn/'; // Defaulting to the admin URL from user screenshots
 
-  const credentialsRaw = await settingsService.getSetting('bot_credentials_msystem', '');
+  const credentialsRaw = await settingsService.getSetting(
+    'bot_credentials_msystem',
+    '',
+  );
   if (credentialsRaw) {
     try {
       const credentials = JSON.parse(decrypt(credentialsRaw));
@@ -31,7 +34,10 @@ async function runMSystemDownloadTest() {
       pin = pin || credentials.pin;
       msystemUrl = credentials.url || msystemUrl;
     } catch (err) {
-      console.error('❌ Error decrypting bot credentials from DB:', err.message);
+      console.error(
+        '❌ Error decrypting bot credentials from DB:',
+        err.message,
+      );
     }
   }
 
@@ -57,14 +63,16 @@ async function runMSystemDownloadTest() {
     'operate-transaction-app',
     'Chrome',
     'chrome-win',
-    'chrome.exe'
+    'chrome.exe',
   );
 
   if (fs.existsSync(bundledPath)) {
     console.log(`Phát hiện Chrome tích hợp tại: ${bundledPath}`);
     launchOptions.executablePath = bundledPath;
   } else {
-    console.log('Không tìm thấy Chrome tích hợp. Sử dụng trình duyệt mặc định.');
+    console.log(
+      'Không tìm thấy Chrome tích hợp. Sử dụng trình duyệt mặc định.',
+    );
   }
 
   const browser = await chromium.launch(launchOptions);
@@ -76,7 +84,11 @@ async function runMSystemDownloadTest() {
   page.setDefaultTimeout(30000);
 
   // Helper to click export button and download file
-  async function downloadExcel(targetUrl: string, destFileName: string, pageType: string) {
+  async function downloadExcel(
+    targetUrl: string,
+    destFileName: string,
+    pageType: string,
+  ) {
     console.log(`\nNavigating to ${pageType} page: ${targetUrl}...`);
     await page.goto(targetUrl);
     await page.waitForTimeout(4000); // Wait for data to render
@@ -92,24 +104,24 @@ async function runMSystemDownloadTest() {
       const icon = await buttons[i].$('i');
       const iconCls = icon ? await icon.getAttribute('class') : '';
 
-      console.log(`- Button ${i}: text="${text}", title="${title}", class="${cls}", iconClass="${iconCls}"`);
+      console.log(
+        `- Button ${i}: text="${text}", title="${title}", class="${cls}", iconClass="${iconCls}"`,
+      );
 
       // Match the export button by standard attributes
       if (
-        (iconCls && (
-          iconCls.includes('document') ||
-          iconCls.includes('download') ||
-          iconCls.includes('export') ||
-          iconCls.includes('csv') ||
-          iconCls.includes('excel') ||
-          iconCls.includes('file')
-        )) ||
-        (title && (
-          title.toLowerCase().includes('export') ||
-          title.toLowerCase().includes('download') ||
-          title.toLowerCase().includes('csv') ||
-          title.toLowerCase().includes('excel')
-        )) ||
+        (iconCls &&
+          (iconCls.includes('document') ||
+            iconCls.includes('download') ||
+            iconCls.includes('export') ||
+            iconCls.includes('csv') ||
+            iconCls.includes('excel') ||
+            iconCls.includes('file'))) ||
+        (title &&
+          (title.toLowerCase().includes('export') ||
+            title.toLowerCase().includes('download') ||
+            title.toLowerCase().includes('csv') ||
+            title.toLowerCase().includes('excel'))) ||
         text.toLowerCase().includes('export') ||
         text.toLowerCase().includes('tải')
       ) {
@@ -122,7 +134,9 @@ async function runMSystemDownloadTest() {
 
     // Fallback: if no exportBtn found, select the blue one next to green/red in the header
     if (!exportBtn) {
-      console.log('Fallback: attempting to locate button by blue/teal document class...');
+      console.log(
+        'Fallback: attempting to locate button by blue/teal document class...',
+      );
       const fallbackLocators = [
         'button:has(i.el-icon-document)',
         'button:has(i.el-icon-download)',
@@ -172,7 +186,10 @@ async function runMSystemDownloadTest() {
     await page.click('button.btn-primary');
 
     console.log('Waiting for virtual PIN board...');
-    await page.waitForSelector('div.pincode', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('div.pincode', {
+      state: 'visible',
+      timeout: 15000,
+    });
 
     console.log('Entering PIN digits...');
     const pinDigits = pin.split('');
@@ -184,14 +201,18 @@ async function runMSystemDownloadTest() {
     }
 
     console.log('Verifying login redirection...');
-    await page.waitForSelector('xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]', {
-      state: 'visible',
-      timeout: 20000,
-    });
+    await page.waitForSelector(
+      'xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]',
+      {
+        state: 'visible',
+        timeout: 20000,
+      },
+    );
     console.log('🎉 Login successful!');
 
     // 2. DOWNLOAD PAGE 1: OPEN POSITIONS
-    const positionsUrl = 'https://msadmin.mxv.com.vn/#/positionManagement/openPositionInfo';
+    const positionsUrl =
+      'https://msadmin.mxv.com.vn/#/positionManagement/openPositionInfo';
     await downloadExcel(positionsUrl, 'open_positions.xlsx', 'Open Positions');
 
     // 3. DOWNLOAD PAGE 2: ORDER LIST (PENDING ORDERS)
@@ -204,11 +225,16 @@ async function runMSystemDownloadTest() {
     const matches = await page.evaluate(() => {
       const elms = Array.from(document.querySelectorAll('*'));
       return elms
-        .filter(el => el.textContent && el.textContent.includes('Lệnh') && el.children.length === 0)
-        .map(el => ({
+        .filter(
+          (el) =>
+            el.textContent &&
+            el.textContent.includes('Lệnh') &&
+            el.children.length === 0,
+        )
+        .map((el) => ({
           tagName: el.tagName,
           className: el.className,
-          textContent: el.textContent ? el.textContent.trim() : ''
+          textContent: el.textContent ? el.textContent.trim() : '',
         }));
     });
     console.log('Matches found for "Lệnh":', JSON.stringify(matches, null, 2));
@@ -222,7 +248,13 @@ async function runMSystemDownloadTest() {
       'text="Lệnh chờ khớp"',
     ];
     for (const sel of tabSelectors) {
-      if (await page.locator(sel).first().isVisible().catch(() => false)) {
+      if (
+        await page
+          .locator(sel)
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await page.click(sel);
         console.log(`Successfully clicked tab using selector: ${sel}`);
         tabClicked = true;
@@ -230,8 +262,12 @@ async function runMSystemDownloadTest() {
       }
     }
     if (!tabClicked) {
-      console.log('⚠️ Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...');
-      await page.click('text="Lệnh chờ khớp"').catch(e => console.log('Fallback click failed:', e.message));
+      console.log(
+        '⚠️ Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...',
+      );
+      await page
+        .click('text="Lệnh chờ khớp"')
+        .catch((e) => console.log('Fallback click failed:', e.message));
     }
     await page.waitForTimeout(4000); // Wait for table to reload
 
@@ -239,9 +275,10 @@ async function runMSystemDownloadTest() {
     await downloadExcel(ordersUrl, 'pending_orders.xlsx', 'Pending Orders');
 
     console.log('\n🎉 ALL DOWNLOADS COMPLETED SUCCESSFULLY!');
-    console.log('Keeping browser open for 15 seconds so you can verify the downloads...');
+    console.log(
+      'Keeping browser open for 15 seconds so you can verify the downloads...',
+    );
     await page.waitForTimeout(15000);
-
   } catch (err: any) {
     console.error('\n❌ Error occurred during automation:', err.message);
   } finally {
@@ -253,7 +290,7 @@ async function runMSystemDownloadTest() {
   }
 }
 
-runMSystemDownloadTest().catch(err => {
+runMSystemDownloadTest().catch((err) => {
   console.error('❌ Test execution failed:', err);
   process.exit(1);
 });

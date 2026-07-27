@@ -123,7 +123,9 @@ export class UsersController {
     }
 
     const lowerUsername = username.toLowerCase();
-    const existing = await this.userModel.findOne({ username: lowerUsername }).exec();
+    const existing = await this.userModel
+      .findOne({ username: lowerUsername })
+      .exec();
     if (existing) {
       throw new ConflictException('Tài khoản đã tồn tại');
     }
@@ -184,12 +186,14 @@ export class UsersController {
   @Roles('ADMIN')
   async remove(@Param('id') id: string) {
     const [hasLog, hasIncident] = await Promise.all([
-      this.shiftLogModel.findOne({
-        $or: [
-          { userId: new Types.ObjectId(id) },
-          { closedBy: new Types.ObjectId(id) },
-        ],
-      }).exec(),
+      this.shiftLogModel
+        .findOne({
+          $or: [
+            { userId: new Types.ObjectId(id) },
+            { closedBy: new Types.ObjectId(id) },
+          ],
+        })
+        .exec(),
       this.incidentModel.findOne({ resolvedBy: new Types.ObjectId(id) }).exec(),
     ]);
 

@@ -23,13 +23,16 @@ async function testPreEod() {
   try {
     const files = {
       dsgd: readBuffer('DSGD.xlsx'),
-      acmTrades: readBuffer('EOD FO trades_PT Straits Financial Indonesia - 10017890000_06072026.csv'),
+      acmTrades: readBuffer(
+        'EOD FO trades_PT Straits Financial Indonesia - 10017890000_06072026.csv',
+      ),
       cqgFr: readBuffer('FR.xlsx'),
       tttt: readBuffer('TTTT 3.xlsx'),
       cqgPs: readBuffer('PS 1.xlsx'),
     };
 
-    const acmTradesName = 'EOD FO trades_PT Straits Financial Indonesia - 10017890000_06072026.csv';
+    const acmTradesName =
+      'EOD FO trades_PT Straits Financial Indonesia - 10017890000_06072026.csv';
     const tradingDate = new Date('2026-07-07T00:00:00.000Z');
     const sessionStartStr = '05:00';
 
@@ -52,7 +55,9 @@ async function testPreEod() {
 
     console.log('\n--- 2. KHỚP LỆNH TỰ DOANH (MS vs ACM) ---');
     console.log(`• Tổng khớp MS (ACM): ${result.totals.totalACM_MS} lot`);
-    console.log(`• Tổng khớp ACM Straits: ${result.totals.totalACM_Straits} lot`);
+    console.log(
+      `• Tổng khớp ACM Straits: ${result.totals.totalACM_Straits} lot`,
+    );
     console.log(`• Chênh lệch ACM:     ${result.totals.differACM} lot`);
 
     console.log('\n--- 3. VỊ THẾ RÒNG (TTTT vs PS) ---');
@@ -60,10 +65,11 @@ async function testPreEod() {
     if (result.mismatchedPositions.length > 0) {
       console.log(' Danh sách vị thế lệch (tối đa 10 dòng):');
       result.mismatchedPositions.slice(0, 10).forEach((p: any, i: number) => {
-        console.log(`  [${i + 1}] TK: ${p.account} | HĐ: ${p.symbol} | Vị thế MS: ${p.msPosition} | Vị thế CQG: ${p.cqgPosition} | Lệch: ${p.differ}`);
+        console.log(
+          `  [${i + 1}] TK: ${p.account} | HĐ: ${p.symbol} | Vị thế MS: ${p.msPosition} | Vị thế CQG: ${p.cqgPosition} | Lệch: ${p.differ}`,
+        );
       });
     }
-
   } catch (err: any) {
     console.error('❌ Lỗi khi thực hiện đối chiếu:', err);
   } finally {
@@ -71,7 +77,7 @@ async function testPreEod() {
   }
 }
 
-testPreEod().catch(err => {
+testPreEod().catch((err) => {
   console.error('❌ Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

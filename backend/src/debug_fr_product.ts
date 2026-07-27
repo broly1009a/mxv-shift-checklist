@@ -9,9 +9,12 @@ import { calcFrProduct } from './modules/lot-statistics/helpers/fr-calculator.he
 import { sumFrLot } from './modules/lot-statistics/helpers/lot-aggregator.helper';
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup CQG\\16.07';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup CQG\\16.07';
   const files = fs.readdirSync(baseDir);
-  const frFile = files.find(f => f.toLowerCase().includes('fr') && f.endsWith('.xlsx'));
+  const frFile = files.find(
+    (f) => f.toLowerCase().includes('fr') && f.endsWith('.xlsx'),
+  );
   const buf = fs.readFileSync(path.join(baseDir, frFile!));
   const sheet = await parseExcelBuffer(buf);
   const { fr, frSpread, frLme, frOptions } = classifyFr(sheet.rows);
@@ -31,9 +34,11 @@ async function main() {
   // With exclusions matching run_in_place params
   const resultWithExcl = calcFrProduct(fr, frSpread, frLme, frOptions, {
     ngayGD,
-    truDates: ['2026-07-03', '2026-07-02', '2026-07-01', '2026-06-30'].map(d => new Date(d)),
-    fefDates: ['2026-07-03', '2026-07-02'].map(d => new Date(d)),
-    zftDates: ['2026-07-03', '2026-07-02'].map(d => new Date(d)),
+    truDates: ['2026-07-03', '2026-07-02', '2026-07-01', '2026-06-30'].map(
+      (d) => new Date(d),
+    ),
+    fefDates: ['2026-07-03', '2026-07-02'].map((d) => new Date(d)),
+    zftDates: ['2026-07-03', '2026-07-02'].map((d) => new Date(d)),
     deadline: 46217.208333,
   });
   console.log('\nfrProduct (with exclusions):', resultWithExcl.frProduct);

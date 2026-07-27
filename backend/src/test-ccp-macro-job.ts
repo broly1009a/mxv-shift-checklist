@@ -32,14 +32,14 @@ async function runCcpTest() {
   console.log('Processing the queue manually...');
   // Force RpaAgentMode to local if needed, so Windows-only jobs are not skipped
   process.env.RPA_AGENT_MODE = 'local';
-  
+
   // Clear processing flag if stuck
   (jobQueueService as any).isProcessing = false;
 
   await (jobQueueService as any).processQueue();
 
   // Wait a few seconds for async tasks if any
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   console.log('Fetching job status after processing...');
   const updatedJob = await botJobModel.findById(job._id).exec();
@@ -52,12 +52,19 @@ async function runCcpTest() {
   updatedJob.logs.forEach((logLine: string) => console.log(`  ${logLine}`));
   console.log('----------------------------------------------------');
 
-  const expectedOutputFile = path.join(process.cwd(), 'uploads', 'ccp-statistics', 'Thong_ke_kich_ban_Pilot_Bac_Final.xlsx');
+  const expectedOutputFile = path.join(
+    process.cwd(),
+    'uploads',
+    'ccp-statistics',
+    'Thong_ke_kich_ban_Pilot_Bac_Final.xlsx',
+  );
   const exists = fs.existsSync(expectedOutputFile);
   console.log(`Output file exists at ${expectedOutputFile}: ${exists}`);
   if (exists) {
     const stats = fs.statSync(expectedOutputFile);
-    console.log(`Output file size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
+    console.log(
+      `Output file size: ${stats.size} bytes, Last modified: ${stats.mtime}`,
+    );
   }
 
   if (updatedJob.status === 'COMPLETED' && exists) {
@@ -73,7 +80,7 @@ async function runCcpTest() {
   await app.close();
 }
 
-runCcpTest().catch(err => {
+runCcpTest().catch((err) => {
   console.error('❌ CCP Macro test execution failed:', err);
   process.exit(1);
 });

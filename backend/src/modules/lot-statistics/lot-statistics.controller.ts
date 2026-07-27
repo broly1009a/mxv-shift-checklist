@@ -33,7 +33,9 @@ export class LotStatisticsController {
 
   @Put('config')
   async saveConfig(@Body() config: LotConfigDto) {
-    return this.lotStatisticsService.saveConfig(config as Record<string, string>);
+    return this.lotStatisticsService.saveConfig(
+      config as Record<string, string>,
+    );
   }
 
   // ─── Process endpoints ──────────────────────────────────────────────────────
@@ -183,7 +185,10 @@ export class LotStatisticsController {
       throw new HttpException('Thiếu file FR', HttpStatus.BAD_REQUEST);
     }
     if (!ngayGD || isNaN(new Date(ngayGD).getTime())) {
-      throw new HttpException('Ngày giao dịch không hợp lệ', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Ngày giao dịch không hợp lệ',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const params: ProcessLotDto = {
@@ -218,7 +223,8 @@ export class LotStatisticsController {
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
       });
 
@@ -279,8 +285,12 @@ export class LotStatisticsController {
     }
 
     try {
-      const files = this.lotStatisticsService.loadFilesFromDirectories(pathMs, pathCqg);
-      const updateCumulative = String(updateCumulativeVal) === 'true' || updateCumulativeVal === true;
+      const files = this.lotStatisticsService.loadFilesFromDirectories(
+        pathMs,
+        pathCqg,
+      );
+      const updateCumulative =
+        String(updateCumulativeVal) === 'true' || updateCumulativeVal === true;
       const params: ProcessLotDto = {
         ngayGD,
         truDates: this.parseJsonArray(truDatesStr),
@@ -297,9 +307,15 @@ export class LotStatisticsController {
         pathSpread: pathSpread || undefined,
       };
 
-      return await this.lotStatisticsService.processLotStatistics(files, params);
+      return await this.lotStatisticsService.processLotStatistics(
+        files,
+        params,
+      );
     } catch (err) {
-      this.logger.error(`Lỗi xử lý lot statistics từ thư mục local MS "${pathMs}", CQG "${pathCqg}"`, err?.stack);
+      this.logger.error(
+        `Lỗi xử lý lot statistics từ thư mục local MS "${pathMs}", CQG "${pathCqg}"`,
+        err?.stack,
+      );
       throw new HttpException(
         err?.message ?? 'Lỗi xử lý thư mục',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -337,12 +353,19 @@ export class LotStatisticsController {
       );
     }
     if (!ngayGD || isNaN(new Date(ngayGD).getTime())) {
-      throw new HttpException('Ngày giao dịch không hợp lệ', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Ngày giao dịch không hợp lệ',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
-      const files = this.lotStatisticsService.loadFilesFromDirectories(pathMs, pathCqg);
-      const updateCumulative = String(updateCumulativeVal) === 'true' || updateCumulativeVal === true;
+      const files = this.lotStatisticsService.loadFilesFromDirectories(
+        pathMs,
+        pathCqg,
+      );
+      const updateCumulative =
+        String(updateCumulativeVal) === 'true' || updateCumulativeVal === true;
       const params: ProcessLotDto = {
         ngayGD,
         truDates: this.parseJsonArray(truDatesStr),
@@ -359,7 +382,10 @@ export class LotStatisticsController {
         pathSpread: pathSpread || undefined,
       };
 
-      const result = await this.lotStatisticsService.processLotStatistics(files, params);
+      const result = await this.lotStatisticsService.processLotStatistics(
+        files,
+        params,
+      );
 
       // Tạo tên file theo ngày GD
       const dateStr = ngayGD.replace(/-/g, '');
@@ -371,7 +397,8 @@ export class LotStatisticsController {
       }
 
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
       });
 
@@ -381,7 +408,10 @@ export class LotStatisticsController {
       });
       stream.pipe(res);
     } catch (err) {
-      this.logger.error(`Lỗi tạo file Excel từ thư mục local MS "${pathMs}", CQG "${pathCqg}"`, err?.stack);
+      this.logger.error(
+        `Lỗi tạo file Excel từ thư mục local MS "${pathMs}", CQG "${pathCqg}"`,
+        err?.stack,
+      );
       throw new HttpException(
         err?.message ?? 'Lỗi tạo file Excel',
         HttpStatus.INTERNAL_SERVER_ERROR,

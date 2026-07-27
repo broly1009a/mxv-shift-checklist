@@ -10,7 +10,10 @@ export class ApiWatcherService {
   /**
    * Check if HTTP API target condition is met.
    */
-  async checkApiTask(target: string, condition: string): Promise<{ success: boolean; message: string }> {
+  async checkApiTask(
+    target: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
     let url = target;
     let method = 'GET';
     let expectedStatus = 200;
@@ -24,7 +27,8 @@ export class ApiWatcherService {
       // Treat target as raw URL
     }
 
-    const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true' || !url.startsWith('http');
+    const isSimulation =
+      process.env.SIMULATE_BOT_CHECKS === 'true' || !url.startsWith('http');
 
     if (isSimulation) {
       this.logger.debug(`[Simulation] Checking mock API for URL: "${url}"`);
@@ -32,7 +36,9 @@ export class ApiWatcherService {
     }
 
     if (url === 'http://cqg.mxv.vn/api/oms/status') {
-      this.logger.log('Executing real Playwright check for OMS EOD & MM status...');
+      this.logger.log(
+        'Executing real Playwright check for OMS EOD & MM status...',
+      );
       const checkResult = await this.omsWatcherService.checkOmsStatus();
       if (!checkResult) {
         return {
@@ -45,7 +51,7 @@ export class ApiWatcherService {
         message: JSON.stringify({
           message: checkResult.message,
           timestamp: new Date().toISOString(),
-          data: checkResult.data
+          data: checkResult.data,
         }),
       };
     }
@@ -53,7 +59,7 @@ export class ApiWatcherService {
     try {
       const res = await fetch(url, {
         method,
-        headers: { 'Accept': 'application/json' },
+        headers: { Accept: 'application/json' },
       });
 
       if (res.status !== expectedStatus) {
@@ -66,7 +72,7 @@ export class ApiWatcherService {
       if (condition) {
         const bodyText = await res.text();
         let conditionMet = false;
-        
+
         try {
           const resJson = JSON.parse(bodyText);
           const parsedCondition = JSON.parse(condition);
@@ -77,7 +83,9 @@ export class ApiWatcherService {
           });
         } catch {
           // Fallback: substring search in raw response body
-          conditionMet = bodyText.toLowerCase().includes(condition.toLowerCase());
+          conditionMet = bodyText
+            .toLowerCase()
+            .includes(condition.toLowerCase());
         }
 
         if (!conditionMet) {
@@ -104,7 +112,10 @@ export class ApiWatcherService {
   /**
    * Helper to check mock API targets.
    */
-  private checkMockApi(url: string, condition: string): { success: boolean; message: string } {
+  private checkMockApi(
+    url: string,
+    condition: string,
+  ): { success: boolean; message: string } {
     const mockApis = [
       {
         url: 'http://oms.mxv.vn/api/v1/health',
@@ -123,17 +134,27 @@ export class ApiWatcherService {
           status: 'EOD_COMPLETED',
           ccp: {
             eod: { status: 'COMPLETED', time: '05:30:00', date: '13/07/2026' },
-            mm: { totalOrders: 12, activeAccounts: ['699C555555M', '605C000204M'], status: 'OK' }
+            mm: {
+              totalOrders: 12,
+              activeAccounts: ['699C555555M', '605C000204M'],
+              status: 'OK',
+            },
           },
           ce: {
             eod: { status: 'COMPLETED', time: '05:30:00', date: '13/07/2026' },
-            mm: { totalOrders: 8, activeAccounts: ['699C555555M'], status: 'OK' }
-          }
+            mm: {
+              totalOrders: 8,
+              activeAccounts: ['699C555555M'],
+              status: 'OK',
+            },
+          },
         },
-      }
+      },
     ];
 
-    const match = mockApis.find(api => url.includes(api.url) || api.url.includes(url));
+    const match = mockApis.find(
+      (api) => url.includes(api.url) || api.url.includes(url),
+    );
 
     if (match) {
       if (condition) {
@@ -144,7 +165,9 @@ export class ApiWatcherService {
             return (match.body as any)[key] === val;
           });
         } catch {
-          conditionMet = JSON.stringify(match.body).toLowerCase().includes(condition.toLowerCase());
+          conditionMet = JSON.stringify(match.body)
+            .toLowerCase()
+            .includes(condition.toLowerCase());
         }
 
         if (!conditionMet) {
@@ -159,10 +182,11 @@ export class ApiWatcherService {
         return {
           success: true,
           message: JSON.stringify({
-            message: '✅ [Mô Phỏng] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
+            message:
+              '✅ [Mô Phỏng] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
             timestamp: new Date().toISOString(),
-            data: match.body
-          })
+            data: match.body,
+          }),
         };
       }
 

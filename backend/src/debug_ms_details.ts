@@ -7,12 +7,13 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const service = app.get(LotStatisticsService);
 
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const dailyMsDir = path.join(baseDir, 'Backup MS', '16.07');
   const dailyCqgDir = path.join(baseDir, 'Backup CQG', '16.07');
 
   const files = service.loadFilesFromDirectories(dailyMsDir, dailyCqgDir);
-  
+
   const params = {
     ngayGD: '2026-07-16',
     truDates: ['2026-07-03', '2026-07-02', '2026-07-01', '2026-06-30'],
@@ -23,7 +24,7 @@ async function main() {
     updateCumulative: false,
   };
 
-  const result = await service.processLotStatistics(files, params as any);
+  const result = await service.processLotStatistics(files, params);
   console.log('\n=== M-SYSTEM DETAILED SUMMARY VALUES ===');
   console.log(`- dsgdProduct: ${result.summary.dsgdProduct}`);
   console.log(`- ttttProduct: ${result.summary.ttttProduct}`);

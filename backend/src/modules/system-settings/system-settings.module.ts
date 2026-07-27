@@ -12,10 +12,7 @@ import {
   NotificationLog,
   NotificationLogSchema,
 } from '../../schemas/notification-log.schema';
-import {
-  SystemLog,
-  SystemLogSchema,
-} from '../../schemas/system-log.schema';
+import { SystemLog, SystemLogSchema } from '../../schemas/system-log.schema';
 import { SystemSettingsService } from './system-settings.service';
 import { SystemSettingsController } from './system-settings.controller';
 import { CleanupService } from './cleanup.service';

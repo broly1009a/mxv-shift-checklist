@@ -8,8 +8,18 @@ async function runTest() {
   console.log('=== STARTING AUTOMATED CUMULATIVE RECONCILIATION TEST ===');
 
   const workspaceRoot = path.join(__dirname, '..', '..');
-  const sampleMsDir = path.join(workspaceRoot, 'Marco thong ke lot', 'Backup MS', '16.07');
-  const sampleCqgDir = path.join(workspaceRoot, 'Marco thong ke lot', 'Backup CQG', '16.07');
+  const sampleMsDir = path.join(
+    workspaceRoot,
+    'Marco thong ke lot',
+    'Backup MS',
+    '16.07',
+  );
+  const sampleCqgDir = path.join(
+    workspaceRoot,
+    'Marco thong ke lot',
+    'Backup CQG',
+    '16.07',
+  );
   const sampleCumulativeDir = path.join(workspaceRoot, 'Marco thong ke lot');
 
   const testTempDir = path.join(__dirname, '..', 'temp_test_cumulative');
@@ -53,10 +63,19 @@ async function runTest() {
     updateCumulative: true,
     pathDsgdCumulative: path.join(testTempDir, 'DSGD T07.2026.xlsx'),
     pathNormal: path.join(testTempDir, 'Thong ke so lot giao dich 2026 2.xlsx'),
-    pathAcm: path.join(testTempDir, 'Thong ke so lot giao dich ACM 2026 2.xlsx'),
+    pathAcm: path.join(
+      testTempDir,
+      'Thong ke so lot giao dich ACM 2026 2.xlsx',
+    ),
     pathLme: path.join(testTempDir, 'Thong ke so lot giao dich LME 2026.xlsx'),
-    pathOptions: path.join(testTempDir, 'Thong ke so lot giao dich Options 2026.xlsx'),
-    pathSpread: path.join(testTempDir, 'Thong ke so lot giao dich Spread 2026.xlsx'),
+    pathOptions: path.join(
+      testTempDir,
+      'Thong ke so lot giao dich Options 2026.xlsx',
+    ),
+    pathSpread: path.join(
+      testTempDir,
+      'Thong ke so lot giao dich Spread 2026.xlsx',
+    ),
   };
 
   console.log('Processing lot statistics and updating cumulative files...');
@@ -93,7 +112,9 @@ async function runTest() {
     const colsToCheck = [3, 17];
     for (const col of colsToCheck) {
       const cell = normalWs.getCell(foundRowNormal, col);
-      console.log(`Col ${col} (${normalWs.getCell(4, col).value || normalWs.getCell(5, col).value}):`);
+      console.log(
+        `Col ${col} (${normalWs.getCell(4, col).value || normalWs.getCell(5, col).value}):`,
+      );
       console.log(`  Value: ${JSON.stringify(cell.value)}`);
       console.log(`  Fill:  ${JSON.stringify(cell.fill)}`);
       console.log(`  Font:  ${JSON.stringify(cell.font)}`);

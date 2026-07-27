@@ -29,7 +29,7 @@ export async function parseExcelBuffer(
   hasHeader = true,
 ): Promise<ParsedSheet> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as any);
+  await workbook.xlsx.load(buffer);
 
   const worksheets = workbook.worksheets;
   if (worksheets.length === 0) {
@@ -41,28 +41,28 @@ export async function parseExcelBuffer(
 
   ws.eachRow({ includeEmpty: false }, (row) => {
     const cells = (row.values as ExcelJS.CellValue[]).slice(1); // bỏ index 0
-    const normalized = cells.map((cell): string | number | boolean | Date | null => {
-      if (cell === null || cell === undefined) return null;
-      if (cell instanceof Date) return cell;
-      if (typeof cell === 'object') {
-        if ('result' in cell) {
-          const r = (cell as ExcelJS.CellFormulaValue).result;
-          if (r instanceof Date) return r;
-          return (r as string | number | boolean | null) ?? null;
+    const normalized = cells.map(
+      (cell): string | number | boolean | Date | null => {
+        if (cell === null || cell === undefined) return null;
+        if (cell instanceof Date) return cell;
+        if (typeof cell === 'object') {
+          if ('result' in cell) {
+            const r = (cell as ExcelJS.CellFormulaValue).result;
+            if (r instanceof Date) return r;
+            return (r as string | number | boolean | null) ?? null;
+          }
+          if ('richText' in cell) {
+            return cell.richText.map((rt) => rt.text).join('');
+          }
+          if ('text' in (cell as object)) {
+            return String((cell as { text: string }).text);
+          }
+          // Hyperlink, etc.
+          return String(cell);
         }
-        if ('richText' in cell) {
-          return (cell as ExcelJS.CellRichTextValue).richText
-            .map((rt) => rt.text)
-            .join('');
-        }
-        if ('text' in (cell as object)) {
-          return String((cell as { text: string }).text);
-        }
-        // Hyperlink, etc.
-        return String(cell);
-      }
-      return cell as string | number | boolean;
-    });
+        return cell;
+      },
+    );
     rawRows.push(normalized);
   });
 
@@ -104,7 +104,9 @@ export async function parseExcelBuffer(
 /**
  * Lấy giá trị số từ cell (VALUE() trong Excel)
  */
-export function toNum(val: string | number | boolean | Date | null | undefined): number {
+export function toNum(
+  val: string | number | boolean | Date | null | undefined,
+): number {
   if (val === null || val === undefined) return 0;
   if (typeof val === 'number') return val;
   if (typeof val === 'boolean') return val ? 1 : 0;
@@ -116,7 +118,9 @@ export function toNum(val: string | number | boolean | Date | null | undefined):
 /**
  * Lấy giá trị string từ cell
  */
-export function toStr(val: string | number | boolean | Date | null | undefined): string {
+export function toStr(
+  val: string | number | boolean | Date | null | undefined,
+): string {
   if (val === null || val === undefined) return '';
   if (val instanceof Date) return val.toISOString();
   return String(val).trim();
@@ -126,7 +130,11 @@ export function toStr(val: string | number | boolean | Date | null | undefined):
  * Phân tích chuỗi ngày dạng ngày/tháng/năm (ví dụ 3/7/26 hoặc 06-07-2026)
  */
 export function parseDateDMY(val: string): Date | null {
-  const match = val.trim().match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d+))?)?/);
+  const match = val
+    .trim()
+    .match(
+      /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d+))?)?/,
+    );
   if (!match) return null;
   const day = parseInt(match[1], 10);
   const month = parseInt(match[2], 10) - 1; // 0-based month
@@ -135,7 +143,9 @@ export function parseDateDMY(val: string): Date | null {
   const hour = match[4] ? parseInt(match[4], 10) : 0;
   const min = match[5] ? parseInt(match[5], 10) : 0;
   const sec = match[6] ? parseInt(match[6], 10) : 0;
-  const ms = match[7] ? parseInt(match[7].substring(0, 3).padEnd(3, '0'), 10) : 0;
+  const ms = match[7]
+    ? parseInt(match[7].substring(0, 3).padEnd(3, '0'), 10)
+    : 0;
   return new Date(year, month, day, hour, min, sec, ms);
 }
 

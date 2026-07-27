@@ -10,8 +10,12 @@ import { Model } from 'mongoose';
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const botJobModel = app.get<Model<BotJob>>(getModelToken('BotJob'));
-  
-  const jobs = await botJobModel.find({}).sort({ createdAt: -1 }).limit(5).exec();
+
+  const jobs = await botJobModel
+    .find({})
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .exec();
   console.log('\n--- LATEST 5 BOT JOBS IN ATLAS ---');
   for (const job of jobs) {
     console.log(`\nID: ${job._id}`);
@@ -23,7 +27,7 @@ async function bootstrap() {
       console.log(`  ${logLine}`);
     }
   }
-  
+
   await app.close();
 }
 bootstrap().catch(console.error);

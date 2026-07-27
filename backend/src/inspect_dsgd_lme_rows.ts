@@ -5,10 +5,11 @@ import { classifyDsgd } from './modules/lot-statistics/helpers/trade-classifier.
 import { aggregateByTvkd } from './modules/lot-statistics/helpers/lot-aggregator.helper';
 
 async function main() {
-  const filePath = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\DSGD.xlsx';
+  const filePath =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\Backup MS\\16.07\\DSGD.xlsx';
   const buffer = fs.readFileSync(filePath);
   const sheet = await parseExcelBuffer(buffer);
-  
+
   const { dsgdLme } = classifyDsgd(sheet.rows);
   console.log(`Found ${dsgdLme.length} LME rows:`);
   for (const r of dsgdLme) {

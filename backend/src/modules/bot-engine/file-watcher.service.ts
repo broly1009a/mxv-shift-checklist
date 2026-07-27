@@ -9,14 +9,21 @@ export class FileWatcherService {
   /**
    * Check if file condition is met for a given task configuration.
    */
-  async checkFileTask(fileLocation: string, condition: string): Promise<{ success: boolean; message: string }> {
+  async checkFileTask(
+    fileLocation: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
     // 1. Resolve dynamic date parameters in file path
     const resolvedPath = this.resolveDatePlaceholders(fileLocation);
 
-    const isSimulation = process.env.SIMULATE_BOT_CHECKS === 'true' || !path.isAbsolute(resolvedPath);
+    const isSimulation =
+      process.env.SIMULATE_BOT_CHECKS === 'true' ||
+      !path.isAbsolute(resolvedPath);
 
     if (isSimulation) {
-      this.logger.debug(`[Simulation] Checking mock file path: "${resolvedPath}"`);
+      this.logger.debug(
+        `[Simulation] Checking mock file path: "${resolvedPath}"`,
+      );
       return this.checkMockFile(resolvedPath, condition);
     }
 
@@ -30,7 +37,7 @@ export class FileWatcherService {
       }
 
       const stats = fs.statSync(resolvedPath);
-      
+
       // 3. Parse condition parameters (e.g. minSizeKb, containsKeyword)
       let minSizeKb = 0;
       let containsKeyword = '';
@@ -58,7 +65,8 @@ export class FileWatcherService {
       }
 
       // 5. Optionally inspect content for keyword
-      if (containsKeyword && stats.size < 10 * 1024 * 1024) { // Only read files smaller than 10MB to avoid memory leaks
+      if (containsKeyword && stats.size < 10 * 1024 * 1024) {
+        // Only read files smaller than 10MB to avoid memory leaks
         const content = fs.readFileSync(resolvedPath, 'utf8');
         if (!content.toLowerCase().includes(containsKeyword.toLowerCase())) {
           return {
@@ -111,7 +119,10 @@ export class FileWatcherService {
   /**
    * Helper to check mock file from mock data file.
    */
-  private checkMockFile(filePath: string, condition: string): { success: boolean; message: string } {
+  private checkMockFile(
+    filePath: string,
+    condition: string,
+  ): { success: boolean; message: string } {
     const mockFilePath = path.join(__dirname, 'mock-files.json');
     if (!fs.existsSync(mockFilePath)) {
       // Create default mock files catalog
@@ -125,9 +136,13 @@ export class FileWatcherService {
           filePath: 'C:\\Backup\\CQG\\Report.xlsx',
           sizeBytes: 1048576,
           content: 'CQG transaction backup EOD',
-        }
+        },
       ];
-      fs.writeFileSync(mockFilePath, JSON.stringify(defaultMock, null, 2), 'utf8');
+      fs.writeFileSync(
+        mockFilePath,
+        JSON.stringify(defaultMock, null, 2),
+        'utf8',
+      );
     }
 
     try {
@@ -138,7 +153,11 @@ export class FileWatcherService {
       // Look for a matching mock file record
       const match = mockFiles.find((f: any) => {
         const mockBase = path.basename(f.filePath).toLowerCase();
-        return mockBase === targetBase || f.filePath.toLowerCase().includes(targetBase) || filePath.toLowerCase().includes(mockBase);
+        return (
+          mockBase === targetBase ||
+          f.filePath.toLowerCase().includes(targetBase) ||
+          filePath.toLowerCase().includes(mockBase)
+        );
       });
 
       if (match) {
@@ -162,7 +181,10 @@ export class FileWatcherService {
           };
         }
 
-        if (containsKeyword && !match.content.toLowerCase().includes(containsKeyword.toLowerCase())) {
+        if (
+          containsKeyword &&
+          !match.content.toLowerCase().includes(containsKeyword.toLowerCase())
+        ) {
           return {
             success: false,
             message: `[Mô Phỏng] Tệp không chứa từ khóa yêu cầu: "${containsKeyword}"`,

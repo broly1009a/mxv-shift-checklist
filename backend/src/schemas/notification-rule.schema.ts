@@ -29,7 +29,10 @@ export class NotificationRule extends Document {
   @Prop({ type: Types.ObjectId, ref: 'ShiftSlot', default: null, index: true })
   shiftSlotId?: Types.ObjectId | null;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'NotificationChannel' }], default: [] })
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'NotificationChannel' }],
+    default: [],
+  })
   channelIds: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })

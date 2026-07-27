@@ -36,8 +36,13 @@ export class TemplatesController {
   ) {}
 
   @Get()
-  async findAll(@Request() req: any, @Query('departmentId') departmentId?: string) {
-    const scopeFilter = await this.accessControlService.getScopeFilter(req.user);
+  async findAll(
+    @Request() req: any,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    const scopeFilter = await this.accessControlService.getScopeFilter(
+      req.user,
+    );
     const filter: any = { ...scopeFilter };
 
     if (departmentId) {
@@ -45,7 +50,9 @@ export class TemplatesController {
       // If there's already a scopeFilter restricting departmentIds
       if (filter.departmentId) {
         if (filter.departmentId.$in) {
-          const hasAccess = filter.departmentId.$in.some((id: any) => id.toString() === departmentId);
+          const hasAccess = filter.departmentId.$in.some(
+            (id: any) => id.toString() === departmentId,
+          );
           if (!hasAccess) {
             return []; // No access to this department
           }
@@ -76,7 +83,11 @@ export class TemplatesController {
       throw new NotFoundException('Phòng ban không tồn tại');
     }
 
-    this.accessControlService.validateScope(req.user, dept._id, (dept.divisionId || null) as any);
+    this.accessControlService.validateScope(
+      req.user,
+      dept._id,
+      dept.divisionId || null,
+    );
 
     const newTpl = new this.templateModel(body);
     const saved = await newTpl.save();
@@ -90,21 +101,40 @@ export class TemplatesController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
   @Put(':id')
-  async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+  async update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
     const existing = await this.templateModel.findById(id).exec();
     if (!existing) {
       throw new NotFoundException('Mẫu checklist không tồn tại');
     }
 
-    const oldDept = await this.departmentModel.findById(existing.departmentId).exec();
-    this.accessControlService.validateScope(req.user, existing.departmentId, oldDept?.divisionId || null);
+    const oldDept = await this.departmentModel
+      .findById(existing.departmentId)
+      .exec();
+    this.accessControlService.validateScope(
+      req.user,
+      existing.departmentId,
+      oldDept?.divisionId || null,
+    );
 
-    if (body.departmentId && body.departmentId.toString() !== existing.departmentId.toString()) {
-      const newDept = await this.departmentModel.findById(body.departmentId).exec();
+    if (
+      body.departmentId &&
+      body.departmentId.toString() !== existing.departmentId.toString()
+    ) {
+      const newDept = await this.departmentModel
+        .findById(body.departmentId)
+        .exec();
       if (!newDept) {
         throw new NotFoundException('Phòng ban mới không tồn tại');
       }
-      this.accessControlService.validateScope(req.user, newDept._id, (newDept.divisionId || null) as any);
+      this.accessControlService.validateScope(
+        req.user,
+        newDept._id,
+        newDept.divisionId || null,
+      );
     }
 
     return this.templateModel
@@ -123,10 +153,18 @@ export class TemplatesController {
       throw new NotFoundException('Mẫu checklist không tồn tại');
     }
 
-    const dept = await this.departmentModel.findById(existing.departmentId).exec();
-    this.accessControlService.validateScope(req.user, existing.departmentId, dept?.divisionId || null);
+    const dept = await this.departmentModel
+      .findById(existing.departmentId)
+      .exec();
+    this.accessControlService.validateScope(
+      req.user,
+      existing.departmentId,
+      dept?.divisionId || null,
+    );
 
-    const hasLog = await this.shiftLogModel.findOne({ templateId: new Types.ObjectId(id) }).exec();
+    const hasLog = await this.shiftLogModel
+      .findOne({ templateId: new Types.ObjectId(id) })
+      .exec();
     if (hasLog) {
       const updated = await this.templateModel
         .findByIdAndUpdate(id, { isActive: false }, { new: true })
@@ -138,4 +176,3 @@ export class TemplatesController {
     return { deleted: true, data: deleted };
   }
 }
-

@@ -1,11 +1,15 @@
 import * as ExcelJS from 'exceljs';
 
 async function main() {
-  const filePath = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\marco\\GTT.xlsx';
+  const filePath =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\marco\\GTT.xlsx';
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
 
-  console.log('Worksheets:', wb.worksheets.map(w => w.name));
+  console.log(
+    'Worksheets:',
+    wb.worksheets.map((w) => w.name),
+  );
   const ws = wb.worksheets[0];
   console.log('Row 4 values:', ws.getRow(4).values);
   console.log('Row 5 values:', ws.getRow(5).values);

@@ -35,7 +35,7 @@ export class ShiftsService {
     private readonly incidentsService: IncidentsService,
     private readonly accessControlService: AccessControlService,
     private readonly marginCheckerService: MarginCheckerService,
-  ) { }
+  ) {}
 
   private validateScope(
     user: any,
@@ -48,7 +48,6 @@ export class ShiftsService {
       divisionId ? divisionId.toString() : null,
     );
   }
-
 
   async initializeShift(
     templateId: string,
@@ -101,12 +100,15 @@ export class ShiftsService {
         eventType: 'JOB_GENERATION_SKIPPED',
         source: 'USER',
         actorUserId: user.id || user._id,
-        departmentId: existingLog.departmentId as any,
-        shiftSlotId: existingLog.shiftSlotId as any,
-        jobId: existingLog._id as any,
+        departmentId: existingLog.departmentId,
+        shiftSlotId: existingLog.shiftSlotId,
+        jobId: existingLog._id,
         status: 'SKIPPED',
         message: `Bỏ qua khởi tạo ca trực cho mẫu "${(existingLog.templateId as any)?.title}" do đã tồn tại.`,
-        metadata: { templateTitle: (existingLog.templateId as any)?.title, date: shiftDate },
+        metadata: {
+          templateTitle: (existingLog.templateId as any)?.title,
+          date: shiftDate,
+        },
       });
       return existingLog;
     }
@@ -154,7 +156,7 @@ export class ShiftsService {
       departmentId: template.departmentId
         ? new Types.ObjectId(template.departmentId as any)
         : null,
-      divisionId: divId ? new Types.ObjectId(divId as any) : null,
+      divisionId: divId ? new Types.ObjectId(divId) : null,
       shiftDate,
       status: 'PENDING',
       progressPercentage: 0.0,
@@ -183,10 +185,10 @@ export class ShiftsService {
       (result.templateId as any)?.departmentId?.name || 'Vận hành';
     await this.telegramService.sendMessage(
       `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
-      `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
-      `• Ngày trực: <b>${result.shiftDate}</b>\n` +
-      `• Phòng ban: <b>${deptName}</b>\n` +
-      `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
+        `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
+        `• Ngày trực: <b>${result.shiftDate}</b>\n` +
+        `• Phòng ban: <b>${deptName}</b>\n` +
+        `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
     );
 
     // Ghi nhận log hệ thống
@@ -194,12 +196,15 @@ export class ShiftsService {
       eventType: 'JOB_GENERATED',
       source: 'USER',
       actorUserId: user.id || user._id,
-      jobId: result._id as any,
-      departmentId: result.departmentId as any,
-      shiftSlotId: result.shiftSlotId as any,
+      jobId: result._id,
+      departmentId: result.departmentId,
+      shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
       message: `Khởi tạo thành công ca trực "${(result.templateId as any)?.title}" bởi ${user.fullName || 'Nhân sự'}.`,
-      metadata: { templateTitle: (result.templateId as any)?.title, date: result.shiftDate },
+      metadata: {
+        templateTitle: (result.templateId as any)?.title,
+        date: result.shiftDate,
+      },
     });
 
     // Phát sự kiện qua WebSocket
@@ -209,9 +214,16 @@ export class ShiftsService {
       result.departmentId ? result.departmentId.toString() : null,
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
-      { title: (result.templateId as any)?.title }
+      { title: (result.templateId as any)?.title },
     );
-    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      null,
+      null,
+      null,
+      result.shiftDate,
+      {},
+    );
 
     return result;
   }
@@ -234,7 +246,9 @@ export class ShiftsService {
     }
 
     if (log.status === 'COMPLETED') {
-      throw new BadRequestException('Ca trực đã đóng, không thể thêm tác vụ mới');
+      throw new BadRequestException(
+        'Ca trực đã đóng, không thể thêm tác vụ mới',
+      );
     }
 
     const dept = (log.templateId as any)?.departmentId;
@@ -257,7 +271,7 @@ export class ShiftsService {
       note: null,
     };
 
-    log.details.push(newDetail as any);
+    log.details.push(newDetail);
 
     // Recalculate progress
     const total = log.details.length;
@@ -305,9 +319,9 @@ export class ShiftsService {
       eventType: 'TASK_UPDATED',
       source: 'USER',
       actorUserId: user.id || user._id,
-      jobId: result._id as any,
-      departmentId: result.departmentId as any,
-      shiftSlotId: result.shiftSlotId as any,
+      jobId: result._id,
+      departmentId: result.departmentId,
+      shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
       message: `Thêm tác vụ phát sinh: "${taskData.taskName}" (Độ ưu tiên: ${taskData.priority})`,
       metadata: { taskId, taskName: taskData.taskName },
@@ -320,9 +334,22 @@ export class ShiftsService {
       result.departmentId ? result.departmentId.toString() : null,
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
-      { taskId, taskName: taskData.taskName, isChecked: false, status: 'PENDING', progressPercentage: result.progressPercentage }
+      {
+        taskId,
+        taskName: taskData.taskName,
+        isChecked: false,
+        status: 'PENDING',
+        progressPercentage: result.progressPercentage,
+      },
     );
-    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      null,
+      null,
+      null,
+      result.shiftDate,
+      {},
+    );
 
     return result;
   }
@@ -335,7 +362,14 @@ export class ShiftsService {
     note?: string,
     isInternal = false,
   ): Promise<ShiftLog> {
-    const validStatuses = ['PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION'];
+    const validStatuses = [
+      'PENDING',
+      'WAITING',
+      'PASSED',
+      'FAILED',
+      'SKIPPED',
+      'NEEDS_ATTENTION',
+    ];
     if (!validStatuses.includes(status)) {
       throw new BadRequestException('Trạng thái tác vụ không hợp lệ');
     }
@@ -370,7 +404,9 @@ export class ShiftsService {
       );
     }
 
-    const isParentTask = log.details.some((d) => d.parentTaskIdSnapshot === taskId);
+    const isParentTask = log.details.some(
+      (d) => d.parentTaskIdSnapshot === taskId,
+    );
     if (isParentTask && !isInternal) {
       throw new BadRequestException(
         `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
@@ -382,7 +418,11 @@ export class ShiftsService {
     const oldNote = task.note;
 
     // Check task dependencies if status is not PENDING
-    if (status !== 'PENDING' && task.dependsOnTaskIdsSnapshot && task.dependsOnTaskIdsSnapshot.length > 0) {
+    if (
+      status !== 'PENDING' &&
+      task.dependsOnTaskIdsSnapshot &&
+      task.dependsOnTaskIdsSnapshot.length > 0
+    ) {
       for (const depId of task.dependsOnTaskIdsSnapshot) {
         const depTask = log.details.find((d) => d.taskId === depId);
         if (depTask && !depTask.isChecked) {
@@ -403,7 +443,9 @@ export class ShiftsService {
           !log.details.some((child) => child.parentTaskIdSnapshot === d.taskId),
       );
       if (dependents.length > 0) {
-        const listStr = dependents.map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`).join(', ');
+        const listStr = dependents
+          .map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`)
+          .join(', ');
         throw new BadRequestException(
           `Không thể hủy hoàn thành tác vụ này do có tác vụ khác đang hoàn thành phụ thuộc vào nó: ${listStr}`,
         );
@@ -457,18 +499,23 @@ export class ShiftsService {
 
       // Trigger Automatic Incident Creation
       const code = task.exceptionCodeSnapshot || 'SYSTEM_OR_NETWORK_ERROR';
-      const requiredAction = task.actionDescriptionSnapshot || 'Yêu cầu kiểm tra sự cố hệ thống.';
+      const requiredAction =
+        task.actionDescriptionSnapshot || 'Yêu cầu kiểm tra sự cố hệ thống.';
       const severity = task.prioritySnapshot || 'MEDIUM';
-      this.incidentsService.createIncident(
-        shiftLogId,
-        taskId,
-        code,
-        severity,
-        requiredAction,
-        user.fullName || user.username,
-        15,
-        user.id || user._id
-      ).catch(err => console.error('Error creating automatic incident:', err));
+      this.incidentsService
+        .createIncident(
+          shiftLogId,
+          taskId,
+          code,
+          severity,
+          requiredAction,
+          user.fullName || user.username,
+          15,
+          user.id || user._id,
+        )
+        .catch((err) =>
+          console.error('Error creating automatic incident:', err),
+        );
     } else if (status === 'SKIPPED') {
       updateQuery.$set['details.$.skippedAt'] = now;
       updateQuery.$set['details.$.completedAt'] = null;
@@ -558,12 +605,18 @@ export class ShiftsService {
       eventType: 'TASK_UPDATED',
       source: 'USER',
       actorUserId: user.id || user._id,
-      jobId: result._id as any,
-      departmentId: result.departmentId as any,
-      shiftSlotId: result.shiftSlotId as any,
+      jobId: result._id,
+      departmentId: result.departmentId,
+      shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
       message: `Tác vụ "${task.taskNameSnapshot}" trong ca trực "${(result.templateId as any)?.title || 'Ca trực'}" được cập nhật: status=${status}${note !== undefined ? `, note="${note}"` : ''}.`,
-      metadata: { taskId, taskName: task.taskNameSnapshot, status, isChecked, note },
+      metadata: {
+        taskId,
+        taskName: task.taskNameSnapshot,
+        status,
+        isChecked,
+        note,
+      },
     });
 
     // Emit WebSocket Events
@@ -573,19 +626,32 @@ export class ShiftsService {
       result.departmentId ? result.departmentId.toString() : null,
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
-      { taskId, taskName: task.taskNameSnapshot, isChecked, status, progressPercentage: result.progressPercentage }
+      {
+        taskId,
+        taskName: task.taskNameSnapshot,
+        isChecked,
+        status,
+        progressPercentage: result.progressPercentage,
+      },
     );
-    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      null,
+      null,
+      null,
+      result.shiftDate,
+      {},
+    );
 
     // Alert Telegram if CRITICAL just updated
     if (isChecked && !oldIsChecked && task.prioritySnapshot === 'CRITICAL') {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
         `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
-        `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
-        `• Trạng thái: <b>${status}</b>\n` +
-        `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
-        `• Thực hiện bởi: <b>${actorName}</b>`,
+          `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
+          `• Trạng thái: <b>${status}</b>\n` +
+          `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
+          `• Thực hiện bởi: <b>${actorName}</b>`,
       );
     }
 
@@ -594,7 +660,9 @@ export class ShiftsService {
       // Auto-update children tasks if updating a parent task directly
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {
-        const children = latestLog.details.filter((d) => d.parentTaskIdSnapshot === taskId);
+        const children = latestLog.details.filter(
+          (d) => d.parentTaskIdSnapshot === taskId,
+        );
         if (children.length > 0) {
           let updatedChild = false;
           for (const child of children) {
@@ -606,7 +674,9 @@ export class ShiftsService {
                     'details.$.status': status,
                     'details.$.isChecked': isChecked,
                     'details.$.checkedAt': isChecked ? new Date() : null,
-                    'details.$.updatedBy': new Types.ObjectId(user.id || user._id) as any,
+                    'details.$.updatedBy': new Types.ObjectId(
+                      user.id || user._id,
+                    ),
                   },
                 },
               );
@@ -632,22 +702,29 @@ export class ShiftsService {
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {
         const parentTaskIds = new Set(
-          latestLog.details
-            .map((d) => d.parentTaskIdSnapshot)
-            .filter(Boolean),
+          latestLog.details.map((d) => d.parentTaskIdSnapshot).filter(Boolean),
         );
 
         for (const parentId of parentTaskIds) {
-          const parentTask = latestLog.details.find((d) => d.taskId === parentId);
+          const parentTask = latestLog.details.find(
+            (d) => d.taskId === parentId,
+          );
           if (parentTask) {
-            const siblings = latestLog.details.filter((d) => d.parentTaskIdSnapshot === parentId);
+            const siblings = latestLog.details.filter(
+              (d) => d.parentTaskIdSnapshot === parentId,
+            );
             const allSiblingsChecked = siblings.every((d) => d.isChecked);
 
             // Check parent dependencies
             let allDepsChecked = true;
-            if (parentTask.dependsOnTaskIdsSnapshot && parentTask.dependsOnTaskIdsSnapshot.length > 0) {
+            if (
+              parentTask.dependsOnTaskIdsSnapshot &&
+              parentTask.dependsOnTaskIdsSnapshot.length > 0
+            ) {
               for (const depId of parentTask.dependsOnTaskIdsSnapshot) {
-                const depTask = latestLog.details.find((d) => d.taskId === depId);
+                const depTask = latestLog.details.find(
+                  (d) => d.taskId === depId,
+                );
                 if (depTask && !depTask.isChecked) {
                   allDepsChecked = false;
                   break;
@@ -678,7 +755,10 @@ export class ShiftsService {
                 true,
               );
               return resLog;
-            } else if ((!allSiblingsChecked || !allDepsChecked) && parentTask.isChecked) {
+            } else if (
+              (!allSiblingsChecked || !allDepsChecked) &&
+              parentTask.isChecked
+            ) {
               const resLog = await this.updateTaskStatus(
                 shiftLogId,
                 parentId as string,
@@ -741,13 +821,16 @@ export class ShiftsService {
     if (sessionType === 'CLOSE') {
       const backupTasks = log.details.filter(
         (d) =>
-          (d.taskId.toLowerCase().includes('ce') || d.taskId.toLowerCase().includes('acm')) &&
+          (d.taskId.toLowerCase().includes('ce') ||
+            d.taskId.toLowerCase().includes('acm')) &&
           (d.taskNameSnapshot.toLowerCase().includes('backup') ||
             d.taskNameSnapshot.toLowerCase().includes('sao lưu')),
       );
       const incomplete = backupTasks.filter((d) => !d.isChecked);
       if (incomplete.length > 0) {
-        const listStr = incomplete.map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`).join(', ');
+        const listStr = incomplete
+          .map((d) => `[${d.taskId}] "${d.taskNameSnapshot}"`)
+          .join(', ');
         throw new BadRequestException(
           `Không thể chốt ca trực. Các tác vụ sao lưu CE/ACM bắt buộc chưa hoàn thành: ${listStr}`,
         );
@@ -784,12 +867,15 @@ export class ShiftsService {
       eventType: 'SHIFT_JOB_CLOSED',
       source: 'USER',
       actorUserId: user.id || user._id,
-      jobId: result._id as any,
-      departmentId: result.departmentId as any,
-      shiftSlotId: result.shiftSlotId as any,
+      jobId: result._id,
+      departmentId: result.departmentId,
+      shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
       message: `Chốt ca trực "${(result.templateId as any)?.title || 'Ca trực'}" ngày ${result.shiftDate} thành công.`,
-      metadata: { handoverNote: result.handoverNote, progressPercentage: result.progressPercentage },
+      metadata: {
+        handoverNote: result.handoverNote,
+        progressPercentage: result.progressPercentage,
+      },
     });
 
     // Phát sự kiện qua WebSocket
@@ -799,9 +885,16 @@ export class ShiftsService {
       result.departmentId ? result.departmentId.toString() : null,
       result.shiftSlotId ? result.shiftSlotId.toString() : null,
       result.shiftDate,
-      { progressPercentage: result.progressPercentage }
+      { progressPercentage: result.progressPercentage },
     );
-    this.shiftsGateway.emitEvent('DASHBOARD_UPDATED', null, null, null, result.shiftDate, {});
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      null,
+      null,
+      null,
+      result.shiftDate,
+      {},
+    );
 
     // Gửi thông báo Telegram báo cáo kết quả chốt ca
     const completedCount = result.details.filter((d) => d.isChecked).length;
@@ -822,7 +915,9 @@ export class ShiftsService {
 
     // Gửi email báo cáo bàn giao ca trực
     this.sendShiftHandoverEmail(result).catch((emailErr) => {
-      this.logger.error(`Lỗi khi gọi sendShiftHandoverEmail: ${emailErr.message}`);
+      this.logger.error(
+        `Lỗi khi gọi sendShiftHandoverEmail: ${emailErr.message}`,
+      );
     });
 
     return result;
@@ -831,22 +926,38 @@ export class ShiftsService {
   private async sendShiftHandoverEmail(logResult: ShiftLog) {
     try {
       const config = await this.marginCheckerService.loadConfig();
-      const mailSettings = config.shiftHandoverReport || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      const mailSettings = config.shiftHandoverReport || {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+      };
       if (!mailSettings.isSendWarning) return;
 
-      const templateTitle = (logResult.templateId as any)?.title || 'Ca vận hành';
+      const templateTitle =
+        (logResult.templateId as any)?.title || 'Ca vận hành';
       const shiftDate = logResult.shiftDate;
-      const closedBy = (logResult.closedBy as any)?.fullName || 'Nhân sự vận hành';
-      const completedCount = logResult.details.filter((d) => d.isChecked).length;
+      const closedBy =
+        (logResult.closedBy as any)?.fullName || 'Nhân sự vận hành';
+      const completedCount = logResult.details.filter(
+        (d) => d.isChecked,
+      ).length;
       const totalCount = logResult.details.length;
-      
+
       const subject = `[MXV SHIFT HANDOVER] Báo cáo bàn giao ca trực: ${templateTitle} - Ngày ${shiftDate}`;
-      
-      const detailsRows = logResult.details.map((d, idx) => {
-        const statusText = d.isChecked ? 'HOÀN THÀNH' : (d.status === 'FAILED' ? 'LỖI' : 'CHƯA LÀM');
-        const statusColor = d.isChecked ? '#2e7d32' : (d.status === 'FAILED' ? '#c62828' : '#e65100');
-        const updatedBy = (d.updatedBy as any)?.fullName || '-';
-        return `
+
+      const detailsRows = logResult.details
+        .map((d, idx) => {
+          const statusText = d.isChecked
+            ? 'HOÀN THÀNH'
+            : d.status === 'FAILED'
+              ? 'LỖI'
+              : 'CHƯA LÀM';
+          const statusColor = d.isChecked
+            ? '#2e7d32'
+            : d.status === 'FAILED'
+              ? '#c62828'
+              : '#e65100';
+          const updatedBy = (d.updatedBy as any)?.fullName || '-';
+          return `
           <tr>
             <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${d.taskId}</td>
@@ -856,7 +967,8 @@ export class ShiftsService {
             <td style="border: 1px solid #ddd; padding: 8px; font-style: italic;">${d.note || '-'}</td>
           </tr>
         `;
-      }).join('');
+        })
+        .join('');
 
       const htmlBody = `
         <html>
@@ -918,10 +1030,17 @@ export class ShiftsService {
         </html>
       `;
 
-      await this.marginCheckerService.sendEmailNotification(config, mailSettings.email, subject, htmlBody);
+      await this.marginCheckerService.sendEmailNotification(
+        config,
+        mailSettings.email,
+        subject,
+        htmlBody,
+      );
       this.logger.log(`Đã gửi email báo cáo bàn giao ca trực thành công.`);
     } catch (err: any) {
-      this.logger.error(`Không thể gửi email báo cáo bàn giao ca trực: ${err.message}`);
+      this.logger.error(
+        `Không thể gửi email báo cáo bàn giao ca trực: ${err.message}`,
+      );
     }
   }
 
@@ -1028,10 +1147,7 @@ export class ShiftsService {
     const filter: any = shiftDate
       ? { shiftDate }
       : {
-          $or: [
-            { shiftDate: targetDate },
-            { status: 'PENDING' },
-          ],
+          $or: [{ shiftDate: targetDate }, { status: 'PENDING' }],
         };
 
     if (

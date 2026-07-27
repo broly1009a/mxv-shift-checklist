@@ -17,21 +17,32 @@ async function run() {
   const testEmail = 'director.trade@mxv.vn';
   const testUsername = 'director.trade';
 
-  console.log(`\n🧹 Cleaning up any existing test user for username: ${testUsername}...`);
+  console.log(
+    `\n🧹 Cleaning up any existing test user for username: ${testUsername}...`,
+  );
   await userModel.deleteOne({ username: testUsername }).exec();
 
-  console.log(`\n🔑 Simulating first-time Microsoft SSO for email: ${testEmail}...`);
+  console.log(
+    `\n🔑 Simulating first-time Microsoft SSO for email: ${testEmail}...`,
+  );
   try {
-    const user = await authService.validateMicrosoftSSO(testEmail, 'Giám đốc Khối QLGD');
-    
+    const user = await authService.validateMicrosoftSSO(
+      testEmail,
+      'Giám đốc Khối QLGD',
+    );
+
     console.log('\n✅ SSO Auto-Onboard Succeeded!');
     console.log('----------------------------------------------------');
     console.log(`Username:       ${user.username}`);
     console.log(`Full Name:      ${user.fullName}`);
     console.log(`Role Assigned:  ${user.role} (Expected: DIVISION_DIRECTOR)`);
     console.log(`Is Active:      ${user.isActive} (Expected: true)`);
-    console.log(`Division ID:    ${user.divisionId ? user.divisionId.name || user.divisionId._id || user.divisionId : 'null'}`);
-    console.log(`Department ID:  ${user.departmentId ? user.departmentId.name || user.departmentId._id || user.departmentId : 'null'}`);
+    console.log(
+      `Division ID:    ${user.divisionId ? user.divisionId.name || user.divisionId._id || user.divisionId : 'null'}`,
+    );
+    console.log(
+      `Department ID:  ${user.departmentId ? user.departmentId.name || user.departmentId._id || user.departmentId : 'null'}`,
+    );
     console.log('----------------------------------------------------');
 
     // Verification asserts
@@ -55,7 +66,7 @@ async function run() {
   }
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('Failed:', err);
   process.exit(1);
 });

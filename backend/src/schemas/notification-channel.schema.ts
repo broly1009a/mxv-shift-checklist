@@ -9,7 +9,11 @@ export class NotificationChannel extends Document {
   @Prop({ required: true, unique: true, index: true })
   code: string;
 
-  @Prop({ required: true, enum: ['TELEGRAM', 'EMAIL', 'WEB', 'TEAMS'], index: true })
+  @Prop({
+    required: true,
+    enum: ['TELEGRAM', 'EMAIL', 'WEB', 'TEAMS'],
+    index: true,
+  })
   type: string;
 
   @Prop({ required: true, type: Boolean, default: true, index: true })
@@ -21,7 +25,9 @@ export class NotificationChannel extends Document {
 
 export const NotificationChannelSchema =
   SchemaFactory.createForClass(NotificationChannel);
-NotificationChannelSchema.virtual('id').get(function (this: NotificationChannel) {
+NotificationChannelSchema.virtual('id').get(function (
+  this: NotificationChannel,
+) {
   return this._id.toHexString();
 });
 NotificationChannelSchema.set('toJSON', { virtuals: true });

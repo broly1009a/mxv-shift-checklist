@@ -5,7 +5,7 @@ import { BotEngineService } from '../modules/bot-engine/bot-engine.service';
 async function run() {
   console.log('Booting NestJS application context to run a bot engine tick...');
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   const botEngineService = app.get(BotEngineService);
 
   console.log('Running handleBotChecks()...');
@@ -15,7 +15,7 @@ async function run() {
   await app.close();
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('❌ Bot engine tick failed:', err);
   process.exit(1);
 });

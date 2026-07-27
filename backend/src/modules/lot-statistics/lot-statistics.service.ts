@@ -37,7 +37,10 @@ import {
   LotByProduct,
   LotByTvkd,
 } from './helpers/lot-aggregator.helper';
-import { calcFrProduct, FrExclusionConfig } from './helpers/fr-calculator.helper';
+import {
+  calcFrProduct,
+  FrExclusionConfig,
+} from './helpers/fr-calculator.helper';
 import { ProcessLotDto } from './dto/lot-statistics.dto';
 import { updateAllCumulativeFiles } from './helpers/excel-accumulator.helper';
 
@@ -99,15 +102,15 @@ export interface LotSummaryResult {
 // ─── Input files ─────────────────────────────────────────────────────────────
 
 export interface LotInputFiles {
-  fileDsgd: Buffer;           // required
-  fileFr: Buffer;             // required — first FR file
-  fileFrExtra?: Buffer[];     // optional — FR1.xlsx, FR2.xlsx...
-  fileTtm?: Buffer;           // optional
-  fileTttt?: Buffer;          // optional
-  fileOp?: Buffer;            // optional — first OP file
-  fileOpExtra?: Buffer[];     // optional — OP1.xlsx, OP2.xlsx...
-  filePs?: Buffer;            // optional — first PS file
-  filePsExtra?: Buffer[];     // optional — PS1.xlsx, PS2.xlsx...
+  fileDsgd: Buffer; // required
+  fileFr: Buffer; // required — first FR file
+  fileFrExtra?: Buffer[]; // optional — FR1.xlsx, FR2.xlsx...
+  fileTtm?: Buffer; // optional
+  fileTttt?: Buffer; // optional
+  fileOp?: Buffer; // optional — first OP file
+  fileOpExtra?: Buffer[]; // optional — OP1.xlsx, OP2.xlsx...
+  filePs?: Buffer; // optional — first PS file
+  filePsExtra?: Buffer[]; // optional — PS1.xlsx, PS2.xlsx...
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -132,7 +135,7 @@ export class LotStatisticsService {
     }
 
     const files = fs.readdirSync(folderPath);
-    
+
     let fileDsgd: Buffer | undefined;
     let fileFr: Buffer | undefined;
     let fileTtm: Buffer | undefined;
@@ -145,26 +148,48 @@ export class LotStatisticsService {
       const fullPath = path.join(folderPath, file);
       if (fs.statSync(fullPath).isDirectory()) continue;
 
-      if (lower.includes('dsgd') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      if (
+        lower.includes('dsgd') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileDsgd = fs.readFileSync(fullPath);
-      } else if (lower.includes('fr') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('fr') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileFr = fs.readFileSync(fullPath);
-      } else if (lower.includes('ttm') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('ttm') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileTtm = fs.readFileSync(fullPath);
-      } else if (lower.includes('tttt') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('tttt') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileTttt = fs.readFileSync(fullPath);
-      } else if (lower.includes('op') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('op') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileOp = fs.readFileSync(fullPath);
-      } else if (lower.includes('ps') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('ps') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         filePs = fs.readFileSync(fullPath);
       }
     }
 
     if (!fileDsgd) {
-      throw new Error(`Không tìm thấy file DSGD (tên file chứa 'dsgd') trong thư mục "${folderPath}"`);
+      throw new Error(
+        `Không tìm thấy file DSGD (tên file chứa 'dsgd') trong thư mục "${folderPath}"`,
+      );
     }
     if (!fileFr) {
-      throw new Error(`Không tìm thấy file FR (tên file chứa 'fr') trong thư mục "${folderPath}"`);
+      throw new Error(
+        `Không tìm thấy file FR (tên file chứa 'fr') trong thư mục "${folderPath}"`,
+      );
     }
 
     return {
@@ -181,25 +206,32 @@ export class LotStatisticsService {
    * Quét cả hai thư mục MS và CQG riêng biệt để lấy báo cáo tương ứng.
    * Hỗ trợ nhiều file FR/OP/PS (FR.xlsx, FR1.xlsx, FR2.xlsx...) bằng cách merge rows.
    */
-  loadFilesFromDirectories(folderPathMs: string, folderPathCqg?: string): LotInputFiles {
+  loadFilesFromDirectories(
+    folderPathMs: string,
+    folderPathCqg?: string,
+  ): LotInputFiles {
     if (!folderPathCqg) {
       return this.loadFilesFromDirectory(folderPathMs);
     }
 
     ensureBaseDirectoryExists(folderPathMs);
     if (!fs.existsSync(folderPathMs)) {
-      throw new Error(`Thư mục MS không tồn tại trên server: "${folderPathMs}"`);
+      throw new Error(
+        `Thư mục MS không tồn tại trên server: "${folderPathMs}"`,
+      );
     }
     if (folderPathCqg) {
       ensureBaseDirectoryExists(folderPathCqg);
     }
     if (!fs.existsSync(folderPathCqg)) {
-      throw new Error(`Thư mục CQG không tồn tại trên server: "${folderPathCqg}"`);
+      throw new Error(
+        `Thư mục CQG không tồn tại trên server: "${folderPathCqg}"`,
+      );
     }
 
     const filesMs = fs.readdirSync(folderPathMs);
     const filesCqg = fs.readdirSync(folderPathCqg);
-    
+
     let fileDsgd: Buffer | undefined;
     let fileTtm: Buffer | undefined;
     let fileTttt: Buffer | undefined;
@@ -215,11 +247,20 @@ export class LotStatisticsService {
       const fullPath = path.join(folderPathMs, file);
       if (fs.statSync(fullPath).isDirectory()) continue;
 
-      if (lower.includes('dsgd') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      if (
+        lower.includes('dsgd') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileDsgd = fs.readFileSync(fullPath);
-      } else if (lower.includes('ttm') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('ttm') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileTtm = fs.readFileSync(fullPath);
-      } else if (lower.includes('tttt') && (lower.endsWith('.xlsx') || lower.endsWith('.xls'))) {
+      } else if (
+        lower.includes('tttt') &&
+        (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
+      ) {
         fileTttt = fs.readFileSync(fullPath);
       }
     }
@@ -245,15 +286,19 @@ export class LotStatisticsService {
     }
 
     if (!fileDsgd) {
-      throw new Error(`Không tìm thấy file DSGD (chứa chữ 'dsgd') trong thư mục MS: "${folderPathMs}"`);
+      throw new Error(
+        `Không tìm thấy file DSGD (chứa chữ 'dsgd') trong thư mục MS: "${folderPathMs}"`,
+      );
     }
     if (frBuffers.length === 0) {
-      throw new Error(`Không tìm thấy file FR (tên fr/fr1/fr2...) trong thư mục CQG: "${folderPathCqg}"`);
+      throw new Error(
+        `Không tìm thấy file FR (tên fr/fr1/fr2...) trong thư mục CQG: "${folderPathCqg}"`,
+      );
     }
 
     return {
       fileDsgd,
-      fileFr: frBuffers[0],        // primary FR — multi-file merge handled in parseExcelBuffer
+      fileFr: frBuffers[0], // primary FR — multi-file merge handled in parseExcelBuffer
       fileFrExtra: frBuffers.slice(1),
       fileTtm,
       fileTttt,
@@ -282,15 +327,17 @@ export class LotStatisticsService {
         parseExcelBuffer(files.fileDsgd),
         parseExcelBuffer(files.fileFr),
         files.fileTtm ? parseExcelBuffer(files.fileTtm) : Promise.resolve(null),
-        files.fileTttt ? parseExcelBuffer(files.fileTttt) : Promise.resolve(null),
+        files.fileTttt
+          ? parseExcelBuffer(files.fileTttt)
+          : Promise.resolve(null),
         files.fileOp ? parseExcelBuffer(files.fileOp) : Promise.resolve(null),
         files.filePs ? parseExcelBuffer(files.filePs) : Promise.resolve(null),
       ]);
 
-    let dsgdRows = dsgdSheet.rows;
+    const dsgdRows = dsgdSheet.rows;
     let frRows = frSheet.rows;
-    let ttmRows = ttmSheet?.rows ?? [];
-    let ttttRows = ttttSheet?.rows ?? [];
+    const ttmRows = ttmSheet?.rows ?? [];
+    const ttttRows = ttttSheet?.rows ?? [];
     let opRows = opSheet?.rows ?? [];
     let psRows = psSheet?.rows ?? [];
 
@@ -321,7 +368,8 @@ export class LotStatisticsService {
     // ─ 2. Phân loại giao dịch (tong_hop) ────────────────────────────────────
     this.logger.debug('Đang phân loại giao dịch...');
 
-    const { dsgd, dsgdSpread, dsgdLme, dsgdOptions, dsgdAcm } = classifyDsgd(dsgdRows);
+    const { dsgd, dsgdSpread, dsgdLme, dsgdOptions, dsgdAcm } =
+      classifyDsgd(dsgdRows);
     const { fr, frSpread, frLme, frOptions } = classifyFr(frRows);
     const { ttm, ttmSpread, ttmLme, ttmOptions, ttmAcm } = classifyTtm(ttmRows);
     const { tttt, ttttSpread, ttttLme, ttttOptions, ttttAcm, lmeExpired } =
@@ -352,9 +400,11 @@ export class LotStatisticsService {
       deadline: params.deadline,
     };
     const autoNotesList: string[] = [];
-    const { frProduct, breakdown: frBreakdown, autoNotes } = calcFrProduct(
-      fr, frSpread, frLme, frOptions, frConfig,
-    );
+    const {
+      frProduct,
+      breakdown: frBreakdown,
+      autoNotes,
+    } = calcFrProduct(fr, frSpread, frLme, frOptions, frConfig);
     if (autoNotes) {
       autoNotesList.push(...autoNotes);
     }
@@ -367,7 +417,9 @@ export class LotStatisticsService {
     const ttttSpreadLot = sumTtttLot(ttttSpread);
     const lmeExpiredLot = sumTtttLot(lmeExpired);
     if (lmeExpiredLot > 0) {
-      autoNotesList.push(`${lmeExpiredLot} lot LME đáo hạn kỳ hạn ${params.filterLmeKyHan} `);
+      autoNotesList.push(
+        `${lmeExpiredLot} lot LME đáo hạn kỳ hạn ${params.filterLmeKyHan} `,
+      );
     }
     const ttttLmeLot = sumTtttLot(ttttLme) - lmeExpiredLot;
     const ttttOptionsLot = sumTtttLot(ttttOptions);
@@ -411,7 +463,9 @@ export class LotStatisticsService {
     validations
       .filter((v) => !v.passed)
       .forEach((v) =>
-        this.logger.warn(`⚠️  [VALIDATION] ${v.field}: expected=${v.expected}, actual=${v.actual}`),
+        this.logger.warn(
+          `⚠️  [VALIDATION] ${v.field}: expected=${v.expected}, actual=${v.actual}`,
+        ),
       );
 
     // ─ 5. Aggregate pivot ────────────────────────────────────────────────────
@@ -422,12 +476,30 @@ export class LotStatisticsService {
     const result: LotSummaryResult = {
       ngayGD,
       summary: {
-        dsgdProduct, dsgdSpread: dsgdSpreadLot, dsgdLme: dsgdLmeLot, dsgdOptions: dsgdOptionsLot,
-        frProduct, frSpread: frSpreadLot, frLme: frLmeLot, frOptions: frOptionsLot,
-        ttttProduct, ttttSpread: ttttSpreadLot, ttttLme: ttttLmeLot, ttttOptions: ttttOptionsLot,
-        ttmProduct, ttmSpread: ttmSpreadLot, ttmLme: ttmLmeLot, ttmOptions: ttmOptionsLot,
-        opProduct, opSpread: opSpreadLot, opLme: opLmeLot, opOptions: opOptionsLot,
-        psProduct, psSpread: psSpreadLot, psLme: psLmeLot, psOptions: psOptionsLot,
+        dsgdProduct,
+        dsgdSpread: dsgdSpreadLot,
+        dsgdLme: dsgdLmeLot,
+        dsgdOptions: dsgdOptionsLot,
+        frProduct,
+        frSpread: frSpreadLot,
+        frLme: frLmeLot,
+        frOptions: frOptionsLot,
+        ttttProduct,
+        ttttSpread: ttttSpreadLot,
+        ttttLme: ttttLmeLot,
+        ttttOptions: ttttOptionsLot,
+        ttmProduct,
+        ttmSpread: ttmSpreadLot,
+        ttmLme: ttmLmeLot,
+        ttmOptions: ttmOptionsLot,
+        opProduct,
+        opSpread: opSpreadLot,
+        opLme: opLmeLot,
+        opOptions: opOptionsLot,
+        psProduct,
+        psSpread: psSpreadLot,
+        psLme: psLmeLot,
+        psOptions: psOptionsLot,
         acmLot,
       },
       byProduct,
@@ -470,7 +542,10 @@ export class LotStatisticsService {
   // ─── Config management (lưu vào SystemSettings MongoDB) ──────────────────
 
   async getConfig(): Promise<Record<string, string>> {
-    const configStr = await this.settingsService.getSetting('lot_statistics_config', '{}');
+    const configStr = await this.settingsService.getSetting(
+      'lot_statistics_config',
+      '{}',
+    );
     try {
       const parsed = JSON.parse(configStr);
       return {
@@ -507,8 +582,13 @@ export class LotStatisticsService {
     }
   }
 
-  async saveConfig(config: Record<string, string>): Promise<{ success: boolean }> {
-    await this.settingsService.setSetting('lot_statistics_config', JSON.stringify(config));
+  async saveConfig(
+    config: Record<string, string>,
+  ): Promise<{ success: boolean }> {
+    await this.settingsService.setSetting(
+      'lot_statistics_config',
+      JSON.stringify(config),
+    );
     return { success: true };
   }
 
@@ -526,7 +606,9 @@ export class LotStatisticsService {
       expected,
       actual,
       passed,
-      message: passed ? undefined : `${field}: kỳ vọng ${expected}, thực tế ${actual}`,
+      message: passed
+        ? undefined
+        : `${field}: kỳ vọng ${expected}, thực tế ${actual}`,
     };
   }
 }

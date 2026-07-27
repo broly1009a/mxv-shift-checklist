@@ -16,7 +16,9 @@ export class PostEodHandlerService {
   /**
    * Reads EOD report (xlsx or csv) and extracts accounts with negative margin.
    */
-  async scanNegativeMarginAccounts(filePath: string): Promise<NegativeMarginAccount[]> {
+  async scanNegativeMarginAccounts(
+    filePath: string,
+  ): Promise<NegativeMarginAccount[]> {
     if (!fs.existsSync(filePath)) {
       this.logger.error(`EOD file does not exist at: ${filePath}`);
       return [];
@@ -33,7 +35,10 @@ export class PostEodHandlerService {
         return await this.parseCsv(filePath);
       }
     } catch (err: any) {
-      this.logger.error(`Failed to parse EOD file for negative margin check: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to parse EOD file for negative margin check: ${err.message}`,
+        err.stack,
+      );
       return [];
     }
   }
@@ -62,46 +67,63 @@ export class PostEodHandlerService {
       const row = data[r];
       if (!row) continue;
 
-      const rowStr = row.map(cell => String(cell || '').trim().toLowerCase());
-      const actIdx = rowStr.findIndex(cell => 
-        cell.includes('tài khoản') || 
-        cell.includes('mã tk') || 
-        cell.includes('account') || 
-        cell.includes('acct') || 
-        cell === 'tk'
+      const rowStr = row.map((cell) =>
+        String(cell || '')
+          .trim()
+          .toLowerCase(),
       );
-      const mgnIdx = rowStr.findIndex(cell => 
-        cell.includes('ký quỹ đầu ngày') || 
-        cell.includes('ký quỹ khả dụng') || 
-        cell.includes('initial margin') || 
-        cell.includes('margin balance') || 
-        cell.includes('available margin') || 
-        cell.includes('kq đn') || 
-        cell.includes('kq kd')
+      const actIdx = rowStr.findIndex(
+        (cell) =>
+          cell.includes('tài khoản') ||
+          cell.includes('mã tk') ||
+          cell.includes('account') ||
+          cell.includes('acct') ||
+          cell === 'tk',
+      );
+      const mgnIdx = rowStr.findIndex(
+        (cell) =>
+          cell.includes('ký quỹ đầu ngày') ||
+          cell.includes('ký quỹ khả dụng') ||
+          cell.includes('initial margin') ||
+          cell.includes('margin balance') ||
+          cell.includes('available margin') ||
+          cell.includes('kq đn') ||
+          cell.includes('kq kd'),
       );
 
       if (actIdx !== -1 && mgnIdx !== -1) {
         accountColIdx = actIdx;
         marginColIdx = mgnIdx;
-        this.logger.log(`Found headers at row ${r}: Account col = ${actIdx}, Margin col = ${mgnIdx}`);
+        this.logger.log(
+          `Found headers at row ${r}: Account col = ${actIdx}, Margin col = ${mgnIdx}`,
+        );
         // Now parse data starting from row r + 1
         return this.extractFromRows(data, r + 1, accountColIdx, marginColIdx);
       }
     }
 
     // Default fallbacks if headers are not found
-    this.logger.warn(`Could not find exact headers in Excel. Using fallback columns: Account = 0, Margin = 1`);
+    this.logger.warn(
+      `Could not find exact headers in Excel. Using fallback columns: Account = 0, Margin = 1`,
+    );
     return this.extractFromRows(data, 1, 0, 1);
   }
 
-  private extractFromRows(data: any[][], startRow: number, actIdx: number, mgnIdx: number): NegativeMarginAccount[] {
+  private extractFromRows(
+    data: any[][],
+    startRow: number,
+    actIdx: number,
+    mgnIdx: number,
+  ): NegativeMarginAccount[] {
     const list: NegativeMarginAccount[] = [];
     for (let i = startRow; i < data.length; i++) {
       const row = data[i];
       if (!row) continue;
 
       const actVal = String(row[actIdx] || '').trim();
-      const mgnValStr = String(row[mgnIdx] || '').replace(/,/g, '').trim();
+      const mgnValStr = String(row[mgnIdx] || '')
+        .replace(/,/g, '')
+        .trim();
       const mgnVal = parseFloat(mgnValStr);
 
       if (actVal && !isNaN(mgnVal) && mgnVal < 0) {
@@ -119,7 +141,10 @@ export class PostEodHandlerService {
    */
   private async parseCsv(filePath: string): Promise<NegativeMarginAccount[]> {
     const fileStream = fs.createReadStream(filePath, { encoding: 'utf8' });
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
 
     const list: NegativeMarginAccount[] = [];
     let lineNum = 0;
@@ -135,7 +160,7 @@ export class PostEodHandlerService {
       }
       if (!cleanLine) continue;
 
-      const cols = cleanLine.split(',').map(c => {
+      const cols = cleanLine.split(',').map((c) => {
         let val = c.trim();
         if (val.startsWith('"') && val.endsWith('"')) {
           val = val.substring(1, val.length - 1);
@@ -144,29 +169,33 @@ export class PostEodHandlerService {
       });
 
       if (!headersFound && lineNum <= 20) {
-        const rowStr = cols.map(c => c.toLowerCase());
-        const tempActIdx = rowStr.findIndex(cell => 
-          cell.includes('tài khoản') || 
-          cell.includes('mã tk') || 
-          cell.includes('account') || 
-          cell.includes('acct') || 
-          cell === 'tk'
+        const rowStr = cols.map((c) => c.toLowerCase());
+        const tempActIdx = rowStr.findIndex(
+          (cell) =>
+            cell.includes('tài khoản') ||
+            cell.includes('mã tk') ||
+            cell.includes('account') ||
+            cell.includes('acct') ||
+            cell === 'tk',
         );
-        const tempMgnIdx = rowStr.findIndex(cell => 
-          cell.includes('ký quỹ đầu ngày') || 
-          cell.includes('ký quỹ khả dụng') || 
-          cell.includes('initial margin') || 
-          cell.includes('margin balance') || 
-          cell.includes('available margin') || 
-          cell.includes('kq đn') || 
-          cell.includes('kq kd')
+        const tempMgnIdx = rowStr.findIndex(
+          (cell) =>
+            cell.includes('ký quỹ đầu ngày') ||
+            cell.includes('ký quỹ khả dụng') ||
+            cell.includes('initial margin') ||
+            cell.includes('margin balance') ||
+            cell.includes('available margin') ||
+            cell.includes('kq đn') ||
+            cell.includes('kq kd'),
         );
 
         if (tempActIdx !== -1 && tempMgnIdx !== -1) {
           actIdx = tempActIdx;
           mgnIdx = tempMgnIdx;
           headersFound = true;
-          this.logger.log(`CSV Headers found at line ${lineNum}: Account col = ${actIdx}, Margin col = ${mgnIdx}`);
+          this.logger.log(
+            `CSV Headers found at line ${lineNum}: Account col = ${actIdx}, Margin col = ${mgnIdx}`,
+          );
           continue;
         }
       }

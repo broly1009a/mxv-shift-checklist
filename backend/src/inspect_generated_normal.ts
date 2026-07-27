@@ -3,9 +3,13 @@ import * as path from 'path';
 import * as ExcelJS from 'exceljs';
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
-  const fileNormal = path.join(baseDir, 'Thong ke so lot giao dich 2026 2.xlsx');
-  
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const fileNormal = path.join(
+    baseDir,
+    'Thong ke so lot giao dich 2026 2.xlsx',
+  );
+
   if (!fs.existsSync(fileNormal)) {
     console.error('File not found:', fileNormal);
     return;

@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'notification_logs' })
+@Schema({
+  timestamps: { createdAt: true, updatedAt: false },
+  collection: 'notification_logs',
+})
 export class NotificationLog extends Document {
   @Prop({ required: true, index: true })
   eventType: string;
@@ -9,10 +12,20 @@ export class NotificationLog extends Document {
   @Prop({ required: true, index: true })
   channelType: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'NotificationChannel', default: null, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'NotificationChannel',
+    default: null,
+    index: true,
+  })
   channelId?: Types.ObjectId | null;
 
-  @Prop({ type: Types.ObjectId, ref: 'NotificationRule', default: null, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'NotificationRule',
+    default: null,
+    index: true,
+  })
   ruleId?: Types.ObjectId | null;
 
   @Prop({ required: true, index: true })

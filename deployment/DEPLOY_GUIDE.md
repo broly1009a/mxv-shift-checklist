@@ -1,4 +1,4 @@
-# 📋 Hướng Dẫn Triển Khai: MXV Shift Checklist
+<!-- # 📋 Hướng Dẫn Triển Khai: MXV Shift Checklist
 ## Mô hình Hybrid — Core Linux Server + Windows RPA Agent
 
 > **Phiên bản:** 1.0 | **Ngày:** 2026-07-15
@@ -521,4 +521,4 @@ git push
 ### End-to-End Test
 - [ ] Enqueue `RUN_LOT_MACRO` từ Web UI → Agent nhận và chạy thành công
 - [ ] Logs từ Windows hiện thời gian thực trên Web UI
-- [ ] File kết quả đã được upload lên Linux
+- [ ] File kết quả đã được upload lên Linux -->

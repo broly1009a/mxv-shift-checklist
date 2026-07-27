@@ -7,7 +7,7 @@ import { User } from './schemas/user.schema';
 async function run() {
   console.log('Booting NestJS application context...');
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   const dashboardService = app.get(DashboardService);
   const userModel = app.get<any>(getModelToken(User.name));
 
@@ -20,7 +20,7 @@ async function run() {
   const dateStr = '2026-07-01';
   console.log(`Calling getActivity for date ${dateStr}...`);
   console.time('getActivity');
-  
+
   try {
     const res = await dashboardService.getActivity(dateStr, adminUser, 10);
     console.log(`Success! Result count: ${res.length}`);
@@ -35,7 +35,7 @@ async function run() {
   }
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('Failed:', err);
   process.exit(1);
 });

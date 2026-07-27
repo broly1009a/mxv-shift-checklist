@@ -13,6 +13,8 @@ import {
   Cpu,
   Clock,
   Settings,
+  Mail,
+  Link2,
 } from 'lucide-react';
 
 interface ConnectionSettingsProps {
@@ -82,6 +84,17 @@ export default function ConnectionSettings({
   const [showCppPassword, setShowCppPassword] = useState(false);
   const [showCePassword, setShowCePassword] = useState(false);
 
+  // M365 credentials states
+  const [m365ClientId, setM365ClientId] = useState('');
+  const [m365ClientSecret, setM365ClientSecret] = useState('');
+  const [m365TenantId, setM365TenantId] = useState('');
+  const [m365WatcherEmail, setM365WatcherEmail] = useState('');
+  const [m365RefreshToken, setM365RefreshToken] = useState('');
+  const [m365TokenRenewedAt, setM365TokenRenewedAt] = useState('');
+
+  const [showM365ClientSecret, setShowM365ClientSecret] = useState(false);
+  const [showM365RefreshToken, setShowM365RefreshToken] = useState(false);
+
   // Connection testing states
   const [testingConnection, setTestingConnection] = useState(false);
   const [testingCqgConnection, setTestingCqgConnection] = useState(false);
@@ -89,6 +102,12 @@ export default function ConnectionSettings({
   const [testingCppConnection, setTestingCppConnection] = useState(false);
   const [testingCeConnection, setTestingCeConnection] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
+
+  const handleM365Reauthorize = () => {
+    if (!token) return;
+    const authUrl = `${apiBaseUrl}/api/v1/auth/microsoft-bot?token=${encodeURIComponent(token)}`;
+    window.location.href = authUrl;
+  };
 
   // Fetch configs
   const fetchConfig = async () => {
@@ -149,6 +168,14 @@ export default function ConnectionSettings({
         }
         if (data.usdExchangeRate) {
           setUsdExchangeRate(data.usdExchangeRate);
+        }
+        if (data.m365) {
+          setM365ClientId(data.m365.clientId || '');
+          setM365ClientSecret(data.m365.clientSecret || '');
+          setM365TenantId(data.m365.tenantId || '');
+          setM365WatcherEmail(data.m365.watcherEmail || '');
+          setM365RefreshToken(data.m365.refreshToken || '');
+          setM365TokenRenewedAt(data.m365.tokenRenewedAt || '');
         }
       }
     } catch (err) {
@@ -218,6 +245,13 @@ export default function ConnectionSettings({
             url: ceUrl.trim(),
             username: ceUsername.trim(),
             password: cePassword,
+          },
+          m365: {
+            clientId: m365ClientId.trim(),
+            clientSecret: m365ClientSecret,
+            tenantId: m365TenantId.trim(),
+            watcherEmail: m365WatcherEmail.trim(),
+            refreshToken: m365RefreshToken,
           },
           schedulerConfig,
           sessionStartTime,
@@ -841,6 +875,151 @@ export default function ConnectionSettings({
                   value={acmSftpRemoteDir}
                   onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Microsoft 365 Email Bot Config */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#3b82f6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Mail size={18} />
+                Cấu hình Đọc Email (M365 / Graph API)
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {m365TokenRenewedAt && (
+                  <span style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: 500,
+                  }} title="Thời gian cấp lại token gần nhất">
+                    <Clock size={13} color="#10b981" />
+                    <span>Cập nhật: </span>
+                    <strong style={{ color: '#10b981' }}>{new Date(m365TokenRenewedAt).toLocaleString('vi-VN')}</strong>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleM365Reauthorize}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', cursor: 'pointer' }}
+                  title="Đăng nhập Microsoft và cấp quyền lại cho hòm thư Bot để tự động đọc và tải file từ email"
+                >
+                  <Link2 size={12} />
+                  Cấp quyền (Authorize)
+                </button>
+              </div>
+            </h4>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Watcher Email (Hòm thư của Bot)</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="it.support@mxv.vn"
+                  value={m365WatcherEmail}
+                  onChange={(e) => setM365WatcherEmail(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Client ID (App ID)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Application (client) ID..."
+                    value={m365ClientId}
+                    onChange={(e) => setM365ClientId(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Tenant ID (Directory ID)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Directory (tenant) ID..."
+                    value={m365TenantId}
+                    onChange={(e) => setM365TenantId(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Client Secret</label>
+                <div style={{ position: 'relative' }}>
+                  <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type={showM365ClientSecret ? 'text' : 'password'}
+                    className="form-input"
+                    style={{ paddingLeft: '38px', paddingRight: '38px' }}
+                    placeholder="Client Secret Value..."
+                    value={m365ClientSecret}
+                    onChange={(e) => setM365ClientSecret(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowM365ClientSecret(!showM365ClientSecret)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {showM365ClientSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Refresh Token (Có thể chỉnh sửa/cấu hình tay)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showM365RefreshToken ? 'text' : 'password'}
+                    className="form-input"
+                    style={{ paddingRight: '38px' }}
+                    placeholder="M365 Refresh Token..."
+                    value={m365RefreshToken}
+                    onChange={(e) => setM365RefreshToken(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowM365RefreshToken(!showM365RefreshToken)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {showM365RefreshToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
               </div>
             </div>
           </div>

@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 
 async function testEmailSod() {
   console.log('=== KHỞI ĐỘNG KIỂM THỬ GỬI EMAIL BÁO CÁO ĐỐI CHIẾU SOD ===');
-  
+
   const app = await NestFactory.createApplicationContext(AppModule);
   const reconciliationService = app.get(ReconciliationService);
   const marginCheckerService = app.get(MarginCheckerService);
@@ -34,23 +34,35 @@ async function testEmailSod() {
     fs.mkdirSync(mockDailyPath, { recursive: true });
   }
 
-  const mockCastDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+  const mockCastDownloadsDir = path.join(
+    process.cwd(),
+    'temp',
+    'cast-downloads',
+  );
   if (!fs.existsSync(mockCastDownloadsDir)) {
     fs.mkdirSync(mockCastDownloadsDir, { recursive: true });
   }
 
   // Cấu hình tạm thời các đường dẫn trong DB
-  const originalBackupPath = await settingsService.getSetting('bot_backup_path_ms', '');
+  const originalBackupPath = await settingsService.getSetting(
+    'bot_backup_path_ms',
+    '',
+  );
   await settingsService.setSetting('bot_backup_path_ms', mockMsBackupPath);
   await settingsService.setSetting('usd_exchange_rate', '25000');
 
   // 2. Tạo file mock QLTKGD.xlsx (M-System)
   // Cột: Mã TKGD, Lãi lỗ thực tế chờ đáo hạn, Lãi lỗ thực tế Futures (VND), Số dư TKKQ hiện tại
   const qltkgdData = [
-    ['Mã TKGD', 'Lãi lỗ thực tế chờ đáo hạn', 'Lãi lỗ thực tế Futures (VND)', 'Số dư TKKQ hiện tại'],
-    ['000100', 0, 0, 250000000],  // $10,000 USD
-    ['000200', 0, 0, 125000000],  // $5,000 USD
-    ['000300', 0, 0, 500000000],  // $20,000 USD -> Sẽ giả lập lệch bên CQG
+    [
+      'Mã TKGD',
+      'Lãi lỗ thực tế chờ đáo hạn',
+      'Lãi lỗ thực tế Futures (VND)',
+      'Số dư TKKQ hiện tại',
+    ],
+    ['000100', 0, 0, 250000000], // $10,000 USD
+    ['000200', 0, 0, 125000000], // $5,000 USD
+    ['000300', 0, 0, 500000000], // $20,000 USD -> Sẽ giả lập lệch bên CQG
   ];
   const qltkgdSheet = XLSX.utils.aoa_to_sheet(qltkgdData);
   const qltkgdWorkbook = XLSX.utils.book_new();
@@ -66,12 +78,12 @@ async function testEmailSod() {
     ['000100F', 10000, 'Current-day Balance'],
     ['000200L', 5000, 'Current-day Balance'],
     ['000300S', 18500, 'Current-day Balance'], // Lệch $1,500 so với $20,000
-    ['000400F', 3000, 'Current-day Balance'],  // Chỉ có trên CQG, không có bên M-System
+    ['000400F', 3000, 'Current-day Balance'], // Chỉ có trên CQG, không có bên M-System
   ];
   const castSheet = XLSX.utils.aoa_to_sheet(castData);
   const castWorkbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(castWorkbook, castSheet, 'Sheet1');
-  
+
   const castFileName = `Accounts_Balances_${year}${month}${day}_${Date.now()}.xlsx`;
   const castFilePath = path.join(mockCastDownloadsDir, castFileName);
   XLSX.writeFile(castWorkbook, castFilePath);
@@ -101,7 +113,11 @@ async function testEmailSod() {
   console.log('Kết quả đối chiếu:', result);
 
   // 6. Ghi file HTML Preview
-  const previewPath = path.join(process.cwd(), 'temp', 'sod-email-preview.html');
+  const previewPath = path.join(
+    process.cwd(),
+    'temp',
+    'sod-email-preview.html',
+  );
   if (capturedHtml) {
     fs.writeFileSync(previewPath, capturedHtml, 'utf8');
     console.log(`\n🎉 THÀNH CÔNG! Đã lưu email preview tại: ${previewPath}`);
@@ -121,10 +137,13 @@ async function testEmailSod() {
     fs.rmdirSync(path.join(mockMsBackupPath, year));
     fs.rmdirSync(mockMsBackupPath);
     fs.rmdirSync(tempTestDir);
-    
+
     // Khôi phục cài đặt gốc
     if (originalBackupPath) {
-      await settingsService.setSetting('bot_backup_path_ms', originalBackupPath);
+      await settingsService.setSetting(
+        'bot_backup_path_ms',
+        originalBackupPath,
+      );
     }
   } catch (err: any) {
     console.warn('Lỗi khi dọn dẹp:', err.message);
@@ -133,7 +152,7 @@ async function testEmailSod() {
   await app.close();
 }
 
-testEmailSod().catch(err => {
+testEmailSod().catch((err) => {
   console.error('❌ Test email SOD thất bại:', err);
   process.exit(1);
 });

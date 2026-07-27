@@ -50,10 +50,7 @@ import { MarginChangeRequestsModule } from '../margin-change-requests/margin-cha
     SchedulerService,
     OmsWatcherService,
   ],
-  controllers: [
-    BotEngineController,
-    AgentController,
-  ],
+  controllers: [BotEngineController, AgentController],
   exports: [
     BotEngineService,
     EmailWatcherService,
@@ -67,6 +64,3 @@ import { MarginChangeRequestsModule } from '../margin-change-requests/margin-cha
   ],
 })
 export class BotEngineModule {}
-
-
-

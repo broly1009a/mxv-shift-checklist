@@ -12,8 +12,12 @@ async function bootstrap() {
 
   console.log('Running runFullGttCheck with downloadMarketCsv: false...');
   try {
-    const report = await gttService.runFullGttCheck({ downloadMarketCsv: false });
-    console.log('\n============================================================');
+    const report = await gttService.runFullGttCheck({
+      downloadMarketCsv: false,
+    });
+    console.log(
+      '\n============================================================',
+    );
     console.log('✅ TEST REPORT COMPLETED');
     console.log('============================================================');
     console.log(`Total contracts checked: ${report.totalContracts}`);
@@ -21,7 +25,9 @@ async function bootstrap() {
     console.log(`Diff count: ${report.diffCount}`);
     console.log(`MS Only count: ${report.msOnlyCount}`);
     console.log(`CQG Only count: ${report.cqgOnlyCount}`);
-    console.log('============================================================\n');
+    console.log(
+      '============================================================\n',
+    );
   } catch (err: any) {
     console.error('❌ Service execution failed:', err);
   } finally {

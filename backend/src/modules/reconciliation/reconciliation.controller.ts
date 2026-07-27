@@ -88,11 +88,18 @@ export class ReconciliationController {
     };
 
     if (!fileBuffers.dsgd) {
-      throw new BadRequestException('File dsgd (M-System) là bắt buộc để đối chiếu.');
+      throw new BadRequestException(
+        'File dsgd (M-System) là bắt buộc để đối chiếu.',
+      );
     }
 
     try {
-      const result = await this.reconciliationService.checkKLGD(fileBuffers, tradingDate, [], sessionStartStr || '05:00');
+      const result = await this.reconciliationService.checkKLGD(
+        fileBuffers,
+        tradingDate,
+        [],
+        sessionStartStr || '05:00',
+      );
 
       const systemUser = {
         id: '000000000000000000000000',
@@ -106,27 +113,32 @@ export class ReconciliationController {
         result.totals.differACM > 0 ||
         result.mismatchedTrades.length > 0 ||
         result.mismatchedTTM.length > 0 ||
-        (result.totals.differTTTT !== undefined && result.totals.differTTTT > 0) ||
+        (result.totals.differTTTT !== undefined &&
+          result.totals.differTTTT > 0) ||
         (result.mismatchedTTTT && result.mismatchedTTTT.length > 0);
 
       const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
-      
+
       let noteText = `[ĐỐI CHIẾU TỰ ĐỘNG]\n`;
       if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
         noteText += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
       }
       noteText += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalDSGD} vs ${result.totals.totalFR} lot (Chênh lệch: ${result.totals.differ} lot)\n`;
       noteText += `• Khớp lệnh tự doanh (MS vs ACM): ${result.totals.totalACM} vs ${result.totals.totalNano} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
-      
+
       if (result.totals.totalTTTT !== undefined) {
         noteText += `• Khớp lệnh tất toán (TTTT vs PS): ${result.totals.totalTTTT} vs ${result.totals.totalPS} lot (Chênh lệch: ${result.totals.differTTTT} lot)\n`;
       }
 
       if (result.mismatchedTrades.length > 0) {
         noteText += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
-        result.mismatchedTrades.slice(0, 10).forEach(m => {
+        result.mismatchedTrades.slice(0, 10).forEach((m) => {
           noteText += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
         if (result.mismatchedTrades.length > 10) {
@@ -138,14 +150,14 @@ export class ReconciliationController {
 
       if (result.mismatchedTTM.length > 0) {
         noteText += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
-        result.mismatchedTTM.slice(0, 10).forEach(m => {
+        result.mismatchedTTM.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
         });
       }
 
       if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
         noteText += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
-        result.mismatchedTTTT.slice(0, 10).forEach(m => {
+        result.mismatchedTTTT.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
       }
@@ -157,20 +169,31 @@ export class ReconciliationController {
         type: 'KLGD',
         attempts: 1,
         maxAttempts: 1,
-        executedAt: new Date().toISOString()
+        executedAt: new Date().toISOString(),
       });
 
       // Update the checklist task status using ShiftsService
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
+      await this.shiftsService.updateTaskStatus(
+        shiftLogId,
+        taskId,
+        status,
+        systemUser,
+        noteJson,
+        true,
+      );
 
       return {
         success: !hasDiscrepancy,
-        message: hasDiscrepancy ? 'Đối chiếu hoàn thành có chênh lệch.' : 'Đối chiếu hoàn thành khớp hoàn toàn.',
+        message: hasDiscrepancy
+          ? 'Đối chiếu hoàn thành có chênh lệch.'
+          : 'Đối chiếu hoàn thành khớp hoàn toàn.',
         result,
       };
     } catch (error: any) {
       this.logger.error(`Lỗi đối chiếu upload: ${error.message}`, error.stack);
-      throw new BadRequestException(`Lỗi khi xử lý file đối chiếu: ${error.message}`);
+      throw new BadRequestException(
+        `Lỗi khi xử lý file đối chiếu: ${error.message}`,
+      );
     }
   }
 
@@ -219,15 +242,20 @@ export class ReconciliationController {
       // Case A: CQG EOD Balance check (if accountsBalances is uploaded)
       if (fileBuffers.accountsBalances) {
         if (!fileBuffers.qltkgd) {
-          throw new BadRequestException('File QLTKGD.xlsx là bắt buộc để đối chiếu số dư CQG.');
+          throw new BadRequestException(
+            'File QLTKGD.xlsx là bắt buộc để đối chiếu số dư CQG.',
+          );
         }
 
-        const result = await this.reconciliationService.checkEODCQG({
-          qltkgd: fileBuffers.qltkgd,
-          accountsBalances: fileBuffers.accountsBalances,
-          qltkgdName: files?.qltkgd?.[0]?.originalname,
-          accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
-        }, usdRate);
+        const result = await this.reconciliationService.checkEODCQG(
+          {
+            qltkgd: fileBuffers.qltkgd,
+            accountsBalances: fileBuffers.accountsBalances,
+            qltkgdName: files?.qltkgd?.[0]?.originalname,
+            accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
+          },
+          usdRate,
+        );
 
         const hasDiscrepancy = result.length > 0;
         const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
@@ -236,7 +264,7 @@ export class ReconciliationController {
         note += `• Số tài khoản chênh lệch (> 100 USD): ${result.length}\n`;
         if (result.length > 0) {
           note += `⚠️ Danh sách tài khoản lệch:\n`;
-          result.slice(0, 10).forEach(r => {
+          result.slice(0, 10).forEach((r) => {
             note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ.toFixed(2)})\n`;
           });
           if (result.length > 10) {
@@ -254,15 +282,24 @@ export class ReconciliationController {
           usdRate,
           attempts: 1,
           maxAttempts: 1,
-          executedAt: new Date().toISOString()
+          executedAt: new Date().toISOString(),
         });
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          status,
+          systemUser,
+          noteJson,
+          true,
+        );
 
         return {
           success: !hasDiscrepancy,
           type: 'CQG',
-          message: hasDiscrepancy ? 'Đối chiếu số dư CQG có chênh lệch.' : 'Đối chiếu số dư CQG khớp hoàn toàn.',
+          message: hasDiscrepancy
+            ? 'Đối chiếu số dư CQG có chênh lệch.'
+            : 'Đối chiếu số dư CQG khớp hoàn toàn.',
           result,
         };
       }
@@ -279,8 +316,10 @@ export class ReconciliationController {
         });
 
         const negativeIMRAccCount = result.negativeIMRAcc.length;
-        const negativeBalanceAccsCount = result.negativeBalanceAccs?.length || 0;
-        const hasDiscrepancy = negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0;
+        const negativeBalanceAccsCount =
+          result.negativeBalanceAccs?.length || 0;
+        const hasDiscrepancy =
+          negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0;
         const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
 
         let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
@@ -303,28 +342,41 @@ export class ReconciliationController {
           result: {
             negativeBalanceAccs: result.negativeBalanceAccs || [],
             negativeIMRAcc: result.negativeIMRAcc || [],
-            cqgResult: []
+            cqgResult: [],
           },
           type: 'EOD',
           attempts: 1,
           maxAttempts: 1,
-          executedAt: new Date().toISOString()
+          executedAt: new Date().toISOString(),
         });
 
-        await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          status,
+          systemUser,
+          noteJson,
+          true,
+        );
 
         return {
           success: !hasDiscrepancy,
           type: 'EOD',
-          message: hasDiscrepancy ? 'Phát hiện tài khoản âm ký quỹ/âm số dư.' : 'Không phát hiện tài khoản âm ký quỹ.',
+          message: hasDiscrepancy
+            ? 'Phát hiện tài khoản âm ký quỹ/âm số dư.'
+            : 'Không phát hiện tài khoản âm ký quỹ.',
           result,
         };
       }
 
-      throw new BadRequestException('Không nhận diện được loại đối chiếu. Vui lòng tải lên đúng bộ tệp tin.');
+      throw new BadRequestException(
+        'Không nhận diện được loại đối chiếu. Vui lòng tải lên đúng bộ tệp tin.',
+      );
     } catch (error: any) {
       this.logger.error(`Lỗi đối chiếu EOD/CQG: ${error.message}`, error.stack);
-      throw new BadRequestException(`Lỗi khi xử lý file đối chiếu EOD/CQG: ${error.message}`);
+      throw new BadRequestException(
+        `Lỗi khi xử lý file đối chiếu EOD/CQG: ${error.message}`,
+      );
     }
   }
 
@@ -364,7 +416,10 @@ export class ReconciliationController {
         result,
       };
     } catch (error: any) {
-      this.logger.error(`Lỗi lọc tài khoản âm ký quỹ: ${error.message}`, error.stack);
+      this.logger.error(
+        `Lỗi lọc tài khoản âm ký quỹ: ${error.message}`,
+        error.stack,
+      );
       throw new BadRequestException(`Lỗi khi xử lý file: ${error.message}`);
     }
   }
@@ -379,22 +434,47 @@ export class ReconciliationController {
   @Get('sample-dates')
   async listSampleDates() {
     const nodePath = require('path');
-    const baseBackupDir = nodePath.join(process.cwd(), '..', 'it-tool-src', 'operate-transaction-app', 'bin', 'Debug', 'Download', 'BackupMS');
+    const baseBackupDir = nodePath.join(
+      process.cwd(),
+      '..',
+      'it-tool-src',
+      'operate-transaction-app',
+      'bin',
+      'Debug',
+      'Download',
+      'BackupMS',
+    );
 
-    const dates: { label: string; samplePath: string; year: string; month: string; day: string }[] = [];
+    const dates: {
+      label: string;
+      samplePath: string;
+      year: string;
+      month: string;
+      day: string;
+    }[] = [];
 
     if (!fs.existsSync(baseBackupDir)) {
-      return { success: false, message: 'Thư mục BackupMS không tồn tại', dates: [] };
+      return {
+        success: false,
+        message: 'Thư mục BackupMS không tồn tại',
+        dates: [],
+      };
     }
 
     try {
-      const years = fs.readdirSync(baseBackupDir).filter(y => /^\d{4}$/.test(y));
+      const years = fs
+        .readdirSync(baseBackupDir)
+        .filter((y) => /^\d{4}$/.test(y));
       for (const year of years) {
         const yearPath = nodePath.join(baseBackupDir, year);
-        const months = fs.readdirSync(yearPath).filter(m => /^T\d{2}/.test(m));
+        const months = fs
+          .readdirSync(yearPath)
+          .filter((m) => /^T\d{2}/.test(m));
         for (const month of months) {
           const monthPath = nodePath.join(yearPath, month);
-          const days = fs.readdirSync(monthPath).filter(d => /^\d{2}\.\d{2}$/.test(d));
+          const days = fs
+            .readdirSync(monthPath)
+            .filter((d) => /^\d{2}\.\d{2}$/.test(d));
           for (const day of days) {
             const dayPath = nodePath.join(monthPath, day);
             const [dd, mm] = day.split('.');
@@ -425,7 +505,9 @@ export class ReconciliationController {
     @Body('sessionStart') sessionStartStr?: string,
   ) {
     if (!samplePath) {
-      throw new BadRequestException('Vui lòng cung cấp đường dẫn thư mục (samplePath).');
+      throw new BadRequestException(
+        'Vui lòng cung cấp đường dẫn thư mục (samplePath).',
+      );
     }
     if (!fs.existsSync(samplePath)) {
       throw new BadRequestException(`Thư mục không tồn tại: ${samplePath}`);
@@ -439,7 +521,9 @@ export class ReconciliationController {
       if (fs.existsSync(direct)) return fs.readFileSync(direct);
       // Partial match for files like "eod.2025-08-05.csv"
       const files = fs.readdirSync(samplePath);
-      const match = files.find((f: string) => f.startsWith(prefix) && f.endsWith(`.${ext}`));
+      const match = files.find(
+        (f: string) => f.startsWith(prefix) && f.endsWith(`.${ext}`),
+      );
       if (match) return fs.readFileSync(nodePath.join(samplePath, match));
       return null;
     };
@@ -465,7 +549,12 @@ export class ReconciliationController {
         ps1: readIfExists('PS1', 'xlsx') || undefined,
         ps2: readIfExists('PS2', 'xlsx') || undefined,
       };
-      results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, new Date(), [], sessionStartStr || '05:00');
+      results.klgd = await this.reconciliationService.checkKLGD(
+        klgdFiles,
+        new Date(),
+        [],
+        sessionStartStr || '05:00',
+      );
     } catch (err: any) {
       errors.klgd = err.message;
     }
@@ -475,7 +564,10 @@ export class ReconciliationController {
       const qltkgd = readIfExists('QLTKGD', 'xlsx');
       const eod = readIfExists('eod', 'csv');
       if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
-      results.eod = await this.reconciliationService.checkEOD({ qltkgd, eod: eod || undefined });
+      results.eod = await this.reconciliationService.checkEOD({
+        qltkgd,
+        eod: eod || undefined,
+      });
     } catch (err: any) {
       errors.eod = err.message;
     }
@@ -485,13 +577,23 @@ export class ReconciliationController {
       const qltkgd = readIfExists('QLTKGD', 'xlsx');
       const accountsBalances = readIfExists('Accounts_Balances', 'xlsx');
       if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
-      if (!accountsBalances) throw new Error('Thiếu file Accounts_Balances.xlsx');
-      results.cqg = await this.reconciliationService.checkEODCQG({ qltkgd, accountsBalances }, usdRate);
+      if (!accountsBalances)
+        throw new Error('Thiếu file Accounts_Balances.xlsx');
+      results.cqg = await this.reconciliationService.checkEODCQG(
+        { qltkgd, accountsBalances },
+        usdRate,
+      );
     } catch (err: any) {
       errors.cqg = err.message;
     }
 
-    return { success: Object.keys(errors).length === 0, samplePath, usdRate, results, errors };
+    return {
+      success: Object.keys(errors).length === 0,
+      samplePath,
+      usdRate,
+      results,
+      errors,
+    };
   }
 
   /**
@@ -503,13 +605,23 @@ export class ReconciliationController {
     @Body('usdRate') usdRateRaw?: number,
   ) {
     const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
-    this.logger.log(`Starting auto reconciliation via RPA for date: ${targetDate || 'today'}`);
+    this.logger.log(
+      `Starting auto reconciliation via RPA for date: ${targetDate || 'today'}`,
+    );
 
-    let downloadedFiles: { qltkgdPath: string; ttttPath: string; eodPath: string; downloadDir: string };
+    let downloadedFiles: {
+      qltkgdPath: string;
+      ttttPath: string;
+      eodPath: string;
+      downloadDir: string;
+    };
     try {
-      downloadedFiles = await this.rpaService.downloadReconciliationFiles(targetDate);
+      downloadedFiles =
+        await this.rpaService.downloadReconciliationFiles(targetDate);
     } catch (err: any) {
-      throw new BadRequestException(`Không thể tải file từ M-System: ${err.message}`);
+      throw new BadRequestException(
+        `Không thể tải file từ M-System: ${err.message}`,
+      );
     }
 
     const results: Record<string, any> = {};
@@ -517,9 +629,19 @@ export class ReconciliationController {
 
     try {
       const qltkgd = fs.readFileSync(downloadedFiles.qltkgdPath);
-      const tttt = downloadedFiles.ttttPath && fs.existsSync(downloadedFiles.ttttPath) ? fs.readFileSync(downloadedFiles.ttttPath) : undefined;
-      const eod = downloadedFiles.eodPath && fs.existsSync(downloadedFiles.eodPath) ? fs.readFileSync(downloadedFiles.eodPath) : undefined;
-      results.eod = await this.reconciliationService.checkEOD({ qltkgd, tttt, eod });
+      const tttt =
+        downloadedFiles.ttttPath && fs.existsSync(downloadedFiles.ttttPath)
+          ? fs.readFileSync(downloadedFiles.ttttPath)
+          : undefined;
+      const eod =
+        downloadedFiles.eodPath && fs.existsSync(downloadedFiles.eodPath)
+          ? fs.readFileSync(downloadedFiles.eodPath)
+          : undefined;
+      results.eod = await this.reconciliationService.checkEOD({
+        qltkgd,
+        tttt,
+        eod,
+      });
     } catch (err: any) {
       errors.eod = err.message;
     }
@@ -607,7 +729,12 @@ export class ReconciliationController {
           op1: fileBuffers.op1,
           op2: fileBuffers.op2,
         };
-        results.klgd = await this.reconciliationService.checkKLGD(klgdFiles, tradingDate, [], sessionStartStr || '05:00');
+        results.klgd = await this.reconciliationService.checkKLGD(
+          klgdFiles,
+          tradingDate,
+          [],
+          sessionStartStr || '05:00',
+        );
       } catch (err: any) {
         errors.klgd = err.message;
       }
@@ -632,12 +759,15 @@ export class ReconciliationController {
     // 3. CQG Balance Check
     if (fileBuffers.qltkgd && fileBuffers.accountsBalances) {
       try {
-        results.cqg = await this.reconciliationService.checkEODCQG({
-          qltkgd: fileBuffers.qltkgd,
-          accountsBalances: fileBuffers.accountsBalances,
-          qltkgdName: files?.qltkgd?.[0]?.originalname,
-          accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
-        }, usdRate);
+        results.cqg = await this.reconciliationService.checkEODCQG(
+          {
+            qltkgd: fileBuffers.qltkgd,
+            accountsBalances: fileBuffers.accountsBalances,
+            qltkgdName: files?.qltkgd?.[0]?.originalname,
+            accountsBalancesName: files?.accountsBalances?.[0]?.originalname,
+          },
+          usdRate,
+        );
       } catch (err: any) {
         errors.cqg = err.message;
       }
@@ -715,7 +845,7 @@ export class ReconciliationController {
     try {
       const acmTradesName = files?.acmTrades?.[0]?.originalname || '';
       const result = await this.reconciliationService.checkPreEOD(
-        fileBuffers as any,
+        fileBuffers,
         acmTradesName,
         tradingDate,
         [],
@@ -733,8 +863,12 @@ export class ReconciliationController {
 
       let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
       if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
         note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
       }
       note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
@@ -768,10 +902,17 @@ export class ReconciliationController {
         type: 'PRE_EOD',
         attempts: 1,
         maxAttempts: 1,
-        executedAt: new Date().toISOString()
+        executedAt: new Date().toISOString(),
       });
 
-      await this.shiftsService.updateTaskStatus(shiftLogId, taskId, status, systemUser, noteJson, true);
+      await this.shiftsService.updateTaskStatus(
+        shiftLogId,
+        taskId,
+        status,
+        systemUser,
+        noteJson,
+        true,
+      );
 
       return {
         success: true,
@@ -803,13 +944,13 @@ export class ReconciliationController {
   }
 
   @Get('maturity-manual-messages')
-  async getMaturityManualMessages(
-    @Query('shiftLogId') shiftLogId: string,
-  ) {
+  async getMaturityManualMessages(@Query('shiftLogId') shiftLogId: string) {
     if (!shiftLogId) {
       throw new BadRequestException('Thiếu shiftLogId');
     }
-    const log = await this.shiftsService.getShiftById(shiftLogId, { role: 'ADMIN' });
+    const log = await this.shiftsService.getShiftById(shiftLogId, {
+      role: 'ADMIN',
+    });
     if (!log) {
       throw new BadRequestException('Không tìm thấy ca trực');
     }
@@ -828,8 +969,20 @@ export class ReconciliationController {
     }
 
     const nodePath = require('path');
-    const dailyTextPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.txt');
-    const dailyJsonPath = nodePath.join(process.cwd(), 'temp', 'reconciliation', formattedDate, 'teams_manual_messages.json');
+    const dailyTextPath = nodePath.join(
+      process.cwd(),
+      'temp',
+      'reconciliation',
+      formattedDate,
+      'teams_manual_messages.txt',
+    );
+    const dailyJsonPath = nodePath.join(
+      process.cwd(),
+      'temp',
+      'reconciliation',
+      formattedDate,
+      'teams_manual_messages.json',
+    );
 
     let textContent = '';
     let jsonContent: any[] = [];

@@ -10,7 +10,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
     const secret = process.env.JWT_SECRET;
     if (!secret && process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL CONFIGURATION ERROR: JWT_SECRET environment variable is not defined!');
+      throw new Error(
+        'CRITICAL CONFIGURATION ERROR: JWT_SECRET environment variable is not defined!',
+      );
     }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

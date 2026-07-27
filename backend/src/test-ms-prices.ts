@@ -45,13 +45,25 @@ async function runMSPricesTest() {
   if (!username || !password || !pin) {
     console.log('DEBUG: Reading credentials from DB system settings...');
     const allSettings = await settingsService.findAll();
-    console.log('DEBUG: All settings keys found in DB:', allSettings.map(s => s.key));
-    const credentialsRaw = await settingsService.getSetting('bot_credentials_msystem', '');
-    console.log('DEBUG: bot_credentials_msystem raw length:', credentialsRaw ? credentialsRaw.length : 0);
+    console.log(
+      'DEBUG: All settings keys found in DB:',
+      allSettings.map((s) => s.key),
+    );
+    const credentialsRaw = await settingsService.getSetting(
+      'bot_credentials_msystem',
+      '',
+    );
+    console.log(
+      'DEBUG: bot_credentials_msystem raw length:',
+      credentialsRaw ? credentialsRaw.length : 0,
+    );
     if (credentialsRaw) {
       try {
         const decryptedStr = decrypt(credentialsRaw);
-        console.log('DEBUG: Decrypted credentials string length:', decryptedStr ? decryptedStr.length : 0);
+        console.log(
+          'DEBUG: Decrypted credentials string length:',
+          decryptedStr ? decryptedStr.length : 0,
+        );
         const credentials = JSON.parse(decryptedStr);
         username = credentials.username;
         password = credentials.password;
@@ -62,7 +74,10 @@ async function runMSPricesTest() {
         console.log('- Pin:', pin);
         console.log('- Url:', msystemUrl);
       } catch (err: any) {
-        console.error('❌ Lỗi giải mã thông tin tài khoản từ CSDL:', err.message);
+        console.error(
+          '❌ Lỗi giải mã thông tin tài khoản từ CSDL:',
+          err.message,
+        );
       }
     }
   }
@@ -81,11 +96,16 @@ async function runMSPricesTest() {
   const chromePaths = [
     path.join(localAppData, 'Google', 'Chrome', 'Application', 'chrome.exe'),
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  ].filter(p => fs.existsSync(p));
+  ].filter((p) => fs.existsSync(p));
 
   const launchOptions: any = {
     headless: false,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized', '--proxy-auto-detect'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--start-maximized',
+      '--proxy-auto-detect',
+    ],
     slowMo: 200,
   };
   if (chromePaths.length > 0) {
@@ -99,7 +119,7 @@ async function runMSPricesTest() {
   page.setDefaultTimeout(30000);
 
   // Monitor network responses to capture the price list API
-  page.on('response', async response => {
+  page.on('response', async (response) => {
     const url = response.url();
     const contentType = response.headers()['content-type'] || '';
     if (contentType.includes('application/json') || url.includes('/api/')) {
@@ -110,7 +130,13 @@ async function runMSPricesTest() {
         console.log(`\n[API Response] URL: ${cleanUrl}`);
         // If the JSON contains list of commodities or price data, write it to a debug file
         const jsonStr = JSON.stringify(json, null, 2);
-        if (url.includes('priceList') || jsonStr.includes('price') || jsonStr.includes('symbol') || jsonStr.includes('code') || jsonStr.includes('Settlement')) {
+        if (
+          url.includes('priceList') ||
+          jsonStr.includes('price') ||
+          jsonStr.includes('symbol') ||
+          jsonStr.includes('code') ||
+          jsonStr.includes('Settlement')
+        ) {
           const apiFileName = cleanUrl.replace(/[^a-zA-Z0-9]/g, '_') + '.json';
           fs.writeFileSync(path.join(DEBUG_DIR, apiFileName), jsonStr, 'utf8');
           console.log(`⭐ Saved interesting API response to: ${apiFileName}`);
@@ -141,18 +167,26 @@ async function runMSPricesTest() {
     console.log('Đang đợi bảng nhập mã PIN ảo hiển thị...');
     let pinSelectorVisible = false;
     for (let attempt = 1; attempt <= 3; attempt++) {
-      pinSelectorVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+      pinSelectorVisible = await page
+        .locator('div.pincode')
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
       if (pinSelectorVisible) {
         console.log('✅ Đã hiển thị bảng PIN!');
         break;
       }
-      console.log(`⚠️ Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`);
+      console.log(
+        `⚠️ Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+      );
       await screenshot(page, `02-retry-login-click-attempt-${attempt}`);
       await page.click('button.btn-primary').catch(() => {});
       await page.waitForTimeout(2000);
     }
 
-    await page.waitForSelector('div.pincode', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('div.pincode', {
+      state: 'visible',
+      timeout: 10000,
+    });
     await screenshot(page, '03-pin-page');
 
     // Click each pin digit
@@ -191,17 +225,25 @@ async function runMSPricesTest() {
 
     let marketCsvDownloaded = false;
     for (const sel of orderCreatingCsvSelectors) {
-      const isVisible = await page.locator(sel).first().isVisible().catch(() => false);
+      const isVisible = await page
+        .locator(sel)
+        .first()
+        .isVisible()
+        .catch(() => false);
       if (isVisible) {
-        console.log(`👉 Tìm thấy nút xuất CSV Bảng giá: selector="${sel}". Đang tải...`);
+        console.log(
+          `👉 Tìm thấy nút xuất CSV Bảng giá: selector="${sel}". Đang tải...`,
+        );
         try {
           const [download] = await Promise.all([
             page.waitForEvent('download', { timeout: 25000 }),
-            page.locator(sel).first().click()
+            page.locator(sel).first().click(),
           ]);
           const downloadPath = path.join(DEBUG_DIR, 'market.csv');
           await download.saveAs(downloadPath);
-          console.log(`✅ Đã tải và lưu thành công file CSV bảng giá: ${downloadPath}`);
+          console.log(
+            `✅ Đã tải và lưu thành công file CSV bảng giá: ${downloadPath}`,
+          );
           marketCsvDownloaded = true;
 
           // Preview the downloaded CSV content
@@ -216,7 +258,10 @@ async function runMSPricesTest() {
           }
           break;
         } catch (downloadErr: any) {
-          console.error(`❌ Lỗi khi tải bằng selector ${sel}:`, downloadErr.message);
+          console.error(
+            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            downloadErr.message,
+          );
         }
       }
     }
@@ -244,21 +289,32 @@ async function runMSPricesTest() {
 
     let openPositionDownloaded = false;
     for (const sel of openPositionCsvSelectors) {
-      const isVisible = await page.locator(sel).first().isVisible().catch(() => false);
+      const isVisible = await page
+        .locator(sel)
+        .first()
+        .isVisible()
+        .catch(() => false);
       if (isVisible) {
-        console.log(`👉 Tìm thấy nút xuất Trạng thái mở: selector="${sel}". Đang tải...`);
+        console.log(
+          `👉 Tìm thấy nút xuất Trạng thái mở: selector="${sel}". Đang tải...`,
+        );
         try {
           const [download] = await Promise.all([
             page.waitForEvent('download', { timeout: 25000 }),
-            page.locator(sel).first().click()
+            page.locator(sel).first().click(),
           ]);
           const downloadPath = path.join(DEBUG_DIR, 'trang-thai-mo.xlsx');
           await download.saveAs(downloadPath);
-          console.log(`✅ Đã tải và lưu thành công file trạng thái mở: ${downloadPath}`);
+          console.log(
+            `✅ Đã tải và lưu thành công file trạng thái mở: ${downloadPath}`,
+          );
           openPositionDownloaded = true;
           break;
         } catch (downloadErr: any) {
-          console.error(`❌ Lỗi khi tải bằng selector ${sel}:`, downloadErr.message);
+          console.error(
+            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            downloadErr.message,
+          );
         }
       }
     }
@@ -266,7 +322,6 @@ async function runMSPricesTest() {
     if (!openPositionDownloaded) {
       console.log('⚠️ Không tải được file trang-thai-mo.xlsx từ M-System.');
     }
-
   } catch (err: any) {
     console.error('\n❌ Lỗi:', err.message);
     await screenshot(page, 'ERROR-final');
@@ -282,7 +337,7 @@ async function runMSPricesTest() {
   }
 }
 
-runMSPricesTest().catch(err => {
+runMSPricesTest().catch((err) => {
   console.error('❌ Fatal error:', err);
   process.exit(1);
 });

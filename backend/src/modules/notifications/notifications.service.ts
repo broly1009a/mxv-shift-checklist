@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { NotificationChannel } from '../../schemas/notification-channel.schema';
@@ -33,7 +37,9 @@ export class NotificationsService {
   }
 
   async createChannel(data: any): Promise<NotificationChannel> {
-    const existing = await this.channelModel.findOne({ code: data.code }).exec();
+    const existing = await this.channelModel
+      .findOne({ code: data.code })
+      .exec();
     if (existing) {
       throw new BadRequestException(`Mã kênh '${data.code}' đã tồn tại`);
     }
@@ -92,7 +98,7 @@ export class NotificationsService {
     if (existing) {
       throw new BadRequestException(`Mã luật '${data.code}' đã tồn tại`);
     }
-    
+
     // Validate channel IDs
     if (data.channelIds && data.channelIds.length > 0) {
       for (const chId of data.channelIds) {

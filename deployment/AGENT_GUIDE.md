@@ -1,4 +1,4 @@
-# 📋 Hướng Dẫn Vận Hành & Kết Nối: MXV RPA Agent (Desktop App)
+<!-- # 📋 Hướng Dẫn Vận Hành & Kết Nối: MXV RPA Agent (Desktop App)
 
 Tài liệu này hướng dẫn cách cài đặt, cấu hình, kết nối và vận hành ứng dụng **MXV RPA Agent** giao diện đồ họa (PyQt6 System Tray) trên Windows, liên kết trực tiếp với Core Server Linux.
 
@@ -111,4 +111,4 @@ Khi Admin kích hoạt các job như `Tải báo cáo ACM` hoặc `Đồng bộ 
 | **Đèn Tray Icon màu đỏ, báo Offline trên Web** | Sai URL hoặc API Key không khớp | 1. Mở Cấu hình trên Tray Icon, kiểm tra lại IP/Port và API Key.<br>2. Nhấp nút "Kiểm tra kết nối" để xem thông báo lỗi chi tiết. |
 | **Email cảnh báo gửi về `it.support@mxv.vn`** | Máy Windows bị mất mạng hoặc tắt nguồn quá 3 phút | Khởi động lại máy Windows hoặc mở lại ứng dụng Agent. Email "Phục hồi trạng thái" sẽ tự động được gửi khi kết nối lại thành công. |
 | **Lỗi "Không tìm thấy WinSCP.com"** | Chưa cài WinSCP hoặc cài ở thư mục lạ | Cấu hình cài đặt `bot_winscp_path` trong Database SystemSettings để khai báo chính xác đường dẫn đến file `WinSCP.com` của bạn. |
-| **Excel Macro báo lỗi COM** | Tiến trình Excel cũ bị treo, chiếm quyền file | Agent đã tích hợp sẵn tính năng tự động tắt toàn bộ tiến trình `EXCEL.EXE` ngầm (Excel Sweeper) khi khởi động hoặc chạy job. Hãy đảm bảo bạn không khóa file macro thủ công. |
+| **Excel Macro báo lỗi COM** | Tiến trình Excel cũ bị treo, chiếm quyền file | Agent đã tích hợp sẵn tính năng tự động tắt toàn bộ tiến trình `EXCEL.EXE` ngầm (Excel Sweeper) khi khởi động hoặc chạy job. Hãy đảm bảo bạn không khóa file macro thủ công. | -->

@@ -3,7 +3,8 @@ import * as path from 'path';
 import * as ExcelJS from 'exceljs';
 
 async function main() {
-  const rootFile = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\root\\DSGD T07.2026 root.xlsx';
+  const rootFile =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot\\root\\DSGD T07.2026 root.xlsx';
   if (!fs.existsSync(rootFile)) {
     console.error('Root file not found:', rootFile);
     return;
@@ -15,7 +16,7 @@ async function main() {
 
   const uniqueDates = new Map<string, number>();
   let nullCount = 0;
-  
+
   for (let r = 2; r <= Math.min(200000, ws.rowCount); r++) {
     const row = ws.getRow(r);
     const val = row.getCell(23).value;

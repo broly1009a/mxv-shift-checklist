@@ -12,7 +12,7 @@ function inspectFile(filePath: string, label: string) {
   const workbook = XLSX.readFile(filePath);
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
   console.log(`Sheet Name: ${sheetName}`);
   console.log(`Total Rows: ${rows.length}`);
   if (rows.length > 0) {
@@ -23,8 +23,18 @@ function inspectFile(filePath: string, label: string) {
   }
 }
 
-const openPosPath = path.join(process.cwd(), 'temp', 'downloads', 'open_positions.xlsx');
-const pendingOrdersPath = path.join(process.cwd(), 'temp', 'downloads', 'pending_orders.xlsx');
+const openPosPath = path.join(
+  process.cwd(),
+  'temp',
+  'downloads',
+  'open_positions.xlsx',
+);
+const pendingOrdersPath = path.join(
+  process.cwd(),
+  'temp',
+  'downloads',
+  'pending_orders.xlsx',
+);
 
 inspectFile(openPosPath, 'Open Positions');
 inspectFile(pendingOrdersPath, 'Pending Orders');

@@ -26,7 +26,13 @@ export interface LotByTvkd {
 
 export function sumDsgdLot(rows: ParsedRow[]): number {
   return rows.reduce((s, r) => {
-    const lot = toNum(r['KL giao dịch'] ?? r['KL'] ?? r['Khối lượng'] ?? r['col13'] ?? r['col17']);
+    const lot = toNum(
+      r['KL giao dịch'] ??
+        r['KL'] ??
+        r['Khối lượng'] ??
+        r['col13'] ??
+        r['col17'],
+    );
     return s + lot;
   }, 0);
 }
@@ -92,7 +98,14 @@ export function sumPsLot(rows: ParsedRow[]): number {
  */
 export function getSPFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4']);
-  const maKyHan = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['col6'] ?? row['Kỳ hạn'] ?? row['col8'] ?? row['col9']).trim();
+  const maKyHan = toStr(
+    row['Mã HĐ'] ??
+      row['Mã Hợp Đồng'] ??
+      row['col6'] ??
+      row['Kỳ hạn'] ??
+      row['col8'] ??
+      row['col9'],
+  ).trim();
 
   const upTKGD = maTKGD.toUpperCase();
   if (upTKGD.endsWith('L')) {
@@ -116,7 +129,14 @@ export function getSPFromDsgd(row: ParsedRow): string {
  * VBA: G2 = LEFT(F2, LEN(F2)-3) → bỏ 3 ký tự cuối mã kỳ hạn
  */
 export function getSPFromSpread(row: ParsedRow): string {
-  const maKyHan = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['col6'] ?? row['Kỳ hạn'] ?? row['col8'] ?? row['col9']);
+  const maKyHan = toStr(
+    row['Mã HĐ'] ??
+      row['Mã Hợp Đồng'] ??
+      row['col6'] ??
+      row['Kỳ hạn'] ??
+      row['col8'] ??
+      row['col9'],
+  );
   return maKyHan.length > 3
     ? maKyHan.substring(0, maKyHan.length - 3).toUpperCase()
     : maKyHan.toUpperCase();
@@ -136,8 +156,16 @@ export function aggregateByProduct(
     const sp = getSP(row);
     if (!sp) continue;
 
-    const side = toStr(row['Chiều mua bán'] ?? row['Chiều'] ?? row['Side'] ?? row['col11'] ?? row['col13']).toUpperCase();
-    const lot = toNum(row['KL giao dịch'] ?? row['KL'] ?? row['col13'] ?? row['col17']);
+    const side = toStr(
+      row['Chiều mua bán'] ??
+        row['Chiều'] ??
+        row['Side'] ??
+        row['col11'] ??
+        row['col13'],
+    ).toUpperCase();
+    const lot = toNum(
+      row['KL giao dịch'] ?? row['KL'] ?? row['col13'] ?? row['col17'],
+    );
 
     const curr = map.get(sp) ?? { klm: 0, klb: 0 };
     if (side === 'BUY' || side === 'MUA') curr.klm += lot;
@@ -163,8 +191,16 @@ export function aggregateByTvkd(rows: ParsedRow[]): LotByTvkd[] {
     const tvkd = maTKGD.substring(0, 3).toUpperCase();
     if (!tvkd) continue;
 
-    const side = toStr(row['Chiều mua bán'] ?? row['Chiều'] ?? row['Side'] ?? row['col11'] ?? row['col13']).toUpperCase();
-    const lot = toNum(row['KL giao dịch'] ?? row['KL'] ?? row['col13'] ?? row['col17']);
+    const side = toStr(
+      row['Chiều mua bán'] ??
+        row['Chiều'] ??
+        row['Side'] ??
+        row['col11'] ??
+        row['col13'],
+    ).toUpperCase();
+    const lot = toNum(
+      row['KL giao dịch'] ?? row['KL'] ?? row['col13'] ?? row['col17'],
+    );
 
     const curr = map.get(tvkd) ?? { klm: 0, klb: 0 };
     if (side === 'BUY' || side === 'MUA') curr.klm += lot;

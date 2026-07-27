@@ -11,16 +11,17 @@ import { AccessControlService } from '../auth/access-control.service';
 export class DashboardService {
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
-    @InjectModel(Department.name) private readonly departmentModel: Model<Department>,
+    @InjectModel(Department.name)
+    private readonly departmentModel: Model<Department>,
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
-    @InjectModel(SystemLog.name) private readonly systemLogModel: Model<SystemLog>,
+    @InjectModel(SystemLog.name)
+    private readonly systemLogModel: Model<SystemLog>,
     private readonly accessControlService: AccessControlService,
   ) {}
 
   private async getScopeFilter(user: any): Promise<any> {
     return this.accessControlService.getScopeFilter(user);
   }
-
 
   async getSummary(dateStr: string, user: any): Promise<any> {
     this.validateDateStr(dateStr);
@@ -34,14 +35,14 @@ export class DashboardService {
     let botTasks = 0;
     let progressSum = 0;
 
-    const pendingJobs = logs.filter(l => l.status === 'PENDING').length;
-    const completedJobs = logs.filter(l => l.status === 'COMPLETED').length;
+    const pendingJobs = logs.filter((l) => l.status === 'PENDING').length;
+    const completedJobs = logs.filter((l) => l.status === 'COMPLETED').length;
 
     const hourlyChecks = new Array(24).fill(0);
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       progressSum += log.progressPercentage || 0;
-      log.details.forEach(task => {
+      log.details.forEach((task) => {
         totalTasks++;
         if (task.isChecked) {
           completedTasks++;
@@ -55,14 +56,19 @@ export class DashboardService {
       });
     });
 
-    const completionPercentage = logs.length > 0 ? parseFloat((progressSum / logs.length).toFixed(2)) : 0.0;
+    const completionPercentage =
+      logs.length > 0
+        ? parseFloat((progressSum / logs.length).toFixed(2))
+        : 0.0;
 
     const hourlyProgress = new Array(24).fill(0);
     if (totalTasks > 0) {
       let cumulative = 0;
       for (let h = 0; h < 24; h++) {
         cumulative += hourlyChecks[h];
-        hourlyProgress[h] = parseFloat(((cumulative / totalTasks) * 100).toFixed(1));
+        hourlyProgress[h] = parseFloat(
+          ((cumulative / totalTasks) * 100).toFixed(1),
+        );
       }
     }
 
@@ -83,7 +89,11 @@ export class DashboardService {
     };
   }
 
-  async getJobs(dateStr: string, user: any, status?: string): Promise<ShiftLog[]> {
+  async getJobs(
+    dateStr: string,
+    user: any,
+    status?: string,
+  ): Promise<ShiftLog[]> {
     this.validateDateStr(dateStr);
     const scopeFilter = await this.getScopeFilter(user);
     const query: any = { shiftDate: dateStr, ...scopeFilter };
@@ -117,7 +127,7 @@ export class DashboardService {
 
     const deptMap = new Map<string, any>();
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       const dept = log.departmentId as any;
       if (!dept) return;
       const deptId = dept._id.toString();
@@ -138,17 +148,20 @@ export class DashboardService {
       stats.totalJobs++;
       if (log.status === 'COMPLETED') stats.completedJobs++;
       stats.progressSum += log.progressPercentage || 0;
-      log.details.forEach(task => {
+      log.details.forEach((task) => {
         stats.totalTasks++;
         if (task.isChecked) stats.completedTasks++;
       });
     });
 
-    return Array.from(deptMap.values()).map(stats => {
+    return Array.from(deptMap.values()).map((stats) => {
       const { progressSum, ...rest } = stats;
       return {
         ...rest,
-        completionPercentage: stats.totalJobs > 0 ? parseFloat((progressSum / stats.totalJobs).toFixed(2)) : 0.0,
+        completionPercentage:
+          stats.totalJobs > 0
+            ? parseFloat((progressSum / stats.totalJobs).toFixed(2))
+            : 0.0,
       };
     });
   }
@@ -165,7 +178,7 @@ export class DashboardService {
 
     const slotMap = new Map<string, any>();
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       const slot = log.shiftSlotId as any;
       if (!slot) return;
       const slotId = slot._id.toString();
@@ -186,17 +199,20 @@ export class DashboardService {
       stats.totalJobs++;
       if (log.status === 'COMPLETED') stats.completedJobs++;
       stats.progressSum += log.progressPercentage || 0;
-      log.details.forEach(task => {
+      log.details.forEach((task) => {
         stats.totalTasks++;
         if (task.isChecked) stats.completedTasks++;
       });
     });
 
-    return Array.from(slotMap.values()).map(stats => {
+    return Array.from(slotMap.values()).map((stats) => {
       const { progressSum, ...rest } = stats;
       return {
         ...rest,
-        completionPercentage: stats.totalJobs > 0 ? parseFloat((progressSum / stats.totalJobs).toFixed(2)) : 0.0,
+        completionPercentage:
+          stats.totalJobs > 0
+            ? parseFloat((progressSum / stats.totalJobs).toFixed(2))
+            : 0.0,
       };
     });
   }
@@ -211,8 +227,11 @@ export class DashboardService {
 
     // 1. Query Audit Logs on shifts that match the scoped filter and are active on that date
     const targetShiftQuery = { shiftDate: dateStr, ...scopeFilter };
-    const matchingShifts = await this.shiftLogModel.find(targetShiftQuery).select('_id').exec();
-    const matchingShiftIds = matchingShifts.map(s => s._id);
+    const matchingShifts = await this.shiftLogModel
+      .find(targetShiftQuery)
+      .select('_id')
+      .exec();
+    const matchingShiftIds = matchingShifts.map((s) => s._id);
 
     const auditQuery = {
       shiftLogId: { $in: matchingShiftIds },
@@ -252,9 +271,9 @@ export class DashboardService {
     // 3. Map and merge
     const activities: any[] = [];
 
-    auditLogs.forEach(log => {
+    auditLogs.forEach((log) => {
       const shift = log.shiftLogId as any;
-      const dept = shift?.departmentId as any;
+      const dept = shift?.departmentId;
       let actionMsg = '';
       if (log.action === 'CHECK') actionMsg = 'tích hoàn thành';
       else if (log.action === 'UNCHECK') actionMsg = 'bỏ tích';
@@ -271,13 +290,16 @@ export class DashboardService {
       });
     });
 
-    systemLogs.forEach(log => {
+    systemLogs.forEach((log) => {
       const dept = log.departmentId as any;
       activities.push({
         id: log._id.toString(),
-        type: log.eventType === 'JOB_GENERATED' ? 'JOB_GENERATED' : 'SYSTEM_EVENT',
+        type:
+          log.eventType === 'JOB_GENERATED' ? 'JOB_GENERATED' : 'SYSTEM_EVENT',
         message: log.message,
-        actorName: log.actorUserId ? (log.actorUserId as any).fullName : 'System',
+        actorName: log.actorUserId
+          ? (log.actorUserId as any).fullName
+          : 'System',
         departmentCode: dept ? dept.code : 'SYSTEM',
         jobId: log.jobId ? log.jobId.toString() : null,
         createdAt: log.createdAt,
@@ -312,15 +334,19 @@ export class DashboardService {
       if (!isNaN(ms)) sinceTimeMs = Math.max(sinceTimeMs, ms);
     }
 
-    const filterStart = sinceTimeMs > startOfDay.getTime() ? new Date(sinceTimeMs) : startOfDay;
+    const filterStart =
+      sinceTimeMs > startOfDay.getTime() ? new Date(sinceTimeMs) : startOfDay;
 
     if (filterStart.getTime() >= endOfDay.getTime()) {
       return { count: 0 };
     }
 
     const targetShiftQuery = { shiftDate: dateStr, ...scopeFilter };
-    const matchingShifts = await this.shiftLogModel.find(targetShiftQuery).select('_id').exec();
-    const matchingShiftIds = matchingShifts.map(s => s._id);
+    const matchingShifts = await this.shiftLogModel
+      .find(targetShiftQuery)
+      .select('_id')
+      .exec();
+    const matchingShiftIds = matchingShifts.map((s) => s._id);
 
     const auditQuery = {
       shiftLogId: { $in: matchingShiftIds },
@@ -348,7 +374,9 @@ export class DashboardService {
   private validateDateStr(dateStr: string) {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateStr || !dateRegex.test(dateStr)) {
-      throw new BadRequestException('Định dạng ngày không hợp lệ. Vui lòng sử dụng YYYY-MM-DD');
+      throw new BadRequestException(
+        'Định dạng ngày không hợp lệ. Vui lòng sử dụng YYYY-MM-DD',
+      );
     }
   }
 }

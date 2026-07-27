@@ -2,7 +2,8 @@ import * as ExcelJS from 'exceljs';
 import * as path from 'path';
 
 async function main() {
-  const baseDir = 'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
+  const baseDir =
+    'c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke lot';
   const rootDir = path.join(baseDir, 'root');
 
   const wbGen = new ExcelJS.Workbook();
@@ -13,8 +14,10 @@ async function main() {
   await wbRoot.xlsx.readFile(path.join(rootDir, 'DSGD T07.2026.xlsx'));
   const wsRoot = wbRoot.worksheets[0];
 
-  console.log(`Gen Columns: ${wsGen.columnCount}, Root Columns: ${wsRoot.columnCount}`);
-  
+  console.log(
+    `Gen Columns: ${wsGen.columnCount}, Root Columns: ${wsRoot.columnCount}`,
+  );
+
   console.log('\n=== Gen Headers ===');
   for (let c = 1; c <= wsGen.columnCount; c++) {
     console.log(`Col ${c}: ${wsGen.getRow(1).getCell(c).value}`);

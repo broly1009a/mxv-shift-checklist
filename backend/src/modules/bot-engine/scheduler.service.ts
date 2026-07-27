@@ -33,7 +33,10 @@ export class SchedulerService implements OnModuleInit {
   }
 
   private async seedDefaultConfig() {
-    const existing = await this.settingsService.getSetting('bot_scheduler_config', '');
+    const existing = await this.settingsService.getSetting(
+      'bot_scheduler_config',
+      '',
+    );
     if (!existing) {
       const defaults: SchedulerTaskConfig[] = [
         {
@@ -57,8 +60,18 @@ export class SchedulerService implements OnModuleInit {
           time: '04:30',
           jobType: 'RPA_DOWNLOAD_REPORTS',
           payload: {
-            targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT']
-          }
+            targets: [
+              'NKTTHT',
+              'DSTKGD-Futures',
+              'DSTKGD-Spread',
+              'DSTKGD-LME',
+              'DSTKGD-ACM',
+              'QLTKGD',
+              'NR',
+              'DSGD',
+              'TTTT',
+            ],
+          },
         },
         {
           id: 'CHECK_PRE_EOD',
@@ -73,9 +86,12 @@ export class SchedulerService implements OnModuleInit {
           enabled: false,
           time: '18:00',
           jobType: 'CHECK_EOD_MM',
-        }
+        },
       ];
-      await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(defaults, null, 2));
+      await this.settingsService.setSetting(
+        'bot_scheduler_config',
+        JSON.stringify(defaults, null, 2),
+      );
       this.logger.log('Seeded default bot scheduler configurations.');
     } else {
       try {
@@ -83,7 +99,7 @@ export class SchedulerService implements OnModuleInit {
         let updated = false;
 
         if (Array.isArray(tasks)) {
-          const rpaTaskIdx = tasks.findIndex(t => t.id === 'RPA_DOWNLOAD_MS');
+          const rpaTaskIdx = tasks.findIndex((t) => t.id === 'RPA_DOWNLOAD_MS');
           if (rpaTaskIdx === -1) {
             tasks.push({
               id: 'RPA_DOWNLOAD_MS',
@@ -92,8 +108,18 @@ export class SchedulerService implements OnModuleInit {
               time: '04:30',
               jobType: 'RPA_DOWNLOAD_REPORTS',
               payload: {
-                targets: ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT']
-              }
+                targets: [
+                  'NKTTHT',
+                  'DSTKGD-Futures',
+                  'DSTKGD-Spread',
+                  'DSTKGD-LME',
+                  'DSTKGD-ACM',
+                  'QLTKGD',
+                  'NR',
+                  'DSGD',
+                  'TTTT',
+                ],
+              },
             });
             updated = true;
           } else {
@@ -108,7 +134,17 @@ export class SchedulerService implements OnModuleInit {
             if (!rpaTask.payload.targets) {
               rpaTask.payload.targets = [];
             }
-            const expectedTargets = ['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'QLTKGD', 'NR', 'DSGD', 'TTTT'];
+            const expectedTargets = [
+              'NKTTHT',
+              'DSTKGD-Futures',
+              'DSTKGD-Spread',
+              'DSTKGD-LME',
+              'DSTKGD-ACM',
+              'QLTKGD',
+              'NR',
+              'DSGD',
+              'TTTT',
+            ];
             for (const tgt of expectedTargets) {
               if (!rpaTask.payload.targets.includes(tgt)) {
                 rpaTask.payload.targets.push(tgt);
@@ -117,7 +153,7 @@ export class SchedulerService implements OnModuleInit {
             }
           }
 
-          if (!tasks.some(t => t.id === 'CHECK_PRE_EOD')) {
+          if (!tasks.some((t) => t.id === 'CHECK_PRE_EOD')) {
             tasks.push({
               id: 'CHECK_PRE_EOD',
               name: 'Kiểm tra tiền EOD (Pre-EOD Check)',
@@ -127,7 +163,7 @@ export class SchedulerService implements OnModuleInit {
             });
             updated = true;
           }
-          if (!tasks.some(t => t.id === 'CHECK_EOD_MM')) {
+          if (!tasks.some((t) => t.id === 'CHECK_EOD_MM')) {
             tasks.push({
               id: 'CHECK_EOD_MM',
               name: 'Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)',
@@ -139,12 +175,20 @@ export class SchedulerService implements OnModuleInit {
           }
 
           if (updated) {
-            await this.settingsService.setSetting('bot_scheduler_config', JSON.stringify(tasks, null, 2));
-            this.logger.log('Appended missing tasks/updates to existing scheduler configurations.');
+            await this.settingsService.setSetting(
+              'bot_scheduler_config',
+              JSON.stringify(tasks, null, 2),
+            );
+            this.logger.log(
+              'Appended missing tasks/updates to existing scheduler configurations.',
+            );
           }
         }
       } catch (err) {
-        this.logger.error('Failed to parse existing bot_scheduler_config for seeding update:', err);
+        this.logger.error(
+          'Failed to parse existing bot_scheduler_config for seeding update:',
+          err,
+        );
       }
     }
   }
@@ -163,7 +207,10 @@ export class SchedulerService implements OnModuleInit {
     const currentMinStr = String(nowVN.getUTCMinutes()).padStart(2, '0');
     const currentTimeStr = `${currentHourStr}:${currentMinStr}`;
 
-    const configRaw = await this.settingsService.getSetting('bot_scheduler_config', '[]');
+    const configRaw = await this.settingsService.getSetting(
+      'bot_scheduler_config',
+      '[]',
+    );
     let tasks: SchedulerTaskConfig[] = [];
     try {
       tasks = JSON.parse(configRaw);
@@ -177,7 +224,9 @@ export class SchedulerService implements OnModuleInit {
     }
 
     // Find active shift log to link tasks
-    const activeShift = await this.shiftLogModel.findOne({ status: 'PENDING' }).exec();
+    const activeShift = await this.shiftLogModel
+      .findOne({ status: 'PENDING' })
+      .exec();
 
     for (const task of tasks) {
       if (!task.enabled) continue;
@@ -189,7 +238,9 @@ export class SchedulerService implements OnModuleInit {
       const lastRunDate = this.lastRunMap.get(task.id);
       if (lastRunDate === todayStr) continue;
 
-      this.logger.log(`Scheduled task "${task.name}" (${task.id}) triggered at ${task.time}.`);
+      this.logger.log(
+        `Scheduled task "${task.name}" (${task.id}) triggered at ${task.time}.`,
+      );
 
       // Prepare payload and look for matching checklist task to link
       const jobPayload: Record<string, any> = {
@@ -211,11 +262,15 @@ export class SchedulerService implements OnModuleInit {
         }
 
         if (checkTypeToFind) {
-          const matchedTask = activeShift.details.find(t => t.botCheckTypeSnapshot === checkTypeToFind && !t.isChecked);
+          const matchedTask = activeShift.details.find(
+            (t) => t.botCheckTypeSnapshot === checkTypeToFind && !t.isChecked,
+          );
           if (matchedTask) {
             jobPayload.taskId = matchedTask.taskId;
             jobPayload.shiftLogId = activeShift._id.toString();
-            this.logger.log(`Linked scheduled job ${task.jobType} to checklist task ${matchedTask.taskId} in shift ${activeShift._id}.`);
+            this.logger.log(
+              `Linked scheduled job ${task.jobType} to checklist task ${matchedTask.taskId} in shift ${activeShift._id}.`,
+            );
           }
         }
       }
@@ -225,7 +280,9 @@ export class SchedulerService implements OnModuleInit {
         this.lastRunMap.set(task.id, todayStr);
         this.logger.log(`Enqueued job ${task.jobType} successfully.`);
       } catch (err: any) {
-        this.logger.error(`Failed to enqueue job for scheduled task ${task.id}: ${err.message}`);
+        this.logger.error(
+          `Failed to enqueue job for scheduled task ${task.id}: ${err.message}`,
+        );
       }
     }
   }

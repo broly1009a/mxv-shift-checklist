@@ -59,7 +59,13 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   emitEvent(
-    eventType: 'SHIFT_JOB_GENERATED' | 'SHIFT_JOB_UPDATED' | 'SHIFT_JOB_CLOSED' | 'TASK_UPDATED' | 'NOTIFICATION_CREATED' | 'DASHBOARD_UPDATED',
+    eventType:
+      | 'SHIFT_JOB_GENERATED'
+      | 'SHIFT_JOB_UPDATED'
+      | 'SHIFT_JOB_CLOSED'
+      | 'TASK_UPDATED'
+      | 'NOTIFICATION_CREATED'
+      | 'DASHBOARD_UPDATED',
     jobId: string | null,
     departmentId: string | null,
     shiftSlotId: string | null,
@@ -90,7 +96,10 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (jobId) {
         this.server.to(jobId).emit(eventName, payload);
       }
-      console.log(`[WebSocket] Emitted event '${eventName}' to room/global with payload:`, JSON.stringify(payload));
+      console.log(
+        `[WebSocket] Emitted event '${eventName}' to room/global with payload:`,
+        JSON.stringify(payload),
+      );
     }
   }
 }

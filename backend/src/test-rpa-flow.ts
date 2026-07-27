@@ -36,20 +36,32 @@ async function runRpaTests() {
   }
 
   console.log('Fetching Checklist Mở Cửa - Trading Operations template...');
-  const template = await templateModel.findOne({ title: 'Checklist Mở Cửa - Trading Operations' }).exec();
+  const template = await templateModel
+    .findOne({ title: 'Checklist Mở Cửa - Trading Operations' })
+    .exec();
   if (!template) {
     throw new Error('Trading Operations Open template not found!');
   }
 
   const shiftDate = '2026-07-02';
   console.log(`Initializing shift log for ${shiftDate}...`);
-  await shiftLogModel.deleteMany({ shiftDate, templateId: template._id }).exec();
-  const shiftLog = await shiftsService.initializeShift(template._id.toString(), adminUser, shiftDate);
+  await shiftLogModel
+    .deleteMany({ shiftDate, templateId: template._id })
+    .exec();
+  const shiftLog = await shiftsService.initializeShift(
+    template._id.toString(),
+    adminUser,
+    shiftDate,
+  );
 
   // Force trigger time to 00:00 to run immediately
-  const rpaTask = shiftLog.details.find((t: any) => t.taskId === 'ops_open_rpa_download');
+  const rpaTask = shiftLog.details.find(
+    (t: any) => t.taskId === 'ops_open_rpa_download',
+  );
   if (!rpaTask) {
-    throw new Error('ops_open_rpa_download task not found in template details!');
+    throw new Error(
+      'ops_open_rpa_download task not found in template details!',
+    );
   }
   // Force trigger time to 00:00 to run immediately, and set SLA to end of day to avoid breach
   rpaTask.botTriggerTimeSnapshot = '00:00';
@@ -59,14 +71,18 @@ async function runRpaTests() {
   console.log('--- Initial State ---');
   console.log(`Task: ${rpaTask.taskId}, status: ${rpaTask.status}`);
 
-  console.log('\nRunning first handleBotChecks() tick (this should enqueue a job)...');
+  console.log(
+    '\nRunning first handleBotChecks() tick (this should enqueue a job)...',
+  );
   await botEngineService.handleBotChecks();
 
   // Fetch the created BotJob using nested payload query
-  const job = await botJobModel.findOne({
-    'payload.taskId': 'ops_open_rpa_download',
-    'payload.shiftLogId': shiftLog._id.toString()
-  }).exec();
+  const job = await botJobModel
+    .findOne({
+      'payload.taskId': 'ops_open_rpa_download',
+      'payload.shiftLogId': shiftLog._id.toString(),
+    })
+    .exec();
   if (!job) {
     throw new Error('RPA BotJob was not enqueued in MongoDB!');
   }
@@ -74,11 +90,17 @@ async function runRpaTests() {
 
   // Fetch shift log state after first check
   let updatedLog = await shiftLogModel.findById(shiftLog._id).exec();
-  let updatedRpaTask = updatedLog.details.find((t: any) => t.taskId === 'ops_open_rpa_download');
-  console.log(`Task state after enqueuing: ${updatedRpaTask.status} (Note: ${updatedRpaTask.note})`);
+  let updatedRpaTask = updatedLog.details.find(
+    (t: any) => t.taskId === 'ops_open_rpa_download',
+  );
+  console.log(
+    `Task state after enqueuing: ${updatedRpaTask.status} (Note: ${updatedRpaTask.note})`,
+  );
 
   if (updatedRpaTask.status !== 'WAITING') {
-    throw new Error(`RPA task should be WAITING but is ${updatedRpaTask.status}`);
+    throw new Error(
+      `RPA task should be WAITING but is ${updatedRpaTask.status}`,
+    );
   }
 
   console.log('\nSimulating background RPA completion...');
@@ -92,11 +114,17 @@ async function runRpaTests() {
 
   // Fetch updated shift log state
   updatedLog = await shiftLogModel.findById(shiftLog._id).exec();
-  updatedRpaTask = updatedLog.details.find((t: any) => t.taskId === 'ops_open_rpa_download');
-  console.log(`Task state after job completion: ${updatedRpaTask.status} (Note: ${updatedRpaTask.note})`);
+  updatedRpaTask = updatedLog.details.find(
+    (t: any) => t.taskId === 'ops_open_rpa_download',
+  );
+  console.log(
+    `Task state after job completion: ${updatedRpaTask.status} (Note: ${updatedRpaTask.note})`,
+  );
 
   if (updatedRpaTask.status !== 'PASSED') {
-    throw new Error(`RPA task should be PASSED but is ${updatedRpaTask.status}`);
+    throw new Error(
+      `RPA task should be PASSED but is ${updatedRpaTask.status}`,
+    );
   }
 
   console.log('\nCleaning up test shift logs & jobs...');

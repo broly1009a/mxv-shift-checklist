@@ -7,7 +7,9 @@ import { MarginChangeRequest } from './schemas/margin-change-request.schema';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 async function runMakerCheckerTests() {
-  console.log('Booting NestJS application context for Maker-Checker testing...');
+  console.log(
+    'Booting NestJS application context for Maker-Checker testing...',
+  );
   const app = await NestFactory.createApplicationContext(AppModule);
 
   const requestsService = app.get(MarginChangeRequestsService);
@@ -19,7 +21,9 @@ async function runMakerCheckerTests() {
   const staffUser = await userModel.findOne({ username: 'sonhh' }).exec();
 
   if (!adminUser || !staffUser) {
-    throw new Error('Required test users (admin and sonhh) not found in database!');
+    throw new Error(
+      'Required test users (admin and sonhh) not found in database!',
+    );
   }
 
   console.log('Cleaning up old margin change requests...');
@@ -42,10 +46,17 @@ async function runMakerCheckerTests() {
     );
 
     reqId = req._id.toString();
-    if (req.status === 'PENDING_APPROVAL' && req.commodity === 'WTI Crude Oil') {
-      console.log('✅ Test 1 PASSED: Request successfully created with PENDING_APPROVAL status.');
+    if (
+      req.status === 'PENDING_APPROVAL' &&
+      req.commodity === 'WTI Crude Oil'
+    ) {
+      console.log(
+        '✅ Test 1 PASSED: Request successfully created with PENDING_APPROVAL status.',
+      );
     } else {
-      throw new Error('Test 1 FAILED: Unexpected request details: ' + JSON.stringify(req));
+      throw new Error(
+        'Test 1 FAILED: Unexpected request details: ' + JSON.stringify(req),
+      );
     }
 
     // 2. Maker-Checker Self-Approval Constraint Test
@@ -55,7 +66,10 @@ async function runMakerCheckerTests() {
       throw new Error('Test 2 FAILED: Allowed self-approval!');
     } catch (err) {
       if (err instanceof BadRequestException) {
-        console.log('✅ Test 2 PASSED: Self-approval correctly blocked. Error message:', err.message);
+        console.log(
+          '✅ Test 2 PASSED: Self-approval correctly blocked. Error message:',
+          err.message,
+        );
       } else {
         throw err;
       }
@@ -64,7 +78,9 @@ async function runMakerCheckerTests() {
     // 3. Checker Role Constraint Test
     // Let's modify staffUser to ensure we test role checks. First let's create a request made by Admin,
     // and try to approve it using Staff. Staff user has role 'STAFF' which is not in approved checker list.
-    console.log('Test 3: Creating request by Admin, then attempting approval by Staff (sonhh)...');
+    console.log(
+      'Test 3: Creating request by Admin, then attempting approval by Staff (sonhh)...',
+    );
     const adminReq = await requestsService.createRequest(
       {
         commodity: 'LME Copper',
@@ -80,7 +96,10 @@ async function runMakerCheckerTests() {
       throw new Error('Test 3 FAILED: Staff was allowed to approve requests!');
     } catch (err) {
       if (err instanceof ForbiddenException) {
-        console.log('✅ Test 3 PASSED: Non-approver approval correctly blocked. Error message:', err.message);
+        console.log(
+          '✅ Test 3 PASSED: Non-approver approval correctly blocked. Error message:',
+          err.message,
+        );
       } else {
         throw err;
       }
@@ -88,15 +107,29 @@ async function runMakerCheckerTests() {
 
     // 4. Success Approval Flow
     console.log('Test 4: Approving Staff-created request by Admin...');
-    const approvedReq = await requestsService.approveRequest(reqId, adminUser, 'Đã đối chiếu, phê duyệt.');
-    if (approvedReq.status === 'APPROVED' && approvedReq.approvedBy?.toString() === adminUser._id.toString()) {
-      console.log('✅ Test 4 PASSED: Request successfully approved by Checker (admin).');
+    const approvedReq = await requestsService.approveRequest(
+      reqId,
+      adminUser,
+      'Đã đối chiếu, phê duyệt.',
+    );
+    if (
+      approvedReq.status === 'APPROVED' &&
+      approvedReq.approvedBy?.toString() === adminUser._id.toString()
+    ) {
+      console.log(
+        '✅ Test 4 PASSED: Request successfully approved by Checker (admin).',
+      );
     } else {
-      throw new Error('Test 4 FAILED: Approved status not updated properly: ' + JSON.stringify(approvedReq));
+      throw new Error(
+        'Test 4 FAILED: Approved status not updated properly: ' +
+          JSON.stringify(approvedReq),
+      );
     }
 
     // 5. Success Rejection Flow
-    console.log('Test 5: Creating another request by Staff, then rejecting it as Admin...');
+    console.log(
+      'Test 5: Creating another request by Staff, then rejecting it as Admin...',
+    );
     const req2 = await requestsService.createRequest(
       {
         commodity: 'Natural Gas',
@@ -113,12 +146,19 @@ async function runMakerCheckerTests() {
       'Sai biên độ ký quỹ tối đa cho phép',
     );
 
-    if (rejectedReq.status === 'REJECTED' && rejectedReq.rejectionReason === 'Sai biên độ ký quỹ tối đa cho phép') {
-      console.log('✅ Test 5 PASSED: Request successfully rejected with reason.');
+    if (
+      rejectedReq.status === 'REJECTED' &&
+      rejectedReq.rejectionReason === 'Sai biên độ ký quỹ tối đa cho phép'
+    ) {
+      console.log(
+        '✅ Test 5 PASSED: Request successfully rejected with reason.',
+      );
     } else {
-      throw new Error('Test 5 FAILED: Rejection not updated properly: ' + JSON.stringify(rejectedReq));
+      throw new Error(
+        'Test 5 FAILED: Rejection not updated properly: ' +
+          JSON.stringify(rejectedReq),
+      );
     }
-
   } finally {
     console.log('Cleaning up test data...');
     await requestModel.deleteMany({}).exec();

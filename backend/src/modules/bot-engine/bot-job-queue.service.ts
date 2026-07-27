@@ -1,4 +1,11 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -22,33 +29,36 @@ import * as XLSX from 'xlsx';
 // filename: tên file trong thư mục backup
 // =========================================================================
 const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
-  { key: 'DSGD',            filename: 'DSGD.xlsx' },
-  { key: 'DSLCK',           filename: 'DSLCK.xlsx' },
-  { key: 'DSLDK',           filename: 'DSLDK.xlsx' },
-  { key: 'DSLH',            filename: 'DSLH.xlsx' },
-  { key: 'DSLK',            filename: 'DSLK.xlsx' },
-  { key: 'DSQLKQ',          filename: 'DSQLKQ.xlsx' },
-  { key: 'DSTKGD-ACM',      filename: 'DSTKGD-ACM.xlsx' },
-  { key: 'DSTKGD-Futures',  filename: 'DSTKGD-Futures.xlsx' },
-  { key: 'DSTKGD-LME',      filename: 'DSTKGD-LME.xlsx' },
-  { key: 'DSTKGD-Spread',   filename: 'DSTKGD-Spread.xlsx' },
-  { key: 'DSTrader',        filename: 'DSTrader.xlsx' },
-  { key: 'Markettruoc6h',   filename: 'market truoc 6 h.csv' },
-  { key: 'NKTHT',           filename: 'NKTHT.xlsx' },
-  { key: 'NR',              filename: 'NR.xlsx' },
-  { key: 'QLTKGD',          filename: 'QLTKGD.xlsx' },
-  { key: 'QLTKGDAmKQ',      filename: 'QLTKGDAmKQ.xlsx' },
-  { key: 'TLKQHSKQ',        filename: 'TLKQHSKQ.xlsx' },
-  { key: 'TTCDH',           filename: 'TTCDH.xlsx' },
-  { key: 'TTM',             filename: 'TTM.xlsx' },
-  { key: 'TTTT',            filename: 'TTTT.xlsx' },
+  { key: 'DSGD', filename: 'DSGD.xlsx' },
+  { key: 'DSLCK', filename: 'DSLCK.xlsx' },
+  { key: 'DSLDK', filename: 'DSLDK.xlsx' },
+  { key: 'DSLH', filename: 'DSLH.xlsx' },
+  { key: 'DSLK', filename: 'DSLK.xlsx' },
+  { key: 'DSQLKQ', filename: 'DSQLKQ.xlsx' },
+  { key: 'DSTKGD-ACM', filename: 'DSTKGD-ACM.xlsx' },
+  { key: 'DSTKGD-Futures', filename: 'DSTKGD-Futures.xlsx' },
+  { key: 'DSTKGD-LME', filename: 'DSTKGD-LME.xlsx' },
+  { key: 'DSTKGD-Spread', filename: 'DSTKGD-Spread.xlsx' },
+  { key: 'DSTrader', filename: 'DSTrader.xlsx' },
+  { key: 'Markettruoc6h', filename: 'market truoc 6 h.csv' },
+  { key: 'NKTHT', filename: 'NKTHT.xlsx' },
+  { key: 'NR', filename: 'NR.xlsx' },
+  { key: 'QLTKGD', filename: 'QLTKGD.xlsx' },
+  { key: 'QLTKGDAmKQ', filename: 'QLTKGDAmKQ.xlsx' },
+  { key: 'TLKQHSKQ', filename: 'TLKQHSKQ.xlsx' },
+  { key: 'TTCDH', filename: 'TTCDH.xlsx' },
+  { key: 'TTM', filename: 'TTM.xlsx' },
+  { key: 'TTTT', filename: 'TTTT.xlsx' },
 ];
 
 @Injectable()
 export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
   private isProcessing = false;
-  private readonly captchaResolvers = new Map<string, (captcha: string) => void>();
+  private readonly captchaResolvers = new Map<
+    string,
+    (captcha: string) => void
+  >();
   private queueInterval: NodeJS.Timeout;
   private cleanupInterval: NodeJS.Timeout;
   private healthInterval: NodeJS.Timeout;
@@ -72,22 +82,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
     this.cleanupStuckJobs(true).catch((err) => {
-      this.logger.error(`Lỗi khi dọn dẹp các Job bị treo lúc khởi động: ${err.message}`);
+      this.logger.error(
+        `Lỗi khi dọn dẹp các Job bị treo lúc khởi động: ${err.message}`,
+      );
     });
 
     // Khởi chạy vòng lặp worker ngầm mỗi 10 giây
     this.queueInterval = setInterval(() => {
       this.processQueue().catch((err) => {
-        this.logger.error(`Error in background queue loop: ${err.message}`, err.stack);
+        this.logger.error(
+          `Error in background queue loop: ${err.message}`,
+          err.stack,
+        );
       });
     }, 10000);
 
     // Chạy dọn dẹp định kỳ mỗi 5 phút một lần
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupStuckJobs().catch((err) => {
-        this.logger.error(`Lỗi khi dọn dẹp định kỳ các Job bị treo: ${err.message}`);
-      });
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanupStuckJobs().catch((err) => {
+          this.logger.error(
+            `Lỗi khi dọn dẹp định kỳ các Job bị treo: ${err.message}`,
+          );
+        });
+      },
+      5 * 60 * 1000,
+    );
 
     // Kiểm tra kết nối của Agent mỗi 60 giây
     this.healthInterval = setInterval(() => {
@@ -96,7 +116,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       });
     }, 60000);
 
-    this.logger.log('Background BotJob queue worker initialized (polling every 10s).');
+    this.logger.log(
+      'Background BotJob queue worker initialized (polling every 10s).',
+    );
   }
 
   onModuleDestroy() {
@@ -135,11 +157,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async sendConnectionAlertEmail(status: { hostname: string; platform: string; lastSeen: Date }, isOnline: boolean) {
+  private async sendConnectionAlertEmail(
+    status: { hostname: string; platform: string; lastSeen: Date },
+    isOnline: boolean,
+  ) {
     try {
-      const configStr = await this.settingsService.getSetting('margin_checker_config', '{}');
+      const configStr = await this.settingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
       const config = JSON.parse(configStr);
-      const mailSettings = config.opFailureAlert || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      const mailSettings = config.opFailureAlert || {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+      };
       if (!mailSettings.isSendWarning) return;
 
       const smtp = config.smtp || {
@@ -209,26 +240,37 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         html: htmlBody,
       });
 
-      this.logger.log(`Đã gửi email cảnh báo trạng thái Agent (${isOnline ? 'Online' : 'Offline'}) thành công.`);
+      this.logger.log(
+        `Đã gửi email cảnh báo trạng thái Agent (${isOnline ? 'Online' : 'Offline'}) thành công.`,
+      );
     } catch (err: any) {
-      this.logger.error(`Không thể gửi email cảnh báo trạng thái Agent: ${err.message}`);
+      this.logger.error(
+        `Không thể gửi email cảnh báo trạng thái Agent: ${err.message}`,
+      );
     }
   }
 
   /**
    * Enqueues a new background job.
    */
-  async enqueue(jobType: string, payload: Record<string, any> = {}): Promise<BotJob> {
+  async enqueue(
+    jobType: string,
+    payload: Record<string, any> = {},
+  ): Promise<BotJob> {
     // If a job of the same type and payload (e.g. same taskId) is already pending or processing, reuse/return it
     if (payload.taskId) {
-      const existing = await this.botJobModel.findOne({
-        jobType,
-        status: { $in: ['PENDING', 'PROCESSING'] },
-        'payload.taskId': payload.taskId,
-      }).exec();
+      const existing = await this.botJobModel
+        .findOne({
+          jobType,
+          status: { $in: ['PENDING', 'PROCESSING'] },
+          'payload.taskId': payload.taskId,
+        })
+        .exec();
 
       if (existing) {
-        this.logger.log(`Job of type ${jobType} for task ${payload.taskId} already exists in queue. Status: ${existing.status}`);
+        this.logger.log(
+          `Job of type ${jobType} for task ${payload.taskId} already exists in queue. Status: ${existing.status}`,
+        );
         return existing;
       }
     }
@@ -250,11 +292,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Gets job status for a given checklist task and shift log.
    */
-  async getJobForTask(taskId: string, shiftLogId: string): Promise<BotJob | null> {
-    return this.botJobModel.findOne({
-      'payload.taskId': taskId,
-      'payload.shiftLogId': shiftLogId,
-    }).sort({ createdAt: -1 }).exec();
+  async getJobForTask(
+    taskId: string,
+    shiftLogId: string,
+  ): Promise<BotJob | null> {
+    return this.botJobModel
+      .findOne({
+        'payload.taskId': taskId,
+        'payload.shiftLogId': shiftLogId,
+      })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   /**
@@ -323,7 +371,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       : { status: 'PENDING' };
 
     // Fetch next PENDING job
-    const job = await this.botJobModel.findOne(jobFilter).sort({ createdAt: 1 }).exec();
+    const job = await this.botJobModel
+      .findOne(jobFilter)
+      .sort({ createdAt: 1 })
+      .exec();
     if (!job) {
       return;
     }
@@ -331,10 +382,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     this.isProcessing = true;
     job.attempts += 1;
     const startTime = new Date().toISOString();
-    job.logs.push(`[${startTime}] Starting attempt ${job.attempts}/${job.maxAttempts}...`);
+    job.logs.push(
+      `[${startTime}] Starting attempt ${job.attempts}/${job.maxAttempts}...`,
+    );
     await this.syncJobToChecklist(job, 'PROCESSING');
 
-    this.logger.log(`Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts})`);
+    this.logger.log(
+      `Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts})`,
+    );
 
     try {
       if (job.jobType === 'RPA_DOWNLOAD_REPORTS') {
@@ -370,27 +425,36 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       }
 
       await this.syncJobToChecklist(job, 'COMPLETED');
-      this.logger.log(`Job ${job.jobType} (ID: ${job._id}) completed successfully.`);
+      this.logger.log(
+        `Job ${job.jobType} (ID: ${job._id}) completed successfully.`,
+      );
     } catch (err: any) {
       const errorMsg = err.message || 'Lỗi không xác định';
-      this.logger.error(`Job ${job.jobType} (ID: ${job._id}) failed: ${errorMsg}`);
-      
-      job.logs.push(`[${new Date().toISOString()}] Attempt ${job.attempts} failed: ${errorMsg}`);
-      
+      this.logger.error(
+        `Job ${job.jobType} (ID: ${job._id}) failed: ${errorMsg}`,
+      );
+
+      job.logs.push(
+        `[${new Date().toISOString()}] Attempt ${job.attempts} failed: ${errorMsg}`,
+      );
+
       if (job.attempts < job.maxAttempts) {
         await this.syncJobToChecklist(job, 'PENDING', errorMsg);
       } else {
         // Gửi email cảnh báo lỗi vận hành khi job thất bại vĩnh viễn trước khi sync status sang FAILED
-        await this.sendOperationalFailureAlert(job, errorMsg).catch((emailErr) => {
-          this.logger.error(`Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`);
-        });
+        await this.sendOperationalFailureAlert(job, errorMsg).catch(
+          (emailErr) => {
+            this.logger.error(
+              `Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`,
+            );
+          },
+        );
         await this.syncJobToChecklist(job, 'FAILED', errorMsg);
       }
     } finally {
       this.isProcessing = false;
     }
   }
-
 
   private getReportFileName(target: string): string {
     switch (target) {
@@ -441,27 +505,45 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    */
   private async handleRpaDownloadJob(job: BotJob) {
     // 1. Prepare temp directory isolated by jobId
-    const tempDir = path.join(process.cwd(), 'temp', 'reports', job._id.toString());
+    const tempDir = path.join(
+      process.cwd(),
+      'temp',
+      'reports',
+      job._id.toString(),
+    );
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    const targets: string[] = payload.targets || ['NKTTHT', 'NR', 'QLTKGD', 'DSGD'];
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    const targets: string[] = payload.targets || [
+      'NKTTHT',
+      'NR',
+      'QLTKGD',
+      'DSGD',
+    ];
     const sessionDay: string = payload.sessionDay;
 
-    job.logs.push(`[${new Date().toISOString()}] Reports to download: ${targets.join(', ')}`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Reports to download: ${targets.join(', ')}`,
+    );
     await job.save();
 
     // 2. Perform Login
-    const { browser, page } = await this.rpaDownloaderService.loginMSystem(tempDir);
+    const { browser, page } =
+      await this.rpaDownloaderService.loginMSystem(tempDir);
 
     try {
       // 3. Process each download sequential
       for (const target of targets) {
         const filename = this.getReportFileName(target);
         const destFile = path.join(tempDir, filename);
-        job.logs.push(`[${new Date().toISOString()}] Downloading report: ${target} (as ${filename})...`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Downloading report: ${target} (as ${filename})...`,
+        );
         await job.save();
 
         switch (target) {
@@ -469,10 +551,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             await this.rpaDownloaderService.downloadNKTTHT(page, destFile);
             break;
           case 'DSTKGD-Futures':
-            await this.rpaDownloaderService.downloadDSTKGDFutures(page, destFile);
+            await this.rpaDownloaderService.downloadDSTKGDFutures(
+              page,
+              destFile,
+            );
             break;
           case 'DSTKGD-Spread':
-            await this.rpaDownloaderService.downloadDSTKGDSpread(page, destFile);
+            await this.rpaDownloaderService.downloadDSTKGDSpread(
+              page,
+              destFile,
+            );
             break;
           case 'DSTKGD-LME':
             await this.rpaDownloaderService.downloadDSTKGDLME(page, destFile);
@@ -485,7 +573,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             await this.rpaDownloaderService.downloadQLTTTKGD(page, destFile);
             break;
           case 'QLTKGDAmKQ':
-            await this.rpaDownloaderService.downloadQLTTTKGDAmKQ(page, destFile);
+            await this.rpaDownloaderService.downloadQLTTTKGDAmKQ(
+              page,
+              destFile,
+            );
             break;
           case 'TLKQHSKQ':
             await this.rpaDownloaderService.downloadTLKQHSKQ(page, destFile);
@@ -497,7 +588,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             await this.rpaDownloaderService.downloadDSTrader(page, destFile);
             break;
           case 'Markettruoc6h':
-            await this.rpaDownloaderService.downloadMarkettruoc6h(page, destFile);
+            await this.rpaDownloaderService.downloadMarkettruoc6h(
+              page,
+              destFile,
+            );
             break;
           case 'DSLDK':
             await this.rpaDownloaderService.downloadDSLDK(page, destFile);
@@ -512,7 +606,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             await this.rpaDownloaderService.downloadDSLK(page, destFile);
             break;
           case 'DSGD':
-            await this.rpaDownloaderService.downloadDSGD(page, destFile, sessionDay);
+            await this.rpaDownloaderService.downloadDSGD(
+              page,
+              destFile,
+              sessionDay,
+            );
             break;
           case 'TTM':
             await this.rpaDownloaderService.downloadTTM(page, destFile);
@@ -522,40 +620,54 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             break;
           default:
             this.logger.warn(`Unknown download target skipped: ${target}`);
-            job.logs.push(`[${new Date().toISOString()}] Warning: Unknown download target skipped: ${target}`);
+            job.logs.push(
+              `[${new Date().toISOString()}] Warning: Unknown download target skipped: ${target}`,
+            );
         }
 
-        job.logs.push(`[${new Date().toISOString()}] Downloaded report: ${target} successfully.`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Downloaded report: ${target} successfully.`,
+        );
         await job.save();
       }
 
       // Copy downloaded reports to Backup MS folder if configured
-      const backupMsBase = payload.backupPathMs
-        || await this.settingsService.getSetting(
+      const backupMsBase =
+        payload.backupPathMs ||
+        (await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          process.env.DEFAULT_BACKUP_PATH_MS || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
-        );
+          process.env.DEFAULT_BACKUP_PATH_MS ||
+            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        ));
 
       if (backupMsBase) {
         const targetDate = sessionDay ? new Date(sessionDay) : new Date();
         const year = targetDate.getFullYear().toString();
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
-        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const subFolder = path.join(
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+        );
         const destFolder = path.join(backupMsBase, subFolder);
 
         if (!fs.existsSync(destFolder)) {
           fs.mkdirSync(destFolder, { recursive: true });
         }
 
-        job.logs.push(`[${new Date().toISOString()}] Copying downloaded reports to Backup MS folder: ${destFolder}`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Copying downloaded reports to Backup MS folder: ${destFolder}`,
+        );
         for (const target of targets) {
           const filename = this.getReportFileName(target);
           const srcFile = path.join(tempDir, filename);
           if (fs.existsSync(srcFile)) {
             const destFile = path.join(destFolder, filename);
             fs.copyFileSync(srcFile, destFile);
-            job.logs.push(`[${new Date().toISOString()}] ✅ Copied ${filename} to ${destFile}`);
+            job.logs.push(
+              `[${new Date().toISOString()}] ✅ Copied ${filename} to ${destFile}`,
+            );
           }
         }
         await job.save();
@@ -572,26 +684,46 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Handle verification of M-System email history status.
    */
   private async handleVerifyEmailStatusJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const { taskId, shiftLogId, sessionDay } = payload;
-    
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy RPA xác minh email sao kê...`);
+
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy RPA xác minh email sao kê...`,
+    );
     await job.save();
 
-    const tempDir = path.join(process.cwd(), 'temp', 'email-verify', shiftLogId || 'default');
+    const tempDir = path.join(
+      process.cwd(),
+      'temp',
+      'email-verify',
+      shiftLogId || 'default',
+    );
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
     try {
-      job.logs.push(`[${new Date().toISOString()}] Đang đăng nhập và tải báo cáo gửi email từ M-System Admin...`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Đang đăng nhập và tải báo cáo gửi email từ M-System Admin...`,
+      );
       await job.save();
 
-      const filePath = await this.rpaDownloaderService.downloadEmailHistoryReport(tempDir, sessionDay);
-      job.logs.push(`[${new Date().toISOString()}] Đã tải file lịch sử gửi email thành công: ${path.basename(filePath)}`);
+      const filePath =
+        await this.rpaDownloaderService.downloadEmailHistoryReport(
+          tempDir,
+          sessionDay,
+        );
+      job.logs.push(
+        `[${new Date().toISOString()}] Đã tải file lịch sử gửi email thành công: ${path.basename(filePath)}`,
+      );
       await job.save();
 
-      job.logs.push(`[${new Date().toISOString()}] Đang phân tích file báo cáo...`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Đang phân tích file báo cáo...`,
+      );
       await job.save();
 
       const XLSX = require('xlsx');
@@ -600,7 +732,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet);
 
-      let checkDateStr = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+      let checkDateStr = new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
       if (sessionDay && sessionDay.includes('-')) {
         const parts = sessionDay.split('-');
         if (parts.length === 3) {
@@ -614,33 +748,49 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         checkDateStr = `${dd}-${mm}-${yyyy}`;
       }
 
-      job.logs.push(`[${new Date().toISOString()}] Ngày cần kiểm tra: ${checkDateStr}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Ngày cần kiểm tra: ${checkDateStr}`,
+      );
       await job.save();
 
       const matchingRows = data.filter((r: any) => {
         const title = String(r['Tiêu đề'] || '').toLowerCase();
         const sendDate = String(r['Ngày gửi'] || '');
-        const matchesTitle = title.includes('sao kê') || title.includes('sao ke');
+        const matchesTitle =
+          title.includes('sao kê') || title.includes('sao ke');
         const matchesDate = sendDate.includes(checkDateStr);
         return matchesTitle && matchesDate;
       });
 
-      job.logs.push(`[${new Date().toISOString()}] Tìm thấy ${matchingRows.length} email sao kê trong ngày ${checkDateStr}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Tìm thấy ${matchingRows.length} email sao kê trong ngày ${checkDateStr}`,
+      );
       await job.save();
 
       if (matchingRows.length === 0) {
-        throw new Error(`Không tìm thấy bản ghi gửi email sao kê nào trong ngày ${checkDateStr}. Vui lòng kiểm tra đã gửi thủ công trên M-System chưa.`);
+        throw new Error(
+          `Không tìm thấy bản ghi gửi email sao kê nào trong ngày ${checkDateStr}. Vui lòng kiểm tra đã gửi thủ công trên M-System chưa.`,
+        );
       }
 
       const failedRows = matchingRows.filter((r: any) => {
         const status = String(r['Trạng thái'] || '').toLowerCase();
-        return status.includes('thất bại') || status.includes('fail') || status === 'false' || !status;
+        return (
+          status.includes('thất bại') ||
+          status.includes('fail') ||
+          status === 'false' ||
+          !status
+        );
       });
 
       if (failedRows.length > 0) {
-        const failedDetails = failedRows.map((r: any) => `${r['Email/SĐT']} (${r['Tiêu đề']})`).join(', ');
-        job.logs.push(`[${new Date().toISOString()}] Phát hiện ${failedRows.length} email gửi thất bại: ${failedDetails}`);
-        
+        const failedDetails = failedRows
+          .map((r: any) => `${r['Email/SĐT']} (${r['Tiêu đề']})`)
+          .join(', ');
+        job.logs.push(
+          `[${new Date().toISOString()}] Phát hiện ${failedRows.length} email gửi thất bại: ${failedDetails}`,
+        );
+
         job.payload = {
           ...payload,
           totalCount: matchingRows.length,
@@ -650,20 +800,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         job.markModified('payload');
         await job.save();
 
-        const alertMsg = `⚠️ <b>[CẢNH BÁO LỖI GỬI EMAIL SAO KÊ]</b>\n` +
+        const alertMsg =
+          `⚠️ <b>[CẢNH BÁO LỖI GỬI EMAIL SAO KÊ]</b>\n` +
           `Hệ thống phát hiện lỗi gửi email sao kê giao dịch ngày <b>${checkDateStr}</b>:\n\n` +
           `• Tổng số email: <b>${matchingRows.length}</b>\n` +
           `• Số lượng lỗi: <b>${failedRows.length}</b>\n\n` +
           `<b>Chi tiết lỗi:</b>\n` +
-          failedRows.slice(0, 10).map((r: any) => `• <code>${r['Email/SĐT']}</code> - <i>${r['Tiêu đề']}</i>`).join('\n') +
-          (failedRows.length > 10 ? `\n... và ${failedRows.length - 10} email khác.` : '') + `\n\n` +
+          failedRows
+            .slice(0, 10)
+            .map(
+              (r: any) =>
+                `• <code>${r['Email/SĐT']}</code> - <i>${r['Tiêu đề']}</i>`,
+            )
+            .join('\n') +
+          (failedRows.length > 10
+            ? `\n... và ${failedRows.length - 10} email khác.`
+            : '') +
+          `\n\n` +
           `Đề nghị bộ phận trực ca kiểm tra lại cấu hình hoặc liên hệ đối tác để gửi lại sao kê!`;
-        
+
         await this.telegramService.sendMessage(alertMsg).catch((err) => {
           this.logger.error(`Lỗi gửi thông báo Telegram: ${err.message}`);
         });
       } else {
-        job.logs.push(`[${new Date().toISOString()}] Toàn bộ ${matchingRows.length} email sao kê đã được gửi thành công.`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Toàn bộ ${matchingRows.length} email sao kê đã được gửi thành công.`,
+        );
         job.payload = {
           ...payload,
           totalCount: matchingRows.length,
@@ -672,9 +834,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         job.markModified('payload');
         await job.save();
       }
-
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi khi chạy job: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi khi chạy job: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
@@ -688,13 +851,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Scans the MS backup directory to find missing/outdated required files.
    * Called synchronously from the controller for immediate status display.
    */
-  async scanMsBackupFiles(backupPath: string, targetDate: Date = new Date()): Promise<Array<{
-    key: string;
-    filename: string;
-    status: 'OK' | 'MISSING' | 'OUTDATED';
-    lastModified?: Date;
-  }>> {
-    const existingFiles = fs.existsSync(backupPath) ? fs.readdirSync(backupPath) : [];
+  async scanMsBackupFiles(
+    backupPath: string,
+    targetDate: Date = new Date(),
+  ): Promise<
+    Array<{
+      key: string;
+      filename: string;
+      status: 'OK' | 'MISSING' | 'OUTDATED';
+      lastModified?: Date;
+    }>
+  > {
+    const existingFiles = fs.existsSync(backupPath)
+      ? fs.readdirSync(backupPath)
+      : [];
 
     return REQUIRED_MS_FILES.map(({ key, filename }) => {
       const exactPath = path.join(backupPath, filename);
@@ -710,7 +880,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       // Fuzzy check for minor spacing/naming variations (e.g. market truoc 6 h.csv vs market truoc 6h.csv)
       const normalizedTarget = filename.toLowerCase().replace(/\s+/g, '');
-      const matchedFile = existingFiles.find(f => f.toLowerCase().replace(/\s+/g, '') === normalizedTarget);
+      const matchedFile = existingFiles.find(
+        (f) => f.toLowerCase().replace(/\s+/g, '') === normalizedTarget,
+      );
 
       if (matchedFile) {
         const matchedPath = path.join(backupPath, matchedFile);
@@ -733,12 +905,19 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * 2. If any missing → login M-System → download only missing files
    */
   private async handleFileAuditMsJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const targetDateStr = payload.targetDate;
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
 
-    const msBackupBase = payload.backupPath
-      || await this.settingsService.getSetting('bot_backup_path_ms', 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+    const msBackupBase =
+      payload.backupPath ||
+      (await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ));
 
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -752,56 +931,81 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     const backupPath = dailyPath;
 
-    job.logs.push(`[${new Date().toISOString()}] Thư mục backup: ${backupPath}`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Thư mục backup: ${backupPath}`,
+    );
     await job.save();
 
     // 1. Scan
     const scanResults = await this.scanMsBackupFiles(backupPath, targetDate);
-    const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
+    const missingOrOutdated = scanResults.filter((r) => r.status !== 'OK');
     const okCount = scanResults.length - missingOrOutdated.length;
 
-    job.logs.push(`[${new Date().toISOString()}] Kết quả scan: ${okCount}/${scanResults.length} file đầy đủ.`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Kết quả scan: ${okCount}/${scanResults.length} file đầy đủ.`,
+    );
 
     if (missingOrOutdated.length === 0) {
-      job.logs.push(`[${new Date().toISOString()}] ✅ Tất cả ${scanResults.length} file đã có đầy đủ. Không cần tải thêm.`);
+      job.logs.push(
+        `[${new Date().toISOString()}] ✅ Tất cả ${scanResults.length} file đã có đầy đủ. Không cần tải thêm.`,
+      );
       await job.save();
       return;
     }
 
-    const missingList = missingOrOutdated.map(r => `${r.filename}(${r.status})`).join(', ');
-    job.logs.push(`[${new Date().toISOString()}] ⚠️ Thiếu/cũ ${missingOrOutdated.length} file: ${missingList}. Đang tải bổ sung...`);
+    const missingList = missingOrOutdated
+      .map((r) => `${r.filename}(${r.status})`)
+      .join(', ');
+    job.logs.push(
+      `[${new Date().toISOString()}] ⚠️ Thiếu/cũ ${missingOrOutdated.length} file: ${missingList}. Đang tải bổ sung...`,
+    );
     await job.save();
 
     // 2. Login M-System chỉ khi có file cần tải
-    const { browser, page } = await this.rpaDownloaderService.loginMSystem(backupPath);
+    const { browser, page } =
+      await this.rpaDownloaderService.loginMSystem(backupPath);
 
     const failedFiles: string[] = [];
     try {
       for (const item of missingOrOutdated) {
         const destFile = path.join(backupPath, item.filename);
-        job.logs.push(`[${new Date().toISOString()}] Đang tải bổ sung: ${item.filename}...`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Đang tải bổ sung: ${item.filename}...`,
+        );
         await job.save();
 
         try {
-          const downloaded = await this.rpaDownloaderService.downloadByTarget(page, item.key, destFile);
+          const downloaded = await this.rpaDownloaderService.downloadByTarget(
+            page,
+            item.key,
+            destFile,
+          );
           if (downloaded) {
-            job.logs.push(`[${new Date().toISOString()}] ✅ Tải thành công: ${item.filename}`);
+            job.logs.push(
+              `[${new Date().toISOString()}] ✅ Tải thành công: ${item.filename}`,
+            );
           } else {
-            job.logs.push(`[${new Date().toISOString()}] ⚠️ Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`);
+            job.logs.push(
+              `[${new Date().toISOString()}] ⚠️ Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`,
+            );
             failedFiles.push(`${item.filename} (Chưa hỗ trợ tải tự động)`);
           }
         } catch (dlErr: any) {
-          job.logs.push(`[${new Date().toISOString()}] ❌ Lỗi khi tải ${item.filename}: ${dlErr.message}`);
+          job.logs.push(
+            `[${new Date().toISOString()}] ❌ Lỗi khi tải ${item.filename}: ${dlErr.message}`,
+          );
           failedFiles.push(`${item.filename} (${dlErr.message})`);
         }
         await job.save();
-        
+
         // Tránh lỗi 429 Too Many Requests từ phía server bằng cách giãn cách giữa các lần tải 5 giây
         await page.waitForTimeout(5000).catch(() => {});
       }
 
       if (failedFiles.length > 0) {
-        throw new Error(`Thiếu/Lỗi tải bổ sung ${failedFiles.length} file M-System: ${failedFiles.join('; ')}`);
+        throw new Error(
+          `Thiếu/Lỗi tải bổ sung ${failedFiles.length} file M-System: ${failedFiles.join('; ')}`,
+        );
       }
     } finally {
       this.logger.log('Closing Playwright browser after file audit recovery.');
@@ -816,11 +1020,19 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Runs the CqgSyncService autoMergeMissingFiles to scan and consolidate CQG backup files.
    */
   private async handleFileAuditCqgJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    const targetDate = payload.targetDate ? new Date(payload.targetDate) : new Date();
-    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    const targetDate = payload.targetDate
+      ? new Date(payload.targetDate)
+      : new Date();
+    const { fullPath } =
+      await this.cqgSyncService.getDailyBackupPath(targetDate);
 
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra file backup CQG tại thư mục: ${fullPath}`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu kiểm tra file backup CQG tại thư mục: ${fullPath}`,
+    );
     await job.save();
 
     // Run auto merge
@@ -832,9 +1044,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     if (!result.success) {
       const errorDetails = result.logs
-        .filter((l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu') || l.includes('thất bại'))
+        .filter(
+          (l) =>
+            l.includes('❌') ||
+            l.includes('Lỗi') ||
+            l.includes('Thiếu') ||
+            l.includes('thất bại'),
+        )
         .join(' | ');
-      throw new Error(`Ghép file CQG thất bại: ${errorDetails || 'Thiếu file nguồn CQG hoặc sai định dạng.'}`);
+      throw new Error(
+        `Ghép file CQG thất bại: ${errorDetails || 'Thiếu file nguồn CQG hoặc sai định dạng.'}`,
+      );
     }
   }
 
@@ -849,23 +1069,51 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    *   skipMerge?: boolean — nếu true, bỏ qua bước merge sau khi tải
    */
   private async handleDownloadCqgBackupJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    const targetDate = payload.targetDate ? new Date(payload.targetDate) : new Date();
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    const targetDate = payload.targetDate
+      ? new Date(payload.targetDate)
+      : new Date();
 
     // Xác định danh sách file cần tải (mặc định: tất cả)
-    const defaultReports = { FR1: true, PS1: true, OP1: true, OD1: true, FR2: true, PS2: true, OP2: true, OD2: true, AS: true };
-    const reports: Partial<Record<'FR1' | 'PS1' | 'OP1' | 'OD1' | 'FR2' | 'PS2' | 'OP2' | 'OD2' | 'AS', boolean>> =
-      payload.reports || defaultReports;
+    const defaultReports = {
+      FR1: true,
+      PS1: true,
+      OP1: true,
+      OD1: true,
+      FR2: true,
+      PS2: true,
+      OP2: true,
+      OD2: true,
+      AS: true,
+    };
+    const reports: Partial<
+      Record<
+        'FR1' | 'PS1' | 'OP1' | 'OD1' | 'FR2' | 'PS2' | 'OP2' | 'OD2' | 'AS',
+        boolean
+      >
+    > = payload.reports || defaultReports;
 
     // Resolve thư mục backup CQG theo ngày
-    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+    const { fullPath } =
+      await this.cqgSyncService.getDailyBackupPath(targetDate);
 
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu tải file CQG từ web tới: ${fullPath}`);
-    job.logs.push(`[${new Date().toISOString()}] File cần tải: ${Object.entries(reports).filter(([, v]) => v).map(([k]) => k).join(', ')}`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu tải file CQG từ web tới: ${fullPath}`,
+    );
+    job.logs.push(
+      `[${new Date().toISOString()}] File cần tải: ${Object.entries(reports)
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(', ')}`,
+    );
     await job.save();
 
     // Gọi downloadCqgBackup
-    const { errors, downloaded } = await this.rpaDownloaderService.downloadCqgBackup(reports, fullPath);
+    const { errors, downloaded } =
+      await this.rpaDownloaderService.downloadCqgBackup(reports, fullPath);
 
     for (const f of downloaded) {
       job.logs.push(`[${new Date().toISOString()}] ✅ Đã tải: ${f}`);
@@ -876,7 +1124,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     await job.save();
 
     if (downloaded.length === 0) {
-      throw new Error(`Không tải được file nào từ CQG. Lỗi: ${errors.join(' | ')}`);
+      throw new Error(
+        `Không tải được file nào từ CQG. Lỗi: ${errors.join(' | ')}`,
+      );
     }
 
     // Trigger merge (tương tự FILE_AUDIT_CQG) trừ khi skipMerge = true
@@ -884,7 +1134,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] Bắt đầu merge file CQG...`);
       await job.save();
 
-      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+      const mergeResult =
+        await this.cqgSyncService.autoMergeMissingFiles(targetDate);
       for (const logLine of mergeResult.logs) {
         job.logs.push(`[${new Date().toISOString()}] ${logLine}`);
       }
@@ -892,9 +1143,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       if (!mergeResult.success) {
         const errDetails = mergeResult.logs
-          .filter((l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu'))
+          .filter(
+            (l) => l.includes('❌') || l.includes('Lỗi') || l.includes('Thiếu'),
+          )
           .join(' | ');
-        throw new Error(`Tải CQG thành công nhưng merge thất bại: ${errDetails}`);
+        throw new Error(
+          `Tải CQG thành công nhưng merge thất bại: ${errDetails}`,
+        );
       }
     }
   }
@@ -905,20 +1160,26 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    */
   private async cleanupStuckJobs(forceAllOnStartup = false): Promise<void> {
     try {
-      const timeoutThreshold = forceAllOnStartup 
-        ? new Date() 
+      const timeoutThreshold = forceAllOnStartup
+        ? new Date()
         : new Date(Date.now() - 3 * 60 * 1000); // 3 minutes timeout
 
-      const stuckJobs = await this.botJobModel.find({
-        status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
-        updatedAt: { $lt: timeoutThreshold },
-      }).exec();
+      const stuckJobs = await this.botJobModel
+        .find({
+          status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
+          updatedAt: { $lt: timeoutThreshold },
+        })
+        .exec();
 
       if (stuckJobs.length > 0) {
-        this.logger.log(`Phát hiện ${stuckJobs.length} Job bị treo hoặc dở dang. Đang tự động reset...`);
+        this.logger.log(
+          `Phát hiện ${stuckJobs.length} Job bị treo hoặc dở dang. Đang tự động reset...`,
+        );
         for (const job of stuckJobs) {
           job.status = 'FAILED';
-          job.logs.push(`[${new Date().toISOString()}] Job tự động chuyển sang FAILED do bị treo quá 3 phút hoặc Server khởi động lại.`);
+          job.logs.push(
+            `[${new Date().toISOString()}] Job tự động chuyển sang FAILED do bị treo quá 3 phút hoặc Server khởi động lại.`,
+          );
           await job.save();
           this.captchaResolvers.delete(job._id.toString());
         }
@@ -932,9 +1193,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Đồng bộ hóa trạng thái Job với Checklist Task và phát sự kiện Realtime qua WebSockets.
    */
-  public async syncJobToChecklist(job: BotJob, status: string, errorMsg?: string): Promise<void> {
-    job.status = status as any;
-    
+  public async syncJobToChecklist(
+    job: BotJob,
+    status: string,
+    errorMsg?: string,
+  ): Promise<void> {
+    job.status = status;
+
     // Đảm bảo cập nhật log tương ứng với trạng thái
     const nowStr = new Date().toISOString();
     if (status === 'PROCESSING') {
@@ -942,16 +1207,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     } else if (status === 'COMPLETED') {
       job.logs.push(`[${nowStr}] Job completed successfully.`);
     } else if (status === 'FAILED') {
-      job.logs.push(`[${nowStr}] Job failed permanently: ${errorMsg || 'Lỗi không xác định'}`);
+      job.logs.push(
+        `[${nowStr}] Job failed permanently: ${errorMsg || 'Lỗi không xác định'}`,
+      );
     } else if (status === 'PENDING') {
-      job.logs.push(`[${nowStr}] Job status transitioned to PENDING (requeued for retry).`);
+      job.logs.push(
+        `[${nowStr}] Job status transitioned to PENDING (requeued for retry).`,
+      );
     } else if (status === 'AWAITING_CAPTCHA') {
       job.logs.push(`[${nowStr}] Job status transitioned to AWAITING_CAPTCHA.`);
     }
 
     await job.save();
 
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const shiftLogId = payload.shiftLogId;
     const taskId = payload.taskId;
 
@@ -965,7 +1237,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           role: 'ADMIN',
         };
 
-        const getReconciliationJson = (jobType: string, payload: any, success: boolean): string | null => {
+        const getReconciliationJson = (
+          jobType: string,
+          payload: any,
+          success: boolean,
+        ): string | null => {
           const result = payload?.result;
           if (!result) return null;
           const runInfo = `• Lượt quét: Lượt #${job.attempts || 1}/${job.maxAttempts || 3} (Lúc ${new Date().toLocaleTimeString('vi-VN')})\n`;
@@ -994,7 +1270,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               usdRate: result.usdRate,
               attempts: job.attempts || 1,
               maxAttempts: job.maxAttempts || 3,
-              executedAt: new Date().toISOString()
+              executedAt: new Date().toISOString(),
             });
           }
 
@@ -1002,8 +1278,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             let note = `[ĐỐI CHIẾU KLGD]\n`;
             note += runInfo;
             if (result.sessionStart && result.checkTime) {
-              const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-              const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              const startStr = new Date(result.sessionStart).toLocaleString(
+                'vi-VN',
+                { timeZone: 'Asia/Ho_Chi_Minh' },
+              );
+              const endStr = new Date(result.checkTime).toLocaleString(
+                'vi-VN',
+                { timeZone: 'Asia/Ho_Chi_Minh' },
+              );
               note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
             }
             note += `• Tổng lot M-System: ${result.totals?.totalDSGD || 0} lot\n`;
@@ -1030,7 +1312,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               type: 'KLGD',
               attempts: job.attempts || 1,
               maxAttempts: job.maxAttempts || 3,
-              executedAt: new Date().toISOString()
+              executedAt: new Date().toISOString(),
             });
           }
 
@@ -1038,14 +1320,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
             note += runInfo;
             if (result.sessionStart && result.checkTime) {
-              const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-              const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+              const startStr = new Date(result.sessionStart).toLocaleString(
+                'vi-VN',
+                { timeZone: 'Asia/Ho_Chi_Minh' },
+              );
+              const endStr = new Date(result.checkTime).toLocaleString(
+                'vi-VN',
+                { timeZone: 'Asia/Ho_Chi_Minh' },
+              );
               note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
             }
             const totals = result.totals || {};
             note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;
             note += `• Khớp lệnh thường (MS vs CQG): ${totals.totalCQG_MS || 0} vs ${totals.totalCQG_FR || 0} lot (Chênh lệch: ${totals.differCQG || 0} lot)\n`;
-            
+
             const mismatchedPositions = result.mismatchedPositions || [];
             note += `• Chênh lệch vị thế net position (MS vs CQG): ${mismatchedPositions.length} tài khoản\n`;
 
@@ -1078,16 +1366,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               type: 'PRE_EOD',
               attempts: job.attempts || 1,
               maxAttempts: job.maxAttempts || 3,
-              executedAt: new Date().toISOString()
+              executedAt: new Date().toISOString(),
             });
           }
 
           if (jobType === 'CHECK_EOD_MM') {
             const eodResult = result.eodResult || {};
             const cqgResult = result.cqgResult || [];
-            const negativeBalanceAccsCount = eodResult.negativeBalanceAccs?.length || 0;
+            const negativeBalanceAccsCount =
+              eodResult.negativeBalanceAccs?.length || 0;
             const negativeIMRAccCount = eodResult.negativeIMRAcc?.length || 0;
-            
+
             let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
             note += runInfo;
             note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
@@ -1122,12 +1411,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               result: {
                 negativeBalanceAccs: eodResult.negativeBalanceAccs || [],
                 negativeIMRAcc: eodResult.negativeIMRAcc || [],
-                cqgResult: cqgResult
+                cqgResult: cqgResult,
               },
               type: 'EOD',
               attempts: job.attempts || 1,
               maxAttempts: job.maxAttempts || 3,
-              executedAt: new Date().toISOString()
+              executedAt: new Date().toISOString(),
             });
           }
 
@@ -1141,7 +1430,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             'WAITING',
             systemUser,
             'Hệ thống đang thực hiện tác vụ tự động...',
-            true
+            true,
           );
         } else if (status === 'COMPLETED') {
           let message = 'Tác vụ tự động hoàn thành thành công.';
@@ -1150,7 +1439,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = `RPA tải báo cáo thành công: ${targets.join(', ')}`;
           } else if (job.jobType === 'DOWNLOAD_CAST') {
             message = 'Tải báo cáo CQG CAST Balances thành công.';
-          } else if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD'].includes(job.jobType)) {
+          } else if (
+            [
+              'AUTO_CHECK_SOD',
+              'CHECK_PRE_EOD',
+              'CHECK_EOD_MM',
+              'CHECK_KLGD',
+            ].includes(job.jobType)
+          ) {
             const jsonMsg = getReconciliationJson(job.jobType, payload, true);
             if (jsonMsg) {
               message = jsonMsg;
@@ -1159,7 +1455,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             } else {
               message = 'Đối chiếu tự động hoàn thành thành công.';
             }
-          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)) {
+          } else if (
+            [
+              'FILE_AUDIT_ACM',
+              'FILE_AUDIT_CQG',
+              'FILE_AUDIT_MS',
+              'RUN_MACRO',
+              'RUN_LOT_MACRO',
+              'RUN_VALUE_MACRO',
+            ].includes(job.jobType)
+          ) {
             message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const failedCount = payload.failedCount || 0;
@@ -1167,10 +1472,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             const failedList = payload.failedList || '';
             const checkData = {
               success: failedCount === 0,
-              message: failedCount === 0
-                ? `Tất cả email sao kê đã được gửi thành công (${totalCount} email).`
-                : `Phát hiện ${failedCount} email gửi thất bại trên tổng số ${totalCount} email.`,
-              data: { totalCount, failedCount, failedList, timestamp: new Date().toISOString() }
+              message:
+                failedCount === 0
+                  ? `Tất cả email sao kê đã được gửi thành công (${totalCount} email).`
+                  : `Phát hiện ${failedCount} email gửi thất bại trên tổng số ${totalCount} email.`,
+              data: {
+                totalCount,
+                failedCount,
+                failedList,
+                timestamp: new Date().toISOString(),
+              },
             };
             message = JSON.stringify(checkData);
           }
@@ -1181,26 +1492,48 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             'PASSED',
             systemUser,
             message,
-            true
+            true,
           );
         } else if (status === 'FAILED') {
-          const lastLog = job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
+          const lastLog =
+            job.logs[job.logs.length - 1] || errorMsg || 'Lỗi không xác định';
           let message = lastLog;
 
-          if (['AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD'].includes(job.jobType)) {
+          if (
+            [
+              'AUTO_CHECK_SOD',
+              'CHECK_PRE_EOD',
+              'CHECK_EOD_MM',
+              'CHECK_KLGD',
+            ].includes(job.jobType)
+          ) {
             const jsonMsg = getReconciliationJson(job.jobType, payload, false);
             if (jsonMsg) {
               message = jsonMsg;
             } else {
               message = job.logs.join('\n');
             }
-          } else if (['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)) {
+          } else if (
+            [
+              'FILE_AUDIT_ACM',
+              'FILE_AUDIT_CQG',
+              'FILE_AUDIT_MS',
+              'RUN_MACRO',
+              'RUN_LOT_MACRO',
+              'RUN_VALUE_MACRO',
+            ].includes(job.jobType)
+          ) {
             message = job.logs.join('\n');
           } else if (job.jobType === 'VERIFY_EMAIL_STATUS') {
             const checkData = {
               success: false,
               message: `RPA xác minh email thất bại: ${lastLog}`,
-              data: { totalCount: 0, failedCount: 0, failedList: '', timestamp: new Date().toISOString() }
+              data: {
+                totalCount: 0,
+                failedCount: 0,
+                failedList: '',
+                timestamp: new Date().toISOString(),
+              },
             };
             message = JSON.stringify(checkData);
           }
@@ -1210,20 +1543,38 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             'FAILED',
             systemUser,
-            ['FILE_AUDIT_ACM', 'FILE_AUDIT_CQG', 'FILE_AUDIT_MS', 'AUTO_CHECK_SOD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_KLGD', 'RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO'].includes(job.jobType)
+            [
+              'FILE_AUDIT_ACM',
+              'FILE_AUDIT_CQG',
+              'FILE_AUDIT_MS',
+              'AUTO_CHECK_SOD',
+              'CHECK_PRE_EOD',
+              'CHECK_EOD_MM',
+              'CHECK_KLGD',
+              'RUN_MACRO',
+              'RUN_LOT_MACRO',
+              'RUN_VALUE_MACRO',
+            ].includes(job.jobType)
               ? message
-              : (message.includes('SLA') ? message : `Kiểm tra tự động thất bại: ${message}`),
-            true
+              : message.includes('SLA')
+                ? message
+                : `Kiểm tra tự động thất bại: ${message}`,
+            true,
           );
         }
       } catch (err: any) {
-        this.logger.error(`Lỗi cập nhật trạng thái checklist cho Job ${job._id}: ${err.message}`);
+        this.logger.error(
+          `Lỗi cập nhật trạng thái checklist cho Job ${job._id}: ${err.message}`,
+        );
       }
     }
 
     // 2. Phát sự kiện Realtime WebSocket qua ShiftsGateway
     try {
-      const targetDate = payload.targetDate || payload.sessionDay || new Date().toISOString().split('T')[0];
+      const targetDate =
+        payload.targetDate ||
+        payload.sessionDay ||
+        new Date().toISOString().split('T')[0];
       this.shiftsGateway.emitEvent(
         'DASHBOARD_UPDATED',
         job._id.toString(),
@@ -1236,9 +1587,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           jobType: job.jobType,
           shiftLogId,
           taskId,
-        }
+        },
       );
-      this.logger.log(`Emitted dashboard-updated WS event for job ${job._id} (${status})`);
+      this.logger.log(
+        `Emitted dashboard-updated WS event for job ${job._id} (${status})`,
+      );
     } catch (err: any) {
       this.logger.error(`Lỗi phát sự kiện Realtime WebSocket: ${err.message}`);
     }
@@ -1250,12 +1603,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   async submitCaptcha(jobId: string, captchaText: string): Promise<void> {
     const resolver = this.captchaResolvers.get(jobId);
     if (!resolver) {
-      throw new Error('Không tìm thấy phiên giải Captcha hợp lệ hoặc đã hết hạn.');
+      throw new Error(
+        'Không tìm thấy phiên giải Captcha hợp lệ hoặc đã hết hạn.',
+      );
     }
 
     const job = await this.botJobModel.findById(jobId).exec();
     if (job) {
-      job.logs.push(`[${new Date().toISOString()}] Đã nhận mã Captcha từ người dùng: "${captchaText}". Tiếp tục đăng nhập...`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Đã nhận mã Captcha từ người dùng: "${captchaText}". Tiếp tục đăng nhập...`,
+      );
       await this.syncJobToChecklist(job, 'PROCESSING');
     }
 
@@ -1274,9 +1631,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     let acmBackupBase = msBackupBase;
     if (acmBackupBase.endsWith('Futures')) {
-      acmBackupBase = acmBackupBase.substring(0, acmBackupBase.length - 'Futures'.length) + 'ACM';
+      acmBackupBase =
+        acmBackupBase.substring(0, acmBackupBase.length - 'Futures'.length) +
+        'ACM';
     } else if (acmBackupBase.endsWith('Futures\\')) {
-      acmBackupBase = acmBackupBase.substring(0, acmBackupBase.length - 'Futures\\'.length) + 'ACM';
+      acmBackupBase =
+        acmBackupBase.substring(0, acmBackupBase.length - 'Futures\\'.length) +
+        'ACM';
     } else {
       acmBackupBase = path.join(acmBackupBase, 'ACM');
     }
@@ -1289,12 +1650,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Quét thư mục backup ACM xem đã có file Order.xlsx và Fill.xlsx và các file SFTP (dump, log) chưa.
    */
-  async scanAcmBackupFiles(backupPath: string, targetDate: Date = new Date()): Promise<Array<{
-    key: string;
-    filename: string;
-    status: 'OK' | 'MISSING' | 'OUTDATED';
-    lastModified?: Date;
-  }>> {
+  async scanAcmBackupFiles(
+    backupPath: string,
+    targetDate: Date = new Date(),
+  ): Promise<
+    Array<{
+      key: string;
+      filename: string;
+      status: 'OK' | 'MISSING' | 'OUTDATED';
+      lastModified?: Date;
+    }>
+  > {
     const today = new Date(targetDate);
     today.setHours(0, 0, 0, 0);
 
@@ -1314,7 +1680,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     for (const fileItem of filesToCheck) {
       const filePath = path.join(backupPath, fileItem.filename);
       if (!fs.existsSync(filePath)) {
-        results.push({ key: fileItem.key, filename: fileItem.filename, status: 'MISSING' as const });
+        results.push({
+          key: fileItem.key,
+          filename: fileItem.filename,
+          status: 'MISSING' as const,
+        });
         continue;
       }
 
@@ -1341,7 +1711,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const yyyy_mm_dd = `${year}-${month}-${day}`;
 
       // Check CSV: *_${ddmmyyyy}.csv
-      const csvFile = files.find(f => f.toLowerCase().endsWith(`_${ddmmyyyy}.csv`.toLowerCase()));
+      const csvFile = files.find((f) =>
+        f.toLowerCase().endsWith(`_${ddmmyyyy}.csv`.toLowerCase()),
+      );
       if (csvFile) {
         const stat = fs.statSync(path.join(backupPath, csvFile));
         results.push({
@@ -1359,7 +1731,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Check XLS: ${yyyy_mm_dd}_*.xls
-      const xlsFile = files.find(f => f.toLowerCase().startsWith(`${yyyy_mm_dd}_`.toLowerCase()) && f.toLowerCase().endsWith('.xls'));
+      const xlsFile = files.find(
+        (f) =>
+          f.toLowerCase().startsWith(`${yyyy_mm_dd}_`.toLowerCase()) &&
+          f.toLowerCase().endsWith('.xls'),
+      );
       if (xlsFile) {
         const stat = fs.statSync(path.join(backupPath, xlsFile));
         results.push({
@@ -1382,8 +1758,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const ddmmyyyy = `${day}${month}${year}`;
       const yyyy_mm_dd = `${year}-${month}-${day}`;
 
-      results.push({ key: 'SFTP_CSV', filename: `*_${ddmmyyyy}.csv`, status: 'MISSING' as const });
-      results.push({ key: 'SFTP_XLS', filename: `${yyyy_mm_dd}_*.xls`, status: 'MISSING' as const });
+      results.push({
+        key: 'SFTP_CSV',
+        filename: `*_${ddmmyyyy}.csv`,
+        status: 'MISSING' as const,
+      });
+      results.push({
+        key: 'SFTP_XLS',
+        filename: `${yyyy_mm_dd}_*.xls`,
+        status: 'MISSING' as const,
+      });
     }
 
     return results;
@@ -1393,7 +1777,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job FILE_AUDIT_ACM.
    */
   private async handleFileAuditAcmJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const targetDateStr = payload.targetDate || payload.sessionDay;
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
 
@@ -1413,13 +1800,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     const logAndSave = async (msg: string) => {
       const logEntry = `[${new Date().toISOString()}] ${msg}`;
       job.logs.push(logEntry);
-      
+
       saveQueue = saveQueue.then(async () => {
         try {
-          await this.botJobModel.updateOne(
-            { _id: job._id },
-            { $push: { logs: logEntry } }
-          ).exec();
+          await this.botJobModel
+            .updateOne({ _id: job._id }, { $push: { logs: logEntry } })
+            .exec();
         } catch (dbErr: any) {
           this.logger.error(`Lỗi khi lưu log thời gian thực: ${dbErr.message}`);
         }
@@ -1427,42 +1813,65 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await saveQueue;
     };
 
-    await logAndSave(`Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
+    await logAndSave(
+      `Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`,
+    );
 
     const scanResults = await this.scanAcmBackupFiles(dailyPath, targetDate);
-    const missingOrOutdated = scanResults.filter(r => r.status !== 'OK');
+    const missingOrOutdated = scanResults.filter((r) => r.status !== 'OK');
 
     if (missingOrOutdated.length === 0) {
-      await logAndSave(`✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`);
+      await logAndSave(
+        `✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`,
+      );
       return;
     }
 
     // 1. Tải báo cáo từ Web ACM nếu thiếu
-    const webMissing = missingOrOutdated.some(r => r.key === 'ORDER' || r.key === 'FILL');
+    const webMissing = missingOrOutdated.some(
+      (r) => r.key === 'ORDER' || r.key === 'FILL',
+    );
     if (webMissing) {
-      await logAndSave(`⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`);
+      await logAndSave(
+        `⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`,
+      );
 
       // callback để đẩy Captcha lên UI nếu tự động giải bằng Gemini thất bại
       const getCaptchaFromUI = (base64Img: string): Promise<string> => {
         return new Promise<string>((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            this.captchaResolvers.delete(job._id.toString());
-            reject(new Error('Hết thời gian chờ người dùng nhập Captcha (5 phút).'));
-          }, 5 * 60 * 1000);
+          const timeoutId = setTimeout(
+            () => {
+              this.captchaResolvers.delete(job._id.toString());
+              reject(
+                new Error(
+                  'Hết thời gian chờ người dùng nhập Captcha (5 phút).',
+                ),
+              );
+            },
+            5 * 60 * 1000,
+          );
 
-          const currentPayload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+          const currentPayload =
+            job.payload instanceof Map
+              ? Object.fromEntries(job.payload)
+              : job.payload || {};
           job.payload = {
             ...currentPayload,
             captchaImage: base64Img,
           };
-          
-          logAndSave(`⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`)
+
+          logAndSave(
+            `⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
+          )
             .then(() => this.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
             .then(() => {
-              this.captchaResolvers.set(job._id.toString(), (captcha: string) => {
-                clearTimeout(timeoutId);
-                resolve(captcha);
-              });
+              this.captchaResolvers.set(
+                job._id.toString(),
+                (captcha: string) => {
+                  clearTimeout(timeoutId);
+                  resolve(captcha);
+                },
+              );
             })
             .catch((err) => {
               clearTimeout(timeoutId);
@@ -1478,8 +1887,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       );
 
       try {
-        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
-        await logAndSave(`✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`);
+        await this.rpaDownloaderService.downloadAcmBackup(
+          page,
+          dailyPath,
+          logAndSave,
+        );
+        await logAndSave(
+          `✅ Tải thành công báo cáo tự doanh (Order & Fill) từ ACM.`,
+        );
       } finally {
         this.logger.log('Closing Playwright browser after ACM audit.');
         await browser.close().catch((err) => {
@@ -1489,25 +1904,38 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
 
     // 2. Đồng bộ file dump/log từ SFTP nếu thiếu
-    const sftpMissing = missingOrOutdated.some(r => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS');
+    const sftpMissing = missingOrOutdated.some(
+      (r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS',
+    );
     if (sftpMissing) {
       await logAndSave(`⚠️ Thiếu file từ SFTP. Đang chạy đồng bộ SFTP...`);
       try {
-        await this.rpaDownloaderService.downloadAcmSftpBackup(dailyPath, targetDate, logAndSave);
+        await this.rpaDownloaderService.downloadAcmSftpBackup(
+          dailyPath,
+          targetDate,
+          logAndSave,
+        );
         await logAndSave(`✅ Hoàn tất đồng bộ file từ SFTP.`);
       } catch (err: any) {
         await logAndSave(`⚠️ Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
-        
+
         // Kiểm tra xem báo cáo Web đã tồn tại đầy đủ chưa
-        const currentScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+        const currentScan = await this.scanAcmBackupFiles(
+          dailyPath,
+          targetDate,
+        );
         const webReportsOk = currentScan
-          .filter(r => r.key === 'ORDER' || r.key === 'FILL')
-          .every(r => r.status === 'OK');
-        
+          .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
+          .every((r) => r.status === 'OK');
+
         if (webReportsOk) {
-          await logAndSave(`ℹ️ Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`);
+          await logAndSave(
+            `ℹ️ Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
+          );
         } else {
-          await logAndSave(`❌ Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`);
+          await logAndSave(
+            `❌ Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`,
+          );
           throw err;
         }
       }
@@ -1518,7 +1946,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job RUN_LOT_MACRO: Gọi script Python điều phối Excel headlessly.
    */
   private async handleRunLotMacroJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
@@ -1526,9 +1957,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     let savePromise: Promise<any> = Promise.resolve();
     const safeSave = () => {
-      savePromise = savePromise.then(() => job.save()).catch((err) => {
-        this.logger.error(`Error saving bot job in handleRunLotMacroJob: ${err.message}`);
-      });
+      savePromise = savePromise
+        .then(() => job.save())
+        .catch((err) => {
+          this.logger.error(
+            `Error saving bot job in handleRunLotMacroJob: ${err.message}`,
+          );
+        });
       return savePromise;
     };
 
@@ -1546,16 +1981,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const month = String(targetDate.getMonth() + 1).padStart(2, '0');
       const day = String(targetDate.getDate()).padStart(2, '0');
 
-      const backupMs = payload.backupPathMs
-        || await this.settingsService.getSetting(
+      const backupMs =
+        payload.backupPathMs ||
+        (await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          process.env.DEFAULT_BACKUP_PATH_MS || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
-        );
-      const backupCqg = payload.backupPathCqg
-        || await this.settingsService.getSetting(
+          process.env.DEFAULT_BACKUP_PATH_MS ||
+            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        ));
+      const backupCqg =
+        payload.backupPathCqg ||
+        (await this.settingsService.getSetting(
           'bot_backup_path_cqg',
-          process.env.DEFAULT_BACKUP_PATH_CQG || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
-        );
+          process.env.DEFAULT_BACKUP_PATH_CQG ||
+            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+        ));
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
       const folderPathMs = path.join(backupMs, subFolder);
@@ -1565,7 +2004,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       log(`Thư mục CQG: ${folderPathCqg}`);
       await safeSave();
 
-      const files = this.lotStatisticsService.loadFilesFromDirectories(folderPathMs, folderPathCqg);
+      const files = this.lotStatisticsService.loadFilesFromDirectories(
+        folderPathMs,
+        folderPathCqg,
+      );
       log(`Nạp file thành công. Tiến hành chạy tính toán số lot...`);
       await safeSave();
 
@@ -1573,14 +2015,27 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const filterLmeKyHan = lotConfig.defaultLmeKyHan || 'M26';
 
       const lastPartCqgIdx = backupCqg.lastIndexOf('\\');
-      const parentBaseCqg = lastPartCqgIdx > 0 ? backupCqg.substring(0, lastPartCqgIdx) : backupCqg;
+      const parentBaseCqg =
+        lastPartCqgIdx > 0 ? backupCqg.substring(0, lastPartCqgIdx) : backupCqg;
 
-      const pathDsgdCumulative = lotConfig.defaultPathDsgdCumulative || `${folderPathMs}\\DSGD T${month}.${year}.xlsx`;
-      const pathNormal = lotConfig.defaultPathNormal || `${folderPathCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`;
-      const pathAcm = lotConfig.defaultPathAcm || `${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`;
-      const pathLme = lotConfig.defaultPathLme || `${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`;
-      const pathOptions = lotConfig.defaultPathOptions || `${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`;
-      const pathSpread = lotConfig.defaultPathSpread || `${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`;
+      const pathDsgdCumulative =
+        lotConfig.defaultPathDsgdCumulative ||
+        `${folderPathMs}\\DSGD T${month}.${year}.xlsx`;
+      const pathNormal =
+        lotConfig.defaultPathNormal ||
+        `${folderPathCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`;
+      const pathAcm =
+        lotConfig.defaultPathAcm ||
+        `${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`;
+      const pathLme =
+        lotConfig.defaultPathLme ||
+        `${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`;
+      const pathOptions =
+        lotConfig.defaultPathOptions ||
+        `${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`;
+      const pathSpread =
+        lotConfig.defaultPathSpread ||
+        `${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`;
 
       const parseDateArray = (input: any) => {
         if (!input) return [];
@@ -1590,7 +2045,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           return Array.isArray(parsed) ? parsed : [input];
         } catch {
           if (typeof input === 'string') {
-            return input.split(',').map((s: string) => s.trim()).filter(Boolean);
+            return input
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean);
           }
           return [];
         }
@@ -1603,7 +2061,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         zftDates: parseDateArray(payload.zftDates),
         filterLmeKyHan,
         deadline: payload.deadline ? parseFloat(payload.deadline) : undefined,
-        updateCumulative: payload.updateCumulative === true || payload.updateCumulative === 'true',
+        updateCumulative:
+          payload.updateCumulative === true ||
+          payload.updateCumulative === 'true',
         pathDsgdCumulative,
         pathNormal,
         pathAcm,
@@ -1612,10 +2072,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         pathSpread,
       };
 
-      const result = await this.lotStatisticsService.processLotStatistics(files, processParams);
+      const result = await this.lotStatisticsService.processLotStatistics(
+        files,
+        processParams,
+      );
       log(`✅ Chạy tính toán thống kê số lot thành công.`);
-      log(`Kết quả: DSGD Product: ${result.summary.dsgdProduct}, FR Product: ${result.summary.frProduct}`);
-      
+      log(
+        `Kết quả: DSGD Product: ${result.summary.dsgdProduct}, FR Product: ${result.summary.frProduct}`,
+      );
+
       const allPassed = result.validations.every((v: any) => v.passed);
       if (allPassed) {
         log(`✅ Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
@@ -1623,7 +2088,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         log(`⚠️ Phát hiện chênh lệch đối chiếu:`);
         for (const val of result.validations) {
           if (!val.passed) {
-            log(`   - ${val.field}: mong đợi ${val.expected}, thực tế ${val.actual}`);
+            log(
+              `   - ${val.field}: mong đợi ${val.expected}, thực tế ${val.actual}`,
+            );
           }
         }
       }
@@ -1636,12 +2103,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-
   /**
    * Xử lý Job RUN_VALUE_MACRO: Sử dụng ValueStatisticsService để chạy tính toán native.
    */
   private async handleRunValueMacroJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
@@ -1650,9 +2119,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     // Chaining save calls to prevent Mongoose ParallelSaveError
     let savePromise: Promise<any> = Promise.resolve();
     const safeSave = () => {
-      savePromise = savePromise.then(() => job.save()).catch((err) => {
-        this.logger.error(`Error saving bot job in handleRunValueMacroJob: ${err.message}`);
-      });
+      savePromise = savePromise
+        .then(() => job.save())
+        .catch((err) => {
+          this.logger.error(
+            `Error saving bot job in handleRunValueMacroJob: ${err.message}`,
+          );
+        });
       return savePromise;
     };
 
@@ -1661,15 +2134,24 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy thống kê giá trị giao dịch native cho ngày: ${targetDateStr}`);
+    log(
+      `Bắt đầu chạy thống kê giá trị giao dịch native cho ngày: ${targetDateStr}`,
+    );
     await safeSave();
 
     try {
       const targetDate = new Date(targetDateStr);
-      const result = await this.valueStatisticsService.processValueStatistics(targetDate, payload);
+      const result = await this.valueStatisticsService.processValueStatistics(
+        targetDate,
+        payload,
+      );
       log(`✅ Chạy tính toán thống kê giá trị thành công.`);
-      log(`Tỷ giá mặc định: ${result.tyGiaDefault}, TRU: ${result.tyGiaTru}, MPO: ${result.tyGiaMpo}`);
-      log(`Tổng số dòng giao dịch Normal: ${result.normalCount}, Spread: ${result.spreadCount}`);
+      log(
+        `Tỷ giá mặc định: ${result.tyGiaDefault}, TRU: ${result.tyGiaTru}, MPO: ${result.tyGiaMpo}`,
+      );
+      log(
+        `Tổng số dòng giao dịch Normal: ${result.normalCount}, Spread: ${result.spreadCount}`,
+      );
       await safeSave();
     } catch (err: any) {
       log(`❌ Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
@@ -1684,29 +2166,43 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       fs.mkdirSync(castDownloadsDir, { recursive: true });
     }
 
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    const dateStr = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0].replace(/-/g, '');
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    const dateStr = new Date(Date.now() + 7 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0]
+      .replace(/-/g, '');
     const filename = `Accounts_Balances_${dateStr}_${Date.now()}.xlsx`;
     const destFile = path.join(castDownloadsDir, filename);
 
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy bot RPA CQG CAST để tải báo cáo số dư...`);
-    job.logs.push(`[${new Date().toISOString()}] Đường dẫn lưu file dự kiến: ${destFile}`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy bot RPA CQG CAST để tải báo cáo số dư...`,
+    );
+    job.logs.push(
+      `[${new Date().toISOString()}] Đường dẫn lưu file dự kiến: ${destFile}`,
+    );
     await job.save();
 
     try {
       await this.rpaDownloaderService.downloadCastBalances(destFile);
-      job.logs.push(`[${new Date().toISOString()}] Đã tải thành công file CAST về: ${destFile}`);
-      
+      job.logs.push(
+        `[${new Date().toISOString()}] Đã tải thành công file CAST về: ${destFile}`,
+      );
+
       payload.downloadedFile = destFile;
       job.payload = payload;
       await job.save();
 
       // Check if custom backup path is provided or configured in settings to copy and rename the file
-      let baseBackupPath = payload.backupPath
-        || await this.settingsService.getSetting(
+      const baseBackupPath =
+        payload.backupPath ||
+        (await this.settingsService.getSetting(
           'bot_backup_path_cqg',
-          process.env.DEFAULT_BACKUP_PATH_CQG || 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'
-        );
+          process.env.DEFAULT_BACKUP_PATH_CQG ||
+            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+        ));
 
       if (baseBackupPath) {
         // Lấy ngày cần chạy (mặc định là ngày hôm nay nếu không truyền targetDate)
@@ -1716,34 +2212,50 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         const year = targetDate.getFullYear().toString();
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
-        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-        
+        const subFolder = path.join(
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+        );
+
         // Ghép thêm thư mục ngày vào đường dẫn backup gốc
         const customBackupPath = path.join(baseBackupPath, subFolder);
 
-        job.logs.push(`[${new Date().toISOString()}] Đang copy và đổi tên file sang thư mục backup: ${customBackupPath}`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Đang copy và đổi tên file sang thư mục backup: ${customBackupPath}`,
+        );
         await job.save();
-        
+
         if (!fs.existsSync(customBackupPath)) {
           fs.mkdirSync(customBackupPath, { recursive: true });
         }
-        
-        const targetBackupFile = path.join(customBackupPath, 'Accounts_Balances.xlsx');
+
+        const targetBackupFile = path.join(
+          customBackupPath,
+          'Accounts_Balances.xlsx',
+        );
         fs.copyFileSync(destFile, targetBackupFile);
-        
-        job.logs.push(`[${new Date().toISOString()}] ✅ Đã copy và đổi tên thành công: ${targetBackupFile}`);
+
+        job.logs.push(
+          `[${new Date().toISOString()}] ✅ Đã copy và đổi tên thành công: ${targetBackupFile}`,
+        );
         await job.save();
       }
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi trong quá trình chạy RPA CQG CAST: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi trong quá trình chạy RPA CQG CAST: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
   }
 
   private async handleAutoCheckSodJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
-    
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -1752,37 +2264,53 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
 
     const dateStr = targetDate.toISOString().split('T')[0];
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu kiểm tra đối chiếu SOD tự động ngày ${dateStr}...`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu kiểm tra đối chiếu SOD tự động ngày ${dateStr}...`,
+    );
     await job.save();
 
     try {
-      const result = await this.reconciliationService.runAutoCheckSOD(targetDate);
+      const result =
+        await this.reconciliationService.runAutoCheckSOD(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu SOD.`);
-      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.success ? 'KHỚP' : 'LỆCH'}`);
-      
+      job.logs.push(
+        `[${new Date().toISOString()}] Kết quả: ${result.success ? 'KHỚP' : 'LỆCH'}`,
+      );
+
       payload.result = result;
       job.payload = payload;
       await job.save();
-      
+
       if (!result.success) {
         if (result.discrepancies && result.discrepancies.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Danh sách tài khoản lệch số dư:`);
+          job.logs.push(
+            `[${new Date().toISOString()}] Danh sách tài khoản lệch số dư:`,
+          );
           result.discrepancies.forEach((d: any) => {
-            job.logs.push(`- [SOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`);
+            job.logs.push(
+              `- [SOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
+            );
           });
         }
         await job.save();
-        throw new Error(`Phát hiện chênh lệch số dư tài khoản (> $100) giữa M-System và CQG CAST. Vui lòng kiểm tra báo cáo.`);
+        throw new Error(
+          `Phát hiện chênh lệch số dư tài khoản (> $100) giữa M-System và CQG CAST. Vui lòng kiểm tra báo cáo.`,
+        );
       }
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu SOD tự động: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu SOD tự động: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
   }
 
   private async handleCheckKlgdJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -1790,41 +2318,65 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
     }
     const dateStr = targetDate.toISOString().split('T')[0];
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`,
+    );
     await job.save();
 
     try {
-      const result = await this.reconciliationService.runAutoCheckKLGD(targetDate);
+      const result =
+        await this.reconciliationService.runAutoCheckKLGD(targetDate);
       if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        job.logs.push(
+          `[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`,
+        );
       }
-      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`);
-      job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`,
+      );
+      job.logs.push(
+        `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
+      );
       payload.result = result;
       job.payload = payload;
       await job.save();
 
       if (!result.passed) {
         if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
+          job.logs.push(
+            `[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`,
+          );
           result.mismatchedTrades.forEach((t: any) => {
-            job.logs.push(`- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`);
+            job.logs.push(
+              `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+            );
           });
         }
         await job.save();
-        throw new Error(`Phát hiện chênh lệch khớp lệnh trong phiên (KLGD). Vui lòng kiểm tra báo cáo.`);
+        throw new Error(
+          `Phát hiện chênh lệch khớp lệnh trong phiên (KLGD). Vui lòng kiểm tra báo cáo.`,
+        );
       }
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu khớp lệnh tự động: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu khớp lệnh tự động: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
   }
 
   private async handleCheckPreEodJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -1832,21 +2384,34 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
     }
     const dateStr = targetDate.toISOString().split('T')[0];
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`,
+    );
     await job.save();
 
     try {
-      const result = await this.reconciliationService.runAutoCheckPreEOD(targetDate);
+      const result =
+        await this.reconciliationService.runAutoCheckPreEOD(targetDate);
       if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        job.logs.push(`[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        job.logs.push(
+          `[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`,
+        );
       }
       if (result.isWaitingFiles) {
         job.logs.push(`[${new Date().toISOString()}] ${result.message}`);
       } else {
-        job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`);
-        job.logs.push(`[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
+        job.logs.push(
+          `[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`,
+        );
+        job.logs.push(
+          `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
+        );
       }
       payload.result = result;
       job.payload = payload;
@@ -1854,29 +2419,47 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       if (!result.passed) {
         if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
+          job.logs.push(
+            `[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`,
+          );
           result.mismatchedTrades.forEach((t: any) => {
-            job.logs.push(`- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`);
+            job.logs.push(
+              `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+            );
           });
         }
-        if (result.mismatchedPositions && result.mismatchedPositions.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`);
+        if (
+          result.mismatchedPositions &&
+          result.mismatchedPositions.length > 0
+        ) {
+          job.logs.push(
+            `[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`,
+          );
           result.mismatchedPositions.forEach((p: any) => {
-            job.logs.push(`- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`);
+            job.logs.push(
+              `- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`,
+            );
           });
         }
         await job.save();
-        throw new Error(`Phát hiện chênh lệch khớp lệnh hoặc vị thế cuối ngày (Pre-EOD). Vui lòng kiểm tra báo cáo.`);
+        throw new Error(
+          `Phát hiện chênh lệch khớp lệnh hoặc vị thế cuối ngày (Pre-EOD). Vui lòng kiểm tra báo cáo.`,
+        );
       }
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu Pre-EOD tự động: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu Pre-EOD tự động: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
   }
 
   private async handleCheckEodMmJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -1884,30 +2467,43 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
     }
     const dateStr = targetDate.toISOString().split('T')[0];
-    job.logs.push(`[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD tự động ngày ${dateStr}...`);
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD tự động ngày ${dateStr}...`,
+    );
     await job.save();
 
     try {
-      const result = await this.reconciliationService.runAutoCheckEodMm(targetDate);
+      const result =
+        await this.reconciliationService.runAutoCheckEodMm(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD.`);
       payload.result = result;
       job.payload = payload;
       await job.save();
 
-      const totalNegative = result.eodResult.negativeBalanceAccs.length + result.eodResult.negativeIMRAcc.length;
+      const totalNegative =
+        result.eodResult.negativeBalanceAccs.length +
+        result.eodResult.negativeIMRAcc.length;
       const totalMismatched = result.cqgResult.length;
       if (totalNegative > 0 || totalMismatched > 0) {
         if (result.cqgResult && result.cqgResult.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`);
+          job.logs.push(
+            `[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`,
+          );
           result.cqgResult.forEach((d: any) => {
-            job.logs.push(`- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`);
+            job.logs.push(
+              `- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
+            );
           });
         }
         await job.save();
-        throw new Error(`Phát hiện bất thường EOD: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatched} tài khoản lệch số dư EOD CQG.`);
+        throw new Error(
+          `Phát hiện bất thường EOD: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatched} tài khoản lệch số dư EOD CQG.`,
+        );
       }
     } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi đối chiếu EOD tự động: ${err.message}`);
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu EOD tự động: ${err.message}`,
+      );
       await job.save();
       throw err;
     }
@@ -1915,9 +2511,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async sendOperationalFailureAlert(job: BotJob, errorMsg: string) {
     try {
-      const configStr = await this.settingsService.getSetting('margin_checker_config', '{}');
+      const configStr = await this.settingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
       const config = JSON.parse(configStr);
-      const mailSettings = config.opFailureAlert || { isSendWarning: true, email: ['it.support@mxv.vn'] };
+      const mailSettings = config.opFailureAlert || {
+        isSendWarning: true,
+        email: ['it.support@mxv.vn'],
+      };
       if (!mailSettings.isSendWarning) return;
 
       const smtp = config.smtp || {
@@ -1943,12 +2545,58 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           rejectUnauthorized: false,
         },
         connectionTimeout: 10000, // 10s
-        greetingTimeout: 10000,   // 10s
-        socketTimeout: 15000,     // 15s
+        greetingTimeout: 10000, // 10s
+        socketTimeout: 15000, // 15s
       });
 
-      const payloadStr = JSON.stringify(job.payload instanceof Map ? Object.fromEntries(job.payload) : job.payload, null, 2);
+      const rawPayload = job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+
+      const payloadStr = JSON.stringify(rawPayload, null, 2);
       const lastLogs = job.logs.slice(-20).join('\n');
+      
+      let displayPayload = payloadStr;
+      const mailAttachments: any[] = [];
+      
+      if (payloadStr.length > 3000) {
+        displayPayload = payloadStr.substring(0, 3000) + '\n\n... [NỘI DUNG PAYLOAD QUÁ DÀI - ĐÃ ĐƯỢC RÚT GỌN ĐỂ TRÁNH QUÁ TẢI EMAIL. CHI TIẾT ĐẦY ĐỦ XEM TRONG FILE ĐÍNH KÈM]';
+        mailAttachments.push({
+          filename: `job_payload_${job._id}.json`,
+          content: Buffer.from(payloadStr, 'utf-8'),
+        });
+      }
+
+      // If it contains mismatched trades list, generate a clean CSV file so the GLGD team can open it directly in Microsoft Excel
+      const mismatchedTrades = rawPayload?.result?.mismatchedTrades || [];
+      if (Array.isArray(mismatchedTrades) && mismatchedTrades.length > 0) {
+        const targetDateStr = rawPayload.sessionDay || rawPayload.targetDate || new Date().toISOString().split('T')[0];
+        
+        const convertMismatchedTradesToCsv = (trades: any[]): string => {
+          const headers = ['Nguồn', 'Mã lệnh', 'Mã TKGD', 'Mã HD', 'Giá khớp', 'KL giao dịch', 'Ngày giờ', 'Lý do lệch'];
+          const rows = trades.map(t => [
+            t.source || '',
+            t.maLenh || '',
+            t.maTKGD || '',
+            t.maHD || '',
+            t.giaKhop !== undefined ? t.giaKhop : '',
+            t.klGiaoDich !== undefined ? t.klGiaoDich : '',
+            t.ngayGio || '',
+            t.reason || ''
+          ]);
+          const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+          ].join('\r\n');
+          return '\ufeff' + csvContent; // UTF-8 BOM
+        };
+
+        const csvContent = convertMismatchedTradesToCsv(mismatchedTrades);
+        mailAttachments.push({
+          filename: `danh_sach_lech_khop_lenh_${targetDateStr}.csv`,
+          content: Buffer.from(csvContent, 'utf-8'),
+        });
+      }
 
       const subject = `🚨 [MXV BOT FAILURE ALERT] Lỗi Vận Hành Bot Ngầm: ${job.jobType}`;
       const htmlBody = `
@@ -1984,7 +2632,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 </div>
 
                 <h3>Payload của Job</h3>
-                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${payloadStr}</pre>
+                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${displayPayload}</pre>
 
                 <h3>20 Dòng Logs Cuối Cùng của Job</h3>
                 <pre style="background-color: #212121; color: #fff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${lastLogs}</pre>
@@ -2002,16 +2650,24 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         to: mailSettings.email.join(', '),
         subject,
         html: htmlBody,
+        attachments: mailAttachments,
       });
 
-      this.logger.log(`Đã gửi email cảnh báo lỗi vận hành cho job ${job.jobType} thành công.`);
+      this.logger.log(
+        `Đã gửi email cảnh báo lỗi vận hành cho job ${job.jobType} thành công.`,
+      );
     } catch (err: any) {
-      this.logger.error(`Không thể gửi email cảnh báo lỗi vận hành cho job ${job.jobType}: ${err.message}`);
+      this.logger.error(
+        `Không thể gửi email cảnh báo lỗi vận hành cho job ${job.jobType}: ${err.message}`,
+      );
     }
   }
 
   private async handleRunMacroJob(job: BotJob) {
-    const payload = job.payload instanceof Map ? Object.fromEntries(job.payload) : (job.payload || {});
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
     const targetDateStr = payload.targetDate || payload.sessionDay;
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate/sessionDay trong payload.');
@@ -2019,9 +2675,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     let savePromise: Promise<any> = Promise.resolve();
     const safeSave = () => {
-      savePromise = savePromise.then(() => job.save()).catch((err) => {
-        this.logger.error(`Error saving bot job in handleRunMacroJob: ${err.message}`);
-      });
+      savePromise = savePromise
+        .then(() => job.save())
+        .catch((err) => {
+          this.logger.error(
+            `Error saving bot job in handleRunMacroJob: ${err.message}`,
+          );
+        });
       return savePromise;
     };
 
@@ -2030,7 +2690,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy macro thống kê số lô & giá trị giao dịch CCP cho ngày: ${targetDateStr}`);
+    log(
+      `Bắt đầu chạy macro thống kê số lô & giá trị giao dịch CCP cho ngày: ${targetDateStr}`,
+    );
     await safeSave();
 
     try {
@@ -2039,11 +2701,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const month = String(targetDate.getMonth() + 1).padStart(2, '0');
       const day = String(targetDate.getDate()).padStart(2, '0');
 
-      const backupMs = payload.backupPathMs
-        || await this.settingsService.getSetting(
+      const backupMs =
+        payload.backupPathMs ||
+        (await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'
-        );
+          'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        ));
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
       const dailyPath = path.join(backupMs, subFolder);
@@ -2052,7 +2715,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await safeSave();
 
       if (!fs.existsSync(dailyPath)) {
-        throw new Error(`Thư mục backup ngày ${targetDateStr} không tồn tại: ${dailyPath}`);
+        throw new Error(
+          `Thư mục backup ngày ${targetDateStr} không tồn tại: ${dailyPath}`,
+        );
       }
 
       // Resolve 6 files
@@ -2073,7 +2738,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath2}`);
       } else {
         dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
-        log(`Không tìm thấy file DSGD MM CCP riêng biệt. Khởi tạo buffer trống.`);
+        log(
+          `Không tìm thấy file DSGD MM CCP riêng biệt. Khởi tạo buffer trống.`,
+        );
       }
 
       const dstkgdPath = path.join(dailyPath, 'DSTKGD-Futures.xlsx');
@@ -2084,20 +2751,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       // Verification
       if (!fs.existsSync(dsgdCcpPath)) {
-        throw new Error(`Thiếu file giao dịch CCP (DSGD.xlsx) tại: ${dailyPath}`);
+        throw new Error(
+          `Thiếu file giao dịch CCP (DSGD.xlsx) tại: ${dailyPath}`,
+        );
       }
-      const finalDstkgdPath = fs.existsSync(dstkgdPath) ? dstkgdPath : (fs.existsSync(dstkgdPathFallback) ? dstkgdPathFallback : null);
+      const finalDstkgdPath = fs.existsSync(dstkgdPath)
+        ? dstkgdPath
+        : fs.existsSync(dstkgdPathFallback)
+          ? dstkgdPathFallback
+          : null;
       if (!finalDstkgdPath) {
-        throw new Error(`Thiếu file danh sách tài khoản giao dịch (DSTKGD-Futures.xlsx hoặc DSTKGD.xlsx) tại: ${dailyPath}`);
+        throw new Error(
+          `Thiếu file danh sách tài khoản giao dịch (DSTKGD-Futures.xlsx hoặc DSTKGD.xlsx) tại: ${dailyPath}`,
+        );
       }
       if (!fs.existsSync(nrPath)) {
         throw new Error(`Thiếu file nộp rút (NR.xlsx) tại: ${dailyPath}`);
       }
       if (!fs.existsSync(ttmPath)) {
-        throw new Error(`Thiếu file trạng thái mở (TTM.xlsx) tại: ${dailyPath}`);
+        throw new Error(
+          `Thiếu file trạng thái mở (TTM.xlsx) tại: ${dailyPath}`,
+        );
       }
       if (!fs.existsSync(ttttPath)) {
-        throw new Error(`Thiếu file trạng thái tất toán (TTTT.xlsx) tại: ${dailyPath}`);
+        throw new Error(
+          `Thiếu file trạng thái tất toán (TTTT.xlsx) tại: ${dailyPath}`,
+        );
       }
 
       log(`Tất cả 6 file báo cáo đã được nạp thành công.`);
@@ -2115,7 +2794,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       log(`Bắt đầu xử lý dữ liệu báo cáo CCP qua CcpStatisticsService...`);
       await safeSave();
 
-      const outputPath = await this.ccpStatisticsService.processCcpData(files, targetDate);
+      const outputPath = await this.ccpStatisticsService.processCcpData(
+        files,
+        targetDate,
+      );
 
       log(`✅ Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
       await safeSave();
@@ -2128,12 +2810,35 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private createEmptyDsgdBuffer(): Buffer {
     const headers = [
-      'STT', 'Mã lệnh', 'Mã giao dịch', 'Mã TKGD', 'Tên TKGD',
-      'Mã HĐ', 'Tên HĐ', 'Hình thức lệnh', 'Loại lệnh', 'Phương thức ghép',
-      'Chiều mua bán', 'KL đặt lệnh', 'KL giao dịch', 'Giá khớp', 'Giá giới hạn',
-      'Giá dừng', 'Phí quyền chọn (USD)', 'Phí quyền chọn (VND)', 'Phí giao dịch',
-      'Người đặt lệnh', 'Ngày giờ đặt lệnh', 'Ngày giờ thực hiện', 'Mã TVKD',
-      'Tên TVKD', 'Mã MG', 'Tên MG', 'Mã CTV', 'Tên CTV', 'Nhóm hàng hoá'
+      'STT',
+      'Mã lệnh',
+      'Mã giao dịch',
+      'Mã TKGD',
+      'Tên TKGD',
+      'Mã HĐ',
+      'Tên HĐ',
+      'Hình thức lệnh',
+      'Loại lệnh',
+      'Phương thức ghép',
+      'Chiều mua bán',
+      'KL đặt lệnh',
+      'KL giao dịch',
+      'Giá khớp',
+      'Giá giới hạn',
+      'Giá dừng',
+      'Phí quyền chọn (USD)',
+      'Phí quyền chọn (VND)',
+      'Phí giao dịch',
+      'Người đặt lệnh',
+      'Ngày giờ đặt lệnh',
+      'Ngày giờ thực hiện',
+      'Mã TVKD',
+      'Tên TVKD',
+      'Mã MG',
+      'Tên MG',
+      'Mã CTV',
+      'Tên CTV',
+      'Nhóm hàng hoá',
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();

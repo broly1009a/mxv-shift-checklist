@@ -38,7 +38,10 @@ function parseEmailText(filePath: string): ExpiringContract[] {
     throw new Error(`Email file not found at: ${filePath}`);
   }
   const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 
   const contracts: ExpiringContract[] = [];
   let currentSide: 'BUY' | 'SELL' = 'BUY';
@@ -46,11 +49,17 @@ function parseEmailText(filePath: string): ExpiringContract[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (line.includes('Đối với Vị thế mở mua') || line.includes('Ngày thông báo đầu tiên')) {
+    if (
+      line.includes('Đối với Vị thế mở mua') ||
+      line.includes('Ngày thông báo đầu tiên')
+    ) {
       currentSide = 'BUY';
       continue;
     }
-    if (line.includes('Đối với Vị thế mở bán') || line.includes('Ngày giao dịch cuối cùng')) {
+    if (
+      line.includes('Đối với Vị thế mở bán') ||
+      line.includes('Ngày giao dịch cuối cùng')
+    ) {
       currentSide = 'SELL';
       continue;
     }
@@ -68,7 +77,7 @@ function parseEmailText(filePath: string): ExpiringContract[] {
           contractName,
           targetDate,
           deadline,
-          side: currentSide
+          side: currentSide,
         });
         i += 4;
       }
@@ -81,12 +90,22 @@ function parseEmailText(filePath: string): ExpiringContract[] {
 
 function runStep3Test() {
   const mailPath = path.join(process.cwd(), 'temp', 'downloads', 'mail.txt');
-  const openPosPath = path.join(process.cwd(), 'temp', 'downloads', 'open_positions.xlsx');
-  const pendingOrdersPath = path.join(process.cwd(), 'temp', 'downloads', 'pending_orders.xlsx');
+  const openPosPath = path.join(
+    process.cwd(),
+    'temp',
+    'downloads',
+    'open_positions.xlsx',
+  );
+  const pendingOrdersPath = path.join(
+    process.cwd(),
+    'temp',
+    'downloads',
+    'pending_orders.xlsx',
+  );
 
   // Determine target date (default to today, July 15, 2026 for this run context)
   let targetDateStr = '15/07/2026';
-  const dateArg = process.argv.find(arg => arg.startsWith('--date='));
+  const dateArg = process.argv.find((arg) => arg.startsWith('--date='));
   if (dateArg) {
     targetDateStr = dateArg.split('=')[1];
   } else {
@@ -101,11 +120,17 @@ function runStep3Test() {
   console.log(`Target deadline date: ${targetDateStr}`);
 
   const allContracts = parseEmailText(mailPath);
-  
+
   // Filter contracts by target date
-  const expiringContracts = allContracts.filter(c => c.deadline.includes(targetDateStr));
-  console.log(`Filtered contracts expiring on ${targetDateStr} (${expiringContracts.length}):`);
-  expiringContracts.forEach(c => console.log(`  - ${c.contractCode} (${c.side}) - Deadline: ${c.deadline}`));
+  const expiringContracts = allContracts.filter((c) =>
+    c.deadline.includes(targetDateStr),
+  );
+  console.log(
+    `Filtered contracts expiring on ${targetDateStr} (${expiringContracts.length}):`,
+  );
+  expiringContracts.forEach((c) =>
+    console.log(`  - ${c.contractCode} (${c.side}) - Deadline: ${c.deadline}`),
+  );
 
   if (expiringContracts.length === 0) {
     console.log(`No contracts expiring on ${targetDateStr}. Exiting.`);
@@ -116,14 +141,19 @@ function runStep3Test() {
   console.log(`Loading Open Positions from: ${openPosPath}`);
   const openPosWorkbook = XLSX.readFile(openPosPath);
   const openPosSheet = openPosWorkbook.Sheets[openPosWorkbook.SheetNames[0]];
-  const openPosRows = XLSX.utils.sheet_to_json(openPosSheet, { header: 1 }) as any[][];
-  const openPosHeader = openPosRows[0].map(h => String(h || '').trim());
+  const openPosRows = XLSX.utils.sheet_to_json(openPosSheet, {
+    header: 1,
+  });
+  const openPosHeader = openPosRows[0].map((h) => String(h || '').trim());
   const accountIdx = openPosHeader.indexOf('Mã TKGD');
   const symbolIdx = openPosHeader.indexOf('Mã HĐ');
   const klMuaIdx = openPosHeader.indexOf('KL Mua');
   const klBanIdx = openPosHeader.indexOf('KL Bán');
 
-  const aggregatedPos = new Map<string, { account: string, symbol: string, buyVol: number, sellVol: number }>();
+  const aggregatedPos = new Map<
+    string,
+    { account: string; symbol: string; buyVol: number; sellVol: number }
+  >();
   for (let i = 1; i < openPosRows.length; i++) {
     const row = openPosRows[i];
     if (!row || row.length === 0) continue;
@@ -134,7 +164,12 @@ function runStep3Test() {
     if (!account || !symbol) continue;
 
     const key = `${account}_${symbol}`;
-    const existing = aggregatedPos.get(key) || { account, symbol, buyVol: 0, sellVol: 0 };
+    const existing = aggregatedPos.get(key) || {
+      account,
+      symbol,
+      buyVol: 0,
+      sellVol: 0,
+    };
     existing.buyVol += klMua;
     existing.sellVol += klBan;
     aggregatedPos.set(key, existing);
@@ -144,8 +179,10 @@ function runStep3Test() {
   console.log(`Loading Pending Orders from: ${pendingOrdersPath}`);
   const pendingWorkbook = XLSX.readFile(pendingOrdersPath);
   const pendingSheet = pendingWorkbook.Sheets[pendingWorkbook.SheetNames[0]];
-  const pendingRows = XLSX.utils.sheet_to_json(pendingSheet, { header: 1 }) as any[][];
-  const pendingHeader = pendingRows[0].map(h => String(h || '').trim());
+  const pendingRows = XLSX.utils.sheet_to_json(pendingSheet, {
+    header: 1,
+  });
+  const pendingHeader = pendingRows[0].map((h) => String(h || '').trim());
   const pAccountIdx = pendingHeader.indexOf('Mã TKGD');
   const pSymbolIdx = pendingHeader.indexOf('Mã HĐ');
   const pSideIdx = pendingHeader.indexOf('Chiều mua bán');
@@ -153,7 +190,10 @@ function runStep3Test() {
   const pKlKhopIdx = pendingHeader.indexOf('KL khớp');
   const pStatusIdx = pendingHeader.indexOf('Trạng thái');
 
-  const aggregatedOrders = new Map<string, { account: string, symbol: string, buyPending: number, sellPending: number }>();
+  const aggregatedOrders = new Map<
+    string,
+    { account: string; symbol: string; buyPending: number; sellPending: number }
+  >();
   for (let i = 1; i < pendingRows.length; i++) {
     const row = pendingRows[i];
     if (!row || row.length === 0) continue;
@@ -169,7 +209,12 @@ function runStep3Test() {
     if (remaining <= 0) continue;
 
     const key = `${account}_${symbol}`;
-    const existing = aggregatedOrders.get(key) || { account, symbol, buyPending: 0, sellPending: 0 };
+    const existing = aggregatedOrders.get(key) || {
+      account,
+      symbol,
+      buyPending: 0,
+      sellPending: 0,
+    };
     if (side === 'BUY') {
       existing.buyPending += remaining;
     } else if (side === 'SELL') {
@@ -195,7 +240,7 @@ function runStep3Test() {
             openVolume: pos.buyVol,
             pendingVolume: 0,
             pendingSide: '',
-            deadline: c.deadline
+            deadline: c.deadline,
           });
           matchedAccounts.add(pos.account);
         } else if (c.side === 'SELL' && pos.sellVol > 0) {
@@ -207,7 +252,7 @@ function runStep3Test() {
             openVolume: pos.sellVol,
             pendingVolume: 0,
             pendingSide: '',
-            deadline: c.deadline
+            deadline: c.deadline,
           });
           matchedAccounts.add(pos.account);
         }
@@ -229,7 +274,12 @@ function runStep3Test() {
         }
 
         if (pendingVol > 0) {
-          const existing = matchedResults.find(r => r.account === ord.account && r.contractCode === c.contractCode && r.side === c.side);
+          const existing = matchedResults.find(
+            (r) =>
+              r.account === ord.account &&
+              r.contractCode === c.contractCode &&
+              r.side === c.side,
+          );
           if (existing) {
             existing.pendingVolume = pendingVol;
             existing.pendingSide = pendingSide;
@@ -242,7 +292,7 @@ function runStep3Test() {
               openVolume: 0,
               pendingVolume: pendingVol,
               pendingSide: pendingSide,
-              deadline: c.deadline
+              deadline: c.deadline,
             });
             matchedAccounts.add(ord.account);
           }
@@ -279,7 +329,7 @@ function runStep3Test() {
         openVolume: r.openVolume,
         pendingSide: r.pendingVolume > 0 ? (r.pendingSide as any) : 'NONE',
         pendingVolume: r.pendingVolume,
-        deadline: r.deadline
+        deadline: r.deadline,
       });
     }
   }
@@ -306,10 +356,17 @@ function runStep3Test() {
     memberGroup.set(memberCode, list);
   }
 
-  console.log(`Matched accounts from ${memberGroup.size} members (Total unique accounts: ${matchedAccounts.size}).`);
+  console.log(
+    `Matched accounts from ${memberGroup.size} members (Total unique accounts: ${matchedAccounts.size}).`,
+  );
 
   // Build Teams Card payloads
-  const outputFilePath = path.join(process.cwd(), 'temp', 'downloads', 'teams_adaptive_cards.txt');
+  const outputFilePath = path.join(
+    process.cwd(),
+    'temp',
+    'downloads',
+    'teams_adaptive_cards.txt',
+  );
   let outputText = `====================================================\n`;
   outputText += `TEAMS ADAPTIVE CARDS REPORT FOR MATURITY RECONCILIATION\n`;
   outputText += `Target Date: ${targetDateStr}\n`;
@@ -323,12 +380,16 @@ function runStep3Test() {
     const facts: any[] = [];
     items.forEach((item, idx) => {
       if (idx > 0) {
-        facts.push({ title: '---', value: '----------------------------------------' });
+        facts.push({
+          title: '---',
+          value: '----------------------------------------',
+        });
       }
-      const posDesc = item.openVolume > 0
-        ? `${item.openSide === 'BUY' ? 'MUA' : 'BÁN'} (KL: ${item.openVolume} lot)`
-        : 'Không';
-      
+      const posDesc =
+        item.openVolume > 0
+          ? `${item.openSide === 'BUY' ? 'MUA' : 'BÁN'} (KL: ${item.openVolume} lot)`
+          : 'Không';
+
       let pendingDesc = 'Không';
       if (item.pendingVolume > 0) {
         if (item.pendingSide === 'BOTH') {
@@ -340,44 +401,48 @@ function runStep3Test() {
 
       facts.push(
         { title: 'Tài khoản', value: item.account },
-        { title: 'Hợp đồng', value: `${item.contractCode} (${item.contractName})` },
+        {
+          title: 'Hợp đồng',
+          value: `${item.contractCode} (${item.contractName})`,
+        },
         { title: 'Vị thế mở', value: posDesc },
         { title: 'Lệnh chờ', value: pendingDesc },
-        { title: 'Hạn tất toán', value: item.deadline }
+        { title: 'Hạn tất toán', value: item.deadline },
       );
     });
 
     const card = {
-      type: "AdaptiveCard",
+      type: 'AdaptiveCard',
       body: [
         {
-          type: "TextBlock",
-          size: "large",
-          weight: "Bolder",
+          type: 'TextBlock',
+          size: 'large',
+          weight: 'Bolder',
           text: `🚨 CẢNH BÁO ĐÁO HẠN HỢP ĐỒNG - THÀNH VIÊN ${memberCode}`,
-          color: "Attention"
+          color: 'Attention',
         },
         {
-          type: "TextBlock",
-          text: `Chào bộ phận QLGD và Thành viên **${memberCode}**,\n` +
-                `Theo Thông báo thời hạn tất toán hợp đồng được MXV gửi tới TVKD ngày **${noticeDate}**, ` +
-                `vui lòng kiểm tra và thực hiện tất toán vị thế mở, hủy lệnh chờ dẫn tới mở mới vị thế đến hạn để tránh vi phạm quy định.`,
-          wrap: true
-        },
-        {
-          type: "FactSet",
-          facts: facts
-        },
-        {
-          type: "TextBlock",
-          text: "⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.",
+          type: 'TextBlock',
+          text:
+            `Chào bộ phận QLGD và Thành viên **${memberCode}**,\n` +
+            `Theo Thông báo thời hạn tất toán hợp đồng được MXV gửi tới TVKD ngày **${noticeDate}**, ` +
+            `vui lòng kiểm tra và thực hiện tất toán vị thế mở, hủy lệnh chờ dẫn tới mở mới vị thế đến hạn để tránh vi phạm quy định.`,
           wrap: true,
-          weight: "Bolder",
-          color: "Warning"
-        }
+        },
+        {
+          type: 'FactSet',
+          facts: facts,
+        },
+        {
+          type: 'TextBlock',
+          text: '⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
+          wrap: true,
+          weight: 'Bolder',
+          color: 'Warning',
+        },
       ],
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      version: "1.2"
+      $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+      version: '1.2',
     };
 
     outputText += `----------------------------------------------------\n`;
@@ -388,10 +453,17 @@ function runStep3Test() {
   }
 
   fs.writeFileSync(outputFilePath, outputText, 'utf8');
-  console.log(`✅ SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`);
+  console.log(
+    `✅ SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`,
+  );
 
   // Generate the manual text messages for copy-pasting
-  const manualMessagesPath = path.join(process.cwd(), 'temp', 'downloads', 'teams_manual_messages.txt');
+  const manualMessagesPath = path.join(
+    process.cwd(),
+    'temp',
+    'downloads',
+    'teams_manual_messages.txt',
+  );
   let manualText = `====================================================\n`;
   manualText += `DANH SÁCH TEMPLATE TIN NHẮN THỦ CÔNG GỬI THÀNH VIÊN (QLGD)\n`;
   manualText += `Target Date: ${targetDateStr}\n`;
@@ -407,19 +479,30 @@ function runStep3Test() {
       let targetDetail = '';
       if (item.openVolume > 0 && item.pendingVolume > 0) {
         const oSide = item.openSide === 'BUY' ? 'MUA' : 'BÁN';
-        const pSide = item.pendingSide === 'BOTH' ? 'MUA/BÁN' : (item.pendingSide === 'BUY' ? 'MUA' : 'BÁN');
+        const pSide =
+          item.pendingSide === 'BOTH'
+            ? 'MUA/BÁN'
+            : item.pendingSide === 'BUY'
+              ? 'MUA'
+              : 'BÁN';
         targetDetail = `vị thế mở ${oSide} (KL: ${item.openVolume} lot) và lệnh chờ ${pSide} (KL: ${item.pendingVolume} lot)`;
       } else if (item.openVolume > 0) {
         const oSide = item.openSide === 'BUY' ? 'MUA' : 'BÁN';
         targetDetail = `vị thế mở ${oSide} (KL: ${item.openVolume} lot)`;
       } else if (item.pendingVolume > 0) {
-        const pSide = item.pendingSide === 'BOTH' ? 'MUA/BÁN' : (item.pendingSide === 'BUY' ? 'MUA' : 'BÁN');
+        const pSide =
+          item.pendingSide === 'BOTH'
+            ? 'MUA/BÁN'
+            : item.pendingSide === 'BUY'
+              ? 'MUA'
+              : 'BÁN';
         targetDetail = `lệnh chờ ${pSide} (KL: ${item.pendingVolume} lot)`;
       }
 
-      const msg = `Theo Thông báo thời hạn tất toán hợp đồng được MXV gửi tới TVKD ngày ${noticeDate}, thời hạn tất toán ${targetDetail} hợp đồng ${item.contractCode} là ${item.deadline}.\n` +
-                  `TVKD lưu ý kiểm tra lại thông báo, thực hiện tất toán vị thế mở, huỷ lệnh chờ dẫn tới mở mới vị thế đến hạn, tránh vi phạm quy định của MXV về việc Đóng vị thế mở khi đến ngày đáo hạn của hợp đồng.`;
-      
+      const msg =
+        `Theo Thông báo thời hạn tất toán hợp đồng được MXV gửi tới TVKD ngày ${noticeDate}, thời hạn tất toán ${targetDetail} hợp đồng ${item.contractCode} là ${item.deadline}.\n` +
+        `TVKD lưu ý kiểm tra lại thông báo, thực hiện tất toán vị thế mở, huỷ lệnh chờ dẫn tới mở mới vị thế đến hạn, tránh vi phạm quy định của MXV về việc Đóng vị thế mở khi đến ngày đáo hạn của hợp đồng.`;
+
       manualText += `Tài khoản: ${item.account}\n`;
       manualText += `${msg}\n`;
       manualText += `----------------------------------------------------\n\n`;
@@ -427,7 +510,9 @@ function runStep3Test() {
   }
 
   fs.writeFileSync(manualMessagesPath, manualText, 'utf8');
-  console.log(`✅ SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`);
+  console.log(
+    `✅ SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`,
+  );
 }
 
 runStep3Test();
