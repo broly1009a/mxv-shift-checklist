@@ -164,6 +164,23 @@ export default function AdminBotConfigPage() {
     fetchAgentStatus();
   }, [fetchJobs, fetchAgentStatus]);
 
+  // Listen for Microsoft 365 OAuth callback status
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const m365Auth = params.get('m365_auth');
+      const error = params.get('error');
+      
+      if (m365Auth === 'success') {
+        toast.success('Cấp quyền hòm thư Bot Microsoft 365 thành công!');
+        router.replace('/admin/bot-config?tab=credentials');
+      } else if (m365Auth === 'failed') {
+        toast.error(`Cấp quyền hòm thư Bot thất bại: ${error || 'Lỗi không xác định'}`);
+        router.replace('/admin/bot-config?tab=credentials');
+      }
+    }
+  }, [router]);
+
   // Auto-refresh list and status every 8 seconds
   useEffect(() => {
     const timer = setInterval(() => {

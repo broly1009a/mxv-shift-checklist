@@ -2,6 +2,54 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-27 15:16:00] - Feature: Thêm Tính Năng Cấp Quyền Lại (Re-authorize) Hòm Thư Bot M365 & Quản Lý Token Trên UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thêm nút bấm trên trang Admin (cấu hình Bot) để cấp quyền lại (Re-authorize) hòm thư Microsoft 365 của Bot, hiển thị và cho phép chỉnh sửa Refresh Token thủ công, đồng thời lưu và hiển thị thời gian cấp lại token mới gần nhất trên màn hình FE.
+- **Giải pháp**:
+  - **Backend**:
+    - Tích hợp `SystemSettingsService` vào [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts), viết phương thức `exchangeMicrosoftCodeForBot` hỗ trợ trao đổi Authorization Code lấy Access/Refresh Token với các quyền `Mail.Read`, `Mail.ReadWrite`, `offline_access`.
+    - Viết endpoint `GET /api/v1/auth/microsoft-bot` trong [auth.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.controller.ts) để chuyển hướng Admin (có kiểm tra quyền JWT) đến trang đăng nhập Microsoft xin cấp quyền.
+    - Sử dụng cơ chế mã hóa và chữ ký số **Signed State** (ký bởi `JWT_SECRET` kèm theo nhãn thời gian) thay cho kiểm tra Cookie CSRF. Điều này giúp loại bỏ hoàn toàn các rào cản về chính sách Cookie SameSite / Cross-origin Port trên môi trường Localhost (khi Frontend chạy cổng 3000 và Backend chạy cổng 5000).
+    - Cập nhật hàm callback `microsoft/callback` để kiểm chứng chữ ký của `state`. Nếu hợp lệ và chứa tiền tố `bot:`, sẽ đổi lấy token cho Bot, cập nhật Refresh Token mới vào Database (`m365_refresh_token`), lưu thời gian cấp lại mới nhất vào database (`m365_token_renewed_at`), rồi chuyển hướng Admin quay lại giao diện Bot với tham số `m365_auth=success`.
+    - Cập nhật phương thức xoay vòng token tự động trong [email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts) để cũng tự động cập nhật `m365_token_renewed_at` vào database khi xoay vòng token thành công.
+    - Cập nhật [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) để đọc/lưu các cấu hình hòm thư M365 (bao gồm cả `tokenRenewedAt` từ database) thông qua các API cấu hình hiện tại.
+  - **Frontend**:
+    - Bổ sung form cấu hình hòm thư M365 (gồm Client ID, Tenant ID, Client Secret, Watcher Email, Refresh Token) trong tab **Tài khoản kết nối** của [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx).
+    - Hiển thị thời gian cấp lại token gần nhất (nếu có) bằng nhãn định dạng ngày giờ Việt Nam (`toLocaleString('vi-VN')`) với màu sắc xanh tươi sáng chỉ báo trạng thái hoạt động tốt, đặt nằm cạnh nút bấm **Cấp quyền (Authorize)** trong thanh tiêu đề của thẻ cấu hình.
+    - Thêm nút **Cấp quyền (Authorize)** giúp Admin mở trình duyệt đăng nhập Microsoft và nhận Refresh Token tự động.
+    - Xử lý nhận query params trả về tại [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/page.tsx) để hiển thị thông báo Toast thành công hoặc lỗi chi tiết.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/auth/auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts) [MODIFY]
+- [backend/src/modules/auth/auth.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.controller.ts) [MODIFY]
+- [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts) [MODIFY]
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) [MODIFY]
+- [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx) [MODIFY]
+- [frontend/src/app/admin/bot-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Frontend: Chạy lệnh `npm run build` thành công (Pass).
+- Backend: Chạy lệnh `npm run build` thành công (Pass).
+
+---
+
+## [2026-07-27 15:10:00] - Fix: Khắc Phục Lỗi Biên Dịch TypeScript - Implicitly Has Any Type Trong email-watcher.service.ts
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi biên dịch TypeScript: `Parameter 'line' implicitly has an 'any' type` tại file [email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts#L577).
+- **Nguyên nhân**: Biến `bodyContent` nhận giá trị từ đối tượng `email` kiểu `any` (do dữ liệu trả về từ Microsoft Graph API nhận dạng dạng JSON thô không định dạng kiểu rõ ràng), dẫn đến phương thức `.split('\n')` cũng bị suy diễn kiểu `any` cho mảng `lines`. Khi sử dụng `lines.find((line) => ...)`, tham số `line` trong hàm callback không được tự động suy diễn kiểu, gây ra lỗi `noImplicitAny: true`.
+- **Giải pháp**: Bổ sung khai báo kiểu tường minh cho `bodyContent: string` tại thời điểm khởi tạo. Trình biên dịch TypeScript lúc này sẽ tự động hiểu `bodyContent.split('\n')` trả về một mảng kiểu `string[]`, từ đó tự động suy luận được kiểu của tham số `line` là `string` trong hàm `find`, giải quyết triệt để lỗi biên dịch mà không cần ép kiểu thủ công phức tạp.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Frontend: Chạy lệnh `npm run build` thành công (Pass).
+- Backend: Chạy lệnh `npm run build` thành công (Pass).
+
+---
+
 ## [2026-07-27 10:52:00] - Refactor: Tổ Chức Lại Thư Mục Dữ Liệu Data Theo Khối Ban (Quanlygiaodich)
 
 ### 1. Mục tiêu Thay đổi

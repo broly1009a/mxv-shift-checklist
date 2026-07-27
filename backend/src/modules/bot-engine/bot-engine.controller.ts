@@ -232,6 +232,23 @@ export class BotEngineController {
     );
     const usdExchangeRate = parseFloat(usdExchangeRateStr) || 25220;
 
+    // Load M365 configs
+    const m365ClientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
+    const m365TenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
+    const m365WatcherEmail = (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+    const m365ClientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
+    const m365RefreshToken = (await this.settingsService.getSetting('m365_refresh_token', '')) || process.env.MICROSOFT_REFRESH_TOKEN || '';
+    const m365TokenRenewedAt = await this.settingsService.getSetting('m365_token_renewed_at', '') || '';
+
+    const m365 = {
+      clientId: m365ClientId,
+      tenantId: m365TenantId,
+      watcherEmail: m365WatcherEmail,
+      clientSecret: m365ClientSecret ? '********' : '',
+      refreshToken: m365RefreshToken ? '********' : '',
+      tokenRenewedAt: m365TokenRenewedAt,
+    };
+
     return {
       msystem,
       cqg,
@@ -240,6 +257,7 @@ export class BotEngineController {
       ccp,
       cpp: ccp,
       ce,
+      m365,
       schedulerConfig,
       sessionStartTime,
       usdExchangeRate,
@@ -259,6 +277,7 @@ export class BotEngineController {
       ccp,
       cpp,
       ce,
+      m365,
       schedulerConfig,
       sessionStartTime,
       usdExchangeRate,
@@ -504,6 +523,24 @@ export class BotEngineController {
         'bot_credentials_ce',
         encrypt(JSON.stringify(mergedCe)),
       );
+    }
+
+    if (m365) {
+      if (m365.clientId !== undefined) {
+        await this.settingsService.setSetting('m365_client_id', m365.clientId.trim());
+      }
+      if (m365.tenantId !== undefined) {
+        await this.settingsService.setSetting('m365_tenant_id', m365.tenantId.trim());
+      }
+      if (m365.watcherEmail !== undefined) {
+        await this.settingsService.setSetting('m365_watcher_email', m365.watcherEmail.trim());
+      }
+      if (m365.clientSecret && m365.clientSecret !== '********') {
+        await this.settingsService.setSetting('m365_client_secret', m365.clientSecret);
+      }
+      if (m365.refreshToken && m365.refreshToken !== '********') {
+        await this.settingsService.setSetting('m365_refresh_token', m365.refreshToken);
+      }
     }
 
     return {

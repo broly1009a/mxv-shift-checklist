@@ -13,6 +13,7 @@ import * as path from 'path';
 import { User } from '../../schemas/user.schema';
 import { Department } from '../../schemas/department.schema';
 import { Division } from '../../schemas/division.schema';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly departmentModel: Model<Department>,
     @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
     private readonly jwtService: JwtService,
+    private readonly settingsService: SystemSettingsService,
   ) {
     // Periodically clean up expired exchange codes (every 5 minutes)
     setInterval(() => {
@@ -359,5 +361,46 @@ export class AuthService {
       access_token: data.token,
       user: data.user,
     };
+  }
+
+  async exchangeMicrosoftCodeForBot(code: string) {
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      'common';
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID;
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET;
+    const redirectUri = process.env.MICROSOFT_CALLBACK_URL;
+
+    const tokenResponse = await fetch(
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId || '',
+          scope: 'Mail.Read Mail.ReadWrite offline_access',
+          code: code,
+          redirect_uri: redirectUri || '',
+          grant_type: 'authorization_code',
+          client_secret: clientSecret || '',
+        }),
+      },
+    );
+
+    if (!tokenResponse.ok) {
+      const errData = await tokenResponse.json();
+      throw new Error(
+        errData.error_description || 'Không thể xác thực mã OAuth Bot với Microsoft.',
+      );
+    }
+
+    return tokenResponse.json();
   }
 }

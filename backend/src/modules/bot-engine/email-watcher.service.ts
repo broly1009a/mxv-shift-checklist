@@ -456,4 +456,199 @@ export class EmailWatcherService {
     }
     return null;
   }
+
+  /**
+   * NEW DELEGATED MECHANISM: Check if email condition is met using a Delegated Refresh Token.
+   * This is used for UAT testing without requiring IT to grant tenant-wide Application permissions.
+   */
+  async checkEmailTaskDelegated(
+    target: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // 1. Resolve Target parameters
+    let filterSubject = '';
+    let filterSender = '';
+    let customDownloadDir = '';
+    try {
+      const parsedTarget = JSON.parse(target);
+      filterSubject = parsedTarget.subject || '';
+      filterSender = parsedTarget.sender || '';
+      customDownloadDir = parsedTarget.downloadDir || '';
+    } catch {
+      filterSubject = target;
+    }
+
+    // 2. Fetch credentials
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
+
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
+
+    if (isSimulation) {
+      this.logger.debug(
+        `[Simulation-Delegated] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`,
+      );
+      return this.checkMockEmail(
+        filterSubject,
+        filterSender,
+        condition,
+        customDownloadDir,
+      );
+    }
+
+    try {
+      // 3. Get Delegated Access Token using Refresh Token
+      const accessToken = await this.getAccessTokenDelegated(clientId, clientSecret, tenantId);
+
+      // 4. Query messages from user's mailbox received in the last 12 hours
+      const timeLimit = new Date(
+        Date.now() - 12 * 60 * 60 * 1000,
+      ).toISOString();
+      const filter = `receivedDateTime ge ${timeLimit}`;
+      const select = 'subject,sender,bodyPreview,body';
+      const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=30`;
+
+      const mailRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!mailRes.ok) {
+        throw new Error(`Graph API query failed: ${mailRes.statusText}`);
+      }
+
+      const mailData = await mailRes.json();
+      const emails = mailData.value || [];
+
+      // 5. Scan emails for subject, sender, and success condition
+      for (const email of emails) {
+        const subjectMatch =
+          !filterSubject ||
+          email.subject.toLowerCase().includes(filterSubject.toLowerCase());
+        const senderMatch =
+          !filterSender ||
+          email.sender?.emailAddress?.address.toLowerCase() ===
+            filterSender.toLowerCase();
+
+        if (subjectMatch && senderMatch) {
+          const bodyContent: string = (
+            email.body?.content ||
+            email.bodyPreview ||
+            ''
+          ).toLowerCase();
+
+          const lines = bodyContent.split('\n');
+          let conditionMet = false;
+          let matchedSnippet = '';
+
+          if (condition.startsWith('body_contains:')) {
+            const keyword = condition.replace('body_contains:', '').trim().toLowerCase();
+            conditionMet = bodyContent.includes(keyword);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư chứa từ khóa "${keyword}"`;
+            }
+          } else if (condition.startsWith('body_regex:')) {
+            const regexStr = condition.replace('body_regex:', '').trim();
+            const regex = new RegExp(regexStr, 'i');
+            conditionMet = regex.test(bodyContent);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư khớp biểu thức chính quy: /${regexStr}/`;
+            }
+          } else if (condition.startsWith('body_line_match:')) {
+            const matchStr = condition.replace('body_line_match:', '').trim().toLowerCase();
+            const matchingLine = lines.find((line) => line.toLowerCase().includes(matchStr));
+            if (matchingLine) {
+              conditionMet = true;
+              matchedSnippet = `Dòng khớp: "${matchingLine.trim()}"`;
+            }
+          }
+
+          if (conditionMet) {
+            // Downloader attachments
+            await this.downloadAttachments(email.id, watcherEmail, accessToken, customDownloadDir);
+            return {
+              success: true,
+              message: `Đã tìm thấy email khớp: "${email.subject}". ${matchedSnippet}`,
+            };
+          }
+        }
+      }
+
+      return {
+        success: false,
+        message: `Đã quét hòm thư nhưng không tìm thấy email nào khớp tiêu đề "${filterSubject}" và người gửi "${filterSender}" đáp ứng điều kiện: "${condition}"`,
+      };
+    } catch (err: any) {
+      this.logger.error(`Error in checkEmailTaskDelegated: ${err.message}`);
+      return {
+        success: false,
+        message: `Lỗi kết nối kiểm tra email (Delegated): ${err.message}`,
+      };
+    }
+  }
+
+  /**
+   * Helper to retrieve Microsoft Graph Access Token using Refresh Token flow.
+   * Auto-rotates and saves the new refresh token to the database settings.
+   */
+  private async getAccessTokenDelegated(
+    clientId: string,
+    clientSecret: string,
+    tenantId: string,
+  ): Promise<string> {
+    const refreshToken =
+      (await this.settingsService.getSetting('m365_refresh_token', '')) ||
+      process.env.MICROSOFT_REFRESH_TOKEN ||
+      '';
+
+    if (!refreshToken) {
+      throw new Error("Không tìm thấy m365_refresh_token trong Database hoặc MICROSOFT_REFRESH_TOKEN trong file .env!");
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refreshToken);
+    params.append('scope', 'https://graph.microsoft.com/.default');
+
+    this.logger.debug(`[M365-DELEGATED] Requesting new access token with Refresh Token...`);
+    const tokenRes = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      throw new Error(`Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`);
+    }
+
+    const tokenData = await tokenRes.json();
+    if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
+      this.logger.log(`[M365-DELEGATED] Tự động cập nhật Refresh Token mới vào Database.`);
+      await this.settingsService.setSetting('m365_refresh_token', tokenData.refresh_token);
+      await this.settingsService.setSetting('m365_token_renewed_at', new Date().toISOString());
+    }
+    return tokenData.access_token;
+  }
 }
