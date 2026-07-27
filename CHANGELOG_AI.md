@@ -2,6 +2,26 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-27 23:45:00] - Refactor: Tối Ưu Trải Nghiệm Di Động & Cơ Chế Bảo Vệ Thao Tác Chốt Ca Trực
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải thiện trải nghiệm giao diện trên thiết bị di động (khi truy cập qua VPN hoặc Wi-Fi nội bộ) và nâng cao trải nghiệm người dùng (UX).
+- **Giải pháp**:
+  - **Chốt ca trực an toàn**: Bổ sung hộp thoại xác nhận `window.confirm` trong hàm `handleCloseShift` thuộc [useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) để tránh việc người dùng vô tình chốt ca khi bấm nhầm trên màn hình cảm ứng điện thoại.
+  - **Tối ưu Grid form đối chiếu**: Chuyển đổi inline grid `gridTemplateColumns: mode === 'CQG' ? '1fr 1fr' : '1fr 1fr 1.5fr'` trong [ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) thành các lớp responsive Grid của Tailwind CSS (`grid-cols-1 md:grid-cols-2` và `grid-cols-1 md:grid-cols-3`). Nhờ đó, form nhập liệu tự động chuyển thành 1 cột dọc gọn gàng trên màn hình điện thoại nhỏ và phục hồi chia cột trên desktop.
+  - **Cuộn ngang cho bảng số liệu**: Bổ sung `overflowX: 'auto'` vào tất cả các container bọc bảng hiển thị chênh lệch chi tiết khi chạy đối chiếu trong [ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) để hỗ trợ vuốt cuộn ngang mượt mà trên di động, tránh tràn viền hay méo bảng.
+  - **Sticky Search & Filters**: Cấu hình thuộc tính ghim ở đầu cửa sổ (`sticky top-[74px] z-10 backdrop-blur-md`) cho cụm tìm kiếm và lọc trạng thái trong [TaskTable.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx). Giúp người dùng dễ dàng lọc tác vụ khi cuộn danh sách dài mà không cần cuộn ngược lên đầu trang.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/hooks/useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) [MODIFY]
+- [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch Next.js production build: Chạy lệnh `npm run build` trong thư mục `frontend` thành công 100% không cảnh báo lỗi (Pass).
+
+---
+
 ## [2026-07-27 23:05:00] - Feature: Tích Hợp Cơ Chế Tự Động Dọn Dẹp File Tạm Và File Báo Cáo Trên Ổ Đĩa
 
 ### 1. Mục tiêu Thay đổi
