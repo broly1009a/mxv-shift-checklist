@@ -2,6 +2,29 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-27 23:05:00] - Feature: Tích Hợp Cơ Chế Tự Động Dọn Dẹp File Tạm Và File Báo Cáo Trên Ổ Đĩa
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phân tích hệ thống và triển khai cơ chế tự động dọn dẹp (clean up) file vật lý trên ổ đĩa.
+- **Giải pháp**:
+  - Tích hợp thêm logic dọn dẹp file vật lý vào phương thức `handleRetentionCleanup` chạy tự động vào 00:00 hàng ngày thuộc [cleanup.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/system-settings/cleanup.service.ts).
+  - Viết phương thức đệ quy `cleanDirectoryRecursive(dirPath, thresholdDate, excludeFiles)` để quét thư mục, xóa các file có thời gian sửa đổi (`mtime`) cũ hơn ngưỡng cấu hình, đồng thời tự động xóa các thư mục con rỗng sau khi dọn dẹp.
+  - Áp dụng các mốc thời gian dọn dẹp chi tiết:
+    - Thư mục tạm `temp/` (chứa các thư mục con `reports`, `downloads`, `gtt`, `debug`, `reconciliation`...): Dọn dẹp các file cũ hơn **7 ngày** và tự động giải phóng thư mục con rỗng.
+    - Thư mục kết quả robot `uploads/agent-results/`: Dọn dẹp các file báo cáo cũ hơn **30 ngày**.
+    - Thư mục báo cáo giao dịch `uploads/trading-report/`: Dọn dẹp các file báo cáo cũ hơn **30 ngày**.
+    - Thư mục thống kê CCP `uploads/ccp-statistics/`: Dọn dẹp các file cũ hơn **30 ngày**, cấu hình loại trừ (không xóa) file cơ sở dữ liệu tích lũy `Thong_ke_kich_ban_Pilot_Bac_Final.xlsx`.
+  - Tăng cường log hệ thống bằng Tiếng Việt chi tiết hiển thị số lượng file và thư mục con rỗng đã xóa sau khi hoàn thành.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/system-settings/cleanup.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/system-settings/cleanup.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch ứng dụng NestJS backend: Chạy lệnh `npm run build` thành công (Pass).
+- Chạy test thử nghiệm thực tế với NestJS context thành công: Các file nháp và thư mục rỗng cũ hơn 7/30 ngày bị xóa sạch, file mới tạo và file loại trừ được giữ lại chính xác (Pass).
+
+---
+
 ## [2026-07-27 15:16:00] - Feature: Thêm Tính Năng Cấp Quyền Lại (Re-authorize) Hòm Thư Bot M365 & Quản Lý Token Trên UI
 
 ### 1. Mục tiêu Thay đổi
