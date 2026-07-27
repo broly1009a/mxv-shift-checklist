@@ -2,6 +2,33 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 00:10:00] - Feature: Triển Khai Tính Năng Tìm Kiếm Toàn Cục (Global Search) Phục Vụ Vận Hành
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế placeholder cũ bằng `"Tìm kiếm sự cố, biên bản..."` và lập trình logic cho phép tìm kiếm nhanh các sự cố (Incidents), các tác vụ vận hành (Tasks) và biên bản bàn giao ca trực (Handovers) liên quan đến từ khóa nhập vào.
+- **Giải pháp**:
+  - **Backend**:
+    - Thêm phương thức `searchIncidents` trong [incidents.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts) để tìm kiếm các sự cố (Incidents) có phân quyền theo phân khối/bộ phận.
+    - Thêm phương thức `globalSearch` trong [shifts.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) để tổng hợp kết quả tìm kiếm sự cố, tác vụ và biên bản bàn giao ca trực từ cơ sở dữ liệu MongoDB.
+    - Tạo endpoint API `GET /api/v1/shifts/search/global?q={value}` trong [shifts.controller.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.controller.ts) (nằm trước endpoint parametric `:id` để tránh xung đột định tuyến).
+  - **Frontend**:
+    - Nâng cấp [Header.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/components/Header.tsx): đổi placeholder thành `"Tìm kiếm sự cố, biên bản..."`.
+    - Viết hook `useEffect` hỗ trợ **Debounce (400ms)** để gọi API tìm kiếm toàn cục khi nhập từ khóa.
+    - Thêm cửa sổ kết quả tìm kiếm thả xuống (Popover) dạng glassmorphism hiển thị trực quan các kết quả tìm kiếm được phân loại (Sự cố 🔴, Tác vụ 🔵, Biên bản bàn giao 🟢) kèm theo các icon động từ `lucide-react`.
+    - Bổ sung ref `searchContainerRef` và cơ chế click-outside để đóng Popover kết quả khi người dùng click ra ngoài ô tìm kiếm.
+    - Khi click chọn một dòng kết quả, hệ thống tự động điều hướng người dùng chuyển hướng sang `/checklist?id={shiftLogId}` tương ứng.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/incidents/incidents.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts) [MODIFY]
+- [backend/src/modules/shifts/shifts.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) [MODIFY]
+- [backend/src/modules/shifts/shifts.controller.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.controller.ts) [MODIFY]
+- [frontend/src/components/Header.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/components/Header.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch cả Backend (`nest build`) và Frontend (`next build`) thành công 100% không có lỗi.
+
+---
+
 ## [2026-07-27 23:45:00] - Refactor: Tối Ưu Trải Nghiệm Di Động & Cơ Chế Bảo Vệ Thao Tác Chốt Ca Trực
 
 ### 1. Mục tiêu Thay đổi

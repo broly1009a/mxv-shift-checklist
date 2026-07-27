@@ -1253,4 +1253,75 @@ export class ShiftsService {
       .sort({ createdAt: -1 })
       .exec();
   }
+
+  async globalSearch(query: string, user: any) {
+    const scopeFilter = await this.accessControlService.getScopeFilter(user);
+    const regex = new RegExp(query, 'i');
+    
+    // 1. Search Incidents via incidentsService
+    const incidents = await this.incidentsService.searchIncidents(query, user);
+
+    // 2. Search ShiftLogs (handoverNote, details)
+    const logFilter: any = {
+      ...scopeFilter,
+      $or: [
+        { handoverNote: { $regex: regex } },
+        { 'details.taskNameSnapshot': { $regex: regex } },
+        { 'details.note': { $regex: regex } },
+        { 'details.resultNote': { $regex: regex } },
+      ],
+    };
+
+    const logs = await this.shiftLogModel
+      .find(logFilter)
+      .populate('templateId')
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .exec();
+
+    const matchedHandovers = [];
+    const matchedTasks = [];
+
+    for (const log of logs) {
+      // Check handoverNote
+      if (log.handoverNote && regex.test(log.handoverNote)) {
+        matchedHandovers.push({
+          shiftLogId: log._id.toString(),
+          shiftTitle: (log.templateId as any)?.title || 'Ca trực',
+          shiftDate: log.shiftDate,
+          handoverNote: log.handoverNote,
+          status: log.status,
+        });
+      }
+
+      // Check tasks details
+      for (const detail of log.details) {
+        const isTaskMatch = 
+          regex.test(detail.taskId) ||
+          regex.test(detail.taskNameSnapshot) ||
+          (detail.note && regex.test(detail.note)) ||
+          (detail.resultNote && regex.test(detail.resultNote));
+
+        if (isTaskMatch) {
+          matchedTasks.push({
+            shiftLogId: log._id.toString(),
+            shiftTitle: (log.templateId as any)?.title || 'Ca trực',
+            shiftDate: log.shiftDate,
+            taskId: detail.taskId,
+            taskName: detail.taskNameSnapshot,
+            isChecked: detail.isChecked,
+            status: detail.status,
+            note: detail.note,
+            resultNote: detail.resultNote,
+          });
+        }
+      }
+    }
+
+    return {
+      incidents,
+      tasks: matchedTasks.slice(0, 10),
+      handovers: matchedHandovers.slice(0, 10),
+    };
+  }
 }

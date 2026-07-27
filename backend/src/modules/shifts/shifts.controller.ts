@@ -87,6 +87,14 @@ export class ShiftsController {
     );
   }
 
+  @Get('search/global')
+  async globalSearch(@Request() req: any, @Query('q') query: string) {
+    if (!query) {
+      return { incidents: [], tasks: [], handovers: [] };
+    }
+    return this.shiftsService.globalSearch(query, req.user);
+  }
+
   @Get(':id')
   async getOne(@Request() req: any, @Param('id') id: string) {
     return this.shiftsService.getShiftById(id, req.user);

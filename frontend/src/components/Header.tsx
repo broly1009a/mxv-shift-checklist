@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { 
   Sun, 
   Moon, 
@@ -12,7 +12,11 @@ import {
   LogOut, 
   Settings, 
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  AlertTriangle,
+  FileText,
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import NotificationDropdown from './NotificationDropdown';
@@ -28,7 +32,18 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
   const [zoom, setZoom] = useState<number>(100);
   const [searchVal, setSearchVal] = useState('');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  
+  // Search States
+  const [searchResults, setSearchResults] = useState<{
+    incidents: any[];
+    tasks: any[];
+    handovers: any[];
+  }>({ incidents: [], tasks: [], handovers: [] });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Handle Ctrl+K shortcut to focus search
@@ -42,6 +57,37 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Debounced API Search Query
+  useEffect(() => {
+    if (!searchVal.trim()) {
+      setSearchResults({ incidents: [], tasks: [], handovers: [] });
+      setShowSearchResults(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setSearchLoading(true);
+      setShowSearchResults(true);
+      try {
+        const res = await fetch(`${API_BASE_URL || 'http://localhost:3001'}/api/v1/shifts/search/global?q=${encodeURIComponent(searchVal)}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+        }
+      } catch (error) {
+        console.error('Error fetching global search results:', error);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchVal, token]);
 
   // Set initial zoom property on mount
   useEffect(() => {
@@ -74,6 +120,9 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     const handleOutsideClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setShowProfileDropdown(false);
+      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -155,7 +204,7 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
         </button>
 
         {/* Search Input bar */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }} className="hidden sm:block">
+        <div ref={searchContainerRef} style={{ position: 'relative', width: '100%', maxWidth: '380px' }} className="hidden sm:block">
           <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
             <Search size={16} />
           </div>
@@ -163,7 +212,7 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
             ref={searchInputRef}
             type="text"
             className="form-input"
-            placeholder="Mã GD, tài khoản, thành viên..."
+            placeholder="Tìm kiếm sự cố, biên bản..."
             style={{ 
               paddingLeft: '38px', 
               paddingRight: '64px', 
@@ -174,6 +223,11 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
             }}
             value={searchVal}
             onChange={(e) => setSearchVal(e.target.value)}
+            onFocus={() => {
+              if (searchVal.trim()) {
+                setShowSearchResults(true);
+              }
+            }}
           />
           <div style={{ 
             position: 'absolute', 
@@ -191,6 +245,160 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
           }}>
             Ctrl+K
           </div>
+
+          {/* Global Search Results Dropdown */}
+          {showSearchResults && searchVal.trim() && (
+            <div 
+              className="glass-panel" 
+              style={{
+                position: 'absolute',
+                top: '42px',
+                left: 0,
+                width: '100%',
+                maxHeight: '380px',
+                overflowY: 'auto',
+                background: 'var(--bg-sidebar)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                boxShadow: 'var(--glass-shadow)',
+                padding: '12px',
+                zIndex: 150,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              {searchLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '16px', color: 'var(--text-secondary)' }}>
+                  <Loader2 className="animate-spin" size={16} />
+                  <span style={{ fontSize: '0.85rem' }}>Đang tìm kiếm...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Empty state */}
+                  {searchResults.incidents.length === 0 && 
+                   searchResults.tasks.length === 0 && 
+                   searchResults.handovers.length === 0 ? (
+                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      Không tìm thấy kết quả phù hợp.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Incidents Section */}
+                      {searchResults.incidents.length > 0 && (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-critical)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                            <AlertTriangle size={12} />
+                            Sự cố ({searchResults.incidents.length})
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {searchResults.incidents.map((inc) => (
+                              <Link 
+                                href={`/checklist?id=${inc.shiftLogId?._id || inc.shiftLogId}`}
+                                key={inc._id}
+                                onClick={() => setShowSearchResults(false)}
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  padding: '8px',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  transition: 'background 0.2s',
+                                }}
+                                className="hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  [{inc.code}] {inc.requiredAction}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  {inc.shiftLogId?.templateId?.title || 'Ca trực'} • {inc.shiftLogId?.shiftDate || ''}
+                                </span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tasks Section */}
+                      {searchResults.tasks.length > 0 && (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                            <FileText size={12} />
+                            Tác vụ ({searchResults.tasks.length})
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {searchResults.tasks.map((task, idx) => (
+                              <Link 
+                                href={`/checklist?id=${task.shiftLogId}`}
+                                key={idx}
+                                onClick={() => setShowSearchResults(false)}
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  padding: '8px',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  transition: 'background 0.2s',
+                                }}
+                                className="hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  [{task.taskId}] {task.taskName}
+                                </span>
+                                {task.note && (
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                    Chú thích: {task.note}
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  {task.shiftTitle} • {task.shiftDate}
+                                </span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Handovers Section */}
+                      {searchResults.handovers.length > 0 && (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                            <BookOpen size={12} />
+                            Biên bản bàn giao ({searchResults.handovers.length})
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {searchResults.handovers.map((h, idx) => (
+                              <Link 
+                                href={`/checklist?id=${h.shiftLogId}`}
+                                key={idx}
+                                onClick={() => setShowSearchResults(false)}
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  padding: '8px',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  transition: 'background 0.2s',
+                                }}
+                                className="hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {h.handoverNote}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  {h.shiftTitle} • {h.shiftDate}
+                                </span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
