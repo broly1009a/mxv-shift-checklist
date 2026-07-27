@@ -264,8 +264,9 @@ export default function AdminShiftSlotsPage() {
               Chưa có cấu hình ca trực nào. Nhấn <strong>"Thêm ca trực mới"</strong> để bắt đầu.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-responsive-wrapper">
               <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
+
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '12px 16px' }}>Thứ tự</th>

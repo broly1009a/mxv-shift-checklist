@@ -1,0 +1,16 @@
+Giải Pháp Chuẩn 100% Để Test UAT Chuẩn Xác (Không Bị Mất Tính Khách Quan):
+Để buổi test UAT phản ánh đúng 100% năng lực tự động của Bot, em và anh sẽ áp dụng đúng 1 trong 2 cách setup sau:
+
+Cách 1: Chỉ Kéo File THÔ Sang UAT (Không Kéo File Kết Quả Đã Làm)
+Lúc cấu hình lệnh kéo/đồng bộ từ M:\Quanlygiaodich\ sang UAT, chúng ta chỉ cho phép copy 2 thư mục chứa file thô:
+
+Backup MS/Futures/<Ngày> (chứa DSGD.xlsx, TTM.xlsx...)
+Backup CQG/Futures/<Ngày> (chứa FR1, FR2, PS1, PS2...)
+❌ KHÔNG copy các file báo cáo kết quả (Thong ke gia tri..., DSGD T07.2026.xlsx...) từ ổ gốc sang.
+👉 Kết quả: Bên OperateChecklist_UAT chỉ có duy nhất dữ liệu thô. Toàn bộ file kết quả sẽ do 100% Bot tự tính toán và tự sinh ra từ đầu.
+
+Cách 2: Dùng File Mẫu Trắng Cho OperateChecklist_UAT
+Trong thư mục OperateChecklist_UAT, các file kết quả lũy kế của ngày hôm nay (ngày test) sẽ để trống dòng của ngày hôm nay.
+
+Khi Bot chạy, Bot sẽ tìm dòng ngày hôm nay và tự ghi con số tính được vào.
+Anh chỉ cần mở ra xem con số Bot tự ghi trên OperateChecklist_UAT có khớp với con số QLGD tự làm bên Quanlygiaodich hay không!
