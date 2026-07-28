@@ -150,16 +150,7 @@ export default function TaskTable({
   togglingTaskIds
 }: TaskTableProps) {
 
-  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
-
-  const toggleParent = (taskId: string) => {
-    setExpandedParents(prev => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-  };
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Build parent→children map from full log.details
   const childrenMap = useMemo(() => {
@@ -174,23 +165,6 @@ export default function TaskTable({
     return map;
   }, [log.details]);
 
-  const hasInitializedExpansionRef = React.useRef(false);
-
-  // Auto-expand parent tasks with incomplete, failed, or needs attention subtasks on mount
-  React.useEffect(() => {
-    if (log.details && log.details.length > 0 && !hasInitializedExpansionRef.current) {
-      const initialExpanded = new Set<string>();
-      Object.entries(childrenMap).forEach(([pid, children]) => {
-        const hasIncomplete = children.some(c => !c.isChecked || c.status === 'FAILED' || c.status === 'NEEDS_ATTENTION');
-        if (hasIncomplete) {
-          initialExpanded.add(pid);
-        }
-      });
-      setExpandedParents(initialExpanded);
-      hasInitializedExpansionRef.current = true;
-    }
-  }, [log.details, childrenMap]);
-
   // IDs that are children (to skip rendering them standalone)
   const childIds = useMemo(() => {
     const ids = new Set<string>();
@@ -203,6 +177,44 @@ export default function TaskTable({
     filteredDetails.filter(d => !childIds.has(d.taskId)),
     [filteredDetails, childIds]
   );
+
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return log.details.find(d => d.taskId === selectedTaskId) || null;
+  }, [selectedTaskId, log.details]);
+
+  // Auto-select first failed/needs_attention or incomplete parent task on mount
+  const hasInitializedSelectionRef = React.useRef(false);
+  React.useEffect(() => {
+    if (parentDetails && parentDetails.length > 0 && !hasInitializedSelectionRef.current) {
+      const firstUrgent = parentDetails.find(p => {
+        if (p.status === 'FAILED' || p.status === 'NEEDS_ATTENTION' || !p.isChecked) {
+          return true;
+        }
+        const children = childrenMap[p.taskId] || [];
+        return children.some(c => !c.isChecked || c.status === 'FAILED' || c.status === 'NEEDS_ATTENTION');
+      });
+      
+      if (firstUrgent) {
+        setSelectedTaskId(firstUrgent.taskId);
+      } else {
+        setSelectedTaskId(parentDetails[0].taskId);
+      }
+      hasInitializedSelectionRef.current = true;
+    }
+  }, [parentDetails, childrenMap]);
+
+  // If selected task is filtered out, select the first matching parent
+  React.useEffect(() => {
+    if (selectedTaskId && parentDetails.length > 0) {
+      const exists = parentDetails.some(p => p.taskId === selectedTaskId);
+      if (!exists) {
+        setSelectedTaskId(parentDetails[0].taskId);
+      }
+    } else if (parentDetails.length > 0 && !selectedTaskId) {
+      setSelectedTaskId(parentDetails[0].taskId);
+    }
+  }, [parentDetails, selectedTaskId]);
 
   const getPriorityBadge = (p: string) => {
     switch (p) {
@@ -292,726 +304,853 @@ export default function TaskTable({
         </div>
       </div>
 
+      {/* Master-Detail Grid Layout */}
+      <div 
+        className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6" 
+        style={{ marginTop: '12px', alignItems: 'start' }}
+      >
+        {/* Left Column: Parent Tasks List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '72vh', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+          {parentDetails.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+              Không tìm thấy tác vụ phù hợp với bộ lọc.
+            </div>
+          ) : (
+            parentDetails.map((item, idx) => {
+              const children = childrenMap[item.taskId] || [];
+              const hasChildren = children.length > 0;
+              const isBotOnly = item.isBotCheckSnapshot && !hasChildren;
+              const currentStatus = item.status || 'PENDING';
+              const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
+              const StatusIcon = currentStatusConfig.icon;
+              const isSelected = selectedTaskId === item.taskId;
 
-      {/* Checklist tasks mapping */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {parentDetails.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-            Không tìm thấy tác vụ phù hợp với bộ lọc.
-          </div>
-        ) : (
-          parentDetails.map((item, idx) => {
-            const children = childrenMap[item.taskId] || [];
-            const hasChildren = children.length > 0;
-            const isExpanded = expandedParents.has(item.taskId);
-            const isBotOnly = item.isBotCheckSnapshot && !hasChildren;
-            const isSaving = savingTaskId === item.taskId;
-            const isToggling = togglingTaskIds.has(item.taskId);
-            const currentStatus = item.status || 'PENDING';
-            const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
-            const StatusIcon = currentStatusConfig.icon;
-            const locked = isTaskLocked(item);
-            const isChildDropdownActive = children.some(c => c.taskId === openStatusDropdownTaskId);
-            const isSelfDropdownActive = openStatusDropdownTaskId === item.taskId;
-            const isDropdownActive = isSelfDropdownActive || isChildDropdownActive;
-
-            return (
-              <div key={`${item.taskId}-${idx}`} className="animate-fade-in" style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                position: 'relative',
-                zIndex: isDropdownActive ? 100 : (log.details.length - idx)
-              }}>
-              <div className="glass-panel" style={{
-                padding: '16px',
-                borderRadius: hasChildren ? '12px 12px 0 0' : '12px',
-                background: isBotOnly
-                  ? 'rgba(236,72,153,0.03)'
-                  : item.isChecked ? 'rgba(16, 185, 129, 0.012)' : 'var(--bg-app)',
-                borderLeft: isBotOnly
-                  ? '4px solid #ec4899'
-                  : hasChildren
-                    ? '4px solid #8b5cf6'
-                    : item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                transition: 'all 0.2s ease',
-                opacity: isToggling ? 0.6 : 1,
-                pointerEvents: isToggling ? 'none' : 'auto',
-                cursor: hasChildren ? 'pointer' : 'default',
-              }}
-              onClick={hasChildren ? () => toggleParent(item.taskId) : undefined}
-              >
-
-                {/* Checkbox and task information row */}
-                <div 
-                  style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }} 
-                  onClick={e => {
-                    if (hasChildren) {
-                      const target = e.target as HTMLElement;
-                      if (target.tagName !== 'A' && target.tagName !== 'BUTTON' && !target.closest('a') && !target.closest('button')) {
-                        toggleParent(item.taskId);
-                      }
-                      e.stopPropagation();
-                    }
+              return (
+                <div
+                  key={`${item.taskId}-${idx}`}
+                  className="glass-panel animate-fade-in"
+                  onClick={() => setSelectedTaskId(item.taskId)}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    background: isSelected
+                      ? 'rgba(59, 130, 246, 0.05)'
+                      : isBotOnly
+                        ? 'rgba(236,72,153,0.02)'
+                        : item.isChecked
+                          ? 'rgba(16, 185, 129, 0.01)'
+                          : 'var(--bg-card)',
+                    border: isSelected
+                      ? '2px solid var(--color-accent)'
+                      : '1px solid var(--border-color)',
+                    borderLeft: isBotOnly
+                      ? '4px solid #ec4899'
+                      : hasChildren
+                        ? '4px solid #8b5cf6'
+                        : item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    {/* Expand arrow for parent tasks */}
-                    {hasChildren ? (
-                      <span style={{ marginTop: '3px', flexShrink: 0, color: '#8b5cf6', cursor: 'pointer' }}>
-                        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      #{idx + 1}
+                    </span>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: currentStatusConfig.color,
+                        background: currentStatusConfig.bgColor,
+                        padding: '2px 8px',
+                        borderRadius: '5px',
+                        border: `1px solid ${currentStatusConfig.borderColor}`,
+                      }}
+                    >
+                      <StatusIcon size={11} className={item.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''} />
+                      {currentStatusConfig.label}
+                    </span>
+                  </div>
+
+                  <p style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    lineHeight: '1.4',
+                    margin: 0,
+                    textDecoration: item.isChecked ? 'line-through' : 'none',
+                    opacity: item.isChecked ? 0.65 : 1,
+                  }}>
+                    [{item.taskId}] {item.taskNameSnapshot}
+                  </p>
+
+                  {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                      {item.dependsOnTaskIdsSnapshot.map(depId => {
+                        const depTask = log.details.find(d => d.taskId === depId);
+                        const isDepDone = depTask ? depTask.isChecked : false;
+                        return (
+                          <span key={depId} style={{
+                            fontSize: '0.65rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            background: isDepDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                            color: isDepDone ? '#10b981' : '#ef4444',
+                            border: `1px solid ${isDepDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}`,
+                            fontWeight: 600
+                          }}>
+                            {isDepDone ? <Unlock size={9} /> : <Lock size={9} />}
+                            Phụ thuộc: {depId} ({isDepDone ? 'Đạt' : 'Chưa'})
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {getPriorityBadge(item.prioritySnapshot)}
+                      {item.deadlineSnapshot && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#ef4444', fontWeight: 600 }}>
+                          <Clock size={10} /> Hạn: {item.deadlineSnapshot}
+                        </span>
+                      )}
+                    </div>
+                    {hasChildren && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(139,92,246,0.08)', color: '#8b5cf6', borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>
+                        {children.filter(c => c.isChecked).length}/{children.length} con
                       </span>
-                    ) : locked ? (
-                      <span title="Bị khóa do phụ thuộc tác vụ chưa hoàn thành">
-                        <Lock size={18} color="#ef4444" style={{ marginTop: '3px', flexShrink: 0 }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Right Column: Detailed Workspace Panel */}
+        <div 
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            padding: '24px',
+            borderRadius: '16px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--glass-shadow)',
+            position: 'sticky',
+            top: '136px',
+            alignSelf: 'start',
+            maxHeight: '82vh',
+            overflowY: 'auto',
+          }} 
+          className="custom-scrollbar"
+        >
+          {selectedTask ? (() => {
+            const children = childrenMap[selectedTask.taskId] || [];
+            const hasChildren = children.length > 0;
+            const isBotOnly = selectedTask.isBotCheckSnapshot && !hasChildren;
+            const currentStatus = selectedTask.status || 'PENDING';
+            const currentStatusConfig = STATUS_CONFIGS[currentStatus] || STATUS_CONFIGS.PENDING;
+            const StatusIcon = currentStatusConfig.icon;
+            const locked = isTaskLocked(selectedTask);
+            const isSaving = savingTaskId === selectedTask.taskId;
+            const isToggling = togglingTaskIds.has(selectedTask.taskId);
+
+            return (
+              <>
+                {/* Header Info */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                    {selectedTask.isBotCheckSnapshot && !hasChildren ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(236,72,153,0.12)', color: '#ec4899', borderRadius: '5px', padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        <Cpu size={12} /> BOT TỰ ĐỘNG
                       </span>
                     ) : (
-                      <input
-                        type="checkbox"
-                        checked={item.isChecked}
-                        onChange={() => handleToggle(item.taskId, item.isChecked)}
-                        disabled={isCompleted || isSaving || isToggling}
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                          width: '18px', height: '18px', marginTop: '3px',
-                          cursor: (isCompleted || isToggling) ? 'not-allowed' : 'pointer',
-                          accentColor: 'var(--color-primary)'
-                        }}
-                      />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(59,130,246,0.12)', color: '#3b82f6', borderRadius: '5px', padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        <UserCheck size={12} /> CA TRỰC THỰC HIỆN
+                      </span>
                     )}
-                    <div>
-                      <p style={{
-                        fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)',
-                        lineHeight: '1.4', textDecoration: item.isChecked ? 'line-through' : 'none',
-                        opacity: item.isChecked ? 0.65 : 1, margin: 0,
-                        display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'
-                      }}>
-                        {/* Bot 100% badge */}
-                        {isBotOnly && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(236,72,153,0.12)', color: '#ec4899', borderRadius: '5px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
-                            <Cpu size={10} /> BOT 100%
-                          </span>
-                        )}
-                        {/* Has-children badge */}
-                        {hasChildren && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', borderRadius: '5px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
-                            <ChevronDown size={10} /> {children.filter(c => c.isChecked).length}/{children.length} tác vụ con hoàn thành
-                          </span>
-                        )}
-                        <span>[{item.taskId}] {item.taskNameSnapshot}</span>
-                      </p>
+                    {getPriorityBadge(selectedTask.prioritySnapshot)}
+                  </div>
 
-                      {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                          {item.dependsOnTaskIdsSnapshot.map(depId => {
-                            const depTask = log.details.find(d => d.taskId === depId);
-                            const isDepDone = depTask ? depTask.isChecked : false;
-                            return (
-                              <span key={depId} style={{
-                                fontSize: '0.72rem',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                background: isDepDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                                color: isDepDone ? '#10b981' : '#ef4444',
-                                border: `1px solid ${isDepDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}`,
-                                fontWeight: 600
-                              }}>
-                                {isDepDone ? <Unlock size={11} /> : <Lock size={11} />}
-                                Phụ thuộc: {depId} ({isDepDone ? 'Đã hoàn thành' : 'Chưa hoàn thành'})
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '6px 0 0 0', lineHeight: '1.4' }}>
+                    [{selectedTask.taskId}] {selectedTask.taskNameSnapshot}
+                  </h4>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
-                        {getPriorityBadge(item.prioritySnapshot)}
-                        {item.deadlineSnapshot && (
-                          <span style={{
+                  {selectedTask.dependsOnTaskIdsSnapshot && selectedTask.dependsOnTaskIdsSnapshot.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                      {selectedTask.dependsOnTaskIdsSnapshot.map(depId => {
+                        const depTask = log.details.find(d => d.taskId === depId);
+                        const isDepDone = depTask ? depTask.isChecked : false;
+                        return (
+                          <span key={depId} style={{
                             fontSize: '0.72rem',
-                            color: '#ef4444',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
+                            background: isDepDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                            color: isDepDone ? '#10b981' : '#ef4444',
+                            border: `1px solid ${isDepDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}`,
                             fontWeight: 600
                           }}>
-                            <Clock size={11} /> Hạn chót: {item.deadlineSnapshot}
+                            {isDepDone ? <Unlock size={11} /> : <Lock size={11} />}
+                            Phụ thuộc: {depId} ({isDepDone ? 'Đã hoàn thành' : 'Chưa hoàn thành'})
                           </span>
-                        )}
-                        {item.isChecked && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={11} /> Đã kiểm: {item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') : ''}
-                          </span>
-                        )}
-                        {item.isChecked && item.updatedBy && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <UserIcon size={11} /> Bởi: {item.updatedBy.fullName}
-                          </span>
-                        )}
-                      </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                      {/* Additional Snapshotted Fields */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '8px', fontSize: '0.75rem' }}>
-                        {item.functionUrlSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
-                            <Link2 size={12} /> URL: <a href={item.functionUrlSnapshot} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>{item.functionUrlSnapshot}</a>
-                          </span>
-                        )}
-                        {item.urdReferenceSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
-                            <FileText size={12} /> URD: {item.urdReferenceSnapshot}
-                          </span>
-                        )}
-                        {item.fileLocationSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
-                            <FileText size={12} /> File: {item.fileLocationSnapshot}
-                          </span>
-                        )}
-                        {item.timetableSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
-                            <Clock size={12} /> Khung giờ: {item.timetableSnapshot}
-                          </span>
-                        )}
-                        {item.isBotCheckSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.06)', color: '#ec4899', padding: '2px 8px', borderRadius: '4px' }}>
-                            <Cpu size={12} /> Bot Check {item.botTriggerTimeSnapshot ? `(${item.botTriggerTimeSnapshot})` : ''}
-                          </span>
-                        )}
-                        {item.slaDeadlineSnapshot && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                            <Clock size={12} /> SLA: {item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'Động' : 'Cố định'} ({item.slaDeadlineSnapshot}{item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? ' phút' : ''})
-                          </span>
-                        )}
-                      </div>
-                      {/* Bot Result Note Display */}
-                      {item.resultNote && (() => {
-                        let parsedMessage = item.resultNote;
-                        try {
-                          const json = JSON.parse(item.resultNote);
-                          parsedMessage = json.message || item.resultNote;
-                        } catch (e) {}
+                {/* Status and Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Trạng thái tác vụ:</span>
+                    
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => {
+                          if (isCompleted || locked || isSaving || isToggling) return;
+                          setOpenStatusDropdownTaskId(openStatusDropdownTaskId === selectedTask.taskId ? null : selectedTask.taskId);
+                        }}
+                        disabled={isCompleted || locked || isSaving || isToggling}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: (isCompleted || locked || isSaving || isToggling) ? 'not-allowed' : 'pointer',
+                          background: currentStatusConfig.bgColor,
+                          color: currentStatusConfig.color,
+                          border: `1px solid ${currentStatusConfig.borderColor}`,
+                          transition: 'all 0.2s ease',
+                          minWidth: '150px',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <StatusIcon
+                             size={14}
+                             className={selectedTask.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''}
+                          />
+                          {currentStatusConfig.label}
+                        </span>
+                        {!isCompleted && !locked && <ChevronDown size={12} />}
+                      </button>
 
-                        const cleanedMsg = cleanAnsiText(parsedMessage);
-                        if (!cleanedMsg) return null;
-
-                        const isLongMsg = cleanedMsg.length > 140 || cleanedMsg.includes('•');
-                        const displayMsg = isLongMsg ? cleanedMsg.substring(0, 140) + '...' : cleanedMsg;
-
-                        return (
+                      {openStatusDropdownTaskId === selectedTask.taskId && (
+                        <>
+                          <div
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenStatusDropdownTaskId(null);
+                            }}
+                          />
                           <div style={{
-                            marginTop: '8px',
-                            background: 'var(--bg-input)',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            fontSize: '0.78rem',
-                            color: 'var(--text-secondary)',
-                            borderLeft: item.status === 'FAILED' ? '3px solid #ef4444' : '3px solid #0284c7',
-                            fontFamily: 'monospace',
+                            position: 'absolute',
+                            right: 0,
+                            top: '100%',
+                            marginTop: '4px',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '10px',
+                            boxShadow: 'var(--glass-shadow)',
+                            zIndex: 1000,
+                            minWidth: '170px',
+                            overflow: 'hidden',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '4px'
+                            padding: '4px'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0 }}>
-                                <Bot size={13} /> Log kết quả Bot:
-                              </span>
-                              <span style={{ flex: 1, wordBreak: 'break-word' }}>{displayMsg}</span>
-                            </div>
-
-                            {isLongMsg && (
-                              <div style={{ marginLeft: '18px' }}>
+                            {Object.entries(STATUS_CONFIGS).map(([statusKey, cfg]) => {
+                              const OptionIcon = cfg.icon;
+                              return (
                                 <button
-                                  type="button"
-                                  onClick={() => onOpenBotLogViewer?.(item.taskNameSnapshot, item.resultNote || '', item.status, item.checkedAt, item.taskId)}
-                                  className="btn btn-secondary"
-                                  style={{
-                                    fontSize: '0.7rem',
-                                    padding: '2px 8px',
-                                    background: 'rgba(2, 132, 199, 0.1)',
-                                    color: '#0284c7',
-                                    border: '1px solid rgba(2, 132, 199, 0.25)',
-                                    borderRadius: '4px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    cursor: 'pointer'
+                                  key={statusKey}
+                                  onClick={() => {
+                                    handleStatusChange(selectedTask.taskId, statusKey);
+                                    setOpenStatusDropdownTaskId(null);
                                   }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    color: cfg.color,
+                                    background: 'transparent',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.15s ease'
+                                  }}
+                                  className="status-option-hover"
                                 >
-                                  <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
+                                  <OptionIcon size={14} />
+                                  {cfg.label}
                                 </button>
-                              </div>
-                            )}
+                              );
+                            })}
                           </div>
-                        );
-                      })()}
-
-                      {/* Reconciliation Button */}
-                      {(item.taskId.toUpperCase().includes('KLGD') ||
-                        item.taskId.toUpperCase().includes('EOD') ||
-                        item.taskId.toUpperCase().includes('CQG') ||
-                        item.taskId.toUpperCase().includes('RECON') ||
-                        item.taskId === 'ops_open_04' ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU MS') ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU EOD') ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU CQG') ||
-                        item.taskNameSnapshot.toUpperCase().includes('XỬ LÝ SAU EOD') ||
-                        item.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU KHỚP LỆNH')) && !isCompleted && (
-
-                        <button
-                          onClick={() => onOpenReconciliation(item.taskId)}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(59, 130, 246, 0.08)',
-                            color: '#3b82f6',
-                            border: '1px solid rgba(59, 130, 246, 0.2)',
-                          }}
-                        >
-                          <FileSpreadsheet size={12} />
-                          Đối chiếu Excel
-                        </button>
-                      )}
-
-                      {/* Margin Checker Button */}
-                      {(item.taskId.toUpperCase().includes('MARGIN') ||
-                        item.taskId.toUpperCase().includes('KYQUY') ||
-                        item.taskNameSnapshot.toUpperCase().includes('MARGIN') ||
-                        item.taskNameSnapshot.toUpperCase().includes('KÝ QUỸ')) && !isCompleted && (
-
-                        <button
-                          onClick={onOpenMarginChecker}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(16, 185, 129, 0.08)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                          }}
-                        >
-                          <ShieldAlert size={12} />
-                          Margin Checker
-                        </button>
-                      )}
-
-                      {/* CCP Statistics Button */}
-                      {(item.taskId.toUpperCase().includes('CCP') ||
-                        item.taskId.toUpperCase().includes('STATISTICS') ||
-                        item.taskNameSnapshot.toUpperCase().includes('THỐNG KÊ CCP')) && !isCompleted && (
-
-                        <button
-                          onClick={onOpenCcpStatistics}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(52, 211, 153, 0.08)',
-                            color: '#34d399',
-                            border: '1px solid rgba(52, 211, 153, 0.2)',
-                          }}
-                        >
-                          <FileSpreadsheet size={12} />
-                          Thống kê CCP
-                        </button>
-                      )}
-
-                      {/* Trading Report Button */}
-                      {(item.taskId.toUpperCase().includes('REPORT') ||
-                        item.taskId.toUpperCase().includes('TRADING') ||
-                        item.taskNameSnapshot.toUpperCase().includes('BÁO CÁO GIAO DỊCH') ||
-                        item.taskNameSnapshot.toUpperCase().includes('TRADING REPORT')) && !isCompleted && (
-
-                        <button
-                          onClick={onOpenTradingReport}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(56, 189, 248, 0.08)',
-                            color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.2)',
-                          }}
-                        >
-                          <FileSpreadsheet size={12} />
-                          Báo cáo Giao dịch
-                        </button>
-                      )}
-
-                      {/* OMS Status & Email Status Button */}
-                      {(item.taskId === 'ops_open_02' ||
-                        item.taskId === 'ops_open_07' ||
-                        item.taskNameSnapshot.toUpperCase().includes('EOD OMS') ||
-                        item.taskNameSnapshot.toUpperCase().includes('OMS EOD') ||
-                        item.taskNameSnapshot.toUpperCase().includes('OMS STATUS')) && !isCompleted && (
-                        <button
-                          onClick={() => onOpenOmsStatus(item.taskId)}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            marginLeft: '4px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: item.taskId === 'ops_open_07' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(236, 72, 153, 0.08)',
-                            color: item.taskId === 'ops_open_07' ? '#3b82f6' : '#ec4899',
-                            border: item.taskId === 'ops_open_07' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(236, 72, 153, 0.2)',
-                          }}
-                        >
-                          {item.taskId === 'ops_open_07' ? (
-                            <>
-                              <MessageSquare size={12} />
-                              Xác minh Email
-                            </>
-                          ) : (
-                            <>
-                              <Cpu size={12} />
-                              OMS Status
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Maturity Message Templates Button */}
-                      {(item.taskId === 'ops_during_05' ||
-                        item.taskId.toUpperCase().includes('MATURITY') ||
-                        item.taskNameSnapshot.toUpperCase().includes('TẤT TOÁN HỢP ĐỒNG') ||
-                        item.taskNameSnapshot.toUpperCase().includes('THÔNG BÁO ĐÁO HẠN')) && !isCompleted && (
-                        <button
-                          onClick={onOpenMaturityTemplates}
-                          className="btn btn-secondary animate-fade-in"
-                          style={{
-                            marginTop: '8px',
-                            marginLeft: '4px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(99, 102, 241, 0.08)',
-                            color: '#6366f1',
-                            border: '1px solid rgba(99, 102, 241, 0.2)',
-                          }}
-                        >
-                          <Copy size={12} />
-                          Mẫu tin nhắn
-                        </button>
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {/* Status Selector Dropdown */}
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <button
-                      onClick={() => {
-                        if (isCompleted || locked || isSaving || isToggling) return;
-                        setOpenStatusDropdownTaskId(openStatusDropdownTaskId === item.taskId ? null : item.taskId);
-                      }}
-                      disabled={isCompleted || locked || isSaving || isToggling}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        cursor: (isCompleted || locked || isSaving || isToggling) ? 'not-allowed' : 'pointer',
-                        background: currentStatusConfig.bgColor,
-                        color: currentStatusConfig.color,
-                        border: `1px solid ${currentStatusConfig.borderColor}`,
-                        transition: 'all 0.2s ease',
-                        minWidth: '140px',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <StatusIcon
-                           size={14}
-                           className={item.status === 'WAITING' ? 'animate-pulse animate-spin-slow' : ''}
-                        />
-                        {currentStatusConfig.label}
-                      </span>
-                      {!isCompleted && !locked && <ChevronDown size={12} />}
-                    </button>
-
-                    {/* Dropdown Options List */}
-                    {openStatusDropdownTaskId === item.taskId && (
-                      <>
-                        <div
-                          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenStatusDropdownTaskId(null);
-                          }}
-                        />
-                        <div style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: '100%',
-                          marginTop: '4px',
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          boxShadow: 'var(--glass-shadow)',
-                          zIndex: 1000,
-                          minWidth: '170px',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          padding: '4px'
-                        }}>
-                          {Object.entries(STATUS_CONFIGS).map(([statusKey, cfg]) => {
-                            const OptionIcon = cfg.icon;
-                            return (
-                              <button
-                                key={statusKey}
-                                onClick={() => {
-                                  handleStatusChange(item.taskId, statusKey);
-                                  setOpenStatusDropdownTaskId(null);
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  padding: '8px 12px',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 600,
-                                  color: cfg.color,
-                                  background: 'transparent',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  width: '100%',
-                                  textAlign: 'left',
-                                  cursor: 'pointer',
-                                  transition: 'background 0.15s ease'
-                                }}
-                                className="status-option-hover"
-                              >
-                                <OptionIcon size={14} />
-                                {cfg.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
+                  {/* Actions buttons */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                    {/* Đối chiếu Excel */}
+                    {(selectedTask.taskId.toUpperCase().includes('KLGD') ||
+                      selectedTask.taskId.toUpperCase().includes('EOD') ||
+                      selectedTask.taskId.toUpperCase().includes('CQG') ||
+                      selectedTask.taskId.toUpperCase().includes('RECON') ||
+                      selectedTask.taskId === 'ops_open_04' ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU MS') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU EOD') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU CQG') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('XỬ LÝ SAU EOD') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('ĐỐI CHIẾU KHỚP LỆNH')) && !isCompleted && (
+                      <button
+                        onClick={() => onOpenReconciliation(selectedTask.taskId)}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(59, 130, 246, 0.08)',
+                          color: '#3b82f6',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
+                        }}
+                      >
+                        <FileSpreadsheet size={12} />
+                        Đối chiếu Excel
+                      </button>
                     )}
-                  </div>
 
-                </div>
+                    {/* Margin Checker */}
+                    {(selectedTask.taskId.toUpperCase().includes('MARGIN') ||
+                      selectedTask.taskId.toUpperCase().includes('KYQUY') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('MARGIN') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('KÝ QUỸ')) && !isCompleted && (
+                      <button
+                        onClick={onOpenMarginChecker}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                        }}
+                      >
+                        <ShieldAlert size={12} />
+                        Margin Checker
+                      </button>
+                    )}
 
-                {/* Notes / Comment section */}
-                <div style={{
-                  borderTop: '1px dashed var(--border-color)',
-                  paddingTop: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}>
-                  <MessageSquare size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú kết quả vận hành..."}
-                    value={notesState[item.taskId] || ''}
-                    onChange={(e) => setNotesState({ ...notesState, [item.taskId]: e.target.value })}
-                    onFocus={() => { focusedTaskIdRef.current = item.taskId; }}
-                    onBlur={() => { focusedTaskIdRef.current = null; }}
-                    disabled={isCompleted || isSaving}
-                    style={{ padding: '6px 10px', fontSize: '0.8rem', height: '32px' }}
-                  />
-                  {!isCompleted && (
-                    <button
-                      onClick={() => handleSaveNote(item.taskId)}
-                      className="btn btn-secondary"
-                      disabled={isSaving}
-                      style={{ padding: '6px 10px', flexShrink: 0, height: '32px' }}
-                      title="Lưu ghi chú"
-                    >
-                      <Save size={13} />
-                    </button>
-                  )}
-                </div>
+                    {/* Thống kê CCP */}
+                    {(selectedTask.taskId.toUpperCase().includes('CCP') ||
+                      selectedTask.taskId.toUpperCase().includes('STATISTICS') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('THỐNG KÊ CCP')) && !isCompleted && (
+                      <button
+                        onClick={onOpenCcpStatistics}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(52, 211, 153, 0.08)',
+                          color: '#34d399',
+                          border: '1px solid rgba(52, 211, 153, 0.2)',
+                        }}
+                      >
+                        <FileSpreadsheet size={12} />
+                        Thống kê CCP
+                      </button>
+                    )}
 
-              </div>
+                    {/* Báo cáo Giao dịch */}
+                    {(selectedTask.taskId.toUpperCase().includes('REPORT') ||
+                      selectedTask.taskId.toUpperCase().includes('TRADING') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('BÁO CÁO GIAO DỊCH') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('TRADING REPORT')) && !isCompleted && (
+                      <button
+                        onClick={onOpenTradingReport}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(56, 189, 248, 0.08)',
+                          color: '#38bdf8',
+                          border: '1px solid rgba(56, 189, 248, 0.2)',
+                        }}
+                      >
+                        <FileSpreadsheet size={12} />
+                        Báo cáo Giao dịch
+                      </button>
+                    )}
 
-              {/* Sub-tasks accordion */}
-              {hasChildren && isExpanded && (
-                <div 
-                  onClick={e => e.stopPropagation()}
-                  style={{
-                    display: 'flex', flexDirection: 'column', gap: '6px',
-                    background: 'rgba(139,92,246,0.03)', borderRadius: '0 0 12px 12px',
-                    border: '1px solid rgba(139,92,246,0.15)', borderTop: 'none',
-                    padding: '8px 12px 12px 12px'
-                  }}
-                >
-                  {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map((child, cIdx) => {
-                    const isBot = child.isBotCheckSnapshot;
-                    const cStatus = child.status || 'PENDING';
-                    const cConfig = STATUS_CONFIGS[cStatus] || STATUS_CONFIGS.PENDING;
-                    const CIcon = cConfig.icon;
-                    const cSaving = savingTaskId === child.taskId;
-                    const cToggling = togglingTaskIds.has(child.taskId);
-                    const isChildDropdownOpen = openStatusDropdownTaskId === child.taskId;
-                    return (
-                      <div key={`${child.taskId}-${cIdx}`} style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '8px 12px', borderRadius: '8px',
-                        background: child.isChecked
-                          ? 'rgba(16,185,129,0.05)'
-                          : isBot ? 'rgba(236,72,153,0.04)' : 'rgba(255,255,255,0.03)',
-                        border: child.isChecked
-                          ? '1px solid rgba(16,185,129,0.15)'
-                          : isBot ? '1px solid rgba(236,72,153,0.15)' : '1px solid var(--border-color)',
-                        opacity: cToggling ? 0.6 : 1,
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        zIndex: isChildDropdownOpen ? 50 : (children.length - cIdx)
-                      }}>
-                        {/* Bot or Maker indicator checkbox */}
-                        <input
-                          type="checkbox"
-                          checked={child.isChecked}
-                          onChange={() => handleToggle(child.taskId, child.isChecked)}
-                          disabled={isCompleted || cSaving || cToggling}
-                          title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
-                          style={{
-                            width: '16px', height: '16px', flexShrink: 0,
-                            cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
-                            accentColor: isBot ? '#ec4899' : 'var(--color-primary)'
-                          }}
-                        />
-                        <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: child.isChecked ? 'line-through' : 'none', opacity: child.isChecked ? 0.6 : 1 }}>
-                          {child.taskNameSnapshot}
-                        </span>
-                        {/* Bot/Maker role badge */}
-                        {isBot ? (
-                          <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(236,72,153,0.1)', color:'#ec4899', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
-                            <Cpu size={9}/> Bot
-                          </span>
-                        ) : (
-                          <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(59,130,246,0.1)', color:'#3b82f6', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
-                            <UserCheck size={9}/> Maker
-                          </span>
-                        )}
-                        {/* Sub-task status badge */}
-                        <span
-                          onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
-                          style={{
-                            display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600,
-                            color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px',
-                            border:`1px solid ${cConfig.borderColor}`, flexShrink:0,
-                            cursor: child.resultNote ? 'pointer' : 'default'
-                          }}
-                          title={child.resultNote ? "Bấm để xem log chi tiết Bot" : undefined}
-                        >
-                          <CIcon size={11}/> {cConfig.label}
-                        </span>
-
-                        {/* Inline Log Viewer Button if resultNote exists */}
-                        {child.resultNote && (
-                          <button
-                            type="button"
-                            onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              background: child.status === 'FAILED' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
-                              color: child.status === 'FAILED' ? '#ef4444' : '#0284c7',
-                              border: child.status === 'FAILED' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(2, 132, 199, 0.25)',
-                              borderRadius: '5px',
-                              padding: '2px 7px',
-                              fontSize: '0.68rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              flexShrink: 0
-                            }}
-                            title="Xem chi tiết log Bot"
-                          >
-                            <Search size={10} /> Xem log
-                          </button>
-                        )}
-
-                        {/* Status dropdown for sub-tasks (Maker can manual override Bot tasks if needed) */}
-                        {!isCompleted && (
-                          <button
-                            onClick={() => setOpenStatusDropdownTaskId(openStatusDropdownTaskId === child.taskId ? null : child.taskId)}
-                            disabled={isCompleted || cSaving || cToggling}
-                            style={{ background:'transparent', border:'1px solid var(--border-color)', borderRadius:'6px', padding:'2px 6px', cursor:'pointer', flexShrink:0 }}
-                            title="Can thiệp / Đổi trạng thái thủ công"
-                          >
-                            <ChevronDown size={12} color="var(--text-muted)" />
-                          </button>
-                        )}
-                        {openStatusDropdownTaskId === child.taskId && (
+                    {/* OMS Status / Xác minh Email */}
+                    {(selectedTask.taskId === 'ops_open_02' ||
+                      selectedTask.taskId === 'ops_open_07' ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('EOD OMS') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('OMS EOD') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('OMS STATUS')) && !isCompleted && (
+                      <button
+                        onClick={() => onOpenOmsStatus(selectedTask.taskId)}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: selectedTask.taskId === 'ops_open_07' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(236, 72, 153, 0.08)',
+                          color: selectedTask.taskId === 'ops_open_07' ? '#3b82f6' : '#ec4899',
+                          border: selectedTask.taskId === 'ops_open_07' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(236, 72, 153, 0.2)',
+                        }}
+                      >
+                        {selectedTask.taskId === 'ops_open_07' ? (
                           <>
-                            <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={e => { e.stopPropagation(); setOpenStatusDropdownTaskId(null); }} />
-                            <div style={{
-                              position:'absolute',
-                              right:0,
-                              top: cIdx >= Math.max(1, children.length - 2) ? 'auto' : '32px',
-                              bottom: cIdx >= Math.max(1, children.length - 2) ? '32px' : 'auto',
-                              background:'var(--bg-card)',
-                              border:'1px solid var(--border-color)',
-                              borderRadius:'10px',
-                              boxShadow:'0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
-                              zIndex:1000,
-                              minWidth:'160px',
-                              padding:'4px',
-                              display:'flex',
-                              flexDirection:'column'
-                            }}>
-                              {Object.entries(STATUS_CONFIGS).map(([sk, sc]) => {
-                                const OI = sc.icon;
-                                return (
-                                  <button key={sk} onClick={() => { handleStatusChange(child.taskId, sk); setOpenStatusDropdownTaskId(null); }}
-                                    style={{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', fontSize:'0.76rem', fontWeight:600, color:sc.color, background:'transparent', border:'none', borderRadius:'6px', width:'100%', textAlign:'left', cursor:'pointer' }}
-                                    className="status-option-hover">
-                                    <OI size={13}/> {sc.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            <MessageSquare size={12} />
+                            Xác minh Email
+                          </>
+                        ) : (
+                          <>
+                            <Cpu size={12} />
+                            OMS Status
                           </>
                         )}
-                      </div>
-                    );
-                  })}
+                      </button>
+                    )}
+
+                    {/* Mẫu tin nhắn */}
+                    {(selectedTask.taskId === 'ops_during_05' ||
+                      selectedTask.taskId.toUpperCase().includes('MATURITY') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('TẤT TOÁN HỢP ĐỒNG') ||
+                      selectedTask.taskNameSnapshot.toUpperCase().includes('THÔNG BÁO ĐÁO HẠN')) && !isCompleted && (
+                      <button
+                        onClick={onOpenMaturityTemplates}
+                        className="btn btn-secondary animate-fade-in"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(99, 102, 241, 0.08)',
+                          color: '#6366f1',
+                          border: '1px solid rgba(99, 102, 241, 0.2)',
+                        }}
+                      >
+                        <Copy size={12} />
+                        Mẫu tin nhắn
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-              </div>
+
+                {/* Metadata Fields Grid */}
+                {(selectedTask.deadlineSnapshot ||
+                  selectedTask.slaDeadlineSnapshot ||
+                  selectedTask.timetableSnapshot ||
+                  selectedTask.urdReferenceSnapshot ||
+                  selectedTask.fileLocationSnapshot ||
+                  selectedTask.functionUrlSnapshot) && (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    fontSize: '0.78rem'
+                  }}>
+                    {selectedTask.deadlineSnapshot && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(239, 68, 68, 0.05)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.15)',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600
+                      }}>
+                        <Clock size={12} />
+                        <span>Hạn chót: {selectedTask.deadlineSnapshot}</span>
+                      </div>
+                    )}
+                    {selectedTask.slaDeadlineSnapshot && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(245, 158, 11, 0.05)',
+                        color: '#f59e0b',
+                        border: '1px solid rgba(245, 158, 11, 0.15)',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600
+                      }}>
+                        <Clock size={12} />
+                        <span>Thời hạn cam kết (SLA): {selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'Động' : 'Cố định'} ({selectedTask.slaDeadlineSnapshot}{selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? ' phút' : ''})</span>
+                      </div>
+                    )}
+                    {selectedTask.timetableSnapshot && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        color: '#3b82f6',
+                        border: '1px solid rgba(59, 130, 246, 0.15)',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600
+                      }}>
+                        <Clock size={12} />
+                        <span>Khung giờ: {selectedTask.timetableSnapshot}</span>
+                      </div>
+                    )}
+                    {selectedTask.urdReferenceSnapshot && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.15)',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600
+                      }}>
+                        <FileText size={12} />
+                        <span>URD tham chiếu: {selectedTask.urdReferenceSnapshot}</span>
+                      </div>
+                    )}
+                    {selectedTask.functionUrlSnapshot && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(139, 92, 246, 0.05)',
+                        color: '#8b5cf6',
+                        border: '1px solid rgba(139, 92, 246, 0.15)',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600
+                      }}>
+                        <Link2 size={12} />
+                        <span>URL chức năng: </span>
+                        <a href={selectedTask.functionUrlSnapshot} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                          {selectedTask.functionUrlSnapshot}
+                        </a>
+                      </div>
+                    )}
+                    {selectedTask.fileLocationSnapshot && (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        width: '100%',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-color)',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem'
+                      }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600 }}>Đường dẫn tệp:</span>
+                        <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', wordBreak: 'break-all', color: 'var(--text-secondary)' }}>
+                          <FileText size={12} style={{ flexShrink: 0 }} /> {selectedTask.fileLocationSnapshot}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Bot Result Log */}
+                {selectedTask.resultNote && (() => {
+                  let parsedMessage = selectedTask.resultNote;
+                  try {
+                    const json = JSON.parse(selectedTask.resultNote);
+                    parsedMessage = json.message || selectedTask.resultNote;
+                  } catch (e) {}
+
+                  const cleanedMsg = cleanAnsiText(parsedMessage);
+                  if (!cleanedMsg) return null;
+
+                  return (
+                    <div style={{
+                      background: 'var(--bg-input)',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-secondary)',
+                      borderLeft: selectedTask.status === 'FAILED' ? '4px solid #ef4444' : '4px solid #0284c7',
+                      fontFamily: 'monospace',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0 }}>
+                          <Bot size={13} /> Log kết quả Bot:
+                        </span>
+                        <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{cleanedMsg}</span>
+                      </div>
+
+                      <div style={{ marginTop: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => onOpenBotLogViewer?.(selectedTask.taskNameSnapshot, selectedTask.resultNote || '', selectedTask.status, selectedTask.checkedAt, selectedTask.taskId)}
+                          className="btn btn-secondary"
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '4px 10px',
+                            background: 'rgba(2, 132, 199, 0.1)',
+                            color: '#0284c7',
+                            border: '1px solid rgba(2, 132, 199, 0.25)',
+                            borderRadius: '5px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Sub-tasks checklist */}
+                {hasChildren && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      Tác vụ con ({children.filter(c => c.isChecked).length}/{children.length} hoàn thành):
+                    </span>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {children.sort((a,b) => ((a as any).sortOrder||0) - ((b as any).sortOrder||0)).map((child, cIdx) => {
+                        const isBot = child.isBotCheckSnapshot;
+                        const cStatus = child.status || 'PENDING';
+                        const cConfig = STATUS_CONFIGS[cStatus] || STATUS_CONFIGS.PENDING;
+                        const CIcon = cConfig.icon;
+                        const cSaving = savingTaskId === child.taskId;
+                        const cToggling = togglingTaskIds.has(child.taskId);
+                        const isChildDropdownOpen = openStatusDropdownTaskId === child.taskId;
+                        
+                        return (
+                          <div key={`${child.taskId}-${cIdx}`} style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '8px 12px', borderRadius: '8px',
+                            background: child.isChecked
+                              ? 'rgba(16,185,129,0.05)'
+                              : isBot ? 'rgba(236,72,153,0.04)' : 'rgba(255,255,255,0.03)',
+                            border: child.isChecked
+                              ? '1px solid rgba(16,185,129,0.15)'
+                              : isBot ? '1px solid rgba(236,72,153,0.15)' : '1px solid var(--border-color)',
+                            opacity: cToggling ? 0.6 : 1,
+                            transition: 'all 0.2s',
+                            position: 'relative',
+                            zIndex: isChildDropdownOpen ? 50 : (children.length - cIdx)
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={child.isChecked}
+                              onChange={() => handleToggle(child.taskId, child.isChecked)}
+                              disabled={isCompleted || cSaving || cToggling}
+                              title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
+                              style={{
+                                width: '16px', height: '16px', flexShrink: 0,
+                                cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
+                                accentColor: isBot ? '#ec4899' : 'var(--color-primary)'
+                              }}
+                            />
+                            
+                            <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: child.isChecked ? 'line-through' : 'none', opacity: child.isChecked ? 0.6 : 1 }}>
+                              {child.taskNameSnapshot}
+                            </span>
+
+                            {isBot ? (
+                              <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(236,72,153,0.1)', color:'#ec4899', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
+                                <Cpu size={9}/> Bot
+                              </span>
+                            ) : (
+                              <span style={{ display:'inline-flex',alignItems:'center',gap:'3px', background:'rgba(59,130,246,0.1)', color:'#3b82f6', borderRadius:'4px', padding:'1px 6px', fontSize:'0.68rem', fontWeight:700, flexShrink:0 }}>
+                                <UserCheck size={9}/> Maker
+                              </span>
+                            )}
+
+                            <span
+                              onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
+                              style={{
+                                display:'inline-flex',alignItems:'center',gap:'4px', fontSize:'0.72rem', fontWeight:600,
+                                color: cConfig.color, background: cConfig.bgColor, padding:'1px 7px', borderRadius:'5px',
+                                border:`1px solid ${cConfig.borderColor}`, flexShrink:0,
+                                cursor: child.resultNote ? 'pointer' : 'default'
+                              }}
+                              title={child.resultNote ? "Bấm để xem log chi tiết Bot" : undefined}
+                            >
+                              <CIcon size={11}/> {cConfig.label}
+                            </span>
+
+                            {child.resultNote && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  background: child.status === 'FAILED' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
+                                  color: child.status === 'FAILED' ? '#ef4444' : '#0284c7',
+                                  border: child.status === 'FAILED' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(2, 132, 199, 0.25)',
+                                  borderRadius: '5px',
+                                  padding: '2px 7px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  flexShrink: 0
+                                }}
+                                title="Xem chi tiết log Bot"
+                              >
+                                <Search size={10} /> Xem log
+                              </button>
+                            )}
+
+                            {!isCompleted && (
+                              <button
+                                onClick={() => setOpenStatusDropdownTaskId(openStatusDropdownTaskId === child.taskId ? null : child.taskId)}
+                                disabled={isCompleted || cSaving || cToggling}
+                                style={{ background:'transparent', border:'1px solid var(--border-color)', borderRadius:'6px', padding:'2px 6px', cursor:'pointer', flexShrink:0 }}
+                                title="Can thiệp / Đổi trạng thái thủ công"
+                              >
+                                <ChevronDown size={12} color="var(--text-muted)" />
+                              </button>
+                            )}
+                            {openStatusDropdownTaskId === child.taskId && (
+                              <>
+                                <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={e => { e.stopPropagation(); setOpenStatusDropdownTaskId(null); }} />
+                                <div style={{
+                                  position:'absolute',
+                                  right:0,
+                                  top: '32px',
+                                  background:'var(--bg-card)',
+                                  border:'1px solid var(--border-color)',
+                                  borderRadius:'10px',
+                                  boxShadow:'0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+                                  zIndex:1000,
+                                  minWidth:'160px',
+                                  padding:'4px',
+                                  display:'flex',
+                                  flexDirection:'column'
+                                }}>
+                                  {Object.entries(STATUS_CONFIGS).map(([sk, sc]) => {
+                                    const OI = sc.icon;
+                                    return (
+                                      <button key={sk} onClick={() => { handleStatusChange(child.taskId, sk); setOpenStatusDropdownTaskId(null); }}
+                                        style={{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', fontSize:'0.76rem', fontWeight:600, color:sc.color, background:'transparent', border:'none', borderRadius:'6px', width:'100%', textAlign:'left', cursor:'pointer' }}
+                                        className="status-option-hover">
+                                        <OI size={13}/> {sc.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes Input */}
+                <div style={{
+                  borderTop: '1px dashed var(--border-color)',
+                  paddingTop: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Ghi chú vận hành:</label>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <MessageSquare size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú kết quả vận hành..."}
+                      value={notesState[selectedTask.taskId] || ''}
+                      onChange={(e) => setNotesState({ ...notesState, [selectedTask.taskId]: e.target.value })}
+                      onFocus={() => { focusedTaskIdRef.current = selectedTask.taskId; }}
+                      onBlur={() => { focusedTaskIdRef.current = null; }}
+                      disabled={isCompleted || isSaving}
+                      style={{ padding: '6px 10px', fontSize: '0.8rem', height: '36px', flex: 1 }}
+                    />
+                    {!isCompleted && (
+                      <button
+                        onClick={() => handleSaveNote(selectedTask.taskId)}
+                        className="btn btn-secondary"
+                        disabled={isSaving}
+                        style={{ padding: '6px 10px', flexShrink: 0, height: '36px', width: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Lưu ghi chú"
+                      >
+                        <Save size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
             );
-          })
-        )}
+          })() : (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '40px 20px',
+              color: 'var(--text-muted)',
+              textAlign: 'center',
+              height: '100%',
+              minHeight: '240px'
+            }}>
+              <FileText size={36} color="var(--text-muted)" style={{ opacity: 0.4, marginBottom: '12px' }} />
+              <p style={{ fontSize: '0.88rem', fontWeight: 500, margin: 0 }}>Chọn một tác vụ từ danh sách để xem chi tiết và xử lý</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

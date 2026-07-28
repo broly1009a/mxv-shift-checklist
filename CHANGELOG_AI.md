@@ -2,6 +2,47 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 18:09:00] - Refactor: Chuyển Đổi Thuộc Tính Tác Vụ Thành Dạng Tag Co Giãn (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi hiển thị khi thuộc tính tác vụ bị kéo giãn quá dài (nhìn trống trải) khi chỉ có 1 hoặc ít thông tin được hiển thị (ví dụ chỉ có "Thời hạn cam kết" ở tác vụ Open RPA Download).
+- **Giải pháp**:
+  - Thay đổi cấu trúc hiển thị thông tin mô tả chi tiết của tác vụ trong [TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) từ dạng bảng lưới ô lớn trải rộng 100% sang các thẻ Tag/Pill nhỏ gọn co giãn tự động theo kích thước chữ (`display: inline-flex`), có màu sắc biểu tượng trực quan riêng biệt cho từng loại thông tin.
+  - Giữ nguyên hiển thị dòng rộng cho thuộc tính "Đường dẫn tệp" vì đặc thù tệp tin có thể rất dài để tránh bị xuống dòng nhiều.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100%.
+
+## [2026-07-28 18:07:00] - Feature: Khôi Phục Hiển Thị Thông Tin Phụ Thuộc Tác Vụ (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đưa thông tin phụ thuộc tác vụ (ví dụ: `Phụ thuộc: TASK_CHECK_EOD (Chưa hoàn thành)`) quay trở lại giao diện sau khi bị ẩn trong đợt refactor Master-Detail.
+- **Giải pháp**:
+  - Khôi phục logic đọc `dependsOnTaskIdsSnapshot` từ dữ liệu tác vụ và hiển thị danh sách các badge phụ thuộc (Đạt/Chưa đạt, Đã hoàn thành/Chưa hoàn thành) kèm theo biểu tượng Lock/Unlock tương ứng.
+  - Tích hợp hiển thị ở cả hai vị trí: dưới tên tác vụ ở các thẻ bên cột trái (Master Cards) và dưới tên tác vụ trong khu vực chi tiết xử lý bên cột phải (Workspace Header).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100%.
+
+## [2026-07-28 18:05:00] - Fix: Ẩn Khung Thuộc Tính Tác Vụ Rỗng (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi ô trắng rỗng xuất hiện ở giữa nút hành động và phần tác vụ con trên giao diện chi tiết tác vụ (Detail Workspace).
+- **Giải pháp**:
+  - Sửa logic hiển thị trong [TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) bằng cách bọc thẻ `div` bọc ngoài của Metadata Fields Grid bằng một điều kiện logic check xem có ít nhất một thông tin snapshot tồn tại (`deadlineSnapshot`, `slaDeadlineSnapshot`, `timetableSnapshot`, `urdReferenceSnapshot`, `fileLocationSnapshot`, hoặc `functionUrlSnapshot`). Nếu tất cả đều rỗng, sẽ không render khung viền rỗng này nữa.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100%.
+
 ## [2026-07-28 17:50:00] - Refactor: Thay Thế Thuật Ngữ Kỹ Thuật 'Khắc Phục Sự Cố' Thành 'Xử Lý' (Frontend)
 
 ### 1. Mục tiêu Thay đổi
