@@ -313,7 +313,11 @@ class SettingsWindow(QDialog):
         tabs = QTabWidget()
         tabs.setIconSize(QSize(18, 18))
         tabs.addTab(self._build_connection_tab(), _draw_svg_icon("connection"), "Kết nối")
-        tabs.addTab(self._build_paths_tab(), _draw_svg_icon("folder"), "Đường dẫn")
+        
+        # Instantiate paths controls (hidden from UI since backend runs directly on Linux)
+        self._build_paths_tab()
+        # tabs.addTab(self._build_paths_tab(), _draw_svg_icon("folder"), "Đường dẫn")
+        
         tabs.addTab(self._build_startup_tab(), _draw_svg_icon("startup"), "Khởi động")
         layout.addWidget(tabs)
 
@@ -456,8 +460,9 @@ class SettingsWindow(QDialog):
         duration_label = QLabel("Thời gian tự đóng thông báo (giây):")
         self._duration_spin = QSpinBox()
         self._duration_spin.setRange(3, 60)
+        self._duration_spin.setSuffix(" giây")
         self._duration_spin.setValue(10)
-        self._duration_spin.setFixedWidth(70)
+        self._duration_spin.setFixedWidth(110)
         duration_layout.addWidget(duration_label)
         duration_layout.addWidget(self._duration_spin)
         duration_layout.addStretch()

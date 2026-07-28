@@ -9,7 +9,6 @@ import {
   CheckSquare, 
   History, 
   Settings, 
-  LogOut, 
   Building2,
   UserCheck,
   PanelLeftClose,

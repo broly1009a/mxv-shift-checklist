@@ -13,6 +13,7 @@ import {
   Res,
   Query,
   Headers,
+  HttpCode,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -2277,6 +2278,7 @@ export class AgentController {
 
   // POST /api/v1/bot-engine/agent/login
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   async login(@Body() body: { apiKey: string; hostname: string }) {
     const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
     if (!body.apiKey || body.apiKey !== expected) {

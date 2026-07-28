@@ -17,12 +17,17 @@ export default function CloseShiftModal({
   isSubmitting
 }: CloseShiftModalProps) {
   const [handoverNote, setHandoverNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!handoverNote.trim()) return;
+    if (!handoverNote.trim()) {
+      setError('Vui lòng nhập nội dung biên bản bàn giao trước khi chốt ca.');
+      return;
+    }
+    setError(null);
     await onSubmit(handoverNote.trim());
     onClose();
   };
@@ -92,7 +97,10 @@ export default function CloseShiftModal({
               className="form-input"
               placeholder="Nhập thông tin bàn giao vị thế, trạng thái hệ thống, các sự cố phát sinh hoặc lưu ý đặc biệt cho ca trực sau..."
               value={handoverNote}
-              onChange={(e) => setHandoverNote(e.target.value)}
+              onChange={(e) => {
+                setHandoverNote(e.target.value);
+                if (error) setError(null);
+              }}
               rows={5}
               style={{
                 padding: '10px 12px',
@@ -100,15 +108,19 @@ export default function CloseShiftModal({
                 fontSize: '0.85rem',
                 lineHeight: '1.4',
                 background: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
+                border: error ? '1px solid #ef4444' : '1px solid var(--border-color)',
                 color: 'var(--text-primary)',
                 resize: 'vertical',
                 width: '100%',
                 outline: 'none'
               }}
-              required
               disabled={isSubmitting}
             />
+            {error && (
+              <div style={{ fontSize: '0.78rem', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle size={14} /> {error}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
               <span>* Bắt buộc nhập thông tin bàn giao để thực hiện khóa ca.</span>
               <span>{handoverNote.length} ký tự</span>
@@ -129,17 +141,20 @@ export default function CloseShiftModal({
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isSubmitting || !handoverNote.trim()}
+              disabled={isSubmitting}
               style={{
                 padding: '8px 16px',
                 fontSize: '0.82rem',
-                background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                background: '#10b981',
                 color: '#fff',
                 border: 'none',
                 height: '36px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1,
+                borderRadius: '6px'
               }}
             >
               {isSubmitting ? (

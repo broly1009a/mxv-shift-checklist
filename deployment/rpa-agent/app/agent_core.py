@@ -113,7 +113,7 @@ class AgentWorker(QObject):
                 "apiKey": self._api_key,
                 "hostname": platform.node()
             }, timeout=10)
-            if r.status_code == 200:
+            if r.status_code in (200, 201):
                 res = r.json()
                 self._session_token = res.get("token")
                 # Expire token after 1 hour (refresh after 55 mins)
@@ -381,10 +381,10 @@ class AgentWorker(QObject):
                 })
                 _last_hb = now
 
-            # Poll for job
-            result = self._get("/api/v1/bot-engine/agent/poll")
-            if result and result.get("job"):
-                self._dispatch(result["job"])
+            # Poll for job (Temporarily commented out because NestJS runs jobs locally on Linux server)
+            # result = self._get("/api/v1/bot-engine/agent/poll")
+            # if result and result.get("job"):
+            #     self._dispatch(result["job"])
 
             time.sleep(self._poll_interval)
 

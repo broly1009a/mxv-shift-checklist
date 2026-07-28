@@ -2,6 +2,97 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 09:05:00] - Cleanup: Loại Bỏ Import Icon LogOut Không Sử Dụng Trong Sidebar
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Dọn dẹp code không sử dụng đối với biểu tượng `LogOut` trong Sidebar.
+- **Giải pháp**:
+  - Loại bỏ import `LogOut` dư thừa từ gói `lucide-react` trong file [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx#L12) do tính năng đăng xuất thực tế đã được tích hợp hiển thị trong menu cá nhân ở Header.tsx.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- NextJS frontend production build thành công 100% không lỗi.
+
+---
+
+## [2026-07-28 09:02:00] - Refactor: Tối Ưu Nút Xác Nhận Chốt Ca Và Cải Tiến Validation Handovers Note
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đơn giản hóa kiểu dáng nút "Chốt ca & Bàn giao" trong modal (thay vì gradient màu xanh phức tạp) và bổ sung thông báo cảnh báo lỗi khi người dùng chưa nhập biên bản bàn giao.
+- **Giải pháp**:
+  - **CloseShiftModal Component**:
+    - Thay thế kiểu dáng nền nút từ `linear-gradient(...)` sang màu xanh ngọc phẳng tối giản `#10b981` (Emerald 500) kết hợp hiệu ứng transition mượt mà.
+    - Loại bỏ cấm bấm nút dạng cứng `disabled={... || !handoverNote.trim()}` để nút luôn sáng, giúp người dùng có thể nhấp chuột vào bất cứ lúc nào.
+    - Trong hàm `handleSubmit` [CloseShiftModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx#L23): Nếu người dùng nhấp chốt ca mà nội dung bàn giao trống, hệ thống sẽ chặn gửi, kích hoạt trạng thái báo lỗi `error` và viền đỏ quanh textarea cùng thông báo cảnh báo trực quan `⚠️ Vui lòng nhập nội dung biên bản bàn giao trước khi chốt ca.` ngay bên dưới.
+    - Loại bỏ thuộc tính HTML5 `required` của `textarea` để tránh tooltip mặc định của trình duyệt và cho phép custom validation React hoạt động chính xác.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/CloseShiftModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- NextJS frontend production build thành công 100% không có cảnh báo hay lỗi TypeScript (`Pass`).
+
+---
+
+## [2026-07-28 08:48:00] - Refactor: Tạm Ẩn Tab Đường Dẫn Và Dừng Polling Job Trên Windows RPA Agent Client
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Do các tác vụ và code nghiệp vụ đã được chuyển dịch hoàn toàn lên NestJS backend trên server Linux Ubuntu ổn định, Windows RPA Agent giờ chỉ làm nhiệm vụ giữ kết nối và hiển thị thông báo. Cần ẩn tab cấu hình đường dẫn và comment lại chức năng polling job để tối giản Agent.
+- **Giải pháp**:
+  - **RPA Agent UI**:
+    - Trong [settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py#L316): Comment out dòng addTab cho "Đường dẫn", đồng thời vẫn khởi tạo method `_build_paths_tab()` ngầm để tránh lỗi thuộc tính `AttributeError` khi nạp/lưu cấu hình.
+  - **RPA Agent Core**:
+    - Trong [agent_core.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/agent_core.py#L384): Tạm thời comment out đoạn logic gọi API `agent/poll` và dispatch job trong vòng lặp chính. Giờ đây Agent chỉ gửi heartbeat để giữ kết nối online.
+
+### 2. Danh sách file chỉnh sửa
+- [deployment/rpa-agent/app/settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py) [MODIFY]
+- [deployment/rpa-agent/app/agent_core.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/agent_core.py) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Code NestJS backend và NextJS frontend biên dịch thành công 100% không lỗi. Ứng dụng Desktop RPA Agent chạy thử nghiệm mượt mà, tab "Đường dẫn" đã ẩn hoàn toàn và không còn tự động kéo job về máy Windows.
+
+---
+
+## [2026-07-28 08:41:00] - Fix: Sửa Lỗi Không Nhập Được Số Trong Thời Gian Tự Đóng Thông Báo (Settings UI)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi ô nhập liệu "Thời gian tự đóng thông báo (giây)" bị trắng/trống không hiển thị số và không thể tương tác nhập số trên Windows RPA Agent.
+- **Giải pháp**:
+  - **RPA Agent UI**:
+    - Trong [settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py#L460): Thay đổi độ rộng cố định `setFixedWidth(70)` của `_duration_spin` (QSpinBox) thành `110`.
+    - Do kiểu dáng QSpinBox tùy biến sử dụng padding lớn (30px bên phải để tránh chèn nút điều khiển), độ rộng cũ 70px quá nhỏ khiến Qt tự động ẩn/cắt cụm chữ số (text clipping) làm ô nhập bị trắng.
+    - Bổ sung hậu tố hiển thị `giây` (`setSuffix(" giây")`) cho ô nhập này để tăng tính đồng nhất UI với các ô nhập thời gian khác (Polling/Heartbeat).
+
+### 2. Danh sách file chỉnh sửa
+- [deployment/rpa-agent/app/settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Không ảnh hưởng đến backend/frontend web. Code Python của UI thiết lập chạy tốt, kiểm thử căn chỉnh giao diện khớp chuẩn.
+
+---
+
+## [2026-07-28 08:35:00] - Fix: Khắc Phục Lỗi Cảnh Báo Handshake Thất Bại (HTTP 201) Giữa Client RPA Agent Và Backend
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Giải quyết lỗi cảnh báo `[WARNING] Handshake thất bại: HTTP 201` trên RPA Agent Client khi chạy kết nối cục bộ.
+- **Giải pháp**:
+  - **Backend**:
+    - Thêm decorator `@HttpCode(HttpStatus.OK)` vào endpoint `/login` (`POST /api/v1/bot-engine/agent/login`) trong [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts#L2279) để ghi đè mã trạng thái mặc định từ `201 Created` của NestJS thành `200 OK` (đúng tiêu chuẩn thiết kế REST API đối với xác thực session).
+    - Thêm import `HttpCode` từ gói `@nestjs/common`.
+  - **RPA Agent Client**:
+    - Cập nhật logic kiểm tra phản hồi đăng nhập trong [agent_core.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/agent_core.py#L116) từ kiểm tra cứng `r.status_code == 200` thành `r.status_code in (200, 201)` để có khả năng tương thích và chống lỗi (fault tolerance) tốt hơn trong trường hợp server thay đổi.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) [MODIFY]
+- [deployment/rpa-agent/app/agent_core.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/agent_core.py) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Cả Backend (`npm run build`) và Frontend (`npm run build`) đều chạy build thành công 100% không có lỗi.
+
+---
+
 ## [2026-07-28 00:22:00] - Refactor: Thay Thế Hộp Thoại Chốt Ca Bằng Custom React Textarea Modal
 
 ### 1. Mục tiêu Thay đổi
