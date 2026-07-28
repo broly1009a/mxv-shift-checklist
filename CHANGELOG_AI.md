@@ -2,6 +2,21 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 09:10:00] - Fix: Ngăn Chặn Spam Email Cảnh Báo Khi Xoay Vòng Refresh Token Tự Động
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ngăn chặn tình trạng hệ thống gửi email cảnh báo thay đổi cấu hình liên tục vào hòm thư mỗi khi Bot tự động cập nhật hoặc xoay vòng Refresh Token.
+- **Giải pháp**:
+  - **Backend**:
+    - Bổ sung danh sách `ignoredKeys` bao gồm `m365_refresh_token`, `m365_token_renewed_at`, `m365_token_error_sent_at` trong hàm `sendSecurityAuditEmail` thuộc [system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts#L48).
+    - Khi các tham số trạng thái hoặc token tự động này thay đổi, hệ thống sẽ bỏ qua không gửi email cảnh báo bảo mật, chỉ gửi cảnh báo đối với các thiết lập thủ công quan trọng khác của quản trị viên.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/system-settings/system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch backend (`npm run build`) thành công (Pass).
+
 ## [2026-07-28 09:05:00] - Cleanup: Loại Bỏ Import Icon LogOut Không Sử Dụng Trong Sidebar
 
 ### 1. Mục tiêu Thay đổi

@@ -45,6 +45,16 @@ export class SystemSettingsService {
     try {
       if (oldValue === newValue) return;
 
+      // Bỏ qua gửi email cảnh báo đối với các tham số tự động thay đổi bởi Bot để tránh spam hòm thư
+      const ignoredKeys = [
+        'm365_refresh_token',
+        'm365_token_renewed_at',
+        'm365_token_error_sent_at',
+      ];
+      if (ignoredKeys.includes(key)) {
+        return;
+      }
+
       const configStr = await this.getSetting('margin_checker_config', '{}');
       const config = JSON.parse(configStr);
       const mailSettings = config.securityAudit || {
