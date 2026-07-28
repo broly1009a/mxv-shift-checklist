@@ -55,7 +55,7 @@ export default function IncidentReportModal({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={18} color="#ef4444" /> Giải quyết sự cố [{resolvingIncident.code}]
+            <AlertTriangle size={18} color="#ef4444" /> Xử lý ngoại lệ / sự cố [{resolvingIncident.code}]
           </h3>
           <button
             onClick={() => setResolvingIncident(null)}
@@ -91,11 +91,11 @@ export default function IncidentReportModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Giải pháp khắc phục (Remediation)*</label>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Giải pháp xử lý (Remediation)*</label>
               <textarea
                 className="form-input"
                 rows={3}
-                placeholder="Mô tả chi tiết các bước xử lý khắc phục sự cố..."
+                placeholder="Mô tả chi tiết các bước xử lý..."
                 value={remediationAction}
                 onChange={(e) => setRemediationAction(e.target.value)}
                 style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}

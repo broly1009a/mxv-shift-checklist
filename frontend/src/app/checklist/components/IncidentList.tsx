@@ -210,7 +210,7 @@ export default function IncidentList({
                       marginTop: '4px'
                     }}
                   >
-                    Khắc phục sự cố
+                    Xử lý
                   </button>
                 )}
               </div>

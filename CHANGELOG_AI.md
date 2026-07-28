@@ -2,6 +2,21 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 17:50:00] - Refactor: Thay Thế Thuật Ngữ Kỹ Thuật 'Khắc Phục Sự Cố' Thành 'Xử Lý' (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nhận ý kiến từ Trưởng khối vận hành, thay đổi nhãn nút bấm từ "Khắc phục sự cố" thành "Xử lý" để phản ánh chính xác bản chất công việc vận hành hàng ngày của trực ca (nhẹ nhàng, thực tế hơn so với từ ngữ kỹ thuật nặng nề "Khắc phục sự cố" khi chỉ trễ hạn SLA).
+- **Giải pháp**:
+  - Đổi nhãn nút hành động xử lý lỗi trong [IncidentList.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx#L213) từ "Khắc phục sự cố" thành "Xử lý".
+  - Thay đổi tiêu đề modal và mô tả trường input giải pháp xử lý trong [IncidentReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) thành "Xử lý ngoại lệ / sự cố" và "Giải pháp xử lý (Remediation)".
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100% không lỗi.
+
 ## [2026-07-28 12:10:00] - Feature: Tích Hợp Báo Cáo Trực Quan Riêng Cho Tác Vụ Quét Email (Frontend)
 
 ### 1. Mục tiêu Thay đổi
