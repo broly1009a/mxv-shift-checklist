@@ -424,7 +424,7 @@ export default function ReconciliationModal({
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', flex: 1 }}>
           
           {/* Form input row */}
-          <div style={{ display: 'grid', gridTemplateColumns: mode === 'CQG' ? '1fr 1fr' : '1fr 1fr 1.5fr', gap: '16px' }}>
+          <div className={mode === 'CQG' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'grid grid-cols-1 md:grid-cols-3 gap-4'}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Ngày phiên giao dịch</label>
               <input 
@@ -711,7 +711,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách khớp lệnh chênh lệch chi tiết ({result.mismatchedTrades.length})
                       </h4>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>
@@ -748,7 +748,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách chênh lệch Trạng Thái Mở (TTM) tài khoản ({result.mismatchedTTM.length})
                       </h4>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>
@@ -779,7 +779,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách chênh lệch Khớp Lệnh Thanh Toán (TTTT vs PS) tài khoản ({result.mismatchedTTTT.length})
                       </h4>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>
@@ -933,7 +933,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách khớp lệnh chênh lệch chi tiết ({result.mismatchedTrades.length})
                       </h4>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>
@@ -970,7 +970,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách chênh lệch Vị Thế Ròng (Net Position) ({result.mismatchedPositions.length})
                       </h4>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>
@@ -1035,7 +1035,7 @@ export default function ReconciliationModal({
                         <AlertTriangle size={14} color="var(--color-critical)" />
                         Danh sách tài khoản chênh lệch số dư CQG (Chênh lệch {'>'} 100 USD)
                       </h4>
-                      <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ maxHeight: '250px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
                           <thead style={{ background: 'rgba(128,128,128,0.05)', position: 'sticky', top: 0 }}>
                             <tr>

@@ -2,6 +2,101 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 00:22:00] - Refactor: Thay Thế Hộp Thoại Chốt Ca Bằng Custom React Textarea Modal
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Loại bỏ các hộp thoại mặc định thô sơ của trình duyệt (`window.confirm`, `window.prompt`) khi Chốt Ca Trực để cải thiện trải nghiệm người dùng (UX) và giao diện thiết kế (Aesthetics).
+- **Giải pháp**:
+  - **Tạo mới component**: [CloseShiftModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx)
+    - Thiết kế giao diện Glassmorphism đồng bộ, hiển thị thẻ cảnh báo nguy cơ khóa ca (đỏ nổi bật) kèm icon `AlertTriangle`.
+    - Sử dụng ô nhập liệu lớn `textarea` giúp người dùng dễ dàng căn dòng, xuống hàng để nhập thông tin bàn giao chi tiết cho ca sau thay vì ô input 1 dòng chật hẹp của `window.prompt`.
+    - Trạng thái quay tròn Loading trên nút Xác nhận khi đang gọi API chốt ca.
+  - **useChecklist Hook**: [useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts)
+    - Sửa đổi phương thức `handleCloseShift` để nhận trực tiếp chuỗi `handoverNote` từ bên ngoài truyền vào làm tham số, loại bỏ hoàn toàn các hộp thoại mặc định.
+  - **Trang Checklist**: [page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+    - Tích hợp state `isCloseShiftModalOpen` và import component `<CloseShiftModal />`.
+    - Chuyển hướng sự kiện nút bấm "Chốt ca trực" mở modal tùy chọn và truyền kết quả chốt ca về hook xử lý.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [frontend/src/app/checklist/components/CloseShiftModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/CloseShiftModal.tsx) [NEW]
+- [frontend/src/app/checklist/hooks/useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) [MODIFY]
+- [frontend/src/app/checklist/page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch Next.js production build (`npm run build` ở `frontend`) thành công 100% không lỗi.
+
+---
+
+## [2026-07-28 00:10:00] - Feature: Triển Khai Tính Năng Tìm Kiếm Toàn Cục (Global Search) Phục Vụ Vận Hành
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế placeholder cũ bằng `"Tìm kiếm sự cố, biên bản..."` và lập trình logic cho phép tìm kiếm nhanh các sự cố (Incidents), các tác vụ vận hành (Tasks) và biên bản bàn giao ca trực (Handovers) liên quan đến từ khóa nhập vào.
+- **Giải pháp**:
+  - **Backend**:
+    - Thêm phương thức `searchIncidents` trong [incidents.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts) để tìm kiếm các sự cố (Incidents) có phân quyền theo phân khối/bộ phận.
+    - Thêm phương thức `globalSearch` trong [shifts.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) để tổng hợp kết quả tìm kiếm sự cố, tác vụ và biên bản bàn giao ca trực từ cơ sở dữ liệu MongoDB.
+    - Tạo endpoint API `GET /api/v1/shifts/search/global?q={value}` trong [shifts.controller.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.controller.ts) (nằm trước endpoint parametric `:id` để tránh xung đột định tuyến).
+  - **Frontend**:
+    - Nâng cấp [Header.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/components/Header.tsx): đổi placeholder thành `"Tìm kiếm sự cố, biên bản..."`.
+    - Viết hook `useEffect` hỗ trợ **Debounce (400ms)** để gọi API tìm kiếm toàn cục khi nhập từ khóa.
+    - Thêm cửa sổ kết quả tìm kiếm thả xuống (Popover) dạng glassmorphism hiển thị trực quan các kết quả tìm kiếm được phân loại (Sự cố 🔴, Tác vụ 🔵, Biên bản bàn giao 🟢) kèm theo các icon động từ `lucide-react`.
+    - Bổ sung ref `searchContainerRef` và cơ chế click-outside để đóng Popover kết quả khi người dùng click ra ngoài ô tìm kiếm.
+    - Khi click chọn một dòng kết quả, hệ thống tự động điều hướng người dùng chuyển hướng sang `/checklist?id={shiftLogId}` tương ứng.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/incidents/incidents.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts) [MODIFY]
+- [backend/src/modules/shifts/shifts.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) [MODIFY]
+- [backend/src/modules/shifts/shifts.controller.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/shifts/shifts.controller.ts) [MODIFY]
+- [frontend/src/components/Header.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/components/Header.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch cả Backend (`nest build`) và Frontend (`next build`) thành công 100% không có lỗi.
+
+---
+
+## [2026-07-27 23:45:00] - Refactor: Tối Ưu Trải Nghiệm Di Động & Cơ Chế Bảo Vệ Thao Tác Chốt Ca Trực
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải thiện trải nghiệm giao diện trên thiết bị di động (khi truy cập qua VPN hoặc Wi-Fi nội bộ) và nâng cao trải nghiệm người dùng (UX).
+- **Giải pháp**:
+  - **Chốt ca trực an toàn**: Bổ sung hộp thoại xác nhận `window.confirm` trong hàm `handleCloseShift` thuộc [useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) để tránh việc người dùng vô tình chốt ca khi bấm nhầm trên màn hình cảm ứng điện thoại.
+  - **Tối ưu Grid form đối chiếu**: Chuyển đổi inline grid `gridTemplateColumns: mode === 'CQG' ? '1fr 1fr' : '1fr 1fr 1.5fr'` trong [ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) thành các lớp responsive Grid của Tailwind CSS (`grid-cols-1 md:grid-cols-2` và `grid-cols-1 md:grid-cols-3`). Nhờ đó, form nhập liệu tự động chuyển thành 1 cột dọc gọn gàng trên màn hình điện thoại nhỏ và phục hồi chia cột trên desktop.
+  - **Cuộn ngang cho bảng số liệu**: Bổ sung `overflowX: 'auto'` vào tất cả các container bọc bảng hiển thị chênh lệch chi tiết khi chạy đối chiếu trong [ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) để hỗ trợ vuốt cuộn ngang mượt mà trên di động, tránh tràn viền hay méo bảng.
+  - **Sticky Search & Filters**: Cấu hình thuộc tính ghim ở đầu cửa sổ (`sticky top-[74px] z-10 backdrop-blur-md`) cho cụm tìm kiếm và lọc trạng thái trong [TaskTable.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx). Giúp người dùng dễ dàng lọc tác vụ khi cuộn danh sách dài mà không cần cuộn ngược lên đầu trang.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/hooks/useChecklist.ts](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) [MODIFY]
+- [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch Next.js production build: Chạy lệnh `npm run build` trong thư mục `frontend` thành công 100% không cảnh báo lỗi (Pass).
+
+---
+
+## [2026-07-27 23:05:00] - Feature: Tích Hợp Cơ Chế Tự Động Dọn Dẹp File Tạm Và File Báo Cáo Trên Ổ Đĩa
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phân tích hệ thống và triển khai cơ chế tự động dọn dẹp (clean up) file vật lý trên ổ đĩa.
+- **Giải pháp**:
+  - Tích hợp thêm logic dọn dẹp file vật lý vào phương thức `handleRetentionCleanup` chạy tự động vào 00:00 hàng ngày thuộc [cleanup.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/system-settings/cleanup.service.ts).
+  - Viết phương thức đệ quy `cleanDirectoryRecursive(dirPath, thresholdDate, excludeFiles)` để quét thư mục, xóa các file có thời gian sửa đổi (`mtime`) cũ hơn ngưỡng cấu hình, đồng thời tự động xóa các thư mục con rỗng sau khi dọn dẹp.
+  - Áp dụng các mốc thời gian dọn dẹp chi tiết:
+    - Thư mục tạm `temp/` (chứa các thư mục con `reports`, `downloads`, `gtt`, `debug`, `reconciliation`...): Dọn dẹp các file cũ hơn **7 ngày** và tự động giải phóng thư mục con rỗng.
+    - Thư mục kết quả robot `uploads/agent-results/`: Dọn dẹp các file báo cáo cũ hơn **30 ngày**.
+    - Thư mục báo cáo giao dịch `uploads/trading-report/`: Dọn dẹp các file báo cáo cũ hơn **30 ngày**.
+    - Thư mục thống kê CCP `uploads/ccp-statistics/`: Dọn dẹp các file cũ hơn **30 ngày**, cấu hình loại trừ (không xóa) file cơ sở dữ liệu tích lũy `Thong_ke_kich_ban_Pilot_Bac_Final.xlsx`.
+  - Tăng cường log hệ thống bằng Tiếng Việt chi tiết hiển thị số lượng file và thư mục con rỗng đã xóa sau khi hoàn thành.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/system-settings/cleanup.service.ts](file:///d:/sontayweb/mxv-shift-checklist/backend/src/modules/system-settings/cleanup.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch ứng dụng NestJS backend: Chạy lệnh `npm run build` thành công (Pass).
+- Chạy test thử nghiệm thực tế với NestJS context thành công: Các file nháp và thư mục rỗng cũ hơn 7/30 ngày bị xóa sạch, file mới tạo và file loại trừ được giữ lại chính xác (Pass).
+
+---
+
 ## [2026-07-27 15:16:00] - Feature: Thêm Tính Năng Cấp Quyền Lại (Re-authorize) Hòm Thư Bot M365 & Quản Lý Token Trên UI
 
 ### 1. Mục tiêu Thay đổi

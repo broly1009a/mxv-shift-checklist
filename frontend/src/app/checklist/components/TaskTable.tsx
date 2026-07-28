@@ -231,7 +231,14 @@ export default function TaskTable({
       </div>
 
       {/* Live Search and Filters group */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5 p-3 bg-[rgba(128,128,128,0.02)] rounded-xl border border-[var(--border-color)] items-stretch sm:items-center">
+      <div 
+        className="flex flex-col sm:flex-row gap-3 mb-5 p-3 rounded-xl border border-[var(--border-color)] items-stretch sm:items-center sticky top-[74px] z-10 backdrop-blur-md"
+        style={{
+          background: 'rgba(var(--bg-card), 0.85)',
+          backgroundColor: 'var(--bg-card)',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
         {/* Text search */}
         <div style={{ flex: 1, minWidth: '180px', position: 'relative' }}>
           <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

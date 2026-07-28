@@ -546,13 +546,8 @@ export function useChecklist() {
     }
   };
 
-  const handleCloseShift = async () => {
+  const handleCloseShift = async (noteInput: string) => {
     if (!log || !token) return;
-    const noteInput = window.prompt(
-      'Nhập Biên Bản Bàn Giao Ca Trực (Thông tin bàn giao vị thế, trạng thái hệ thống cho ca sau,...):',
-      ''
-    );
-    if (noteInput === null) return;
 
     setLoading(true);
     try {

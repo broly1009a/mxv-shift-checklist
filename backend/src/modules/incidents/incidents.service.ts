@@ -651,4 +651,38 @@ export class IncidentsService {
     await workbook.xlsx.write(res);
     res.end();
   }
+
+  async searchIncidents(query: string, user: any): Promise<Incident[]> {
+    const scopeFilter = await this.accessControlService.getScopeFilter(user);
+    const regex = new RegExp(query, 'i');
+    const filter: any = {
+      $or: [
+        { code: { $regex: regex } },
+        { taskId: { $regex: regex } },
+        { requiredAction: { $regex: regex } },
+        { rootCause: { $regex: regex } },
+        { remediationAction: { $regex: regex } },
+        { affectedAccounts: { $in: [regex] } },
+      ],
+    };
+
+    if (Object.keys(scopeFilter).length > 0) {
+      const matchingShifts = await this.shiftLogModel
+        .find(scopeFilter)
+        .select('_id')
+        .exec();
+      const shiftIds = matchingShifts.map((s) => s._id);
+      filter.shiftLogId = { $in: shiftIds };
+    }
+
+    return this.incidentModel
+      .find(filter)
+      .populate({
+        path: 'shiftLogId',
+        populate: { path: 'templateId' },
+      })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .exec();
+  }
 }

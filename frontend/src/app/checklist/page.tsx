@@ -31,6 +31,7 @@ import TradingReportModal from './components/TradingReportModal';
 import OmsStatusModal from './components/OmsStatusModal';
 import MaturityTemplateModal from './components/MaturityTemplateModal';
 import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
+import CloseShiftModal from './components/CloseShiftModal';
 
 function ChecklistWorksheet() {
   const {
@@ -94,6 +95,7 @@ function ChecklistWorksheet() {
   const [isTradingReportModalOpen, setIsTradingReportModalOpen] = React.useState(false);
   const [isOmsModalOpen, setIsOmsModalOpen] = React.useState(false);
   const [isMaturityModalOpen, setIsMaturityModalOpen] = React.useState(false);
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = React.useState(false);
   const [reconTaskId, setReconTaskId] = React.useState('');
   const [omsTaskId, setOmsTaskId] = React.useState('');
   const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
@@ -498,7 +500,7 @@ function ChecklistWorksheet() {
             </div>
 
             {!isCompleted && (
-              <button onClick={handleCloseShift} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
+              <button onClick={() => setIsCloseShiftModalOpen(true)} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
                 <CheckCircle2 size={16} /> Chốt Ca Trực
               </button>
             )}
@@ -651,6 +653,15 @@ function ChecklistWorksheet() {
           onTaskUpdated={() => {
             loadLogDetail(log._id);
           }}
+        />
+      )}
+
+      {isCloseShiftModalOpen && (
+        <CloseShiftModal
+          isOpen={isCloseShiftModalOpen}
+          onClose={() => setIsCloseShiftModalOpen(false)}
+          onSubmit={handleCloseShift}
+          isSubmitting={loading}
         />
       )}
 

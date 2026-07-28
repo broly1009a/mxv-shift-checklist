@@ -1,16 +1,62 @@
-Giải Pháp Chuẩn 100% Để Test UAT Chuẩn Xác (Không Bị Mất Tính Khách Quan):
-Để buổi test UAT phản ánh đúng 100% năng lực tự động của Bot, em và anh sẽ áp dụng đúng 1 trong 2 cách setup sau:
+# HƯỚNG DẪN & GIẢI PHÁP TEST UAT HỆ THỐNG MXV SHIFT CHECKLIST
+(Tài liệu tổng hợp các case kiểm thử, cơ chế bảo vệ và cấu hình triển khai)
 
-Cách 1: Chỉ Kéo File THÔ Sang UAT (Không Kéo File Kết Quả Đã Làm)
-Lúc cấu hình lệnh kéo/đồng bộ từ M:\Quanlygiaodich\ sang UAT, chúng ta chỉ cho phép copy 2 thư mục chứa file thô:
+---
 
-Backup MS/Futures/<Ngày> (chứa DSGD.xlsx, TTM.xlsx...)
-Backup CQG/Futures/<Ngày> (chứa FR1, FR2, PS1, PS2...)
-❌ KHÔNG copy các file báo cáo kết quả (Thong ke gia tri..., DSGD T07.2026.xlsx...) từ ổ gốc sang.
-👉 Kết quả: Bên OperateChecklist_UAT chỉ có duy nhất dữ liệu thô. Toàn bộ file kết quả sẽ do 100% Bot tự tính toán và tự sinh ra từ đầu.
+## I. MỤC TIÊU & NỖI LO CHÍNH KHI TEST UAT
 
-Cách 2: Dùng File Mẫu Trắng Cho OperateChecklist_UAT
-Trong thư mục OperateChecklist_UAT, các file kết quả lũy kế của ngày hôm nay (ngày test) sẽ để trống dòng của ngày hôm nay.
+### 1. Nỗi lo chính:
+- Nếu thư mục gốc `M:\Quanlygiaodich\Tai lieu hoat dong\` đã được QLGD/Macro cũ làm xong đầy đủ (cả file thô lẫn file báo cáo kết quả), khi đồng bộ sang `M:\OperateChecklist_UAT\`:
+  - Liệu Bot có bị "mù quáng coi là đúng" hay lặp dòng dữ liệu?
+  - Liệu kết quả trên `OperateChecklist_UAT` có bị dính kết quả làm tay cũ khiến buổi test UAT mất tính khách quan?
 
-Khi Bot chạy, Bot sẽ tìm dòng ngày hôm nay và tự ghi con số tính được vào.
-Anh chỉ cần mở ra xem con số Bot tự ghi trên OperateChecklist_UAT có khớp với con số QLGD tự làm bên Quanlygiaodich hay không!
+### 2. Nguyên tắc cốt lõi của hệ thống:
+- **Bot KHÔNG bao giờ "tự coi là đúng"**: File kéo sang chỉ làm nguyên liệu đầu vào. Thuật toán NestJS độc lập sẽ tự tính toán lại 100% (gộp FR1+FR2, quy đổi USD, so sánh MS vs CQG vs Straits). Nếu lệch $1 hay 1 lot, Bot sẽ báo lỗi đỏ ngay lập tức.
+- **Bảo vệ ổ Nguồn tuyệt đối**: Hệ thống dùng cờ `assertSafeWritePath` chỉ cho phép ghi vào `OperateChecklist_UAT`, tuyệt đối cấm đè/sửa vào ổ Nguồn `M:\Quanlygiaodich\`.
+
+---
+
+## II. GIẢI PHÁP SETUP THỰC TẾ CHO UAT (KHUYÊN DÙNG)
+
+Để buổi test UAT phản ánh đúng 100% năng lực tự động của Bot mà không bị dính kết quả làm tay cũ:
+
+### 🌟 Cách 1 (Khuyên dùng): Chỉ kéo FILE THÔ sang UAT
+Lúc cấu hình lệnh đồng bộ từ `M:\Quanlygiaodich\` sang UAT (`DATA_ROOT` -> `UAT`), **chỉ copy 2 thư mục chứa file thô**:
+- `Backup MS/Futures/<Ngày>/` (chứa `DSGD.xlsx`, `TTM.xlsx`, `TTTT.xlsx`...)
+- `Backup CQG/Futures/<Ngày>/` (chứa `FR1.xlsx`, `FR2.xlsx`, `PS1.xlsx`, `PS2.xlsx`...)
+- ❌ **KHÔNG copy** các file báo cáo kết quả đã làm xong (`Thong ke gia tri...`, `DSGD T07.2026.xlsx`...) từ ổ gốc sang.
+
+👉 **Kết quả**: Bên `OperateChecklist_UAT` chỉ có dữ liệu thô. Toàn bộ các file báo cáo kết quả sẽ do 100% Bot tự động tính toán và tự sinh ra từ đầu.
+
+### Cách 2: Dùng File Mẫu Trắng Cho `OperateChecklist_UAT`
+Trong thư mục `OperateChecklist_UAT`, các file kết quả lũy kế của ngày test sẽ để trống dòng của ngày hôm đó. Khi Bot chạy, Bot sẽ tìm đúng dòng ngày hôm nay và tự điền con số tính được vào.
+
+---
+
+## III. THỨ TỰ XỬ LÝ KHI KHỞI CHẠY BOT (ORDER OF OPERATIONS)
+
+Bot hoạt động theo quy trình 4 bước hoàn toàn độc lập, không phụ thuộc vào việc ai copy file vào ổ M:
+
+```text
+[BƯỚC 1: ĐỒNG BỘ MẪU] ➔ [BƯỚC 2: QUÉT / CHECK FILE UAT] ➔ [BƯỚC 3: THIẾU MỚI TẢI BÙ] ➔ [BƯỚC 4: TÍNH TOÁN & XUẤT BÁO CÁO]
+```
+
+1. **Bước 1 (Đồng bộ mẫu nếu thiếu)**: Bot kết nối UAT, nếu thiếu file mẫu gốc thì kéo 1 bản sao từ `DATA_ROOT` sang.
+2. **Bước 2 (Quét / Check file UAT)**: Bot tự quét thư mục ngày trong UAT xem đã có đủ `DSGD`, `TTM`, `FR1`, `FR2`... chưa.
+3. **Bước 3 (Thiếu mới Tải Bù)**:
+   - **Nếu ĐỦ 100%**: Bot ghi log `Tất cả các file đã có đầy đủ. Không cần tải thêm` -> Không bật RPA tải web nữa.
+   - **Nếu THIẾU bất kỳ file thô nào**: Bot tự động bật RPA Playwright đăng nhập M-System/CQG (hoặc tự bắt từ Email M365 đính kèm) để **TẢI BÙ ĐÚNG FILE THIẾU** về `OperateChecklist_UAT`.
+4. **Bước 4 (Tính toán & Xuất báo cáo)**: Bot tự gộp `FR1+FR2` -> `FR.xlsx`, `PS1+PS2` -> `PS.xlsx`, đối chiếu 3 bên, quét ký quỹ âm, và tự động cập nhật đè (hàm `findOrCreateTargetRow`) lên dòng ngày hôm đó trong `OperateChecklist_UAT` (tuyệt đối không bị lặp/duplicate dòng).
+
+---
+
+## IV. CẤU HÌNH CỤ THỂ TRÊN WEB ADMIN (BOT CONFIG)
+
+Khi triển khai trên Linux Server (ổ mount CIFS):
+- `M:\Quanlygiaodich\` -> `/mnt/qlgd` (Read-Only)
+- `M:\OperateChecklist_UAT\` -> `/mnt/oc-uat` (Read-Write)
+
+Vào Web Admin (`/admin/bot-config`), điền 3 đường dẫn:
+1. **`bot_backup_path_ms`**: `/mnt/oc-uat/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures`
+2. **`bot_backup_path_cqg`**: `/mnt/oc-uat/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures`
+3. **`bot_lot_macro_target_root`**: `/mnt/oc-uat/Quanlygiaodich/Tai lieu hoat dong`
