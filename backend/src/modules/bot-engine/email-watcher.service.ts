@@ -21,10 +21,14 @@ export class EmailWatcherService {
     let filterSender = '';
     let customDownloadDir = '';
     try {
-      const parsedTarget = JSON.parse(target);
-      filterSubject = parsedTarget.subject || '';
-      filterSender = parsedTarget.sender || '';
-      customDownloadDir = parsedTarget.downloadDir || '';
+      const parsedTarget = this.safeParseJson(target);
+      if (parsedTarget) {
+        filterSubject = parsedTarget.subject || '';
+        filterSender = parsedTarget.sender || '';
+        customDownloadDir = parsedTarget.downloadDir || '';
+      } else {
+        filterSubject = target;
+      }
     } catch {
       filterSubject = target; // Fallback to raw string
     }
@@ -470,10 +474,14 @@ export class EmailWatcherService {
     let filterSender = '';
     let customDownloadDir = '';
     try {
-      const parsedTarget = JSON.parse(target);
-      filterSubject = parsedTarget.subject || '';
-      filterSender = parsedTarget.sender || '';
-      customDownloadDir = parsedTarget.downloadDir || '';
+      const parsedTarget = this.safeParseJson(target);
+      if (parsedTarget) {
+        filterSubject = parsedTarget.subject || '';
+        filterSender = parsedTarget.sender || '';
+        customDownloadDir = parsedTarget.downloadDir || '';
+      } else {
+        filterSubject = target;
+      }
     } catch {
       filterSubject = target;
     }
@@ -692,5 +700,36 @@ export class EmailWatcherService {
       await this.settingsService.setSetting('m365_token_error_sent_at', '1970-01-01T00:00:00.000Z'); // Clear warning throttle timestamp on success
     }
     return tokenData.access_token;
+  }
+
+  /**
+   * Helper to loosely parse JSON targets, fixing unquoted or single-quoted keys/values.
+   */
+  private safeParseJson(jsonStr: string): any {
+    let cleanStr = jsonStr.trim();
+    if (!cleanStr.startsWith('{') || !cleanStr.endsWith('}')) {
+      return null;
+    }
+    try {
+      // 1. Fix unquoted keys, e.g. downloadDir: -> "downloadDir":
+      cleanStr = cleanStr.replace(/([{,]\s*)([a-zA-Z0-9_-]+)\s*:/g, '$1"$2":');
+      // 2. Fix single-quoted keys, e.g. 'downloadDir': -> "downloadDir":
+      cleanStr = cleanStr.replace(/([{,]\s*)'([a-zA-Z0-9_-]+)'\s*:/g, '$1"$2":');
+      return JSON.parse(cleanStr);
+    } catch (err) {
+      try {
+        const subjectMatch = cleanStr.match(/["']?subject["']?\s*:\s*["']([^"']+)["']/i);
+        const senderMatch = cleanStr.match(/["']?sender["']?\s*:\s*["']([^"']+)["']/i);
+        const downloadDirMatch = cleanStr.match(/["']?downloadDir["']?\s*:\s*["']([^"']+)["']/i);
+        
+        return {
+          subject: subjectMatch ? subjectMatch[1] : undefined,
+          sender: senderMatch ? senderMatch[1] : undefined,
+          downloadDir: downloadDirMatch ? downloadDirMatch[1] : undefined,
+        };
+      } catch {
+        return null;
+      }
+    }
   }
 }

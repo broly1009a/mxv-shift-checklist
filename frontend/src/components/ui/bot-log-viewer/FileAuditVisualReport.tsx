@@ -87,11 +87,11 @@ export const FileAuditVisualReport: React.FC<FileAuditVisualReportProps> = ({ fi
                   <td style={{ padding: '10px 14px' }}>
                     {isMissing ? (
                       <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontWeight: 700 }}>
-                        🚨 CHƯA CÓ FILE
+                        CHƯA CÓ FILE
                       </span>
                     ) : (
                       <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 700 }}>
-                        ✓ ĐÃ TẢI FILE
+                        ĐÃ TẢI FILE
                       </span>
                     )}
                   </td>

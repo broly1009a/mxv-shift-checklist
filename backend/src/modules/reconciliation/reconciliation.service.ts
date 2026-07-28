@@ -2809,7 +2809,7 @@ export class ReconciliationService {
 
     // Soạn tin nhắn Telegram
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU SOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
-    telegramMsg += `• Trạng thái: ${hasDiscrepancy ? '🚨 <b>PHÁT HIỆN LỆCH SỐ DƯ</b>' : `✓ Khớp hoàn toàn (sai số &lt; $${differThreshold})`}\n`;
+    telegramMsg += `• Trạng thái: ${hasDiscrepancy ? '<b>PHÁT HIỆN LỆCH SỐ DƯ</b>' : `✓ Khớp hoàn toàn (sai số &lt; $${differThreshold})`}\n`;
     telegramMsg += `• File QLTKGD: <code>${path.basename(qltkgdPath)}</code>\n`;
     telegramMsg += `• File CQG CAST: <code>${path.basename(accountsBalancesPath)}</code>\n`;
     telegramMsg += `• Tỷ giá USD áp dụng: <code>${usdRate} VND</code>\n`;
@@ -2855,7 +2855,7 @@ export class ReconciliationService {
         );
 
         const statusText = hasDiscrepancy
-          ? '🚨 PHÁT HIỆN LỆCH SỐ DƯ'
+          ? 'PHÁT HIỆN LỆCH SỐ DƯ'
           : `✓ Khớp Hoàn Toàn (Sai số < $${differThreshold})`;
         const statusClass = hasDiscrepancy ? 'status-diff' : 'status-match';
 
@@ -3551,7 +3551,7 @@ export class ReconciliationService {
       });
       telegramMsg += `• Khoảng thời gian lọc: <code>${startStr}</code> đến <code>${endStr}</code>\n`;
     }
-    telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '🚨 <b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
+    telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '<b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
     telegramMsg += `• ACM (M-System vs Straits): MS <code>${result.totals.totalACM_MS}</code> vs Partner <code>${result.totals.totalACM_Straits}</code> (Lệch: <b>${result.totals.differACM}</b>)\n`;
     telegramMsg += `• CQG (M-System vs CQG): MS <code>${result.totals.totalCQG_MS}</code> vs Partner <code>${result.totals.totalCQG_FR}</code> (Lệch: <b>${result.totals.differCQG}</b>)\n`;
     telegramMsg += `• Số lượng lệnh lệch: <b>${result.mismatchedTrades.length}</b>\n`;
@@ -3636,7 +3636,7 @@ export class ReconciliationService {
     const totalNegative = negativeBalanceAccs.length + negativeIMRAcc.length;
     const totalMismatched = cqgResult ? cqgResult.length : 0;
     let telegramMsg = `🔔 <b>[ĐỐI CHIẾU EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
-    telegramMsg += `• Trạng thái: ${totalNegative === 0 && totalMismatched === 0 ? '✓ Khớp hoàn toàn & Không có tài khoản âm' : '🚨 <b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
+    telegramMsg += `• Trạng thái: ${totalNegative === 0 && totalMismatched === 0 ? '✓ Khớp hoàn toàn & Không có tài khoản âm' : '<b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
     telegramMsg += `• Tài khoản âm số dư hiện tại: <b>${negativeBalanceAccs.length}</b>\n`;
     telegramMsg += `• Tài khoản âm ký quỹ khả dụng (IMR): <b>${negativeIMRAcc.length}</b>\n`;
     telegramMsg += `• Số tài khoản lệch số dư EOD: <b>${totalMismatched}</b>\n`;

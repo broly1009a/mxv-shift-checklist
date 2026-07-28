@@ -43,4 +43,13 @@ export interface ParsedBotData {
   message: string;
   fileItems: FileAuditItem[];
   marginAccounts: MarginAccount[];
+  emailScanResult?: {
+    found: boolean;
+    subject?: string;
+    sender?: string;
+    downloadDir?: string;
+    downloadedFiles?: string[];
+    keyword?: string;
+    scannedAt?: string;
+  } | null;
 }

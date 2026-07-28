@@ -146,8 +146,8 @@ export class TelegramService implements OnModuleInit {
 
               const titleText =
                 warningType === 'OVERDUE'
-                  ? `🚨 <b>[CẢNH BÁO QUÁ HẠN CHÓT]</b>`
-                  : `⚠️ <b>[CẢNH BÁO SẮP ĐẾN HẠN CHÓT]</b>`;
+                  ? `<b>[CẢNH BÁO QUÁ HẠN CHÓT]</b>`
+                  : `<b>[CẢNH BÁO SẮP ĐẾN HẠN CHÓT]</b>`;
 
               const timeText =
                 warningType === 'OVERDUE'

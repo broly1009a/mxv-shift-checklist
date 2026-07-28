@@ -602,7 +602,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                           {row.status === 'MATCH' && (
                             <span style={{ color: '#059669', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                              ✅ Khớp
+                              Khớp
                             </span>
                           )}
                           {row.status === 'DIFF' && (
@@ -615,21 +615,21 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
                               borderRadius: '4px',
                               border: isMinorDiff ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
                             }}>
-                              {isMinorDiff ? '⚠️ Lệch ít' : '🚨 Lệch nhiều'}
+                              {isMinorDiff ? 'Lệch ít' : 'Lệch nhiều'}
                             </span>
                           )}
                           {row.status === 'MS_ONLY' && (
                             <span style={{ color: '#d97706', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                              📋 Chỉ có MS
+                              Chỉ có MS
                             </span>
                           )}
                           {row.status === 'CQG_ONLY' && (
                             <span style={{ color: '#0284c7', fontWeight: 700, fontSize: '0.65rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                              📊 Chỉ có CQG
+                              Chỉ có CQG
                             </span>
                           )}
                           {row.status === 'NO_PRICE' && (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>❓ Không có giá</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>Không có giá</span>
                           )}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>

@@ -464,9 +464,9 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
                   </div>
                 ))}
               </div>
-              {reconResult.results.eod.negativeIMRAcc?.length > 0 && (
+               {reconResult.results.eod.negativeIMRAcc?.length > 0 && (
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', padding: '10px 14px', borderRadius: '0 6px 6px 0', fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', fontWeight: 700 }}>
-                  🚨 Tài khoản âm ký quỹ: {reconResult.results.eod.negativeIMRAcc.join(', ')}
+                  Tài khoản âm ký quỹ: {reconResult.results.eod.negativeIMRAcc.join(', ')}
                 </div>
               )}
             </div>

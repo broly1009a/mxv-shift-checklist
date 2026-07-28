@@ -1383,10 +1383,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
 
             if (negativeBalanceAccsCount > 0) {
-              note += `🚨 Tài khoản âm số dư hiện tại: ${eodResult.negativeBalanceAccs?.join(', ')}\n`;
+              note += `• Tài khoản âm số dư hiện tại: ${eodResult.negativeBalanceAccs?.join(', ')}\n`;
             }
             if (negativeIMRAccCount > 0) {
-              note += `🚨 Tài khoản âm ký quỹ khả dụng: ${eodResult.negativeIMRAcc.join(', ')}\n`;
+              note += `• Tài khoản âm ký quỹ khả dụng: ${eodResult.negativeIMRAcc.join(', ')}\n`;
             }
             if (negativeBalanceAccsCount === 0 && negativeIMRAccCount === 0) {
               note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;

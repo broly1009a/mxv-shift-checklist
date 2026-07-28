@@ -383,7 +383,7 @@ export class TeamsNotifierService {
           type: 'TextBlock',
           size: 'large',
           weight: 'Bolder',
-          text: `🚨 CẢNH BÁO ĐÁO HẠN HỢP ĐỒNG - THÀNH VIÊN ${memberCode}`,
+          text: `CẢNH BÁO ĐÁO HẠN HỢP ĐỒNG - THÀNH VIÊN ${memberCode}`,
           color: 'Attention',
         },
         {
@@ -1051,7 +1051,7 @@ export class TeamsNotifierService {
             type: 'TextBlock',
             size: 'large',
             weight: 'Bolder',
-            text: `🚨 CẢNH BÁO ĐÁO HẠN HỢP ĐỒNG - THÀNH VIÊN ${memberCode}`,
+            text: `CẢNH BÁO ĐÁO HẠN HỢP ĐỒNG - THÀNH VIÊN ${memberCode}`,
             color: 'Attention',
           },
           {

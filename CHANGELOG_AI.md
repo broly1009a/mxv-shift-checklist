@@ -2,6 +2,84 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 12:10:00] - Feature: Tích Hợp Báo Cáo Trực Quan Riêng Cho Tác Vụ Quét Email (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế giao diện báo cáo trực quan cho các tác vụ kiểm tra hòm thư (`EMAIL_PARSE`). Hiện tại các tác vụ này đang hiển thị nhầm giao diện thống kê gửi thư hệ thống ("TỔNG SỐ EMAIL GỬI", "EMAIL GỬI THẤT BẠI"), không đúng bản chất tác vụ kiểm tra email đến và tải tệp đính kèm.
+- **Giải pháp**:
+  - Tạo component chuyên dụng [EmailScanVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/EmailScanVisualReport.tsx) để hiển thị thông tin trực quan cho tác vụ quét email (Trạng thái tìm thấy, Tiêu đề thư khớp, Từ khóa xác minh, Danh sách file tải về kèm vị trí thư mục lưu trữ).
+  - Khai báo thêm trường `emailScanResult` trong kiểu dữ liệu [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/types.ts).
+  - Cập nhật hàm phân tích `parsedData` và logic hiển thị Tab trong [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) để phân loại đúng nhóm `EMAIL_SCAN` và kết xuất giao diện tương ứng.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/components/ui/bot-log-viewer/types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/types.ts) [MODIFY]
+- [frontend/src/components/ui/bot-log-viewer/EmailScanVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/EmailScanVisualReport.tsx) [NEW]
+- [frontend/src/components/ui/BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100% không lỗi.
+
+## [2026-07-28 12:00:00] - Fix: Nâng Cấp Khả Năng Phân Tích JSON Loose Của Email Watcher (Backend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi Bot thông báo không quét được email do lỗi định dạng chuỗi JSON cấu hình ở trường Target. Người dùng nhập `downloadDir:` không có nháy kép quanh tên key khiến cú pháp JSON bị hỏng, làm cho Bot không thể trích xuất chính xác `sender` (trả về trống `""`) và `subject`.
+- **Giải pháp**:
+  - Viết hàm bổ trợ `safeParseJson` trong [email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts#L698).
+  - Tự động sửa lỗi (Loose Parser) các key viết thiếu nháy kép (ví dụ: `downloadDir:`) hoặc key dùng nháy đơn bằng Regex trước khi đưa vào `JSON.parse`.
+  - Cập nhật ở cả hai tác vụ `checkEmailTask` và `checkEmailTaskDelegated` để đảm bảo UAT và Product hoạt động đồng nhất.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch ứng dụng backend thành công (`npm run build`).
+
+## [2026-07-28 11:30:00] - Refactor: Gỡ Bỏ Triệt Để Các Emoji Cảnh Báo 🚨 Khỏi Hệ Thống (Telegram, Teams, Web UI)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Gỡ bỏ triệt để các biểu tượng emoji `🚨`, `⚠️`, `✅` còn sót lại trên các file cấu hình và giao diện (Telegram, Teams, Web UI, Báo cáo trực quan) để đảm bảo đồng bộ hóa thiết kế phẳng và tăng tính thẩm mỹ chuẩn doanh nghiệp.
+- **Giải pháp**:
+  - Gỡ bỏ hoàn toàn emoji `🚨` khỏi:
+    - Tin nhắn Telegram cảnh báo đối chiếu SOD/EOD trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts).
+    - Chuỗi log lưu trữ trạng thái âm ký quỹ trong [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts).
+    - Log chú thích (Checklist Notes) lưu trữ trong database của tác vụ chạy EOD tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts).
+    - Tiêu đề thông báo cảnh báo thời gian chót (Coming Soon & Overdue) trên Telegram tại [telegram.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/telegram/telegram.service.ts).
+    - Cảnh báo đáo hạn hợp đồng trên MS Teams trong [teams-notifier.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/notifications/teams-notifier.service.ts).
+    - Nhãn hiển thị lệch giá trị trên Admin Panel GttChecker trong [GttChecker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/GttChecker.tsx).
+    - Khối cấu hình EOD trong [ReconciliationPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx).
+    - Huy hiệu trạng thái thiếu file trong báo cáo trực quan [FileAuditVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/FileAuditVisualReport.tsx).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts) [MODIFY]
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts) [MODIFY]
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) [MODIFY]
+- [backend/src/modules/telegram/telegram.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/telegram/telegram.service.ts) [MODIFY]
+- [backend/src/modules/notifications/teams-notifier.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/notifications/teams-notifier.service.ts) [MODIFY]
+- [frontend/src/app/admin/bot-config/components/GttChecker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/GttChecker.tsx) [MODIFY]
+- [frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx) [MODIFY]
+- [frontend/src/components/ui/bot-log-viewer/FileAuditVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/FileAuditVisualReport.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án backend và frontend đều biên dịch hoàn toàn thành công không lỗi.
+
+## [2026-07-28 11:20:00] - Fix: Khắc Phục Lỗi Phân Tích Dữ Liệu Tệp Tin Trùng Lặp Trên Giao Diện Chi Tiết Chạy Bot (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi giao diện chi tiết chạy bot scan báo cáo M-System hiển thị sai số lượng tệp tin (TỔNG SỐ FILE BÁO CÁO lên tới 40 tệp tin, FILE THIẾU lên tới 7 tệp tin) và hiển thị các dòng log thô như "Kết quả scan", "Đang tải bổ sung..." thay vì tên tệp tin thực tế trong danh sách.
+- **Giải pháp**:
+  - Phát hiện lỗi do parser frontend trong [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx#L501) phân tích dòng thô, cứ mỗi dòng log chứa chữ `.xlsx`, `.csv` hay `file` đều coi là một tệp tin riêng, gây lặp lại dữ liệu sau mỗi lượt thử lại của Bot (Attempt 1/2/3).
+  - Viết lại bộ lọc sử dụng `Map` và đối sánh Regex thông minh để:
+    - Bỏ qua các dòng log trạng thái chung.
+    - Trích xuất chính xác tên các tệp tin bị thiếu ban đầu bằng Regex.
+    - Cập nhật trạng thái thành công (`DOWNLOADED`) hoặc lỗi (`MISSING` kèm thông tin chi tiết lỗi) của từng tệp tin duy nhất theo tiến trình thời gian thực tế.
+    - Loại bỏ hoàn toàn các dòng mô tả log khỏi danh sách tệp tin hiển thị.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/components/ui/BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript phía frontend (`npx tsc --noEmit`) thành công 100% không lỗi.
+
 ## [2026-07-28 11:10:00] - Refactor: Dọn Dẹp và Chuẩn Hóa Emoji Trên Các Email Cảnh Báo Hệ Thống
 
 ### 1. Mục tiêu Thay đổi

@@ -5,6 +5,7 @@ import { ReconciliationVisualReport } from './bot-log-viewer/ReconciliationVisua
 import { FileAuditVisualReport } from './bot-log-viewer/FileAuditVisualReport';
 import { SystemApiVisualReport } from './bot-log-viewer/SystemApiVisualReport';
 import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisualReport';
+import { EmailScanVisualReport } from './bot-log-viewer/EmailScanVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 
@@ -142,7 +143,21 @@ export default function BotLogViewerModal({
     ) {
       jsonType = 'EOD';
     }
-    // 3. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
+    // 3a. EMAIL_SCAN Tasks (Bot quét hòm thư để tải báo cáo)
+    else if (
+      idUpper.includes('EMAIL_PARSE') ||
+      titleUpper.includes('XÁC MINH EMAIL') ||
+      titleUpper.includes('QUÉT HÒM THƯ') ||
+      titleUpper.includes('ĐỌC EMAIL') ||
+      titleUpper.includes('CHECK EMAIL') ||
+      text.includes('quét hòm thư') ||
+      text.includes('Đã tìm thấy email khớp') ||
+      text.includes('Đã quét hòm thư') ||
+      text.includes('email nào khớp tiêu đề')
+    ) {
+      jsonType = 'EMAIL_SCAN';
+    }
+    // 3b. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
     else if (
       idUpper.includes('SYSTEM_API') ||
       titleUpper.includes('EMAIL') ||
@@ -501,25 +516,120 @@ export default function BotLogViewerModal({
     // Parse File items for File Audit
     const fileItems: FileAuditItem[] = [];
     const fileLines = text.split('\n');
-    fileLines.forEach((fl: string, idx: number) => {
-      const trimmed = fl.trim();
-      if (trimmed.includes('.xlsx') || trimmed.includes('.csv') || trimmed.includes('.txt') || trimmed.toLowerCase().includes('file')) {
-        let fileStatus: 'OK' | 'MISSING' | 'OUTDATED' | 'DOWNLOADED' = 'OK';
-        if (trimmed.toLowerCase().includes('thiếu') || trimmed.toLowerCase().includes('missing') || trimmed.toLowerCase().includes('không tồn tại')) {
-          fileStatus = 'MISSING';
-        } else if (trimmed.toLowerCase().includes('tải') || trimmed.toLowerCase().includes('download') || trimmed.toLowerCase().includes('tồn tại') || trimmed.toLowerCase().includes('ok') || trimmed.toLowerCase().includes('thành công')) {
-          fileStatus = 'DOWNLOADED';
-        } else if (trimmed.toLowerCase().includes('cũ') || trimmed.toLowerCase().includes('outdated')) {
-          fileStatus = 'OUTDATED';
-        }
+    const fileMap = new Map<string, { status: 'OK' | 'MISSING' | 'OUTDATED' | 'DOWNLOADED'; detail: string }>();
 
-        fileItems.push({
-          id: idx,
-          filename: trimmed.replace(/^\[.*?\]\s*/, '').split(':')[0].trim(),
-          status: fileStatus,
-          detail: trimmed
+    fileLines.forEach((fl: string) => {
+      const trimmed = fl.trim();
+
+      // Skip generic/summary log lines
+      if (
+        trimmed.includes('Starting attempt') ||
+        trimmed.includes('Job status transitioned') ||
+        trimmed.includes('Thư mục backup:') ||
+        trimmed.includes('Kết quả scan:') ||
+        trimmed.includes('Attempt') ||
+        trimmed.includes('Job failed permanently') ||
+        trimmed.includes('Initialize auto-checking') ||
+        trimmed.includes('Connecting to database')
+      ) {
+        return;
+      }
+
+      // Pattern 1: Scan result listing missing files
+      // e.g. "⚠️ Thiếu/cũ 9 file: DSQLKQ.xlsx(MISSING), DSTrader.xlsx(MISSING)..."
+      if ((trimmed.includes('Thiếu/cũ') || trimmed.includes('Thiếu file')) && (trimmed.includes('.xlsx') || trimmed.includes('.csv'))) {
+        const fileStatusRegex = /([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\((MISSING|OUTDATED)\)/g;
+        let match;
+        while ((match = fileStatusRegex.exec(trimmed)) !== null) {
+          const filename = match[1].trim();
+          const status = match[2] as 'MISSING' | 'OUTDATED';
+          fileMap.set(filename, {
+            status,
+            detail: status === 'MISSING' ? 'File bị thiếu trong thư mục backup' : 'File cũ hoặc không hợp lệ'
+          });
+        }
+      }
+
+      // Pattern 2: Download success
+      // e.g. "✅ Tải thành công: DSQLKQ.xlsx"
+      const successMatch = trimmed.match(/(?:✅\s*)?Tải thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      if (successMatch) {
+        const filename = successMatch[1].trim();
+        fileMap.set(filename, {
+          status: 'DOWNLOADED',
+          detail: 'Tải thành công từ M-System'
         });
       }
+
+      // Pattern 3: Download failure
+      // e.g. "❌ Lỗi khi tải QLTKGDAmKQ.xlsx: page.waitForSelector: Timeout 15000ms exceeded..."
+      const failMatch = trimmed.match(/(?:❌\s*)?Lỗi khi tải\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s*:\s*(.*)/i);
+      if (failMatch) {
+        const filename = failMatch[1].trim();
+        const errorDetail = failMatch[2].trim();
+        fileMap.set(filename, {
+          status: 'MISSING',
+          detail: errorDetail
+        });
+      }
+
+      // Pattern 4: Simple download success without icon
+      const simpleSuccessMatch = trimmed.match(/Tải thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      if (simpleSuccessMatch) {
+        const filename = simpleSuccessMatch[1].trim();
+        fileMap.set(filename, {
+          status: 'DOWNLOADED',
+          detail: 'Tải thành công'
+        });
+      }
+
+      // Pattern 5: Merge CQG success
+      const mergeSuccessMatch = trimmed.match(/(?:Ghép|Merge) file CQG thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      if (mergeSuccessMatch) {
+        const filename = mergeSuccessMatch[1].trim();
+        fileMap.set(filename, {
+          status: 'OK',
+          detail: 'Ghép file CQG thành công'
+        });
+      }
+    });
+
+    // Fallback parser if map is empty (old or unstructured logs)
+    if (fileMap.size === 0) {
+      fileLines.forEach((fl: string, idx: number) => {
+        const trimmed = fl.trim();
+        if (trimmed.includes('Kết quả scan:') || trimmed.includes('Thư mục backup:')) return;
+
+        if (trimmed.includes('.xlsx') || trimmed.includes('.csv') || trimmed.includes('.txt')) {
+          const fileMatch = trimmed.match(/([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/gi);
+          if (fileMatch) {
+            fileMatch.forEach(fileCandidate => {
+              const filename = fileCandidate.trim();
+              let fileStatus: 'OK' | 'MISSING' | 'OUTDATED' | 'DOWNLOADED' = 'OK';
+              if (trimmed.toLowerCase().includes('thiếu') || trimmed.toLowerCase().includes('missing') || trimmed.toLowerCase().includes('lỗi')) {
+                fileStatus = 'MISSING';
+              } else if (trimmed.toLowerCase().includes('tải') || trimmed.toLowerCase().includes('download') || trimmed.toLowerCase().includes('thành công')) {
+                fileStatus = 'DOWNLOADED';
+              }
+              fileMap.set(filename, {
+                status: fileStatus,
+                detail: trimmed
+              });
+            });
+          }
+        }
+      });
+    }
+
+    // Convert the Map to FileAuditItem[] array
+    let fileIdx = 0;
+    fileMap.forEach((val, filename) => {
+      fileItems.push({
+        id: fileIdx++,
+        filename,
+        status: val.status,
+        detail: val.detail
+      });
     });
 
     // Parse negative margin accounts from text if margin warning is active
@@ -544,6 +654,37 @@ export default function BotLogViewerModal({
       }
     }
 
+    let emailScanResult: any = null;
+    if (jsonType === 'EMAIL_SCAN') {
+      const isFound = text.includes('Đã tìm thấy email khớp') || text.includes('Tìm thấy email');
+      
+      const timeMatch = text.match(/Quét tự động lúc\s*([0-9-:\s]+)/i) || text.match(/\[([0-9-T:\.Z]+)\]/i);
+      const scannedAt = timeMatch ? timeMatch[1].trim() : '';
+
+      const downloadMatch = text.match(/Đã tải\s*(?:\d+)?\s*file đính kèm về\s*([^:]+):\s*([^\n]+)/i);
+      const downloadDir = downloadMatch ? downloadMatch[1].trim() : '';
+      const downloadedFiles = downloadMatch ? downloadMatch[2].split(',').map((s: string) => s.trim()) : [];
+
+      const senderMatch = text.match(/người gửi\s*["']([^"']*)["']/i);
+      const sender = senderMatch ? senderMatch[1] : '';
+
+      const subjectMatch = text.match(/(?:tiêu đề|email khớp:)\s*["']([^"']+)["']/i);
+      const subject = subjectMatch ? subjectMatch[1] : '';
+
+      const keywordMatch = text.match(/điều kiện:\s*["']([^"']+)["']/i) || text.match(/chứa từ khóa\s*["']([^"']+)["']/i);
+      const keyword = keywordMatch ? keywordMatch[1] : '';
+
+      emailScanResult = {
+        found: isFound,
+        subject,
+        sender,
+        downloadDir,
+        downloadedFiles,
+        keyword,
+        scannedAt
+      };
+    }
+
     return {
       rawText: text,
       isJson,
@@ -551,11 +692,12 @@ export default function BotLogViewerModal({
       jsonResult,
       message: message || text,
       fileItems,
-      marginAccounts
+      marginAccounts,
+      emailScanResult
     };
   }, [activeResultNote, taskTitle, taskId]);
 
-  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION' | 'MARGIN_DECISION'>(() => {
+  const category = useMemo<'SYSTEM_API' | 'FILE_AUDIT' | 'RECONCILIATION' | 'MARGIN_DECISION' | 'EMAIL_SCAN'>(() => {
     if (parsedData.jsonType === 'MARGIN_DECISION') {
       return 'MARGIN_DECISION';
     }
@@ -572,6 +714,9 @@ export default function BotLogViewerModal({
     }
     if (parsedData.jsonType === 'SYSTEM_API') {
       return 'SYSTEM_API';
+    }
+    if (parsedData.jsonType === 'EMAIL_SCAN') {
+      return 'EMAIL_SCAN';
     }
 
     const titleUpper = (taskTitle || '').toUpperCase();
@@ -594,6 +739,15 @@ export default function BotLogViewerModal({
       titleUpper.includes('DỮ LIỆU 3 BÊN')
     ) {
       return 'RECONCILIATION';
+    }
+    if (
+      titleUpper.includes('QUÉT EMAIL') ||
+      titleUpper.includes('XÁC MINH EMAIL') ||
+      titleUpper.includes('QUÉT HÒM THƯ') ||
+      titleUpper.includes('ĐỌC EMAIL') ||
+      titleUpper.includes('CHECK EMAIL')
+    ) {
+      return 'EMAIL_SCAN';
     }
     if (
       titleUpper.includes('KÝ QUỸ') ||
@@ -808,6 +962,7 @@ export default function BotLogViewerModal({
               {category === 'RECONCILIATION' && <ReconciliationVisualReport parsedData={parsedData} />}
               {category === 'FILE_AUDIT' && <FileAuditVisualReport fileItems={parsedData.fileItems} />}
               {category === 'SYSTEM_API' && <SystemApiVisualReport jsonResult={parsedData.jsonResult} marginAccounts={parsedData.marginAccounts} />}
+              {category === 'EMAIL_SCAN' && <EmailScanVisualReport emailScanResult={parsedData.emailScanResult} rawText={parsedData.rawText} />}
             </>
           )}
         </div>
