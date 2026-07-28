@@ -1585,7 +1585,7 @@ export class ReconciliationService {
         mailSettings.isSendWarning &&
         (negativeBalanceAccs.length > 0 || negativeIMRAcc.length > 0)
       ) {
-        const subject = `🚨 [MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
+        const subject = `[MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
         const htmlBody = this.buildNegativeMarginEmailHtml(
           negativeBalanceAccs,
           negativeIMRAcc,
@@ -2123,7 +2123,7 @@ export class ReconciliationService {
         mailSettings.isSendWarning &&
         (negativeBalanceAccs.length > 0 || negativeIMRAcc.length > 0)
       ) {
-        const subject = `🚨 [MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
+        const subject = `[MXV MARGIN WARNING] Danh sách Tài khoản Âm ký quỹ đầu ngày`;
         const htmlBody = this.buildNegativeMarginEmailHtml(
           negativeBalanceAccs,
           negativeIMRAcc,
@@ -3253,7 +3253,7 @@ export class ReconciliationService {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
           <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
             <div style="padding: 20px;">
-              <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Tài Khoản Âm Ký Quỹ Đầu Ngày (Post-EOD)</h2>
+              <h2 style="color: #c62828; margin-top: 0;">Cảnh Báo Tài Khoản Âm Ký Quỹ Đầu Ngày (Post-EOD)</h2>
               <p>Phát hiện tổng cộng <b>${total} tài khoản bị âm ký quỹ hoặc âm số dư</b> đầu ngày sau phiên EOD.</p>
               
               <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #c62828; font-weight: bold;">

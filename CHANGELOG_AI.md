@@ -2,6 +2,47 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-07-28 11:10:00] - Refactor: Dọn Dẹp và Chuẩn Hóa Emoji Trên Các Email Cảnh Báo Hệ Thống
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đánh giá và dọn dẹp các biểu tượng emoji (`🚨`, `⚠️`, `👉`, `✅`) trong các email cảnh báo hệ thống để đảm bảo tính chuyên nghiệp, tối giản chuẩn doanh nghiệp (Enterprise Look), tránh gây hiểu lầm là email quảng cáo/spam và khắc phục lỗi render ký tự đặc biệt của Outlook.
+- **Giải pháp**:
+  - Gỡ bỏ hoàn toàn emoji `🚨`, `⚠️`, `👉`, `✅` khỏi các email:
+    - Email cảnh báo kết nối RPA Agent (mất kết nối / khôi phục kết nối).
+    - Email cảnh báo lỗi tác vụ vận hành trong ca trực.
+    - Email cảnh báo âm ký quỹ Post-EOD (`[MXV MARGIN WARNING]`).
+    - Email cảnh báo hết hạn Refresh Token hòm thư Bot (`[MXV BOT WARNING]`).
+  - Giữ lại emoji trong các kênh **Telegram** và **Web console** nội bộ (nơi emoji hoạt động tốt và giúp nhân viên quét nhanh thông tin sự cố).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) [MODIFY]
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts) [MODIFY]
+- [backend/src/modules/system-settings/system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch ứng dụng backend thành công (`npm run build`).
+
+## [2026-07-28 10:00:00] - Feature: Nâng Cấp Giao Diện UI/UX Email Cảnh Báo Lỗi Bot Vận Hành Cho Nhân Viên Ca Trực
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải tiến giao diện email cảnh báo lỗi Bot ngầm (RPA/Scheduler) trở nên thân thiện và đơn giản hơn với nhân viên ca trực (Operator), hiển thị tên ca trực/tác vụ bằng tiếng Việt rõ ràng, cung cấp nút bấm trực tiếp để chuyển hướng xử lý nhanh ca trực và thu gọn các thông tin kỹ thuật (JSON, logs) bằng thẻ mở rộng dành riêng cho IT.
+- **Giải pháp**:
+  - **Backend**:
+    - Thêm phương thức helper `getShiftByIdInternal(id: string)` trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L1228) để cho phép query thông tin ca trực mà không cần context user phân quyền.
+    - Cập nhật hàm `sendOperationalFailureAlert` trong [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts#L2512):
+      - Tự động gọi `getShiftByIdInternal` để phân tích tên ca trực tiếng Việt và tên tác vụ hiển thị tiếng Việt (`taskNameSnapshot`).
+      - Cập nhật chủ đề email (Subject) theo định dạng nghiệp vụ: `🚨 [Checklist Alert] Lỗi Tác Vụ [Tên Tác Vụ] - Ca Trực: [Tên Ca Trực]`.
+      - Bổ sung nút bấm hành động nổi bật **`[ ĐI TỚI CA TRỰC ĐỂ XỬ LÝ ]`** liên kết thẳng đến trang ca trực của nhân viên vận hành.
+      - Sử dụng thẻ `<details>` và `<summary>` trong HTML để gom nhóm thu gọn ngầm phần **Payload của Job** và **20 Dòng Logs Cuối Cùng**, giúp giao diện chính tối giản và IT vẫn có đầy đủ thông tin khi mở rộng.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/shifts/shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) [MODIFY]
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Chạy thử nghiệm thành công bằng script test: `npx ts-node src/test-trigger-operational-failure.ts` (gửi mail cảnh báo mới thành công kèm đính kèm CSV).
+- Biên dịch backend (`npm run build`) thành công 100% không lỗi.
+
 ## [2026-07-28 09:10:00] - Fix: Ngăn Chặn Spam Email Cảnh Báo Khi Xoay Vòng Refresh Token Tự Động
 
 ### 1. Mục tiêu Thay đổi

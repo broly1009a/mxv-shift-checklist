@@ -202,14 +202,14 @@ export class SystemSettingsService {
         socketTimeout: 15000,
       });
 
-      const subject = `🚨 [MXV BOT WARNING] Cảnh báo: Refresh Token Đọc Email Của Bot Đã Hết Hạn / Bị Thu Hồi`;
+      const subject = `[MXV BOT WARNING] Cảnh báo: Refresh Token Đọc Email Của Bot Đã Hết Hạn / Bị Thu Hồi`;
       
       const htmlBody = `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #dc2626;">
               <div style="padding: 20px;">
-                <h2 style="color: #dc2626; margin-top: 0;">⚠️ Cảnh báo: Mất Kết Nối Hòm Thư Bot (Graph API)</h2>
+                <h2 style="color: #dc2626; margin-top: 0;">Cảnh báo: Mất Kết Nối Hòm Thư Bot (Graph API)</h2>
                 <p>Kính gửi Bộ phận Vận hành,</p>
                 <p>Hệ thống phát hiện lỗi nghiêm trọng khi cố gắng làm mới (refresh) mã Access Token cho hòm thư Bot đọc email:</p>
                 

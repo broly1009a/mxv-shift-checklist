@@ -1226,6 +1226,21 @@ export class ShiftsService {
     return log;
   }
 
+  async getShiftByIdInternal(id: string): Promise<ShiftLog | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    return this.shiftLogModel
+      .findById(id)
+      .populate('userId', 'fullName username')
+      .populate({
+        path: 'templateId',
+        populate: { path: 'departmentId' },
+      })
+      .populate('shiftSlotId')
+      .populate('departmentId')
+      .exec();
+  }
+
+
   async getAuditLogs(shiftLogId: string, user: any): Promise<AuditLog[]> {
     if (!Types.ObjectId.isValid(shiftLogId)) {
       throw new BadRequestException('ID ca trực không hợp lệ');

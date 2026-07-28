@@ -201,8 +201,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       });
 
       const subject = isOnline
-        ? `✅ [MXV RPA AGENT] Kết Nối Đã Được Phục Hồi: ${status.hostname}`
-        : `🚨 [MXV RPA AGENT] Cảnh Báo Mất Kết Nối: ${status.hostname}`;
+        ? `[MXV RPA AGENT] Kết Nối Đã Được Phục Hồi: ${status.hostname}`
+        : `[MXV RPA AGENT] Cảnh Báo Mất Kết Nối: ${status.hostname}`;
 
       const htmlBody = isOnline
         ? `
@@ -210,7 +210,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #2e7d32;">
               <div style="padding: 20px;">
-                <h2 style="color: #2e7d32; margin-top: 0;">✅ Khôi Phục Kết Nối RPA Agent</h2>
+                <h2 style="color: #2e7d32; margin-top: 0;">Khôi Phục Kết Nối RPA Agent</h2>
                 <p>Ứng dụng MXV RPA Agent trên máy <b>${status.hostname}</b> (${status.platform}) đã kết nối lại thành công với hệ thống.</p>
                 <p><b>Thời gian khôi phục:</b> ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
               </div>
@@ -223,7 +223,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
               <div style="padding: 20px;">
-                <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Mất Kết Nối RPA Agent</h2>
+                <h2 style="color: #c62828; margin-top: 0;">Cảnh Báo Mất Kết Nối RPA Agent</h2>
                 <p>Hệ thống phát hiện ứng dụng MXV RPA Agent trên máy <b>${status.hostname}</b> (${status.platform}) đã mất kết nối quá 3 phút!</p>
                 <p><b>Lần cuối nhìn thấy hoạt động:</b> ${status.lastSeen.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                 <p style="color: #c62828; font-weight: bold;">Đề nghị bộ phận IT check lại máy tính hoặc restart ứng dụng Agent.</p>
@@ -2553,6 +2553,25 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         ? Object.fromEntries(job.payload)
         : job.payload || {};
 
+      let shiftTitle = '';
+      let taskName = '';
+      if (rawPayload.shiftLogId) {
+        try {
+          const shiftLog = await this.shiftsService.getShiftByIdInternal(rawPayload.shiftLogId);
+          if (shiftLog) {
+            shiftTitle = (shiftLog.templateId as any)?.title || '';
+            if (rawPayload.taskId && Array.isArray(shiftLog.details)) {
+              const task = (shiftLog.details as any[]).find(t => t.taskId === rawPayload.taskId);
+              if (task) {
+                taskName = task.taskNameSnapshot || '';
+              }
+            }
+          }
+        } catch (err: any) {
+          this.logger.error(`Error resolving shift log details for email: ${err.message}`);
+        }
+      }
+
       const payloadStr = JSON.stringify(rawPayload, null, 2);
       const lastLogs = job.logs.slice(-20).join('\n');
       
@@ -2598,46 +2617,59 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      const subject = `🚨 [MXV BOT FAILURE ALERT] Lỗi Vận Hành Bot Ngầm: ${job.jobType}`;
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const actionLink = rawPayload.shiftLogId
+        ? `${frontendUrl}/checklist?id=${rawPayload.shiftLogId}`
+        : `${frontendUrl}`;
+
+      const subject = `[Checklist Alert] Lỗi Tác Vụ ${taskName || job.jobType} - Ca Trực: ${shiftTitle || 'Vận Hành'}`;
       const htmlBody = `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
             <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #c62828;">
-              <div style="padding: 20px;">
-                <h2 style="color: #c62828; margin-top: 0;">🚨 Cảnh Báo Lỗi Vận Hành Bot Ngầm (RPA/Scheduler)</h2>
-                <p>Một background job của hệ thống đã thất bại vĩnh viễn sau khi thử lại tối đa <b>${job.maxAttempts} lần</b>.</p>
+              <div style="padding: 25px;">
+                <h2 style="color: #c62828; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+                  Cảnh Báo Lỗi Tác Vụ Bot Vận Hành
+                </h2>
+                <p style="font-size: 15px; color: #4b5563;">Hệ thống phát hiện một tác vụ trong ca trực đã thất bại sau khi thử lại tối đa <b>${job.maxAttempts} lần</b>.</p>
                 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; width: 150px; background-color: #f8f9fa;">Mã Job (ID)</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${job._id}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Loại Job</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #c62828;">${job.jobType}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Số lượt thử</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${job.attempts}/${job.maxAttempts}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">Thời gian tạo</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${job.createdAt || new Date()}</td>
-                  </tr>
-                </table>
-
-                <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #c62828;">
-                  <strong>Chi tiết lỗi:</strong><br/>
-                  <span style="font-family: monospace; white-space: pre-wrap;">${errorMsg}</span>
+                <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                      <td style="padding: 10px 0; font-weight: bold; color: #374151; width: 180px;">Ca trực</td>
+                      <td style="padding: 10px 0; color: #111827; font-weight: bold;">${shiftTitle || 'Chưa xác định'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                      <td style="padding: 10px 0; font-weight: bold; color: #374151;">Tác vụ bị lỗi</td>
+                      <td style="padding: 10px 0; color: #c62828; font-weight: bold;">${taskName || job.jobType} <span style="font-weight: normal; color: #6b7280; font-size: 12px;">(${rawPayload.taskId || 'Không rõ ID'})</span></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                      <td style="padding: 10px 0; font-weight: bold; color: #374151;">Lượt thử lại</td>
+                      <td style="padding: 10px 0; color: #111827;">${job.attempts}/${job.maxAttempts}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; font-weight: bold; color: #374151;">Thời gian sự cố</td>
+                      <td style="padding: 10px 0; color: #111827;">${new Date().toLocaleString('vi-VN')}</td>
+                    </tr>
+                  </table>
                 </div>
 
-                <h3>Payload của Job</h3>
-                <pre style="background-color: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto;">${displayPayload}</pre>
+                <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 15px; margin-bottom: 25px; border-radius: 4px; color: #c62828;">
+                  <strong style="font-size: 15px;">Chi tiết lỗi hệ thống:</strong><br/>
+                  <pre style="font-family: monospace; white-space: pre-wrap; margin: 8px 0 0 0; font-size: 13px;">${errorMsg}</pre>
+                </div>
 
-                <h3>20 Dòng Logs Cuối Cùng của Job</h3>
-                <pre style="background-color: #212121; color: #fff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${lastLogs}</pre>
+                <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 25px; border-radius: 4px; color: #1e3a8a;">
+                  <strong>Hướng xử lý đề xuất:</strong> Bạn vui lòng click vào nút bên dưới để đi tới giao diện ca trực, tiến hành kiểm tra hoặc xử lý thủ công tác vụ này.
+                </div>
+
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${actionLink}" style="background-color: #c62828; color: #ffffff; text-decoration: none; padding: 14px 28px; font-weight: bold; border-radius: 6px; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(198,40,40,0.2); transition: background-color 0.2s;">
+                    ĐI TỚI CA TRỰC ĐỂ XỬ LÝ
+                  </a>
+                </div>
               </div>
-              <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd;">
+              <div style="background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
                 Đây là email tự động từ hệ thống MXV Shift Checklist.
               </div>
             </div>
@@ -2652,6 +2684,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         html: htmlBody,
         attachments: mailAttachments,
       });
+
 
       this.logger.log(
         `Đã gửi email cảnh báo lỗi vận hành cho job ${job.jobType} thành công.`,
