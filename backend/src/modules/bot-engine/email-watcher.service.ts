@@ -579,14 +579,48 @@ export class EmailWatcherService {
               conditionMet = true;
               matchedSnippet = `Dòng khớp: "${matchingLine.trim()}"`;
             }
+          } else {
+            // Default fallback if no prefix is specified (simple substring search)
+            const keyword = condition.trim().toLowerCase();
+            conditionMet = !condition || bodyContent.includes(keyword);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư chứa từ khóa "${keyword}"`;
+            }
           }
 
           if (conditionMet) {
-            // Downloader attachments
-            await this.downloadAttachments(email.id, watcherEmail, accessToken, customDownloadDir);
+            let downloadMsg = '';
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              try {
+                const downloaded = await this.downloadAttachments(
+                  accessToken,
+                  watcherEmail,
+                  email.id,
+                  downloadDir,
+                );
+                if (downloaded.length > 0) {
+                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map((p) => path.basename(p)).join(', ')}`;
+                } else {
+                  downloadMsg = `. Không tìm thấy file đính kèm nào để tải.`;
+                }
+              } catch (dlErr: any) {
+                downloadMsg = `. Lỗi khi tải file đính kèm: ${dlErr.message}`;
+                this.logger.error(
+                  `Error downloading attachments for delegated email ${email.id}: ${dlErr.message}`,
+                );
+              }
+            }
+
             return {
               success: true,
-              message: `Đã tìm thấy email khớp: "${email.subject}". ${matchedSnippet}`,
+              message: `Đã tìm thấy email khớp: "${email.subject}". ${matchedSnippet}${downloadMsg}`,
             };
           }
         }
