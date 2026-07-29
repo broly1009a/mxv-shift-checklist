@@ -8,6 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import i18n
+
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush, QPainterPath
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication, QWidgetAction, QWidget, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt, QRectF
@@ -246,28 +248,25 @@ class TrayIcon(QSystemTrayIcon):
         menu.addSeparator()
 
         # Start / Stop
-        self._act_start = menu.addAction(_draw_menu_icon("play"), "Bắt đầu Agent")
-        self._act_stop  = menu.addAction(_draw_menu_icon("stop"), "Dừng Agent")
+        self._act_start = menu.addAction(_draw_menu_icon("play"), i18n.t("tray_start"))
+        self._act_stop  = menu.addAction(_draw_menu_icon("stop"), i18n.t("tray_stop"))
         self._act_start.triggered.connect(self._on_start)
         self._act_stop.triggered.connect(self._on_stop)
-        self._act_stop.setEnabled(False)   # initially stopped
+        self._act_stop.setEnabled(False)
         menu.addSeparator()
 
-        # Windows
-        act_settings = menu.addAction(_draw_menu_icon("gear"), "Cài đặt...")
-        act_logs     = menu.addAction(_draw_menu_icon("logs"), "Xem Logs...")
-        act_settings.triggered.connect(self._open_settings)
-        act_logs.triggered.connect(self._open_logs)
+        self._act_settings = menu.addAction(_draw_menu_icon("gear"), i18n.t("tray_settings"))
+        self._act_logs     = menu.addAction(_draw_menu_icon("logs"), i18n.t("tray_logs"))
+        self._act_settings.triggered.connect(self._open_settings)
+        self._act_logs.triggered.connect(self._open_logs)
         menu.addSeparator()
 
-        # Restart
-        act_restart = menu.addAction(_draw_menu_icon("restart"), "Khởi động lại Agent")
-        act_restart.triggered.connect(self._on_restart)
+        self._act_restart = menu.addAction(_draw_menu_icon("restart"), i18n.t("tray_restart"))
+        self._act_restart.triggered.connect(self._on_restart)
         menu.addSeparator()
 
-        # Quit
-        act_quit = menu.addAction(_draw_menu_icon("quit"), "Thoát")
-        act_quit.triggered.connect(self._on_quit)
+        self._act_quit = menu.addAction(_draw_menu_icon("quit"), i18n.t("tray_quit"))
+        self._act_quit.triggered.connect(self._on_quit)
 
         self.setContextMenu(menu)
 
@@ -277,14 +276,14 @@ class TrayIcon(QSystemTrayIcon):
         self._core.start()
         self._act_start.setEnabled(False)
         self._act_stop.setEnabled(True)
-        self.setToolTip("MXV RPA Agent — Đang khởi động...")
+        self.setToolTip(i18n.t("tray_tooltip_online"))
 
     def _on_stop(self) -> None:
         self._core.stop()
         self._act_start.setEnabled(True)
         self._act_stop.setEnabled(False)
         self.setIcon(self._icon_offline)
-        self.setToolTip("MXV RPA Agent — Đã dừng")
+        self.setToolTip(i18n.t("tray_tooltip_stopped"))
 
     def _on_restart(self) -> None:
         self._on_stop()
@@ -320,30 +319,40 @@ class TrayIcon(QSystemTrayIcon):
     def _on_connection_changed(self, online: bool) -> None:
         if online:
             self.setIcon(self._icon_online)
-            self.setToolTip("MXV RPA Agent — Đang chạy ✓")
+            self.setToolTip(i18n.t("tray_tooltip_online"))
         else:
             self.setIcon(self._icon_offline)
-            self.setToolTip("MXV RPA Agent — Mất kết nối ⚠")
+            self.setToolTip(i18n.t("tray_tooltip_offline"))
 
     def _on_job_started(self, job_id: str, job_type: str) -> None:
         self.setIcon(self._icon_working)
-        label = _job_label(job_type)
-        self.setToolTip(f"MXV RPA Agent — Đang chạy: {label}")
+        self.setToolTip(i18n.t("tray_tooltip_working"))
 
     def _on_job_completed(self, job_id: str, job_type: str) -> None:
         self.setIcon(self._icon_online)
 
     def _on_job_failed(self, job_id: str, job_type: str, error: str) -> None:
-        self.setIcon(self._icon_online)  # back to online (agent still running)
+        self.setIcon(self._icon_online)
 
     def _on_stats_updated(self, jobs_today: int) -> None:
-        self.setToolTip(f"MXV RPA Agent — Online ✓ | {jobs_today} jobs hôm nay")
+        self.setToolTip(f"{i18n.t('tray_tooltip_online')} | {jobs_today} jobs")
 
     # ── Lazy window references (set from main.py) ─────────────────────────────
 
     def set_windows(self, settings: "SettingsWindow", logs: "LogWindow") -> None:
         self._settings_win = settings
         self._log_win = logs
+
+    def retranslate_ui(self) -> None:
+        """Update all tray menu text and tooltip from i18n."""
+        self._act_start.setText(i18n.t("tray_start"))
+        self._act_stop.setText(i18n.t("tray_stop"))
+        self._act_settings.setText(i18n.t("tray_settings"))
+        self._act_logs.setText(i18n.t("tray_logs"))
+        self._act_restart.setText(i18n.t("tray_restart"))
+        self._act_quit.setText(i18n.t("tray_quit"))
+        # Refresh tooltip based on current connection state
+        self.setToolTip(i18n.t("tray_not_connected"))
 
 
 def _job_label(job_type: str) -> str:

@@ -10,10 +10,12 @@ import winreg
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import i18n
+
 from PyQt6.QtWidgets import (
     QDialog, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QLineEdit, QPushButton, QSpinBox, QLabel,
-    QCheckBox, QFileDialog, QMessageBox, QDialogButtonBox,
+    QCheckBox, QMessageBox, QDialogButtonBox, QScrollArea, QFrame,
 )
 from PyQt6.QtCore import Qt, QRectF, QSize
 from PyQt6.QtGui import QFont, QPainter, QPainterPath, QPen, QBrush, QColor, QPixmap, QIcon
@@ -99,6 +101,17 @@ def _draw_svg_icon(icon_type: str, custom_color: str = None) -> QIcon:
             painter.drawLine(15, 22, 15, 25)
             painter.drawLine(16, 22, 16, 27)
             painter.drawLine(17, 22, 17, 25)
+
+        elif icon_type == "guide":
+            # Question mark icon
+            path = QPainterPath()
+            path.moveTo(12, 11)
+            path.cubicTo(12, 8, 20, 8, 20, 13)
+            path.cubicTo(20, 17, 16, 17, 16, 20)
+            painter.drawPath(path)
+            painter.setBrush(QColor(color_str))
+            painter.drawEllipse(QRectF(14.5, 22.5, 3, 3))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
             
         elif icon_type == "save":
             # Checkmark icon (modern replacement for floppy disk)
@@ -136,6 +149,11 @@ def _draw_svg_icon(icon_type: str, custom_color: str = None) -> QIcon:
             painter.drawPath(path)
             painter.drawLine(8, 14, 22, 14)
             
+        elif icon_type == "clear":
+            # Clean diagonal cross for Cancel button
+            painter.drawLine(9, 9, 23, 23)
+            painter.drawLine(23, 9, 9, 23)
+            
         painter.end()
         icon.addPixmap(pix, mode, state)
         
@@ -145,7 +163,6 @@ def _draw_svg_icon(icon_type: str, custom_color: str = None) -> QIcon:
 def _save_cfg(cfg: dict) -> None:
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
-
 
 class SettingsWindow(QDialog):
     def __init__(self, core: "AgentCore", parent=None) -> None:
@@ -158,147 +175,10 @@ class SettingsWindow(QDialog):
         font = QFont("Segoe UI", 10)
         self.setFont(font)
 
-        arrow_up = str((Path(__file__).parent / "assets" / "arrow_up.png").as_posix())
-        arrow_down = str((Path(__file__).parent / "assets" / "arrow_down.png").as_posix())
-
-        # Apply a premium light mode corporate stylesheet matching MXV brand identity (Cyan)
-        self.setStyleSheet(("""
-            QDialog {
-                background-color: #f8fafc; /* Slate 50 */
-                color: #0f172a; /* Slate 900 */
-            }
-            QLabel {
-                color: #334155; /* Slate 700 */
-                font-size: 9.5pt;
-            }
-            QLineEdit {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: 1px solid #cbd5e1; /* Slate 300 */
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 9.5pt;
-            }
-            QLineEdit:focus {
-                border: 1px solid #1CAEE6; /* MXV Brand Cyan */
-                background-color: #eaf8fe; /* Soft cyan focus background */
-            }
-            QSpinBox {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 5px 30px 5px 8px; /* space for buttons on right */
-                font-size: 9.5pt;
-            }
-            QSpinBox:focus {
-                border: 1px solid #1CAEE6;
-            }
-            QSpinBox::up-button {
-                subcontrol-origin: border;
-                subcontrol-position: top right;
-                width: 20px;
-                border-left: 1px solid #cbd5e1;
-                border-top-right-radius: 5px;
-                background-color: #f8fafc;
-            }
-            QSpinBox::up-button:hover {
-                background-color: #f1f5f9;
-            }
-            QSpinBox::up-button:pressed {
-                background-color: #e2e8f0;
-            }
-            QSpinBox::down-button {
-                subcontrol-origin: border;
-                subcontrol-position: bottom right;
-                width: 20px;
-                border-left: 1px solid #cbd5e1;
-                border-top: 1px solid #cbd5e1;
-                border-bottom-right-radius: 5px;
-                background-color: #f8fafc;
-            }
-            QSpinBox::down-button:hover {
-                background-color: #f1f5f9;
-            }
-            QSpinBox::down-button:pressed {
-                background-color: #e2e8f0;
-            }
-            QSpinBox::up-arrow {
-                image: url(ARROW_UP_PATH);
-                width: 10px;
-                height: 10px;
-            }
-            QSpinBox::down-arrow {
-                image: url(ARROW_DOWN_PATH);
-                width: 10px;
-                height: 10px;
-            }
-            QTabWidget::pane {
-                border: 1px solid #cbd5e1;
-                background-color: #ffffff;
-                border-radius: 8px;
-            }
-            QTabBar::tab {
-                background-color: #f1f5f9; /* Slate 100 */
-                color: #64748b; /* Slate 500 */
-                padding: 8px 16px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                border-bottom: 2px solid transparent;
-                font-weight: bold;
-                margin-right: 4px;
-            }
-            QTabBar::tab:hover {
-                color: #0f172a;
-                background-color: #e2e8f0;
-            }
-            QTabBar::tab:selected {
-                color: #1CAEE6; /* MXV Brand Cyan */
-                background-color: #ffffff;
-                border-bottom: 2px solid #1CAEE6;
-            }
-            QCheckBox {
-                color: #334155;
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border: 1.5px solid #94a3b8; /* Slate 400 */
-                border-radius: 4px;
-                background-color: #ffffff;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #1CAEE6;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #1CAEE6;
-                border-color: #1CAEE6;
-            }
-            QPushButton {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 6px 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #f8fafc;
-                border-color: #94a3b8;
-            }
-            QPushButton:pressed {
-                background-color: #e2e8f0;
-            }
-            QWidget#TabConnection, QWidget#TabPaths, QWidget#TabStartup {
-                background-color: #ffffff;
-                border-radius: 8px;
-            }
-        """).replace("ARROW_UP_PATH", arrow_up).replace("ARROW_DOWN_PATH", arrow_down))
-
         self._cfg = _load_cfg()
         self._build_ui()
         self._load_values()
+        self.retranslate_ui()
 
     # ── UI Build ──────────────────────────────────────────────────────────────
 
@@ -307,38 +187,25 @@ class SettingsWindow(QDialog):
         layout.setContentsMargins(16, 16, 16, 12)
         layout.setSpacing(12)
 
-
-
         # Tabs
-        tabs = QTabWidget()
-        tabs.setIconSize(QSize(18, 18))
-        tabs.addTab(self._build_connection_tab(), _draw_svg_icon("connection"), "Kết nối")
-        
-        # Instantiate paths controls (hidden from UI since backend runs directly on Linux)
-        self._build_paths_tab()
-        # tabs.addTab(self._build_paths_tab(), _draw_svg_icon("folder"), "Đường dẫn")
-        
-        tabs.addTab(self._build_startup_tab(), _draw_svg_icon("startup"), "Khởi động")
-        layout.addWidget(tabs)
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._build_connection_tab(), _draw_svg_icon("connection"), "")
+        self._tabs.addTab(self._build_startup_tab(),   _draw_svg_icon("startup"),    "")
+        self._tabs.addTab(self._build_guide_tab(),     _draw_svg_icon("guide"),      "")
+        layout.addWidget(self._tabs)
 
         # Buttons
         btn_box = QDialogButtonBox()
-        self._btn_save = QPushButton("Lưu & Áp dụng")
-        self._btn_save.setIcon(_draw_svg_icon("save", "#ffffff"))
-        self._btn_save.setStyleSheet(
-            "QPushButton { background-color: #1CAEE6; color: white; border: none; padding: 6px 18px; font-weight: bold; }"
-            "QPushButton:hover { background-color: #00ADEF; }"
-        )
-        btn_cancel = QPushButton("Huỷ")
-        btn_cancel.setStyleSheet(
-            "QPushButton { background-color: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 6px 18px; }"
-            "QPushButton:hover { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: #ef4444; }"
-        )
-        btn_box.addButton(self._btn_save, QDialogButtonBox.ButtonRole.AcceptRole)
-        btn_box.addButton(btn_cancel, QDialogButtonBox.ButtonRole.RejectRole)
+        self._btn_save = QPushButton()
+        self._btn_save.setIcon(_draw_svg_icon("save", "#1CAEE6"))
+        self._btn_cancel = QPushButton()
+        self._btn_cancel.setIcon(_draw_svg_icon("clear", "#ef4444"))
+        btn_box.addButton(self._btn_save,   QDialogButtonBox.ButtonRole.AcceptRole)
+        btn_box.addButton(self._btn_cancel, QDialogButtonBox.ButtonRole.RejectRole)
         btn_box.accepted.connect(self._on_save)
         btn_box.rejected.connect(self.close)
         layout.addWidget(btn_box)
+
 
     def _build_connection_tab(self) -> QWidget:
         tab = QWidget()
@@ -349,8 +216,8 @@ class SettingsWindow(QDialog):
 
         # Backend URL
         self._url_edit = QLineEdit()
-        self._url_edit.setPlaceholderText("http://192.168.1.100")
-        form.addRow("Backend URL:", self._url_edit)
+        self._conn_form = form
+        form.addRow("", self._url_edit)
 
         # API Key (masked)
         key_row = QHBoxLayout()
@@ -358,46 +225,43 @@ class SettingsWindow(QDialog):
         key_row.setSpacing(8)
         self._key_edit = QLineEdit()
         self._key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._key_edit.setPlaceholderText("mxv_rpa_secure_agent_key_...")
-        btn_reveal = QPushButton()
-        btn_reveal.setIcon(_draw_svg_icon("eye"))
-        btn_reveal.setFixedWidth(32)
-        btn_reveal.setCheckable(True)
-        btn_reveal.toggled.connect(
+        self._btn_reveal = QPushButton()
+        self._btn_reveal.setIcon(_draw_svg_icon("eye"))
+        self._btn_reveal.setFixedWidth(32)
+        self._btn_reveal.setCheckable(True)
+        self._btn_reveal.toggled.connect(
             lambda checked: self._key_edit.setEchoMode(
                 QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
             )
         )
         key_row.addWidget(self._key_edit)
-        key_row.addWidget(btn_reveal)
+        key_row.addWidget(self._btn_reveal)
         key_widget = QWidget()
         key_widget.setObjectName("KeyWidget")
         key_widget.setStyleSheet("background: transparent;")
         key_widget.setLayout(key_row)
-        form.addRow("API Key:", key_widget)
+        form.addRow("", key_widget)
 
         # Polling interval
         self._poll_spin = QSpinBox()
         self._poll_spin.setRange(3, 30)
-        self._poll_spin.setSuffix(" giây")
-        form.addRow("Polling interval:", self._poll_spin)
+        form.addRow("", self._poll_spin)
 
         # Heartbeat interval
         self._hb_spin = QSpinBox()
         self._hb_spin.setRange(10, 120)
-        self._hb_spin.setSuffix(" giây")
-        form.addRow("Heartbeat interval:", self._hb_spin)
+        form.addRow("", self._hb_spin)
 
         # Test connection button
         test_row = QHBoxLayout()
         test_row.setContentsMargins(0, 0, 0, 0)
         test_row.setSpacing(8)
-        btn_test = QPushButton("Kiểm tra kết nối")
-        btn_test.setIcon(_draw_svg_icon("search"))
-        btn_test.clicked.connect(self._test_connection)
+        self._btn_test = QPushButton()
+        self._btn_test.setIcon(_draw_svg_icon("search", "#1CAEE6"))
+        self._btn_test.clicked.connect(self._test_connection)
         self._test_label = QLabel("")
         self._test_label.setStyleSheet("font-weight: bold;")
-        test_row.addWidget(btn_test)
+        test_row.addWidget(self._btn_test)
         test_row.addWidget(self._test_label)
         test_row.addStretch()
         test_widget = QWidget()
@@ -408,39 +272,80 @@ class SettingsWindow(QDialog):
 
         return tab
 
-    def _build_paths_tab(self) -> QWidget:
-        tab = QWidget()
-        tab.setObjectName("TabPaths")
-        form = QFormLayout(tab)
-        form.setContentsMargins(16, 20, 16, 16)
-        form.setSpacing(14)
+    def _build_guide_tab(self) -> QWidget:
+        """Self-onboarding guide tab — content populated by _rebuild_guide_content()."""
+        outer = QWidget()
+        outer.setObjectName("TabGuide")
+        outer_layout = QVBoxLayout(outer)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        self._guide_scroll = QScrollArea()
+        self._guide_scroll.setWidgetResizable(True)
+        self._guide_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._guide_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        outer_layout.addWidget(self._guide_scroll)
+        return outer
 
-        self._workspace_edit   = self._path_row(form, "Thư mục Backend NestJS:", file=False)
-        self._ms_backup_edit   = self._path_row(form, "Thư mục Backup MS:",       file=False)
-        self._acm_backup_edit  = self._path_row(form, "Thư mục Backup ACM:",      file=False)
+    def _rebuild_guide_content(self) -> None:
+        """Rebuild guide tab content using current language. Called on init + lang switch."""
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(16)
 
-        return tab
+        def sec(key: str) -> QLabel:
+            lbl = QLabel(i18n.t(key))
+            lbl.setStyleSheet(
+                "font-size: 10.5pt; font-weight: bold; color: #1CAEE6;"
+                "border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;"
+            )
+            return lbl
 
-    def _path_row(self, form: QFormLayout, label: str, file: bool, ext: str = "") -> QLineEdit:
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)
-        edit = QLineEdit()
-        btn = QPushButton()
-        btn.setIcon(_draw_svg_icon("open_folder"))
-        btn.setFixedWidth(36)
-        if file:
-            btn.clicked.connect(lambda _, e=edit, x=ext: self._browse_file(e, x))
-        else:
-            btn.clicked.connect(lambda _, e=edit: self._browse_dir(e))
-        row.addWidget(edit)
-        row.addWidget(btn)
-        widget = QWidget()
-        widget.setObjectName("PathRowWidget")
-        widget.setStyleSheet("background: transparent;")
-        widget.setLayout(row)
-        form.addRow(label, widget)
-        return edit
+        def step(key: str) -> QLabel:
+            lbl = QLabel(i18n.t(key))
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet("font-size: 9.5pt; color: #334155;")
+            return lbl
+
+        def box(key: str, color: str = "#e0f2fe", border: str = "#1CAEE6") -> QLabel:
+            lbl = QLabel(i18n.t(key))
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet(
+                f"background-color: {color}; border-left: 3px solid {border};"
+                "border-radius: 4px; padding: 8px 12px; font-size: 9pt; color: #0f172a;"
+            )
+            return lbl
+
+        layout.addWidget(sec("guide_setup_title"))
+        layout.addWidget(step("guide_step1_label"))
+        layout.addWidget(box("guide_step1_box"))
+        layout.addWidget(step("guide_step2_label"))
+        layout.addWidget(box("guide_step2_box", "#fef9c3", "#f59e0b"))
+        layout.addWidget(step("guide_step3_label"))
+        layout.addSpacing(4)
+
+        layout.addWidget(sec("guide_tray_title"))
+        layout.addWidget(step("guide_tray_desc"))
+        for key, emoji in [("guide_tray_green", "🟢"), ("guide_tray_red", "🔴"), ("guide_tray_yellow", "🟡")]:
+            row = QLabel(f"  {emoji}  {i18n.t(key)}")
+            row.setWordWrap(True)
+            row.setStyleSheet("font-size: 9.5pt; color: #334155; padding: 2px 0;")
+            layout.addWidget(row)
+        layout.addSpacing(4)
+
+        layout.addWidget(sec("guide_trouble_title"))
+        for q, a in [("guide_trouble_1_q", "guide_trouble_1_a"),
+                     ("guide_trouble_2_q", "guide_trouble_2_a"),
+                     ("guide_trouble_3_q", "guide_trouble_3_a")]:
+            layout.addWidget(step(q))
+            layout.addWidget(box(a, "#f1f5f9", "#94a3b8"))
+            layout.addSpacing(2)
+        layout.addSpacing(4)
+
+        layout.addWidget(sec("guide_contact_title"))
+        layout.addWidget(box("guide_contact_box", "#f0fdf4", "#22c55e"))
+        layout.addStretch()
+        self._guide_scroll.setWidget(content)
 
     def _build_startup_tab(self) -> QWidget:
         tab = QWidget()
@@ -449,21 +354,20 @@ class SettingsWindow(QDialog):
         layout.setContentsMargins(16, 20, 16, 16)
         layout.setSpacing(14)
 
-        self._chk_autostart = QCheckBox("Tự chạy Agent khi Windows khởi động")
-        self._chk_minimized = QCheckBox("Khởi động ở chế độ tối giản (chỉ hiện tray)")
-        self._chk_notifications = QCheckBox("Hiển thị thông báo màn hình (Windows Toast)")
+        self._chk_autostart    = QCheckBox()
+        self._chk_minimized    = QCheckBox()
+        self._chk_notifications = QCheckBox()
 
         # Duration settings spinbox
         duration_layout = QHBoxLayout()
         duration_layout.setContentsMargins(0, 0, 0, 0)
         duration_layout.setSpacing(8)
-        duration_label = QLabel("Thời gian tự đóng thông báo (giây):")
+        self._lbl_duration = QLabel()
         self._duration_spin = QSpinBox()
         self._duration_spin.setRange(3, 60)
-        self._duration_spin.setSuffix(" giây")
         self._duration_spin.setValue(10)
         self._duration_spin.setFixedWidth(110)
-        duration_layout.addWidget(duration_label)
+        duration_layout.addWidget(self._lbl_duration)
         duration_layout.addWidget(self._duration_spin)
         duration_layout.addStretch()
 
@@ -473,11 +377,49 @@ class SettingsWindow(QDialog):
         layout.addLayout(duration_layout)
         layout.addStretch()
 
-        note = QLabel("💡 Tự chạy được ghi vào Windows Registry (HKCU\\...\\Run).")
-        note.setStyleSheet("color: #71717a; font-size: 9pt;")
-        layout.addWidget(note)
+        self._note_registry = QLabel()
+        self._note_registry.setStyleSheet("color: #71717a; font-size: 9pt;")
+        layout.addWidget(self._note_registry)
 
         return tab
+
+    # ── Retranslate UI ────────────────────────────────────────────────────────
+
+    def retranslate_ui(self) -> None:
+        """Update all UI text from i18n. Call after language change."""
+        self.setWindowTitle(i18n.t("settings_title"))
+        # Tabs
+        self._tabs.setTabText(0, i18n.t("tab_connection"))
+        self._tabs.setTabText(1, i18n.t("tab_startup"))
+        self._tabs.setTabText(2, i18n.t("tab_guide"))
+        # Buttons
+        self._btn_save.setText(i18n.t("btn_save"))
+        self._btn_cancel.setText(i18n.t("btn_cancel"))
+        self._btn_test.setText(i18n.t("btn_test_conn"))
+        # Connection form labels (row 0-3)
+        self._conn_form.setWidget(0, QFormLayout.ItemRole.LabelRole,
+                                  QLabel(i18n.t("lbl_backend_url")))
+        self._conn_form.setWidget(1, QFormLayout.ItemRole.LabelRole,
+                                  QLabel(i18n.t("lbl_api_key")))
+        self._conn_form.setWidget(2, QFormLayout.ItemRole.LabelRole,
+                                  QLabel(i18n.t("lbl_poll_interval")))
+        self._conn_form.setWidget(3, QFormLayout.ItemRole.LabelRole,
+                                  QLabel(i18n.t("lbl_hb_interval")))
+        # Placeholders
+        self._url_edit.setPlaceholderText(i18n.t("placeholder_url"))
+        self._key_edit.setPlaceholderText(i18n.t("placeholder_key"))
+        # Spin suffixes
+        self._poll_spin.setSuffix(i18n.t("seconds_suffix"))
+        self._hb_spin.setSuffix(i18n.t("seconds_suffix"))
+        self._duration_spin.setSuffix(i18n.t("seconds_suffix"))
+        # Startup tab
+        self._chk_autostart.setText(i18n.t("chk_autostart"))
+        self._chk_minimized.setText(i18n.t("chk_minimized"))
+        self._chk_notifications.setText(i18n.t("chk_notifications"))
+        self._lbl_duration.setText(i18n.t("lbl_notif_duration"))
+        self._note_registry.setText(i18n.t("note_registry"))
+        # Guide tab — rebuild content with current language
+        self._rebuild_guide_content()
 
     # ── Logic ─────────────────────────────────────────────────────────────────
 
@@ -488,10 +430,6 @@ class SettingsWindow(QDialog):
         self._poll_spin.setValue(cfg.get("polling_interval", 5))
         self._hb_spin.setValue(cfg.get("heartbeat_interval", 30))
 
-        self._workspace_edit.setText(cfg.get("workspace_path", ""))
-        paths = cfg.get("paths", {})
-        self._ms_backup_edit.setText(paths.get("ms_backup_futures", ""))
-        self._acm_backup_edit.setText(paths.get("acm_backup", ""))
 
         self._chk_minimized.setChecked(cfg.get("start_minimized", False))
         self._chk_notifications.setChecked(cfg.get("enable_notifications", True))
@@ -507,10 +445,7 @@ class SettingsWindow(QDialog):
         cfg["start_minimized"] = self._chk_minimized.isChecked()
         cfg["enable_notifications"] = self._chk_notifications.isChecked()
         cfg["notification_duration"] = self._duration_spin.value()
-        cfg["workspace_path"] = self._workspace_edit.text().strip()
-        cfg.setdefault("paths", {})
-        cfg["paths"]["ms_backup_futures"] = self._ms_backup_edit.text().strip()
-        cfg["paths"]["acm_backup"]        = self._acm_backup_edit.text().strip()
+
         _save_cfg(cfg)
 
         # Apply autostart registry
@@ -523,14 +458,14 @@ class SettingsWindow(QDialog):
         if self._core.is_running:
             self._core.reload_config()
 
-        QMessageBox.information(self, "Đã lưu", "Cài đặt đã được lưu và áp dụng.")
+        QMessageBox.information(self, i18n.t("msg_saved_title"), i18n.t("msg_saved"))
         self.close()
 
     def _test_connection(self) -> None:
         url = self._url_edit.text().strip().rstrip("/")
         key = self._key_edit.text().strip()
         if not url or not key:
-            self._test_label.setText("Nhập URL và API Key trước")
+            self._test_label.setText(i18n.t("conn_missing"))
             return
         try:
             import requests
@@ -541,9 +476,9 @@ class SettingsWindow(QDialog):
             )
             if r.status_code == 200:
                 data = r.json()
-                online_str = "Online" if data.get("online") else "Agent chưa khởi động"
+                online_str = "Online" if data.get("online") else "Not started"
                 self._test_label.setStyleSheet("color: green;")
-                self._test_label.setText(f"Kết nối OK — {online_str}")
+                self._test_label.setText(f"{i18n.t('conn_ok')} — {online_str}")
             else:
                 self._test_label.setStyleSheet("color: red;")
                 self._test_label.setText(f"HTTP {r.status_code}")
@@ -551,15 +486,6 @@ class SettingsWindow(QDialog):
             self._test_label.setStyleSheet("color: red;")
             self._test_label.setText(f"{str(e)[:60]}")
 
-    def _browse_file(self, edit: QLineEdit, ext: str) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Chọn file", "", ext)
-        if path:
-            edit.setText(path)
-
-    def _browse_dir(self, edit: QLineEdit) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Chọn thư mục")
-        if path:
-            edit.setText(path)
 
     # ── Registry autostart ────────────────────────────────────────────────────
 
@@ -591,4 +517,5 @@ class SettingsWindow(QDialog):
                     pass
             winreg.CloseKey(key)
         except Exception as e:
-            QMessageBox.warning(self, "Lỗi Registry", f"Không thể cập nhật autostart:\n{e}")
+            QMessageBox.warning(self, i18n.t("err_registry_title"),
+                                i18n.t("err_registry_msg", e=e))

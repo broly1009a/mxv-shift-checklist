@@ -8,6 +8,8 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING
 
+import i18n
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QPlainTextEdit, QComboBox, QLabel, QFileDialog,
@@ -92,98 +94,79 @@ class LogWindow(QWidget):
         self.setWindowTitle("MXV RPA Agent — Log Viewer")
         self.resize(820, 500)
         
-        # Apply theme stylesheet
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #f8fafc; /* Slate 50 */
-                color: #0f172a; /* Slate 900 */
-            }
-            QLabel {
-                color: #334155;
-                font-size: 9.5pt;
-            }
-            QComboBox {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 9.5pt;
-            }
-            QComboBox:focus {
-                border: 1px solid #1CAEE6;
-            }
-            QPushButton {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 6px 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #f8fafc;
-                border-color: #94a3b8;
-            }
-            QPushButton:pressed {
-                background-color: #e2e8f0;
-            }
-        """)
-        
         self._build_ui()
 
         core.log_emitted.connect(self._on_log)
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        """Update all UI chrome text from i18n. Log content is NOT translated."""
+        self.setWindowTitle(i18n.t("log_title"))
+        self._lbl_filter.setText(i18n.t("log_filter_label"))
+        # Preserve current selection index
+        cur = self._combo_filter.currentIndex()
+        self._combo_filter.blockSignals(True)
+        self._combo_filter.clear()
+        self._combo_filter.addItems([
+            i18n.t("log_filter_all"), "INFO", "WARNING", "ERROR"
+        ])
+        self._combo_filter.setCurrentIndex(max(0, cur))
+        self._combo_filter.blockSignals(False)
+        paused = not self._auto_scroll
+        self._btn_pause.setText(i18n.t("btn_resume_scroll") if paused else i18n.t("btn_pause_scroll"))
+        self._btn_clear.setText(i18n.t("btn_clear"))
+        self._btn_export.setText(i18n.t("btn_export"))
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
 
         # Toolbar
         toolbar = QHBoxLayout()
 
-        lbl_filter = QLabel("Lọc:")
+        self._lbl_filter = QLabel()
+        self._lbl_filter.setObjectName("FilterLabel")
         self._combo_filter = QComboBox()
         self._combo_filter.addItems(["Tất cả", "INFO", "WARNING", "ERROR"])
         self._combo_filter.currentTextChanged.connect(self._on_filter_changed)
 
-        self._btn_pause = QPushButton("Dừng cuộn")
+        self._btn_pause = QPushButton()
         self._btn_pause.setIcon(_draw_svg_icon("pause"))
         self._btn_pause.setCheckable(True)
         self._btn_pause.toggled.connect(self._on_pause_toggled)
 
-        btn_clear = QPushButton("Xoá")
-        btn_clear.setIcon(_draw_svg_icon("clear"))
-        btn_clear.clicked.connect(self._clear)
+        self._btn_clear = QPushButton()
+        self._btn_clear.setIcon(_draw_svg_icon("clear"))
+        self._btn_clear.clicked.connect(self._clear)
 
-        btn_export = QPushButton("Xuất .txt")
-        btn_export.setIcon(_draw_svg_icon("export"))
-        btn_export.clicked.connect(self._export)
+        self._btn_export = QPushButton()
+        self._btn_export.setIcon(_draw_svg_icon("export"))
+        self._btn_export.clicked.connect(self._export)
 
-        toolbar.addWidget(lbl_filter)
+        toolbar.addWidget(self._lbl_filter)
         toolbar.addWidget(self._combo_filter)
         toolbar.addStretch()
         toolbar.addWidget(self._btn_pause)
-        toolbar.addWidget(btn_clear)
-        toolbar.addWidget(btn_export)
+        toolbar.addWidget(self._btn_clear)
+        toolbar.addWidget(self._btn_export)
         layout.addLayout(toolbar)
 
         # Log area
         self._text = QPlainTextEdit()
         self._text.setReadOnly(True)
-        self._text.setFont(QFont("Consolas", 10))
+        self._text.setFont(QFont("Consolas", 9))
         self._text.setStyleSheet(
             "QPlainTextEdit {"
-            "  background-color: #0f172a; /* Deep Slate 900 */"
-            "  color: #f8fafc;"
+            "  background-color: #1e1e1e;"
+            "  color: #d4d4d4;"
             "  border: 1px solid #cbd5e1;"
-            "  border-radius: 6px;"
-            "  padding: 8px;"
+            "  border-radius: 4px;"
             "}"
         )
-        self._text.setMaximumBlockCount(2000)  # keep last 2000 lines
+        self._text.setMaximumBlockCount(2000)
         layout.addWidget(self._text)
 
     # ── Slots ─────────────────────────────────────────────────────────────────
@@ -224,7 +207,7 @@ class LogWindow(QWidget):
 
     def _on_pause_toggled(self, paused: bool) -> None:
         self._auto_scroll = not paused
-        self._btn_pause.setText("Tiếp tục cuộn" if paused else "Dừng cuộn")
+        self._btn_pause.setText(i18n.t("btn_resume_scroll") if paused else i18n.t("btn_pause_scroll"))
         self._btn_pause.setIcon(_draw_svg_icon("play" if paused else "pause"))
 
     def _clear(self) -> None:

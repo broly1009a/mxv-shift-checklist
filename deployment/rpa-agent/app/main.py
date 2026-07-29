@@ -44,14 +44,8 @@ def _load_icon() -> QIcon:
 
 
 def _load_initial_lang() -> None:
-    """Read preferred language from config.json if set."""
-    try:
-        cfg = load_config()
-        lang = cfg.get("ui_language", "vi")
-        if lang in ("vi", "en"):
-            i18n.set_lang(lang)
-    except Exception:
-        pass
+    """Read preferred language from config.json via i18n helper."""
+    i18n.load_lang_pref()
 
 
 def main() -> None:
@@ -60,13 +54,9 @@ def main() -> None:
     lock_file = QLockFile(f"{lock_dir}/mxv_rpa_agent.lock")
     lock_file.setStaleLockTime(0)
     if not lock_file.tryLock():
-        # Another instance is running — show a message and exit
         app = QApplication(sys.argv)
-        QMessageBox.information(
-            None,
-            "MXV RPA Agent",
-            "MXV RPA Agent đã đang chạy.\nKiểm tra system tray.",
-        )
+        i18n.load_lang_pref()
+        QMessageBox.information(None, "MXV RPA Agent", i18n.t("app_already_running"))
         sys.exit(0)
 
     # ── Qt Application ────────────────────────────────────────────────────────
@@ -94,8 +84,7 @@ def main() -> None:
 
     # ── System Tray ───────────────────────────────────────────────────────────
     if not QApplication.instance() or not QSystemTrayIcon_available():
-        QMessageBox.critical(None, "MXV RPA Agent",
-                             "Hệ thống không hỗ trợ System Tray. Vui lòng kiểm tra lại.")
+        QMessageBox.critical(None, "MXV RPA Agent", i18n.t("no_tray_support"))
         sys.exit(1)
 
     tray = TrayIcon(core)
@@ -117,9 +106,8 @@ def main() -> None:
 
     # ── Show tray balloon on startup ──────────────────────────────────────────
     tray.showMessage(
-        "MXV RPA Agent",
-        "Agent đã khởi động và đang chạy trong hệ thống." if i18n.get_lang() == "vi"
-        else "Agent started and running in the system tray.",
+        i18n.t("app_name"),
+        i18n.t("startup_balloon"),
         QIcon(str(ASSETS / "icon_base.png")) if (ASSETS / "icon_base.png").exists()
         else tray.icon(),
         2000,
@@ -146,15 +134,13 @@ def _add_lang_toggle(tray: "TrayIcon", settings_win, log_win) -> None:
     def _on_toggle_lang():
         new_lang = i18n.toggle_lang()
         # Save preference
-        try:
-            from agent_core import load_config, save_config
-            cfg = load_config()
-            cfg["ui_language"] = new_lang
-            save_config(cfg)
-        except Exception:
-            pass
+        i18n.save_lang_pref()
         # Update action text
         lang_action.setText(i18n.t("lang_toggle"))
+        # Refresh ALL windows immediately
+        tray.retranslate_ui()
+        settings_win.retranslate_ui()
+        log_win.retranslate_ui()
 
     lang_action.triggered.connect(_on_toggle_lang)
 

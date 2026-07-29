@@ -2,7 +2,49 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+
+
+## [2026-07-29 11:00:00] - Refactor: Đồng bộ Icon Vector (QIcon) Thay Vì Sử Dụng Emojis Trên Giao Diện Native
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Không sử dụng Unicode Emojis (🔌, 🚀, 📖, ⏸, 🔴, 💾, ❌, 🔍) trên các nút bấm và tab. Thay vào đó, sử dụng các biểu tượng vector vẽ sẵn (QIcon) từ mã nguồn nhưng hiển thị trong cấu trúc giao diện Native Windows nguyên bản.
+- **Giải pháp**:
+  - Gỡ bỏ toàn bộ emojis trong file cấu hình dịch thuật [i18n.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/i18n.py).
+  - Tích hợp vẽ và gán `QIcon` trực tiếp lên các Tab (Connection, Startup, Guide) và các nút (Save, Cancel, Test Connection) của Settings Window, và các nút (Pause, Clear, Export) của Log Window bằng vector `_draw_svg_icon()`.
+  - Khôi phục cơ chế cập nhật icon động khi tạm dừng/tiếp tục ghi log.
+
+### 2. Danh sách file chỉnh sửa
+- [deployment/rpa-agent/app/i18n.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/i18n.py) [MODIFY]
+- [deployment/rpa-agent/app/settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py) [MODIFY]
+- [deployment/rpa-agent/app/log_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/log_window.py) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch PyInstaller & Inno Setup thành công 100%.
+
+## [2026-07-29 10:47:00] - Refactor & Feature: Việt Hóa Thân Thiện, Xóa Tab Rác và Tích Hợp Đa Ngôn Ngữ i18n Cho RPA Agent
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  - Gỡ bỏ hoàn toàn tab rác "Đường dẫn" (không dùng đến và chạy ngầm gây lãng phí bộ nhớ).
+  - Thay thế tab "Đường dẫn" bằng tab "Hướng dẫn" (Self-onboarding Guide) cho phép người dùng tự cấu hình theo các bước rõ ràng.
+  - Thay đổi thuật ngữ "System Tray / Tray" kỹ thuật khó hiểu thành cụm từ thân thiện hơn: "Biểu tượng góc màn hình (góc dưới bên phải)".
+  - Hỗ trợ đa ngôn ngữ hoàn chỉnh (tiếng Anh và tiếng Việt): Người dùng chọn chuyển đổi ngôn ngữ ở menu khay hệ thống, toàn bộ ứng dụng (Cài đặt, Nhật ký, Hướng dẫn, Menu, Thông báo bong bóng) sẽ đổi ngôn ngữ đồng bộ thay vì hiển thị hỗn hợp.
+  - Đảm bảo các dòng log nhận về từ Backend **giữ nguyên văn bản gốc**, không bị dịch thuật.
+  - Sửa lỗi biên dịch `build.bat` khi đường dẫn Inno Setup chứa ký tự ngoặc đơn.
+
+### 2. Danh sách file chỉnh sửa
+- [deployment/rpa-agent/app/i18n.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/i18n.py) [MODIFY]
+- [deployment/rpa-agent/app/settings_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/settings_window.py) [MODIFY]
+- [deployment/rpa-agent/app/log_window.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/log_window.py) [MODIFY]
+- [deployment/rpa-agent/app/tray.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/tray.py) [MODIFY]
+- [deployment/rpa-agent/app/main.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/main.py) [MODIFY]
+- [deployment/rpa-agent/build.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/build.bat) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch PyInstaller & Inno Setup thành công 100%. Đã tạo thành công bộ cài đặt tại [Output/MXV_Agent_Setup_v1.0.exe](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/Output/MXV_Agent_Setup_v1.0.exe) và file chạy nhanh tại [dist/MXVAgent.exe](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/dist/MXVAgent.exe).
+
 ## [2026-07-28 18:09:00] - Refactor: Chuyển Đổi Thuộc Tính Tác Vụ Thành Dạng Tag Co Giãn (Frontend)
+
 
 ### 1. Mục tiêu Thay đổi
 - **Yêu cầu từ USER**: Khắc phục lỗi hiển thị khi thuộc tính tác vụ bị kéo giãn quá dài (nhìn trống trải) khi chỉ có 1 hoặc ít thông tin được hiển thị (ví dụ chỉ có "Thời hạn cam kết" ở tác vụ Open RPA Download).

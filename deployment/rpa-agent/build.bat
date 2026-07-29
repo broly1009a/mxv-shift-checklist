@@ -34,19 +34,22 @@ if errorlevel 1 (
 echo [OK] Build thanh cong: dist\MXVAgent.exe
 
 :: ── 5. Build Installer (Inno Setup) ──────────────────────────────────────────
-where ISCC >nul 2>&1
+set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC_PATH%" goto :no_iscc
+echo [INFO] Dang tao installer MXV_Agent_Setup_v1.0.exe...
+"%ISCC_PATH%" setup.iss
 if errorlevel 1 (
-    echo [WARN] Khong tim thay ISCC.exe (Inno Setup). Bo qua buoc tao installer.
-    echo        Tai Inno Setup tai: https://jrsoftware.org/isinfo.php
+    echo [ERROR] Inno Setup build that bai.
 ) else (
-    echo [INFO] Dang tao installer MXV_Agent_Setup_v1.0.exe...
-    ISCC setup.iss
-    if errorlevel 1 (
-        echo [ERROR] Inno Setup build that bai.
-    ) else (
-        echo [OK] Installer: dist\MXV_Agent_Setup_v1.0.exe
-    )
+    echo [OK] Installer: Output\MXV_Agent_Setup_v1.0.exe
 )
+goto :end_iscc
+
+:no_iscc
+echo [WARN] Khong tim thay Inno Setup tai: %ISCC_PATH%
+echo        Tai Inno Setup tai: https://jrsoftware.org/isinfo.php
+
+:end_iscc
 
 echo.
 echo ================================================
