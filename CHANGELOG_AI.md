@@ -4,6 +4,21 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-29 18:14:00] - Refactor: Tích hợp chế độ xem kép (Dual View Modes) cho màn hình Phân Quyền
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Kết hợp cả hai điểm mạnh: Vừa có cấu hình 2 cột chi tiết tiện lợi (Mô hình 2) vừa có bảng so sánh ma trận trực quan tổng quát (Mô hình 1).
+- **Giải pháp**:
+  - Triển khai bộ chọn chế độ xem ở góc phải: **Chế độ cấu hình chi tiết (2 cột)** và **Chế độ ma trận so sánh (Bảng)**.
+  - Khi bật chế độ cấu hình chi tiết: Trực quan hóa theo tab cấu hình nhóm vai trò hoặc nhóm chức năng với tính năng gán nhanh bằng hộp checkbox *Chọn tất cả*.
+  - Khi bật chế độ ma trận so sánh: Hiện bảng Grid đầy đủ với tất cả vai trò ở cột dọc và quyền hạn ở hàng ngang. Ô giao lộ hiển thị checkbox có thể tương tác trực tiếp giúp cập nhật phân quyền tức thì trên phạm vi rộng và dễ đối chiếu so sánh chéo.
+
+### 2. Danh sách file chỉnh sửa
+- **Chỉnh sửa**:
+  - `frontend/src/app/admin/permissions/page.tsx`
+
+---
+
 ## [2026-07-29 18:04:00] - Feature: Đồng bộ hóa Phân quyền động (Dynamic RBAC) trên toàn bộ API Backend
 
 ### 1. Mục tiêu Thay đổi
