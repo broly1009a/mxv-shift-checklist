@@ -4,16 +4,30 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
-## [2026-07-29 17:58:00] - Hotfix: Bổ sung JwtAuthGuard cho RolesController ở Backend
+## [2026-07-29 18:04:00] - Feature: Đồng bộ hóa Phân quyền động (Dynamic RBAC) trên toàn bộ API Backend
 
 ### 1. Mục tiêu Thay đổi
-- **Yêu cầu từ USER**: Khắc phục lỗi không tải được trang cấu hình phân quyền (`/admin/permissions`) do lỗi API `/api/v1/permissions` và `/api/v1/roles`.
-- **Nguyên nhân**: Ở file `RolesController`, chúng ta mới chỉ khai báo `@UseGuards(RolesGuard)` mà chưa áp dụng `@UseGuards(JwtAuthGuard)`. Do đó, `RolesGuard` không nhận diện được thông tin người dùng gửi lên từ Token (thuộc tính `user` trong Request bị undefined), dẫn đến việc từ chối quyền truy cập (Forbidden 403).
-- **Giải pháp**: Nhập và áp dụng `@UseGuards(JwtAuthGuard)` ở cấp độ class `RolesController` để đảm bảo middleware JWT trích xuất thông tin người dùng trước khi `RolesGuard` thực hiện kiểm tra vai trò `ADMIN`.
+- **Yêu cầu từ USER**: Rà soát các lỗi bảo mật tiềm ẩn và triển khai cơ chế kiểm tra quyền hạn thực tế thay vì fix cứng vai trò tĩnh (Role-based) ở Backend.
+- **Nguyên nhân**: Dù Frontend đã chuyển đổi sang phân quyền động theo ma trận quyền hạn, Backend vẫn sử dụng `@Roles('ADMIN', 'DEPARTMENT_HEAD')` để chặn tĩnh, dẫn đến lỗ hổng bỏ qua phân quyền (Authorization Bypass) khi Admin thu hồi quyền ở Frontend nhưng Backend vẫn chấp nhận request.
+- **Giải pháp**:
+  - Tạo mới decorator `@Permissions()` và bộ lọc `@UseGuards(PermissionsGuard)` ở Backend để kiểm tra động danh sách quyền của người dùng trong database hoặc JWT Token.
+  - Chuyển đổi toàn bộ các lớp điều khiển hành chính (`UsersController`, `DepartmentsController`, `TemplatesController`, `ShiftSlotsController`, `RolesController`, `WorkingCalendarController`) từ sử dụng `@Roles` tĩnh sang `@Permissions` động tương ứng (`MANAGE_USERS`, `MANAGE_TEMPLATES`, `MANAGE_ROLES`, `MANAGE_CALENDAR`).
+  - Import `AuthModule` vào các module liên quan (`WorkingCalendarModule`, `ShiftSlotsModule`) để giải quyết các phụ thuộc của `PermissionsGuard`.
 
 ### 2. Danh sách file chỉnh sửa
+- **Tạo mới**:
+  - `backend/src/modules/auth/permissions.decorator.ts`
+  - `backend/src/modules/auth/permissions.guard.ts`
 - **Chỉnh sửa**:
+  - `backend/src/modules/auth/auth.module.ts`
+  - `backend/src/modules/admin/users.controller.ts`
+  - `backend/src/modules/admin/departments.controller.ts`
+  - `backend/src/modules/admin/templates.controller.ts`
   - `backend/src/modules/admin/roles.controller.ts`
+  - `backend/src/modules/shift-slots/shift-slots.controller.ts`
+  - `backend/src/modules/shift-slots/shift-slots.module.ts`
+  - `backend/src/modules/working-calendar/working-calendar.controller.ts`
+  - `backend/src/modules/working-calendar/working-calendar.module.ts`
 
 ---
 

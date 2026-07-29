@@ -6,12 +6,14 @@ import {
 } from '../../schemas/working-calendar.schema';
 import { WorkingCalendarController } from './working-calendar.controller';
 import { WorkingCalendarService } from './working-calendar.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: WorkingCalendar.name, schema: WorkingCalendarSchema },
     ]),
+    AuthModule,
   ],
   controllers: [WorkingCalendarController],
   providers: [WorkingCalendarService],

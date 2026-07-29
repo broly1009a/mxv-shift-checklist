@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { ShiftSlotsService } from './shift-slots.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/shift-slots')
@@ -28,22 +28,22 @@ export class ShiftSlotsController {
     return this.shiftSlotsService.findOne(id);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Post()
   async create(@Body() body: any) {
     return this.shiftSlotsService.create(body);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
     return this.shiftSlotsService.update(id, body);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.shiftSlotsService.remove(id);

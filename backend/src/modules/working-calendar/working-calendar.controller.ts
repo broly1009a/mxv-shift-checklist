@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { WorkingCalendarService } from './working-calendar.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/working-calendar')
@@ -36,8 +36,8 @@ export class WorkingCalendarController {
     return this.workingCalendarService.findOne(date);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Post()
   async create(@Body() body: any, @Request() req: any) {
     return this.workingCalendarService.create(
@@ -46,8 +46,8 @@ export class WorkingCalendarController {
     );
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Put(':date')
   async update(
     @Param('date') date: string,
@@ -61,8 +61,8 @@ export class WorkingCalendarController {
     );
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_CALENDAR')
   @Delete(':date')
   async remove(@Param('date') date: string) {
     return this.workingCalendarService.remove(date);

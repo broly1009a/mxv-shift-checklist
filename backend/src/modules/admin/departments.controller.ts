@@ -15,8 +15,8 @@ import { ShiftLog } from '../../schemas/shift-log.schema';
 import { User } from '../../schemas/user.schema';
 import { ChecklistTemplate } from '../../schemas/template.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/departments')
@@ -37,16 +37,16 @@ export class DepartmentsController {
     return this.departmentModel.find().sort({ name: 1 }).exec();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   @Post()
   async create(@Body() body: any) {
     const newDept = new this.departmentModel(body);
     return newDept.save();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
     return this.departmentModel
@@ -54,8 +54,8 @@ export class DepartmentsController {
       .exec();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   @Delete(':id')
   async remove(@Param('id') id: string) {
     const [hasLog, hasUser, hasTemplate] = await Promise.all([

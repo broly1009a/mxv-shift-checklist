@@ -16,8 +16,8 @@ import { Model, Types } from 'mongoose';
 import { ChecklistTemplate } from '../../schemas/template.schema';
 import { Department } from '../../schemas/department.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { AccessControlService } from '../auth/access-control.service';
 
 import { ShiftLog } from '../../schemas/shift-log.schema';
@@ -70,8 +70,8 @@ export class TemplatesController {
       .exec();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DEPARTMENT_HEAD')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_TEMPLATES')
   @Post()
   async create(@Request() req: any, @Body() body: any) {
     const deptId = body.departmentId;
@@ -97,8 +97,8 @@ export class TemplatesController {
       .exec();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DEPARTMENT_HEAD')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_TEMPLATES')
   @Put(':id')
   async update(
     @Request() req: any,
@@ -138,8 +138,8 @@ export class TemplatesController {
       .exec();
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DEPARTMENT_HEAD')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_TEMPLATES')
   @Delete(':id')
   async remove(@Request() req: any, @Param('id') id: string) {
     const existing = await this.templateModel.findById(id).exec();

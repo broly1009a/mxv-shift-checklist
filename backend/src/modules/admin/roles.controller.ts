@@ -11,8 +11,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role } from '../../schemas/role.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1')
@@ -21,9 +21,9 @@ export class RolesController {
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
   ) {}
 
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_ROLES')
   @Get('permissions')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   getSystemPermissions() {
     return [
       { code: 'VIEW_CHECKLIST', name: 'Xem checklist ca trực', category: 'Checklist ca trực' },
@@ -41,16 +41,16 @@ export class RolesController {
     ];
   }
 
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_ROLES')
   @Get('roles')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   async getRoles() {
     return this.roleModel.find().sort({ code: 1 }).exec();
   }
 
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_ROLES')
   @Put('roles/:code/permissions')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   async updateRolePermissions(
     @Param('code') code: string,
     @Body('permissions') permissions: string[],

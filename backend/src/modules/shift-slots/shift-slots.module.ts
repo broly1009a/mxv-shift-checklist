@@ -8,6 +8,7 @@ import {
 } from '../../schemas/template.schema';
 import { ShiftSlotsController } from './shift-slots.controller';
 import { ShiftSlotsService } from './shift-slots.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ShiftSlotsService } from './shift-slots.service';
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
     ]),
+    AuthModule,
   ],
   controllers: [ShiftSlotsController],
   providers: [ShiftSlotsService],

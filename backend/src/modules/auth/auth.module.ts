@@ -9,6 +9,7 @@ import { User, UserSchema } from '../../schemas/user.schema';
 import { Department, DepartmentSchema } from '../../schemas/department.schema';
 import { Role, RoleSchema } from '../../schemas/role.schema';
 import { AccessControlService } from './access-control.service';
+import { PermissionsGuard } from './permissions.guard';
 
 @Module({
   imports: [
@@ -33,8 +34,8 @@ import { AccessControlService } from './access-control.service';
       },
     }),
   ],
-  providers: [AuthService, JwtStrategy, AccessControlService], // khai báo service và strategy
+  providers: [AuthService, JwtStrategy, AccessControlService, PermissionsGuard], // khai báo service và strategy
   controllers: [AuthController], // khai báo controller
-  exports: [AuthService, MongooseModule, JwtModule, AccessControlService], // export các module và service
+  exports: [AuthService, MongooseModule, JwtModule, AccessControlService, PermissionsGuard], // export các module và service
 })
 export class AuthModule {}
