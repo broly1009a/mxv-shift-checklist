@@ -10,9 +10,11 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role } from '../../schemas/role.schema';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1')
 export class RolesController {
   constructor(

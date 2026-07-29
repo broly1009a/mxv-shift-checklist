@@ -4,6 +4,19 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-29 17:58:00] - Hotfix: Bổ sung JwtAuthGuard cho RolesController ở Backend
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi không tải được trang cấu hình phân quyền (`/admin/permissions`) do lỗi API `/api/v1/permissions` và `/api/v1/roles`.
+- **Nguyên nhân**: Ở file `RolesController`, chúng ta mới chỉ khai báo `@UseGuards(RolesGuard)` mà chưa áp dụng `@UseGuards(JwtAuthGuard)`. Do đó, `RolesGuard` không nhận diện được thông tin người dùng gửi lên từ Token (thuộc tính `user` trong Request bị undefined), dẫn đến việc từ chối quyền truy cập (Forbidden 403).
+- **Giải pháp**: Nhập và áp dụng `@UseGuards(JwtAuthGuard)` ở cấp độ class `RolesController` để đảm bảo middleware JWT trích xuất thông tin người dùng trước khi `RolesGuard` thực hiện kiểm tra vai trò `ADMIN`.
+
+### 2. Danh sách file chỉnh sửa
+- **Chỉnh sửa**:
+  - `backend/src/modules/admin/roles.controller.ts`
+
+---
+
 ## [2026-07-29 15:22:00] - Refactor: Ẩn vai trò Ban Lãnh Đạo (CEO/CHAIRMAN) khỏi màn hình tạo/sửa tài khoản
 
 ### 1. Mục tiêu Thay đổi
