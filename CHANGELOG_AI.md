@@ -4,6 +4,54 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-29 11:24:00] - Refactor: Gỡ bỏ gạch ngang (strikethrough) trên tiêu đề Tác vụ con (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Bỏ gạch ngang tiêu đề tác vụ con khi hoàn thành theo phản hồi từ Trưởng nhóm (tránh tạo cảm giác tác vụ bị vứt bỏ / hủy bỏ).
+- **Giải pháp**:
+  - Tại file [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx), thay thế thuộc tính `textDecoration: child.isChecked ? 'line-through' : 'none'` bằng `textDecoration: 'none'` cho tiêu đề của các tác vụ con (subtasks) ở cột bên phải.
+  - Các tác vụ con đã hoàn thành sẽ chỉ sử dụng độ mờ chữ `opacity: 0.6` và tích xanh để hiển thị trạng thái hoàn thành một cách nhẹ nhàng và trực quan hơn.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:22:00] - Refactor: Tối ưu hóa UI danh sách tác vụ cột trái (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Kiểm tra độ trực quan và bổ sung các thông tin còn thiếu trên giao diện.
+- **Giải pháp**:
+  - Tích hợp hiển thị thông tin **Khung giờ thực hiện (Timetable)** hoặc **Thời hạn cam kết SLA** kèm biểu tượng đồng hồ trực tiếp lên thẻ tác vụ ở cột trái.
+  - Loại bỏ hoàn toàn đường gạch ngang chữ (`line-through`) trên tiêu đề các tác vụ đã hoàn thành, giúp cải thiện độ trực quan, dễ đọc đối với các tiêu đề dài.
+  - Khắc phục hiện tượng **giật gián đoạn khung hình 1px (Layout Shift)** bằng cách giữ nguyên độ dày border vật lý là `1px`, thay thế hiệu ứng tăng viền khi được chọn bằng hiệu ứng bóng viền lan tỏa (`box-shadow` spread).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:18:00] - Fix: Khắc phục lỗi React style border conflict warning (Console Error)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi cảnh báo/lỗi ở console: `Updating a style property during rerender (border) when a conflicting property is set (borderLeft) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values.`
+- **Giải pháp**: 
+  - Tại file [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx), gỡ bỏ thuộc tính viết tắt `border` và thay thế hoàn toàn bằng các thuộc tính biên đơn lẻ rõ ràng gồm `borderTop`, `borderRight`, `borderBottom` và `borderLeft`.
+  - Đảm bảo logic hiển thị viền nhấn màu xanh khi tác vụ được chọn (`isSelected`) hoạt động ổn định và chính xác mà không gây ra xung đột thuộc tính khi render lại.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Kiểm thử biên dịch TypeScript backend (`npx tsc -p tsconfig.build.json --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+- Build dự án production backend (`npm run build`) thành công 100%.
+
 ## [2026-07-29 11:00:00] - Refactor: Đồng bộ Icon Vector (QIcon) Thay Vì Sử Dụng Emojis Trên Giao Diện Native
 
 ### 1. Mục tiêu Thay đổi

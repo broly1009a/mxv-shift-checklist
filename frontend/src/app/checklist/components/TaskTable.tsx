@@ -340,20 +340,30 @@ export default function TaskTable({
                         : item.isChecked
                           ? 'rgba(16, 185, 129, 0.01)'
                           : 'var(--bg-card)',
-                    border: isSelected
-                      ? '2px solid var(--color-accent)'
+                    borderTop: isSelected
+                      ? '1px solid var(--color-accent)'
+                      : '1px solid var(--border-color)',
+                    borderRight: isSelected
+                      ? '1px solid var(--color-accent)'
+                      : '1px solid var(--border-color)',
+                    borderBottom: isSelected
+                      ? '1px solid var(--color-accent)'
                       : '1px solid var(--border-color)',
                     borderLeft: isBotOnly
                       ? '4px solid #ec4899'
                       : hasChildren
                         ? '4px solid #8b5cf6'
-                        : item.isChecked ? '4px solid var(--color-primary)' : '1px solid var(--border-color)',
+                        : item.isChecked
+                          ? '4px solid var(--color-primary)'
+                          : isSelected
+                            ? '1px solid var(--color-accent)'
+                            : '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
                     transition: 'all 0.2s ease',
                     cursor: 'pointer',
-                    boxShadow: isSelected ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
+                    boxShadow: isSelected ? '0 0 0 1px var(--color-accent), 0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -385,7 +395,7 @@ export default function TaskTable({
                     color: 'var(--text-primary)',
                     lineHeight: '1.4',
                     margin: 0,
-                    textDecoration: item.isChecked ? 'line-through' : 'none',
+                    textDecoration: 'none',
                     opacity: item.isChecked ? 0.65 : 1,
                   }}>
                     [{item.taskId}] {item.taskNameSnapshot}
@@ -397,7 +407,7 @@ export default function TaskTable({
                         const depTask = log.details.find(d => d.taskId === depId);
                         const isDepDone = depTask ? depTask.isChecked : false;
                         return (
-                          <span key={depId} style={{
+                           <span key={depId} style={{
                             fontSize: '0.65rem',
                             padding: '1px 6px',
                             borderRadius: '4px',
@@ -418,10 +428,20 @@ export default function TaskTable({
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       {getPriorityBadge(item.prioritySnapshot)}
+                      {item.timetableSnapshot && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--text-muted)' }} title="Khung giờ">
+                          <Clock size={10} /> {item.timetableSnapshot}
+                        </span>
+                      )}
+                      {item.slaDeadlineSnapshot && !item.timetableSnapshot && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--text-muted)' }} title="SLA">
+                          <Clock size={10} /> SLA: {item.slaDeadlineSnapshot}{item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'm' : ''}
+                        </span>
+                      )}
                       {item.deadlineSnapshot && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#ef4444', fontWeight: 600 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#ef4444', fontWeight: 600 }} title="Hạn chót">
                           <Clock size={10} /> Hạn: {item.deadlineSnapshot}
                         </span>
                       )}
@@ -999,7 +1019,7 @@ export default function TaskTable({
                               }}
                             />
                             
-                            <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: child.isChecked ? 'line-through' : 'none', opacity: child.isChecked ? 0.6 : 1 }}>
+                            <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: 'none', opacity: child.isChecked ? 0.6 : 1 }}>
                               {child.taskNameSnapshot}
                             </span>
 
