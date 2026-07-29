@@ -244,7 +244,6 @@ export default function SettingsPage() {
                         user.role === 'ADMIN' ? 'Quản trị viên hệ thống' :
                         user.role === 'CHAIRMAN' ? 'Chủ tịch Hội đồng' :
                         user.role === 'CEO' ? 'Tổng Giám đốc' :
-                        user.role === 'DIVISION_DIRECTOR' ? 'Giám đốc Khối' :
                         user.role === 'DEPARTMENT_HEAD' ? 'Trưởng bộ phận' :
                         'Nhân viên vận hành'
                       } 
@@ -252,19 +251,6 @@ export default function SettingsPage() {
                       style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
                     />
                   </div>
-
-                  {user.division && (
-                    <div>
-                      <label className="form-label">Khối trực thuộc (Read-only)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={user.division.name} 
-                        disabled 
-                        style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
-                      />
-                    </div>
-                  )}
 
                   {user.department && (
                     <div>

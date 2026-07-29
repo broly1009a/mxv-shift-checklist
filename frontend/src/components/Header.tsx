@@ -154,7 +154,6 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     switch (role) {
       case 'ADMIN': return 'Risk Officer / Admin';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
-      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'STAFF': return 'Risk Staff';
       default: return role;
     }

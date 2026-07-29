@@ -116,7 +116,6 @@ export class IncidentsService {
       this.accessControlService.validateScope(
         user,
         shift.departmentId || null,
-        shift.divisionId || null,
       );
     }
 
@@ -179,7 +178,6 @@ export class IncidentsService {
     this.accessControlService.validateScope(
       user,
       shift.departmentId || null,
-      shift.divisionId || null,
     );
 
     return this.incidentModel
@@ -291,7 +289,6 @@ export class IncidentsService {
       this.accessControlService.validateScope(
         user,
         shift.departmentId?._id || shift.departmentId || null,
-        shift.divisionId?._id || shift.divisionId || null,
       );
     }
 

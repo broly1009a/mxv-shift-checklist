@@ -40,12 +40,10 @@ export class ShiftsService {
   private validateScope(
     user: any,
     departmentId: string | Types.ObjectId,
-    divisionId?: string | Types.ObjectId,
   ) {
     this.accessControlService.validateScope(
       user,
       departmentId ? departmentId.toString() : null,
-      divisionId ? divisionId.toString() : null,
     );
   }
 
@@ -70,8 +68,7 @@ export class ShiftsService {
 
     const dept = template.departmentId as any;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     // Default shift date is current date in Vietnam time (GMT+7)
     let shiftDate = shiftDateInput;
@@ -156,7 +153,6 @@ export class ShiftsService {
       departmentId: template.departmentId
         ? new Types.ObjectId(template.departmentId as any)
         : null,
-      divisionId: divId ? new Types.ObjectId(divId) : null,
       shiftDate,
       status: 'PENDING',
       progressPercentage: 0.0,
@@ -253,8 +249,7 @@ export class ShiftsService {
 
     const dept = (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     const timestamp = Date.now();
     const taskId = `adhoc_${timestamp}`;
@@ -394,8 +389,7 @@ export class ShiftsService {
 
     const dept = (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     const task = log.details.find((d) => d.taskId === taskId);
     if (!task) {
@@ -813,8 +807,7 @@ export class ShiftsService {
 
     const dept = (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     // Enforce CE/ACM priority backup validation for closing checklists
     const sessionType = (log.templateId as any)?.sessionType || '';
@@ -1075,27 +1068,12 @@ export class ShiftsService {
       user.role !== 'CEO' &&
       user.role !== 'CHAIRMAN'
     ) {
-      if (user.role === 'DIVISION_DIRECTOR') {
-        const templates = await this.templateModel
-          .find()
-          .populate('departmentId')
-          .exec();
-        const filteredTemplates = templates.filter((t) => {
-          const dept = t.departmentId as any;
-          const uDivId = user.divisionId?._id || user.divisionId;
-          const targetDivId = dept?.divisionId?._id || dept?.divisionId;
-          return targetDivId?.toString() === uDivId?.toString();
-        });
-        const templateIds = filteredTemplates.map((t) => t._id);
-        filter.templateId = { $in: templateIds };
-      } else {
-        const deptId = user.departmentId?._id || user.departmentId;
-        const templates = await this.templateModel
-          .find({ departmentId: new Types.ObjectId(deptId) })
-          .exec();
-        const templateIds = templates.map((t) => t._id);
-        filter.templateId = { $in: templateIds };
-      }
+      const deptId = user.departmentId?._id || user.departmentId;
+      const templates = await this.templateModel
+        .find({ departmentId: new Types.ObjectId(deptId) })
+        .exec();
+      const templateIds = templates.map((t) => t._id);
+      filter.templateId = { $in: templateIds };
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
       const templates = await this.templateModel
         .find({ departmentId: new Types.ObjectId(departmentId) })
@@ -1155,27 +1133,12 @@ export class ShiftsService {
       user.role !== 'CEO' &&
       user.role !== 'CHAIRMAN'
     ) {
-      if (user.role === 'DIVISION_DIRECTOR') {
-        const templates = await this.templateModel
-          .find()
-          .populate('departmentId')
-          .exec();
-        const filteredTemplates = templates.filter((t) => {
-          const dept = t.departmentId as any;
-          const uDivId = user.divisionId?._id || user.divisionId;
-          const targetDivId = dept?.divisionId?._id || dept?.divisionId;
-          return targetDivId?.toString() === uDivId?.toString();
-        });
-        const templateIds = filteredTemplates.map((t) => t._id);
-        filter.templateId = { $in: templateIds };
-      } else {
-        const deptId = user.departmentId?._id || user.departmentId;
-        const templates = await this.templateModel
-          .find({ departmentId: new Types.ObjectId(deptId) })
-          .exec();
-        const templateIds = templates.map((t) => t._id);
-        filter.templateId = { $in: templateIds };
-      }
+      const deptId = user.departmentId?._id || user.departmentId;
+      const templates = await this.templateModel
+        .find({ departmentId: new Types.ObjectId(deptId) })
+        .exec();
+      const templateIds = templates.map((t) => t._id);
+      filter.templateId = { $in: templateIds };
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
       const templates = await this.templateModel
         .find({ departmentId: new Types.ObjectId(departmentId) })
@@ -1220,8 +1183,7 @@ export class ShiftsService {
 
     const dept = (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     return log;
   }
@@ -1259,8 +1221,7 @@ export class ShiftsService {
 
     const dept = (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
-    const divId = dept?.divisionId || null;
-    this.validateScope(user, deptId, divId);
+    this.validateScope(user, deptId);
 
     return this.auditLogModel
       .find({ shiftLogId: new Types.ObjectId(shiftLogId) })

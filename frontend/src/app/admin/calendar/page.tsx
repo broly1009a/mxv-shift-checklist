@@ -89,7 +89,7 @@ export default function AdminCalendarPage() {
   // Redirect if not allowed
   useEffect(() => {
     if (user) {
-      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'];
       if (!allowedRoles.includes(user.role)) {
         router.push('/dashboard');
       }
@@ -105,10 +105,15 @@ export default function AdminCalendarPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setEntries(data);
+        if (Array.isArray(data)) {
+          setEntries(data);
+        } else {
+          setEntries([]);
+        }
       }
     } catch (err) {
       console.error(err);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -147,10 +152,15 @@ export default function AdminCalendarPage() {
       });
       if (slotsRes.ok) {
         const slots = await slotsRes.json();
-        setShiftSlots(slots.sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0)));
+        if (Array.isArray(slots)) {
+          setShiftSlots(slots.sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0)));
+        } else {
+          setShiftSlots([]);
+        }
       }
     } catch (err) {
       console.error('Error fetching standards:', err);
+      setShiftSlots([]);
     } finally {
       setLoadingStandards(false);
     }

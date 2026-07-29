@@ -71,7 +71,7 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
+  @Roles('ADMIN', 'DEPARTMENT_HEAD')
   @Post()
   async create(@Request() req: any, @Body() body: any) {
     const deptId = body.departmentId;
@@ -86,7 +86,6 @@ export class TemplatesController {
     this.accessControlService.validateScope(
       req.user,
       dept._id,
-      dept.divisionId || null,
     );
 
     const newTpl = new this.templateModel(body);
@@ -99,7 +98,7 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
+  @Roles('ADMIN', 'DEPARTMENT_HEAD')
   @Put(':id')
   async update(
     @Request() req: any,
@@ -111,13 +110,9 @@ export class TemplatesController {
       throw new NotFoundException('Mẫu checklist không tồn tại');
     }
 
-    const oldDept = await this.departmentModel
-      .findById(existing.departmentId)
-      .exec();
     this.accessControlService.validateScope(
       req.user,
       existing.departmentId,
-      oldDept?.divisionId || null,
     );
 
     if (
@@ -133,7 +128,6 @@ export class TemplatesController {
       this.accessControlService.validateScope(
         req.user,
         newDept._id,
-        newDept.divisionId || null,
       );
     }
 
@@ -145,7 +139,7 @@ export class TemplatesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
+  @Roles('ADMIN', 'DEPARTMENT_HEAD')
   @Delete(':id')
   async remove(@Request() req: any, @Param('id') id: string) {
     const existing = await this.templateModel.findById(id).exec();
@@ -153,13 +147,9 @@ export class TemplatesController {
       throw new NotFoundException('Mẫu checklist không tồn tại');
     }
 
-    const dept = await this.departmentModel
-      .findById(existing.departmentId)
-      .exec();
     this.accessControlService.validateScope(
       req.user,
       existing.departmentId,
-      dept?.divisionId || null,
     );
 
     const hasLog = await this.shiftLogModel

@@ -9,14 +9,6 @@ export class Department extends Document {
   @Prop({ required: true, unique: true, index: true })
   code: string; // e.g., 'IT_CORE', 'RE_OPS', 'MARKET_SURV'
 
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Division',
-    required: false,
-    default: null,
-  })
-  divisionId?: Types.ObjectId | null;
-
   @Prop({ required: true, type: Boolean, default: true })
   isActive: boolean;
 }

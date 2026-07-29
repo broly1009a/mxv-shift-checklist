@@ -153,11 +153,6 @@ export class ShiftJobsService {
         departmentId: template.departmentId
           ? new Types.ObjectId(template.departmentId as any)
           : null,
-        divisionId: (template.departmentId as any)?.divisionId
-          ? new Types.ObjectId(
-              (template.departmentId as any).divisionId as string,
-            )
-          : null,
         shiftDate: dateStr,
         status: 'PENDING',
         progressPercentage: 0.0,

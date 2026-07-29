@@ -7,7 +7,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { Department, DepartmentSchema } from '../../schemas/department.schema';
-import { Division, DivisionSchema } from '../../schemas/division.schema';
+import { Role, RoleSchema } from '../../schemas/role.schema';
 import { AccessControlService } from './access-control.service';
 
 @Module({
@@ -15,7 +15,7 @@ import { AccessControlService } from './access-control.service';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Department.name, schema: DepartmentSchema },
-      { name: Division.name, schema: DivisionSchema },
+      { name: Role.name, schema: RoleSchema },
     ]), // khai báo models
     PassportModule, // module passport
     JwtModule.registerAsync({

@@ -253,30 +253,45 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const tplData = await tplRes.json();
-      setTemplates(tplData);
+      if (tplRes.ok && Array.isArray(tplData)) {
+        setTemplates(tplData);
+      } else {
+        setTemplates([]);
+      }
 
       // 2. Fetch summary
       const summaryRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/summary?date=${dashboardDate}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const summaryData = await summaryRes.json();
-      setSummary(summaryData);
+      setSummary(summaryRes.ok ? summaryData : null);
 
       // 3. Fetch active shifts (jobs status=PENDING)
       const activeRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=PENDING`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const activeData = await activeRes.json();
-      setActiveShifts(activeData);
+      if (activeRes.ok && Array.isArray(activeData)) {
+        setActiveShifts(activeData);
+      } else {
+        setActiveShifts([]);
+      }
 
       // 4. Fetch recent shifts (jobs status=COMPLETED)
       const historyRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=COMPLETED`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const historyData = await historyRes.json();
-      setRecentShifts(historyData);
+      if (historyRes.ok && Array.isArray(historyData)) {
+        setRecentShifts(historyData);
+      } else {
+        setRecentShifts([]);
+      }
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu dashboard', err);
+      setTemplates([]);
+      setActiveShifts([]);
+      setRecentShifts([]);
     } finally {
       setLoading(false);
     }

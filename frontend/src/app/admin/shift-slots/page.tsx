@@ -89,7 +89,7 @@ export default function AdminShiftSlotsPage() {
   // Redirect if not admin or manager
   useEffect(() => {
     if (user) {
-      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'];
       if (!allowedRoles.includes(user.role)) router.push('/dashboard');
     }
   }, [user, router]);

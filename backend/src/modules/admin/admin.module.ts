@@ -3,17 +3,18 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { DepartmentsController } from './departments.controller';
 import { UsersController } from './users.controller';
 import { TemplatesController } from './templates.controller';
-import { DivisionsController } from './divisions.controller';
 import { Department, DepartmentSchema } from '../../schemas/department.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
 import {
   ChecklistTemplate,
   ChecklistTemplateSchema,
 } from '../../schemas/template.schema';
-import { Division, DivisionSchema } from '../../schemas/division.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { Incident, IncidentSchema } from '../../schemas/incident.schema';
+import { Role, RoleSchema } from '../../schemas/role.schema';
 import { AuthModule } from '../auth/auth.module';
+
+import { RolesController } from './roles.controller';
 
 @Module({
   imports: [
@@ -21,9 +22,9 @@ import { AuthModule } from '../auth/auth.module';
       { name: Department.name, schema: DepartmentSchema },
       { name: User.name, schema: UserSchema },
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
-      { name: Division.name, schema: DivisionSchema },
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: Incident.name, schema: IncidentSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
     AuthModule,
   ],
@@ -32,7 +33,7 @@ import { AuthModule } from '../auth/auth.module';
     DepartmentsController,
     UsersController,
     TemplatesController,
-    DivisionsController,
+    RolesController,
   ],
 })
 export class AdminModule {}

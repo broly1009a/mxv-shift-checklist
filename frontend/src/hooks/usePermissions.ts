@@ -8,8 +8,8 @@ export function usePermissions() {
       isAdmin: false,
       isLeader: false,
       isManager: false,
-      isTradeDivision: false,
-      isITDivision: false,
+      isTradeDept: false,
+      isITDept: false,
       canManageTemplates: false,
       canAccessMarginChange: false,
       canAccessAutoShift: false,
@@ -19,29 +19,30 @@ export function usePermissions() {
   }
 
   const role = user.role;
-  const divisionCode = user.division?.code || '';
+  const deptCode = user.department?.code || '';
+  const permissions = user.permissions || [];
 
   const isAdmin = role === 'ADMIN';
   const isLeader = role === 'ADMIN' || role === 'CEO' || role === 'CHAIRMAN';
-  const isManager = role === 'DIVISION_DIRECTOR' || role === 'DEPARTMENT_HEAD';
+  const isManager = role === 'DEPARTMENT_HEAD';
 
-  // Division checks
-  const isTradeDivision = divisionCode === 'TRADE_DIVISION';
-  const isITDivision = divisionCode === 'IT_DIVISION';
+  // Department checks
+  const isTradeDept = deptCode === 'QLGD_OPS' || deptCode === 'QLRR_RISK';
+  const isITDept = deptCode === 'IT_CORE' || deptCode === 'IT_RND';
 
-  // Feature checks
-  const canManageTemplates = isAdmin || isManager;
-  const canAccessMarginChange = isLeader || isTradeDivision;
-  const canAccessAutoShift = isAdmin || isITDivision;
-  const canAccessHealthChecks = isAdmin || isITDivision;
-  const canResolveIncidents = isAdmin || isITDivision || isTradeDivision;
+  // Dynamic Feature checks
+  const canManageTemplates = isAdmin || permissions.includes('MANAGE_TEMPLATES');
+  const canAccessMarginChange = isAdmin || permissions.includes('ACCESS_MARGIN_CHANGE');
+  const canAccessAutoShift = isAdmin || permissions.includes('ACCESS_AUTO_SHIFT');
+  const canAccessHealthChecks = isAdmin || permissions.includes('ACCESS_HEALTH_CHECKS');
+  const canResolveIncidents = isAdmin || permissions.includes('RESOLVE_INCIDENTS');
 
   return {
     isAdmin,
     isLeader,
     isManager,
-    isTradeDivision,
-    isITDivision,
+    isTradeDept,
+    isITDept,
     canManageTemplates,
     canAccessMarginChange,
     canAccessAutoShift,

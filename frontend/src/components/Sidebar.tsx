@@ -15,7 +15,8 @@ import {
   Calendar,
   Clock,
   Bell,
-  Cpu
+  Cpu,
+  ShieldAlert
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -36,7 +37,6 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       case 'ADMIN': return 'Quản trị viên';
       case 'CHAIRMAN': return 'Chủ tịch';
       case 'CEO': return 'Ban Giám đốc';
-      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
       case 'STAFF': return 'Nhân viên';
       default: return role;
@@ -48,7 +48,6 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       case 'ADMIN': return 'badge badge-critical';
       case 'CHAIRMAN': return 'badge badge-high';
       case 'CEO': return 'badge badge-high';
-      case 'DIVISION_DIRECTOR': return 'badge badge-medium';
       case 'DEPARTMENT_HEAD': return 'badge badge-medium';
       default: return 'badge badge-low';
     }
@@ -136,9 +135,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN'
             ? 'Ban Lãnh Đạo / Admin'
-            : user.division
-              ? `${user.division.name}${user.department ? ` - ${user.department.name}` : ''}`
-              : user.department?.name || 'Chưa phân phòng'}
+            : user.department?.name || 'Chưa phân phòng'}
         </p>
         <span className={getRoleBadgeClass(user.role)}>
           {getRoleName(user.role)}
@@ -282,6 +279,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                 >
                   <Bell size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình thông báo</span>
+                </Link>
+                <Link 
+                  href="/admin/permissions" 
+                  onClick={onClose} 
+                  className={`nav-link ${pathname.startsWith('/admin/permissions') ? 'active' : ''}`}
+                  title={isCollapsed ? "Phân quyền vai trò" : undefined}
+                >
+                  <ShieldAlert size={18} style={{ flexShrink: 0 }} />
+                  <span>Phân quyền vai trò</span>
                 </Link>
               </>
             )}

@@ -20,30 +20,18 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/Sidebar';
 
-interface Division {
-  _id: string;
-  name: string;
-  code: string;
-}
-
 interface Department {
   _id: string;
   name: string;
   code: string;
-  divisionId?: string | { _id: string };
 }
 
 interface User {
   _id: string;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'CHAIRMAN' | 'CEO' | 'DIVISION_DIRECTOR' | 'DEPARTMENT_HEAD' | 'STAFF';
+  role: 'ADMIN' | 'CHAIRMAN' | 'CEO' | 'DEPARTMENT_HEAD' | 'STAFF';
   departmentId?: {
-    _id: string;
-    name: string;
-    code: string;
-  };
-  divisionId?: {
     _id: string;
     name: string;
     code: string;
@@ -58,7 +46,6 @@ export default function AdminUsersPage() {
 
   // Data state
   const [users, setUsers] = useState<User[]>([]);
-  const [divisions, setDivisions] = useState<Division[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +53,6 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('');
-  const [filterDivision, setFilterDivision] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterActive, setFilterActive] = useState('');
   
@@ -84,12 +70,6 @@ export default function AdminUsersPage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const handleDivisionFilterChange = (val: string) => {
-    setFilterDivision(val);
-    setFilterDepartment('');
-    setCurrentPage(1);
-  };
-
   // Form states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -98,7 +78,6 @@ export default function AdminUsersPage() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<User['role']>('STAFF');
-  const [divisionId, setDivisionId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [isActive, setIsActive] = useState(true);
 
@@ -107,7 +86,7 @@ export default function AdminUsersPage() {
   // Redirect if not admin or manager
   useEffect(() => {
     if (currentUser) {
-      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'];
       if (!allowedRoles.includes(currentUser.role)) {
         router.push('/dashboard');
       }
@@ -117,21 +96,19 @@ export default function AdminUsersPage() {
   const fetchMetadata = useCallback(async () => {
     if (!token) return;
     try {
-      // Fetch divisions
-      const divsRes = await fetch(`${API_BASE_URL}/api/v1/divisions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const divsData = await divsRes.json();
-      setDivisions(divsData);
-
       // Fetch departments
       const deptsRes = await fetch(`${API_BASE_URL}/api/v1/departments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const deptsData = await deptsRes.json();
-      setDepartments(deptsData);
+      if (deptsRes.ok && Array.isArray(deptsData)) {
+        setDepartments(deptsData);
+      } else {
+        setDepartments([]);
+      }
     } catch (err) {
       console.error('Lỗi khi tải metadata:', err);
+      setDepartments([]);
     }
   }, [token]);
 
@@ -144,7 +121,6 @@ export default function AdminUsersPage() {
       params.append('limit', limit.toString());
       if (debouncedSearchQuery) params.append('search', debouncedSearchQuery);
       if (filterRole) params.append('role', filterRole);
-      if (filterDivision) params.append('divisionId', filterDivision);
       if (filterDepartment) params.append('departmentId', filterDepartment);
       if (filterActive !== '') params.append('isActive', filterActive);
 
@@ -167,7 +143,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, currentPage, limit, debouncedSearchQuery, filterRole, filterDivision, filterDepartment, filterActive]);
+  }, [token, currentPage, limit, debouncedSearchQuery, filterRole, filterDepartment, filterActive]);
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -187,7 +163,6 @@ export default function AdminUsersPage() {
     setPassword('');
     setFullName('');
     setRole('STAFF');
-    setDivisionId('');
     setDepartmentId('');
     setIsActive(true);
     setModalOpen(true);
@@ -199,7 +174,6 @@ export default function AdminUsersPage() {
     setPassword('');
     setFullName(u.fullName);
     setRole(u.role);
-    setDivisionId(u.divisionId?._id || '');
     setDepartmentId(u.departmentId?._id || '');
     setIsActive(u.isActive !== undefined ? u.isActive : true);
     setModalOpen(true);
@@ -218,10 +192,6 @@ export default function AdminUsersPage() {
         toast.error('Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải gán phòng ban trực!');
         return;
       }
-      if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        toast.error('Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải gán Khối quản lý!');
-        return;
-      }
     }
 
     try {
@@ -230,7 +200,6 @@ export default function AdminUsersPage() {
         username,
         fullName,
         role,
-        divisionId: divisionId || null,
         departmentId: departmentId || null,
         isActive,
         ...(password ? { password } : {})
@@ -306,7 +275,6 @@ export default function AdminUsersPage() {
       case 'ADMIN': return 'Quản trị viên';
       case 'CHAIRMAN': return 'Chủ tịch';
       case 'CEO': return 'Ban Giám đốc';
-      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
       case 'STAFF': return 'Nhân viên';
       default: return role;
@@ -318,18 +286,12 @@ export default function AdminUsersPage() {
       case 'ADMIN': return { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
       case 'CHAIRMAN': return { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' };
       case 'CEO': return { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' };
-      case 'DIVISION_DIRECTOR': return { background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.2)' };
       case 'DEPARTMENT_HEAD': return { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' };
       default: return { background: 'rgba(107, 114, 128, 0.1)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.2)' };
     }
   };
 
-  // Filter departments based on selected division
-  const filteredDepartments = departments.filter(d => {
-    if (!divisionId) return true;
-    const deptDivId = typeof d.divisionId === 'object' && d.divisionId !== null ? d.divisionId._id : d.divisionId;
-    return deptDivId === divisionId;
-  });
+  const filteredDepartments = departments;
 
   return (
     <ProtectedRoute>
@@ -392,26 +354,9 @@ export default function AdminUsersPage() {
                     <option value="">-- Tất cả vai trò --</option>
                     <option value="STAFF">Nhân viên vận hành</option>
                     <option value="DEPARTMENT_HEAD">Trưởng bộ phận / Trưởng ca</option>
-                    <option value="DIVISION_DIRECTOR">Giám đốc Khối</option>
                     <option value="CEO">Ban Giám đốc (CEO)</option>
                     <option value="CHAIRMAN">Chủ tịch Hội đồng</option>
                     <option value="ADMIN">Quản trị hệ thống (ADMIN)</option>
-                  </select>
-                </div>
-
-                {/* Division Filter */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Khối quản lý</label>
-                  <select
-                    className="form-input"
-                    value={filterDivision}
-                    onChange={(e) => handleDivisionFilterChange(e.target.value)}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Tất cả các Khối --</option>
-                    {divisions.map(div => (
-                      <option key={div._id} value={div._id}>{div.name}</option>
-                    ))}
                   </select>
                 </div>
 
@@ -428,16 +373,9 @@ export default function AdminUsersPage() {
                     style={{ background: 'var(--bg-app)' }}
                   >
                     <option value="">-- Tất cả Phòng ban --</option>
-                    {departments
-                      .filter(d => {
-                        if (!filterDivision) return true;
-                        const deptDivId = typeof d.divisionId === 'object' && d.divisionId !== null ? (d.divisionId as any)._id : d.divisionId;
-                        return deptDivId === filterDivision;
-                      })
-                      .map(d => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
-                      ))
-                    }
+                    {departments.map(d => (
+                      <option key={d._id} value={d._id}>{d.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -465,7 +403,6 @@ export default function AdminUsersPage() {
                     setSearchQuery('');
                     setDebouncedSearchQuery('');
                     setFilterRole('');
-                    setFilterDivision('');
                     setFilterDepartment('');
                     setFilterActive('');
                     setCurrentPage(1);
@@ -477,13 +414,13 @@ export default function AdminUsersPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    borderColor: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)',
-                    color: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? '#ef4444' : 'var(--text-muted)',
-                    background: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-                    opacity: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 1 : 0.6,
-                    cursor: (searchQuery || filterRole || filterDivision || filterDepartment || filterActive) ? 'pointer' : 'not-allowed'
+                    borderColor: (searchQuery || filterRole || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)',
+                    color: (searchQuery || filterRole || filterDepartment || filterActive) ? '#ef4444' : 'var(--text-muted)',
+                    background: (searchQuery || filterRole || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                    opacity: (searchQuery || filterRole || filterDepartment || filterActive) ? 1 : 0.6,
+                    cursor: (searchQuery || filterRole || filterDepartment || filterActive) ? 'pointer' : 'not-allowed'
                   }}
-                  disabled={!(searchQuery || filterRole || filterDivision || filterDepartment || filterActive)}
+                  disabled={!(searchQuery || filterRole || filterDepartment || filterActive)}
                 >
                   <RotateCcw size={16} />
                   <span>Xóa bộ lọc</span>
@@ -516,19 +453,12 @@ export default function AdminUsersPage() {
                           <td style={{ padding: '14px 16px' }}>{u.fullName}</td>
                           <td style={{ padding: '14px 16px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              {u.divisionId ? (
-                                <span style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 500 }}>
-                                  🏢 {u.divisionId.name}
-                                </span>
-                              ) : null}
                               {u.departmentId ? (
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                   <Layers size={12} /> {u.departmentId.name}
                                 </span>
-                              ) : !u.divisionId ? (
-                                <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ban Lãnh Đạo / Admin</em>
                               ) : (
-                                <em style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Chưa phân phòng trực</em>
+                                <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ban Lãnh Đạo / Admin</em>
                               )}
                             </div>
                           </td>
@@ -810,9 +740,8 @@ export default function AdminUsersPage() {
                   onChange={(e) => {
                     const newRole = e.target.value as User['role'];
                     setRole(newRole);
-                    // Clear division/department if they are board level
+                    // Clear department if they are board level
                     if (newRole === 'ADMIN' || newRole === 'CEO' || newRole === 'CHAIRMAN') {
-                      setDivisionId('');
                       setDepartmentId('');
                     }
                   }}
@@ -820,36 +749,18 @@ export default function AdminUsersPage() {
                 >
                   <option value="STAFF">STAFF (Nhân viên vận hành)</option>
                   <option value="DEPARTMENT_HEAD">DEPARTMENT_HEAD (Trưởng bộ phận / Trưởng ca)</option>
-                  <option value="DIVISION_DIRECTOR">DIVISION_DIRECTOR (Giám đốc Khối)</option>
-                  <option value="CEO">CEO (Tổng Giám đốc / Ban Giám đốc)</option>
-                  <option value="CHAIRMAN">CHAIRMAN (Chủ tịch Hội đồng)</option>
+                  {(role === 'CEO' || (editingUser && editingUser.role === 'CEO')) && (
+                    <option value="CEO">CEO (Tổng Giám đốc / Ban Giám đốc)</option>
+                  )}
+                  {(role === 'CHAIRMAN' || (editingUser && editingUser.role === 'CHAIRMAN')) && (
+                    <option value="CHAIRMAN">CHAIRMAN (Chủ tịch Hội đồng)</option>
+                  )}
                   <option value="ADMIN">ADMIN (Quản trị hệ thống)</option>
                 </select>
               </div>
 
-              {/* Division selection: Hidden for Admin/CEO/Chairman */}
-              {role !== 'ADMIN' && role !== 'CEO' && role !== 'CHAIRMAN' && (
-                <div>
-                  <label className="form-label">Khối quản lý *</label>
-                  <select
-                    className="form-input"
-                    value={divisionId}
-                    onChange={(e) => {
-                      setDivisionId(e.target.value);
-                      setDepartmentId(''); // Reset department when division changes
-                    }}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Chọn Khối quản lý --</option>
-                    {divisions.map(div => (
-                      <option key={div._id} value={div._id}>{div.name} ({div.code})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Department selection: Hidden for Admin/CEO/Chairman and Division Director */}
-              {role !== 'ADMIN' && role !== 'CEO' && role !== 'CHAIRMAN' && role !== 'DIVISION_DIRECTOR' && (
+              {/* Department selection: Hidden for Admin/CEO/Chairman */}
+              {(role === 'STAFF' || role === 'DEPARTMENT_HEAD') && (
                 <div>
                   <label className="form-label">Phòng ban trực *</label>
                   <select

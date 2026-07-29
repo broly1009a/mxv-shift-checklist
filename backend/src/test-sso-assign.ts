@@ -35,23 +35,20 @@ async function run() {
     console.log('----------------------------------------------------');
     console.log(`Username:       ${user.username}`);
     console.log(`Full Name:      ${user.fullName}`);
-    console.log(`Role Assigned:  ${user.role} (Expected: DIVISION_DIRECTOR)`);
+    console.log(`Role Assigned:  ${user.role} (Expected: DEPARTMENT_HEAD)`);
     console.log(`Is Active:      ${user.isActive} (Expected: true)`);
-    console.log(
-      `Division ID:    ${user.divisionId ? user.divisionId.name || user.divisionId._id || user.divisionId : 'null'}`,
-    );
     console.log(
       `Department ID:  ${user.departmentId ? user.departmentId.name || user.departmentId._id || user.departmentId : 'null'}`,
     );
     console.log('----------------------------------------------------');
 
     // Verification asserts
-    if (user.role !== 'DIVISION_DIRECTOR') {
-      console.error('❌ FAIL: Role was not mapped to DIVISION_DIRECTOR');
+    if (user.role !== 'DEPARTMENT_HEAD') {
+      console.error('❌ FAIL: Role was not mapped to DEPARTMENT_HEAD');
     } else if (user.isActive !== true) {
       console.error('❌ FAIL: User is not active');
-    } else if (!user.divisionId) {
-      console.error('❌ FAIL: divisionId was not populated/assigned');
+    } else if (!user.departmentId) {
+      console.error('❌ FAIL: departmentId was not populated/assigned');
     } else {
       console.log('🎉 ALL ASSERTS PASSED SUCCESSFULLY!');
     }

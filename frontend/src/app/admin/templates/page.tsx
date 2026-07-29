@@ -135,7 +135,7 @@ export default function AdminTemplatesPage() {
   // Redirect if not admin or manager
   useEffect(() => {
     if (user) {
-      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'];
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'];
       if (!allowedRoles.includes(user.role)) {
         router.push('/dashboard');
       }
@@ -149,9 +149,14 @@ export default function AdminTemplatesPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setDepartments(data);
+      if (res.ok && Array.isArray(data)) {
+        setDepartments(data);
+      } else {
+        setDepartments([]);
+      }
     } catch (err) {
       console.error(err);
+      setDepartments([]);
     }
   }, [token]);
 
@@ -162,9 +167,14 @@ export default function AdminTemplatesPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setShiftSlots(data);
+      if (res.ok && Array.isArray(data)) {
+        setShiftSlots(data);
+      } else {
+        setShiftSlots([]);
+      }
     } catch (err) {
       console.error(err);
+      setShiftSlots([]);
     }
   }, [token]);
 
@@ -176,21 +186,24 @@ export default function AdminTemplatesPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setTemplates(data);
+      const templatesList = res.ok && Array.isArray(data) ? data : [];
+      setTemplates(templatesList);
       
       // Auto-select template
-      if (data.length > 0) {
+      if (templatesList.length > 0) {
         if (selectId) {
-          const found = data.find((t: any) => t._id === selectId);
-          setSelectedTemplate(found || data[0]);
+          const found = templatesList.find((t: any) => t._id === selectId);
+          setSelectedTemplate(found || templatesList[0]);
         } else {
-          setSelectedTemplate(data[0]);
+          setSelectedTemplate(templatesList[0]);
         }
       } else {
         setSelectedTemplate(null);
       }
     } catch (err) {
       console.error(err);
+      setTemplates([]);
+      setSelectedTemplate(null);
     } finally {
       setLoading(false);
     }

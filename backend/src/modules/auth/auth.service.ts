@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { User } from '../../schemas/user.schema';
 import { Department } from '../../schemas/department.schema';
-import { Division } from '../../schemas/division.schema';
+import { Role } from '../../schemas/role.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Department.name)
     private readonly departmentModel: Model<Department>,
-    @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
+    @InjectModel(Role.name) private readonly roleModel: Model<Role>,
     private readonly jwtService: JwtService,
     private readonly settingsService: SystemSettingsService,
   ) {
@@ -45,7 +45,6 @@ export class AuthService {
     const user = await this.userModel
       .findOne({ username: username.toLowerCase() })
       .populate('departmentId')
-      .populate('divisionId')
       .exec();
     if (user && (await bcrypt.compare(pass, user.passwordHash))) {
       if (!user.isActive) {
@@ -59,12 +58,26 @@ export class AuthService {
   }
 
   async login(user: any) {
+    let permissions: string[] = [];
+    if (user.role === 'ADMIN') {
+      permissions = [
+        'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'INITIALIZE_SHIFT', 'CLOSE_SHIFT',
+        'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS', 'RESOLVE_INCIDENTS',
+        'MANAGE_TEMPLATES', 'MANAGE_USERS', 'MANAGE_ROLES', 'MANAGE_CALENDAR'
+      ];
+    } else {
+      const roleDoc = await this.roleModel.findOne({ code: user.role }).exec();
+      if (roleDoc) {
+        permissions = roleDoc.permissions || [];
+      }
+    }
+
     const payload = {
       username: user.username,
       sub: user._id,
       role: user.role,
       departmentId: user.departmentId?._id || user.departmentId || null,
-      divisionId: user.divisionId?._id || user.divisionId || null,
+      permissions,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -74,8 +87,8 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         department: user.departmentId || null,
-        division: user.divisionId || null,
         isActive: user.isActive,
+        permissions,
         settings: user.settings || {
           theme: 'dark',
           autoRefreshInterval: 30,
@@ -186,7 +199,6 @@ export class AuthService {
     const user = await this.userModel
       .findOne({ username })
       .populate('departmentId')
-      .populate('divisionId')
       .exec();
 
     if (user) {
@@ -212,15 +224,8 @@ export class AuthService {
           (item: any) => item.email.toLowerCase() === email.toLowerCase(),
         );
         if (matched) {
-          let divisionId = null;
           let departmentId = null;
 
-          if (matched.divisionCode) {
-            const div = await this.divisionModel
-              .findOne({ code: matched.divisionCode })
-              .exec();
-            if (div) divisionId = div._id;
-          }
           if (matched.departmentCode) {
             const dept = await this.departmentModel
               .findOne({ code: matched.departmentCode })
@@ -230,7 +235,6 @@ export class AuthService {
 
           autoAssignedUser = {
             role: matched.role || 'STAFF',
-            divisionId,
             departmentId,
             fullName: matched.fullName || fullName,
             isActive: true, // Activated immediately!
@@ -257,7 +261,6 @@ export class AuthService {
         : fullName ||
           `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
       departmentId: autoAssignedUser ? autoAssignedUser.departmentId : null,
-      divisionId: autoAssignedUser ? autoAssignedUser.divisionId : null,
       role: autoAssignedUser
         ? autoAssignedUser.role
         : isInitialAdmin
@@ -273,7 +276,6 @@ export class AuthService {
       return this.userModel
         .findById(newUser._id)
         .populate('departmentId')
-        .populate('divisionId')
         .exec();
     }
 
@@ -329,7 +331,6 @@ export class AuthService {
       fullName: user.fullName,
       role: user.role,
       departmentId: user.departmentId || null,
-      divisionId: user.divisionId || null,
       isActive: user.isActive,
       settings: user.settings,
     };

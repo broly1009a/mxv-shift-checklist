@@ -22,20 +22,11 @@ export class User extends Document {
   departmentId?: Types.ObjectId | null;
 
   @Prop({
-    type: Types.ObjectId,
-    ref: 'Division',
-    required: false,
-    default: null,
-  })
-  divisionId?: Types.ObjectId | null;
-
-  @Prop({
     required: true,
     enum: [
       'ADMIN',
       'CHAIRMAN',
       'CEO',
-      'DIVISION_DIRECTOR',
       'DEPARTMENT_HEAD',
       'STAFF',
     ],

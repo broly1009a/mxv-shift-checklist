@@ -266,7 +266,6 @@ export class AuthController {
       fullName: user.fullName,
       role: user.role,
       department: user.departmentId || null,
-      division: user.divisionId || null,
       isActive: user.isActive,
       settings: user.settings,
     };

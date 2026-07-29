@@ -182,8 +182,14 @@ export default function AdminNotificationsPage() {
         fetch(`${API_BASE_URL}/api/v1/users?limit=200`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      if (deptRes.ok) setDepartments(await deptRes.json());
-      if (slotRes.ok) setShiftSlots(await slotRes.json());
+      if (deptRes.ok) {
+        const dData = await deptRes.json();
+        if (Array.isArray(dData)) setDepartments(dData);
+      }
+      if (slotRes.ok) {
+        const sData = await slotRes.json();
+        if (Array.isArray(sData)) setShiftSlots(sData);
+      }
       if (userRes.ok) {
         const userData = await userRes.json();
         if (userData && typeof userData === 'object') {
@@ -1402,7 +1408,7 @@ export default function AdminNotificationsPage() {
               <div>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nhóm quyền nhận tin (Roles)</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                  {['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD', 'STAFF'].map(role => (
+                  {['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD', 'STAFF'].map(role => (
                     <label key={role} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
                       <input
                         type="checkbox"

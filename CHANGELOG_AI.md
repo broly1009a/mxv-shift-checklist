@@ -4,6 +4,403 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-29 15:22:00] - Refactor: Ẩn vai trò Ban Lãnh Đạo (CEO/CHAIRMAN) khỏi màn hình tạo/sửa tài khoản
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thực hiện Giải pháp 1: Giữ nguyên Ban Lãnh đạo trong database đề phòng tương lai, nhưng ẩn chúng đi ở dropdown chọn vai trò của màn hình tạo/sửa tài khoản người dùng (`/admin/users`) để tránh chọn nhầm.
+- **Giải pháp**: Cấu hình hiển thị có điều kiện cho option `CEO` và `CHAIRMAN` trong select box của modal thêm/sửa tài khoản. Chỉ hiển thị nếu tài khoản đang được chọn chỉnh sửa thực sự có vai trò này.
+
+### 2. Danh sách file chỉnh sửa
+- **Chỉnh sửa**:
+  - `frontend/src/app/admin/users/page.tsx`
+
+---
+
+## [2026-07-29 15:25:00] - Hotfix: Sửa lỗi Runtime TypeError khi tải API thất bại ở Frontend (departments.map, templates.map, activeShifts.reduce)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi runtime khi mở trang Quản lý Mẫu checklist (`templates.map is not a function`), Dashboard (`activeShifts.reduce is not a function`), và Lịch sử ca trực / trang cấu hình (`departments.map is not a function`).
+- **Nguyên nhân**: Các API phòng ban, ca trực, lịch trực, và mẫu checklist khi gặp lỗi (ví dụ: 401 Unauthorized khi token chưa kịp nạp hoặc phiên hết hạn) sẽ trả về dạng đối tượng JSON (chứa statusCode, message) thay vì mảng. Do Frontend gán trực tiếp state mà không kiểm tra định dạng dữ liệu, các hàm xử lý mảng như `.map()` và `.reduce()` bị crash runtime.
+- **Giải pháp**: Áp dụng kiểm tra an toàn `Array.isArray(data)` trước khi gán các state `departments`, `templates`, `shiftSlots`, `entries` (lịch trực), `activeShifts`, và `recentShifts` từ API trả về. Đồng thời rà soát dọn dẹp các tham chiếu Khối (Divisions) cũ còn sót ở Backend.
+
+### 2. Danh sách file chỉnh sửa
+- **Chỉnh sửa**:
+  - `frontend/src/app/dashboard/page.tsx`
+  - `frontend/src/app/history/page.tsx`
+  - `frontend/src/app/admin/users/page.tsx`
+  - `frontend/src/app/admin/templates/page.tsx`
+  - `frontend/src/app/admin/notifications/page.tsx`
+  - `frontend/src/app/admin/departments/page.tsx`
+  - `frontend/src/app/admin/calendar/page.tsx`
+  - `backend/src/modules/margin-change-requests/margin-change-requests.service.ts`
+  - `backend/src/modules/auth/jwt.strategy.ts`
+  - `backend/src/modules/auth/auth.controller.ts`
+
+---
+
+## [2026-07-29 15:16:00] - Feature: Triển khai hệ thống phân quyền động chuẩn (Dynamic RBAC) & Hoàn tất gỡ Khối
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Lên kế hoạch tiếp tục sửa các phần code liên quan tới khối Divisions và thiết kế màn hình phân quyền động chuẩn trực quan phù hợp với hệ thống.
+- **Giải pháp**:
+  - **Phần gỡ Khối (Giai đoạn 1)**: Hoàn tất dọn dẹp các tham chiếu `DIVISION_DIRECTOR` tĩnh trong:
+    - [Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Header.tsx)
+    - [MarginChangeRequestsWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/MarginChangeRequestsWidget.tsx)
+    - [notifications/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/notifications/page.tsx)
+    - [templates/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)
+    - [shift-slots/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx)
+    - [departments/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/departments/page.tsx)
+    - [calendar/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/calendar/page.tsx)
+    - [users/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx) (gỡ bỏ rendering check divisionId trong bảng danh sách).
+    - [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx) (bỏ hiển thị division trong widget thông tin người dùng).
+  - **Phân quyền động (Giai đoạn 2)**:
+    - **Database Role Schema**: Tạo [role.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/role.schema.ts) lưu mã vai trò, tên vai trò, và mảng key quyền hạn. Đăng ký schema vào database, admin và auth modules.
+    - **Seed default roles & permissions**: Tích hợp hàm `seedRoles()` trong [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) để tự động tạo 5 vai trò cơ bản (`ADMIN`, `CHAIRMAN`, `CEO`, `DEPARTMENT_HEAD`, `STAFF`) với cấu hình quyền mặc định.
+    - **Access Control & Token**: Sửa [access-control.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/access-control.service.ts) để đọc quyền động từ database thông qua `Role` model. Cập nhật [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts) để ký danh sách `permissions` của user vào mã thông báo JWT.
+    - **API Endpoint**: Viết [roles.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/roles.controller.ts) cung cấp API lấy danh sách quyền hệ thống, danh sách vai trò và cập nhật ma trận quyền.
+    - **Frontend Permissions Matrix UI**: Tạo trang quản trị [permissions/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/permissions/page.tsx) dạng ma trận trực quan (Grid) để bật tắt các quyền. Thêm link điều hướng vào `Sidebar.tsx`. Cập nhật `AuthContext.tsx` để hỗ trợ field `permissions` và sửa `usePermissions.ts` để đọc kiểm tra quyền động.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - `backend/src/schemas/role.schema.ts`
+  - `backend/src/modules/admin/roles.controller.ts`
+  - `frontend/src/app/admin/permissions/page.tsx`
+- **Chỉnh sửa**:
+  - `backend/src/database/database.module.ts`
+  - `backend/src/modules/admin/admin.module.ts`
+  - `backend/src/modules/auth/auth.module.ts`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/modules/auth/access-control.service.ts`
+  - `backend/src/modules/auth/auth.service.ts`
+  - `frontend/src/components/Sidebar.tsx`
+  - `frontend/src/components/Header.tsx`
+  - `frontend/src/app/dashboard/components/MarginChangeRequestsWidget.tsx`
+  - `frontend/src/app/admin/notifications/page.tsx`
+  - `frontend/src/app/admin/templates/page.tsx`
+  - `frontend/src/app/admin/shift-slots/page.tsx`
+  - `frontend/src/app/admin/departments/page.tsx`
+  - `frontend/src/app/admin/calendar/page.tsx`
+  - `frontend/src/app/admin/users/page.tsx`
+  - `frontend/src/hooks/usePermissions.ts`
+  - `frontend/src/context/AuthContext.tsx`
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript backend (`node node_modules/typescript/bin/tsc --noEmit`) thành công 100%.
+- Kiểm thử biên dịch TypeScript frontend (`node node_modules/typescript/bin/tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`node node_modules/next/dist/bin/next build`) thành công 100%.
+- Kiểm thử tích hợp SSO auto onboarding (`node node_modules/ts-node/dist/bin.js src/test-sso-assign.ts`) thành công: `🎉 ALL ASSERTS PASSED SUCCESSFULLY!`.
+
+## [2026-07-29 15:05:00] - Refactor: Đơn giản hóa hệ thống phân quyền (Loại bỏ Khối & Giám đốc Khối)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Gỡ bỏ thực thể "Khối" (Divisions) và vai trò "Giám đốc Khối" (DIVISION_DIRECTOR), đơn giản hóa luồng phân quyền để quản lý trực tiếp theo "Phòng ban" (Departments).
+- **Giải pháp**:
+  - **Backend Schema & DB**: Gỡ bỏ `divisionId` khỏi `UserSchema`, `DepartmentSchema`, và `ShiftLogSchema`. Gỡ bỏ enum vai trò `DIVISION_DIRECTOR` ở `UserSchema`. Xóa bỏ hoàn toàn Schema `Division` và collection tương ứng trong MongoDB.
+  - **Access Control & Scoping**: Loại bỏ check quyền của `DIVISION_DIRECTOR` trong `AccessControlService`. Cập nhật `canAccessFeature` để so khớp trực tiếp mã Phòng ban (`IT_CORE`, `QLGD_OPS`...). Gỡ bỏ tham số `divisionId` của `validateScope`.
+  - **Service & Controllers**:
+    - Xóa bỏ `divisions.controller.ts`.
+    - Dọn dẹp imports, constructors, và populate queries liên quan đến `Division` ở `auth.service.ts`, `users.controller.ts`, `templates.controller.ts`, `shifts.service.ts`, `incidents.service.ts`, `shift-jobs.service.ts`, `seed.service.ts`.
+    - Đổi cấu hình `sso-auto-assign.config.json` để gỡ bỏ `divisionCode` và đổi vai trò tài khoản `director.trade@mxv.vn` thành `DEPARTMENT_HEAD` của `QLGD_OPS`.
+    - Cập nhật kịch bản chạy thử `test-sso-assign.ts` gỡ bỏ kiểm tra `divisionId` và đổi assert vai trò đích thành `DEPARTMENT_HEAD`.
+  - **Frontend UI & Permissions**:
+    - Cập nhật `usePermissions.ts` loại bỏ check Khối, chuyển sang kiểm tra mã phòng ban (`isTradeDept`, `isITDept`) và vai trò `DEPARTMENT_HEAD`.
+    - Cập nhật màn hình `settings/page.tsx` và `users/page.tsx` loại bỏ giao diện hiển thị, bộ lọc, và form select liên quan đến Khối. Gỡ bỏ tuỳ chọn `DIVISION_DIRECTOR` khỏi dropdown phân quyền.
+    - Cập nhật `Sidebar.tsx` loại bỏ hiển thị nhãn và badge vai trò `DIVISION_DIRECTOR`.
+
+### 2. Danh sách file chỉnh sửa/xóa
+- **Chỉnh sửa**:
+  - `backend/src/schemas/user.schema.ts`
+  - `backend/src/schemas/department.schema.ts`
+  - `backend/src/schemas/shift-log.schema.ts`
+  - `backend/src/modules/auth/access-control.service.ts`
+  - `backend/src/modules/admin/admin.module.ts`
+  - `backend/src/database/database.module.ts`
+  - `backend/src/modules/auth/auth.module.ts`
+  - `backend/src/modules/auth/auth.service.ts`
+  - `backend/src/modules/admin/users.controller.ts`
+  - `backend/src/modules/admin/templates.controller.ts`
+  - `backend/src/modules/shifts/shifts.service.ts`
+  - `backend/src/modules/incidents/incidents.service.ts`
+  - `backend/src/modules/shift-jobs/shift-jobs.service.ts`
+  - `backend/sso-auto-assign.config.json`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/test-sso-assign.ts`
+  - `frontend/src/hooks/usePermissions.ts`
+  - `frontend/src/app/settings/page.tsx`
+  - `frontend/src/app/admin/users/page.tsx`
+  - `frontend/src/components/Sidebar.tsx`
+- **Xóa**:
+  - `backend/src/modules/admin/divisions.controller.ts`
+  - `backend/src/schemas/division.schema.ts`
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript backend (`node node_modules/typescript/bin/tsc --noEmit`) thành công 100%.
+- Kiểm thử tích hợp chạy thử SSO Auto-onboard (`node node_modules/ts-node/dist/bin.js src/test-sso-assign.ts`) thành công: `🎉 ALL ASSERTS PASSED SUCCESSFULLY!`.
+
+## [2026-07-29 14:43:00] - Feature: Tích hợp Nhật ký hoạt động (Audit Logs) vào Modal chi tiết lịch sử ca trực (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Xem được chi tiết log của ca trực hôm đó xem ai đã tích, ai đã làm gì (hoạt động trong phiên) ngay tại bảng lịch sử.
+- **Giải pháp**:
+  - Tích hợp component `AuditLogsPanel` vào modal chi tiết lịch sử ca trực tại file [page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx).
+  - Khai báo state `activeAuditLogs` và viết hàm `handleOpenDetail` để tự động fetch nhật ký hoạt động (Audit Logs) từ API endpoint `/api/v1/shifts/${id}/audit-logs` mỗi khi người dùng bấm nút **Chi tiết**.
+  - Truyền map tên tác vụ `taskNamesMap` từ `activeDetail.details` để hiển thị tên tiếng Việt thân thiện thay vì ID tác vụ kỹ thuật trong danh sách nhật ký hoạt động.
+  - **Sửa lỗi Runtime (Rules of Hooks)**: Chuyển khai báo `React.useMemo` của `taskNamesMap` ra bên ngoài khối điều kiện hiển thị modal (đưa lên cấp component cha) để tránh vi phạm quy tắc render hook của React.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/history/page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 14:38:00] - UI Refactor: Điều chỉnh bộ lọc & màu sắc tiến độ ca trực (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đơn giản hóa giao diện thanh tìm kiếm và bộ lọc ở màn hình Checklist, bỏ badge màu và đưa về thiết kế tinh giản.
+  - Phục hồi hiển thị thanh tiến độ (progress bar) trong bảng lịch sử ca trực (History), đồng thời cập nhật màu sắc hiển thị động theo tỷ lệ % hoàn thành: dưới 30% là đỏ (bổ sung), từ 30% đến dưới 50% là vàng, từ 50% đến dưới 100% là xanh dương, và 100% là xanh lá.
+  - Giữ nguyên logic hiển thị cột Tiến độ dạng số phần trăm gốc và cột Hành động chứa hai nút "Chi tiết" và "Mở" (nút Mở hiển thị đối với ca trực có trạng thái PENDING) như ban đầu.
+  - Cập nhật giao diện danh sách tác vụ trong modal xem chi tiết lịch sử ca trực: tô màu viền bên trái và hiển thị icon checkbox tương ứng theo trạng thái tác vụ (Không đạt -> viền đỏ, icon ✕ đỏ; Cần chú ý -> viền vàng, icon ! vàng; Đạt -> viền xanh lá, icon ✓ xanh lá; Bỏ qua -> viền xanh dương).
+- **Giải pháp**:
+  - Tại [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx): Tinh chỉnh CSS bộ lọc, ẩn nhãn phụ, chỉ để search bar và 2 select dropdown phẳng, đồng thời sửa logic ẩn panel phải khi bộ lọc rỗng để hiển thị thông báo toàn màn hình trực quan.
+  - Tại [page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx):
+    - Khôi phục thanh tiến độ có 4 màu tương ứng với các khoảng phần tiến độ.
+    - Khôi phục chính xác logic hiển thị nguyên bản của cột phần trăm `{log.progressPercentage}%` và cột Hành động có nút "Chi tiết" & nút "Mở".
+    - Thiết kế lại các thẻ tác vụ trong modal chi tiết: đổi viền trái (`borderLeft`) và biểu tượng checkbox động dựa trên trạng thái (`PASSED`, `FAILED`, `NEEDS_ATTENTION`, `SKIPPED`).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+- [frontend/src/app/history/page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 13:50:00] - Feature: Thay đổi từ đơn vị tiến độ nhiệm vụ con từ "con" thành "bước" (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế từ "con" trong nhãn tiến độ nhiệm vụ con (ví dụ: `3/3 con` trên thẻ checklist) thành từ ngữ khác lịch sự và chuyên nghiệp hơn. Người dùng đã lựa chọn thay đổi thành từ "bước".
+- **Giải pháp**:
+  - Tại file [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx), định vị nhãn hiển thị số lượng nhiệm vụ con đã hoàn thành của thẻ checklist ở dòng 484.
+  - Thay đổi nhãn hiển thị đơn vị từ `"con"` sang `"bước"` (Ví dụ: `3/3 bước`).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 13:44:00] - Refactor: Tách biệt và đóng gói hàm dịch mã lỗi vào file tiện ích dùng chung (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đóng gói các trường hợp dịch mã lỗi (`SYSTEM_OR_NETWORK_ERROR`, `SLA_BREACH_XXXX`, v.v.) vào một file tiện ích dùng chung để tăng tính tái sử dụng và kiểm tra xem có màn hình nào khác ngoài ca trực đang sử dụng không.
+- **Giải pháp**:
+  - Phát hiện component [ActiveIncidentsWidget.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/ActiveIncidentsWidget.tsx) hiển thị danh sách sự cố trên trang Dashboard của hệ thống cũng đang sử dụng mã lỗi thô và nhãn "SLA".
+  - Tạo file utility mới [frontend/src/lib/incident.ts](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/lib/incident.ts) để tập trung hóa logic xử lý và dịch mã lỗi `getFriendlyCode`.
+  - Cập nhật [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) và [IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) sử dụng hàm `getFriendlyCode` được import từ thư viện dùng chung.
+  - Cập nhật [ActiveIncidentsWidget.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/ActiveIncidentsWidget.tsx) sử dụng `getFriendlyCode` để Việt hóa mã sự cố và đổi nhãn đếm ngược thành *"Trễ hạn"* ngay trên màn hình Dashboard chính.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/lib/incident.ts](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/lib/incident.ts) [NEW]
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) [MODIFY]
+- [frontend/src/app/dashboard/components/ActiveIncidentsWidget.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/ActiveIncidentsWidget.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 13:42:00] - Refactor: Thay thế thuật ngữ viết tắt "SLA" thành "Trễ hạn / Hạn cam kết" tiếng Việt (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế từ "SLA" thành các từ ngữ tiếng Việt thông dụng, dễ hiểu hơn đối với ca trực trên giao diện hiển thị.
+- **Giải pháp**:
+  - Tại file [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) và [IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx):
+    - Đổi dịch mã `SLA_BREACH_XXXX` từ *"Vi phạm SLA lúc HH:MM"* sang *"Trễ hạn lúc HH:MM"*.
+    - Đổi dịch mã `MISSED_SLA` từ *"Trễ hạn SLA"* sang *"Trễ hạn Cam kết"*.
+    - Đổi nhãn đếm ngược SLA từ *"Trễ SLA XXm YYs"* sang *"Trễ hạn XXm YYs"*.
+    - Thay đổi văn bản thông báo rỗng thành *"Không có ngoại lệ hay sự cố trễ hạn nào trong ca"*.
+  - Tại file [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx):
+    - Đổi nhãn `SLA: [giờ]` ở phần thông tin phụ của danh sách tác vụ thành `Hạn cam kết: [giờ]`.
+    - Đổi nhãn `Thời hạn cam kết (SLA)` ở panel chi tiết bên phải thành `Thời hạn cam kết`.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 13:40:00] - Feature: Việt hóa động các mã vi phạm SLA dạng timeline (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Dịch các mã vi phạm SLA dạng mốc giờ kỹ thuật (như `[SLA_BREACH_0730]`, `[SLA_BREACH_0645]`) sang hiển thị tiếng Việt dạng *"Vi phạm SLA lúc 07:30"*, *"Vi phạm SLA lúc 06:45"* khi Chế độ kỹ thuật tắt.
+- **Giải pháp**:
+  - Nâng cấp hàm helper `getFriendlyCode` tại [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) và [IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx):
+    - Tự động nhận diện tiền tố `SLA_BREACH_`.
+    - Trích xuất 4 chữ số biểu thị thời gian (ví dụ: `0730` -> `07:30`, `0645` -> `06:45`) để định dạng thành chuỗi ký tự hiển thị rõ nghĩa: `Vi phạm SLA lúc HH:MM`.
+    - Hỗ trợ loại bỏ dấu gạch dưới `_` thay bằng dấu cách đối với các mã kỹ thuật lạ khác.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 13:37:00] - Feature: Dịch mã sự cố kỹ thuật thành tên thân thiện và ẩn mã sự cố mặc định (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ẩn/dịch các mã sự cố kỹ thuật (như `[SYSTEM_OR_NETWORK_ERROR]`, `[PROCESS_DELAY]`) thành các cụm từ tiếng Việt rõ nghĩa và dễ nhìn cho ca trực khi Chế độ kỹ thuật tắt.
+- **Giải pháp**:
+  - Xây dựng hàm helper `getFriendlyCode` để tự động dịch các mã lỗi như `SYSTEM_OR_NETWORK_ERROR` sang *"Sự cố Hệ thống/Đường truyền"*, `PROCESS_DELAY` sang *"Quá trình bị Trễ"*, `DATA_MISMATCH` sang *"Sai lệch Dữ liệu"*, và `MISSED_SLA` sang *"Trễ hạn SLA"*.
+  - Cập nhật [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx): Khi `showTechDetails` là `false`, nhãn lỗi kỹ thuật được tự động thay thế bằng nhãn tiếng Việt dịch thân thiện. Chỉ hiển thị mã gốc khi bật nút "Xem mã kỹ thuật".
+  - Cập nhật [IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx): Tự động dịch mã lỗi trong tiêu đề Modal xử lý sự cố và chuyển đổi ô hiển thị mã tác vụ sang tên tác vụ tiếng Việt chi tiết nếu Chế độ kỹ thuật tắt.
+  - Cập nhật [page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx): Truyền hai thuộc tính `showTechDetails` và `taskNamesMap` cho `IncidentReportModal`.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentReportModal.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx) [MODIFY]
+- [frontend/src/app/checklist/page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 12:09:00] - Feature: Ẩn mã kỹ thuật trong các nhãn Phụ thuộc (Dependencies) (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ẩn các mã kỹ thuật (như `TASK_CHECK_EOD`, `ops_open_05`) hiển thị trong các tag nhãn Phụ thuộc (`Phụ thuộc: [mã]`), thay thế bằng tên tiếng Việt thân thiện của tác vụ đó khi Chế độ kỹ thuật tắt.
+- **Giải pháp**:
+  - Tại file [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx), cập nhật cách hiển thị nhãn phụ thuộc ở cả danh sách bên trái và chi tiết bên phải.
+  - Khi `showTechDetails` bằng `false`, hệ thống tự động tìm kiếm thông tin của tác vụ phụ thuộc trong logs và hiển thị `taskNameSnapshot` tiếng Việt tương ứng thay cho mã kỹ thuật.
+  - Khi bật **"Xem mã kỹ thuật"**, hệ thống sẽ khôi phục hiển thị ID kỹ thuật gốc.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 12:05:00] - Feature: Ẩn mã kỹ thuật mặc định và Tích hợp Nút chuyển đổi Chế độ kỹ thuật (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ẩn các mã kỹ thuật (như `ops_open_04`, `TASK_CHECK_CQG_s1`) để tránh gây rối mắt cho ca trực, hiển thị tên tác vụ cụ thể thay thế. Đồng thời tích hợp một nút ở header để người dùng / IT kỹ thuật có thể tùy ý hiển thị lại mã kỹ thuật khi cần đối chiếu.
+- **Giải pháp**:
+  - Tại file [page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx), thêm state `showTechDetails` (mặc định là `false`) và tạo memo `taskNamesMap` ánh xạ `taskId` -> `taskNameSnapshot`.
+  - Tích hợp một nút **"Xem mã kỹ thuật" / "Ẩn mã kỹ thuật"** (kèm icon `Cpu`) ở thanh nút bấm góc trên bên phải.
+  - Cập nhật [TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx): Ẩn mã trong dấu ngoặc vuông `[ops_open_04]` ở cả danh sách bên trái và tiêu đề bảng chi tiết bên phải khi chế độ kỹ thuật tắt.
+  - Cập nhật [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx): Tự động dịch mã sự cố sang tên tác vụ thân thiện (ví dụ: `TASK_CHECK_CQG_s1` thành `Đối chiếu số dư CQG (phiên 1)`), chỉ hiển thị mã gốc khi mở chế độ kỹ thuật.
+  - Cập nhật [AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx): Tự động dịch mã sự kiện trong timeline audit sang tên tác vụ tiếng Việt dễ hiểu.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 12:01:00] - Feature: Tích hợp Bộ lọc & Tìm kiếm cho bảng Nhật ký hoạt động Audit (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thêm bộ lọc cho Nhật ký hoạt động để dễ dàng tìm kiếm hoạt động và tối ưu hóa trải nghiệm vận hành.
+- **Giải pháp**:
+  - Tại file [AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx), tích hợp thanh bộ lọc ngay dưới tiêu đề.
+  - Bộ lọc gồm:
+    - **Ô tìm kiếm văn bản**: Tự động lọc các log khớp với ID tác vụ, tên người dùng hoặc nội dung chi tiết.
+    - **Dropdown chọn phân loại hoạt động**: Cho phép lọc nhanh theo *Tất cả hoạt động*, *Đạt / Bỏ đạt*, *Ghi chú*, *Sự cố*, *Tác vụ phát sinh*.
+  - Lọc Client-side sử dụng `useMemo` của React để đạt tốc độ phản hồi tức thì (tối ưu hóa hiệu năng, giảm thiểu tối đa độ trễ).
+  - Hiển thị thông báo thân thiện *"Không tìm thấy hoạt động phù hợp bộ lọc"* khi không có kết quả khớp.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:59:00] - Fix: Cố định tiêu đề bảng Nhật ký hoạt động (Audit) khi cuộn dòng (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi cuộn của bảng Nhật ký hoạt động (Audit) để khi cuộn trang danh sách dòng lịch sử thì tiêu đề và đường kẻ phân chia tiêu đề không bị cuộn mất đi.
+- **Giải pháp**:
+  - Tại file [AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx), gỡ bỏ thuộc tính `maxHeight` và `overflowY: 'auto'` khỏi container `.glass-panel` bên ngoài.
+  - Áp dụng `maxHeight: '320px'` và `overflowY: 'auto'` vào container chứa danh sách dòng thời gian thời gian bên trong (`className="custom-scrollbar"`).
+  - Giúp cố định phần Tiêu đề và đường viền ở đầu thẻ, chỉ cuộn riêng phần lịch sử sự kiện bên dưới (giống như bảng Sự cố & Ngoại lệ).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:58:00] - Refactor: Khôi phục màu xanh dương (primary) của nút Xử lý sự cố (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Chuyển nút "Xử lý" sự cố từ màu đỏ cảnh báo về lại màu sắc chuẩn để tránh gây nhầm lẫn với nút hủy bỏ/xóa.
+- **Giải pháp**:
+  - Tại file [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx), khôi phục lớp CSS `btn btn-primary` cho nút **"Xử lý"** để hiển thị màu xanh dương chủ đạo của hệ thống.
+  - Vẫn giữ nguyên các cải tiến về viền nhấn bên trái, căn lề và padding gọn gàng của nút.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:50:00] - Refactor & Visual Optimization: Thiết kế lại Bố cục song song (Grid) và Tối ưu hóa UI/UX Sự cố & Nhật ký (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải tiến bố cục phần dưới (Sự cố & Ngoại lệ và Nhật ký hoạt động Audit) để tăng tính trực quan.
+- **Giải pháp**:
+  - Tại file [page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx), gỡ bỏ bố cục cột dọc 100% chiếm nhiều diện tích. Chuyển đổi thành lưới 2 cột song song (`grid grid-cols-1 lg:grid-cols-2 gap-6`) phía dưới bảng Checklist nhiệm vụ (full-width).
+  - **Tối ưu hóa bảng Sự cố & Ngoại lệ** trong file [IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx):
+    - Thêm viền nhấn màu bên trái (Left Border Accent): viền đỏ đậm `4px solid #ef4444` cho sự cố đang chờ xử lý (`PENDING`) và viền xanh lá `#10b981` cho sự cố đã xử lý.
+    - Tích hợp thêm icon cờ/khiên cảnh báo (`ShieldAlert`) và tích xanh (`CheckCircle2`) bên cạnh tiêu đề.
+    - Thêm biểu tượng đồng hồ (`Clock`) và hiệu ứng nhấp nháy (`animate-pulse`) cho Badge thời gian trễ SLA.
+    - Thiết kế lại các nút **"Xử lý"** (dạng Ghost button màu đỏ nổi bật cảnh báo) và nút **"Xuất mẫu"** (dạng Ghost button màu xanh lá cây mát mắt).
+  - **Tối ưu hóa bảng Nhật ký hoạt động (Audit)** trong file [AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx):
+    - Thay thế icon người dùng mặc định (`UserCheck`) bằng các icon chuyên biệt theo từng loại hành động (`Check` cho check đạt, `X`/`AlertTriangle` cho uncheck/sự cố, `MessageSquare` cho ghi chú, `Plus` cho thêm tác vụ) để tăng chiều sâu thông tin.
+    - Thêm hiệu ứng hover viền hộp nhật ký trơn tru (`transition-all hover:border-[rgba(255,255,255,0.25)] hover:shadow-sm`).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/page.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/IncidentList.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentList.tsx) [MODIFY]
+- [frontend/src/app/checklist/components/AuditLogsPanel.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/AuditLogsPanel.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
+## [2026-07-29 11:28:00] - Refactor & Visual Optimization: Nâng cấp đồng bộ giao diện và chuyển đổi ô nhập Ghi chú thành Textarea (Frontend)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng cả 4 đề xuất cải tiến trực quan (Custom Checkbox, Hover micro-animations, Custom Select Glassmorphism, Fade-in transition) đồng thời tư vấn có nên chuyển ô Ghi chú từ dạng text sang textarea để tối ưu trực quan và nhập liệu nhiều dòng hay không.
+- **Giải pháp**:
+  - Chuyển đổi trường nhập **Ghi chú vận hành** từ thẻ `<input type="text">` (một dòng) sang thẻ `<textarea>` (nhiều dòng) cho phép nhập văn bản xuống dòng dễ dàng. Thiết kế lại nút "Lưu ghi chú" nằm ở góc phải phía dưới textarea vô cùng gọn gàng và hiện đại.
+  - **Đề xuất 1**: Nâng cấp các ô checkbox tác vụ con mặc định thành các biểu tượng icon Lucide `Circle` (chưa hoàn thành) và `CheckCircle2` (đã hoàn thành) có màu sắc tương ứng, hỗ trợ hiệu ứng micro-scale khi click tương tác.
+  - **Đề xuất 2**: Thêm hiệu ứng hover sinh động cho danh sách thẻ tác vụ cột trái (nhấc nhẹ thẻ lên 2px, đổi màu nền nhẹ và thêm bóng đổ).
+  - **Đề xuất 3**: Thêm hiệu ứng chuyển động mờ dần Slide & Fade-in khi trực ca chuyển đổi xem các tác vụ.
+  - **Đề xuất 4**: Custom lại viền và chevron dropdown của 2 ô Lọc trạng thái / độ ưu tiên để loại bỏ mũi tên mặc định thô của trình duyệt, đồng bộ giao diện Glassmorphism cao cấp.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/checklist/components/TaskTable.tsx](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx) [MODIFY]
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch TypeScript frontend (`npx tsc --noEmit`) thành công 100%.
+- Build dự án production frontend (`npm run build`) thành công 100%.
+
 ## [2026-07-29 11:24:00] - Refactor: Gỡ bỏ gạch ngang (strikethrough) trên tiêu đề Tác vụ con (Frontend)
 
 ### 1. Mục tiêu Thay đổi

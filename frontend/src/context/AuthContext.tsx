@@ -14,12 +14,7 @@ interface User {
     name: string;
     code: string;
   };
-  division?: {
-    _id: string;
-    id: string;
-    name: string;
-    code: string;
-  };
+  permissions?: string[];
   settings?: {
     theme: 'dark' | 'light';
     autoRefreshInterval: number;

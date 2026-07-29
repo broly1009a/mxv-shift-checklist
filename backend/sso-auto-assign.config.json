@@ -2,22 +2,19 @@
   {
     "email": "hiep.hoang@mxv.vn",
     "role": "ADMIN",
-    "divisionCode": "IT_DIVISION",
     "departmentCode": "IT_CORE",
     "fullName": "Hoàng Hiệp (Admin)"
   },
   {
     "email": "lead.it@mxv.vn",
     "role": "DEPARTMENT_HEAD",
-    "divisionCode": "IT_DIVISION",
     "departmentCode": "IT_CORE",
     "fullName": "Trưởng bộ phận IT"
   },
   {
     "email": "director.trade@mxv.vn",
-    "role": "DIVISION_DIRECTOR",
-    "divisionCode": "TRADE_DIVISION",
-    "departmentCode": null,
+    "role": "DEPARTMENT_HEAD",
+    "departmentCode": "QLGD_OPS",
     "fullName": "Giám đốc Khối QLGD"
   }
 ]

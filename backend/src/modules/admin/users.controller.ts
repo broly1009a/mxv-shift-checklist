@@ -32,14 +32,13 @@ export class UsersController {
 
   @Get()
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD')
+  @Roles('ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD')
   async findAll(
     @Query('page') pageNum?: string,
     @Query('limit') limitNum?: string,
     @Query('search') search?: string,
     @Query('role') role?: string,
     @Query('departmentId') departmentId?: string,
-    @Query('divisionId') divisionId?: string,
     @Query('isActive') isActive?: string,
   ) {
     const page = parseInt(pageNum || '1', 10);
@@ -63,10 +62,6 @@ export class UsersController {
       filter.departmentId = departmentId;
     }
 
-    if (divisionId) {
-      filter.divisionId = divisionId;
-    }
-
     if (isActive !== undefined && isActive !== '') {
       filter.isActive = isActive === 'true';
     }
@@ -75,7 +70,6 @@ export class UsersController {
       this.userModel
         .find(filter)
         .populate('departmentId')
-        .populate('divisionId')
         .sort({ username: 1 })
         .skip(skip)
         .limit(limit)
@@ -103,7 +97,6 @@ export class UsersController {
       password,
       fullName,
       departmentId,
-      divisionId,
       role,
       isActive,
     } = body;
@@ -113,11 +106,6 @@ export class UsersController {
       if ((role === 'STAFF' || role === 'DEPARTMENT_HEAD') && !departmentId) {
         throw new BadRequestException(
           'Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban',
-        );
-      }
-      if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        throw new BadRequestException(
-          'Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý',
         );
       }
     }
@@ -135,7 +123,6 @@ export class UsersController {
       passwordHash,
       fullName,
       departmentId: departmentId || null,
-      divisionId: divisionId || null,
       role,
       isActive: isActiveVal,
     });
@@ -146,7 +133,7 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   async update(@Param('id') id: string, @Body() body: any) {
-    const { password, departmentId, divisionId, ...rest } = body;
+    const { password, departmentId, ...rest } = body;
     const isActiveVal = body.isActive;
     const role = body.role;
 
@@ -156,17 +143,11 @@ export class UsersController {
           'Tài khoản Nhân viên / Trưởng bộ phận đã kích hoạt bắt buộc phải được gán Phòng ban',
         );
       }
-      if (role === 'DIVISION_DIRECTOR' && !divisionId) {
-        throw new BadRequestException(
-          'Tài khoản Giám đốc Khối đã kích hoạt bắt buộc phải được gán Khối quản lý',
-        );
-      }
     }
 
     const updateData: any = {
       ...rest,
       departmentId: departmentId || null,
-      divisionId: divisionId || null,
     };
     if (updateData.username) {
       updateData.username = updateData.username.toLowerCase();
@@ -177,7 +158,6 @@ export class UsersController {
     return this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .populate('departmentId')
-      .populate('divisionId')
       .exec();
   }
 

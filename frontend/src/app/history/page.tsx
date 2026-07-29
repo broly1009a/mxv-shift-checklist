@@ -91,9 +91,14 @@ function HistoryAudit() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setDepartments(data);
+      if (res.ok && Array.isArray(data)) {
+        setDepartments(data);
+      } else {
+        setDepartments([]);
+      }
     } catch (err) {
       console.error(err);
+      setDepartments([]);
     }
   }, [token]);
 

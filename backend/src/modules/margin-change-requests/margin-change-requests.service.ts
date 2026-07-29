@@ -129,7 +129,6 @@ export class MarginChangeRequestsService {
       'ADMIN',
       'CHAIRMAN',
       'CEO',
-      'DIVISION_DIRECTOR',
       'DEPARTMENT_HEAD',
     ];
     if (!checkerRoles.includes(checkerUser.role)) {
@@ -208,7 +207,6 @@ export class MarginChangeRequestsService {
       'ADMIN',
       'CHAIRMAN',
       'CEO',
-      'DIVISION_DIRECTOR',
       'DEPARTMENT_HEAD',
     ];
     if (!checkerRoles.includes(checkerUser.role)) {

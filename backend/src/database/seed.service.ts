@@ -7,9 +7,9 @@ import * as bcrypt from 'bcrypt';
 import { Department } from '../schemas/department.schema';
 import { User } from '../schemas/user.schema';
 import { ChecklistTemplate } from '../schemas/template.schema';
-import { Division } from '../schemas/division.schema';
 import { ShiftSlot } from '../schemas/shift-slot.schema';
 import { WorkingCalendar } from '../schemas/working-calendar.schema';
+import { Role } from '../schemas/role.schema';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -21,11 +21,12 @@ export class SeedService implements OnApplicationBootstrap {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(ChecklistTemplate.name)
     private readonly templateModel: Model<ChecklistTemplate>,
-    @InjectModel(Division.name) private readonly divisionModel: Model<Division>,
     @InjectModel(ShiftSlot.name)
     private readonly shiftSlotModel: Model<ShiftSlot>,
     @InjectModel(WorkingCalendar.name)
     private readonly workingCalendarModel: Model<WorkingCalendar>,
+    @InjectModel(Role.name)
+    private readonly roleModel: Model<Role>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -39,9 +40,9 @@ export class SeedService implements OnApplicationBootstrap {
 
     this.logger.log('Starting database seeding...');
     try {
-      const divs = await this.seedDivisions();
-      const depts = await this.seedDepartments(divs);
-      await this.seedUsers(divs, depts);
+      await this.seedRoles();
+      const depts = await this.seedDepartments();
+      await this.seedUsers(depts);
       const slots = await this.seedShiftSlots();
       await this.seedWorkingCalendar();
       await this.seedTemplates(depts, slots);
@@ -51,29 +52,7 @@ export class SeedService implements OnApplicationBootstrap {
     }
   }
 
-  private async seedDivisions(): Promise<Record<string, string>> {
-    const divisions = [
-      { name: 'Khối Công nghệ thông tin', code: 'IT_DIVISION' },
-      { name: 'Khối Quản lý Giao dịch', code: 'TRADE_DIVISION' },
-      { name: 'Khối Hành chính Nhân sự', code: 'HR_DIVISION' },
-    ];
-
-    const mapping: Record<string, string> = {};
-    for (const div of divisions) {
-      let doc = await this.divisionModel.findOne({ code: div.code }).exec();
-      if (!doc) {
-        doc = new this.divisionModel(div);
-        await doc.save();
-        this.logger.log(`Seeded division: ${div.name}`);
-      }
-      mapping[div.code] = doc._id.toString();
-    }
-    return mapping;
-  }
-
-  private async seedDepartments(
-    divs: Record<string, string>,
-  ): Promise<Record<string, string>> {
+  private async seedDepartments(): Promise<Record<string, string>> {
     // Delete legacy departments to clean up old codes
     await this.departmentModel
       .deleteMany({ code: { $in: ['RE_OPS', 'MARKET_SURV'] } })
@@ -83,22 +62,18 @@ export class SeedService implements OnApplicationBootstrap {
       {
         name: 'IT Core Operations',
         code: 'IT_CORE',
-        divisionId: divs['IT_DIVISION'],
       },
       {
         name: 'Nghiên cứu và Phát triển Công nghệ',
         code: 'IT_RND',
-        divisionId: divs['IT_DIVISION'],
       },
       {
         name: 'Trading Operations',
         code: 'QLGD_OPS',
-        divisionId: divs['TRADE_DIVISION'],
       },
       {
         name: 'Risk Management',
         code: 'QLRR_RISK',
-        divisionId: divs['TRADE_DIVISION'],
       },
     ];
 
@@ -111,7 +86,6 @@ export class SeedService implements OnApplicationBootstrap {
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
         doc.name = dept.name;
-        doc.divisionId = dept.divisionId as any;
         await doc.save();
       }
       mapping[dept.code] = doc._id.toString();
@@ -120,13 +94,11 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedUsers(
-    divs: Record<string, string>,
     depts: Record<string, string>,
   ) {
     const passwordHashAdmin = await bcrypt.hash('Admin@MXV123', 10);
     const passwordHashStaff = await bcrypt.hash('Staff@MXV123', 10);
     const passwordHashLeader = await bcrypt.hash('Lead@MXV123', 10);
-    const passwordHashDirector = await bcrypt.hash('Director@MXV123', 10);
     const passwordHashCeo = await bcrypt.hash('Ceo@MXV123', 10);
     const passwordHashChairman = await bcrypt.hash('Chairman@MXV123', 10);
 
@@ -135,7 +107,6 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'admin',
         passwordHash: passwordHashAdmin,
         fullName: 'System Administrator',
-        divisionId: null,
         departmentId: null,
         role: 'ADMIN',
         isActive: true,
@@ -144,7 +115,6 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'chairman',
         passwordHash: passwordHashChairman,
         fullName: 'Chủ tịch Hội đồng',
-        divisionId: null,
         departmentId: null,
         role: 'CHAIRMAN',
         isActive: true,
@@ -153,25 +123,14 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'ceo',
         passwordHash: passwordHashCeo,
         fullName: 'Tổng Giám đốc',
-        divisionId: null,
         departmentId: null,
         role: 'CEO',
-        isActive: true,
-      },
-      {
-        username: 'dir_it',
-        passwordHash: passwordHashDirector,
-        fullName: 'Giám đốc Khối CNTT',
-        divisionId: divs['IT_DIVISION'],
-        departmentId: null,
-        role: 'DIVISION_DIRECTOR',
         isActive: true,
       },
       {
         username: 'lead_it_ops',
         passwordHash: passwordHashLeader,
         fullName: 'Trưởng bộ phận Vận hành',
-        divisionId: divs['IT_DIVISION'],
         departmentId: depts['IT_CORE'],
         role: 'DEPARTMENT_HEAD',
         isActive: true,
@@ -180,7 +139,6 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'sonhh',
         passwordHash: passwordHashStaff,
         fullName: 'Hồ Huy Sơn',
-        divisionId: divs['IT_DIVISION'],
         departmentId: depts['IT_CORE'],
         role: 'STAFF',
         isActive: true,
@@ -189,7 +147,6 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'ops_staff',
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giao nhận',
-        divisionId: divs['TRADE_DIVISION'],
         departmentId: depts['QLGD_OPS'],
         role: 'STAFF',
         isActive: true,
@@ -198,7 +155,6 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'surv_staff',
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giám sát',
-        divisionId: divs['TRADE_DIVISION'],
         departmentId: depts['QLRR_RISK'],
         role: 'STAFF',
         isActive: true,
@@ -217,7 +173,6 @@ export class SeedService implements OnApplicationBootstrap {
         existing.isActive = true;
         existing.role = user.role;
         existing.fullName = user.fullName;
-        existing.divisionId = user.divisionId as any;
         existing.departmentId = user.departmentId as any;
         await existing.save();
       }
@@ -446,6 +401,64 @@ export class SeedService implements OnApplicationBootstrap {
           .updateOne({ _id: existing._id }, { $set: updateData })
           .exec();
         this.logger.log(`Updated checklist template: ${tpl.title}`);
+      }
+    }
+  }
+
+  private async seedRoles() {
+    const roles = [
+      {
+        code: 'ADMIN',
+        name: 'Quản trị viên',
+        permissions: [
+          'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'INITIALIZE_SHIFT', 'CLOSE_SHIFT',
+          'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS', 'RESOLVE_INCIDENTS',
+          'MANAGE_TEMPLATES', 'MANAGE_USERS', 'MANAGE_ROLES', 'MANAGE_CALENDAR'
+        ]
+      },
+      {
+        code: 'DEPARTMENT_HEAD',
+        name: 'Trưởng bộ phận / Trưởng ca',
+        permissions: [
+          'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'INITIALIZE_SHIFT', 'CLOSE_SHIFT',
+          'RESOLVE_INCIDENTS', 'MANAGE_TEMPLATES', 'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS'
+        ]
+      },
+      {
+        code: 'STAFF',
+        name: 'Nhân viên vận hành',
+        permissions: [
+          'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'RESOLVE_INCIDENTS', 'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS'
+        ]
+      },
+      {
+        code: 'CEO',
+        name: 'Tổng Giám đốc',
+        permissions: [
+          'VIEW_CHECKLIST', 'ACCESS_MARGIN_CHANGE'
+        ]
+      },
+      {
+        code: 'CHAIRMAN',
+        name: 'Chủ tịch Hội đồng',
+        permissions: [
+          'VIEW_CHECKLIST', 'ACCESS_MARGIN_CHANGE'
+        ]
+      }
+    ];
+
+    for (const r of roles) {
+      let doc = await this.roleModel.findOne({ code: r.code }).exec();
+      if (!doc) {
+        doc = new this.roleModel(r);
+        await doc.save();
+        this.logger.log(`Seeded role: ${r.name}`);
+      } else {
+        doc.name = r.name;
+        if (!doc.permissions || doc.permissions.length === 0) {
+          doc.permissions = r.permissions;
+        }
+        await doc.save();
       }
     }
   }

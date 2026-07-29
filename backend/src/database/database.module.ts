@@ -7,12 +7,12 @@ import {
   ChecklistTemplate,
   ChecklistTemplateSchema,
 } from '../schemas/template.schema';
-import { Division, DivisionSchema } from '../schemas/division.schema';
 import { ShiftSlot, ShiftSlotSchema } from '../schemas/shift-slot.schema';
 import {
   WorkingCalendar,
   WorkingCalendarSchema,
 } from '../schemas/working-calendar.schema';
+import { Role, RoleSchema } from '../schemas/role.schema';
 
 @Module({
   imports: [
@@ -20,9 +20,9 @@ import {
       { name: Department.name, schema: DepartmentSchema },
       { name: User.name, schema: UserSchema },
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
-      { name: Division.name, schema: DivisionSchema },
       { name: ShiftSlot.name, schema: ShiftSlotSchema },
       { name: WorkingCalendar.name, schema: WorkingCalendarSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
   ],
   providers: [SeedService],

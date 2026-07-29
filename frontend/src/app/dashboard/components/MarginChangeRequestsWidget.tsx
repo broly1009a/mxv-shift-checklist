@@ -268,7 +268,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
     const isMaker = req.createdBy
       ? (req.createdBy._id || (req.createdBy as any).id || '').toString() === (currentUser.id || currentUser._id || '').toString()
       : false;
-    const isCheckerRole = ['ADMIN', 'CHAIRMAN', 'CEO', 'DIVISION_DIRECTOR', 'DEPARTMENT_HEAD'].includes(currentUser.role || '');
+    const isCheckerRole = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'].includes(currentUser.role || '');
     return !isMaker && isCheckerRole;
   };
 
