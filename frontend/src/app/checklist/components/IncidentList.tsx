@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Download, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+import { getFriendlyCode } from '@/lib/incident';
 
 interface IncidentSlaCountdownProps {
   deadline: string;
@@ -25,7 +26,7 @@ function IncidentSlaCountdown({ deadline }: IncidentSlaCountdownProps) {
         const absDiff = Math.abs(diff);
         const mins = Math.floor(absDiff / 60000);
         const secs = Math.floor((absDiff % 60000) / 1000);
-        setTimeLeft(`Trễ SLA ${mins}m ${secs}s`);
+        setTimeLeft(`Trễ hạn ${mins}m ${secs}s`);
       } else {
         setIsOverdue(false);
         const mins = Math.floor(diff / 60000);
@@ -59,6 +60,8 @@ function IncidentSlaCountdown({ deadline }: IncidentSlaCountdownProps) {
   );
 }
 
+
+
 interface IncidentListProps {
   incidents: any[];
   isCompleted: boolean;
@@ -66,6 +69,8 @@ interface IncidentListProps {
   setRemediationAction: (action: string) => void;
   setAffectedAccountsInput: (accounts: string) => void;
   setResolvingIncident: (inc: any) => void;
+  showTechDetails?: boolean;
+  taskNamesMap?: Record<string, string>;
 }
 
 export default function IncidentList({
@@ -74,7 +79,9 @@ export default function IncidentList({
   setRootCause,
   setRemediationAction,
   setAffectedAccountsInput,
-  setResolvingIncident
+  setResolvingIncident,
+  showTechDetails = false,
+  taskNamesMap = {}
 }: IncidentListProps) {
   const { token } = useAuth();
   const activeCount = incidents.filter(inc => inc.status === 'PENDING').length;
@@ -120,7 +127,7 @@ export default function IncidentList({
 
       {incidents.length === 0 ? (
         <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: '20px 0' }}>
-          Không có ngoại lệ hay sự cố trễ SLA nào trong ca.
+          Không có ngoại lệ hay sự cố trễ hạn nào trong ca.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '320px', overflowY: 'auto' }} className="custom-scrollbar">
@@ -143,9 +150,17 @@ export default function IncidentList({
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 700, color: isPending ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>
-                    {isPending ? <ShieldAlert size={13} /> : <CheckCircle2 size={13} />}
-                    [{inc.code}] {inc.taskId}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 700, color: isPending ? '#ef4444' : '#10b981' }}>
+                    {isPending ? <ShieldAlert size={13} style={{ flexShrink: 0 }} /> : <CheckCircle2 size={13} style={{ flexShrink: 0 }} />}
+                    <span style={{ fontFamily: showTechDetails ? 'monospace' : 'inherit', flexShrink: 0 }}>
+                      [{showTechDetails ? inc.code : getFriendlyCode(inc.code)}]
+                    </span>
+                    <span style={{ fontWeight: 600 }}>
+                      {showTechDetails 
+                        ? `${inc.taskId} (${taskNamesMap?.[inc.taskId] || ''})`
+                        : (taskNamesMap?.[inc.taskId] || inc.taskId)
+                      }
+                    </span>
                   </span>
                   {isPending && inc.slaDeadlineAt && (
                     <IncidentSlaCountdown deadline={inc.slaDeadlineAt} />

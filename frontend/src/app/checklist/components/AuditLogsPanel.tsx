@@ -6,9 +6,15 @@ import { AuditLog } from '../hooks/useChecklist';
 
 interface AuditLogsPanelProps {
   auditLogs: AuditLog[];
+  showTechDetails?: boolean;
+  taskNamesMap?: Record<string, string>;
 }
 
-export default function AuditLogsPanel({ auditLogs }: AuditLogsPanelProps) {
+export default function AuditLogsPanel({ 
+  auditLogs, 
+  showTechDetails = false, 
+  taskNamesMap = {} 
+}: AuditLogsPanelProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
 
@@ -150,7 +156,12 @@ export default function AuditLogsPanel({ auditLogs }: AuditLogsPanelProps) {
                     </span>
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word', lineHeight: '1.4', margin: 0 }}>
-                    <strong>{audit.taskId}</strong>: {audit.details}
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      {showTechDetails 
+                        ? `${audit.taskId} (${taskNamesMap?.[audit.taskId] || ''})`
+                        : (taskNamesMap?.[audit.taskId] || audit.taskId)
+                      }
+                    </strong>: {audit.details}
                   </p>
                 </div>
               </div>

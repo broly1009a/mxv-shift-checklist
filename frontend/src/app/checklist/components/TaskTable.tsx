@@ -117,6 +117,7 @@ interface TaskTableProps {
   onOpenMaturityTemplates?: () => void;
   onOpenBotLogViewer?: (title: string, resultNote: string, status?: string, checkedAt?: string, taskId?: string) => void;
   togglingTaskIds: Set<string>;
+  showTechDetails?: boolean;
 }
 
 export default function TaskTable({
@@ -148,7 +149,8 @@ export default function TaskTable({
   onOpenOmsStatus,
   onOpenMaturityTemplates,
   onOpenBotLogViewer,
-  togglingTaskIds
+  togglingTaskIds,
+  showTechDetails = false
 }: TaskTableProps) {
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -429,7 +431,7 @@ export default function TaskTable({
                     textDecoration: 'none',
                     opacity: item.isChecked ? 0.65 : 1,
                   }}>
-                    [{item.taskId}] {item.taskNameSnapshot}
+                    {showTechDetails ? `[${item.taskId}] ` : ''}{item.taskNameSnapshot}
                   </p>
 
                   {item.dependsOnTaskIdsSnapshot && item.dependsOnTaskIdsSnapshot.length > 0 && (
@@ -451,7 +453,7 @@ export default function TaskTable({
                             fontWeight: 600
                           }}>
                             {isDepDone ? <Unlock size={9} /> : <Lock size={9} />}
-                            Phụ thuộc: {depId} ({isDepDone ? 'Đạt' : 'Chưa'})
+                            Phụ thuộc: {showTechDetails ? depId : (depTask?.taskNameSnapshot || depId)} ({isDepDone ? 'Đạt' : 'Chưa'})
                           </span>
                         );
                       })}
@@ -467,8 +469,8 @@ export default function TaskTable({
                         </span>
                       )}
                       {item.slaDeadlineSnapshot && !item.timetableSnapshot && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--text-muted)' }} title="SLA">
-                          <Clock size={10} /> SLA: {item.slaDeadlineSnapshot}{item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'm' : ''}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--text-muted)' }} title="Hạn cam kết">
+                          <Clock size={10} /> Hạn cam kết: {item.slaDeadlineSnapshot}{item.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'm' : ''}
                         </span>
                       )}
                       {item.deadlineSnapshot && (
@@ -479,7 +481,7 @@ export default function TaskTable({
                     </div>
                     {hasChildren && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(139,92,246,0.08)', color: '#8b5cf6', borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>
-                        {children.filter(c => c.isChecked).length}/{children.length} con
+                        {children.filter(c => c.isChecked).length}/{children.length} mục
                       </span>
                     )}
                   </div>
@@ -537,7 +539,7 @@ export default function TaskTable({
                   </div>
 
                   <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '6px 0 0 0', lineHeight: '1.4' }}>
-                    [{selectedTask.taskId}] {selectedTask.taskNameSnapshot}
+                    {showTechDetails ? `[${selectedTask.taskId}] ` : ''}{selectedTask.taskNameSnapshot}
                   </h4>
 
                   {selectedTask.dependsOnTaskIdsSnapshot && selectedTask.dependsOnTaskIdsSnapshot.length > 0 && (
@@ -559,7 +561,7 @@ export default function TaskTable({
                             fontWeight: 600
                           }}>
                             {isDepDone ? <Unlock size={11} /> : <Lock size={11} />}
-                            Phụ thuộc: {depId} ({isDepDone ? 'Đã hoàn thành' : 'Chưa hoàn thành'})
+                            Phụ thuộc: {showTechDetails ? depId : (depTask?.taskNameSnapshot || depId)} ({isDepDone ? 'Đã hoàn thành' : 'Chưa hoàn thành'})
                           </span>
                         );
                       })}
@@ -874,7 +876,7 @@ export default function TaskTable({
                         fontWeight: 600
                       }}>
                         <Clock size={12} />
-                        <span>Thời hạn cam kết (SLA): {selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'Động' : 'Cố định'} ({selectedTask.slaDeadlineSnapshot}{selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? ' phút' : ''})</span>
+                        <span>Thời hạn cam kết: {selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? 'Động' : 'Cố định'} ({selectedTask.slaDeadlineSnapshot}{selectedTask.slaTypeSnapshot === 'DYNAMIC_AFTER_TASK' ? ' phút' : ''})</span>
                       </div>
                     )}
                     {selectedTask.timetableSnapshot && (
@@ -1009,7 +1011,7 @@ export default function TaskTable({
                 {hasChildren && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                      Tác vụ con ({children.filter(c => c.isChecked).length}/{children.length} hoàn thành):
+                      Đầu mục công việc con ({children.filter(c => c.isChecked).length}/{children.length} hoàn thành):
                     </span>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

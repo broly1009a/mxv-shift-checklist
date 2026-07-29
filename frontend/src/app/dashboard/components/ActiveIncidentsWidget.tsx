@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GripVertical, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { getFriendlyCode } from '@/lib/incident';
 
 interface Incident {
   _id: string;
@@ -31,7 +32,7 @@ function DashboardSlaCountdown({ deadline }: { deadline: string }) {
         const absDiff = Math.abs(diff);
         const mins = Math.floor(absDiff / 60000);
         const secs = Math.floor((absDiff % 60000) / 1000);
-        setTimeLeft(`Trễ SLA ${mins}m ${secs}s`);
+        setTimeLeft(`Trễ hạn ${mins}m ${secs}s`);
       } else {
         setIsOverdue(false);
         const mins = Math.floor(diff / 60000);
@@ -124,8 +125,8 @@ export const ActiveIncidentsWidget: React.FC<{ token: string | null }> = ({ toke
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ef4444', fontFamily: 'monospace' }}>
-                  [{inc.code}] {inc.taskId}
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ef4444' }}>
+                  [{getFriendlyCode(inc.code)}] {inc.taskId}
                 </span>
                 {inc.slaDeadlineAt && (
                   <DashboardSlaCountdown deadline={inc.slaDeadlineAt} />

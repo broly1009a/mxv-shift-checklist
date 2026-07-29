@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { getFriendlyCode } from '@/lib/incident';
 
 interface IncidentReportModalProps {
   resolvingIncident: any;
@@ -14,6 +15,8 @@ interface IncidentReportModalProps {
   setAffectedAccountsInput: (v: string) => void;
   isResolving: boolean;
   handleResolveIncident: () => Promise<void>;
+  showTechDetails?: boolean;
+  taskNamesMap?: Record<string, string>;
 }
 
 export default function IncidentReportModal({
@@ -26,7 +29,9 @@ export default function IncidentReportModal({
   affectedAccountsInput,
   setAffectedAccountsInput,
   isResolving,
-  handleResolveIncident
+  handleResolveIncident,
+  showTechDetails = false,
+  taskNamesMap = {}
 }: IncidentReportModalProps) {
   if (!resolvingIncident) return null;
 
@@ -55,7 +60,7 @@ export default function IncidentReportModal({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={18} color="#ef4444" /> Xử lý ngoại lệ / sự cố [{resolvingIncident.code}]
+            <AlertTriangle size={18} color="#ef4444" /> Xử lý ngoại lệ / sự cố [{showTechDetails ? resolvingIncident.code : getFriendlyCode(resolvingIncident.code)}]
           </h3>
           <button
             onClick={() => setResolvingIncident(null)}
@@ -67,7 +72,7 @@ export default function IncidentReportModal({
 
         <div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: '1.4' }}>
-            <strong>Mã tác vụ lỗi:</strong> {resolvingIncident.taskId}<br />
+            <strong>Tác vụ lỗi:</strong> {showTechDetails ? resolvingIncident.taskId : (taskNamesMap?.[resolvingIncident.taskId] || resolvingIncident.taskId)}<br />
             <strong>Yêu cầu khắc phục:</strong> {resolvingIncident.requiredAction}
           </p>
 

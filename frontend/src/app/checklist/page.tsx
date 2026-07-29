@@ -14,7 +14,8 @@ import {
   Download,
   Printer,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Cpu
 } from 'lucide-react';
 
 import { useChecklist } from './hooks/useChecklist';
@@ -99,8 +100,19 @@ function ChecklistWorksheet() {
   const [reconTaskId, setReconTaskId] = React.useState('');
   const [omsTaskId, setOmsTaskId] = React.useState('');
   const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
+  const [showTechDetails, setShowTechDetails] = React.useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const taskNamesMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    if (log && log.details) {
+      log.details.forEach((task: any) => {
+        map[task.taskId] = task.taskNameSnapshot;
+      });
+    }
+    return map;
+  }, [log]);
 
   React.useEffect(() => {
     const bypassRedirect = searchParams.get('redirect') === 'false';
@@ -417,6 +429,14 @@ function ChecklistWorksheet() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setShowTechDetails(!showTechDetails)} 
+              className={`btn ${showTechDetails ? 'btn-primary' : 'btn-secondary'}`} 
+              style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Cpu size={14} />
+              {showTechDetails ? 'Ẩn mã kỹ thuật' : 'Xem mã kỹ thuật'}
+            </button>
             <button onClick={() => setIsTradingReportModalOpen(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileSpreadsheet size={14} /> Báo cáo Giao dịch
             </button>
@@ -549,6 +569,7 @@ function ChecklistWorksheet() {
             }}
             onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
             onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => setViewingBotLog({ title, resultNote, status, checkedAt, taskId })}
+            showTechDetails={showTechDetails}
           />
 
           {/* Bottom Layout Grid: Incident Manager & Audit Trail */}
@@ -562,10 +583,16 @@ function ChecklistWorksheet() {
               setRemediationAction={setRemediationAction}
               setAffectedAccountsInput={setAffectedAccountsInput}
               setResolvingIncident={setResolvingIncident}
+              showTechDetails={showTechDetails}
+              taskNamesMap={taskNamesMap}
             />
 
             {/* Audit Trail Timeline */}
-            <AuditLogsPanel auditLogs={auditLogs} />
+            <AuditLogsPanel 
+              auditLogs={auditLogs} 
+              showTechDetails={showTechDetails}
+              taskNamesMap={taskNamesMap}
+            />
 
           </div>
 
@@ -585,6 +612,8 @@ function ChecklistWorksheet() {
         setAffectedAccountsInput={setAffectedAccountsInput}
         isResolving={isResolving}
         handleResolveIncident={handleResolveIncident}
+        showTechDetails={showTechDetails}
+        taskNamesMap={taskNamesMap}
       />
 
       {/* Ad-hoc Task Modal */}
