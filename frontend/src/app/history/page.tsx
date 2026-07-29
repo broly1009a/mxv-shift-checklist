@@ -8,14 +8,10 @@ import {
   SlidersHorizontal, 
   CheckCircle2, 
   Clock, 
-  User as UserIcon, 
-  Eye, 
-  X,
-  Bot
+  Eye 
 } from 'lucide-react';
 import Link from 'next/link';
 import { TableSkeleton } from '@/components/ui/Skeleton';
-import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 
 interface Department {
   _id: string;
@@ -86,21 +82,7 @@ function HistoryAudit() {
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
 
-  // Detail Modal
-  const [activeDetail, setActiveDetail] = useState<ShiftLog | null>(null);
-  const [viewingBotLog, setViewingBotLog] = useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
 
-  const formatTime = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? '' : date.toLocaleTimeString('vi-VN');
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? '' : date.toLocaleDateString('vi-VN');
-  };
 
   const fetchFilters = useCallback(async () => {
     if (!token) return;
@@ -145,6 +127,8 @@ function HistoryAudit() {
       setLoading(false);
     }
   }, [token, selectedDept, selectedStatus, startDate, endDate, currentPage, limit]);
+
+
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -308,16 +292,21 @@ function HistoryAudit() {
                           </div>
                         </td>
                         <td style={{ padding: '14px 16px', display: 'flex', gap: '10px' }}>
-                          <button 
-                            onClick={() => setActiveDetail(log)}
-                            className="btn btn-secondary" 
-                            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          >
-                            <Eye size={14} /> Chi tiết
-                          </button>
-                          {log.status === 'PENDING' && (
-                            <Link href={`/checklist?id=${log._id}`} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                          {log.status === 'PENDING' ? (
+                            <Link 
+                              href={`/checklist?id=${log._id}`} 
+                              className="btn btn-primary" 
+                              style={{ padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
                               Mở
+                            </Link>
+                          ) : (
+                            <Link 
+                              href={`/checklist?id=${log._id}`}
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Eye size={14} /> Chi tiết
                             </Link>
                           )}
                         </td>
@@ -447,304 +436,7 @@ function HistoryAudit() {
         </div>
       </div>
 
-      {/* Audit Details Modal Overlay */}
-      {activeDetail && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '40px 20px',
-          overflowY: 'auto'
-        }}>
-          <div className="glass-panel animate-fade-in" style={{
-            width: '100%',
-            maxWidth: '800px',
-            margin: 'auto 0',
-            background: 'var(--bg-app)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '32px'
-          }}>
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  {activeDetail.templateId?.title}
-                </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                  <span>Ngày: <strong>{activeDetail.shiftDate}</strong></span>
-                  <span>• Cán bộ trực chính: <strong>{activeDetail.userId?.fullName}</strong></span>
-                  <span>• Tiến độ: <strong>{activeDetail.progressPercentage}%</strong></span>
-                  {activeDetail.status === 'COMPLETED' && activeDetail.closedBy && (
-                    <span>• Người chốt: <strong style={{ color: 'var(--color-primary)' }}>{activeDetail.closedBy.fullName}</strong></span>
-                  )}
-                  {activeDetail.status === 'COMPLETED' && activeDetail.closedAt && (
-                    <span>• Giờ chốt: <strong style={{ color: 'var(--color-primary)' }}>{`${formatTime(activeDetail.closedAt)} ${formatDate(activeDetail.closedAt)}`}</strong></span>
-                  )}
-                </div>
-                {activeDetail.status === 'COMPLETED' && activeDetail.handoverNote && (
-                  <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--color-primary)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px', fontWeight: 700, textTransform: 'uppercase' }}>Biên bản bàn giao ca trực:</span>
-                    <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: 'italic' }}>&ldquo;{activeDetail.handoverNote}&rdquo;</p>
-                  </div>
-                )}
-              </div>
-              <button 
-                onClick={() => setActiveDetail(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  padding: '4px',
-                  borderRadius: '50%'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <X size={24} />
-              </button>
-            </div>
 
-            {/* Tasks details list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-              {activeDetail.details?.map((task, idx) => {
-                const isFailed = task.status === 'FAILED';
-                const isNeedsAttention = task.status === 'NEEDS_ATTENTION';
-                const isPassed = task.status === 'PASSED';
-                const isSkipped = task.status === 'SKIPPED';
-                
-                return (
-                  <div key={task.taskId} style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.015)',
-                    border: '1px solid var(--border-color)',
-                    borderLeft: isFailed 
-                      ? '4px solid #ef4444' 
-                      : isNeedsAttention 
-                        ? '4px solid #f59e0b' 
-                        : isPassed 
-                          ? '4px solid #10b981' 
-                          : isSkipped 
-                            ? '4px solid #60a5fa' 
-                            : '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <span style={{
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '4px',
-                        background: isFailed 
-                          ? 'rgba(239, 68, 68, 0.1)' 
-                          : isNeedsAttention 
-                            ? 'rgba(245, 158, 11, 0.1)'
-                            : task.isChecked 
-                              ? 'rgba(16, 185, 129, 0.1)' 
-                              : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${
-                          isFailed 
-                            ? '#ef4444' 
-                            : isNeedsAttention 
-                              ? '#f59e0b' 
-                              : task.isChecked 
-                                ? '#10b981' 
-                                : 'var(--border-color)'
-                        }`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: isFailed 
-                          ? '#ef4444' 
-                          : isNeedsAttention 
-                            ? '#f59e0b' 
-                            : 'var(--color-primary)',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        marginTop: '2px',
-                        flexShrink: 0
-                      }}>
-                        {isFailed ? '✕' : isNeedsAttention ? '!' : task.isChecked ? '✓' : ''}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {idx + 1}. {task.taskNameSnapshot}
-                        </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
-                        {getPriorityBadge(task.prioritySnapshot)}
-                        {task.updatedBy?.username === 'system_bot' && (
-                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Bot size={12} /> Bot tự động kiểm tra
-                          </span>
-                        )}
-                        {task.status === 'PASSED' && (
-                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                            ✓ ĐẠT (PASSED)
-                          </span>
-                        )}
-                        {task.status === 'FAILED' && (
-                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                            ✕ KHÔNG ĐẠT (FAILED)
-                          </span>
-                        )}
-                        {task.isChecked && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={12} style={{ flexShrink: 0 }} /> Đã kiểm lúc: {formatTime(task.checkedAt)}
-                          </span>
-                        )}
-                        {task.isChecked && task.updatedBy && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <UserIcon size={12} style={{ flexShrink: 0 }} /> Người xác nhận: {task.updatedBy.fullName}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Note & Bot Result Note */}
-                  {task.resultNote && (() => {
-                    let parsedMessage = task.resultNote;
-                    try {
-                      const json = JSON.parse(task.resultNote);
-                      parsedMessage = json.message || task.resultNote;
-                    } catch (e) {}
-
-                    const isLongMsg = parsedMessage.length > 140 || parsedMessage.includes('•');
-                    const displayMsg = isLongMsg ? parsedMessage.substring(0, 140) + '...' : parsedMessage;
-
-                    return (
-                      <div style={{
-                        background: 'var(--bg-input)',
-                        padding: '10px 12px',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        color: 'var(--text-secondary)',
-                        borderLeft: task.status === 'FAILED' ? '3px solid #ef4444' : '3px solid #0284c7',
-                        marginLeft: '32px',
-                        fontFamily: 'monospace',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                        lineHeight: 1.5
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
-                            <Bot size={14} /> Log kết quả Bot:
-                          </span>
-                          <span style={{ flex: 1, wordBreak: 'break-word' }}>{displayMsg}</span>
-                        </div>
-
-                        {isLongMsg && (
-                          <div style={{ marginLeft: '20px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setViewingBotLog({
-                                title: task.taskNameSnapshot,
-                                taskId: task.taskId,
-                                resultNote: task.resultNote || '',
-                                status: task.status,
-                                checkedAt: task.checkedAt
-                              })}
-                              className="btn btn-secondary"
-                              style={{
-                                fontSize: '0.7rem',
-                                padding: '3px 8px',
-                                background: 'rgba(2, 132, 199, 0.1)',
-                                color: '#0284c7',
-                                border: '1px solid rgba(2, 132, 199, 0.25)',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {task.note && task.note !== task.resultNote && (() => {
-                    let parsedMsg = '';
-                    if (task.resultNote) {
-                      try {
-                        const json = JSON.parse(task.resultNote);
-                        parsedMsg = json.message || task.resultNote;
-                      } catch (e) {
-                        parsedMsg = task.resultNote;
-                      }
-                    }
-                    if (parsedMsg && task.note === parsedMsg) return null;
-
-                    return (
-                      <div style={{
-                        background: 'var(--bg-input)',
-                        padding: '10px 12px',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        color: 'var(--text-secondary)',
-                        borderLeft: '3px solid #f59e0b',
-                        marginLeft: '32px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                        lineHeight: 1.5
-                      }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#f59e0b', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>
-                          <UserIcon size={14} /> Ghi chú thủ công:
-                        </span>
-                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{task.note}</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              );
-            })}
-          </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <button onClick={() => setActiveDetail(null)} className="btn btn-secondary">
-                Đóng cửa sổ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bot Structured Log Viewer Modal */}
-      {viewingBotLog && (
-        <BotLogViewerModal
-          isOpen={!!viewingBotLog}
-          onClose={() => setViewingBotLog(null)}
-          taskTitle={viewingBotLog.title}
-          taskId={viewingBotLog.taskId}
-          resultNote={viewingBotLog.resultNote}
-          status={viewingBotLog.status}
-          checkedAt={viewingBotLog.checkedAt}
-          shiftLogId={activeDetail?._id}
-        />
-      )}
     </ProtectedRoute>
   );
 }
