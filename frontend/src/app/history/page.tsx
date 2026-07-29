@@ -264,16 +264,49 @@ function HistoryAudit() {
                         <td style={{ padding: '14px 16px' }}>{log.userId?.fullName}</td>
                         <td style={{ padding: '14px 16px' }}>
                           {log.status === 'COMPLETED' ? (
-                            <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                              <CheckCircle2 size={14} /> HOÀN THÀNH
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              fontSize: '0.75rem', fontWeight: 700,
+                              color: '#10b981',
+                              background: 'rgba(16,185,129,0.1)',
+                              border: '1px solid rgba(16,185,129,0.2)',
+                              borderRadius: '20px', padding: '3px 10px',
+                            }}>
+                              <CheckCircle2 size={12} /> Hoàn thành
                             </span>
                           ) : (
-                            <span style={{ color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                              <Clock size={14} /> ĐANG CHẠY
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              fontSize: '0.75rem', fontWeight: 700,
+                              color: '#f59e0b',
+                              background: 'rgba(245,158,11,0.1)',
+                              border: '1px solid rgba(245,158,11,0.2)',
+                              borderRadius: '20px', padding: '3px 10px',
+                            }}>
+                              <Clock size={12} className="animate-pulse" /> Đang chạy
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '14px 16px', fontWeight: 700 }}>{log.progressPercentage}%</td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '80px' }}>
+                            <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'var(--border-color)', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${log.progressPercentage}%`,
+                                borderRadius: '3px',
+                                background: log.progressPercentage === 100
+                                  ? '#10b981' // Green
+                                  : log.progressPercentage >= 50
+                                    ? '#3b82f6' // Blue
+                                    : log.progressPercentage >= 30
+                                      ? '#f59e0b' // Yellow
+                                      : '#ef4444', // Red
+                                transition: 'width 0.3s ease',
+                              }} />
+                            </div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', minWidth: '36px' }}>{log.progressPercentage}%</span>
+                          </div>
+                        </td>
                         <td style={{ padding: '14px 16px', display: 'flex', gap: '10px' }}>
                           <button 
                             onClick={() => setActiveDetail(log)}
@@ -490,38 +523,71 @@ function HistoryAudit() {
 
             {/* Tasks details list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-              {activeDetail.details?.map((task, idx) => (
-                <div key={task.taskId} style={{
-                  padding: '16px',
-                  borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.015)',
-                  border: '1px solid var(--border-color)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <span style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '4px',
-                      background: task.isChecked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${task.isChecked ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--color-primary)',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      marginTop: '2px',
-                      flexShrink: 0
-                    }}>
-                      {task.isChecked && '✓'}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {idx + 1}. {task.taskNameSnapshot}
-                      </p>
+              {activeDetail.details?.map((task, idx) => {
+                const isFailed = task.status === 'FAILED';
+                const isNeedsAttention = task.status === 'NEEDS_ATTENTION';
+                const isPassed = task.status === 'PASSED';
+                const isSkipped = task.status === 'SKIPPED';
+                
+                return (
+                  <div key={task.taskId} style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'rgba(255,255,255,0.015)',
+                    border: '1px solid var(--border-color)',
+                    borderLeft: isFailed 
+                      ? '4px solid #ef4444' 
+                      : isNeedsAttention 
+                        ? '4px solid #f59e0b' 
+                        : isPassed 
+                          ? '4px solid #10b981' 
+                          : isSkipped 
+                            ? '4px solid #60a5fa' 
+                            : '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '4px',
+                        background: isFailed 
+                          ? 'rgba(239, 68, 68, 0.1)' 
+                          : isNeedsAttention 
+                            ? 'rgba(245, 158, 11, 0.1)'
+                            : task.isChecked 
+                              ? 'rgba(16, 185, 129, 0.1)' 
+                              : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${
+                          isFailed 
+                            ? '#ef4444' 
+                            : isNeedsAttention 
+                              ? '#f59e0b' 
+                              : task.isChecked 
+                                ? '#10b981' 
+                                : 'var(--border-color)'
+                        }`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isFailed 
+                          ? '#ef4444' 
+                          : isNeedsAttention 
+                            ? '#f59e0b' 
+                            : 'var(--color-primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        marginTop: '2px',
+                        flexShrink: 0
+                      }}>
+                        {isFailed ? '✕' : isNeedsAttention ? '!' : task.isChecked ? '✓' : ''}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {idx + 1}. {task.taskNameSnapshot}
+                        </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                         {getPriorityBadge(task.prioritySnapshot)}
                         {task.updatedBy?.username === 'system_bot' && (
@@ -652,8 +718,9 @@ function HistoryAudit() {
                     );
                   })()}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
             {/* Modal Footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>

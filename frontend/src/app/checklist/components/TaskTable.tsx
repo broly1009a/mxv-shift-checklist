@@ -210,7 +210,9 @@ export default function TaskTable({
 
   // If selected task is filtered out, select the first matching parent
   React.useEffect(() => {
-    if (selectedTaskId && parentDetails.length > 0) {
+    if (parentDetails.length === 0) {
+      setSelectedTaskId(null);
+    } else if (selectedTaskId && parentDetails.length > 0) {
       const exists = parentDetails.some(p => p.taskId === selectedTaskId);
       if (!exists) {
         setSelectedTaskId(parentDetails[0].taskId);
@@ -247,98 +249,117 @@ export default function TaskTable({
       </div>
 
       {/* Live Search and Filters group */}
-      <div 
-        className="flex flex-col sm:flex-row gap-3 mb-5 p-3 rounded-xl border border-[var(--border-color)] items-stretch sm:items-center sticky top-[74px] z-10 backdrop-blur-md"
+      <div
         style={{
-          background: 'rgba(var(--bg-card), 0.85)',
-          backgroundColor: 'var(--bg-card)',
-          boxShadow: 'var(--shadow-md)',
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '20px',
+          padding: '8px 12px',
+          borderRadius: '10px',
+          border: '1px solid var(--border-color)',
+          background: 'var(--bg-card)',
+          position: 'sticky',
+          top: '74px',
+          zIndex: 10,
+          backdropFilter: 'blur(12px)',
+          flexWrap: 'nowrap',
         }}
       >
         {/* Text search */}
-        <div style={{ flex: 1, minWidth: '180px', position: 'relative' }}>
-          <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+          <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
             type="text"
             placeholder="Tìm nội dung, mã tác vụ..."
             className="form-input"
-            style={{ height: '38px', paddingLeft: '32px', fontSize: '0.82rem', width: '100%' }}
+            style={{ height: '36px', paddingLeft: '32px', paddingRight: '12px', fontSize: '0.82rem', width: '100%', boxSizing: 'border-box', border: 'none', background: 'transparent', outline: 'none', boxShadow: 'none' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          {/* Priority Select */}
-          <div className="flex-1 sm:flex-initial flex items-center gap-1.5">
-            <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
-            <select
-              className="form-input w-full sm:w-[130px]"
-              style={{
-                height: '38px',
-                padding: '0 28px 0 12px',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                background: 'var(--bg-input) url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 8px center/16px 16px',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none'
-              }}
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              <option value="ALL">Mọi ưu tiên</option>
-              <option value="CRITICAL">Khẩn cấp</option>
-              <option value="HIGH">Ưu tiên Cao</option>
-              <option value="MEDIUM">Ưu tiên Trung bình</option>
-              <option value="LOW">Ưu tiên Thấp</option>
-            </select>
-          </div>
+        {/* Divider */}
+        <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', flexShrink: 0 }} />
+        <Filter size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
 
-          {/* Status Select */}
-          <div className="flex-1 sm:flex-initial">
-            <select
-              className="form-input w-full sm:w-[130px]"
-              style={{
-                height: '38px',
-                padding: '0 28px 0 12px',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                background: 'var(--bg-input) url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 8px center/16px 16px',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none'
-              }}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="ALL">Mọi trạng thái</option>
-              <option value="CHECKED">Đã kiểm tra</option>
-              <option value="UNCHECKED">Chưa kiểm tra</option>
-              <option value="PENDING">Chưa thực hiện</option>
-              <option value="WAITING">Đang kiểm tra</option>
-              <option value="PASSED">Đạt</option>
-              <option value="FAILED">Không đạt</option>
-              <option value="SKIPPED">Bỏ qua</option>
-              <option value="NEEDS_ATTENTION">Cần chú ý</option>
-            </select>
-          </div>
-        </div>
+        {/* Priority Select */}
+        <select
+          className="form-input"
+          style={{
+            height: '34px',
+            padding: '0 26px 0 8px',
+            fontSize: '0.82rem',
+            cursor: 'pointer',
+            flexShrink: 0,
+            width: '130px',
+            border: 'none',
+            background: 'transparent url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 6px center/14px 14px',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            boxShadow: 'none',
+            outline: 'none',
+          }}
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+        >
+          <option value="ALL">Mọi ưu tiên</option>
+          <option value="CRITICAL">Khẩn cấp</option>
+          <option value="HIGH">Cao</option>
+          <option value="MEDIUM">Trung bình</option>
+          <option value="LOW">Thấp</option>
+        </select>
+
+        {/* Divider */}
+        <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', flexShrink: 0 }} />
+
+        {/* Status Select */}
+        <select
+          className="form-input"
+          style={{
+            height: '34px',
+            padding: '0 26px 0 8px',
+            fontSize: '0.82rem',
+            cursor: 'pointer',
+            flexShrink: 0,
+            width: '140px',
+            border: 'none',
+            background: 'transparent url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 6px center/14px 14px',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            boxShadow: 'none',
+            outline: 'none',
+          }}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="ALL">Mọi trạng thái</option>
+          <option value="PENDING">Chưa thực hiện</option>
+          <option value="WAITING">Đang kiểm tra</option>
+          <option value="PASSED">Đạt</option>
+          <option value="FAILED">Không đạt</option>
+          <option value="SKIPPED">Bỏ qua</option>
+          <option value="NEEDS_ATTENTION">Cần chú ý</option>
+        </select>
       </div>
 
+
       {/* Master-Detail Grid Layout */}
-      <div 
-        className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6" 
-        style={{ marginTop: '12px', alignItems: 'start' }}
-      >
-        {/* Left Column: Parent Tasks List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '72vh', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
-          {parentDetails.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-              Không tìm thấy tác vụ phù hợp với bộ lọc.
-            </div>
-          ) : (
-            parentDetails.map((item, idx) => {
+      {parentDetails.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+          <Search size={28} style={{ margin: '0 auto 12px', opacity: 0.4, display: 'block' }} />
+          <div style={{ fontSize: '0.9rem' }}>Không tìm thấy tác vụ phù hợp với bộ lọc.</div>
+          <div style={{ fontSize: '0.78rem', marginTop: '6px', opacity: 0.6 }}>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</div>
+        </div>
+      ) : (
+        <div
+          className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6"
+          style={{ marginTop: '12px', alignItems: 'start' }}
+        >
+          {/* Left Column: Parent Tasks List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '72vh', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+            {parentDetails.map((item, idx) => {
               const children = childrenMap[item.taskId] || [];
               const hasChildren = children.length > 0;
               const isBotOnly = item.isBotCheckSnapshot && !hasChildren;
@@ -486,10 +507,9 @@ export default function TaskTable({
                     )}
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
+            );
+            })}
+          </div>
 
         {/* Right Column: Detailed Workspace Panel */}
         <div 
@@ -1243,7 +1263,7 @@ export default function TaskTable({
             </div>
           )}
         </div>
-      </div>
-    </div>
+        </div>
+      )}\n    </div>
   );
 }
