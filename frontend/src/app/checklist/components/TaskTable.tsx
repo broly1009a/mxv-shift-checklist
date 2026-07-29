@@ -17,6 +17,7 @@ import {
   Search,
   Filter,
   CheckCircle2,
+  Circle,
   XCircle,
   SkipForward,
   AlertTriangle,
@@ -151,6 +152,7 @@ export default function TaskTable({
 }: TaskTableProps) {
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
 
   // Build parent→children map from full log.details
   const childrenMap = useMemo(() => {
@@ -270,7 +272,16 @@ export default function TaskTable({
             <Filter size={13} color="var(--text-muted)" className="hidden sm:inline" />
             <select
               className="form-input w-full sm:w-[130px]"
-              style={{ height: '38px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+              style={{
+                height: '38px',
+                padding: '0 28px 0 12px',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                background: 'var(--bg-input) url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 8px center/16px 16px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none'
+              }}
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
             >
@@ -286,7 +297,16 @@ export default function TaskTable({
           <div className="flex-1 sm:flex-initial">
             <select
               className="form-input w-full sm:w-[130px]"
-              style={{ height: '38px', padding: '0 10px', fontSize: '0.82rem', cursor: 'pointer' }}
+              style={{
+                height: '38px',
+                padding: '0 28px 0 12px',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                background: 'var(--bg-input) url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e") no-repeat right 8px center/16px 16px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none'
+              }}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -330,16 +350,20 @@ export default function TaskTable({
                   key={`${item.taskId}-${idx}`}
                   className="glass-panel animate-fade-in"
                   onClick={() => setSelectedTaskId(item.taskId)}
+                  onMouseEnter={() => setHoveredTaskId(item.taskId)}
+                  onMouseLeave={() => setHoveredTaskId(null)}
                   style={{
                     padding: '14px 16px',
                     borderRadius: '12px',
                     background: isSelected
                       ? 'rgba(59, 130, 246, 0.05)'
-                      : isBotOnly
-                        ? 'rgba(236,72,153,0.02)'
-                        : item.isChecked
-                          ? 'rgba(16, 185, 129, 0.01)'
-                          : 'var(--bg-card)',
+                      : hoveredTaskId === item.taskId
+                        ? 'rgba(255, 255, 255, 0.02)'
+                        : isBotOnly
+                          ? 'rgba(236,72,153,0.02)'
+                          : item.isChecked
+                            ? 'rgba(16, 185, 129, 0.01)'
+                            : 'var(--bg-card)',
                     borderTop: isSelected
                       ? '1px solid var(--color-accent)'
                       : '1px solid var(--border-color)',
@@ -363,7 +387,14 @@ export default function TaskTable({
                     gap: '8px',
                     transition: 'all 0.2s ease',
                     cursor: 'pointer',
-                    boxShadow: isSelected ? '0 0 0 1px var(--color-accent), 0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
+                    transform: hoveredTaskId === item.taskId && !isSelected
+                      ? 'translateY(-2px)'
+                      : 'translateY(0)',
+                    boxShadow: isSelected
+                      ? '0 0 0 1px var(--color-accent), 0 4px 12px rgba(59, 130, 246, 0.15)'
+                      : hoveredTaskId === item.taskId
+                        ? 'var(--shadow-md)'
+                        : 'none',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -489,7 +520,7 @@ export default function TaskTable({
             const isToggling = togglingTaskIds.has(selectedTask.taskId);
 
             return (
-              <>
+              <div key={selectedTask.taskId} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
                 {/* Header Info */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -1006,18 +1037,32 @@ export default function TaskTable({
                             position: 'relative',
                             zIndex: isChildDropdownOpen ? 50 : (children.length - cIdx)
                           }}>
-                            <input
-                              type="checkbox"
-                              checked={child.isChecked}
-                              onChange={() => handleToggle(child.taskId, child.isChecked)}
-                              disabled={isCompleted || cSaving || cToggling}
-                              title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
-                              style={{
-                                width: '16px', height: '16px', flexShrink: 0,
-                                cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
-                                accentColor: isBot ? '#ec4899' : 'var(--color-primary)'
-                              }}
-                            />
+                            <button
+                               type="button"
+                               onClick={() => handleToggle(child.taskId, child.isChecked)}
+                               disabled={isCompleted || cSaving || cToggling}
+                               title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
+                               className="transition-transform duration-150 hover:scale-110 active:scale-95 flex items-center justify-center"
+                               style={{
+                                 background: 'transparent',
+                                 border: 'none',
+                                 padding: 0,
+                                 cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
+                                 color: child.isChecked
+                                   ? '#10b981'
+                                   : isBot
+                                     ? '#ec4899'
+                                     : 'var(--text-muted)',
+                                 flexShrink: 0,
+                                 outline: 'none',
+                               }}
+                             >
+                               {child.isChecked ? (
+                                 <CheckCircle2 size={18} style={{ fill: 'rgba(16, 185, 129, 0.1)' }} />
+                               ) : (
+                                 <Circle size={18} />
+                               )}
+                             </button>
                             
                             <span style={{ flex: 1, fontSize: '0.83rem', color: 'var(--text-primary)', textDecoration: 'none', opacity: child.isChecked ? 0.6 : 1 }}>
                               {child.taskNameSnapshot}
@@ -1125,34 +1170,59 @@ export default function TaskTable({
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Ghi chú vận hành:</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <MessageSquare size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                    <input
-                      type="text"
-                      className="form-input"
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MessageSquare size={14} color="var(--text-muted)" /> Ghi chú vận hành:
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <textarea
+                      className="form-input custom-scrollbar"
+                      rows={3}
                       placeholder={isCompleted ? "Không thể ghi chú khi đã chốt ca" : "Nhập ghi chú kết quả vận hành..."}
                       value={notesState[selectedTask.taskId] || ''}
                       onChange={(e) => setNotesState({ ...notesState, [selectedTask.taskId]: e.target.value })}
                       onFocus={() => { focusedTaskIdRef.current = selectedTask.taskId; }}
                       onBlur={() => { focusedTaskIdRef.current = null; }}
                       disabled={isCompleted || isSaving}
-                      style={{ padding: '6px 10px', fontSize: '0.8rem', height: '36px', flex: 1 }}
+                      style={{
+                        padding: '10px 12px',
+                        fontSize: '0.8rem',
+                        minHeight: '70px',
+                        resize: 'vertical',
+                        lineHeight: '1.5',
+                        width: '100%',
+                        fontFamily: 'inherit'
+                      }}
                     />
                     {!isCompleted && (
-                      <button
-                        onClick={() => handleSaveNote(selectedTask.taskId)}
-                        className="btn btn-secondary"
-                        disabled={isSaving}
-                        style={{ padding: '6px 10px', flexShrink: 0, height: '36px', width: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Lưu ghi chú"
-                      >
-                        <Save size={14} />
-                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => handleSaveNote(selectedTask.taskId)}
+                          className="btn btn-secondary"
+                          disabled={isSaving}
+                          style={{
+                            padding: '6px 14px',
+                            fontSize: '0.78rem',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            color: '#3b82f6',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                          }}
+                          title="Lưu ghi chú"
+                        >
+                          <Save size={12} />
+                          Lưu ghi chú
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
-              </>
+              </div>
             );
           })() : (
             <div style={{
