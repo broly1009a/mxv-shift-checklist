@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Download } from 'lucide-react';
+import { AlertTriangle, Download, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -41,15 +41,19 @@ function IncidentSlaCountdown({ deadline }: IncidentSlaCountdownProps) {
     <span
       className="badge"
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
         fontSize: '0.7rem',
-        padding: '2px 8px',
+        padding: '3px 8px',
         fontWeight: 'bold',
-        backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+        backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
         color: isOverdue ? '#ef4444' : '#f59e0b',
         border: `1px solid ${isOverdue ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
-        borderRadius: '4px'
+        borderRadius: '5px'
       }}
     >
+      <Clock size={11} className={isOverdue ? 'animate-pulse' : ''} />
       {timeLeft}
     </span>
   );
@@ -129,21 +133,42 @@ export default function IncidentList({
                   padding: '12px',
                   borderRadius: '8px',
                   background: isPending ? 'rgba(239, 68, 68, 0.04)' : 'rgba(16, 185, 129, 0.02)',
-                  border: `1px solid ${isPending ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)'}`,
+                  borderTop: `1px solid ${isPending ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)'}`,
+                  borderRight: `1px solid ${isPending ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)'}`,
+                  borderBottom: `1px solid ${isPending ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)'}`,
+                  borderLeft: isPending ? '4px solid #ef4444' : '4px solid #10b981',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isPending ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 700, color: isPending ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>
+                    {isPending ? <ShieldAlert size={13} /> : <CheckCircle2 size={13} />}
                     [{inc.code}] {inc.taskId}
                   </span>
                   {isPending && inc.slaDeadlineAt && (
                     <IncidentSlaCountdown deadline={inc.slaDeadlineAt} />
                   )}
                   {!isPending && (
-                    <span className="badge badge-success" style={{ fontSize: '0.62rem', padding: '2px 6px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>Đã khắc phục</span>
+                    <span
+                      className="badge"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.7rem',
+                        padding: '3px 8px',
+                        fontWeight: 'bold',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: '5px'
+                      }}
+                    >
+                      <CheckCircle2 size={11} />
+                      Đã khắc phục
+                    </span>
                   )}
                 </div>
 
@@ -176,17 +201,24 @@ export default function IncidentList({
                     </div>
                     <button
                       onClick={() => handleExportReport(inc)}
-                      className="btn btn-secondary"
                       style={{
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         fontSize: '0.72rem',
                         alignSelf: 'flex-end',
                         height: 'auto',
                         marginTop: '2px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '4px',
+                        background: 'rgba(16, 185, 129, 0.08)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
                       }}
+                      className="hover:bg-[#10b981] hover:text-white"
                     >
                       <Download size={12} /> Xuất mẫu 01/QT/TVH
                     </button>
@@ -203,7 +235,7 @@ export default function IncidentList({
                     }}
                     className="btn btn-primary"
                     style={{
-                      padding: '4px 10px',
+                      padding: '5px 12px',
                       fontSize: '0.72rem',
                       alignSelf: 'flex-end',
                       height: 'auto',

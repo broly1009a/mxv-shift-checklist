@@ -509,10 +509,10 @@ function ChecklistWorksheet() {
 
 
 
-        {/* Workspace Layout Grid: Left Checklist, Right Audit Logs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="lg:grid-cols-[1fr_360px]">
+        {/* Workspace Layout: Full width checklist, bottom side-by-side widgets */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-          {/* Left Panel: Checklist Tasks */}
+          {/* Top Panel: Checklist Tasks */}
           <TaskTable
             log={log}
             filteredDetails={filteredDetails}
@@ -551,8 +551,8 @@ function ChecklistWorksheet() {
             onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => setViewingBotLog({ title, resultNote, status, checkedAt, taskId })}
           />
 
-          {/* Right Column Layout: Incident Manager & Audit Trail */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Bottom Layout Grid: Incident Manager & Audit Trail */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Incident Manager Panel */}
             <IncidentList
