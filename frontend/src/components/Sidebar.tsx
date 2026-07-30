@@ -4,11 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  History, 
-  Settings, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  History,
+  Settings,
   Building2,
   UserCheck,
   PanelLeftClose,
@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
       {/* Mobile Close Button */}
-      <button 
+      <button
         onClick={onClose}
         style={{
           position: 'absolute',
@@ -101,14 +101,14 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           justifyContent: 'center',
           flexShrink: 0
         }}>
-          <img 
-            src="/logomxv.svg" 
-            alt="MXV Logo" 
+          <img
+            src="/logomxv.svg"
+            alt="MXV Logo"
             style={{
               width: '100%',
               height: '100%',
               objectFit: 'contain'
-            }} 
+            }}
           />
         </div>
         <div className="sidebar-header-text">
@@ -146,7 +146,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
       {/* Menu links */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden', minHeight: '120px', marginBottom: '16px' }}>
-        
+
         {/* Section Header */}
         <div className="sidebar-section-header" style={{
           fontSize: '0.68rem',
@@ -160,9 +160,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           Giám sát
         </div>
 
-        <Link 
-          href="/dashboard" 
-          onClick={onClose} 
+        <Link
+          href="/dashboard"
+          onClick={onClose}
           className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}
           title={isCollapsed ? "Tổng quan giám sát" : undefined}
         >
@@ -171,18 +171,18 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         </Link>
         {canViewChecklist && (
           <>
-            <Link 
-              href="/checklist" 
-              onClick={onClose} 
+            <Link
+              href="/checklist"
+              onClick={onClose}
               className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
               title={isCollapsed ? "Ca trực hiện tại" : undefined}
             >
               <CheckSquare size={18} style={{ flexShrink: 0 }} />
               <span>Ca trực hiện tại</span>
             </Link>
-            <Link 
-              href="/history" 
-              onClick={onClose} 
+            <Link
+              href="/history"
+              onClick={onClose}
               className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
               title={isCollapsed ? "Tra cứu lịch sử" : undefined}
             >
@@ -191,9 +191,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </Link>
           </>
         )}
-        <Link 
-          href="/settings" 
-          onClick={onClose} 
+        <Link
+          href="/settings"
+          onClick={onClose}
           className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}
           title={isCollapsed ? "Cấu hình cá nhân" : undefined}
         >
@@ -214,39 +214,39 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             }}>
               Quản trị hệ thống
             </div>
-            
+
             {isAdmin && (
               <>
-                <Link 
-                  href="/admin/departments" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/departments"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/departments') ? 'active' : ''}`}
                   title={isCollapsed ? "Quản lý phòng ban" : undefined}
                 >
                   <Building2 size={18} style={{ flexShrink: 0 }} />
                   <span>Quản lý phòng ban</span>
                 </Link>
-                <Link 
-                  href="/admin/users" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/users"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/users') ? 'active' : ''}`}
                   title={isCollapsed ? "Quản lý tài khoản" : undefined}
                 >
                   <UserCheck size={18} style={{ flexShrink: 0 }} />
                   <span>Quản lý tài khoản</span>
                 </Link>
-                <Link 
-                  href="/admin/shift-slots" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/shift-slots"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/shift-slots') ? 'active' : ''}`}
                   title={isCollapsed ? "Cấu hình ca trực" : undefined}
                 >
                   <Clock size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình ca trực</span>
                 </Link>
-                <Link 
-                  href="/admin/bot-config" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/bot-config"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/bot-config') ? 'active' : ''}`}
                   title={isCollapsed ? "Cấu hình Bot/RPA" : undefined}
                 >
@@ -256,9 +256,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               </>
             )}
 
-            <Link 
-              href="/admin/templates" 
-              onClick={onClose} 
+            <Link
+              href="/admin/templates"
+              onClick={onClose}
               className={`nav-link ${pathname.startsWith('/admin/templates') ? 'active' : ''}`}
               title={isCollapsed ? "Mẫu checklist" : undefined}
             >
@@ -268,27 +268,27 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
             {isAdmin && (
               <>
-                <Link 
-                  href="/admin/calendar" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/calendar"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/calendar') ? 'active' : ''}`}
                   title={isCollapsed ? "Lịch giao dịch" : undefined}
                 >
                   <Calendar size={18} style={{ flexShrink: 0 }} />
                   <span>Lịch giao dịch</span>
                 </Link>
-                <Link 
-                  href="/admin/notifications" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/notifications"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/notifications') ? 'active' : ''}`}
                   title={isCollapsed ? "Cấu hình thông báo" : undefined}
                 >
                   <Bell size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình thông báo</span>
                 </Link>
-                <Link 
-                  href="/admin/permissions" 
-                  onClick={onClose} 
+                <Link
+                  href="/admin/permissions"
+                  onClick={onClose}
                   className={`nav-link ${pathname.startsWith('/admin/permissions') ? 'active' : ''}`}
                   title={isCollapsed ? "Phân quyền vai trò" : undefined}
                 >
@@ -333,7 +333,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       )}
 
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media (max-width: 1023px) {
           .sidebar-mobile-close {
             display: flex !important;

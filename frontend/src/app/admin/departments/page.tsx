@@ -330,7 +330,7 @@ export default function AdminDepartmentsPage() {
                           if (parent) {
                             return typeof parent === 'object' ? parent.name : parent;
                           }
-                          return <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Cấp Đơn vị chủ quản / Ban</em>;
+                          return <span style={{ color: 'var(--text-muted)', opacity: 0.4 }}>—</span>;
                         })()}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
@@ -510,7 +510,7 @@ export default function AdminDepartmentsPage() {
                     style={{ background: 'var(--bg-app)' }}
                     disabled={submitting}
                   >
-                    <option value="">-- Cấp Đơn vị chủ quản / Ban (Không có) --</option>
+                    <option value="">-- Không chọn (Đây là Đơn vị chủ quản / Ban) --</option>
                     {departments
                       .filter(d => d._id !== editingDept?._id && !d.parentDepartmentId)
                       .map(d => (

@@ -36,7 +36,18 @@ export class ShiftSlotsService {
     return this.shiftSlotModel.findOne({ code }).exec();
   }
 
+  private sanitizeOvernight(data: any) {
+    if (data.startTime && data.endTime) {
+      if (data.endTime < data.startTime) {
+        data.isOvernight = true;
+      } else if (data.endTime > data.startTime) {
+        data.isOvernight = false;
+      }
+    }
+  }
+
   async create(data: any): Promise<ShiftSlot> {
+    this.sanitizeOvernight(data);
     const existing = await this.shiftSlotModel
       .findOne({ code: data.code })
       .exec();
@@ -50,6 +61,7 @@ export class ShiftSlotsService {
   }
 
   async update(id: string, data: any): Promise<ShiftSlot> {
+    this.sanitizeOvernight(data);
     if (data.code) {
       const existing = await this.shiftSlotModel
         .findOne({ code: data.code, _id: { $ne: id } })

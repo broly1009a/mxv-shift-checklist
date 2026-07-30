@@ -151,7 +151,7 @@ body {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-right: var(--glass-border);
-  padding: 24px;
+  padding: 24px 0 24px 24px !important;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -161,6 +161,18 @@ body {
   z-index: 100;
   overflow: hidden;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Align sidebar elements when not collapsed to place the scrollbar at the far right */
+.sidebar:not(.collapsed) > div:not(.sidebar-mobile-close),
+.sidebar:not(.collapsed) .sidebar-user-details,
+.sidebar:not(.collapsed) .sidebar-status-card {
+  margin-right: 24px !important;
+}
+
+.sidebar:not(.collapsed) nav > a,
+.sidebar:not(.collapsed) nav > div {
+  margin-right: 24px !important;
 }
 
 .sidebar.collapsed {
