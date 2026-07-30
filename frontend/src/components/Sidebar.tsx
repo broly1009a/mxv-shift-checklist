@@ -16,7 +16,8 @@ import {
   Clock,
   Bell,
   Cpu,
-  ShieldAlert
+  ShieldAlert,
+  HelpCircle
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -302,34 +303,67 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
       </nav>
 
-      {/* Sidebar Uptime Status Card */}
+      {/* Sidebar Uptime Status Card or User Guide Link Card */}
       {!isCollapsed && (
-        <div className="sidebar-status-card" style={{ marginTop: '0px', marginBottom: '16px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              background: '#10b981',
-              borderRadius: '50%',
-              boxShadow: '0 0 6px #10b981'
-            }} />
-            <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-              Hệ thống ổn định
-            </strong>
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <div>Uptime 99.98%</div>
-            <div>TPS hiện tại: 1,248</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-              <span>Tải hệ thống:</span>
-              <span style={{ color: '#10b981', fontWeight: 600 }}>Thấp</span>
+        isAdmin ? (
+          <div className="sidebar-status-card" style={{ marginTop: '0px', marginBottom: '16px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                background: '#10b981',
+                borderRadius: '50%',
+                boxShadow: '0 0 6px #10b981'
+              }} />
+              <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                Hệ thống ổn định
+              </strong>
             </div>
-            {/* Progress line */}
-            <div style={{ width: '100%', height: '4px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
-              <div style={{ width: '25%', height: '100%', background: '#10b981', borderRadius: '2px' }} />
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div>Uptime 99.98%</div>
+              <div>TPS hiện tại: 1,248</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                <span>Tải hệ thống:</span>
+                <span style={{ color: '#10b981', fontWeight: 600 }}>Thấp</span>
+              </div>
+              {/* Progress line */}
+              <div style={{ width: '100%', height: '4px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
+                <div style={{ width: '25%', height: '100%', background: '#10b981', borderRadius: '2px' }} />
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <Link
+            href="/guide"
+            onClick={onClose}
+            className="glass-panel"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              padding: '14px',
+              borderRadius: '12px',
+              marginBottom: '16px',
+              border: '1px solid rgba(59, 130, 246, 0.15)',
+              background: 'rgba(59, 130, 246, 0.03)',
+              cursor: 'pointer',
+              textDecoration: 'none',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+              marginRight: '24px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <HelpCircle size={16} color="var(--color-accent)" />
+              <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                Hướng Dẫn Sử Dụng
+              </strong>
+            </div>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+              Xem hướng dẫn chi tiết quy trình bàn giao ca và đối chiếu dữ liệu.
+            </p>
+          </Link>
+        )
       )}
 
 

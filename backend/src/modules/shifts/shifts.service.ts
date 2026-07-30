@@ -277,7 +277,7 @@ export class ShiftsService {
       );
     }
 
-    const dept = (log.templateId as any)?.departmentId;
+    const dept = log.departmentId || (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
@@ -417,7 +417,7 @@ export class ShiftsService {
       );
     }
 
-    const dept = (log.templateId as any)?.departmentId;
+    const dept = log.departmentId || (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
@@ -835,7 +835,7 @@ export class ShiftsService {
       throw new NotFoundException('Không tìm thấy ca trực');
     }
 
-    const dept = (log.templateId as any)?.departmentId;
+    const dept = log.departmentId || (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
@@ -1233,7 +1233,7 @@ export class ShiftsService {
       throw new NotFoundException('Không tìm thấy ca trực');
     }
 
-    const dept = (log.templateId as any)?.departmentId;
+    const dept = log.departmentId || (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
@@ -1271,7 +1271,7 @@ export class ShiftsService {
       throw new NotFoundException('Không tìm thấy ca trực');
     }
 
-    const dept = (log.templateId as any)?.departmentId;
+    const dept = log.departmentId || (log.templateId as any)?.departmentId;
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
@@ -1283,7 +1283,13 @@ export class ShiftsService {
   }
 
   async globalSearch(query: string, user: any) {
+    console.log('[DEBUG] Global search details:', {
+      username: user?.username,
+      role: user?.role,
+      departmentId: user?.departmentId?._id || user?.departmentId,
+    });
     const scopeFilter = await this.accessControlService.getScopeFilter(user);
+    console.log('[DEBUG] Generated scopeFilter:', JSON.stringify(scopeFilter));
     const regex = new RegExp(query, 'i');
     
     // 1. Search Incidents via incidentsService

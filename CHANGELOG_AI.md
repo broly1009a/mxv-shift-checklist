@@ -6,6 +6,34 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-30 17:15:00] - Bugfix: Sửa lỗi validateScope trên ShiftLog khi templateId là null
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi tài khoản `sonhh` (IT STAFF) khi tìm kiếm ra kết quả ca trực của chính phòng ban IT (`IT_CORE`) click vào vẫn bị báo lỗi không thuộc phòng ban quản lý.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa lỗi trong `ShiftsService`: Thay đổi các vị trí kiểm tra phân quyền `validateScope`. Trước đó, logic trích xuất phòng ban của ca trực được lấy từ `(log.templateId as any)?.departmentId`. Đối với các ca trực cũ hoặc tạo thủ công có `templateId` là `null`, giá trị này sẽ bị `undefined` dẫn đến `validateScope` so sánh lệch phòng ban và chặn truy cập.
+    - Cấu hình trích xuất an toàn ưu tiên trường trực tiếp: `log.departmentId || (log.templateId as any)?.departmentId` tại 5 phương thức nghiệp vụ trong `shifts.service.ts`.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/modules/shifts/shifts.service.ts` (Sửa trích xuất phòng ban trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L280))
+
+## [2026-07-30 16:30:00] - Bugfix: Sửa lỗi phân quyền validateScope cho DIVISION_DIRECTOR và thêm log gỡ lỗi tìm kiếm toàn cầu
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi lệch phân quyền tìm kiếm toàn cầu dẫn đến tài khoản khi ấn vào kết quả tìm kiếm bị báo lỗi không thuộc phòng ban quản lý.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa lỗi trong `AccessControlService` -> `validateScope`: Bổ sung vai trò `DIVISION_DIRECTOR` vào danh sách bypass kiểm tra phòng ban khi truy cập tài nguyên chi tiết. Trước đó vai trò này chỉ được bypass trong `getScopeFilter` dẫn đến việc tìm thấy kết quả nhưng không thể click vào xem chi tiết ca trực.
+    - Bổ sung các log debug trong `shifts.service.ts` (`globalSearch`) và `incidents.service.ts` (`searchIncidents`) để in chi tiết bộ lọc `scopeFilter` và thông tin tài khoản hiện tại lên console.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/modules/auth/access-control.service.ts` (Thêm bypass `DIVISION_DIRECTOR` trong [validateScope](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/access-control.service.ts#L61))
+  - `backend/src/modules/shifts/shifts.service.ts` (Thêm log debug [globalSearch](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L1285))
+  - `backend/src/modules/incidents/incidents.service.ts` (Thêm log debug [searchIncidents](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/incidents/incidents.service.ts#L652))
+
 ## [2026-07-30 15:10:00] - Feature: Triển khai cơ cấu tổ chức phân cấp (Đơn vị công tác -> Bộ phận trực ca -> Chức danh)
 
 ### 1. Mục tiêu Thay đổi
@@ -40,6 +68,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - `frontend/src/app/admin/users/page.tsx` (Hiển thị cột Đơn vị công tác, Bộ phận trực ca, thêm datalist gợi ý thông minh và cấu hình ẩn/hiện tạm thời qua `showTitleField`)
   - `frontend/src/app/settings/page.tsx` (Hiển thị các trường thông tin cá nhân dưới dạng chỉ đọc khớp sơ đồ nhân sự, hỗ trợ ẩn tạm thời qua `showTitleField`)
   - `frontend/src/app/admin/departments/page.tsx` (Cập nhật giao diện tree view lồng nhau thụt lề cấp con, thêm dropdown liên kết đơn vị quản lý cấp trên)
+  - `frontend/src/app/admin/calendar/page.tsx` (Tự động nhận diện/cảnh báo ca qua đêm, ẩn cột Qua đêm và thay bằng icon Moon 🌙 phát sáng)
+  - `frontend/src/components/Sidebar.tsx` (Phân quyền hiển thị: Admin thấy status card, vai trò khác thấy card liên kết Hướng dẫn sử dụng)
+  - `frontend/src/app/guide/page.tsx` (Trang Hướng dẫn sử dụng chi tiết thiết kế cao cấp chia tab: quy trình ca trực, đối chiếu số liệu 3 bên, cấu hình RPA Bot và sự cố thường gặp)
+  - `frontend/src/app/globals.css` (Cải tiến đưa thanh cuộn sidebar sát rìa phải 100%)
 
 ## [2026-07-30 14:15:00] - Feature: Đồng bộ và dịch thuật vai trò DIVISION_DIRECTOR sang tiếng Việt (Giám đốc Khối)
 

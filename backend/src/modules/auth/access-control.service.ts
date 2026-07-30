@@ -57,8 +57,13 @@ export class AccessControlService {
 
     const { role } = user;
 
-    // General admins can access everything
-    if (role === 'ADMIN' || role === 'CEO' || role === 'CHAIRMAN') {
+    // General admins and division directors can access everything
+    if (
+      role === 'ADMIN' ||
+      role === 'CEO' ||
+      role === 'CHAIRMAN' ||
+      role === 'DIVISION_DIRECTOR'
+    ) {
       return true;
     }
 
