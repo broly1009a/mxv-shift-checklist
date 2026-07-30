@@ -69,7 +69,10 @@ export class UsersController {
     const [data, total] = await Promise.all([
       this.userModel
         .find(filter)
-        .populate('departmentId')
+        .populate({
+          path: 'departmentId',
+          populate: { path: 'parentDepartmentId' },
+        })
         .sort({ username: 1 })
         .skip(skip)
         .limit(limit)
@@ -96,6 +99,7 @@ export class UsersController {
       username,
       password,
       fullName,
+      title,
       departmentId,
       role,
       isActive,
@@ -122,6 +126,7 @@ export class UsersController {
       username: lowerUsername,
       passwordHash,
       fullName,
+      title: title || '',
       departmentId: departmentId || null,
       role,
       isActive: isActiveVal,
@@ -157,7 +162,10 @@ export class UsersController {
     }
     return this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
-      .populate('departmentId')
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
       .exec();
   }
 

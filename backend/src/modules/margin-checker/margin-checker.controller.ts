@@ -6,25 +6,33 @@ import {
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MarginCheckerService } from './margin-checker.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('margin-checker')
 export class MarginCheckerController {
   constructor(private readonly service: MarginCheckerService) {}
 
   @Get('config')
+  @Permissions('ACCESS_MARGIN_CHANGE')
   async getConfig() {
     return this.service.loadConfig();
   }
 
   @Post('config')
+  @Permissions('ACCESS_MARGIN_CHANGE')
   async saveConfig(@Body() config: any) {
     return this.service.saveConfig(config);
   }
 
   @Post('check-margin')
+  @Permissions('ACCESS_MARGIN_CHANGE')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'futures', maxCount: 1 },
@@ -70,6 +78,7 @@ export class MarginCheckerController {
   }
 
   @Post('check-change')
+  @Permissions('ACCESS_MARGIN_CHANGE')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'cmeExcel', maxCount: 1 },

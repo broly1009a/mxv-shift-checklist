@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { 
   Search, 
   SlidersHorizontal, 
   CheckCircle2, 
   Clock, 
-  Eye 
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { TableSkeleton } from '@/components/ui/Skeleton';
@@ -67,6 +69,7 @@ interface ShiftLog {
 
 function HistoryAudit() {
   const { token } = useAuth();
+  const { canViewChecklist } = usePermissions();
   
   // Filters
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -163,6 +166,29 @@ function HistoryAudit() {
       default: return <span className="badge badge-critical" style={{ padding: '2px 6px', fontSize: '0.7rem' }}>Khẩn Cấp</span>;
     }
   };
+
+  if (!canViewChecklist) {
+    return (
+      <ProtectedRoute>
+        <div className="glass-panel no-print" style={{
+          padding: '40px',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px'
+        }}>
+          <AlertCircle size={40} color="var(--color-critical)" />
+          <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Không có quyền truy cập</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Tài khoản của bạn không có quyền tra cứu lịch sử ca trực.</p>
+          <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '8px' }}>
+            Quay lại bảng điều khiển
+          </Link>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>

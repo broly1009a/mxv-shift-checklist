@@ -22,6 +22,7 @@ import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 @Injectable()
 export class ShiftsService {
   private readonly logger = new Logger(ShiftsService.name);
+  private initializingKeys = new Set<string>();
 
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
@@ -78,150 +79,179 @@ export class ShiftsService {
       shiftDate = vietnamTime.toISOString().split('T')[0];
     }
 
-    // Check if an active (PENDING) shift log already exists for this template and date
-    const existingLog = await this.shiftLogModel
-      .findOne({
+    // Concurrency Lock: Check if another request is initializing this template on this date
+    const lockKey = `${templateId}_${shiftDate}`;
+    if (this.initializingKeys.has(lockKey)) {
+      // Wait for a short duration to let the concurrent creation finish
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Re-query database to see if the pending log exists now
+      const existing = await this.shiftLogModel
+        .findOne({
+          templateId: new Types.ObjectId(templateId),
+          shiftDate,
+          status: 'PENDING',
+        })
+        .populate('userId', 'fullName username')
+        .populate({
+          path: 'templateId',
+          populate: { path: 'departmentId' },
+        })
+        .exec();
+      if (existing) {
+        return existing;
+      }
+    }
+
+    this.initializingKeys.add(lockKey);
+
+    try {
+      // Check if an active (PENDING) shift log already exists for this template and date
+      const existingLog = await this.shiftLogModel
+        .findOne({
+          templateId: new Types.ObjectId(templateId),
+          shiftDate,
+          status: 'PENDING',
+        })
+        .populate('userId', 'fullName username')
+        .populate({
+          path: 'templateId',
+          populate: { path: 'departmentId' },
+        })
+        .exec();
+
+      if (existingLog) {
+        await this.systemLogsService.logEvent({
+          eventType: 'JOB_GENERATION_SKIPPED',
+          source: 'USER',
+          actorUserId: user.id || user._id,
+          departmentId: existingLog.departmentId,
+          shiftSlotId: existingLog.shiftSlotId,
+          jobId: existingLog._id,
+          status: 'SKIPPED',
+          message: `Bỏ qua khởi tạo ca trực cho mẫu "${(existingLog.templateId as any)?.title}" do đã tồn tại.`,
+          metadata: {
+            templateTitle: (existingLog.templateId as any)?.title,
+            date: shiftDate,
+          },
+        });
+        return existingLog;
+      }
+
+      const details = template.tasks.map((task) => ({
+        taskId: task.taskId,
+        taskNameSnapshot: task.taskName,
+        prioritySnapshot: task.priority,
+        deadlineSnapshot: task.deadline || null,
+        isChecked: false,
+        checkedAt: null,
+        updatedBy: null,
+        note: null,
+        functionUrlSnapshot: task.functionUrl || '',
+        urdReferenceSnapshot: task.urdReference || '',
+        fileLocationSnapshot: task.fileLocation || '',
+        timetableSnapshot: task.timetable || '',
+        isBotCheckSnapshot: task.isBotCheck || false,
+        botTriggerTimeSnapshot: task.botTriggerTime || '',
+        botCheckTypeSnapshot: task.botCheckType || '',
+        botCheckTargetSnapshot: task.botCheckTarget || '',
+        botSuccessConditionSnapshot: task.botSuccessCondition || '',
+        botFailureActionSnapshot: task.botFailureAction || '',
+        status: 'PENDING',
+        dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
+        sessionTypeSnapshot: task.sessionType || null,
+        triggerTimeSnapshot: task.triggerTime || null,
+        slaDeadlineSnapshot: task.slaDeadline || null,
+        slaWindowStartSnapshot: task.slaWindowStart || null,
+        slaWindowEndSnapshot: task.slaWindowEnd || null,
+        actionDescriptionSnapshot: task.actionDescription || '',
+        exceptionCodeSnapshot: task.exceptionCode || '',
+        frequencyMinutesSnapshot: task.frequencyMinutes || null,
+        recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
+        parentTaskIdSnapshot: (task as any).parentTaskId || null,
+        slaTypeSnapshot: (task as any).slaType || 'FIXED_TIME',
+      }));
+
+      const newLog = new this.shiftLogModel({
         templateId: new Types.ObjectId(templateId),
+        userId: new Types.ObjectId(user.id || user._id),
+        shiftSlotId: template.shiftSlotId
+          ? new Types.ObjectId(template.shiftSlotId as any)
+          : null,
+        departmentId: template.departmentId
+          ? new Types.ObjectId(template.departmentId as any)
+          : null,
         shiftDate,
         status: 'PENDING',
-      })
-      .populate('userId', 'fullName username')
-      .populate({
-        path: 'templateId',
-        populate: { path: 'departmentId' },
-      })
-      .exec();
+        progressPercentage: 0.0,
+        details,
+        creationSource: 'MANUAL_USER',
+        createdByType: 'USER',
+      });
 
-    if (existingLog) {
+      const saved = await newLog.save();
+      const result = await this.shiftLogModel
+        .findById(saved._id)
+        .populate('userId', 'fullName username')
+        .populate({
+          path: 'templateId',
+          populate: { path: 'departmentId' },
+        })
+        .populate('shiftSlotId')
+        .populate('departmentId')
+        .exec();
+      if (!result) {
+        throw new NotFoundException('Lỗi khởi tạo ca trực');
+      }
+
+      // Gửi thông báo Telegram khi khởi tạo ca trực
+      const deptName =
+        (result.templateId as any)?.departmentId?.name || 'Vận hành';
+      await this.telegramService.sendMessage(
+        `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
+          `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
+          `• Ngày trực: <b>${result.shiftDate}</b>\n` +
+          `• Phòng ban: <b>${deptName}</b>\n` +
+          `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
+      );
+
+      // Ghi nhận log hệ thống
       await this.systemLogsService.logEvent({
-        eventType: 'JOB_GENERATION_SKIPPED',
+        eventType: 'JOB_GENERATION',
         source: 'USER',
         actorUserId: user.id || user._id,
-        departmentId: existingLog.departmentId,
-        shiftSlotId: existingLog.shiftSlotId,
-        jobId: existingLog._id,
-        status: 'SKIPPED',
-        message: `Bỏ qua khởi tạo ca trực cho mẫu "${(existingLog.templateId as any)?.title}" do đã tồn tại.`,
+        jobId: result._id,
+        departmentId: result.departmentId,
+        shiftSlotId: result.shiftSlotId,
+        status: 'SUCCESS',
+        message: `Khởi tạo thành công ca trực "${(result.templateId as any)?.title}" bởi ${user.fullName || 'Nhân sự'}.`,
         metadata: {
-          templateTitle: (existingLog.templateId as any)?.title,
-          date: shiftDate,
+          templateTitle: (result.templateId as any)?.title,
+          date: result.shiftDate,
         },
       });
-      return existingLog;
+
+      // Phát sự kiện qua WebSocket
+      this.shiftsGateway.emitEvent(
+        'SHIFT_JOB_GENERATED',
+        result._id.toString(),
+        result.departmentId ? result.departmentId.toString() : null,
+        result.shiftSlotId ? result.shiftSlotId.toString() : null,
+        result.shiftDate,
+        { title: (result.templateId as any)?.title },
+      );
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        null,
+        null,
+        null,
+        result.shiftDate,
+        {},
+      );
+
+      return result;
+    } finally {
+      this.initializingKeys.delete(lockKey);
     }
-
-    const details = template.tasks.map((task) => ({
-      taskId: task.taskId,
-      taskNameSnapshot: task.taskName,
-      prioritySnapshot: task.priority,
-      deadlineSnapshot: task.deadline || null,
-      isChecked: false,
-      checkedAt: null,
-      updatedBy: null,
-      note: null,
-      functionUrlSnapshot: task.functionUrl || '',
-      urdReferenceSnapshot: task.urdReference || '',
-      fileLocationSnapshot: task.fileLocation || '',
-      timetableSnapshot: task.timetable || '',
-      isBotCheckSnapshot: task.isBotCheck || false,
-      botTriggerTimeSnapshot: task.botTriggerTime || '',
-      botCheckTypeSnapshot: task.botCheckType || '',
-      botCheckTargetSnapshot: task.botCheckTarget || '',
-      botSuccessConditionSnapshot: task.botSuccessCondition || '',
-      botFailureActionSnapshot: task.botFailureAction || '',
-      status: 'PENDING',
-      dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
-      sessionTypeSnapshot: task.sessionType || null,
-      triggerTimeSnapshot: task.triggerTime || null,
-      slaDeadlineSnapshot: task.slaDeadline || null,
-      slaWindowStartSnapshot: task.slaWindowStart || null,
-      slaWindowEndSnapshot: task.slaWindowEnd || null,
-      actionDescriptionSnapshot: task.actionDescription || '',
-      exceptionCodeSnapshot: task.exceptionCode || '',
-      frequencyMinutesSnapshot: task.frequencyMinutes || null,
-      recurrenceGroupIdSnapshot: task.recurrenceGroupId || '',
-      parentTaskIdSnapshot: (task as any).parentTaskId || null,
-      slaTypeSnapshot: (task as any).slaType || 'FIXED_TIME',
-    }));
-
-    const newLog = new this.shiftLogModel({
-      templateId: new Types.ObjectId(templateId),
-      userId: new Types.ObjectId(user.id || user._id),
-      shiftSlotId: template.shiftSlotId
-        ? new Types.ObjectId(template.shiftSlotId as any)
-        : null,
-      departmentId: template.departmentId
-        ? new Types.ObjectId(template.departmentId as any)
-        : null,
-      shiftDate,
-      status: 'PENDING',
-      progressPercentage: 0.0,
-      details,
-      creationSource: 'MANUAL_USER',
-      createdByType: 'USER',
-    });
-
-    const saved = await newLog.save();
-    const result = await this.shiftLogModel
-      .findById(saved._id)
-      .populate('userId', 'fullName username')
-      .populate({
-        path: 'templateId',
-        populate: { path: 'departmentId' },
-      })
-      .populate('shiftSlotId')
-      .populate('departmentId')
-      .exec();
-    if (!result) {
-      throw new NotFoundException('Lỗi khởi tạo ca trực');
-    }
-
-    // Gửi thông báo Telegram khi khởi tạo ca trực
-    const deptName =
-      (result.templateId as any)?.departmentId?.name || 'Vận hành';
-    await this.telegramService.sendMessage(
-      `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
-        `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
-        `• Ngày trực: <b>${result.shiftDate}</b>\n` +
-        `• Phòng ban: <b>${deptName}</b>\n` +
-        `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
-    );
-
-    // Ghi nhận log hệ thống
-    await this.systemLogsService.logEvent({
-      eventType: 'JOB_GENERATED',
-      source: 'USER',
-      actorUserId: user.id || user._id,
-      jobId: result._id,
-      departmentId: result.departmentId,
-      shiftSlotId: result.shiftSlotId,
-      status: 'SUCCESS',
-      message: `Khởi tạo thành công ca trực "${(result.templateId as any)?.title}" bởi ${user.fullName || 'Nhân sự'}.`,
-      metadata: {
-        templateTitle: (result.templateId as any)?.title,
-        date: result.shiftDate,
-      },
-    });
-
-    // Phát sự kiện qua WebSocket
-    this.shiftsGateway.emitEvent(
-      'SHIFT_JOB_GENERATED',
-      result._id.toString(),
-      result.departmentId ? result.departmentId.toString() : null,
-      result.shiftSlotId ? result.shiftSlotId.toString() : null,
-      result.shiftDate,
-      { title: (result.templateId as any)?.title },
-    );
-    this.shiftsGateway.emitEvent(
-      'DASHBOARD_UPDATED',
-      null,
-      null,
-      null,
-      result.shiftDate,
-      {},
-    );
-
-    return result;
   }
 
   async addAdhocTask(
@@ -1070,13 +1100,24 @@ export class ShiftsService {
     ) {
       const deptId = user.departmentId?._id || user.departmentId;
       const templates = await this.templateModel
-        .find({ departmentId: new Types.ObjectId(deptId) })
+        .find({
+          departmentId: {
+            $in: [new Types.ObjectId(deptId), deptId.toString()],
+          },
+        })
         .exec();
       const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
       const templates = await this.templateModel
-        .find({ departmentId: new Types.ObjectId(departmentId) })
+        .find({
+          departmentId: {
+            $in: [
+              new Types.ObjectId(departmentId),
+              departmentId.toString(),
+            ],
+          },
+        })
         .exec();
       const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };
@@ -1135,13 +1176,24 @@ export class ShiftsService {
     ) {
       const deptId = user.departmentId?._id || user.departmentId;
       const templates = await this.templateModel
-        .find({ departmentId: new Types.ObjectId(deptId) })
+        .find({
+          departmentId: {
+            $in: [new Types.ObjectId(deptId), deptId.toString()],
+          },
+        })
         .exec();
       const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };
     } else if (departmentId && Types.ObjectId.isValid(departmentId)) {
       const templates = await this.templateModel
-        .find({ departmentId: new Types.ObjectId(departmentId) })
+        .find({
+          departmentId: {
+            $in: [
+              new Types.ObjectId(departmentId),
+              departmentId.toString(),
+            ],
+          },
+        })
         .exec();
       const templateIds = templates.map((t) => t._id);
       filter.templateId = { $in: templateIds };

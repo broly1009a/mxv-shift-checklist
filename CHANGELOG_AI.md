@@ -4,6 +4,151 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+
+
+## [2026-07-30 15:10:00] - Feature: Triển khai cơ cấu tổ chức phân cấp (Đơn vị công tác -> Bộ phận trực ca -> Chức danh)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nâng cấp cấu trúc dữ liệu để lưu trữ và hiển thị phân cấp hành chính: Đơn vị công tác (Ban cha) -> Bộ phận trực ca (Bộ phận con) -> Chức danh/Chức vụ (Job title) của nhân sự trực ca khớp với sơ đồ nhân sự thực tế. Đồng thời, tạm thời ẩn cột Chức danh trên bảng hiển thị danh sách người dùng và trong ô nhập khi tạo tài khoản (có cấu hình bật lại dễ dàng) và chuyển ô nhập chức danh thành dạng gợi ý thông minh (datalist).
+- **Giải pháp**:
+  - **Mongoose & Database (Backend)**:
+    - Thêm trường tự tham chiếu `parentDepartmentId` vào Schema `Department` để thiết lập quan hệ cha-con.
+    - Thêm trường `title` vào Schema `User`.
+    - Cập nhật hàm `seedDepartments` và `seedUsers` trong `SeedService` để nạp đơn vị cấp Ban cha: **Ban Giám sát thị trường** (`BAN_GSTT`), thiết lập làm cha của **Quản lý giám sát giao dịch** (`QLGD_OPS`) và **Quản lý giám sát rủi ro** (`QLRR_RISK`). Đồng thời gán chức danh mẫu cho các tài khoản gốc.
+  - **API Controllers & Services (Backend)**:
+    - Bổ sung cấu hình deep populate `departmentId.parentDepartmentId` trong `UsersController`, `JwtStrategy` và `AuthService` để tự động trả về thông tin Ban cha của mỗi thành viên trên mọi request.
+    - Cập nhật `DepartmentsController` để populate `parentDepartmentId` khi liệt kê hoặc cập nhật phòng ban.
+  - **Giao diện (Frontend)**:
+    - Cập nhật trang Quản lý thành viên (`/admin/users`) hiển thị thêm 2 cột: **Đơn vị công tác** (Tên ban cha) và **Bộ phận trực ca** (Tên bộ phận con).
+    - Triển khai biến cờ hiệu `showTitleField = false` tại `/admin/users` và `/settings` để tạm thời ẩn trường Chức danh/Chức vụ theo yêu cầu của USER.
+    - Cấu hình ô nhập Chức danh ở dạng **chọn gợi ý thông minh** (`<datalist>` chứa các lựa chọn mẫu như Chuyên viên, Trưởng ca...) để khi bật lại `showTitleField = true`, quản trị viên chỉ cần chọn nhanh mà không cần nhập tay hoàn toàn.
+    - Cho phép vai trò `DIVISION_DIRECTOR` (Giám đốc Khối) tùy chọn chọn/không chọn phòng ban.
+    - Cập nhật trang Quản lý Phòng Ban Vận Hành (`/admin/departments`) tích hợp chung quản lý cả Ban cha và Bộ phận con: hiển thị thêm cột **Thuộc Đơn Vị Quản Lý** trên bảng danh sách, và thêm ô chọn **Đơn vị quản lý cấp trên (Không bắt buộc)** trong modal Thêm/Sửa phòng ban để Admin dễ dàng cấu hình liên kết cha-con trực tiếp từ giao diện.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/schemas/department.schema.ts` (Thêm trường [parentDepartmentId](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/department.schema.ts#L9-L10))
+  - `backend/src/schemas/user.schema.ts` (Thêm trường [title](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/user.schema.ts#L13-L16))
+  - `backend/src/database/seed.service.ts` (Cập nhật [seedDepartments](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts#L61) và [seedUsers](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts#L141))
+  - `backend/src/modules/admin/users.controller.ts` (Sửa truy vấn [findAll](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/users.controller.ts#L72) và [create]/[update] để trả về deep populated parent department và lưu title)
+  - `backend/src/modules/admin/departments.controller.ts` (Thêm populate parentDepartmentId trong [findAll](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/departments.controller.ts#L35) và [update](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/departments.controller.ts#L55))
+  - `backend/src/modules/auth/jwt.strategy.ts` (Cập nhật [validate](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/jwt.strategy.ts#L27) để deep populate)
+  - `backend/src/modules/auth/auth.service.ts` (Cập nhật các hàm kiểm tra/tạo người dùng để deep populate và trả về trường title)
+- **Frontend (Chỉnh sửa)**:
+  - `frontend/src/context/AuthContext.tsx` (Thêm định nghĩa kiểu trong User interface)
+  - `frontend/src/app/admin/users/page.tsx` (Hiển thị cột Đơn vị công tác, Bộ phận trực ca, thêm datalist gợi ý thông minh và cấu hình ẩn/hiện tạm thời qua `showTitleField`)
+  - `frontend/src/app/settings/page.tsx` (Hiển thị các trường thông tin cá nhân dưới dạng chỉ đọc khớp sơ đồ nhân sự, hỗ trợ ẩn tạm thời qua `showTitleField`)
+  - `frontend/src/app/admin/departments/page.tsx` (Cập nhật giao diện tree view lồng nhau thụt lề cấp con, thêm dropdown liên kết đơn vị quản lý cấp trên)
+
+## [2026-07-30 14:15:00] - Feature: Đồng bộ và dịch thuật vai trò DIVISION_DIRECTOR sang tiếng Việt (Giám đốc Khối)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Dịch hiển thị vai trò `DIVISION_DIRECTOR` sang tiếng Việt vì vai trò này chưa được hiển thị tiếng Việt trên giao diện quản trị thành viên.
+- **Giải pháp**:
+  - **Backend**:
+    - Khai báo và cấu hình nạp dữ liệu mẫu (seeding) cho vai trò `DIVISION_DIRECTOR` với tên hiển thị là "Giám đốc Khối" và phân quyền mặc định (`VIEW_CHECKLIST`, `ACCESS_MARGIN_CHANGE`, `ACCESS_AUTO_SHIFT`, `ACCESS_HEALTH_CHECKS`, `RESOLVE_INCIDENTS`).
+    - Cập nhật hàm `getScopeFilter` trong `AccessControlService` để cho phép tài khoản thuộc vai trò `DIVISION_DIRECTOR` xem toàn bộ dữ liệu hệ thống (bypass bộ lọc theo phòng ban).
+  - **Frontend**:
+    - Bổ sung định nghĩa kiểu `DIVISION_DIRECTOR` vào interface `User`.
+    - Dịch hiển thị vai trò `DIVISION_DIRECTOR` thành "Giám đốc Khối" và áp dụng badge màu tím sang trọng (`#a855f7`) trên các trang: Danh sách thành viên quản trị (`/admin/users`), cài đặt thông tin cá nhân (`/settings`), Menu tiêu đề (`Header`) và thanh điều hướng bên (`Sidebar`).
+    - Bổ sung tùy chọn lọc và tạo mới/chỉnh sửa người dùng với vai trò "Giám đốc Khối" ở trang quản lý thành viên.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/database/seed.service.ts` (Thêm seed role [seedRoles](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts#L438))
+  - `backend/src/modules/auth/access-control.service.ts` (Sửa hàm [getScopeFilter](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/access-control.service.ts#L27) để bypass filter phòng ban)
+- **Frontend (Chỉnh sửa)**:
+  - `frontend/src/app/admin/users/page.tsx` (Dịch thuật, bổ sung dropdown, badge màu tím)
+  - `frontend/src/components/Sidebar.tsx` (Bổ sung nhãn sidebar)
+  - `frontend/src/components/Header.tsx` (Bổ sung nhãn header menu)
+  - `frontend/src/app/settings/page.tsx` (Bổ sung nhãn trang cá nhân)
+
+## [2026-07-30 10:35:00] - Bugfix: Khắc phục lỗi lệch kiểu dữ liệu departmentId (String vs ObjectId) khiến Trang Checklist trống ca trực
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi trang checklist hiển thị thông báo "Chưa có ca trực nào được tạo hôm nay" nhưng ngoài dashboard vẫn thấy ca trực và có nút mở.
+- **Nguyên nhân**: 
+  - Trong bộ dữ liệu hạt giống (seed data) trong MongoDB, trường `departmentId` của bảng `checklist_templates` được lưu dưới dạng kiểu **String** (`'6a2fa0183cd9b0de35d6d494'`), trong khi ở bảng `shift_logs` nó được lưu dưới dạng **ObjectId** (`new ObjectId('...')`).
+  - Khi xem trang `/checklist`, API `/api/v1/shifts/active` thực hiện truy vấn các mẫu ca trực tương ứng với phòng ban của user (dưới dạng `ObjectId`), nhưng Mongoose so sánh `ObjectId` với `String` trong MongoDB không khớp, dẫn đến danh sách mẫu trả về rỗng (`[]`), làm bộ lọc ca trực hoạt động sai và trả về không có ca trực nào.
+  - Phân hệ Dashboard truy vấn trực tiếp bảng `shift_logs` (lưu đúng dạng `ObjectId`), nên vẫn tìm thấy và hiển thị bình thường.
+
+### 2. Giải pháp
+- Cập nhật hàm `getScopeFilter` trong `AccessControlService` để sinh bộ lọc linh hoạt dạng `$in` chứa cả `ObjectId` và `String` của `departmentId`.
+- Cập nhật các câu lệnh truy vấn `.find({ departmentId: ... })` tìm template trong `ShiftsService` (`getActiveShiftsByDepartment` và `getShiftsHistory`) sử dụng bộ lọc kết hợp `$in` chứa cả `ObjectId` và `String`.
+- Cập nhật tập lệnh nạp dữ liệu mẫu `SeedService` (`seed.service.ts`) để ép kiểu tường minh `new Types.ObjectId(deptId)` trước khi tạo mới hoặc cập nhật mẫu template checklist. Việc này giúp chuẩn hóa dữ liệu mẫu về đúng kiểu `ObjectId` trong MongoDB cho các phiên bản sau.
+- Biên dịch production build (`npm run build`) thành công 100%.
+
+### 3. Danh sách file chỉnh sửa
+- **Backend**:
+  - `backend/src/modules/auth/access-control.service.ts` (Sửa hàm [getScopeFilter](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/access-control.service.ts#L31))
+  - `backend/src/modules/shifts/shifts.service.ts` (Sửa hàm [getActiveShiftsByDepartment](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L1168) và [getShiftsHistory](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L1103))
+  - `backend/src/database/seed.service.ts` (Sửa hàm [seedTemplates](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts#L320) và thêm import `Types` từ Mongoose)
+
+## [2026-07-30 09:15:00] - Security: Củng cố bảo mật phân quyền toàn diện ở Backend & Đồng bộ Frontend
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Lên kế hoạch và triển khai bảo mật phân quyền chi tiết cho tất cả các module nghiệp vụ và đối chiếu để tránh rủi ro/sơ sót trong vận hành UAT.
+- **Giải pháp**:
+  - **Đồng bộ Ca trực (Shifts) ở Frontend**: Cập nhật giao diện để ẩn liên kết trong `Sidebar`, ẩn các widget liên quan đến ca trực trên `Dashboard`, và chặn truy cập trái phép bằng màn hình cảnh báo tại trang `/checklist` và `/history` nếu vai trò người dùng bị thu hồi quyền `VIEW_CHECKLIST`.
+  - **Bổ sung chú thích quyền hạn (Tooltips) ở Frontend**: Thêm biểu tượng thông tin (`Info` icon) bên cạnh mỗi tên quyền trong trang Phân quyền vai trò `/admin/permissions` (ở cả chế độ xem 2 cột và chế độ ma trận so sánh) hiển thị mô tả rõ nghĩa bằng tiếng Việt để hỗ trợ người quản trị dễ dàng cấu hình khi di chuột vào.
+  - **Backend Security Hardening**: Áp dụng triệt để `JwtAuthGuard` và `PermissionsGuard` cho toàn bộ các API thuộc 7 Controller công cụ và sự cố (vốn trước đây bị bỏ trống không yêu cầu đăng nhập hoặc chỉ kiểm tra đăng nhập tĩnh). Đồng thời giải quyết lỗi thiếu dependency `RoleModel` tại runtime bằng cách import `AuthModule` (và `SystemSettingsModule` nơi cần thiết) vào cả 5 Modules nghiệp vụ thô.
+    - [incidents.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/incidents/incidents.controller.ts) -> Yêu cầu quyền `RESOLVE_INCIDENTS` cho các tác vụ thay đổi, và `VIEW_CHECKLIST` cho việc đọc dữ liệu.
+    - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts) -> Yêu cầu quyền `ACCESS_AUTO_SHIFT` cho đối chiếu tự động, `ACCESS_MARGIN_CHANGE` cho quét ký quỹ khả dụng âm.
+    - [margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.controller.ts) -> Yêu cầu quyền `ACCESS_MARGIN_CHANGE`.
+    - [trading-report.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/trading-report/trading-report.controller.ts) -> Yêu cầu quyền `ACCESS_AUTO_SHIFT`.
+    - [ccp-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-statistics.controller.ts) -> Yêu cầu quyền `ACCESS_AUTO_SHIFT`.
+    - [lot-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.controller.ts) -> Yêu cầu quyền `ACCESS_AUTO_SHIFT`.
+    - [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts) -> Yêu cầu quyền `ACCESS_AUTO_SHIFT`.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/modules/incidents/incidents.controller.ts`
+  - `backend/src/modules/reconciliation/reconciliation.controller.ts`
+  - `backend/src/modules/reconciliation/reconciliation.module.ts`
+  - `backend/src/modules/margin-checker/margin-checker.controller.ts`
+  - `backend/src/modules/margin-checker/margin-checker.module.ts`
+  - `backend/src/modules/trading-report/trading-report.controller.ts`
+  - `backend/src/modules/trading-report/trading-report.module.ts`
+  - `backend/src/modules/ccp-statistics/ccp-statistics.controller.ts`
+  - `backend/src/modules/ccp-statistics/ccp-statistics.module.ts`
+  - `backend/src/modules/lot-statistics/lot-statistics.controller.ts`
+  - `backend/src/modules/lot-statistics/lot-statistics.module.ts`
+  - `backend/src/modules/lot-statistics/value-statistics.controller.ts`
+  - `backend/src/modules/shifts/shifts.controller.ts`
+- **Frontend (Chỉnh sửa)**:
+  - `frontend/src/hooks/usePermissions.ts`
+  - `frontend/src/components/Sidebar.tsx`
+  - `frontend/src/app/dashboard/page.tsx`
+  - `frontend/src/app/checklist/page.tsx`
+  - `frontend/src/app/history/page.tsx`
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`npm run build`) thành công 100%.
+- Kiểm thử kiểu dữ liệu Frontend (`npx tsc --noEmit`) thành công 100%.
+
+---
+
+## [2026-07-30 08:45:00] - Fix: Khắc phục lỗi trùng lặp khi khởi tạo ca trực (Double Click & Backend Concurrency Lock)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Kiểm tra thông tin đúp chuột nhanh 2 lần tạo ra 2 bản ghi ca trực "Checklist Mở Cửa - IT Vận Hành Core" cùng thời điểm và hỏi về khả năng chống lỗi trên backend.
+- **Nguyên nhân**:
+  - Khi gửi 2 request khởi tạo ca trực song song (khoảng cách vài mili-giây), cả hai đều chạy qua lệnh kiểm tra `findOne` trong Database trước khi bất kỳ bản ghi nào kịp lưu xong. Do đó cả hai request đều thỏa mãn điều kiện và tạo ra 2 bản ghi ca trực trùng lặp.
+- **Giải pháp**:
+  - **Phía Frontend**: Disable nút "Bắt đầu ca trực" và thêm trạng thái `isInitializingShift` để ngăn chặn việc người dùng nhấn chuột nhiều lần liên tục tạo request trùng lặp từ giao diện.
+  - **Phía Backend**: Triển khai cơ chế **Concurrency Lock** trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) sử dụng một `initializingKeys` Set (in-memory lock key dạng `${templateId}_${shiftDate}`).
+    - Khi luồng đầu tiên đang khởi tạo, key này được đăng ký vào Set.
+    - Luồng thứ hai đến ngay sau đó phát hiện key đang bị khóa, sẽ tự động chờ (`setTimeout(800)`) cho luồng 1 hoàn tất việc ghi DB.
+    - Sau khi luồng thứ hai thức dậy, nó sẽ truy vấn lại database và trả về đúng bản ghi vừa được luồng 1 khởi tạo, loại bỏ hoàn toàn khả năng ghi đè/trùng lặp bản ghi ca trực trên server.
+
+### 2. Danh sách file chỉnh sửa
+- **Chỉnh sửa**:
+  - [InitShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/InitShiftWidget.tsx)
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/page.tsx)
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts)
+
+---
+
 ## [2026-07-29 18:14:00] - Refactor: Tích hợp chế độ xem kép (Dual View Modes) cho màn hình Phân Quyền
 
 ### 1. Mục tiêu Thay đổi

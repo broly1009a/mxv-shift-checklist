@@ -30,13 +30,14 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { canManageTemplates, isAdmin } = usePermissions();
+  const { canManageTemplates, isAdmin, canViewChecklist } = usePermissions();
 
   const getRoleName = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'Quản trị viên';
       case 'CHAIRMAN': return 'Chủ tịch';
       case 'CEO': return 'Ban Giám đốc';
+      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
       case 'STAFF': return 'Nhân viên';
       default: return role;
@@ -48,6 +49,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       case 'ADMIN': return 'badge badge-critical';
       case 'CHAIRMAN': return 'badge badge-high';
       case 'CEO': return 'badge badge-high';
+      case 'DIVISION_DIRECTOR': return 'badge badge-high';
       case 'DEPARTMENT_HEAD': return 'badge badge-medium';
       default: return 'badge badge-low';
     }
@@ -167,24 +169,28 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           <LayoutDashboard size={18} style={{ flexShrink: 0 }} />
           <span>Tổng quan</span>
         </Link>
-        <Link 
-          href="/checklist" 
-          onClick={onClose} 
-          className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
-          title={isCollapsed ? "Ca trực hiện tại" : undefined}
-        >
-          <CheckSquare size={18} style={{ flexShrink: 0 }} />
-          <span>Ca trực hiện tại</span>
-        </Link>
-        <Link 
-          href="/history" 
-          onClick={onClose} 
-          className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
-          title={isCollapsed ? "Tra cứu lịch sử" : undefined}
-        >
-          <History size={18} style={{ flexShrink: 0 }} />
-          <span>Tra cứu lịch sử</span>
-        </Link>
+        {canViewChecklist && (
+          <>
+            <Link 
+              href="/checklist" 
+              onClick={onClose} 
+              className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
+              title={isCollapsed ? "Ca trực hiện tại" : undefined}
+            >
+              <CheckSquare size={18} style={{ flexShrink: 0 }} />
+              <span>Ca trực hiện tại</span>
+            </Link>
+            <Link 
+              href="/history" 
+              onClick={onClose} 
+              className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
+              title={isCollapsed ? "Tra cứu lịch sử" : undefined}
+            >
+              <History size={18} style={{ flexShrink: 0 }} />
+              <span>Tra cứu lịch sử</span>
+            </Link>
+          </>
+        )}
         <Link 
           href="/settings" 
           onClick={onClose} 

@@ -4,6 +4,7 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Clock,
   User as UserIcon,
@@ -35,6 +36,7 @@ import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 import CloseShiftModal from './components/CloseShiftModal';
 
 function ChecklistWorksheet() {
+  const { canViewChecklist } = usePermissions();
   const {
     user,
     token,
@@ -133,6 +135,28 @@ function ChecklistWorksheet() {
       default: return <span className="badge badge-high">Đóng Cửa</span>;
     }
   };
+
+  // Render permission check
+  if (!canViewChecklist) {
+    return (
+      <div className="glass-panel no-print" style={{
+        padding: '40px',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '12px'
+      }}>
+        <AlertCircle size={40} color="var(--color-critical)" />
+        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Không có quyền truy cập</p>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Tài khoản của bạn không có quyền xem checklist ca trực.</p>
+        <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '8px' }}>
+          Quay lại bảng điều khiển
+        </Link>
+      </div>
+    );
+  }
 
   // Render loading skeleton
   if (loading && !log) {

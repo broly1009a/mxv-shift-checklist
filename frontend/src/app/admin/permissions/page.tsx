@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { Shield, Save, RotateCcw, AlertCircle, Check, Loader2, Users, LayoutGrid, CheckCircle2 } from 'lucide-react';
+import { Shield, Save, RotateCcw, AlertCircle, Check, Loader2, Users, LayoutGrid, CheckCircle2, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/Sidebar';
@@ -20,6 +20,21 @@ interface SystemPermission {
   name: string;
   category: string;
 }
+
+const PERMISSION_DESCRIPTIONS: Record<string, string> = {
+  VIEW_CHECKLIST: 'Cho phép xem danh sách checklist, xem tiến độ ca trực hiện tại và tra cứu lịch sử các ca trực cũ.',
+  EDIT_CHECKLIST: 'Cho phép tích chọn hoàn thành tác vụ, cập nhật tiến độ công việc trong checklist ca trực.',
+  INITIALIZE_SHIFT: 'Cho phép khởi tạo ca trực mới từ các mẫu cấu hình có sẵn.',
+  CLOSE_SHIFT: 'Cho phép kết thúc ca trực, xác nhận hoàn thành toàn bộ checklist ca trực.',
+  ACCESS_MARGIN_CHANGE: 'Cho phép truy cập phân hệ đối chiếu ký quỹ khả dụng (Nano) và lưu cấu hình quét ký quỹ.',
+  ACCESS_AUTO_SHIFT: 'Cho phép truy cập các công cụ đối chiếu khớp lệnh tự động, thống kê số lot, macro giá trị giao dịch, xuất báo cáo CCP và kích hoạt Bot RPA.',
+  ACCESS_HEALTH_CHECKS: 'Cho phép truy cập trang giám sát hạ tầng mạng và kiểm tra sức khỏe hệ thống.',
+  RESOLVE_INCIDENTS: 'Cho phép ghi nhận ngoại lệ, báo cáo sự cố ca trực và cập nhật trạng thái xử lý sự cố.',
+  MANAGE_TEMPLATES: 'Cho phép tạo mới, chỉnh sửa hoặc xóa các mẫu checklist của ca trực.',
+  MANAGE_USERS: 'Cho phép quản lý tài khoản người dùng (tạo mới, sửa đổi thông tin, kích hoạt/khóa tài khoản).',
+  MANAGE_ROLES: 'Cho phép thay đổi ma trận phân quyền và thiết lập quyền hạn cho các vai trò.',
+  MANAGE_CALENDAR: 'Cho phép quản lý lịch trực tháng, gán ca trực và ca làm việc cho nhân viên.',
+};
 
 export default function PermissionsPage() {
   const { user: currentUser, token } = useAuth();
@@ -211,6 +226,51 @@ export default function PermissionsPage() {
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <style>{`
+          .tooltip-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+          }
+          .tooltip-text {
+            visibility: hidden;
+            width: 260px;
+            background-color: #1a1a24;
+            color: #e2e8f0;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px 14px;
+            position: absolute;
+            z-index: 999;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+            font-size: 0.78rem;
+            font-weight: 500;
+            line-height: 1.45;
+            border: 1px solid #3b82f640;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            white-space: normal;
+            font-family: inherit;
+          }
+          .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+          }
+          .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #3b82f640 transparent transparent transparent;
+          }
+        `}</style>
         
         {/* Page Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -584,10 +644,18 @@ export default function PermissionsPage() {
                                           />
                                         )}
                                         
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                                            {p.name}
-                                          </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                                              {p.name}
+                                            </span>
+                                            <div className="tooltip-container" style={{ color: 'var(--text-muted)', cursor: 'help' }}>
+                                              <Info size={13} />
+                                              <span className="tooltip-text">
+                                                {PERMISSION_DESCRIPTIONS[p.code] || 'Chưa có chú thích cho quyền này.'}
+                                              </span>
+                                            </div>
+                                          </div>
                                           <code style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                                             {p.code}
                                           </code>
@@ -625,6 +693,9 @@ export default function PermissionsPage() {
                             </div>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
                               Chọn các nhóm vai trò được phép truy cập và thực thi chức năng này trong hệ thống.
+                            </p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '6px 0 0 0', fontStyle: 'italic' }}>
+                              Chi tiết: {PERMISSION_DESCRIPTIONS[permObj.code] || 'Chưa có chú thích cho quyền này.'}
                             </p>
                           </div>
                         </div>
@@ -769,9 +840,17 @@ export default function PermissionsPage() {
                             >
                               <td style={{ padding: '16px 24px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                                    {p.name}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                                      {p.name}
+                                    </span>
+                                    <div className="tooltip-container" style={{ color: 'var(--text-muted)', cursor: 'help' }}>
+                                      <Info size={13} />
+                                      <span className="tooltip-text">
+                                        {PERMISSION_DESCRIPTIONS[p.code] || 'Chưa có chú thích cho quyền này.'}
+                                      </span>
+                                    </div>
+                                  </div>
                                   <code style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                                     {p.code}
                                   </code>

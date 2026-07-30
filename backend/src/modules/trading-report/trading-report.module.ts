@@ -7,6 +7,7 @@ import {
   ExchangeRate,
   ExchangeRateSchema,
 } from '../../schemas/exchange-rate.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import {
     MongooseModule.forFeature([
       { name: ExchangeRate.name, schema: ExchangeRateSchema },
     ]),
+    AuthModule,
   ],
   controllers: [TradingReportController],
   providers: [TradingReportService],

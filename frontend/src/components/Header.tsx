@@ -153,6 +153,9 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
   const getRoleLabel = (role: string = '') => {
     switch (role) {
       case 'ADMIN': return 'Risk Officer / Admin';
+      case 'CHAIRMAN': return 'Chủ tịch';
+      case 'CEO': return 'Ban Giám đốc';
+      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
       case 'STAFF': return 'Risk Staff';
       default: return role;

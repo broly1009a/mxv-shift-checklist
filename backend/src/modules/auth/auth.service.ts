@@ -44,7 +44,10 @@ export class AuthService {
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.userModel
       .findOne({ username: username.toLowerCase() })
-      .populate('departmentId')
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
       .exec();
     if (user && (await bcrypt.compare(pass, user.passwordHash))) {
       if (!user.isActive) {
@@ -85,6 +88,7 @@ export class AuthService {
         id: user._id,
         username: user.username,
         fullName: user.fullName,
+        title: user.title || '',
         role: user.role,
         department: user.departmentId || null,
         isActive: user.isActive,
@@ -198,7 +202,10 @@ export class AuthService {
     // Check if user already exists
     const user = await this.userModel
       .findOne({ username })
-      .populate('departmentId')
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
       .exec();
 
     if (user) {
@@ -275,7 +282,10 @@ export class AuthService {
       // Return the created user directly (no need to throw wait exception since isActive = true)
       return this.userModel
         .findById(newUser._id)
-        .populate('departmentId')
+        .populate({
+          path: 'departmentId',
+          populate: { path: 'parentDepartmentId' },
+        })
         .exec();
     }
 

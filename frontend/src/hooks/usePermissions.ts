@@ -36,6 +36,8 @@ export function usePermissions() {
   const canAccessAutoShift = isAdmin || permissions.includes('ACCESS_AUTO_SHIFT');
   const canAccessHealthChecks = isAdmin || permissions.includes('ACCESS_HEALTH_CHECKS');
   const canResolveIncidents = isAdmin || permissions.includes('RESOLVE_INCIDENTS');
+  const canViewChecklist = isAdmin || permissions.includes('VIEW_CHECKLIST');
+  const canEditChecklist = isAdmin || permissions.includes('EDIT_CHECKLIST');
 
   return {
     isAdmin,
@@ -48,5 +50,7 @@ export function usePermissions() {
     canAccessAutoShift,
     canAccessHealthChecks,
     canResolveIncidents,
+    canViewChecklist,
+    canEditChecklist,
   };
 }

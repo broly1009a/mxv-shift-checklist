@@ -8,13 +8,18 @@ import {
   BadRequestException,
   Logger,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ReconciliationService } from './reconciliation.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { RpaDownloaderService } from '../bot-engine/rpa-downloader.service';
 import * as fs from 'fs';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('reconciliation')
 export class ReconciliationController {
   private readonly logger = new Logger(ReconciliationController.name);
@@ -26,6 +31,7 @@ export class ReconciliationController {
   ) {}
 
   @Post('upload-klgd')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
@@ -198,6 +204,7 @@ export class ReconciliationController {
   }
 
   @Post('upload-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'qltkgd', maxCount: 1 },
@@ -381,6 +388,7 @@ export class ReconciliationController {
   }
 
   @Post('negative-margin')
+  @Permissions('ACCESS_MARGIN_CHANGE')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'qltkgd', maxCount: 1 },
@@ -432,6 +440,7 @@ export class ReconciliationController {
    * List available sample date directories from local BackupMS folder.
    */
   @Get('sample-dates')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async listSampleDates() {
     const nodePath = require('path');
     const baseBackupDir = nodePath.join(
@@ -499,6 +508,7 @@ export class ReconciliationController {
    * No bot/login required.
    */
   @Post('run-test-local')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async runTestFromLocalFiles(
     @Body('samplePath') samplePath: string,
     @Body('usdRate') usdRateRaw?: number,
@@ -600,6 +610,7 @@ export class ReconciliationController {
    * Run EOD reconciliation by downloading files from M-System via RPA bot.
    */
   @Post('run-auto')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async runAutoReconciliation(
     @Body('targetDate') targetDate?: string,
     @Body('usdRate') usdRateRaw?: number,
@@ -660,6 +671,7 @@ export class ReconciliationController {
    * Manual test upload endpoint for testing reconciliation rules with user uploaded files.
    */
   @Post('test-upload')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
@@ -789,6 +801,7 @@ export class ReconciliationController {
   }
 
   @Post('upload-pre-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
@@ -924,6 +937,7 @@ export class ReconciliationController {
   }
 
   @Post('sync-usd-rate')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async syncUsdRate() {
     try {
       const rate = await this.reconciliationService.syncUsdRateFromMSystem();
@@ -934,6 +948,7 @@ export class ReconciliationController {
   }
 
   @Get('usd-rate')
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getUsdRate() {
     try {
       const rate = await this.reconciliationService.getCurrentUsdRate();
@@ -944,6 +959,7 @@ export class ReconciliationController {
   }
 
   @Get('maturity-manual-messages')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getMaturityManualMessages(@Query('shiftLogId') shiftLogId: string) {
     if (!shiftLogId) {
       throw new BadRequestException('Thiếu shiftLogId');

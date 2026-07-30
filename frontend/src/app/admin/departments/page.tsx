@@ -12,6 +12,35 @@ interface Department {
   name: string;
   code: string;
   isActive?: boolean;
+  parentDepartmentId?: string | { _id: string; name: string; code: string } | null;
+}
+
+// ─── Tree Helper ───────────────────────────────────────────────────────────────
+function buildDepartmentTree(depts: Department[]): Department[] {
+  const roots = depts.filter(d => !d.parentDepartmentId);
+  const children = depts.filter(d => d.parentDepartmentId);
+
+  roots.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+  const result: Department[] = [];
+
+  for (const root of roots) {
+    result.push(root);
+    const rootChildren = children.filter(d => {
+      const parentId = typeof d.parentDepartmentId === 'object' && d.parentDepartmentId
+        ? d.parentDepartmentId._id
+        : d.parentDepartmentId;
+      return parentId === root._id;
+    });
+    rootChildren.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    result.push(...rootChildren);
+  }
+
+  const addedIds = new Set(result.map(r => r._id));
+  const orphans = depts.filter(d => !addedIds.has(d._id));
+  result.push(...orphans);
+
+  return result;
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────────
@@ -58,6 +87,7 @@ export default function AdminDepartmentsPage() {
   // Form state
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [parentDepartmentId, setParentDepartmentId] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; code?: string }>({});
 
@@ -98,6 +128,7 @@ export default function AdminDepartmentsPage() {
     setEditingDept(null);
     setName('');
     setCode('');
+    setParentDepartmentId('');
     setIsActive(true);
     setFieldErrors({});
     setModalOpen(true);
@@ -107,6 +138,10 @@ export default function AdminDepartmentsPage() {
     setEditingDept(dept);
     setName(dept.name);
     setCode(dept.code);
+    const parentId = dept.parentDepartmentId 
+      ? (typeof dept.parentDepartmentId === 'object' ? dept.parentDepartmentId._id : dept.parentDepartmentId) 
+      : '';
+    setParentDepartmentId(parentId);
     setIsActive(dept.isActive !== false);
     setFieldErrors({});
     setModalOpen(true);
@@ -115,6 +150,7 @@ export default function AdminDepartmentsPage() {
   const closeModal = () => {
     setModalOpen(false);
     setEditingDept(null);
+    setParentDepartmentId('');
     setFieldErrors({});
   };
 
@@ -147,7 +183,12 @@ export default function AdminDepartmentsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: name.trim(), code: code.trim(), isActive }),
+        body: JSON.stringify({ 
+          name: name.trim(), 
+          code: code.trim(), 
+          isActive,
+          parentDepartmentId: parentDepartmentId || null 
+        }),
       });
 
       if (!res.ok) {
@@ -238,12 +279,13 @@ export default function AdminDepartmentsPage() {
                     <th style={{ padding: '12px 16px' }}>#</th>
                     <th style={{ padding: '12px 16px' }}>Tên Phòng Ban</th>
                     <th style={{ padding: '12px 16px' }}>Mã Phòng Ban (Code)</th>
+                    <th style={{ padding: '12px 16px' }}>Thuộc Đơn Vị Quản Lý</th>
                     <th style={{ padding: '12px 16px' }}>Trạng Thái</th>
                     {isAdmin && <th style={{ padding: '12px 16px' }}>Hành Động</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {departments.map((dept, idx) => (
+                  {buildDepartmentTree(departments).map((dept, idx) => (
                     <tr
                       key={dept._id}
                       style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)' }}
@@ -251,9 +293,20 @@ export default function AdminDepartmentsPage() {
                       <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>
                         {idx + 1}
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <td style={{ 
+                        padding: '14px 16px', 
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)',
+                        paddingLeft: dept.parentDepartmentId ? '40px' : '16px'
+                      }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                          <Building2 size={16} color="var(--color-accent)" />
+                          {dept.parentDepartmentId ? (
+                            <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontWeight: 500, marginRight: '4px' }}>
+                              └──
+                            </span>
+                          ) : (
+                            <Building2 size={16} color="var(--color-accent)" />
+                          )}
                           {dept.name}
                         </span>
                       </td>
@@ -270,6 +323,15 @@ export default function AdminDepartmentsPage() {
                         }}>
                           {dept.code}
                         </code>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                        {(() => {
+                          const parent = dept.parentDepartmentId;
+                          if (parent) {
+                            return typeof parent === 'object' ? parent.name : parent;
+                          }
+                          return <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Cấp Đơn vị chủ quản / Ban</em>;
+                        })()}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         {dept.isActive !== false ? (
@@ -434,6 +496,31 @@ export default function AdminDepartmentsPage() {
                       Chỉ CHỮ HOA, số và dấu gạch dưới. VD: IT_CORE, RE_OPS
                     </p>
                   )}
+                </div>
+
+                {/* Parent department field */}
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Đơn vị quản lý cấp trên (Không bắt buộc)
+                  </label>
+                  <select
+                    className="form-input"
+                    value={parentDepartmentId}
+                    onChange={(e) => setParentDepartmentId(e.target.value)}
+                    style={{ background: 'var(--bg-app)' }}
+                    disabled={submitting}
+                  >
+                    <option value="">-- Cấp Đơn vị chủ quản / Ban (Không có) --</option>
+                    {departments
+                      .filter(d => d._id !== editingDept?._id && !d.parentDepartmentId)
+                      .map(d => (
+                        <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                      ))
+                    }
+                  </select>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '5px' }}>
+                    Dùng để phân loại bộ phận trực ca trực thuộc Ban chủ quản nào.
+                  </p>
                 </div>
 
                 {/* Account Activation Toggle */}

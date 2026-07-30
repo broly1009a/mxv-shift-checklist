@@ -11,19 +11,23 @@ import {
 } from '@nestjs/common';
 import { ShiftsService } from './shifts.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('api/v1/shifts')
 export class ShiftsController {
   constructor(private readonly shiftsService: ShiftsService) {}
 
   @Post('initialize')
+  @Permissions('INITIALIZE_SHIFT')
   async initialize(@Request() req: any, @Body() body: any) {
     const { templateId, shiftDate } = body;
     return this.shiftsService.initializeShift(templateId, req.user, shiftDate);
   }
 
   @Patch('items/toggle')
+  @Permissions('EDIT_CHECKLIST')
   async toggleItem(@Request() req: any, @Body() body: any) {
     const { shiftLogId, taskId, isChecked, note } = body;
     return this.shiftsService.toggleTask(
@@ -36,6 +40,7 @@ export class ShiftsController {
   }
 
   @Patch('items/status')
+  @Permissions('EDIT_CHECKLIST')
   async updateStatus(@Request() req: any, @Body() body: any) {
     const { shiftLogId, taskId, status, note } = body;
     return this.shiftsService.updateTaskStatus(
@@ -48,12 +53,14 @@ export class ShiftsController {
   }
 
   @Post('close')
+  @Permissions('CLOSE_SHIFT')
   async close(@Request() req: any, @Body() body: any) {
     const { shiftLogId, handoverNote } = body;
     return this.shiftsService.closeShift(shiftLogId, req.user, handoverNote);
   }
 
   @Get('history')
+  @Permissions('VIEW_CHECKLIST')
   async getHistory(
     @Request() req: any,
     @Query('departmentId') departmentId?: string,
@@ -75,6 +82,7 @@ export class ShiftsController {
   }
 
   @Get('active')
+  @Permissions('VIEW_CHECKLIST')
   async getActive(
     @Request() req: any,
     @Query('departmentId') departmentId?: string,
@@ -88,6 +96,7 @@ export class ShiftsController {
   }
 
   @Get('search/global')
+  @Permissions('VIEW_CHECKLIST')
   async globalSearch(@Request() req: any, @Query('q') query: string) {
     if (!query) {
       return { incidents: [], tasks: [], handovers: [] };
@@ -96,16 +105,19 @@ export class ShiftsController {
   }
 
   @Get(':id')
+  @Permissions('VIEW_CHECKLIST')
   async getOne(@Request() req: any, @Param('id') id: string) {
     return this.shiftsService.getShiftById(id, req.user);
   }
 
   @Get(':id/audit-logs')
+  @Permissions('VIEW_CHECKLIST')
   async getAuditLogs(@Request() req: any, @Param('id') id: string) {
     return this.shiftsService.getAuditLogs(id, req.user);
   }
 
   @Post(':id/add-task')
+  @Permissions('EDIT_CHECKLIST')
   async addAdhocTask(
     @Param('id') id: string,
     @Request() req: any,

@@ -34,7 +34,11 @@ export class DepartmentsController {
 
   @Get()
   async findAll() {
-    return this.departmentModel.find().sort({ name: 1 }).exec();
+    return this.departmentModel
+      .find()
+      .populate('parentDepartmentId')
+      .sort({ name: 1 })
+      .exec();
   }
 
   @UseGuards(PermissionsGuard)
@@ -51,6 +55,7 @@ export class DepartmentsController {
   async update(@Param('id') id: string, @Body() body: any) {
     return this.departmentModel
       .findByIdAndUpdate(id, body, { new: true })
+      .populate('parentDepartmentId')
       .exec();
   }
 

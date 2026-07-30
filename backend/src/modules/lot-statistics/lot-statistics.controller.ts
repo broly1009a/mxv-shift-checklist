@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Res,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
@@ -17,7 +18,11 @@ import * as fs from 'fs';
 import { LotStatisticsService } from './lot-statistics.service';
 import { ProcessLotDto, LotConfigDto } from './dto/lot-statistics.dto';
 import { saveTempExcel } from './helpers/excel-writer.helper';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('lot-statistics')
 export class LotStatisticsController {
   private readonly logger = new Logger(LotStatisticsController.name);
@@ -27,11 +32,13 @@ export class LotStatisticsController {
   // ─── Config endpoints ───────────────────────────────────────────────────────
 
   @Get('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getConfig() {
     return this.lotStatisticsService.getConfig();
   }
 
   @Put('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async saveConfig(@Body() config: LotConfigDto) {
     return this.lotStatisticsService.saveConfig(
       config as Record<string, string>,
@@ -61,6 +68,7 @@ export class LotStatisticsController {
    *   deadline       number
    */
   @Post('process')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'fileDsgd', maxCount: 1 },
@@ -150,6 +158,7 @@ export class LotStatisticsController {
    * Giống /process nhưng trả về file Excel để download
    */
   @Post('process/download')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'fileDsgd', maxCount: 1 },
@@ -244,6 +253,7 @@ export class LotStatisticsController {
   }
 
   @Post('process-local')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async processLocal(
     @Body('folderPath') folderPath: string,
     @Body('folderPathMs') folderPathMs: string,
@@ -324,6 +334,7 @@ export class LotStatisticsController {
   }
 
   @Post('process-local/download')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async processLocalAndDownload(
     @Body('folderPath') folderPath: string,
     @Body('folderPathMs') folderPathMs: string,
