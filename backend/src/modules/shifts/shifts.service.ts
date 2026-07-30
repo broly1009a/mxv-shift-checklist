@@ -53,7 +53,8 @@ export class ShiftsService {
     user: any,
     shiftDateInput?: string,
   ): Promise<ShiftLog> {
-    if (user.role === 'STAFF' || user.role === 'CHAIRMAN') {
+    const canInitialize = await this.accessControlService.canAccessFeature(user, 'INITIALIZE_SHIFT');
+    if (!canInitialize) {
       throw new ForbiddenException(
         'Chức vụ của bạn không có quyền khởi tạo ca trực',
       );
@@ -817,7 +818,8 @@ export class ShiftsService {
     user: any,
     handoverNote?: string,
   ): Promise<ShiftLog> {
-    if (user.role === 'STAFF' || user.role === 'CHAIRMAN') {
+    const canClose = await this.accessControlService.canAccessFeature(user, 'CLOSE_SHIFT');
+    if (!canClose) {
       throw new ForbiddenException(
         'Chức vụ của bạn không có quyền chốt ca trực',
       );
@@ -1096,7 +1098,8 @@ export class ShiftsService {
     if (
       user.role !== 'ADMIN' &&
       user.role !== 'CEO' &&
-      user.role !== 'CHAIRMAN'
+      user.role !== 'CHAIRMAN' &&
+      user.role !== 'DIVISION_DIRECTOR'
     ) {
       const deptId = user.departmentId?._id || user.departmentId;
       const templates = await this.templateModel
@@ -1172,7 +1175,8 @@ export class ShiftsService {
     if (
       user.role !== 'ADMIN' &&
       user.role !== 'CEO' &&
-      user.role !== 'CHAIRMAN'
+      user.role !== 'CHAIRMAN' &&
+      user.role !== 'DIVISION_DIRECTOR'
     ) {
       const deptId = user.departmentId?._id || user.departmentId;
       const templates = await this.templateModel

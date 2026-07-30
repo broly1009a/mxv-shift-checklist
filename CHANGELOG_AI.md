@@ -6,6 +6,37 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-07-30 17:30:00] - Refactor: Đồng bộ hiển thị vai trò và bypass bộ lọc lịch sử cho Giám đốc Khối
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Rà soát các phần hardcode còn lại trong code.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa lỗi trong `ShiftsService` (`getHistory` và `getActiveShiftsByDepartment`): Thêm điều kiện bypass bộ lọc phòng ban cho vai trò `DIVISION_DIRECTOR` (Giám đốc Khối) tương tự ADMIN/CEO/CHAIRMAN. Điều này đảm bảo Giám đốc Khối xem được toàn bộ lịch sử ca trực và các ca trực đang chạy của các phòng ban khác mà không bị giới hạn phòng ban.
+  - **Frontend**:
+    - Cập nhật [Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Header.tsx#L160): Thay thế nhãn hiển thị cứng tiếng Anh `"Risk Staff"` thành `"Nhân viên"` và `"Risk Officer / Admin"` thành `"Quản trị viên"` để phù hợp với hệ thống dùng chung đa phòng ban (IT, Giao dịch, Quản lý rủi ro).
+    - Cập nhật [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx#L139): Hiển thị nhãn `"Ban Lãnh Đạo"` cho vai trò `DIVISION_DIRECTOR` tương tự như các vai trò lãnh đạo cấp cao khác thay vì hiển thị `"Chưa phân phòng"`.
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/modules/shifts/shifts.service.ts`
+- **Frontend (Chỉnh sửa)**:
+  - `frontend/src/components/Header.tsx`
+  - `frontend/src/components/Sidebar.tsx`
+
+## [2026-07-30 17:25:00] - Bugfix: Loại bỏ check vai trò cứng STAFF/CHAIRMAN khi chốt ca hoặc khởi tạo ca trực
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi tài khoản `sonhh` (IT STAFF) dù đã có quyền `CLOSE_SHIFT` trong danh sách quyền nhưng khi chốt ca trực vẫn bị chặn và báo lỗi `"Chức vụ của bạn không có quyền chốt ca trực"`.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa lỗi trong `ShiftsService` -> `closeShift` và `initializeShift`: Loại bỏ hoàn toàn điều kiện kiểm tra vai trò cứng `user.role === 'STAFF'` gây mâu thuẫn với hệ thống phân quyền động.
+    - Thay thế bằng kiểm tra phân quyền động thông qua `AccessControlService.canAccessFeature` (kiểm tra quyền `CLOSE_SHIFT` và `INITIALIZE_SHIFT` được cấp cho tài khoản hoặc thừa kế từ cấu hình vai trò động trong database).
+
+### 2. Danh sách file chỉnh sửa
+- **Backend (Chỉnh sửa)**:
+  - `backend/src/modules/shifts/shifts.service.ts` (Thay thế kiểm tra vai trò cứng thành kiểm tra quyền động trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L56) và [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts#L820))
+
 ## [2026-07-30 17:15:00] - Bugfix: Sửa lỗi validateScope trên ShiftLog khi templateId là null
 
 ### 1. Mục tiêu Thay đổi

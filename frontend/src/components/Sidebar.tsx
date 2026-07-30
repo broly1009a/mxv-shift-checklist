@@ -136,8 +136,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           {user.fullName}
         </p>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN'
-            ? 'Ban Lãnh Đạo / Admin'
+          {user.role === 'ADMIN' || user.role === 'CEO' || user.role === 'CHAIRMAN' || user.role === 'DIVISION_DIRECTOR'
+            ? 'Ban Lãnh Đạo'
             : user.department?.name || 'Chưa phân phòng'}
         </p>
         <span className={getRoleBadgeClass(user.role)}>
