@@ -13,6 +13,8 @@ import {
   WorkingCalendarSchema,
 } from '../schemas/working-calendar.schema';
 import { Role, RoleSchema } from '../schemas/role.schema';
+import { Exchange, ExchangeSchema } from '../schemas/exchange.schema';
+import { ExchangeHoliday, ExchangeHolidaySchema } from '../schemas/exchange-holiday.schema';
 
 @Module({
   imports: [
@@ -23,9 +25,12 @@ import { Role, RoleSchema } from '../schemas/role.schema';
       { name: ShiftSlot.name, schema: ShiftSlotSchema },
       { name: WorkingCalendar.name, schema: WorkingCalendarSchema },
       { name: Role.name, schema: RoleSchema },
+      { name: Exchange.name, schema: ExchangeSchema },
+      { name: ExchangeHoliday.name, schema: ExchangeHolidaySchema },
     ]),
   ],
   providers: [SeedService],
   exports: [MongooseModule, SeedService],
 })
 export class DatabaseModule {}
+

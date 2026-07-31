@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { Clock, Plus, Edit, Trash2, X, Save, AlertCircle, Calendar } from 'lucide-react';
+import { Clock, Plus, Edit, Trash2, X, Save, AlertCircle, Calendar, Sun, Snowflake, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -17,6 +17,10 @@ interface ShiftSlot {
   isActive: boolean;
   sortOrder: number;
   gracePeriodMinutes?: number;
+  startTimeSummer?: string;
+  endTimeSummer?: string;
+  startTimeWinter?: string;
+  endTimeWinter?: string;
 }
 
 function validateForm(
@@ -24,10 +28,23 @@ function validateForm(
   code: string,
   startTime: string,
   endTime: string,
+  startTimeSummer: string,
+  endTimeSummer: string,
+  startTimeWinter: string,
+  endTimeWinter: string,
   shiftSlots: ShiftSlot[],
   editingId?: string
 ) {
-  const errors: { name?: string; code?: string; startTime?: string; endTime?: string } = {};
+  const errors: {
+    name?: string;
+    code?: string;
+    startTime?: string;
+    endTime?: string;
+    startTimeSummer?: string;
+    endTimeSummer?: string;
+    startTimeWinter?: string;
+    endTimeWinter?: string;
+  } = {};
 
   if (!name.trim()) {
     errors.name = 'Tên ca trực không được để trống';
@@ -54,6 +71,19 @@ function validateForm(
     errors.endTime = 'Định dạng giờ kết thúc không hợp lệ (HH:mm)';
   }
 
+  if (startTimeSummer.trim() && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(startTimeSummer.trim())) {
+    errors.startTimeSummer = 'Định dạng không hợp lệ (HH:mm)';
+  }
+  if (endTimeSummer.trim() && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTimeSummer.trim())) {
+    errors.endTimeSummer = 'Định dạng không hợp lệ (HH:mm)';
+  }
+  if (startTimeWinter.trim() && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(startTimeWinter.trim())) {
+    errors.startTimeWinter = 'Định dạng không hợp lệ (HH:mm)';
+  }
+  if (endTimeWinter.trim() && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTimeWinter.trim())) {
+    errors.endTimeWinter = 'Định dạng không hợp lệ (HH:mm)';
+  }
+
   return errors;
 }
 
@@ -74,6 +104,10 @@ export default function AdminShiftSlotsPage() {
   const [code, setCode] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [startTimeSummer, setStartTimeSummer] = useState('');
+  const [endTimeSummer, setEndTimeSummer] = useState('');
+  const [startTimeWinter, setStartTimeWinter] = useState('');
+  const [endTimeWinter, setEndTimeWinter] = useState('');
   const [isOvernight, setIsOvernight] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [sortOrder, setSortOrder] = useState(0);
@@ -84,7 +118,12 @@ export default function AdminShiftSlotsPage() {
     code?: string;
     startTime?: string;
     endTime?: string;
+    startTimeSummer?: string;
+    endTimeSummer?: string;
+    startTimeWinter?: string;
+    endTimeWinter?: string;
   }>({});
+
 
   // Redirect if not admin or manager
   useEffect(() => {
@@ -126,6 +165,10 @@ export default function AdminShiftSlotsPage() {
     setCode('');
     setStartTime('08:00');
     setEndTime('17:00');
+    setStartTimeSummer('');
+    setEndTimeSummer('');
+    setStartTimeWinter('');
+    setEndTimeWinter('');
     setIsOvernight(false);
     setIsActive(true);
     setSortOrder(shiftSlots.length + 1);
@@ -140,6 +183,10 @@ export default function AdminShiftSlotsPage() {
     setCode(slot.code);
     setStartTime(slot.startTime);
     setEndTime(slot.endTime);
+    setStartTimeSummer(slot.startTimeSummer || '');
+    setEndTimeSummer(slot.endTimeSummer || '');
+    setStartTimeWinter(slot.startTimeWinter || '');
+    setEndTimeWinter(slot.endTimeWinter || '');
     setIsOvernight(slot.isOvernight);
     setIsActive(slot.isActive);
     setSortOrder(slot.sortOrder);
@@ -161,7 +208,18 @@ export default function AdminShiftSlotsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const errors = validateForm(name, code, startTime, endTime, shiftSlots, editingSlot?._id);
+    const errors = validateForm(
+      name,
+      code,
+      startTime,
+      endTime,
+      startTimeSummer,
+      endTimeSummer,
+      startTimeWinter,
+      endTimeWinter,
+      shiftSlots,
+      editingSlot?._id
+    );
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -186,12 +244,17 @@ export default function AdminShiftSlotsPage() {
           code: code.trim(),
           startTime: startTime.trim(),
           endTime: endTime.trim(),
+          startTimeSummer: startTimeSummer.trim() || null,
+          endTimeSummer: endTimeSummer.trim() || null,
+          startTimeWinter: startTimeWinter.trim() || null,
+          endTimeWinter: endTimeWinter.trim() || null,
           isOvernight,
           isActive,
           sortOrder: Number(sortOrder),
           gracePeriodMinutes: Number(gracePeriodMinutes),
         }),
       });
+
 
       if (!res.ok) {
         const err = await res.json();
@@ -242,10 +305,10 @@ export default function AdminShiftSlotsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '4px' }}>
-              Cấu Hình Khung Ca Trực & SLA
+              Cấu Hình Khung Ca Trực & Thời Gian Vào Ca
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Quản lý thời gian biểu các ca trực, cờ qua đêm và thời gian ân hạn SLA.
+              Quản lý thời gian biểu các ca trực, cờ qua đêm và thời gian trễ tối đa cho phép.
             </p>
           </div>
           {isAdmin && (
@@ -274,11 +337,12 @@ export default function AdminShiftSlotsPage() {
                     <th style={{ padding: '12px 16px' }}>Mã Ca (Code)</th>
                     <th style={{ padding: '12px 16px' }}>Khung Giờ</th>
                     <th style={{ padding: '12px 16px' }}>Qua đêm</th>
-                    <th style={{ padding: '12px 16px' }}>TG Ân Hạn SLA</th>
+                    <th style={{ padding: '12px 16px' }}>TG Trễ Cho Phép</th>
                     <th style={{ padding: '12px 16px' }}>Trạng thái</th>
                     {isAdmin && <th style={{ padding: '12px 16px' }}>Hành Động</th>}
                   </tr>
                 </thead>
+
                 <tbody>
                   {shiftSlots.map((slot) => (
                     <tr
@@ -307,9 +371,23 @@ export default function AdminShiftSlotsPage() {
                           {slot.code}
                         </code>
                       </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                        {slot.startTime} - {slot.endTime}
+                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                        <div><strong>Mặc định:</strong> {slot.startTime} - {slot.endTime}</div>
+                        {(slot.startTimeSummer || slot.endTimeSummer) && (
+                          <div style={{ fontSize: '0.78rem', color: '#10b981', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Sun size={12} style={{ color: '#10b981' }} />
+                            Hè: {slot.startTimeSummer || slot.startTime} - {slot.endTimeSummer || slot.endTime}
+                          </div>
+                        )}
+                        {(slot.startTimeWinter || slot.endTimeWinter) && (
+                          <div style={{ fontSize: '0.78rem', color: '#3b82f6', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Snowflake size={12} style={{ color: '#3b82f6' }} />
+                            Đông: {slot.startTimeWinter || slot.startTime} - {slot.endTimeWinter || slot.endTime}
+                          </div>
+                        )}
                       </td>
+
+
                       <td style={{ padding: '14px 16px' }}>
                         {slot.isOvernight ? (
                           <span className="badge badge-high" style={{ padding: '2px 8px', borderRadius: '4px' }}>Có</span>
@@ -488,7 +566,106 @@ export default function AdminShiftSlotsPage() {
                 </div>
               </div>
 
+              {/* Giờ Mùa Hè */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                  Giờ Mùa Hè (Chỉ nhập nếu khác mặc định)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Giờ Bắt Đầu Hè
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="HH:mm"
+                      value={startTimeSummer}
+                      onChange={(e) => {
+                        setStartTimeSummer(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, startTimeSummer: undefined }));
+                      }}
+                      style={{ borderColor: fieldErrors.startTimeSummer ? '#ef4444' : undefined }}
+                      disabled={submitting}
+                    />
+                    {fieldErrors.startTimeSummer && (
+                      <p style={{ color: '#ef4444', fontSize: '0.74rem', marginTop: '3px' }}>{fieldErrors.startTimeSummer}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Giờ Kết Thúc Hè
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="HH:mm"
+                      value={endTimeSummer}
+                      onChange={(e) => {
+                        setEndTimeSummer(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, endTimeSummer: undefined }));
+                      }}
+                      style={{ borderColor: fieldErrors.endTimeSummer ? '#ef4444' : undefined }}
+                      disabled={submitting}
+                    />
+                    {fieldErrors.endTimeSummer && (
+                      <p style={{ color: '#ef4444', fontSize: '0.74rem', marginTop: '3px' }}>{fieldErrors.endTimeSummer}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Giờ Mùa Đông */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                  Giờ Mùa Đông (Chỉ nhập nếu khác mặc định)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Giờ Bắt Đầu Đông
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="HH:mm"
+                      value={startTimeWinter}
+                      onChange={(e) => {
+                        setStartTimeWinter(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, startTimeWinter: undefined }));
+                      }}
+                      style={{ borderColor: fieldErrors.startTimeWinter ? '#ef4444' : undefined }}
+                      disabled={submitting}
+                    />
+                    {fieldErrors.startTimeWinter && (
+                      <p style={{ color: '#ef4444', fontSize: '0.74rem', marginTop: '3px' }}>{fieldErrors.startTimeWinter}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Giờ Kết Thúc Đông
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="HH:mm"
+                      value={endTimeWinter}
+                      onChange={(e) => {
+                        setEndTimeWinter(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, endTimeWinter: undefined }));
+                      }}
+                      style={{ borderColor: fieldErrors.endTimeWinter ? '#ef4444' : undefined }}
+                      disabled={submitting}
+                    />
+                    {fieldErrors.endTimeWinter && (
+                      <p style={{ color: '#ef4444', fontSize: '0.74rem', marginTop: '3px' }}>{fieldErrors.endTimeWinter}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     Thứ tự sắp xếp
@@ -503,8 +680,8 @@ export default function AdminShiftSlotsPage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    TG Ân Hạn SLA (phút)
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                    TG Trễ Cho Phép (phút)
                   </label>
                   <input
                     type="number"
@@ -513,7 +690,11 @@ export default function AdminShiftSlotsPage() {
                     onChange={(e) => setGracePeriodMinutes(Number(e.target.value))}
                     disabled={submitting}
                   />
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.74rem', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', lineHeight: '1.2' }}>
+                    <HelpCircle size={12} /> Thời gian tối đa nhân sự được phép nhận ca trễ so với giờ bắt đầu.
+                  </p>
                 </div>
+
               </div>
 
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>

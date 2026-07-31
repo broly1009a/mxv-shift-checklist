@@ -46,8 +46,35 @@ export class ShiftSlotsService {
     }
   }
 
+  private mapFlatFieldsToSeasonalHours(data: any) {
+    const seasonalHours = [];
+    if (data.startTimeSummer && data.endTimeSummer) {
+      seasonalHours.push({
+        name: 'SUMMER',
+        startTime: data.startTimeSummer,
+        endTime: data.endTimeSummer,
+        timezoneRef: 'America/Chicago',
+      });
+    }
+    if (data.startTimeWinter && data.endTimeWinter) {
+      seasonalHours.push({
+        name: 'WINTER',
+        startTime: data.startTimeWinter,
+        endTime: data.endTimeWinter,
+        timezoneRef: 'America/Chicago',
+      });
+    }
+    data.seasonalHours = seasonalHours;
+
+    delete data.startTimeSummer;
+    delete data.endTimeSummer;
+    delete data.startTimeWinter;
+    delete data.endTimeWinter;
+  }
+
   async create(data: any): Promise<ShiftSlot> {
     this.sanitizeOvernight(data);
+    this.mapFlatFieldsToSeasonalHours(data);
     const existing = await this.shiftSlotModel
       .findOne({ code: data.code })
       .exec();
@@ -62,6 +89,7 @@ export class ShiftSlotsService {
 
   async update(id: string, data: any): Promise<ShiftSlot> {
     this.sanitizeOvernight(data);
+    this.mapFlatFieldsToSeasonalHours(data);
     if (data.code) {
       const existing = await this.shiftSlotModel
         .findOne({ code: data.code, _id: { $ne: id } })
@@ -80,6 +108,7 @@ export class ShiftSlotsService {
     }
     return updated;
   }
+
 
   async remove(id: string): Promise<any> {
     const [hasLog, hasTemplate] = await Promise.all([

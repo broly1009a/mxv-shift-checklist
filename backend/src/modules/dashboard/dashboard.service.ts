@@ -6,6 +6,7 @@ import { Department } from '../../schemas/department.schema';
 import { AuditLog } from '../../schemas/audit-log.schema';
 import { SystemLog } from '../../schemas/system-log.schema';
 import { AccessControlService } from '../auth/access-control.service';
+import { WorkingCalendarService } from '../working-calendar/working-calendar.service';
 
 @Injectable()
 export class DashboardService {
@@ -17,7 +18,9 @@ export class DashboardService {
     @InjectModel(SystemLog.name)
     private readonly systemLogModel: Model<SystemLog>,
     private readonly accessControlService: AccessControlService,
+    private readonly workingCalendarService: WorkingCalendarService,
   ) {}
+
 
   private async getScopeFilter(user: any): Promise<any> {
     return this.accessControlService.getScopeFilter(user);
@@ -101,7 +104,7 @@ export class DashboardService {
       query.status = status;
     }
 
-    return this.shiftLogModel
+    const logs = await this.shiftLogModel
       .find(query)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
@@ -113,6 +116,12 @@ export class DashboardService {
       .populate('shiftSlotId')
       .populate('departmentId')
       .exec();
+
+    for (const log of logs) {
+      this.adjustShiftSlotTimesForSeason(log);
+    }
+    return logs;
+
   }
 
   async getDepartmentStats(dateStr: string, user: any): Promise<any[]> {
@@ -379,4 +388,38 @@ export class DashboardService {
       );
     }
   }
+
+  adjustShiftSlotTimesForSeason(log: any) {
+    if (log && log.shiftSlotId && log.shiftDate) {
+      const slot = log.shiftSlotId;
+      if (slot.seasonalHours && slot.seasonalHours.length > 0) {
+        const timezone = 'America/Chicago';
+        const isSummer = this.workingCalendarService.isDaylightSavingTime(
+          log.shiftDate,
+          timezone,
+        );
+        const seasonName = isSummer ? 'SUMMER' : 'WINTER';
+        const matched = slot.seasonalHours.find(
+          (h: any) => h.name === seasonName,
+        );
+        if (matched) {
+          const st = matched.startTime;
+          const et = matched.endTime;
+          try {
+            slot.startTime = st;
+            slot.endTime = et;
+          } catch {
+            if (typeof slot.toObject === 'function') {
+              log.shiftSlotId = slot.toObject();
+              log.shiftSlotId.startTime = st;
+              log.shiftSlotId.endTime = et;
+            }
+          }
+        }
+      }
+    }
+    return log;
+  }
+
 }
+

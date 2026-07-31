@@ -3,8 +3,89 @@
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
 
+## [2026-07-31 10:20:00] - Refactor & Style: Tái cấu trúc giờ theo mùa sang mảng động & Tự động dịch chuyển giờ hạn chót task (Auto-shifting) & Tinh chỉnh giao diện SLA
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Thay đổi thuật ngữ kĩ thuật "SLA" thành thuật ngữ tiếng Việt dễ hiểu "Thời gian trễ cho phép" ở màn hình cấu hình ca trực.
+  - Thay thế các icon emoji thô sơ `☀️` và `❄️` bằng các icon chuyên nghiệp (`Sun` và `Snowflake` từ `lucide-react`).
+  - Phân tích và nâng cấp cơ chế lưu trữ giờ theo mùa dạng mảng động dưới Database để tăng khả năng mở rộng (Future-proof) nhưng vẫn giữ giao diện Frontend đơn giản dạng phẳng (Flat Fields).
+  - Tự động dịch chuyển giờ hạn chót (deadline) và giờ chạy bot (botTriggerTime) của tất cả các việc con (tasks) bên trong ca trực theo độ lệch giờ Hè/Đông để tránh việc Admin phải nhân bản Mẫu checklist thủ công.
+- **Giải pháp**:
+  - **Frontend**:
+    - Cập nhật trang [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx) để đổi thuật ngữ hiển thị, bổ sung icon trợ giúp `HelpCircle` giải thích chi tiết ô nhập liệu, và đổi các emoji sang các icon vector `Sun` và `Snowflake`.
+  - **Database & Backend**:
+    - Cấu trúc lại [shift-slot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-slot.schema.ts) để lưu các khung giờ mùa hè/mùa đông dưới mảng động `seasonalHours`.
+    - Sử dụng cơ chế Mongoose Virtual Getters để tự động sinh các trường phẳng (`startTimeSummer`, `endTimeSummer`...) phục vụ giao thức API tương thích ngược với Frontend cũ.
+    - Cập nhật [shift-slots.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-slots/shift-slots.service.ts) tự động đóng gói dữ liệu phẳng nhận được từ client thành dạng mảng động trước khi ghi vào Database.
+    - Cập nhật [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) gieo dữ liệu mảng động mẫu cho các ca trực.
+    - Điều chỉnh hàm đổi giờ ca trực trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) và [dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.service.ts) truy vấn từ mảng `seasonalHours` động thay vì các trường tĩnh.
+    - Cập nhật [shift-jobs.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-jobs.service.ts) để tự động tính độ lệch giờ (Offset) giữa giờ Hè/Đông thực tế và giờ mặc định của ca trực, tự động dịch chuyển giờ hạn chót và giờ chạy Bot của các việc con trước khi tạo bản ghi ca trực `ShiftLog`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - `frontend/src/app/admin/shift-slots/page.tsx`
+  - `backend/src/schemas/shift-slot.schema.ts`
+  - `backend/src/modules/shift-slots/shift-slots.service.ts`
+  - `backend/src/modules/shifts/shifts.service.ts`
+  - `backend/src/modules/dashboard/dashboard.service.ts`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/modules/shift-jobs/shift-jobs.service.ts`
+
+### 3. Xác nhận Build/Kiểm thử
+- Frontend typecheck hoàn tất: `npx tsc --noEmit` thành công không phát sinh lỗi.
+- Backend rebuild hoàn tất: `npm run build` thành công.
+- Đã chạy kịch bản gieo dữ liệu và cập nhật qua API: Thử nghiệm sửa đổi giờ Hè/Đông trên Ca trực qua Dịch vụ hoạt động hoàn hảo.
+- Đã chạy kịch bản thử nghiệm sinh ca trực tự động vào mùa Hè: Xác nhận các mốc giờ deadline và giờ chạy bot của các việc con tự động dịch chuyển lùi sớm 1 tiếng khớp chính xác tuyệt đối với khung giờ mùa Hè của ca trực.
 
 
+## [2026-07-31 09:40:00] - Feature: Triển khai Lịch trực & Ca trực theo mùa MXV liên thông quốc tế
+
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thiết kế và triển khai cơ chế lịch nghỉ lễ theo từng Sở giao dịch nước ngoài (CME, ICE, LME, SGX, BMD, OSE) và giờ đổi ca theo mùa (DST - Giờ mùa hè/mùa đông) để đáp ứng nghiệp vụ trực liên thông quốc tế của MXV.
+- **Giải pháp**:
+  - **Database Schemas**:
+    - Tạo mới [exchange.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/exchange.schema.ts) và [exchange-holiday.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/exchange-holiday.schema.ts).
+    - Thêm trường `monitoredExchanges` vào [department.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/department.schema.ts).
+    - Thêm `startTimeSummer`, `endTimeSummer`, `startTimeWinter`, `endTimeWinter` vào [shift-slot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-slot.schema.ts).
+  - **Business Logic**:
+    - Cập nhật [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) để tự động seed các sở giao dịch, lịch nghỉ lễ mẫu, giờ đổi mùa cho ca trực, và thiết lập sở giám sát cho từng phòng ban.
+    - Cập nhật [working-calendar.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/working-calendar/working-calendar.service.ts) thêm hàm tự động tính DST (Daylight Saving Time) cho múi giờ Mỹ và UK/Châu Âu, và hàm kiểm tra phòng ban đóng cửa dựa trên các sở giám sát.
+    - Cập nhật [shift-jobs.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-jobs.service.ts) chuyển đổi kiểm tra lịch nghỉ lễ từ cấp hệ thống sang kiểm tra riêng biệt cho từng phòng ban (sinh ca trực dựa trên tình trạng đóng/mở của các sở giám sát).
+    - Cập nhật [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) và [dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.service.ts) để tự động điều chỉnh giờ bắt đầu/kết thúc ca trực của `shiftSlotId` tùy theo ngày ca trực đó thuộc mùa hè hay mùa đông.
+  - **Frontend**:
+    - Cập nhật trang cấu hình ca trực [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx) để hiển thị chi tiết các khung giờ theo mùa trong bảng và bổ sung các trường nhập giờ Hè/giờ Đông khi Thêm mới/Chỉnh sửa cấu hình ca trực.
+    - Cập nhật thay thế thuật ngữ kỹ thuật "SLA" thành thuật ngữ tiếng Việt dễ hiểu "Thời gian trễ cho phép" trên tiêu đề trang, cột bảng biểu và trường nhập liệu. Bổ sung icon `HelpCircle` mô tả hướng dẫn chi tiết cho người dùng ca trực.
+    - Thay thế các emoji thô sơ `☀️` và `❄️` bằng các icon vector chuyên nghiệp `Sun` và `Snowflake` từ thư viện `lucide-react` để nâng cao thẩm mỹ giao diện.
+  - **Dependency / Circular Loop**:
+    - Gỡ bỏ `SystemSettingsModule` khỏi `imports` trong [working-calendar.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/working-calendar/working-calendar.module.ts) vì `SystemSettingsModule` là toàn cục (`@Global()`), giúp khắc phục lỗi Circular Dependency Loop.
+
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - `backend/src/schemas/exchange.schema.ts`
+  - `backend/src/schemas/exchange-holiday.schema.ts`
+- **Chỉnh sửa**:
+  - `backend/src/database/database.module.ts`
+  - `backend/src/schemas/department.schema.ts`
+  - `backend/src/schemas/shift-slot.schema.ts`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/modules/working-calendar/working-calendar.module.ts`
+  - `backend/src/modules/working-calendar/working-calendar.service.ts`
+  - `backend/src/modules/shifts/shifts.module.ts`
+  - `backend/src/modules/shifts/shifts.service.ts`
+  - `backend/src/modules/dashboard/dashboard.module.ts`
+  - `backend/src/modules/dashboard/dashboard.service.ts`
+  - `backend/src/modules/shift-jobs/shift-jobs.service.ts`
+  - `frontend/src/app/admin/shift-slots/page.tsx`
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`npm run build`) thành công 100% không lỗi.
+- Kiểm thử biên dịch & Typecheck Frontend (`npx tsc --noEmit` phía frontend) thành công 100% không lỗi.
+- Viết kịch bản kiểm thử giả lập sinh ca trực vào ngày lễ Mỹ (Thanksgiving `2026-11-26`) và xác nhận tự động bỏ qua sinh ca cho bộ phận Trading Operations (giám sát CME) trong khi vẫn sinh ca cho các phòng ban khác.
+
+- Kiểm thử tự động điều chỉnh giờ ca trực đêm sang mùa hè (từ `22:00-06:00` thành `21:00-05:00`) thành công trên Dashboard và Active Shifts.
 
 ## [2026-07-30 17:30:00] - Refactor: Đồng bộ hiển thị vai trò và bypass bộ lọc lịch sử cho Giám đốc Khối
 

@@ -18,6 +18,7 @@ import { SystemLogsService } from '../system-logs/system-logs.service';
 import { IncidentsService } from '../incidents/incidents.service';
 import { AccessControlService } from '../auth/access-control.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
+import { WorkingCalendarService } from '../working-calendar/working-calendar.service';
 
 @Injectable()
 export class ShiftsService {
@@ -36,7 +37,9 @@ export class ShiftsService {
     private readonly incidentsService: IncidentsService,
     private readonly accessControlService: AccessControlService,
     private readonly marginCheckerService: MarginCheckerService,
+    private readonly workingCalendarService: WorkingCalendarService,
   ) {}
+
 
   private validateScope(
     user: any,
@@ -249,11 +252,13 @@ export class ShiftsService {
         {},
       );
 
+      this.adjustShiftSlotTimesForSeason(result);
       return result;
     } finally {
       this.initializingKeys.delete(lockKey);
     }
   }
+
 
   async addAdhocTask(
     shiftLogId: string,
@@ -1147,6 +1152,9 @@ export class ShiftsService {
     }
 
     const data = await query.exec();
+    for (const log of data) {
+      this.adjustShiftSlotTimesForSeason(log);
+    }
 
     return {
       data,
@@ -1154,6 +1162,7 @@ export class ShiftsService {
       page: page || 1,
       limit: limit || total,
     };
+
   }
 
   async getActiveShiftsByDepartment(
@@ -1203,7 +1212,7 @@ export class ShiftsService {
       filter.templateId = { $in: templateIds };
     }
 
-    return this.shiftLogModel
+    const logs = await this.shiftLogModel
       .find(filter)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
@@ -1215,6 +1224,12 @@ export class ShiftsService {
       .populate('shiftSlotId')
       .populate('departmentId')
       .exec();
+
+    for (const log of logs) {
+      this.adjustShiftSlotTimesForSeason(log);
+    }
+    return logs;
+
   }
 
   async getShiftById(id: string, user: any): Promise<ShiftLog> {
@@ -1241,7 +1256,9 @@ export class ShiftsService {
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
+    this.adjustShiftSlotTimesForSeason(log);
     return log;
+
   }
 
   async getShiftByIdInternal(id: string): Promise<ShiftLog | null> {
@@ -1362,4 +1379,38 @@ export class ShiftsService {
       handovers: matchedHandovers.slice(0, 10),
     };
   }
+
+  adjustShiftSlotTimesForSeason(log: any) {
+    if (log && log.shiftSlotId && log.shiftDate) {
+      const slot = log.shiftSlotId;
+      if (slot.seasonalHours && slot.seasonalHours.length > 0) {
+        const timezone = 'America/Chicago';
+        const isSummer = this.workingCalendarService.isDaylightSavingTime(
+          log.shiftDate,
+          timezone,
+        );
+        const seasonName = isSummer ? 'SUMMER' : 'WINTER';
+        const matched = slot.seasonalHours.find(
+          (h: any) => h.name === seasonName,
+        );
+        if (matched) {
+          const st = matched.startTime;
+          const et = matched.endTime;
+          try {
+            slot.startTime = st;
+            slot.endTime = et;
+          } catch {
+            if (typeof slot.toObject === 'function') {
+              log.shiftSlotId = slot.toObject();
+              log.shiftSlotId.startTime = st;
+              log.shiftSlotId.endTime = et;
+            }
+          }
+        }
+      }
+    }
+    return log;
+  }
+
 }
+

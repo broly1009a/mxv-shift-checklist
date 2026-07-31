@@ -14,6 +14,7 @@ import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { IncidentsModule } from '../incidents/incidents.module';
 import { AuthModule } from '../auth/auth.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
+import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
 
 @Module({
   imports: [
@@ -26,7 +27,9 @@ import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
     forwardRef(() => IncidentsModule),
     AuthModule,
     MarginCheckerModule,
+    WorkingCalendarModule,
   ],
+
 
   providers: [ShiftsService, ShiftsGateway, TelegramService],
   controllers: [ShiftsController],
