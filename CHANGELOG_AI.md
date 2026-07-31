@@ -14,6 +14,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **Giải pháp**:
   - **Frontend**:
     - Cập nhật trang [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx) để đổi thuật ngữ hiển thị, bổ sung icon trợ giúp `HelpCircle` giải thích chi tiết ô nhập liệu, và đổi các emoji sang các icon vector `Sun` và `Snowflake`.
+    - Loại bỏ cột "Qua đêm" khỏi bảng danh sách ca trực, thay vào đó hiển thị biểu tượng vector `Moon` tinh tế màu vàng cam cạnh các mốc giờ kết thúc ca qua đêm để tối ưu hóa không gian.
+    - Cập nhật trang [calendar/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/calendar/page.tsx) loại bỏ hoàn toàn bảng "Quản lý Ca trực" trùng lặp cũ, thay thế bằng một Card hướng dẫn thiết kế nét đứt tinh tế và nút bấm chuyển trang đến trang quản trị ca trực chuyên biệt.
   - **Database & Backend**:
     - Cấu trúc lại [shift-slot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-slot.schema.ts) để lưu các khung giờ mùa hè/mùa đông dưới mảng động `seasonalHours`.
     - Sử dụng cơ chế Mongoose Virtual Getters để tự động sinh các trường phẳng (`startTimeSummer`, `endTimeSummer`...) phục vụ giao thức API tương thích ngược với Frontend cũ.
@@ -25,6 +27,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 ### 2. Danh sách file chỉnh sửa/tạo mới
 - **Chỉnh sửa**:
   - `frontend/src/app/admin/shift-slots/page.tsx`
+  - `frontend/src/app/admin/calendar/page.tsx`
   - `backend/src/schemas/shift-slot.schema.ts`
   - `backend/src/modules/shift-slots/shift-slots.service.ts`
   - `backend/src/modules/shifts/shifts.service.ts`

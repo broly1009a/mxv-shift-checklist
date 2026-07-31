@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { Clock, Plus, Edit, Trash2, X, Save, AlertCircle, Calendar, Sun, Snowflake, HelpCircle } from 'lucide-react';
+import { Clock, Plus, Edit, Trash2, X, Save, AlertCircle, Calendar, Sun, Snowflake, HelpCircle, Moon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -336,7 +336,6 @@ export default function AdminShiftSlotsPage() {
                     <th style={{ padding: '12px 16px' }}>Tên Ca</th>
                     <th style={{ padding: '12px 16px' }}>Mã Ca (Code)</th>
                     <th style={{ padding: '12px 16px' }}>Khung Giờ</th>
-                    <th style={{ padding: '12px 16px' }}>Qua đêm</th>
                     <th style={{ padding: '12px 16px' }}>TG Trễ Cho Phép</th>
                     <th style={{ padding: '12px 16px' }}>Trạng thái</th>
                     {isAdmin && <th style={{ padding: '12px 16px' }}>Hành Động</th>}
@@ -372,29 +371,45 @@ export default function AdminShiftSlotsPage() {
                         </code>
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                        <div><strong>Mặc định:</strong> {slot.startTime} - {slot.endTime}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <strong>Mặc định:</strong> {slot.startTime} - {slot.endTime}
+                          {slot.isOvernight && (
+                            <span title="Ca trực qua đêm (Vắt sang ngày tiếp theo)" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <Moon
+                                size={13}
+                                color="#f59e0b"
+                                style={{
+                                  fill: 'rgba(245, 158, 11, 0.25)',
+                                  filter: 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.4))'
+                                }}
+                              />
+                            </span>
+                          )}
+                        </div>
                         {(slot.startTimeSummer || slot.endTimeSummer) && (
                           <div style={{ fontSize: '0.78rem', color: '#10b981', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Sun size={12} style={{ color: '#10b981' }} />
                             Hè: {slot.startTimeSummer || slot.startTime} - {slot.endTimeSummer || slot.endTime}
+                            {slot.isOvernight && (
+                              <span title="Ca trực qua đêm (Vắt sang ngày tiếp theo)" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }}>
+                                <Moon size={11} color="#f59e0b" style={{ fill: 'rgba(245, 158, 11, 0.15)' }} />
+                              </span>
+                            )}
                           </div>
                         )}
                         {(slot.startTimeWinter || slot.endTimeWinter) && (
                           <div style={{ fontSize: '0.78rem', color: '#3b82f6', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Snowflake size={12} style={{ color: '#3b82f6' }} />
                             Đông: {slot.startTimeWinter || slot.startTime} - {slot.endTimeWinter || slot.endTime}
+                            {slot.isOvernight && (
+                              <span title="Ca trực qua đêm (Vắt sang ngày tiếp theo)" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }}>
+                                <Moon size={11} color="#f59e0b" style={{ fill: 'rgba(245, 158, 11, 0.15)' }} />
+                              </span>
+                            )}
                           </div>
                         )}
                       </td>
 
-
-                      <td style={{ padding: '14px 16px' }}>
-                        {slot.isOvernight ? (
-                          <span className="badge badge-high" style={{ padding: '2px 8px', borderRadius: '4px' }}>Có</span>
-                        ) : (
-                          <span className="badge badge-low" style={{ padding: '2px 8px', borderRadius: '4px' }}>Không</span>
-                        )}
-                      </td>
                       <td style={{ padding: '14px 16px', fontWeight: 600 }}>
                         {slot.gracePeriodMinutes || 0} phút
                       </td>

@@ -673,93 +673,25 @@ export default function AdminCalendarPage() {
 
             </div>
 
-            {/* Bottom row: Shift Slots CRUD list */}
-            <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Clock size={18} color="#10b981" /> Quản lý Ca trực (Shift Slots)
+            {/* Bottom row: Redirect to Shift Slots Configuration */}
+            <div className="glass-panel" style={{ padding: '28px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', marginTop: '24px' }}>
+              <Clock size={36} color="var(--color-accent)" />
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                  Quản lý Khung Ca Trực & Thời Gian Vào Ca
                 </h3>
-                <button 
-                  onClick={openCreateSlotModal} 
-                  className="btn btn-primary" 
-                  style={{ padding: '8px 14px', fontSize: '0.8rem', background: '#10b981', borderColor: '#10b981' }}
-                >
-                  <Plus size={14} /> Thêm ca trực
-                </button>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '520px', margin: 0, lineHeight: '1.5' }}>
+                  Để quản lý, thêm mới hoặc chỉnh sửa cấu hình các ca trực (bao gồm cài đặt khung giờ theo mùa Hè/Đông và thời gian trễ vào ca), vui lòng sử dụng trang chuyên biệt đã được tối ưu hóa.
+                </p>
               </div>
-
-                  {loadingStandards ? (
-                    <div style={{ color: 'var(--text-secondary)', padding: '20px', textAlign: 'center' }}>Đang tải ca trực...</div>
-                  ) : shiftSlots.length === 0 ? (
-                    <div style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center' }}>Chưa có ca trực nào được thiết lập.</div>
-                  ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                            <th style={{ padding: '12px 8px' }}>Tên ca</th>
-                            <th style={{ padding: '12px 8px' }}>Mã ca</th>
-                            <th style={{ padding: '12px 8px' }}>Bắt đầu</th>
-                            <th style={{ padding: '12px 8px' }}>Kết thúc</th>
-                            <th style={{ padding: '12px 8px' }}>Trạng thái</th>
-                            <th style={{ padding: '12px 8px', textAlign: 'right' }}>Thao tác</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {shiftSlots.map(slot => (
-                            <tr key={slot.id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                              <td style={{ padding: '14px 8px', fontWeight: 600 }}>{slot.name}</td>
-                              <td style={{ padding: '14px 8px' }}><code style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{slot.code}</code></td>
-                              <td style={{ padding: '14px 8px' }}>{slot.startTime}</td>
-                              <td style={{ padding: '14px 8px' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  {slot.endTime}
-                                  {slot.isOvernight && (
-                                    <span title="Ca trực qua đêm (Vắt sang ngày tiếp theo)" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                      <Moon 
-                                        size={14} 
-                                        color="#f59e0b" 
-                                        style={{ 
-                                          fill: 'rgba(245, 158, 11, 0.25)', 
-                                          filter: 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.4))'
-                                        }}
-                                      />
-                                    </span>
-                                  )}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 8px' }}>
-                                {slot.isActive ? (
-                                  <span style={{ color: '#10b981', fontSize: '0.78rem', fontWeight: 600 }}>Hoạt động</span>
-                                ) : (
-                                  <span style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>Khóa</span>
-                                )}
-                              </td>
-                              <td style={{ padding: '14px 8px', textAlign: 'right' }}>
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button 
-                                    onClick={() => openEditSlotModal(slot)} 
-                                    className="btn btn-secondary" 
-                                    style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                                  >
-                                    <Edit size={12} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleSlotDelete(slot)} 
-                                    className="btn btn-secondary" 
-                                    style={{ padding: '6px 10px', fontSize: '0.75rem', color: '#ef4444' }}
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+              <button 
+                onClick={() => router.push('/admin/shift-slots')} 
+                className="btn btn-primary" 
+                style={{ padding: '10px 20px', fontSize: '0.85rem' }}
+              >
+                Đi tới Cấu hình Ca trực
+              </button>
+            </div>
               </div>
             )}
           </div>
