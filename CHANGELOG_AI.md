@@ -3,6 +3,417 @@
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
 
+
+## [2026-08-05 17:55:00] - Bug Investigation & Fix: Lỗi "Chưa cấu hình bot_lot_macro_path_value" + Sai số liệu TVKD ngày 22/06/2026
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Kiểm tra tại sao khi bấm "Chỉ cập nhật Lũy kế TVKD" trên giao diện thì báo lỗi _"Chưa cấu hình file Macro cấu hình (bot_lot_macro_path_value) trong cài đặt hệ thống"_ dù đã cấu hình đúng trên UI. Đồng thời, dữ liệu đã ghi vào file output ngày 22/06/2026 bị sai (113B thay vì 6.4T đúng).
+
+### 2. Kết quả điều tra (Root Cause Analysis)
+
+#### 🔴 Bug 1: Key mismatch giữa UI và Service (`processTvkdOnly`)
+
+| | Setting Key |
+|---|---|
+| **UI lưu macro path** (`PUT /value-statistics/config`) | `bot_macro_value_path` |
+| **`processTvkdOnly()` đọc** (trước fix) | `bot_lot_macro_path_value` ← **KHÁC KEY!** |
+| **`processValueStatistics()` đọc** | `bot_macro_value_path` ← đúng |
+
+- `processTvkdOnly` dùng key sai `bot_lot_macro_path_value` → key này không bao giờ được UI lưu → luôn rỗng → throw Error.
+- Trong khi đó `processValueStatistics` dùng đúng key `bot_macro_value_path`.
+
+#### 🔴 Bug 2: Dữ liệu 22/06 bị ghi sai (Chưa fix, đang điều tra thêm)
+
+Hai file DSGD cho ngày 22/06/2026:
+
+| File | Rows | Format | Total GTGD |
+|---|---|---|---|
+| `marco/.../DSGD22.06.2026.xlsx` | 14,757 rows | Không có header (col1…col15), raw CQG format | **113,791,066,218** ← ❌ khớp với dữ liệu sai trong file output |
+| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows | Có header đầy đủ (Mã TKGD, Mã HĐ, KL giao dịch...), M-System export | **6,441,554,012,692** ← ✅ đúng |
+
+- Hệ thống đã đọc DSGD từ **marco folder** (CQG raw format) thay vì **Downloads folder** (M-System export đúng).
+- **Nguyên nhân chưa xác định hoàn toàn**: cần kiểm tra tiếp lần chạy nào đã trigger việc ghi 113B. Có thể là:
+  - Script trong `marco/src/` hoặc bot job chạy với `dsgdPath` trỏ vào marco folder.
+  - Setting `bot_macro_value_path` rỗng → `processValueStatistics` crash → không ghi → nhưng `processTvkdOnly` với key sai cũng crash → **không rõ cơ chế nào đã thực sự ghi 113B**.
+
+#### 📌 Thông tin debug script đã xác nhận:
+```
+Exchange rates: Default=26260, TRU=165, MPO=6330  (đọc từ Macro .xlsm đúng)
+Downloads DSGD (5684 rows) → Total GTGD = 6,441,554,012,692  ✅
+Marco DSGD (14757 rows)    → Total GTGD = 113,791,066,218    ❌
+```
+
+TVKD breakdown đúng từ Downloads DSGD:
+```
+001: 465,957,383,541 | 002: 281,731,205,678 | 003: 1,123,590,222,625
+007: 115,095,573,736 | 009: 246,681,312,735 | 012: 1,257,643,998,916
+036: 478,754,712,670 | 068: 163,399,285,205 | 080: 1,298,743,649,515
+...
+```
+
+#### 📌 Cấu hình trong DB tại thời điểm điều tra:
+```
+bot_lot_macro_target_root = C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong
+bot_lot_macro_path_value  = C:\...\Thong ke lot va gia tri giao dich.xlsx  ← file sai (lot, không phải value macro)
+bot_macro_value_path      = <not set>  ← UI chưa lưu được vì bị lỗi
+```
+
+### 3. File đã chỉnh sửa
+
+#### [MODIFY] [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts)
+- Trong hàm `processTvkdOnly()` (line 409): Đổi key đọc macro path từ `'bot_lot_macro_path_value'` → `'bot_macro_value_path'` (cùng key mà `PUT /value-statistics/config` lưu và `processValueStatistics` đọc).
+
+```diff
+- const macroPath = await this.settingsService.getSetting('bot_lot_macro_path_value', '');
++ // NOTE: Uses 'bot_macro_value_path' (same key saved by UI via PUT /value-statistics/config)
++ const macroPath = await this.settingsService.getSetting('bot_macro_value_path', '');
+```
+
+#### [ADD] Script debug tạm thời (có thể xóa sau)
+- `src/test-inspect-calculation.ts` — Script verify tính toán GTGD từ DSGD file.
+- `src/inspect-tvkd-sheet.ts` — Script inspect file TVKD Excel output.
+- `src/list-settings.ts` — Script in ra các system settings từ DB.
+
+### 4. Todo còn lại (cần fix tiếp)
+- [ ] **Xác định lần chạy nào đã ghi 113B vào file output** — check bot job history hoặc log backend.
+- [ ] **Re-run đúng cho ngày 22/06/2026** — dùng `dsgdPath = C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T06.2026\22.06\DSGD.xlsx` và `pathTvkd = C:\Users\hiepth\Videos\Thong ke gia tri giao dich theo TVKD\Thong ke gia tri giao dich 2026 theo TVKD.xlsx`.
+- [ ] **Khôi phục file TVKD từ backup** trước khi re-run (dùng `Backup_Snapshots\..._backup_2026-08-05_09-07-11.xlsx` — file gốc 128KB).
+- [ ] **Verify lại sau khi fix** bằng cách compare total phải = 6,441,554,012,692.
+
+### 5. Flow hoạt động của tính năng TVKD (tóm tắt để tham khảo)
+
+```
+UI: "Chỉ cập nhật Lũy kế TVKD"
+  → POST /value-statistics/process-tvkd-only { ngayGD, targetRoot, dsgdPath, pathTvkd }
+  → valueStatisticsService.processTvkdOnly()
+     1. Đọc Macro .xlsm (key: bot_macro_value_path) → lấy hhMap, vlookupMap, tyGia
+     2. Đọc DSGD.xlsx (dsgdPath) → parse rows
+     3. Tính gtgd = lot × price × heSo × donVi × tyGia
+     4. Group by maTKGD.substring(0,3) → tvkdGtgdMap
+     5. Ghi vào file TVKD (pathTvkd) → tìm row date, fill giá trị theo cột TVKD code từ Row 4
+     6. Backup tự động → Backup_Snapshots/
+```
+
+ - Bug Fix: Sửa lỗi kiểm tra an toàn thư mục ghi và tính toán động cột Tổng trong file TVKD
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Sửa lỗi `[SECURITY GUARD]` chặn không cho ghi file ra ngoài thư mục dù đã chỉnh sửa đường dẫn trong `.env`.
+  - Giải thích và sửa lỗi cột `InvestingPro 082` bị ghi đè công thức `=SUM(...)` hiển thị `####` thay vì giá trị số giao dịch.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts):
+      - Đổi phép so sánh kiểm tra đường dẫn an toàn `assertSafeWritePath` thành không phân biệt hoa thường (`toLowerCase().startsWith()`) nhằm tránh lỗi do ký tự ổ đĩa (ví dụ: `C:\` và `c:\`).
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Cập nhật hàm `processTvkdOnly` để chỉ kiểm tra an toàn đường dẫn ghi của file TVKD (`pathTvkd`) thay vì kiểm tra an toàn thư mục gốc `targetRoot` (do tính năng này chỉ đọc dữ liệu chứ không ghi vào thư mục gốc).
+    - Sửa đổi [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts):
+      - Thay đổi cơ chế ghi công thức tổng dòng từ hardcode cột 61 (`BI`) thành tự động quét Dòng 2 tìm cột chứa chữ **`Tổng`** (do số lượng TVKD thay đổi từ tháng 7 khiến cột Tổng dịch chuyển sang cột 64 - `BL`). Điền công thức `=SUM(...)` chính xác vào cột Tổng động tìm được.
+
+## [2026-08-05 16:20:00] - Feature: Bổ sung tính năng chạy độc lập cập nhật file lũy kế TVKD từ giao diện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Viết một tính năng chạy test độc lập trên giao diện (nút bấm riêng biệt) để chỉ ghi đè vào file `Thong ke gia tri giao dich 2026 theo TVKD.xlsx` mà không ảnh hưởng tới các file lũy kế chính khác.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+      - Thêm endpoint `POST /value-statistics/process-tvkd-only` để nhận yêu cầu chạy độc lập.
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Triển khai phương thức `processTvkdOnly` để chỉ đọc file giao dịch `DSGD.xlsx`, gom nhóm theo TVKD, ghi đè duy nhất vào file lũy kế TVKD và trả kết quả về giao diện mà không cập nhật các tracker khác.
+  - **Frontend**:
+    - Sửa đổi [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+      - Khai báo state `loadingTvkdOnly` và hàm xử lý `handleRunTvkdOnly` gửi request tới API riêng biệt.
+      - Thêm nút **Chỉ cập nhật Lũy kế TVKD** nằm cạnh nút chạy kiểm thử chính thức trên giao diện. Khi hoàn thành, màn hình tự động chuyển sang tab **Chi tiết theo TVKD** và hiển thị kết quả phân tách tương ứng.
+
+## [2026-08-05 16:00:00] - Feature: Tích hợp tự động cập nhật dữ liệu đối soát giá trị giao dịch theo TVKD vào file Excel lũy kế năm
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi chạy đối soát giá trị giao dịch có ACM, tự động bóc tách dữ liệu và ghi thêm vào file Excel lũy kế năm theo TVKD: `Thong ke gia tri giao dich 2026 theo TVKD.xlsx`.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts):
+      - Thêm hàm `updateValueTvkdTrackerFile` sử dụng `exceljs` để cập nhật dữ liệu vào sheet tháng tương ứng (ví dụ: `T08.2026`).
+      - Hàm tự động định vị dòng bằng cách so sánh ngày ở Cột B (`B`), tự động bóc tách mã TVKD (3 chữ số cuối bằng Regex, ví dụ: `HN\n001` -> `001`) ở Dòng 4 để mapping sang cột chính xác, và điền công thức tính tổng dòng `=SUM(C{row}:BH{row})` ở cột BI.
+      - Tự động tạo bản sao lưu snapshot dự phòng trước khi ghi đè.
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Trong vòng lặp duyệt dòng giao dịch hàng ngày, thêm logic trích xuất 3 ký tự mã TVKD từ mã tài khoản giao dịch (`maTKGD`) và tổng hợp giá trị giao dịch của TVKD đó vào map `tvkdGtgdMap`.
+      - Khi cờ ghi đè lũy kế được bật, thực hiện ghi đè dữ liệu vào file lũy kế TVKD và đồng thời trả về kết quả `tvkdGtgdBreakdown` trong API response.
+    - Sửa đổi [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+      - Thêm trường `pathTvkd` vào các API lấy/lưu cấu hình (lưu trong DB với key `bot_lot_macro_path_tvkd`) và API chạy kiểm thử trực tuyến `process-local`.
+  - **Frontend**:
+    - Sửa đổi [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+      - Bổ sung trường nhập liệu **File lũy kế theo TVKD** trong khối cấu hình nâng cao.
+      - Tự động sinh đường dẫn mặc định khi cấu hình thư mục gốc: `${parentRoot}\\Thong ke gia tri giao dich theo TVKD\\Thong ke gia tri giao dich ${year} theo TVKD.xlsx`.
+      - Thiết lập Tab hiển thị trực tuyến **Chi tiết theo TVKD** hiển thị bảng danh sách giá trị giao dịch của từng thành viên trong phiên (tương ứng với dữ liệu ghi vào file Excel).
+
+## [2026-08-05 15:32:00] - Bugfix: Sửa lỗi hiển thị "trắng bảng và toàn số 0" ở các tab Chi tiết Sản phẩm & TVKD của Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi chạy đối chiếu, file lũy kế ghi ra đúng nhưng kết quả hiển thị các bảng chi tiết trên màn hình (theo Sản phẩm và theo TVKD) lại bị trống trơn (N/A, cột mã rỗng) và số lượng hiển thị toàn bằng 0.
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Khắc phục sự sai lệch tên thuộc tính (mismatch keys) giữa Frontend và API Backend. Trước đây, Frontend gọi các key ảo như `item.productCode`, `item.tvkdCode`, `item.dsgdTotal`, `item.dsgdSpread`, `item.dsgdLme`,... trong khi Backend thực tế trả về các cấu trúc tinh giản `LotByProduct` và `LotByTvkd` từ helper.
+    - Cấu trúc lại bảng **Chi tiết theo Mã Sản Phẩm**: Trỏ đúng các cột dữ liệu thực tế: Mã Sản phẩm (`maSP`), Khối lượng mua (`klm`), Khối lượng bán (`klb`), và Tổng số lot (`total`).
+    - Cấu trúc lại bảng **Chi tiết theo TVKD**: Trỏ đúng các cột dữ liệu thực tế: Mã TVKD (`tvkd`), Khối lượng mua (`klm`), Khối lượng bán (`klb`), và Tổng số lot (`total`).
+
+## [2026-08-05 15:21:00] - Refactor: Đồng bộ logic tính toán đường dẫn thông minh cho màn hình Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Áp dụng các thay đổi đường dẫn thông minh từ màn hình Thống kê Giá trị (chống trùng lặp thư mục con, hỗ trợ tự động nhảy đường dẫn theo UAT / Production) sang màn hình Đối chiếu Số lô (Lot Statistics).
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Đồng bộ cơ chế phân loại 3 trường hợp tự động (ends with `Futures`, ends with `Backup MS/CQG`, hoặc folder cha) cho cả hai thư mục nguồn MS và CQG.
+    - Tại hook `useEffect` (2): Tự động phát hiện môi trường thông qua từ khóa `uat` / `operatechecklist_uat` trong đường dẫn.
+      - **Với UAT**: Tự sinh đường dẫn 6 file Excel lũy kế năm ở dạng phẳng (`parentBase\ACM\16.07\Thong ke...`), bỏ qua lớp thư mục con `Futures\2026\T07.2026`.
+      - **Với Production**: Giữ nguyên đường dẫn chuẩn phân cấp `parentBase\ACM\2026\T07.2026\16.07\Thong ke...`.
+    - Bóc tách triệt để các hậu tố `Backup MS`, `Backup CQG` và `Futures` khi lấy thư mục cha chung `parentBaseCqg` để sinh các file Tracker ACM, LME, Options, Spread.
+
+## [2026-08-05 15:16:00] - Bugfix: Sửa lỗi tràn/mất chữ ở thông báo Toast (react-hot-toast) khi báo lỗi đường dẫn dài
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thông báo lỗi dài (ví dụ: cảnh báo bảo mật chặn đường dẫn file), chữ trong hộp thoại Toast hiển thị bị tràn và mất chữ ở lề bên phải.
+- **Giải pháp**:
+  - Chỉnh sửa [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx):
+    - Mở rộng giới hạn chiều rộng tối đa (`maxWidth`) của Toaster lên `600px` (mặc định của thư viện chỉ là `350px`, không đủ hiển thị các đường dẫn file Windows dài).
+    - Thêm thuộc tính CSS `wordBreak: 'break-word'` để tự động bẻ chữ ở các chuỗi dài không khoảng trắng (như đường dẫn thư mục `C:\Users\hiepth\Downloads...`).
+    - Thêm `whiteSpace: 'pre-wrap'` để tôn trọng và hiển thị chính xác các ký tự xuống dòng `\n` từ backend trả về (ví dụ các danh sách gạch đầu dòng danh mục thư mục an toàn).
+
+## [2026-08-05 15:12:00] - Feature: Bổ sung khung hiển thị lỗi trực tiếp lên giao diện (Visual Error Box)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại sao khi backend lỗi (ví dụ không tìm thấy file ngày `16.08`) hệ thống không hiển thị mô tả lỗi cụ thể lên giao diện cho người dùng thấy rõ ràng mà màn hình lại trống trơn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx) & [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Khởi tạo thuộc tính state `error` (chuỗi hoặc null) trong cấu trúc Component để ghi nhận thông tin lỗi.
+    - Tại hàm `handleRunProcess`, tự động reset lỗi (`setError(null)`) khi bắt đầu thực thi và lưu lại thông điệp lỗi (`setError(err.message)`) khi có ngoại lệ xảy ra trong khối `catch`.
+    - Thiết kế khối hiển thị lỗi (Visual Error Box) dạng Glassmorphism sang trọng với viền đỏ hổ phách (`rgba(239, 68, 68, 0.08)`), tích hợp biểu tượng `<AlertTriangle />` màu đỏ nổi bật ngay dưới thanh công cụ điều khiển.
+    - Định dạng thông điệp lỗi dạng `fontFamily: monospace` và `whiteSpace: pre-wrap` để các chi tiết lỗi (như đường dẫn file bị thiếu hoặc thông báo từ backend) hiển thị nguyên vẹn, dễ đọc và dễ sao chép.
+
+## [2026-08-05 14:33:00] - Bugfix: Sửa lỗi tự động tính toán trùng lặp đường dẫn gốc kết thúc bằng Futures
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thay đổi Thư mục gốc (Target Root) thành `C:\...\Backup MS\Futures`, hệ thống tự sinh ra Đường dẫn file DSGD nguồn sai lệch: `C:\...\Backup MS\Futures\Backup MS\16.07\DSGD.xlsx` (bị lặp thêm `Backup MS` sau `Futures`). Đáng lẽ phải là: `C:\...\Backup MS\Futures\2026\T07.2026\16.07\DSGD.xlsx`.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Hoàn thiện và thông minh hóa logic tự động ghép đường dẫn theo 3 trường hợp:
+      - **Case 1**: Thư mục gốc kết thúc bằng `Futures` (như cấu hình Production của anh) -> Nhận diện và tự động ghép theo cấu trúc thư mục phân cấp chuẩn: `[Target Root]\[Năm]\T[Tháng].[Năm]\[Ngày].[Tháng]\DSGD.xlsx` mà không lặp lại `Backup MS`.
+      - **Case 2**: Thư mục gốc kết thúc bằng `Backup MS` -> Tự động nhận diện nếu có chứa `uat`/`operatechecklist_uat` thì ghép dạng UAT (`[Target Root]\[Ngày].[Tháng]\DSGD.xlsx`), ngược lại thì tự chèn thêm `Futures` và ghép cấu trúc phân cấp.
+      - **Case 3**: Thư mục gốc là thư mục cha chung (như `Tai lieu hoat dong`) -> Tự chèn thêm `Backup MS` (và `Futures` nếu không phải UAT) cùng thư mục ngày tương ứng.
+    - Cập nhật logic trích xuất `parentRoot` để bóc tách triệt để cả hai hậu tố `Futures` và `Backup MS` khi sinh ra đường dẫn cho 5 file Excel lũy kế năm của Value Statistics.
+
+## [2026-08-05 14:31:00] - Feature: Thêm cơ chế cảnh báo lệch Ngày giao dịch so với đường dẫn nguồn trên UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại sao khi sửa thủ công thư mục nguồn sang ngày khác (ví dụ: `03.08`) nhưng Ngày giao dịch vẫn chọn ngày khác (ví dụ: `04.08`) thì hệ thống vẫn cho chạy bình thường mà không báo lỗi lên màn hình để ngăn chặn rủi ro dữ liệu.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Thêm cơ chế so khớp ngày tháng (dạng `DD.MM`) trích xuất từ Ngày giao dịch được chọn với chuỗi đường dẫn nguồn `dsgdPath`.
+    - Nếu phát hiện không trùng khớp, hệ thống sẽ chặn và bật hộp thoại cảnh báo (`window.confirm`) yêu cầu người dùng xác nhận rõ ràng trước khi chạy.
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Áp dụng kiểm tra tương tự tại `handleRunProcess` và `handleDownloadExcel` cho 2 thư mục `folderPathMs` và `folderPathCqg`.
+    - Nếu một trong hai thư mục không chứa phần tên ngày trùng với Ngày giao dịch được chọn, cảnh báo sẽ hiển thị để ngăn ngừa lỗi thao tác ngoài ý muốn, đồng thời vẫn giữ tính linh hoạt cho phép xác nhận chạy nếu kiểm thử trên thư mục UAT/Test đặc thù.
+
+## [2026-08-05 13:37:00] - Bugfix: Sửa lỗi lấy đường dẫn ngày cũ khi tải lại trang Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại màn hình Đối chiếu Số Lô, hệ thống vẫn hiển thị đường dẫn ngày cũ (`16.07`) sau khi tải lại trang, không tự động lấy theo ngày giao dịch đang chọn.
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Thay đổi cơ chế tải cấu hình mặc định từ Database: Thay vì gọi trực tiếp `setFolderPathMs` và `setFolderPathCqg` (gây đè đường dẫn ngày cũ lưu trong DB lên ngày đang chọn), hệ thống sẽ trích xuất thư mục gốc (`basePathMs`, `basePathCqg`) từ đường dẫn lưu trong database.
+    - Cập nhật hàm helper `extractMsBase` và `extractCqgBase` để phân tích chính xác thư mục gốc (quét tìm `Backup MS/Futures` hoặc `Backup CQG/Futures` không phân biệt chữ hoa thường và loại ký tự slash).
+    - Khi `basePathMs` và `basePathCqg` được cập nhật, hook `useEffect` (1) sẽ tự động tính toán lại các thư mục ngày chính xác theo Ngày giao dịch (`ngayGD`) đang được chọn hiện tại.
+    - Bỏ kiểm tra điều kiện trống `!path...` tại hook `useEffect` (2) để các file Excel lũy kế năm và tháng được đồng bộ tự động và đồng nhất mỗi khi người dùng thay đổi ngày giao dịch hoặc thư mục gốc.
+
+## [2026-08-05 12:11:00] - Refactor: Đồng bộ giao diện và logic đối soát Số Lô (Lot Statistics) chuẩn Clean UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đánh giá và điều chỉnh giao diện, logic của màn hình đối soát Số Lô (Lot Statistics) tương tự như màn hình Thống kê Giá trị (Value Statistics).
+- **Giải pháp**:
+  - Chỉnh sửa [lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.service.ts) & [lot-statistics.dto.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/dto/lot-statistics.dto.ts):
+    - Mở rộng hàm `getConfig` và DTO để hỗ trợ lưu và trả về thuộc tính `updateCumulative` (đồng bộ trạng thái checkbox).
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - **Tinh gọn giao diện**: Loại bỏ khung tạo nhanh "Quick generate panel" dư thừa, đưa mục Thư mục gốc MS và CQG lên làm cấu hình chính.
+    - **Cấu hình nâng cao thu gọn**: Đưa 2 đường dẫn chi tiết ngày (`folderPathMs`, `folderPathCqg`) và 6 đường dẫn file lũy kế năm vào panel thu gọn nâng cao (dùng Settings icon xoay của `lucide-react`).
+    - **Ngăn trùng lặp đường dẫn**: Bổ sung bộ kiểm tra tự động chèn `\\Futures` nếu đường dẫn gốc kết thúc bằng `Backup MS` / `Backup CQG`.
+    - **Lưu đồng bộ Database**: Cập nhật hàm `handleSaveConfig` và `useEffect` khi mount để lưu & load đồng bộ trạng thái checkbox `updateCumulative` và toàn bộ các đường dẫn từ Database.
+    - Thay thế emoji bằng icon thư viện (`Lightbulb`, `Settings`).
+
+## [2026-08-05 12:07:00] - Bugfix: Đồng bộ và Lưu cấu hình toàn bộ các trường nhập và checkbox vào Database
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi tick chọn checkbox "Ghi đè dữ liệu lũy kế" hoặc chỉnh sửa các đường dẫn file lũy kế rồi ấn "Lưu cấu hình mặc định", hệ thống không lưu lại trạng thái (khi load lại trang bị mất trạng thái đã chọn).
+- **Giải pháp**:
+  - Chỉnh sửa [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+    - Mở rộng API `GET /value-statistics/config` và `PUT /value-statistics/config` để hỗ trợ load/save 6 cấu hình mới trong Database (bảng `system_settings`):
+      - Trạng thái checkbox `updateCumulative` (khóa `bot_lot_macro_update_cumulative`).
+      - 5 đường dẫn file lũy kế năm (`bot_lot_macro_path_normal`, `bot_lot_macro_path_acm`, `bot_lot_macro_path_lme`, `bot_lot_macro_path_options`, `bot_lot_macro_path_spread`).
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Đưa checkbox `Ghi đè dữ liệu vào các file lũy kế` hiển thị trở lại trên màn hình chính của block.
+    - Cập nhật hàm `handleSaveConfig` để gửi toàn bộ 5 đường dẫn lũy kế năm và trạng thái checkbox lên API Backend.
+    - Cập nhật hook `useEffect` khi mount component để lấy đầy đủ các cấu hình này từ database về hiển thị lên UI, đảm bảo đồng bộ hoàn toàn giữa các client.
+    - Cập nhật logic `useEffect` tự động điền đường dẫn: chỉ điền các đường dẫn mặc định khi các trường này trống, tránh việc ghi đè lên các giá trị cấu hình tùy chỉnh đã lưu của IT.
+
+## [2026-08-05 12:05:00] - Bugfix: Sửa lỗi nhân đôi thư mục "Backup MS" trong đường dẫn file nguồn và file lũy kế
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi IT cấu hình `Thư mục gốc (Target Root)` trực tiếp trỏ đến thư mục `Backup MS` (ví dụ `C:\...\Backup MS`), hệ thống tự động sinh ra đường dẫn file nguồn chứa hai lần `Backup MS` liền nhau (`...\Backup MS\Backup MS\04.08\DSGD.xlsx`).
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Thêm kiểm tra `cleanBase.toLowerCase().endsWith('backup ms')` để phát hiện nếu đường dẫn người dùng nhập đã kết thúc bằng `Backup MS`.
+    - Nếu có, hệ thống sẽ bỏ qua việc tự động chèn thêm `\\Backup MS` mà trỏ trực tiếp đến thư mục ngày (`\\04.08\\DSGD.xlsx`).
+    - Đồng thời, đối với 5 đường dẫn file lũy kế năm và Macro, hệ thống tự động tìm thư mục cha (`parentRoot` - lùi lại một cấp thư mục ngoài `Backup MS`) để sinh đường dẫn chuẩn, tránh việc lưu file lũy kế hay tìm macro bên trong thư mục `Backup MS`.
+
+## [2026-08-05 12:03:00] - Refactor: Khôi phục cấu hình đường dẫn file Macro (.xlsm) tại Cấu hình nâng cao
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Do Backend vẫn cần thực hiện đọc file Macro này để phân tích hệ số/tỷ giá quy đổi, chúng ta cần giữ lại khả năng cho phép IT cấu hình đường dẫn này khi cần thiết.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Đưa trường nhập liệu **Đường dẫn file Macro cấu hình (.xlsm)** quay trở lại giao diện và đặt nằm ở đầu danh sách bên trong mục **Cấu hình nâng cao** (thu gọn mặc định).
+    - Khôi phục kiểm tra ràng buộc `!macroPath.trim()` ở nút bấm chạy kiểm thử để đảm bảo tính an toàn dữ liệu đầu vào.
+    - Giữ nguyên thiết kế ẩn checkbox `Ghi đè dữ liệu lũy kế` và tự động gửi `updateCumulative: true`.
+
+## [2026-08-05 11:58:00] - Refactor: Loại bỏ trường Macro cấu hình và Checkbox lũy kế khỏi giao diện UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không cần trường nhập file Macro cấu hình vì logic đối soát chạy bằng JS ngầm và file này đã cố định tĩnh trong thư mục dự án.
+  - Không cần checkbox "Ghi đè dữ liệu lũy kế" trên UI nữa để giảm bớt thao tác thủ công, đảm bảo hệ thống tự động lưu lũy kế 100%.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Xóa bỏ hoàn toàn input `Đường dẫn file Macro cấu hình (.xlsm)` ở cả giao diện chính lẫn giao diện nâng cao.
+    - Xóa bỏ checkbox `Ghi đè dữ liệu vào các file lũy kế` khỏi UI.
+    - Mặc định khởi tạo state `updateCumulative` là `true` để luôn gửi cờ cập nhật lũy kế lên Backend khi chạy quy trình.
+    - Loại bỏ kiểm tra `!macroPath.trim()` ở thuộc tính `disabled` của nút bấm chạy kiểm thử.
+
+## [2026-08-05 11:56:00] - Bugfix: Hiển thị vô điều kiện 5 đường dẫn lũy kế năm trong mục Cấu hình nâng cao
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thu gọn cấu hình nâng cao, 5 đường dẫn file lũy kế bị mất tích (không thể thấy hoặc cấu hình) nếu checkbox "Ghi đè dữ liệu lũy kế" ở màn hình chính không được tick.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Loại bỏ điều kiện `{updateCumulative && ...}` bọc xung quanh 5 đường dẫn file lũy kế.
+    - Đưa 5 ô nhập liệu này hiển thị **vô điều kiện** (luôn luôn hiển thị) bên trong panel **Cấu hình nâng cao** bất kể trạng thái tick của checkbox.
+    - Điều này giúp IT có thể chủ động kiểm tra và thay đổi đường dẫn của 5 file lũy kế bất cứ lúc nào khi mở rộng Cấu hình nâng cao mà không bị phụ thuộc vào checkbox thực thi.
+
+## [2026-08-05 11:55:00] - Refactor: Thay thế biểu tượng bánh răng emoji bằng Settings component của lucide-react
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ nốt icon emoji `⚙️` thô ở nút đóng/mở cấu hình nâng cao và thay thế bằng biểu tượng chuẩn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Import component `Settings` từ thư viện `lucide-react`.
+    - Thay thế emoji `⚙️` bằng `<Settings size={14} />`.
+    - Thêm lớp CSS `animate-spin` với `animationDuration: '4s'` để tạo hiệu ứng bánh răng xoay tròn chậm rãi cực kỳ tinh tế và sinh động khi bảng cấu hình nâng cao đang mở rộng (expanded).
+    - Thêm chỉ báo hướng đóng/mở dạng mũi tên (`▲` / `▼`) ở cuối nhãn nút bấm để giao diện rõ ràng.
+
+## [2026-08-05 11:50:00] - Refactor: Thay thế biểu tượng bóng đèn emoji bằng Lightbulb component của lucide-react
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ icon emoji `💡` thô ở phần chú giải và thay thế bằng icon từ thư viện biểu tượng chuẩn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Import component `Lightbulb` từ thư viện `lucide-react`.
+    - Thay thế emoji `💡` bằng `<Lightbulb size={12} color="#eab308" />`.
+    - Sử dụng `display: 'flex'`, `alignItems: 'center'` và `gap: '5px'` để căn chỉnh thẳng hàng dọc hoàn hảo giữa icon bóng đèn và văn bản chỉ dẫn.
+
+## [2026-08-05 11:48:00] - Refactor: Tinh gọn cấu hình & tích hợp mục "Cấu hình nâng cao" đóng/mở trong ValueStatisticsPanel
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tối giản hóa ô nhập `Đường dẫn file DSGD nguồn` vì 99% trường hợp backend tự động tính toán được, tránh gây dư thừa rối mắt cho IT vận hành.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Khởi tạo biến trạng thái `showAdvanced` (mặc định là `false`).
+    - Gom tất cả các cấu hình đường dẫn chi tiết ít khi cần thay đổi gồm: `Đường dẫn file Macro cấu hình (.xlsm)`, `Đường dẫn file DSGD nguồn` và `5 file Excel lũy kế năm` vào trong panel đóng/mở `<div style={{ borderTop: '1px dashed var(--border-color)', ... }}`.
+    - Thêm nút toggle `⚙️ Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)` để người dùng chủ động click đóng/mở.
+    - Rút gọn màn hình cấu hình chính xuống mức tối giản nhất: Chỉ hiển thị **Ngày giao dịch**, **Thư mục gốc (Target Root)** và Checkbox **Ghi đè dữ liệu lũy kế**.
+
+## [2026-08-05 11:24:00] - Bugfix: Loại bỏ nhãn kỹ thuật (Enum raw string) trong Dropdown Root Cause của IncidentReportModal
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ các mã enum kỹ thuật (như `MISSING_CONFIGURATION`, `SOFTWARE_BUG`,...) hiển thị trong dropdown chọn nguyên nhân của sự cố (Incident Report) để giao diện hoàn toàn tiếng Việt thân thiện với người vận hành.
+- **Giải pháp**:
+  - Chỉnh sửa [IncidentReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx):
+    - Giữ nguyên thuộc tính `value` (enum tiếng Anh) để gửi lên API.
+    - Xóa các tiền tố tiếng Anh và dấu ngoặc đơn ở phần hiển thị chữ cho người dùng xem. Ví dụ: `MISSING_CONFIGURATION (Thiếu cấu hình)` chuyển thành `Thiếu cấu hình`.
+    - Áp dụng tương tự cho tất cả 7 tùy chọn nguyên nhân gốc rễ.
+
+## [2026-08-05 11:18:00] - Bugfix: Tự động Tóm tắt sự cố & Loại bỏ các Log kỹ thuật thừa tại Báo cáo trực quan
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không hiển thị y nguyên log chi tiết (với các dòng trạng thái hệ thống rối rắm) mà chỉ trích xuất các thông tin nghiệp vụ/lỗi thực tế để hiển thị gọn gàng, trực quan.
+- **Giải pháp**:
+  - Chỉnh sửa [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx):
+    - Thêm hàm bổ trợ `summarizeLogText` để phân tích văn bản log.
+    - Lọc bỏ các dòng log kỹ thuật của hàng đợi như `Job enqueued`, `Job status transitioned`, `Starting attempt`, `Attempt X failed`, `Job failed permanently`, `Connecting to database`, `Initialize`.
+    - Loại bỏ các chuỗi timestamp thô ở đầu mỗi dòng (như `[2026-08-05T02:14:05.443Z]`).
+    - Tự động định dạng các dòng nghiệp vụ còn lại thành danh sách bullet points (`•`) rõ ràng, giúp vận hành viên nhìn thấy ngay các lỗi nghiệp vụ hoặc mô tả tiến trình thực tế.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch thành công 100% qua lệnh `cmd /c npx tsc --noEmit`.
+
+## [2026-08-05 11:05:00] - Bugfix: Hiển thị lỗi trực quan trong Modal Báo cáo cho tác vụ Cảnh báo Đáo hạn
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục sự cố modal Báo cáo trực quan hiển thị sai thông tin cho tác vụ Cảnh báo Đáo hạn (`Bot tính mốc đáo hạn & gửi thông báo nhắc nhở TVKD tự động`): Modal hiển thị "TỔNG SỐ EMAIL GỬI: 0 email" gây nhầm lẫn khi tác vụ gặp lỗi "Chưa nhận được email Thông báo tất toán hợp đồng...".
+- **Giải pháp**:
+  - Chỉnh sửa [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx):
+    - Thêm prop `rawText` để nhận thông báo chi tiết từ log của Bot.
+    - Phát hiện các từ khóa lỗi (`chưa nhận`, `lỗi`, `không tìm thấy`,...) hoặc thông tin vận hành thành công trong log để hiển thị dưới dạng **Alert Card (Màu đỏ/xanh lá)** trực quan ngay phía trên.
+    - Ẩn khung đếm email trống ("0 email") nếu tác vụ không phải là tác vụ kiểm tra hòm thư gửi sao kê thực tế nhằm tránh gây hiểu lầm cho người vận hành.
+  - Chỉnh sửa [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) để truyền giá trị `parsedData.rawText` vào component `SystemApiVisualReport`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx)
+  - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử kiểu dữ liệu Frontend bằng `cmd /c npx tsc --noEmit` thành công 100%.
+
+## [2026-08-05 10:38:00] - Safe Guard: Vô hiệu hóa (Comment) các cơ chế đường dẫn dự phòng (Fallback Paths) chuẩn bị Go-Live UAT
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không xóa hẳn mà thực hiện comment (vô hiệu hóa) cơ chế quét tệp dự phòng từ thư mục cá nhân `Downloads` và thư mục tạm `temp/cast-downloads` của các tác vụ tự động đối chiếu ca trực (KLGD, Pre-EOD, SOD, EOD) để tránh nhầm lẫn dữ liệu nhưng vẫn giữ khung code để tham khảo.
+- **Giải pháp**:
+  - Khôi phục và đặt comment ẩn (`//`) cho các cơ chế fallback trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
+    - **Tác vụ `runAutoCheckKLGD`**: Comment các dòng fallback đến `Downloads` và `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckPreEOD`**: Comment các dòng fallback Straits và CQG đến `Downloads` và `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckSOD`**: Comment dòng fallback `Accounts_Balances` đến thư mục tạm `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckEodMm`**: Comment các dòng fallback `eod.xlsx`/`Accounts_Balances` đến `temp/cast-downloads`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100% không phát sinh lỗi.
+
+
 ## [2026-08-05 10:25:00] - Refactor & Bug Fix: Đồng bộ trạng thái Cha-Con, Khóa tiến trình Sub-task và chặn lỗi lặp cập nhật ngược (Propagation Loop Fix)
 
 ### 1. Mục tiêu Thay đổi
