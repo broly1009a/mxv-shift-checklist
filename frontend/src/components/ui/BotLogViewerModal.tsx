@@ -961,7 +961,7 @@ export default function BotLogViewerModal({
               {category === 'MARGIN_DECISION' && <MarginDecisionVisualReport jsonResult={parsedData.jsonResult} rawText={parsedData.rawText} />}
               {category === 'RECONCILIATION' && <ReconciliationVisualReport parsedData={parsedData} />}
               {category === 'FILE_AUDIT' && <FileAuditVisualReport fileItems={parsedData.fileItems} />}
-              {category === 'SYSTEM_API' && <SystemApiVisualReport jsonResult={parsedData.jsonResult} marginAccounts={parsedData.marginAccounts} />}
+              {category === 'SYSTEM_API' && <SystemApiVisualReport jsonResult={parsedData.jsonResult} marginAccounts={parsedData.marginAccounts} rawText={parsedData.rawText} />}
               {category === 'EMAIL_SCAN' && <EmailScanVisualReport emailScanResult={parsedData.emailScanResult} rawText={parsedData.rawText} />}
             </>
           )}

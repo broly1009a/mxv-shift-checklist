@@ -36,16 +36,57 @@ export class ValueStatisticsController {
       'bot_lot_macro_target_root',
       'M:\\Quanlygiaodich\\Tai lieu hoat dong',
     );
+    const updateCumulative = await this.settingsService.getSetting(
+      'bot_lot_macro_update_cumulative',
+      'false',
+    );
+    const pathNormal = await this.settingsService.getSetting(
+      'bot_lot_macro_path_normal',
+      '',
+    );
+    const pathAcm = await this.settingsService.getSetting(
+      'bot_lot_macro_path_acm',
+      '',
+    );
+    const pathLme = await this.settingsService.getSetting(
+      'bot_lot_macro_path_lme',
+      '',
+    );
+    const pathOptions = await this.settingsService.getSetting(
+      'bot_lot_macro_path_options',
+      '',
+    );
+    const pathSpread = await this.settingsService.getSetting(
+      'bot_lot_macro_path_spread',
+      '',
+    );
+
     return {
       defaultMacroPath: macroPath,
       defaultTargetRoot: targetRoot,
+      updateCumulative: updateCumulative === 'true',
+      pathNormal,
+      pathAcm,
+      pathLme,
+      pathOptions,
+      pathSpread,
     };
   }
 
   @Put('config')
   @Permissions('ACCESS_AUTO_SHIFT')
   async saveConfig(
-    @Body() config: { macroPath?: string; targetRoot?: string },
+    @Body()
+    config: {
+      macroPath?: string;
+      targetRoot?: string;
+      updateCumulative?: boolean;
+      pathNormal?: string;
+      pathAcm?: string;
+      pathLme?: string;
+      pathOptions?: string;
+      pathSpread?: string;
+    },
   ) {
     if (config.macroPath !== undefined) {
       await this.settingsService.setSetting(
@@ -57,6 +98,42 @@ export class ValueStatisticsController {
       await this.settingsService.setSetting(
         'bot_lot_macro_target_root',
         config.targetRoot,
+      );
+    }
+    if (config.updateCumulative !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_update_cumulative',
+        String(config.updateCumulative),
+      );
+    }
+    if (config.pathNormal !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_normal',
+        config.pathNormal,
+      );
+    }
+    if (config.pathAcm !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_acm',
+        config.pathAcm,
+      );
+    }
+    if (config.pathLme !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_lme',
+        config.pathLme,
+      );
+    }
+    if (config.pathOptions !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_options',
+        config.pathOptions,
+      );
+    }
+    if (config.pathSpread !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_spread',
+        config.pathSpread,
       );
     }
     return { success: true };

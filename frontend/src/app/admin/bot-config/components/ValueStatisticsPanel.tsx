@@ -9,6 +9,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   FolderOpen,
+  Lightbulb,
+  Settings,
 } from 'lucide-react';
 
 interface ValueStatisticsPanelProps {
@@ -48,70 +50,78 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
   const [result, setResult] = useState<any>(null);
   const [resultTab, setResultTab] = useState<'summary' | 'normal' | 'spread'>('summary');
   const [savingConfig, setSavingConfig] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     const savedBase = localStorage.getItem('val_stats_base_path');
     if (savedBase) setBasePath(savedBase);
   }, []);
 
+  // 1. Only update daily folder and file source paths when ngayGD or basePath changes
   useEffect(() => {
     if (!ngayGD) return;
     const parts = ngayGD.split('-');
     if (parts.length !== 3) return;
-    const [year, month, day] = parts;
+    const [_, month, day] = parts;
 
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
+    if (!cleanBase) return;
     
-    const msFolder = `${cleanBase}\\Backup MS\\${day}.${month}`;
+    const endsWithBackupMs = cleanBase.toLowerCase().endsWith('backup ms');
+    const msFolder = endsWithBackupMs
+      ? `${cleanBase}\\${day}.${month}`
+      : `${cleanBase}\\Backup MS\\${day}.${month}`;
+
     setFolderPathMs(msFolder);
     setDsgdPath(`${msFolder}\\DSGD.xlsx`);
-
-    const idx = cleanBase.toLowerCase().indexOf('marco thong ke gia tri');
-    const wsRoot = idx > 0 ? cleanBase.substring(0, idx) : cleanBase;
-    const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm`;
-    setMacroPath(defaultMacro);
-
-    setPathNormal(`${cleanBase}\\Thong ke gia tri giao dich ${year} 1.xlsx`);
-    setPathAcm(`${cleanBase}\\Thong ke gia tri giao dich ACM ${year} 1.xlsx`);
-    setPathLme(`${cleanBase}\\Thong ke gia tri giao dich LME ${year}.xlsx`);
-    setPathOptions(`${cleanBase}\\Thong ke gia tri giao dich Options ${year}.xlsx`);
-    setPathSpread(`${cleanBase}\\Thong ke gia tri giao dich Spread ${year}.xlsx`);
   }, [ngayGD, basePath]);
+
+  // 2. Only autofill macro & cumulative annual files when basePath changes, OR if they are currently empty
+  useEffect(() => {
+    const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
+    if (!cleanBase) return;
+
+    // Standardize parent directory if targetRoot points directly to Backup MS
+    const parentRoot = cleanBase.toLowerCase().endsWith('backup ms')
+      ? cleanBase.substring(0, cleanBase.toLowerCase().lastIndexOf('backup ms')).replace(/\/$/, '').replace(/\\$/, '')
+      : cleanBase;
+
+    let year = new Date().getFullYear().toString();
+    if (ngayGD) {
+      const parts = ngayGD.split('-');
+      if (parts.length === 3) year = parts[0];
+    }
+
+    const idx = parentRoot.toLowerCase().indexOf('marco thong ke gia tri');
+    const wsRoot = idx > 0 ? parentRoot.substring(0, idx) : parentRoot;
+    
+    // Auto fill macro path if empty
+    if (!macroPath) {
+      const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm`;
+      setMacroPath(defaultMacro);
+    }
+
+    // Auto fill cumulative paths if empty
+    if (!pathNormal) {
+      setPathNormal(`${parentRoot}\\Thong ke gia tri giao dich ${year} 1.xlsx`);
+    }
+    if (!pathAcm) {
+      setPathAcm(`${parentRoot}\\Thong ke gia tri giao dich ACM ${year} 1.xlsx`);
+    }
+    if (!pathLme) {
+      setPathLme(`${parentRoot}\\Thong ke gia tri giao dich LME ${year}.xlsx`);
+    }
+    if (!pathOptions) {
+      setPathOptions(`${parentRoot}\\Thong ke gia tri giao dich Options ${year}.xlsx`);
+    }
+    if (!pathSpread) {
+      setPathSpread(`${parentRoot}\\Thong ke gia tri giao dich Spread ${year}.xlsx`);
+    }
+  }, [basePath]); // Only triggers on basePath change
 
   const handleBasePathChange = (val: string) => {
     setBasePath(val);
     localStorage.setItem('val_stats_base_path', val);
-  };
-
-  const applyQuickPaths = () => {
-    if (!ngayGD) {
-      toast.error('Vui lòng chọn ngày giao dịch.');
-      return;
-    }
-    const parts = ngayGD.split('-');
-    if (parts.length !== 3) {
-      toast.error('Ngày giao dịch không đúng định dạng YYYY-MM-DD.');
-      return;
-    }
-    const [year, month, day] = parts;
-    const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
-    
-    const msFolder = `${cleanBase}\\Backup MS\\${day}.${month}`;
-    setFolderPathMs(msFolder);
-    setDsgdPath(`${msFolder}\\DSGD.xlsx`);
-
-    const idx = cleanBase.toLowerCase().indexOf('marco thong ke gia tri');
-    const wsRoot = idx > 0 ? cleanBase.substring(0, idx) : cleanBase;
-    const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm`;
-    setMacroPath(defaultMacro);
-
-    setPathNormal(`${cleanBase}\\Thong ke gia tri giao dich ${year} 1.xlsx`);
-    setPathAcm(`${cleanBase}\\Thong ke gia tri giao dich ACM ${year} 1.xlsx`);
-    setPathLme(`${cleanBase}\\Thong ke gia tri giao dich LME ${year}.xlsx`);
-    setPathOptions(`${cleanBase}\\Thong ke gia tri giao dich Options ${year}.xlsx`);
-    setPathSpread(`${cleanBase}\\Thong ke gia tri giao dich Spread ${year}.xlsx`);
-
-    toast.success('Đã tự động tính toán & điền toàn bộ đường dẫn nguồn và 5 file lũy kế!');
   };
 
   const handleSaveConfig = async () => {
@@ -127,6 +137,12 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         body: JSON.stringify({
           macroPath,
           targetRoot: basePath,
+          updateCumulative,
+          pathNormal,
+          pathAcm,
+          pathLme,
+          pathOptions,
+          pathSpread,
         }),
       });
       if (!res.ok) throw new Error('Không thể lưu cấu hình');
@@ -186,8 +202,14 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
       .then((res) => res.json())
       .then((data) => {
         if (data) {
-          if (data.macroPath) setMacroPath(data.macroPath);
-          if (data.targetRoot) setBasePath(data.targetRoot);
+          if (data.defaultMacroPath) setMacroPath(data.defaultMacroPath);
+          if (data.defaultTargetRoot) setBasePath(data.defaultTargetRoot);
+          if (data.updateCumulative !== undefined) setUpdateCumulative(data.updateCumulative);
+          if (data.pathNormal) setPathNormal(data.pathNormal);
+          if (data.pathAcm) setPathAcm(data.pathAcm);
+          if (data.pathLme) setPathLme(data.pathLme);
+          if (data.pathOptions) setPathOptions(data.pathOptions);
+          if (data.pathSpread) setPathSpread(data.pathSpread);
         }
       })
       .catch((err) => console.error('Error fetching value statistics config:', err));
@@ -224,8 +246,8 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           1. Thông tin phiên & Tham số đối chiếu
         </h4>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+          <div style={{ maxWidth: '280px' }}>
             <label style={labelStyle}>Ngày giao dịch</label>
             <input
               type="date"
@@ -233,17 +255,6 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
               onChange={(e) => setNgayGD(e.target.value)}
               className="form-input"
               style={{ fontSize: '0.75rem', padding: '8px 12px' }}
-            />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={labelStyle}>Đường dẫn file Macro cấu hình (.xlsm)</label>
-            <input
-              type="text"
-              value={macroPath || ''}
-              onChange={(e) => setMacroPath(e.target.value)}
-              className="form-input"
-              style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-              placeholder="Macro thong ke gia tri giao dich co ACM.xlsm"
             />
           </div>
         </div>
@@ -280,136 +291,163 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
         <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* Quick generate panel */}
-          <div style={{ backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h5 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-              <RefreshCw size={14} color="#10b981" />
-              Cấu hình Thư mục gốc & Tạo đường dẫn nhanh theo Ngày GD
-            </h5>
-            
-            <div>
-              <label style={labelStyle}>Thư mục gốc (Target Root)</label>
-              <input
-                type="text"
-                value={basePath || ''}
-                onChange={(e) => handleBasePathChange(e.target.value)}
-                className="form-input"
-                style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Marco thong ke gia tri"
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={applyQuickPaths}
-                style={{
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <RefreshCw size={13} /> Tạo nhanh các đường dẫn theo Ngày GD
-              </button>
-            </div>
-          </div>
-
-          {/* Target File Input */}
+          {/* Thư mục gốc (Target Root) */}
           <div>
             <label style={labelStyle}>
-              Đường dẫn file DSGD nguồn <span style={{ color: '#ef4444' }}>*</span>
+              Thư mục gốc (Target Root) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input
               type="text"
-              value={dsgdPath || ''}
-              onChange={(e) => setDsgdPath(e.target.value)}
+              value={basePath || ''}
+              onChange={(e) => handleBasePathChange(e.target.value)}
               className="form-input"
               style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-              placeholder="M:\...\Backup MS\16.07\DSGD.xlsx"
+              placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Marco thong ke gia tri"
             />
+             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+               <Lightbulb size={12} color="#eab308" style={{ flexShrink: 0 }} />
+               <span>Hệ thống tự động đồng bộ đường dẫn file nguồn theo Ngày GD được chọn.</span>
+             </p>
           </div>
 
-          {/* Cumulative Update Panel */}
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '12px', userSelect: 'none' }}>
-              <input
-                type="checkbox"
-                checked={updateCumulative}
-                onChange={(e) => setUpdateCumulative(e.target.checked)}
-                style={{ accentColor: '#10b981' }}
-              />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ghi đè dữ liệu vào các file lũy kế (Cumulative annual files)</span>
+          {/* Cumulative Update Checkbox */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              id="updateCumulative"
+              checked={updateCumulative}
+              onChange={(e) => setUpdateCumulative(e.target.checked)}
+              style={{ accentColor: '#10b981' }}
+            />
+            <label htmlFor="updateCumulative" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+              Ghi đè dữ liệu vào các file lũy kế (Cumulative annual files)
             </label>
+          </div>
 
-            {updateCumulative && (
-              <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <h6 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                  <FileSpreadsheet size={13} color="#10b981" />
-                  Đường dẫn 5 file Excel lũy kế năm
-                </h6>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                  <div>
-                    <label style={labelStyle}>File lũy kế Normal</label>
-                    <input
-                      type="text"
-                      value={pathNormal || ''}
-                      onChange={(e) => setPathNormal(e.target.value)}
-                      className="form-input"
-                      style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                      placeholder="Thong ke gia tri giao dich 2026 1.xlsx"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>File lũy kế Spread</label>
-                    <input
-                      type="text"
-                      value={pathSpread || ''}
-                      onChange={(e) => setPathSpread(e.target.value)}
-                      className="form-input"
-                      style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                      placeholder="Thong ke gia tri giao dich Spread 2026.xlsx"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>File lũy kế LME</label>
-                    <input
-                      type="text"
-                      value={pathLme || ''}
-                      onChange={(e) => setPathLme(e.target.value)}
-                      className="form-input"
-                      style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                      placeholder="Thong ke gia tri giao dich LME 2026.xlsx"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>File lũy kế Options</label>
-                    <input
-                      type="text"
-                      value={pathOptions || ''}
-                      onChange={(e) => setPathOptions(e.target.value)}
-                      className="form-input"
-                      style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                      placeholder="Thong ke gia tri giao dich Options 2026.xlsx"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>File lũy kế ACM</label>
-                    <input
-                      type="text"
-                      value={pathAcm || ''}
-                      onChange={(e) => setPathAcm(e.target.value)}
-                      className="form-input"
-                      style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                      placeholder="Thong ke gia tri giao dich ACM 2026 1.xlsx"
-                    />
+          {/* Toggle Advanced Settings */}
+          <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px 0',
+                outline: 'none',
+              }}
+            >
+              <Settings
+                size={14}
+                className={showAdvanced ? 'animate-spin' : ''}
+                style={{
+                  animationDuration: '4s',
+                  color: 'var(--text-muted)',
+                  flexShrink: 0
+                }}
+              />
+              <span>{showAdvanced ? 'Thu gọn cấu hình nâng cao' : 'Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)'}</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '2px' }}>{showAdvanced ? '▲' : '▼'}</span>
+            </button>
+
+            {showAdvanced && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                {/* 1. Macro Path */}
+                <div>
+                  <label style={labelStyle}>Đường dẫn file Macro cấu hình (.xlsm) <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input
+                    type="text"
+                    value={macroPath || ''}
+                    onChange={(e) => setMacroPath(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                    placeholder="Macro thong ke gia tri giao dich co ACM.xlsm"
+                  />
+                </div>
+
+                {/* 2. Target File Input */}
+                <div>
+                  <label style={labelStyle}>
+                    Đường dẫn file DSGD nguồn <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={dsgdPath || ''}
+                    onChange={(e) => setDsgdPath(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                    placeholder="M:\...\Backup MS\16.07\DSGD.xlsx"
+                  />
+                </div>
+
+                {/* 3. Cumulative Spreadsheet Paths */}
+                <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h6 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <FileSpreadsheet size={13} color="#10b981" />
+                    Đường dẫn 5 file Excel lũy kế năm
+                  </h6>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                    <div>
+                      <label style={labelStyle}>File lũy kế Normal</label>
+                      <input
+                        type="text"
+                        value={pathNormal || ''}
+                        onChange={(e) => setPathNormal(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich 2026 1.xlsx"
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>File lũy kế Spread</label>
+                      <input
+                        type="text"
+                        value={pathSpread || ''}
+                        onChange={(e) => setPathSpread(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich Spread 2026.xlsx"
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>File lũy kế LME</label>
+                      <input
+                        type="text"
+                        value={pathLme || ''}
+                        onChange={(e) => setPathLme(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich LME 2026.xlsx"
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>File lũy kế Options</label>
+                      <input
+                        type="text"
+                        value={pathOptions || ''}
+                        onChange={(e) => setPathOptions(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich Options 2026.xlsx"
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>File lũy kế ACM</label>
+                      <input
+                        type="text"
+                        value={pathAcm || ''}
+                        onChange={(e) => setPathAcm(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich ACM 2026 1.xlsx"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
