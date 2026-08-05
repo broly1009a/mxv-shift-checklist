@@ -60,6 +60,10 @@ export class ValueStatisticsController {
       'bot_lot_macro_path_spread',
       '',
     );
+    const pathTvkd = await this.settingsService.getSetting(
+      'bot_lot_macro_path_tvkd',
+      '',
+    );
 
     return {
       defaultMacroPath: macroPath,
@@ -70,6 +74,7 @@ export class ValueStatisticsController {
       pathLme,
       pathOptions,
       pathSpread,
+      pathTvkd,
     };
   }
 
@@ -86,6 +91,7 @@ export class ValueStatisticsController {
       pathLme?: string;
       pathOptions?: string;
       pathSpread?: string;
+      pathTvkd?: string;
     },
   ) {
     if (config.macroPath !== undefined) {
@@ -136,6 +142,12 @@ export class ValueStatisticsController {
         config.pathSpread,
       );
     }
+    if (config.pathTvkd !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_lot_macro_path_tvkd',
+        config.pathTvkd,
+      );
+    }
     return { success: true };
   }
 
@@ -152,6 +164,7 @@ export class ValueStatisticsController {
     @Body('pathLme') pathLme: string,
     @Body('pathOptions') pathOptions: string,
     @Body('pathSpread') pathSpread: string,
+    @Body('pathTvkd') pathTvkd: string,
   ) {
     if (!ngayGD) {
       throw new HttpException(
@@ -178,6 +191,7 @@ export class ValueStatisticsController {
         pathLme: pathLme || undefined,
         pathOptions: pathOptions || undefined,
         pathSpread: pathSpread || undefined,
+        pathTvkd: pathTvkd || undefined,
       };
 
       const result = await this.valueStatisticsService.processValueStatistics(
@@ -192,6 +206,45 @@ export class ValueStatisticsController {
       );
       throw new HttpException(
         err?.message ?? 'Lỗi xử lý thống kê giá trị',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('process-tvkd-only')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async processTvkdOnly(
+    @Body('ngayGD') ngayGD: string,
+    @Body('targetRoot') targetRoot: string,
+    @Body('dsgdPath') dsgdPath: string,
+    @Body('pathTvkd') pathTvkd: string,
+  ) {
+    if (!ngayGD) {
+      throw new HttpException(
+        'Thiếu ngày giao dịch (ngayGD). Format: YYYY-MM-DD.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (isNaN(new Date(ngayGD).getTime())) {
+      throw new HttpException(
+        `Ngày giao dịch không hợp lệ: "${ngayGD}". Format: YYYY-MM-DD.`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      const result = await this.valueStatisticsService.processTvkdOnly(
+        new Date(ngayGD),
+        { targetRoot, dsgdPath, pathTvkd }
+      );
+      return result;
+    } catch (err) {
+      this.logger.error(
+        `Lỗi xử lý cập nhật riêng TVKD lũy kế cho ngày "${ngayGD}"`,
+        err?.stack,
+      );
+      throw new HttpException(
+        err?.message ?? 'Lỗi cập nhật riêng TVKD lũy kế',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

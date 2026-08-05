@@ -45,11 +45,13 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
   const [pathLme, setPathLme] = useState('');
   const [pathOptions, setPathOptions] = useState('');
   const [pathSpread, setPathSpread] = useState('');
+  const [pathTvkd, setPathTvkd] = useState('');
 
   // States
   const [loading, setLoading] = useState(false);
+  const [loadingTvkdOnly, setLoadingTvkdOnly] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [resultTab, setResultTab] = useState<'summary' | 'normal' | 'spread'>('summary');
+  const [resultTab, setResultTab] = useState<'summary' | 'normal' | 'spread' | 'tvkd'>('summary');
   const [savingConfig, setSavingConfig] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +145,9 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     if (!pathSpread) {
       setPathSpread(`${parentRoot}\\Thong ke gia tri giao dich Spread ${year}.xlsx`);
     }
+    if (!pathTvkd) {
+      setPathTvkd(`${parentRoot}\\Thong ke gia tri giao dich theo TVKD\\Thong ke gia tri giao dich ${year} theo TVKD.xlsx`);
+    }
   }, [basePath]); // Only triggers on basePath change
 
   const handleBasePathChange = (val: string) => {
@@ -169,6 +174,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           pathLme,
           pathOptions,
           pathSpread,
+          pathTvkd,
         }),
       });
       if (!res.ok) throw new Error('Không thể lưu cấu hình');
@@ -214,6 +220,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         pathLme,
         pathOptions,
         pathSpread,
+        pathTvkd,
       };
 
       const res = await fetch(`${apiBaseUrl}/value-statistics/process-local`, {
@@ -238,6 +245,68 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     }
   };
 
+  const handleRunTvkdOnly = async () => {
+    // Mismatch check
+    const parts = ngayGD.split('-');
+    if (parts.length === 3) {
+      const [_, month, day] = parts;
+      const dateStr = `${day}.${month}`;
+      const normalizedPath = dsgdPath.replace(/\//g, '\\');
+      if (!normalizedPath.includes(`\\${dateStr}\\`) && !normalizedPath.includes(`\\${dateStr}`)) {
+        const confirmOk = window.confirm(
+          `Cảnh báo: Ngày trong đường dẫn file nguồn:\n"${dsgdPath}"\n\nkhông khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục chạy cập nhật TVKD không?`
+        );
+        if (!confirmOk) {
+          return;
+        }
+      }
+    }
+
+    setLoadingTvkdOnly(true);
+    setResult(null);
+    setError(null);
+    const toastId = toast.loading('Đang xử lý ghi đè riêng file TVKD lũy kế...');
+
+    try {
+      const payload = {
+        ngayGD,
+        targetRoot: basePath,
+        dsgdPath,
+        pathTvkd,
+      };
+
+      const res = await fetch(`${apiBaseUrl}/value-statistics/process-tvkd-only`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi khi cập nhật file TVKD lũy kế');
+
+      // Setup a minimal result format so UI doesn't crash and switches straight to TVKD tab
+      setResult({
+        ...data,
+        normalCount: 0,
+        tyGiaDefault: 0,
+        tyGiaTru: 0,
+        tyGiaMpo: 0,
+        normalGtgdBreakdown: {},
+        spreadGtgdBreakdown: {},
+      });
+      setResultTab('tvkd');
+      toast.success('Cập nhật riêng file lũy kế TVKD thành công!', { id: toastId });
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi cập nhật TVKD');
+      toast.error(err.message || 'Lỗi khi cập nhật TVKD', { id: toastId });
+    } finally {
+      setLoadingTvkdOnly(false);
+    }
+  };
+
   useEffect(() => {
     if (!token) return;
     fetch(`${apiBaseUrl}/value-statistics/config`, {
@@ -254,6 +323,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           if (data.pathLme) setPathLme(data.pathLme);
           if (data.pathOptions) setPathOptions(data.pathOptions);
           if (data.pathSpread) setPathSpread(data.pathSpread);
+          if (data.pathTvkd) setPathTvkd(data.pathTvkd);
         }
       })
       .catch((err) => console.error('Error fetching value statistics config:', err));
@@ -268,6 +338,13 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
   const spreadItems = result?.spreadGtgdBreakdown
     ? Object.entries(result.spreadGtgdBreakdown)
+        .map(([k, v]: any) => ({ code: k, val: v }))
+        .filter((i) => i.val > 0)
+        .sort((a, b) => b.val - a.val)
+    : [];
+
+  const tvkdItems = result?.tvkdGtgdBreakdown
+    ? Object.entries(result.tvkdGtgdBreakdown)
         .map(([k, v]: any) => ({ code: k, val: v }))
         .filter((i) => i.val > 0)
         .sort((a, b) => b.val - a.val)
@@ -492,6 +569,17 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
                         placeholder="Thong ke gia tri giao dich ACM 2026 1.xlsx"
                       />
                     </div>
+                    <div>
+                      <label style={labelStyle}>File lũy kế theo TVKD</label>
+                      <input
+                        type="text"
+                        value={pathTvkd || ''}
+                        onChange={(e) => setPathTvkd(e.target.value)}
+                        className="form-input"
+                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                        placeholder="Thong ke gia tri giao dich theo TVKD\Thong ke gia tri giao dich 2026 theo TVKD.xlsx"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -520,8 +608,19 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
           <button
             type="button"
+            onClick={handleRunTvkdOnly}
+            disabled={loading || loadingTvkdOnly || !dsgdPath.trim() || !pathTvkd.trim()}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '8px 22px', fontWeight: 700, borderColor: 'rgba(59, 130, 246, 0.4)', color: 'var(--text-primary)' }}
+          >
+            <Play size={14} className={loadingTvkdOnly ? 'animate-spin' : ''} style={{ color: '#3b82f6' }} />
+            {loadingTvkdOnly ? 'Đang cập nhật TVKD...' : 'Chỉ cập nhật Lũy kế TVKD'}
+          </button>
+          
+          <button
+            type="button"
             onClick={handleRunProcess}
-            disabled={loading || !dsgdPath.trim() || !macroPath.trim()}
+            disabled={loading || loadingTvkdOnly || !dsgdPath.trim() || !macroPath.trim()}
             className="btn btn-primary"
             style={{ fontSize: '0.75rem', padding: '8px 22px', fontWeight: 700 }}
           >
@@ -568,6 +667,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
               { id: 'summary', label: '📊 Bảng tổng hợp giá trị' },
               { id: 'normal', label: `💵 Chi tiết Normal GTGD (${normalItems.length})` },
               { id: 'spread', label: `🔀 Chi tiết Spread GTGD (${spreadItems.length})` },
+              { id: 'tvkd', label: `🏢 Chi tiết theo TVKD (${tvkdItems.length})` },
             ].map((t) => (
               <button
                 key={t.id}
@@ -674,6 +774,37 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
                     </thead>
                     <tbody>
                       {spreadItems.map((item, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
+                          <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.code}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>
+                            {item.val.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {resultTab === 'tvkd' && (
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🏢 Thống kê chi tiết Giá trị Giao dịch theo TVKD</h5>
+              
+              {tvkdItems.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', padding: '24px 0' }}>Không có giao dịch TVKD nào trong ngày.</div>
+              ) : (
+                <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px', maxHeight: '450px' }}>
+                  <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '10px 12px' }}>Mã TVKD</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Giá trị giao dịch (VNĐ)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tvkdItems.map((item, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
                           <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.code}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>

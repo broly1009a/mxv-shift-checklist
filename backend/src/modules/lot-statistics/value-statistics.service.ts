@@ -12,6 +12,7 @@ import {
 import {
   updateAllValueCumulativeFiles,
   ValueAccumulatorPaths,
+  updateValueTvkdTrackerFile,
 } from './helpers/excel-value-accumulator.helper';
 import {
   assertSafeWritePath,
@@ -66,7 +67,6 @@ function getVal(
   }
   return val as string | number | boolean | Date | null | undefined;
 }
-
 export interface ValueStatisticsResult {
   ngayGD: Date;
   tyGiaDefault: number;
@@ -76,6 +76,7 @@ export interface ValueStatisticsResult {
   spreadCount: number;
   normalGtgdBreakdown: Record<string, number>;
   spreadGtgdBreakdown: Record<string, number>;
+  tvkdGtgdBreakdown?: Record<string, number>;
 }
 
 @Injectable()
@@ -223,6 +224,7 @@ export class ValueStatisticsService {
     // 4. Perform calculations
     const normalGtgdMap = new Map<string, number>();
     const spreadGtgdMap = new Map<string, number>();
+    const tvkdGtgdMap = new Map<string, number>();
 
     let normalCount = 0;
     let spreadCount = 0;
@@ -253,6 +255,15 @@ export class ValueStatisticsService {
       );
       normalCount++;
 
+      // TVKD aggregation
+      const tvkd = maTKGD.substring(0, 3);
+      if (tvkd.length >= 3) {
+        tvkdGtgdMap.set(
+          tvkd,
+          (tvkdGtgdMap.get(tvkd) || 0) + gtgdNormal,
+        );
+      }
+
       // Spread GTGD Calculation
       if (maTKGD.endsWith('-S')) {
         const prefixSpread = getMaHHFromSpread(row);
@@ -277,7 +288,7 @@ export class ValueStatisticsService {
     }
 
     this.logger.log(
-      `Calculated values. Normal trade count: ${normalCount}, Spread trade count: ${spreadCount}`,
+      `Calculated values. Normal trade count: ${normalCount}, Spread trade count: ${spreadCount}, TVKD count: ${tvkdGtgdMap.size}`,
     );
 
     // 5. Update cumulative files
@@ -321,6 +332,13 @@ export class ValueStatisticsService {
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ACM ${year}.xlsx`,
         ),
+      pathTvkd:
+        payload?.pathTvkd ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich theo TVKD',
+          `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
+        ),
     };
 
     const updateCumulative =
@@ -333,6 +351,7 @@ export class ValueStatisticsService {
         targetDate,
         normalGtgdMap,
         spreadGtgdMap,
+        tvkdGtgdMap,
       );
       this.logger.log(
         `Successfully completed all cumulative updates for target date: ${dayStr}.${monthStr}.${year}`,
@@ -353,6 +372,163 @@ export class ValueStatisticsService {
       spreadCount,
       normalGtgdBreakdown: Object.fromEntries(normalGtgdMap),
       spreadGtgdBreakdown: Object.fromEntries(spreadGtgdMap),
+      tvkdGtgdBreakdown: Object.fromEntries(tvkdGtgdMap),
+    };
+  }
+
+  async processTvkdOnly(
+    targetDate: Date,
+    payload: {
+      targetRoot: string;
+      dsgdPath: string;
+      pathTvkd: string;
+    }
+  ): Promise<any> {
+    const targetRoot = payload.targetRoot;
+    const dsgdPath = payload.dsgdPath;
+    const pathTvkd = payload.pathTvkd;
+
+    // Security guard checks
+    const allowedRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
+    if (pathTvkd) {
+      assertSafeWritePath(pathTvkd, allowedRoot);
+    }
+
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1;
+    const day = targetDate.getDate();
+
+    const monthStr = month < 10 ? `0${month}` : `${month}`;
+    const dayStr = day < 10 ? `0${day}` : `${day}`;
+
+    this.logger.log(
+      `Starting TVKD-only cumulative process for date: ${dayStr}.${monthStr}.${year}`,
+    );
+
+    // 1. Load configuration and exchange rates from macro workbook
+    // NOTE: Uses 'bot_macro_value_path' (same key saved by UI via PUT /value-statistics/config)
+    const macroPath = await this.settingsService.getSetting(
+      'bot_macro_value_path',
+      '',
+    );
+    if (!macroPath) {
+      throw new Error(
+        'Chưa cấu hình file Macro cấu hình (bot_macro_value_path) trong cài đặt hệ thống. Vui lòng vào Cài đặt → Thống kê giá trị để lưu đường dẫn file Macro.',
+      );
+    }
+    ensureBaseFileExists(macroPath);
+    if (!fs.existsSync(macroPath)) {
+      throw new Error(`Không tìm thấy file Macro cấu hình tại: "${macroPath}"`);
+    }
+
+    const macroWb = new ExcelJS.Workbook();
+    await macroWb.xlsx.readFile(macroPath);
+
+    // Read HH mappings (prefix -> baseHH)
+    const hhWs = macroWb.worksheets.find((w) => w.name.toLowerCase() === 'hh');
+    if (!hhWs) {
+      throw new Error(
+        `Không tìm thấy sheet "HH" trong file Macro cấu hình tại: "${macroPath}"`,
+      );
+    }
+    const hhMap = new Map<string, string>();
+    for (let r = 2; r <= hhWs.rowCount; r++) {
+      const prefix = toStr(getVal(hhWs.getCell(r, 1))).toUpperCase();
+      const baseHH = toStr(getVal(hhWs.getCell(r, 2))).toUpperCase();
+      if (prefix) {
+        hhMap.set(prefix, baseHH);
+      }
+    }
+
+    // Read Hhoa Vlookup configurations (baseHH -> { heSo, donVi })
+    const vlookupWs = macroWb.worksheets.find(
+      (w) => w.name.toLowerCase() === 'hhoa vlookup',
+    );
+    if (!vlookupWs) {
+      throw new Error(
+        `Không tìm thấy sheet "Hhoa Vlookup" trong file Macro cấu hình tại: "${macroPath}"`,
+      );
+    }
+    const vlookupMap = new Map<string, { heSo: number; donVi: number }>();
+    for (let r = 2; r <= vlookupWs.rowCount; r++) {
+      const baseHH = toStr(getVal(vlookupWs.getCell(r, 1))).toUpperCase();
+      const heSo = toNum(getVal(vlookupWs.getCell(r, 2)));
+      const donVi = toNum(getVal(vlookupWs.getCell(r, 3)));
+      if (baseHH) {
+        vlookupMap.set(baseHH, { heSo: heSo || 1, donVi: donVi || 1 });
+      }
+    }
+
+    // Read Exchange rates from Sheet1
+    const sheet1 = macroWb.worksheets.find(
+      (w) => w.name.toLowerCase() === 'sheet1',
+    );
+    if (!sheet1) {
+      throw new Error(
+        `Không tìm thấy sheet "Sheet1" trong file Macro cấu hình tại: "${macroPath}"`,
+      );
+    }
+
+    const tyGiaDefault = toNum(getVal(sheet1.getCell('D2'))) || 26260;
+    const tyGiaTru = toNum(getVal(sheet1.getCell('D3'))) || 165;
+    const tyGiaMpo = toNum(getVal(sheet1.getCell('D4'))) || 6330;
+
+    // 4. Load daily DSGD
+    this.logger.log(`Searching for daily DSGD at: ${dsgdPath}`);
+    ensureBaseFileExists(dsgdPath);
+    if (!fs.existsSync(dsgdPath)) {
+      throw new Error(
+        `Không tìm thấy file DSGD giao dịch ngày ${dayStr}.${monthStr}.${year} tại: "${dsgdPath}"`,
+      );
+    }
+
+    const dsgdBuffer = fs.readFileSync(dsgdPath);
+    const parsedDsgd = await parseExcelBuffer(dsgdBuffer);
+    this.logger.log(
+      `Successfully parsed daily DSGD for TVKD process. Total rows: ${parsedDsgd.rows.length}`,
+    );
+
+    // 5. Perform calculations and TVKD aggregation
+    const tvkdGtgdMap = new Map<string, number>();
+    for (const row of parsedDsgd.rows) {
+      const maTKGD = toStr(row['Mã TKGD'] ?? row['col4']).toUpperCase();
+      const lot = toNum(row['KL giao dịch'] ?? row['col13']);
+      const price = toNum(row['Giá khớp'] ?? row['col14']);
+
+      if (lot <= 0 || price <= 0 || !maTKGD) {
+        continue;
+      }
+
+      // Normal GTGD Calculation
+      const prefixNormal = getMaHHFromDsgd(row);
+      const baseHHNormal = hhMap.get(prefixNormal) ?? prefixNormal;
+      const multNormal = vlookupMap.get(baseHHNormal) ?? { heSo: 1, donVi: 1 };
+
+      let rateNormal = tyGiaDefault;
+      if (baseHHNormal === 'TRU') rateNormal = tyGiaTru;
+      else if (baseHHNormal === 'MPO') rateNormal = tyGiaMpo;
+
+      const gtgdNormal =
+        lot * price * multNormal.heSo * multNormal.donVi * rateNormal;
+
+      // TVKD aggregation
+      const tvkd = maTKGD.substring(0, 3);
+      if (tvkd.length >= 3) {
+        tvkdGtgdMap.set(
+          tvkd,
+          (tvkdGtgdMap.get(tvkd) || 0) + gtgdNormal,
+        );
+      }
+    }
+
+    // 6. Write to TVKD Cumulative File
+    this.logger.log(`Writing to TVKD cumulative Excel file at: ${pathTvkd}`);
+    await updateValueTvkdTrackerFile(pathTvkd, targetDate, tvkdGtgdMap);
+    this.logger.log(`Successfully completed TVKD cumulative Excel update.`);
+
+    return {
+      ngayGD: targetDate,
+      tvkdGtgdBreakdown: Object.fromEntries(tvkdGtgdMap),
     };
   }
 

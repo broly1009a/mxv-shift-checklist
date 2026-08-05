@@ -132,6 +132,7 @@ export interface ValueAccumulatorPaths {
   pathLme: string; // Thong ke gia tri giao dich LME 2026.xlsx
   pathOptions: string; // Thong ke gia tri giao dich Options 2026.xlsx
   pathAcm: string; // Thong ke gia tri giao dich ACM 2026.xlsx
+  pathTvkd?: string; // Thong ke gia tri giao dich theo TVKD 2026.xlsx
 }
 
 /**
@@ -294,13 +295,168 @@ async function updateValueTrackerFile(
 }
 
 /**
- * Orchestrator to update all 5 cumulative value tracker files
+ * Helper to update cumulative TVKD value tracker file
+ */
+export async function updateValueTvkdTrackerFile(
+  filePath: string,
+  ngayGD: Date,
+  tvkdValues: Map<string, number>,
+) {
+  ensureBaseFileExists(filePath);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File lũy kế TVKD không tồn tại: "${filePath}"`);
+  }
+
+  // Backup snapshot
+  try {
+    const fileDir = path.dirname(filePath);
+    const backupDir = path.join(fileDir, 'Backup_Snapshots');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/T/, '_')
+      .replace(/\..+/, '')
+      .replace(/:/g, '-');
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const extName = path.extname(filePath);
+    const backupPath = path.join(
+      backupDir,
+      `${baseName}_backup_${timestamp}${extName}`,
+    );
+    fs.copyFileSync(filePath, backupPath);
+  } catch (err: any) {
+    console.warn(`[WARN] Không thể tự động tạo file sao lưu cho TVKD: ${err.message}`);
+  }
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(filePath);
+
+  const sheetName = getSheetName(path.basename(filePath), ngayGD);
+  let ws = wb.getWorksheet(sheetName);
+  if (!ws) {
+    ws = wb.worksheets[wb.worksheets.length - 1];
+  }
+
+  // Find date row index using Column B (2)
+  let targetRowIndex = -1;
+  let tongRowIndex = -1;
+
+  for (let r = 5; r <= ws.rowCount; r++) {
+    const dateCellVal = ws.getCell(r, 2).value;
+    const dateStr =
+      dateCellVal !== null && dateCellVal !== undefined
+        ? String(dateCellVal).trim().toLowerCase()
+        : '';
+
+    if (dateStr === 'tổng') {
+      tongRowIndex = r;
+      break;
+    }
+
+    if (isSameDate(dateCellVal, ngayGD)) {
+      targetRowIndex = r;
+      break;
+    }
+  }
+
+  if (targetRowIndex === -1) {
+    if (tongRowIndex !== -1) {
+      ws.insertRow(tongRowIndex, []);
+      targetRowIndex = tongRowIndex;
+    } else {
+      let lastContentRow = 4;
+      for (let r = 5; r <= ws.rowCount; r++) {
+        const c2 = ws.getCell(r, 2).value;
+        if (c2 !== null && c2 !== undefined && c2 !== '') {
+          lastContentRow = r;
+        }
+      }
+      targetRowIndex = lastContentRow + 1;
+    }
+
+    // Set Date in Column B
+    ws.getCell(targetRowIndex, 2).value = ngayGD;
+    ws.getCell(targetRowIndex, 2).numFmt = 'yyyy-mm-dd';
+    // Set STT in Column A
+    ws.getCell(targetRowIndex, 1).value = targetRowIndex - 4;
+  }
+
+  // Parse TVKD column mappings from Row 4 (Column 3 to Column 100)
+  const colMappings = new Map<string, number>();
+  const row4 = ws.getRow(4);
+  row4.eachCell((cell, colNumber) => {
+    if (colNumber >= 3) {
+      const val = cell.value;
+      if (val !== null && val !== undefined) {
+        const headerStr = String(val).replace(/\s+/g, '').toUpperCase();
+        const match = headerStr.match(/\d{3}/);
+        if (match) {
+          colMappings.set(match[0], colNumber);
+        }
+      }
+    }
+  });
+
+  // Write TVKD values
+  for (const [tvkd, val] of tvkdValues.entries()) {
+    const colIdx = colMappings.get(tvkd);
+    if (colIdx !== undefined) {
+      ws.getCell(targetRowIndex, colIdx).value = val;
+    }
+  }
+
+  // Helper to convert column index to Excel column letter
+  const getColLetter = (colIdx: number): string => {
+    let temp = colIdx;
+    let letter = '';
+    while (temp > 0) {
+      const modulo = (temp - 1) % 26;
+      letter = String.fromCharCode(65 + modulo) + letter;
+      temp = Math.floor((temp - modulo) / 26);
+    }
+    return letter;
+  };
+
+  // Dynamically find 'Tổng' column index in Row 2
+  let tongColIdx = 61; // default fallback
+  for (let col = 3; col <= 100; col++) {
+    const cellVal = ws.getCell(2, col).value;
+    if (cellVal !== null && cellVal !== undefined) {
+      const strVal = String(cellVal).trim().toLowerCase();
+      if (strVal === 'tổng') {
+        tongColIdx = col;
+        break;
+      }
+    }
+  }
+
+  // Fill Row total in the dynamically located 'Tổng' column
+  const prevColLetter = getColLetter(tongColIdx - 1);
+  ws.getCell(targetRowIndex, tongColIdx).value = {
+    formula: `SUM(C${targetRowIndex}:${prevColLetter}${targetRowIndex})`,
+    result: undefined,
+  };
+
+  // Clean shared formulas
+  for (const sheet of wb.worksheets) {
+    fixSharedFormulas(sheet);
+  }
+
+  await wb.xlsx.writeFile(filePath);
+}
+
+/**
+ * Orchestrator to update all cumulative value tracker files including TVKD
  */
 export async function updateAllValueCumulativeFiles(
   paths: ValueAccumulatorPaths,
   ngayGD: Date,
   normalGtgdMap: Map<string, number>,
   spreadGtgdMap: Map<string, number>,
+  tvkdValues?: Map<string, number>,
 ) {
   // 1. Normal Value Tracker
   ensureDirExists(paths.pathNormal);
@@ -328,7 +484,7 @@ export async function updateAllValueCumulativeFiles(
     paths.pathLme,
     ngayGD,
     LME_COMMODITIES,
-    normalGtgdMap, // LME values are normal GTGD values of LME commodities
+    normalGtgdMap,
     'LME',
   );
 
@@ -338,7 +494,7 @@ export async function updateAllValueCumulativeFiles(
     paths.pathOptions,
     ngayGD,
     OPTIONS_COMMODITIES,
-    normalGtgdMap, // Options values are normal GTGD values of Options commodities
+    normalGtgdMap,
     'Options',
   );
 
@@ -348,7 +504,17 @@ export async function updateAllValueCumulativeFiles(
     paths.pathAcm,
     ngayGD,
     ACM_COMMODITIES,
-    normalGtgdMap, // ACM values are normal GTGD values of ACM/Nano commodities
+    normalGtgdMap,
     'ACM',
   );
+
+  // 6. TVKD Value Tracker (New)
+  if (paths.pathTvkd && tvkdValues) {
+    ensureDirExists(paths.pathTvkd);
+    await updateValueTvkdTrackerFile(
+      paths.pathTvkd,
+      ngayGD,
+      tvkdValues,
+    );
+  }
 }

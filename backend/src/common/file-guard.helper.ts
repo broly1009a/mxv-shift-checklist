@@ -17,7 +17,7 @@ export function assertSafeWritePath(
   const resolvedTarget = path.resolve(filePath);
   const resolvedAllowed = path.resolve(allowedOutputRoot);
 
-  if (!resolvedTarget.startsWith(resolvedAllowed)) {
+  if (!resolvedTarget.toLowerCase().startsWith(resolvedAllowed.toLowerCase())) {
     throw new Error(
       `[SECURITY GUARD] Từ chối ghi file ra ngoài thư mục output cho phép!\n` +
         `  - Thư mục được phép: "${resolvedAllowed}"\n` +
