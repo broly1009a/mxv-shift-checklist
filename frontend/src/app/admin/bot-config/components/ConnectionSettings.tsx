@@ -684,6 +684,246 @@ export default function ConnectionSettings({
 
         </div>
 
+        {/* CAST, CCP & CE Config Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px' }}>
+          {/* CAST Config */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#f43f5e',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
+              <Server size={18} />
+              Cấu hình CQG CAST
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>CAST URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="url"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
+                    placeholder="https://www.cqgtrader.com/CAST/Logon/Logon.asp"
+                    value={castUrl}
+                    onChange={(e) => setCastUrl(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Username CAST</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Username..."
+                    value={castUsername}
+                    onChange={(e) => setCastUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Mật khẩu CAST</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showCastPassword ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
+                      placeholder="Mật khẩu..."
+                      value={castPassword}
+                      onChange={(e) => setCastPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCastPassword(!showCastPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showCastPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CCP Config */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#ec4899',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
+              <Server size={18} />
+              Cấu hình Core CCP
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>CCP URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="url"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
+                    placeholder="https://uat-coreccp.mxv.com.vn/"
+                    value={cppUrl}
+                    onChange={(e) => setCppUrl(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Username CCP</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Username..."
+                    value={cppUsername}
+                    onChange={(e) => setCppUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Mật khẩu CCP</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showCppPassword ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
+                      placeholder="Mật khẩu..."
+                      value={cppPassword}
+                      onChange={(e) => setCppPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCppPassword(!showCppPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showCppPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CE Config */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#8b5cf6',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              margin: 0,
+            }}>
+              <Server size={18} />
+              Cấu hình Core CE
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>CE URL</label>
+                <div style={{ position: 'relative' }}>
+                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="url"
+                    className="form-input"
+                    style={{ paddingLeft: '38px' }}
+                    placeholder="https://uat-coreexchange.mxv.com.vn/"
+                    value={ceUrl}
+                    onChange={(e) => setCeUrl(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Username CE</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Username..."
+                    value={ceUsername}
+                    onChange={(e) => setCeUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Mật khẩu CE</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showCePassword ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '38px' }}
+                      placeholder="Mật khẩu..."
+                      value={cePassword}
+                      onChange={(e) => setCePassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCePassword(!showCePassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showCePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* ACM Config */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <h4 style={{

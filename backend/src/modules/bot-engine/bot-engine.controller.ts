@@ -565,11 +565,25 @@ export class BotEngineController {
     if (taskId) {
       query['payload.taskId'] = taskId;
     }
+    
+    // Nếu không truyền filter (shiftLogId / taskId), loại trừ 'logs' và 'payload.result' để tránh nghẽn tải.
+    const selectFields = (!shiftLogId && !taskId) ? '-logs -payload.result' : '';
+
     return this.botJobModel
       .find(query)
+      .select(selectFields)
       .sort({ createdAt: -1 })
       .limit(50)
       .exec();
+  }
+
+  @Get('jobs/:id')
+  async getJobById(@Param('id') id: string) {
+    const job = await this.botJobModel.findById(id).exec();
+    if (!job) {
+      throw new HttpException('Không tìm thấy job tương ứng.', HttpStatus.NOT_FOUND);
+    }
+    return job;
   }
 
   /**

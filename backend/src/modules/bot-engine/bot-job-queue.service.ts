@@ -286,6 +286,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     await job.save();
     this.logger.log(`Enqueued job: ${jobType} (ID: ${job._id})`);
+
+    if (payload.shiftLogId && payload.taskId) {
+      try {
+        await this.syncJobToChecklist(job, 'PENDING');
+      } catch (err: any) {
+        this.logger.error(`Failed to sync enqueued job to checklist: ${err.message}`);
+      }
+    }
+
     return job;
   }
 
@@ -1423,7 +1432,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           return null;
         };
 
-        if (status === 'PROCESSING') {
+        if (status === 'PROCESSING' || status === 'PENDING') {
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,

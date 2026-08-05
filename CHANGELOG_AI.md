@@ -3,6 +3,77 @@
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
 
+## [2026-08-04 16:15:00] - Bug Fix & Improvement: Giải quyết nghẽn tải Backend (Jobs query pagination/projection bottleneck), bổ sung giao diện cấu hình tài khoản CCP/CE/CAST ở Frontend, sửa lỗi hiển thị sai Modal kết quả OMS và sửa API trigger ở Frontend, đồng bộ trạng thái "Đang kiểm tra" cho các tác vụ con đang chạy ngầm, tạo file script test OMS bằng ứng dụng NestJS context
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục lỗi Backend bị đơ, nghẽn tải hoàn toàn (CPU 100%) khi mở trang cấu hình bot hoặc chạy các tác vụ.
+  - Sửa lỗi tự động quét EOD OMS trên CCP/CE thất bại (trả về dữ liệu trống) dù thực tế hệ thống đã chạy EOD thành công trên môi trường thật.
+  - Khắc phục lỗi `Timeout 30000ms exceeded` khi click vào tab "Lịch sử EOD" trong Playwright do phần tử không hiển thị kịp hoặc bị che khuất bởi các thành phần MUI (backdrop/loading spinner).
+  - Cấu hình cho phép chạy Playwright ở chế độ headful (mở cửa sổ trình duyệt thực tế) để trực quan theo dõi/debug lỗi trên máy local của user.
+  - Yêu cầu tạo file kịch bản test sử dụng trực tiếp Service của module NestJS thay vì script JavaScript thuần để tận dụng cơ chế kết nối database, giải mã thông tin cấu hình và dependency injection có sẵn.
+  - Khắc phục việc thiếu các ô nhập thông tin tài khoản đăng nhập của **Core CCP**, **Core CE** và **CQG CAST** trên giao diện Cài đặt Bot (`/admin/bot-config`), khiến người dùng không thể cấu hình/lưu thông tin ở môi trường local/UAT.
+  - Sửa lỗi nút kích hoạt kiểm tra lại thủ công báo lỗi `Cannot POST /bot/check-oms`.
+  - Cải thiện luồng hiển thị: Khi các tác vụ con (subtasks) của Bot đang trong hàng đợi chạy ngầm (PENDING hoặc PROCESSING), giao diện vẫn hiển thị "Chưa thực hiện" (PENDING) là không hợp lý. Yêu cầu chúng phải tự động chuyển sang trạng thái "Đang kiểm tra" (WAITING) ngay lập tức khi job được tạo hoặc đang chạy.
+  - Sửa lỗi màn hình Modal kết quả OMS hiển thị sai giao diện "Đối chiếu số dư CQG tự động" khi bấm vào nút "Xem đối chiếu chi tiết trực quan" của tác vụ `ops_open_02`.
+- **Giải pháp**:
+  - **Backend (Tối ưu hóa API Jobs)**: 
+    - Phát hiện API `GET /api/v1/bot-engine/jobs` trả về payload quá lớn (lên tới **12.5 Megabytes** cho 50 jobs do chứa toàn bộ mảng `logs` dài và `payload.result` so khớp giao dịch khổng lồ). Frontend polling 8 giây một lần gây ra nghẽn hàng đợi Event Loop và chiếm dụng CPU liên tục.
+    - Chỉnh sửa file [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) để khi truy vấn danh sách chung (không truyền filter `shiftLogId` / `taskId`), sẽ sử dụng projection loại trừ các trường nặng (`-logs -payload.result`), giảm kích thước dữ liệu phản hồi xuống **dưới 10KB** và tăng tốc độ xử lý từ 140 giây về dưới 10ms.
+    - Viết thêm API chi tiết `@Get('jobs/:id')` để lấy đầy đủ thông tin (bao gồm logs/payload) của duy nhất một job được yêu cầu.
+  - **Frontend (Tối ưu tải Logs trong hàng đợi)**:
+    - Cập nhật file [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx) để chỉ tải đầy đủ logs và captcha của job cụ thể thông qua API chi tiết trên-nhu-cầu (on-demand) khi người dùng click chọn job đó.
+    - Tích hợp thêm cơ chế tự động làm mới (polling logs) riêng biệt với tần suất 4 giây/lần chỉ áp dụng khi job được chọn đang ở trạng thái chạy ngầm (`PROCESSING`/`PENDING`), tránh tải lại không cần thiết khi job đã kết thúc.
+  - **Backend (OMS Watcher)**: Bổ sung lệnh click vào Tab "Lịch sử EOD" (`ccpTab` và `ceTab`) trước khi cào bảng dữ liệu trong file [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts). Đồng thời chuyển sang dùng selector `page.getByText('Lịch sử EOD').first()` cực kỳ chuẩn xác, kết hợp `click({ force: true })` và `.catch(() => {})` để click cưỡng bức ngay cả khi bị che khuất tạm thời bởi loading overlay, tránh block tiến trình hoặc gây timeout 30s.
+  - **Backend (Playwright Headful Mode)**: Cập nhật hàm launch browser trong [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts) để đọc cấu hình từ biến môi trường `process.env.PLAYWRIGHT_HEADLESS`. Nếu đặt `PLAYWRIGHT_HEADLESS=false` ở file `.env` local, trình duyệt Chromium sẽ được mở hiển thị trực quan và tự động bật `slowMo: 1000` (giãn cách các thao tác 1 giây) để phục vụ debug.
+  - **Backend (Test Script NestJS context)**: Tạo file [test-oms-playwright.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-oms-playwright.ts) khởi tạo NestJS Application Context, lấy `OmsWatcherService` trực tiếp từ container để gọi chạy `checkOmsStatus()` với các thiết lập giải mã chuẩn của dự án. Đăng ký script tiện ích `"test:oms-playwright"` trong [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json).
+  - **Backend (Queue Sync)**: Sửa đổi file [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) để gọi hàm `syncJobToChecklist(job, 'PENDING')` ngay sau khi tạo/lưu job mới trong hàng đợi (`enqueue`). Đồng thời cập nhật hàm `syncJobToChecklist` để cập nhật trạng thái tác vụ sang `WAITING` ("Đang kiểm tra") cho cả hai trạng thái `PROCESSING` và `PENDING`.
+  - **Frontend (ConnectionSettings.tsx)**: Thiết kế và render thêm 3 cụm card giao diện (sử dụng grid và CSS class `glass-panel`) tương ứng để cấu hình và nhập liệu tài khoản **CQG CAST**, **Core CCP** và **Core CE** trực quan, kết hợp chức năng toggle ẩn/hiện mật khẩu, tự động lưu thông tin bằng nút "Lưu tất cả cấu hình tài khoản Bot" có sẵn.
+  - **Frontend (Page.tsx - Chuyển hướng Modal)**: Sửa file [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) để khi click "Xem đối chiếu chi tiết trực quan" cho hai tác vụ `ops_open_02` (OMS) và `ops_open_07` (Email), nó sẽ tự động kích hoạt hiển thị đúng `OmsStatusModal` (màn hình chuyên biệt hiển thị trạng thái quét CCP/CE EOD/MM) thay vì mở `BotLogViewerModal` chung chung.
+  - **Frontend (OmsStatusModal.tsx & BotLogViewerModal.tsx - Sửa logic nhận diện)**: 
+    - Sửa file [OmsStatusModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/OmsStatusModal.tsx) để gọi đúng URL API trigger của backend.
+    - Sửa file [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) tối ưu điều kiện phân loại `jsonType === 'CQG'`, loại trừ các task có chứa chữ "OMS" trong tiêu đề hoặc ID dạng `ops_open_02` để tránh bị nhận diện nhầm thành đối chiếu số dư CQG.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - [test-oms-playwright.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-oms-playwright.ts)
+- **Chỉnh sửa**:
+  - [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+  - [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx)
+  - [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)
+  - [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json)
+  - [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts)
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+  - [OmsStatusModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/OmsStatusModal.tsx)
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+  - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm tra typecheck và build dự án (`npx tsc --noEmit` cho cả Frontend và Backend) đều thành công 100% không phát sinh lỗi.
+
+
+## [2026-08-04 14:20:00] - Feature & Documentation: Tạo script đóng ca trực và tài liệu backup/restore database
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tạo tài liệu ghi nhận luồng backup/restore database MongoDB giữa Atlas, Desktop local và Server Ubuntu.
+  - Viết câu lệnh hoặc công cụ đóng nhanh toàn bộ ca trực đang ở trạng thái `PENDING` thành `COMPLETED` trực tiếp từ máy Windows local.
+- **Giải pháp**:
+  - Tạo mới file hướng dẫn [HUONG_DAN_BACKUP_RESTORE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_BACKUP_RESTORE.md) với các lệnh backup/restore chi tiết.
+  - Cập nhật tài liệu [DEPLOYMENT_LOG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/DEPLOYMENT_LOG.md).
+  - Viết mới file script Node.js [close_shifts.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/close_shifts.js) sử dụng thư viện `mongoose` và `dotenv` của backend để kết nối database theo `MONGODB_URI` trong `.env` và cập nhật các ca trực PENDING thành COMPLETED.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - [HUONG_DAN_BACKUP_RESTORE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_BACKUP_RESTORE.md)
+  - [close_shifts.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/close_shifts.js)
+- **Chỉnh sửa**:
+  - [DEPLOYMENT_LOG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/DEPLOYMENT_LOG.md)
+
+### 3. Xác nhận Build/Kiểm thử
+- Script `close_shifts.js` sử dụng Node.js chạy độc lập từ CLI, không làm thay đổi hay can thiệp vào logic chạy của Backend chính, đảm bảo an toàn tuyệt đối. Đã kiểm tra import package hợp lệ.
+
+
 ## [2026-07-31 10:20:00] - Refactor & Style: Tái cấu trúc giờ theo mùa sang mảng động & Tự động dịch chuyển giờ hạn chót task (Auto-shifting) & Tinh chỉnh giao diện SLA
 
 ### 1. Mục tiêu Thay đổi

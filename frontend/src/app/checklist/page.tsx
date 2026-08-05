@@ -592,7 +592,14 @@ function ChecklistWorksheet() {
               setIsOmsModalOpen(true);
             }}
             onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
-            onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => setViewingBotLog({ title, resultNote, status, checkedAt, taskId })}
+            onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => {
+              if (taskId === 'ops_open_02' || taskId === 'ops_open_07') {
+                setOmsTaskId(taskId);
+                setIsOmsModalOpen(true);
+              } else {
+                setViewingBotLog({ title, resultNote, status, checkedAt, taskId });
+              }
+            }}
             showTechDetails={showTechDetails}
           />
 

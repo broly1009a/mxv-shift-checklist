@@ -39,6 +39,8 @@ interface JobQueuePanelProps {
 }
 
 export default function JobQueuePanel({
+  token,
+  apiBaseUrl,
   jobs,
   loadingJobs,
   fetchJobs,
@@ -51,6 +53,50 @@ export default function JobQueuePanel({
   handleDownloadZip,
 }: JobQueuePanelProps) {
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
+
+  const [selectedJobDetail, setSelectedJobDetail] = React.useState<BotJob | null>(null);
+  const [loadingLogs, setLoadingLogs] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!selectedJobId) {
+      setSelectedJobDetail(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchJobDetail = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/jobs/${selectedJobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setSelectedJobDetail(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching job detail:', err);
+      }
+    };
+
+    setLoadingLogs(true);
+    fetchJobDetail().finally(() => {
+      if (isMounted) setLoadingLogs(false);
+    });
+
+    // Tự động làm mới log mỗi 4 giây nếu job đang chạy
+    const currentJob = jobs.find((j) => j._id === selectedJobId);
+    let interval: NodeJS.Timeout | null = null;
+    if (currentJob && (currentJob.status === 'PROCESSING' || currentJob.status === 'PENDING')) {
+      interval = setInterval(fetchJobDetail, 4000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [selectedJobId, token, apiBaseUrl, jobs]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -135,10 +181,10 @@ export default function JobQueuePanel({
                   Yêu cầu giải Captcha thủ công
                 </span>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {selectedJob.payload?.captchaImage ? (
+                  {(selectedJobDetail?.payload?.captchaImage || selectedJob.payload?.captchaImage) ? (
                     <div style={{ backgroundColor: '#ffffff', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                       <img
-                        src={selectedJob.payload.captchaImage}
+                        src={selectedJobDetail?.payload?.captchaImage || selectedJob.payload?.captchaImage}
                         alt="Captcha Code"
                         style={{ height: '40px', objectFit: 'contain', display: 'block' }}
                       />
@@ -172,16 +218,18 @@ export default function JobQueuePanel({
                 </div>
               </div>
             )}
-
+ 
             {/* Logs Area */}
             <div style={{ backgroundColor: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '0.7rem', color: '#34d399', lineHeight: 1.6, maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {selectedJob.logs && selectedJob.logs.length > 0 ? (
-                selectedJob.logs.map((logLine, idx) => <div key={idx}>{logLine}</div>)
+              {loadingLogs && !selectedJobDetail ? (
+                <div style={{ color: '#64748b', textAlign: 'center', padding: '16px 0' }}>Đang tải logs từ máy chủ...</div>
+              ) : selectedJobDetail?.logs && selectedJobDetail.logs.length > 0 ? (
+                selectedJobDetail.logs.map((logLine, idx) => <div key={idx}>{logLine}</div>)
               ) : (
                 <div style={{ color: '#64748b', textAlign: 'center', padding: '16px 0' }}>Chưa có dòng log nào được ghi.</div>
               )}
             </div>
-
+ 
             {/* ZIP Download Button */}
             {selectedJob.status === 'COMPLETED' && selectedJob.jobType === 'RPA_DOWNLOAD_REPORTS' && (
               <button

@@ -26,7 +26,7 @@ Tài liệu này dùng để ghi lại tiến độ triển khai thực tế tr�
 | **6** | Cấu hình biến môi trường `.env` | `[x]` | 27/07/2026 | Đã thiết lập `.env` cho cả Backend và Frontend |
 | **7** | Khởi chạy ứng dụng bằng PM2 | `[x]` | 27/07/2026 | `mxv-backend` và `mxv-frontend` online |
 | **8** | Cấu hình Nginx Reverse Proxy | `[x]` | 27/07/2026 | Redirect port 3000 & 3001 qua cổng 80 |
-| **9** | **Khôi phục dữ liệu (Database Restore)** | `[ ]` |  | Đã upload file `mxv_shift_checklist.zip` lên `/opt/mxv-checklist/backup/` |
+| **9** | **Khôi phục dữ liệu (Database Restore)** | `[/]` | 04/08/2026 | Đã tải MongoDB Database Tools để backup dữ liệu từ Atlas và chuẩn bị restore |
 
 ---
 
@@ -38,7 +38,7 @@ Tài liệu này dùng để ghi lại tiến độ triển khai thực tế tr�
 | :--- | :--- | :--- | :---: | :--- |
 | **27/07/2026 08:20** | Thực hiện trích xuất (export) database `mxv_shift_checklist` từ local Atlas thành công. | Hoàn thành | `hiepth` | File zip lưu tại `/opt/mxv-checklist/backup/mxv_shift_checklist.zip` |
 | **27/07/2026 08:30** | Giải nén file zip database trên máy Linux. | Hoàn thành | `hiepth` | Chạy lệnh `unzip` tại `/opt/mxv-checklist/backup/` |
-| **[Điền giờ]** | Chạy lệnh `mongorestore` khôi phục dữ liệu vào database `checklist`. | *[Đang làm / Đã xong]* | `hiepth` | Lệnh: `mongorestore --db checklist ...` |
+| **04/08/2026 14:07** | Tải MongoDB Database Tools để backup dữ liệu từ MongoDB Atlas. | Đang thực hiện | `hiepth` | Sẽ chạy lệnh `mongodump` để lấy dữ liệu từ Atlas (`mongodb+srv://...`) |
 
 ---
 

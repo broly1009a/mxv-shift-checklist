@@ -195,8 +195,10 @@ export class OmsWatcherService {
 
       // 2. Launch Browser
       const executablePath = this.getChromeExecutablePath();
+      const isHeadless = process.env.PLAYWRIGHT_HEADLESS !== 'false';
       const launchOptions: any = {
-        headless: true,
+        headless: isHeadless,
+        slowMo: isHeadless ? undefined : 1000,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -257,6 +259,14 @@ export class OmsWatcherService {
         // Check EOD CCP
         this.logger.log('Checking EOD history on CCP...');
         await page.goto(`${ccpUrl}/EOD/EODSYSTEM`);
+        
+        // Đợi và click vào Tab "Lịch sử EOD" để hiển thị bảng lịch sử
+        const ccpTab = page.getByText('Lịch sử EOD').first();
+        await ccpTab.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+        await ccpTab.click({ force: true }).catch((err) => {
+          this.logger.warn(`Không click được tab Lịch sử EOD trên CCP: ${err.message}`);
+        });
+        
         resultData.ccp.eod = await this.scrapeEodHistory(page, false);
 
         // Check MM CCP
@@ -272,6 +282,14 @@ export class OmsWatcherService {
         // Check EOD CE
         this.logger.log('Checking EOD history on CE...');
         await page.goto(`${ceUrl}/EOD/EODSYSTEM`);
+        
+        // Đợi và click vào Tab "Lịch sử EOD" để hiển thị bảng lịch sử
+        const ceTab = page.getByText('Lịch sử EOD').first();
+        await ceTab.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+        await ceTab.click({ force: true }).catch((err) => {
+          this.logger.warn(`Không click được tab Lịch sử EOD trên CE: ${err.message}`);
+        });
+        
         resultData.ce.eod = await this.scrapeEodHistory(page, true);
 
         // Check MM CE

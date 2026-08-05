@@ -209,9 +209,9 @@ export default function BotLogViewerModal({
     } else {
       if (idUpper.includes('PRE_EOD') || titleUpper.includes('PRE_EOD')) {
         jsonType = 'PRE_EOD';
-      } else if (idUpper.includes('CQG') || titleUpper.includes('CQG')) {
+      } else if ((idUpper.includes('CQG') || titleUpper.includes('CQG')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
         jsonType = 'CQG';
-      } else if (idUpper.includes('EOD') || titleUpper.includes('EOD')) {
+      } else if ((idUpper.includes('EOD') || titleUpper.includes('EOD')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
         jsonType = 'EOD';
       } else {
         jsonType = 'SYSTEM_API';
