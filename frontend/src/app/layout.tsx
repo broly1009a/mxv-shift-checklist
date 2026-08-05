@@ -77,6 +77,9 @@ export default function RootLayout({
                 fontFamily: 'inherit',
                 fontSize: '0.9rem',
                 backdropFilter: 'blur(8px)',
+                maxWidth: '600px',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
               },
               success: {
                 iconTheme: {

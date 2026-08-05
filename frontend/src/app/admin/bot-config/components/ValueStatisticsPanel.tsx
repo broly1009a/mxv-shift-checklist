@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Lightbulb,
   Settings,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ValueStatisticsPanelProps {
@@ -51,6 +52,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
   const [resultTab, setResultTab] = useState<'summary' | 'normal' | 'spread'>('summary');
   const [savingConfig, setSavingConfig] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const savedBase = localStorage.getItem('val_stats_base_path');
@@ -62,15 +64,32 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     if (!ngayGD) return;
     const parts = ngayGD.split('-');
     if (parts.length !== 3) return;
-    const [_, month, day] = parts;
+    const [year, month, day] = parts;
 
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBase) return;
     
-    const endsWithBackupMs = cleanBase.toLowerCase().endsWith('backup ms');
-    const msFolder = endsWithBackupMs
-      ? `${cleanBase}\\${day}.${month}`
-      : `${cleanBase}\\Backup MS\\${day}.${month}`;
+    let msFolder = '';
+    const cleanBaseLower = cleanBase.toLowerCase();
+
+    if (cleanBaseLower.endsWith('backup ms\\futures') || cleanBaseLower.endsWith('backup ms/futures') || cleanBaseLower.endsWith('futures')) {
+      // Case 1: Base path ends with Futures -> append year/month/day
+      msFolder = `${cleanBase}\\${year}\\T${month}.${year}\\${day}.${month}`;
+    } else if (cleanBaseLower.endsWith('backup ms')) {
+      // Case 2: Base path ends with Backup MS
+      if (cleanBaseLower.includes('uat') || cleanBaseLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBase}\\${day}.${month}`;
+      } else {
+        msFolder = `${cleanBase}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+      }
+    } else {
+      // Case 3: Standard root directory
+      if (cleanBaseLower.includes('uat') || cleanBaseLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBase}\\Backup MS\\${day}.${month}`;
+      } else {
+        msFolder = `${cleanBase}\\Backup MS\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+      }
+    }
 
     setFolderPathMs(msFolder);
     setDsgdPath(`${msFolder}\\DSGD.xlsx`);
@@ -81,10 +100,17 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBase) return;
 
-    // Standardize parent directory if targetRoot points directly to Backup MS
-    const parentRoot = cleanBase.toLowerCase().endsWith('backup ms')
-      ? cleanBase.substring(0, cleanBase.toLowerCase().lastIndexOf('backup ms')).replace(/\/$/, '').replace(/\\$/, '')
-      : cleanBase;
+    // Standardize parent directory to get the root of the operating documents (e.g. "Tai lieu hoat dong")
+    let parentRoot = cleanBase;
+    const lowerBase = cleanBase.toLowerCase();
+    
+    if (lowerBase.endsWith('\\futures') || lowerBase.endsWith('/futures')) {
+      parentRoot = cleanBase.substring(0, cleanBase.length - 8).replace(/\/$/, '').replace(/\\$/, '');
+    }
+    
+    if (parentRoot.toLowerCase().endsWith('backup ms')) {
+      parentRoot = parentRoot.substring(0, parentRoot.length - 9).replace(/\/$/, '').replace(/\\$/, '');
+    }
 
     let year = new Date().getFullYear().toString();
     if (ngayGD) {
@@ -155,8 +181,25 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
   };
 
   const handleRunProcess = async () => {
+    // Mismatch check
+    const parts = ngayGD.split('-');
+    if (parts.length === 3) {
+      const [_, month, day] = parts;
+      const dateStr = `${day}.${month}`; // e.g. "05.08"
+      const normalizedPath = dsgdPath.replace(/\//g, '\\');
+      if (!normalizedPath.includes(`\\${dateStr}\\`) && !normalizedPath.includes(`\\${dateStr}`)) {
+        const confirmOk = window.confirm(
+          `Cảnh báo: Ngày trong đường dẫn file nguồn:\n"${dsgdPath}"\n\nkhông khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục chạy đối chiếu không?`
+        );
+        if (!confirmOk) {
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     setResult(null);
+    setError(null);
     const toastId = toast.loading('Đang xử lý thống kê giá trị giao dịch...');
 
     try {
@@ -188,6 +231,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
       setResult(data);
       toast.success('Xử lý tính toán thống kê giá trị giao dịch thành công!', { id: toastId });
     } catch (err: any) {
+      setError(err.message || 'Lỗi khi xử lý');
       toast.error(err.message || 'Lỗi khi xử lý', { id: toastId });
     } finally {
       setLoading(false);
@@ -486,6 +530,34 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           </button>
         </div>
       </div>
+
+      {/* Error View */}
+      {error && (
+        <div 
+          className="glass-panel animate-fade-in" 
+          style={{ 
+            padding: '20px', 
+            backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+            border: '1px solid rgba(239, 68, 68, 0.3)', 
+            borderRadius: '10px', 
+            display: 'flex', 
+            alignItems: 'start', 
+            gap: '12px',
+            marginTop: '20px',
+            marginBottom: '20px'
+          }}
+        >
+          <AlertTriangle size={18} color="#ef4444" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <h5 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', margin: 0 }}>
+              Xảy ra lỗi trong quá trình đối soát
+            </h5>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Results View */}
       {result && (

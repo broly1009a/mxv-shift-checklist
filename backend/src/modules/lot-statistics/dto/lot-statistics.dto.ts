@@ -77,4 +77,7 @@ export class LotConfigDto {
   defaultPathLme?: string;
   defaultPathOptions?: string;
   defaultPathSpread?: string;
+
+  /** Option to update cumulative yearly tracker files */
+  updateCumulative?: boolean | string;
 }
