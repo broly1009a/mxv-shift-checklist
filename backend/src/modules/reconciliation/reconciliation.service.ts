@@ -2738,34 +2738,40 @@ export class ReconciliationService {
     const fs = require('fs');
     const path = require('path');
 
-    // 1. Tìm file Accounts_Balances mới nhất trong temp/cast-downloads
-    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
-    const accountsBalancesPath = this.findLatestFile(
-      castDownloadsDir,
-      /^Accounts_Balances_.*\.xlsx$/i,
-    );
-
-    if (!accountsBalancesPath) {
-      throw new Error(
-        `Không tìm thấy file Accounts_Balances trong thư mục ${castDownloadsDir}`,
-      );
-    }
-
-    // 2. Tìm file QLTKGD.xlsx mới nhất của ngày tradingDate
+    // 1. Tìm file QLTKGD.xlsx mới nhất của ngày tradingDate
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
+    const cqgBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
     const dailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
 
     const qltkgdPath = path.join(dailyPath, 'QLTKGD.xlsx');
     if (!fs.existsSync(qltkgdPath)) {
       throw new Error(
         `Không tìm thấy file QLTKGD.xlsx của ngày ${day}/${month}/${year} tại: ${qltkgdPath}`,
+      );
+    }
+
+    const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+    const accountsBalancesPath =
+      this.findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
+      this.findLatestFile(dailyPath, /Accounts_Balances/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
+
+    if (!accountsBalancesPath) {
+      throw new Error(
+        `Không tìm thấy file Accounts_Balances.xlsx của ngày ${day}/${month}/${year} tại ${cqgDailyPath} hoặc thư mục tạm ${castDownloadsDir}`,
       );
     }
 
@@ -3392,31 +3398,34 @@ export class ReconciliationService {
     const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
 
     const acmTradesPath =
-      this.findLatestFile(acmDailyPath, /Nano|Fill/i) ||
-      this.findLatestFile(castDownloadsDir, /Nano|Fill/i) ||
-      this.findLatestFile(userDownloadsDir, /Nano|Fill/i);
+      this.findLatestFile(acmDailyPath, /Nano|Fill/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /Nano|Fill/i)
+      // || this.findLatestFile(userDownloadsDir, /Nano|Fill/i);
 
     const cqgFrPath =
       this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i) ||
-      this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i) ||
-      this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i) ||
       this.mergeCqgRawFiles(cqgDailyPath, 'FR') ||
-      this.mergeCqgRawFiles(castDownloadsDir, 'FR') ||
-      this.mergeCqgRawFiles(userDownloadsDir, 'FR') ||
-      this.findLatestFile(cqgDailyPath, /FR/i) ||
-      this.findLatestFile(castDownloadsDir, /FR/i) ||
-      this.findLatestFile(userDownloadsDir, /FR/i);
+      this.findLatestFile(cqgDailyPath, /FR/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
+      // || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
+      // || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
+      // || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
+      // || this.findLatestFile(castDownloadsDir, /FR/i)
+      // || this.findLatestFile(userDownloadsDir, /FR/i);
 
     const cqgPsPath =
       this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i) ||
-      this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i) ||
-      this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i) ||
       this.mergeCqgRawFiles(cqgDailyPath, 'PS') ||
-      this.mergeCqgRawFiles(castDownloadsDir, 'PS') ||
-      this.mergeCqgRawFiles(userDownloadsDir, 'PS') ||
-      this.findLatestFile(cqgDailyPath, /Positions|PS/i) ||
-      this.findLatestFile(castDownloadsDir, /Positions|PS/i) ||
-      this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+      this.findLatestFile(cqgDailyPath, /Positions|PS/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
+      // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
+      // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
+      // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
+      // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
+      // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -3471,31 +3480,34 @@ export class ReconciliationService {
     const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
 
     const acmTradesPath =
-      this.findLatestFile(acmDailyPath, /Straits/i) ||
-      this.findLatestFile(castDownloadsDir, /Straits/i) ||
-      this.findLatestFile(userDownloadsDir, /Straits/i);
+      this.findLatestFile(acmDailyPath, /Straits/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /Straits/i)
+      // || this.findLatestFile(userDownloadsDir, /Straits/i);
 
     const cqgFrPath =
       this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i) ||
-      this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i) ||
-      this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i) ||
       this.mergeCqgRawFiles(cqgDailyPath, 'FR') ||
-      this.mergeCqgRawFiles(castDownloadsDir, 'FR') ||
-      this.mergeCqgRawFiles(userDownloadsDir, 'FR') ||
-      this.findLatestFile(cqgDailyPath, /FR/i) ||
-      this.findLatestFile(castDownloadsDir, /FR/i) ||
-      this.findLatestFile(userDownloadsDir, /FR/i);
+      this.findLatestFile(cqgDailyPath, /FR/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
+      // || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
+      // || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
+      // || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
+      // || this.findLatestFile(castDownloadsDir, /FR/i)
+      // || this.findLatestFile(userDownloadsDir, /FR/i);
 
     const cqgPsPath =
       this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i) ||
-      this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i) ||
-      this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i) ||
       this.mergeCqgRawFiles(cqgDailyPath, 'PS') ||
-      this.mergeCqgRawFiles(castDownloadsDir, 'PS') ||
-      this.mergeCqgRawFiles(userDownloadsDir, 'PS') ||
-      this.findLatestFile(cqgDailyPath, /Positions|PS/i) ||
-      this.findLatestFile(castDownloadsDir, /Positions|PS/i) ||
-      this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+      this.findLatestFile(cqgDailyPath, /Positions|PS/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
+      // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
+      // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
+      // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
+      // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
+      // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
 
     const missingFiles: string[] = [];
     if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
@@ -3595,12 +3607,15 @@ export class ReconciliationService {
 
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
     const eodPath =
-      this.findLatestFile(msDailyPath, /eod/i) ||
-      this.findLatestFile(castDownloadsDir, /eod/i);
+      this.findLatestFile(msDailyPath, /eod/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /eod/i);
+
     const accountsBalancesPath =
       this.findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
-      this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i) ||
       this.findLatestFile(msDailyPath, /Accounts_Balances/i);
+      // Fallback UAT (Commented out for Go-Live):
+      // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
 
     if (!fs.existsSync(qltkgdPath))
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
