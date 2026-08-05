@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Settings, ShieldAlert, Send, Download } from 'lucide-react';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
 interface MarginCheckerModalProps {
@@ -18,6 +18,7 @@ export default function MarginCheckerModal({
   shiftLogId,
   token,
 }: MarginCheckerModalProps) {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'onOrder' | 'changes' | 'config'>('onOrder');
   const [loading, setLoading] = useState(false);
 
@@ -238,7 +239,43 @@ export default function MarginCheckerModal({
               ))}
             </div>
           </div>
+          {renderDeliveryStatus(secConfig)}
         </div>
+      </div>
+    );
+  };
+
+  const renderDeliveryStatus = (secConfig: any) => {
+    if (!secConfig?.lastEmailSentAt) return null;
+    return (
+      <div style={{
+        marginTop: '12px',
+        paddingTop: '12px',
+        borderTop: '1px dashed var(--border-color)',
+        fontSize: '0.75rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>Email gửi gần nhất:</span>
+          {secConfig.lastEmailStatus === 'SUCCESS' ? (
+            <span style={{ color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-success)' }}></span>
+              Thành công ({new Date(secConfig.lastEmailSentAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
+            </span>
+          ) : (
+            <span style={{ color: 'var(--color-critical)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-critical)' }}></span>
+              Thất bại
+            </span>
+          )}
+        </div>
+        {secConfig.lastEmailStatus === 'FAILED' && secConfig.lastEmailError && (
+          <div style={{ color: 'var(--color-critical)', fontSize: '0.7rem', opacity: 0.8 }}>
+            Chi tiết: {secConfig.lastEmailError} (Vui lòng báo IT hỗ trợ)
+          </div>
+        )}
       </div>
     );
   };
@@ -1051,6 +1088,7 @@ export default function MarginCheckerModal({
                         ))}
                       </div>
                     </div>
+                    {renderDeliveryStatus(config.marginOnOrder)}
                   </div>
                 </div>
 
@@ -1185,6 +1223,7 @@ export default function MarginCheckerModal({
                         ))}
                       </div>
                     </div>
+                    {renderDeliveryStatus(config.marginChange)}
                   </div>
                 </div>
 
@@ -1344,6 +1383,7 @@ export default function MarginCheckerModal({
                         ))}
                       </div>
                     </div>
+                    {renderDeliveryStatus(config.sodCheck)}
                   </div>
                 </div>
 
@@ -1355,153 +1395,155 @@ export default function MarginCheckerModal({
                 {renderConfigSection('Cảnh báo Thay đổi Cấu hình (Security/Config Change Audit)', 'securityAudit', 'securityAudit')}
               </div>
 
-              {/* SMTP configuration */}
-              <div className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
-                <h3
-                  style={{
-                    margin: '0 0 16px 0',
-                    fontSize: '0.95rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    borderBottom: '1px solid var(--border-color)',
-                    paddingBottom: '8px',
-                  }}
-                >
-                  Cấu hình kết nối Mail Server (SMTP)
-                </h3>
+              {/* SMTP configuration (Only visible to Admin role) */}
+              {user?.role === 'ADMIN' && (
+                <div className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
+                  <h3
+                    style={{
+                      margin: '0 0 16px 0',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      borderBottom: '1px solid var(--border-color)',
+                      paddingBottom: '8px',
+                    }}
+                  >
+                    Cấu hình kết nối Mail Server (SMTP)
+                  </h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>SMTP Host</span>
-                    <input
-                      type="text"
-                      value={config.smtp.host}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, host: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>SMTP Host</span>
+                      <input
+                        type="text"
+                        value={config.smtp.host}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, host: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>SMTP Port</span>
+                      <input
+                        type="number"
+                        value={config.smtp.port}
+                        onChange={e => {
+                          const val = parseInt(e.target.value) || 0;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, port: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>SMTP Port</span>
-                    <input
-                      type="number"
-                      value={config.smtp.port}
-                      onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, port: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tên đăng nhập (Email)</span>
+                      <input
+                        type="text"
+                        value={config.smtp.user}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, user: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Mật khẩu</span>
+                      <input
+                        type="password"
+                        value={config.smtp.pass}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, pass: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Email người gửi (From)</span>
+                      <input
+                        type="email"
+                        value={config.smtp.senderEmail}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, senderEmail: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tên người gửi (From Name)</span>
+                      <input
+                        type="text"
+                        value={config.smtp.senderName}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, senderName: val } }));
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tên đăng nhập (Email)</span>
-                    <input
-                      type="text"
-                      value={config.smtp.user}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, user: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Mật khẩu</span>
-                    <input
-                      type="password"
-                      value={config.smtp.pass}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, pass: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Email người gửi (From)</span>
-                    <input
-                      type="email"
-                      value={config.smtp.senderEmail}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, senderEmail: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tên người gửi (From Name)</span>
-                    <input
-                      type="text"
-                      value={config.smtp.senderName}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfig((prev: any) => ({ ...prev, smtp: { ...prev.smtp, senderName: val } }));
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.8rem',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button

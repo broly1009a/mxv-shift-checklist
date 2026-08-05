@@ -1603,6 +1603,7 @@ export class ReconciliationService {
             subject,
             htmlBody,
             attachments,
+            'negativeMarginReport',
           );
         if (emailResult.success) {
           this.logger.log(
@@ -1915,6 +1916,8 @@ export class ReconciliationService {
             mailSettings.email,
             subject,
             htmlBody,
+            [],
+            'eodCheck',
           );
         if (emailResult.success) {
           this.logger.log(
@@ -2141,6 +2144,7 @@ export class ReconciliationService {
             subject,
             htmlBody,
             attachments,
+            'negativeMarginReport',
           );
         if (emailResult.success) {
           this.logger.log(
@@ -2672,6 +2676,8 @@ export class ReconciliationService {
             mailSettings.email,
             subject,
             htmlBody,
+            [],
+            'preEodCheck',
           );
         if (emailResult.success) {
           this.logger.log(
@@ -2977,6 +2983,8 @@ export class ReconciliationService {
             toEmails,
             emailSubject,
             formattedHtml,
+            [],
+            'sodCheck',
           );
 
         if (emailResult.success) {

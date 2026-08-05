@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   BadRequestException,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MarginCheckerService } from './margin-checker.service';
@@ -21,13 +22,30 @@ export class MarginCheckerController {
 
   @Get('config')
   @Permissions('ACCESS_MARGIN_CHANGE')
-  async getConfig() {
-    return this.service.loadConfig();
+  async getConfig(@Req() req: any) {
+    const config = await this.service.loadConfig();
+    if (req.user?.role !== 'ADMIN') {
+      if (config.smtp) {
+        config.smtp.pass = '********'; // Mask password for non-admins
+      }
+    }
+    return config;
   }
 
   @Post('config')
   @Permissions('ACCESS_MARGIN_CHANGE')
-  async saveConfig(@Body() config: any) {
+  async saveConfig(@Req() req: any, @Body() config: any) {
+    const oldConfig = await this.service.loadConfig();
+    
+    // Prevent non-admins from altering SMTP configuration
+    if (req.user?.role !== 'ADMIN') {
+      config.smtp = oldConfig.smtp;
+    } else {
+      // If admin submitted masked password, preserve the original password
+      if (config.smtp && config.smtp.pass === '********') {
+        config.smtp.pass = oldConfig.smtp?.pass;
+      }
+    }
     return this.service.saveConfig(config);
   }
 

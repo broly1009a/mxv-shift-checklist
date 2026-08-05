@@ -159,7 +159,7 @@ function ChecklistWorksheet() {
   }
 
   // Render loading skeleton
-  if (loading && !log) {
+  if ((loading || (shiftLogId && !loadError)) && !log) {
     const isGrid = !shiftLogId;
     return (
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

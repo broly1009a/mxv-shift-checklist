@@ -218,20 +218,45 @@ export class MarginCheckerService {
     return newDate;
   }
 
+  async updateDeliveryStatus(checkerType: string, status: 'SUCCESS' | 'FAILED', errorMsg?: string) {
+    try {
+      const configStr = await this.systemSettingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
+      const config = JSON.parse(configStr);
+      if (!config[checkerType]) {
+        config[checkerType] = {};
+      }
+      config[checkerType].lastEmailSentAt = new Date().toISOString();
+      config[checkerType].lastEmailStatus = status;
+      config[checkerType].lastEmailError = errorMsg || null;
+      
+      await this.systemSettingsService.setSetting(
+        'margin_checker_config',
+        JSON.stringify(config),
+      );
+      this.logger.log(`Đã cập nhật trạng thái gửi tin cho ${checkerType}: ${status}`);
+    } catch (err) {
+      this.logger.error(`Không thể cập nhật trạng thái gửi tin cho ${checkerType}: ${err.message}`);
+    }
+  }
+
   async sendEmailNotification(
     config: any,
     toEmails: string[],
     subject: string,
     htmlBody: string,
     attachments: Array<{ filename: string; content: Buffer }> = [],
+    checkerType?: string,
   ) {
-    const smtp = config.smtp || {
-      host: 'smtp.office365.com',
-      port: 587,
-      user: 'it.support@mxv.vn',
-      pass: 'OFmng239',
-      senderEmail: 'it.support@mxv.vn',
-      senderName: 'MXV IT Support',
+    const smtp = {
+      host: process.env.SMTP_HOST || config.smtp?.host || 'smtp.office365.com',
+      port: parseInt(process.env.SMTP_PORT || '') || config.smtp?.port || 587,
+      user: process.env.SMTP_USER || config.smtp?.user || 'it.support@mxv.vn',
+      pass: process.env.SMTP_PASS || config.smtp?.pass || 'OFmng239',
+      senderEmail: process.env.SMTP_SENDER_EMAIL || config.smtp?.senderEmail || 'it.support@mxv.vn',
+      senderName: process.env.SMTP_SENDER_NAME || config.smtp?.senderName || 'MXV IT Support',
     };
 
     try {
@@ -261,9 +286,15 @@ export class MarginCheckerService {
       });
 
       this.logger.log(`Email đã gửi thành công: ${info.messageId}`);
+      if (checkerType) {
+        await this.updateDeliveryStatus(checkerType, 'SUCCESS');
+      }
       return { success: true, messageId: info.messageId };
     } catch (err) {
       this.logger.error(`Lỗi gửi mail: ${err.message}`);
+      if (checkerType) {
+        await this.updateDeliveryStatus(checkerType, 'FAILED', err.message);
+      }
       return { success: false, error: err.message };
     }
   }
@@ -271,7 +302,7 @@ export class MarginCheckerService {
   async sendTelegramNotification(chatId: string, message: string) {
     if (!chatId) return;
     try {
-      await this.telegramService.sendMessage(message);
+      await this.telegramService.sendMessage(message, chatId);
       this.logger.log(`Đã gửi cảnh báo Telegram đến chat ID: ${chatId}`);
     } catch (err) {
       this.logger.error(`Lỗi gửi Telegram: ${err.message}`);
@@ -1228,6 +1259,7 @@ export class MarginCheckerService {
         subject,
         emailBody,
         attachments,
+        'marginOnOrder',
       );
 
       // Send Telegram Alert
@@ -1456,6 +1488,7 @@ export class MarginCheckerService {
         subject,
         emailBody,
         attachments,
+        'marginChange',
       );
 
       // Send Telegram Alert

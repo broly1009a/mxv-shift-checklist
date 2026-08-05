@@ -3,6 +3,81 @@
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
 
+## [2026-08-05 10:10:00] - Bug Fix: Sửa lỗi mất Sidebar (Ca trực hiện tại, Tra cứu lịch sử) và mất Phòng ban (Chưa phân phòng) khi lưu cấu hình hồ sơ cá nhân
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Gặp lỗi nghiêm trọng: Khi nhân viên trực ca thực hiện lưu thay đổi ở trang Cấu hình (Settings/Profile), toàn bộ các nút chức năng trên sidebar (Ca trực hiện tại, Tra cứu lịch sử) bị biến mất, đồng thời phần phòng ban của tài khoản bị chuyển thành "Chưa phân phòng".
+- **Phát hiện nguyên nhân**:
+  - Khi lưu cấu hình cá nhân, Frontend gọi API `PUT /api/v1/auth/profile`.
+  - Phản hồi từ hàm `updateProfile` ở Backend trả về đối tượng `updatedUser` bị thiếu trường `permissions` (danh sách quyền) và trả về trường phòng ban dưới dạng `departmentId` (ID thô) thay vì object `department` đã được populate đầy đủ như lúc đăng nhập.
+  - Khi Frontend nhận phản hồi và cập nhật vào `AuthContext`, nó làm mất trắng quyền và thông tin phòng ban của user, dẫn đến Sidebar ẩn đi các link ca trực (do không thỏa mãn điều kiện `canViewChecklist`).
+- **Khắc phục**:
+  - Cập nhật hàm `updateProfile` trong [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts):
+    - Sử dụng `.populate()` để điền đầy đủ dữ liệu phòng ban (`departmentId` và `parentDepartmentId`) trước khi phản hồi về Frontend.
+    - Truy vấn cơ sở dữ liệu để lấy lại danh sách quyền (`permissions`) tương ứng với vai trò của user và nhúng vào payload trả về.
+    - Đổi tên key trả về thành `department` để đồng bộ hoàn toàn cấu trúc dữ liệu với API đăng nhập gốc.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
+## [2026-08-05 09:50:00] - Refactor & Bug Fix: Triển khai phương án Lai (Hybrid) cho cấu hình cảnh báo Margin Checker, sửa lỗi gửi Telegram Bot, bổ sung trạng thái gửi tin gần nhất (Delivery Logs) và thiết lập chốt chặn bảo mật SMTP
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đánh giá thực tế nghiệp vụ và vận hành để lên kế hoạch và triển khai phương án Lai (Hybrid) đối với cấu hình cảnh báo Margin Checker: Ẩn thông tin cấu hình hạ tầng máy chủ SMTP nhạy cảm đối với nhân viên trực ca thường nhưng vẫn giữ khả năng nhập Email/Telegram người nhận trực quan trên từng Card đối soát.
+  - Bổ sung trạng thái gửi tin (Delivery Logs) dưới chân các Card cấu hình nghiệp vụ để tăng tính minh bạch khi bàn giao ca trực vận hành.
+- **Giải pháp**:
+  - **Frontend (MarginCheckerModal.tsx)**:
+    - Sử dụng hook `useAuth` để kiểm tra thông tin vai trò tài khoản đăng nhập của nhân sự.
+    - Cấu hình chỉ hiển thị khối *"Cấu hình kết nối Mail Server (SMTP)"* khi người dùng đăng nhập có vai trò `ADMIN`. Với tài khoản nhân sự trực ca thông thường (`STAFF`...), khối này hoàn toàn bị ẩn, loại bỏ nguy cơ lộ mật khẩu email hệ thống và thao tác cấu hình sai.
+    - Xây dựng helper component `renderDeliveryStatus` để hiển thị trạng thái gửi tin gần nhất (🟢 Thành công hoặc 🔴 Thất bại kèm chi tiết lỗi cụ thể) ở chân mỗi Card cấu hình nghiệp vụ.
+  - **Backend (margin-checker.controller.ts, margin-checker.service.ts & reconciliation.service.ts)**:
+    - **Chốt chặn bảo mật & Bảo vệ ghi đè**: Cập nhật `MarginCheckerController.ts` để chặn truy cập trái phép vào mật khẩu SMTP từ Network Inspect: 
+      - Mask mật khẩu thành `********` trong API GET `/margin-checker/config` đối với tài khoản không phải `ADMIN`.
+      - Khi tài khoản thường gọi API POST lưu cấu hình, Backend sẽ tự động nạp cấu hình SMTP cũ từ database đè lên cấu hình lưu mới (đảm bảo không bị ghi đè mất mật khẩu thật do frontend gửi lên dạng `********` hoặc thiếu khối `smtp`).
+    - **Sửa lỗi Telegram**: Phát hiện và sửa lỗi nghiêm trọng trong luồng gửi Telegram cảnh báo đối soát ký quỹ: Thêm tham số `chatId` đích vào cuộc gọi `this.telegramService.sendMessage(message, chatId)`.
+    - **Dự phòng SMTP**: Hỗ trợ cơ chế tự động đọc cấu hình SMTP dự phòng từ các biến môi trường (`SMTP_HOST`, `SMTP_PORT`...) để hỗ trợ đội IT quản lý hạ tầng mạng thuận tiện hơn.
+    - **Ghi nhận trạng thái**: Bổ sung hàm `updateDeliveryStatus` cập nhật kết quả gửi email (`lastEmailSentAt`, `lastEmailStatus`, `lastEmailError`) trực tiếp vào MongoDB system settings của Margin Checker mỗi khi gửi email thành công/thất bại, đồng thời truyền `checkerType` đầy đủ từ mọi API đối soát.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [MarginCheckerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/MarginCheckerModal.tsx)
+  - [margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.controller.ts)
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts)
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh lỗi.
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
+## [2026-08-05 09:18:00] - Bug Fix: Khắc phục lỗi nhấp nháy cảnh báo đỏ "Lỗi tải ca trực - Failed to fetch" khi chuyển trang có độ trễ
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục triệt để hiện tượng nhấp nháy/chớp nhoáng màn hình đỏ báo lỗi "Lỗi tải ca trực - Failed to fetch" khi chuyển từ các trang khác về ca trực hiện tại.
+- **Giải pháp**:
+  - **Phát hiện thêm**: Khi chuyển URL từ `/checklist` sang `/checklist?id=pendingId`, React thực hiện một lượt render trung gian ngay khi `shiftLogId` thay đổi nhưng trước khi `useEffect` kịp kích hoạt `setLoading(true)`. Ở lượt render này, `loading` vẫn là `false` (do trạng thái cũ từ `loadActiveLogs` kết thúc) và `log` là `null`, dẫn đến việc UI bỏ qua skeleton (chỉ render skeleton khi `loading && !log`) và hiển thị ngay màn hình báo lỗi `!log`.
+  - **Khắc phục**:
+    - Cập nhật điều kiện hiển thị skeleton trong file [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) từ `loading && !log` thành `(loading || (shiftLogId && !loadError)) && !log`.
+    - Thiết lập này đảm bảo khi bắt đầu quá trình chuyển hướng và chuyển ID ca trực mới, giao diện sẽ lập tức hiển thị **Worksheet Skeleton** để che phủ thời gian trễ phản hồi từ API thay vì nhảy thẳng vào khối báo lỗi, loại bỏ hoàn toàn hiện tượng nhấp nháy giao diện.
+    - Kết hợp với cơ chế sequence request counters và dọn dẹp `loadError` đã thiết lập trước đó tại [useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) để mang lại trải nghiệm chuyển trang mượt mà nhất.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts)
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Đã chạy kiểm tra typecheck Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh bất kỳ lỗi biên dịch nào.
+
+
 ## [2026-08-04 16:15:00] - Bug Fix & Improvement: Giải quyết nghẽn tải Backend (Jobs query pagination/projection bottleneck), bổ sung giao diện cấu hình tài khoản CCP/CE/CAST ở Frontend, sửa lỗi hiển thị sai Modal kết quả OMS và sửa API trigger ở Frontend, đồng bộ trạng thái "Đang kiểm tra" cho các tác vụ con đang chạy ngầm, tạo file script test OMS bằng ứng dụng NestJS context
 
 ### 1. Mục tiêu Thay đổi
