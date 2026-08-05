@@ -3,6 +3,34 @@
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
 
+## [2026-08-05 10:25:00] - Refactor & Bug Fix: Đồng bộ trạng thái Cha-Con, Khóa tiến trình Sub-task và chặn lỗi lặp cập nhật ngược (Propagation Loop Fix)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Soát lại toàn bộ các file liên quan đến trạng thái của tác vụ cha và tác vụ con để tránh sai sót.
+  - Đồng bộ trạng thái tác vụ cha thành "Đang kiểm tra" (WAITING) khi có ít nhất một tác vụ con hoạt động.
+  - Khóa checkbox tích chọn và thay đổi trạng thái đối với các Sub-task con chưa đủ điều kiện (phụ thuộc vào tác vụ con đứng trước chưa hoàn thành).
+- **Phát hiện rủi ro (Propagation Loop & Subtask Uncheck Bug)**:
+  - Khi tác vụ con cập nhật, hệ thống tự động cập nhật trạng thái tác vụ cha (ví dụ sang `WAITING`).
+  - Hàm `updateTaskStatus` khi chạy trên tác vụ cha có chứa logic tự động cập nhật ngược lại toàn bộ tác vụ con (`isParentTask` block).
+  - Khi cha chuyển sang `WAITING` (tức `isChecked = false`), logic này sẽ vô tình ghi đè và hủy tick (`isChecked = false`) toàn bộ các tác vụ con đã hoàn tất trước đó! Điều này gây ra lỗi vòng lặp hủy tích chọn.
+- **Giải pháp & Khắc phục**:
+  - **Backend (shifts.service.ts)**:
+    - **Đồng bộ trạng thái Cha-Con**: Cập nhật logic đánh giá tác vụ cha. Khi phát hiện tác vụ cha chưa tích hoàn thành (`!parentTask.isChecked`), nếu có bất kỳ tác vụ con nào đang có hoạt động (`status === 'WAITING' || s.isChecked || s.status === 'FAILED' || s.status === 'NEEDS_ATTENTION'`), hệ thống tự động đổi trạng thái tác vụ cha thành `WAITING` (Đang kiểm tra). Nếu không có, trả về `PENDING`.
+    - **Chặn lặp cập nhật ngược**: Sửa điều kiện cập nhật ngược từ cha xuống con từ `if (isParentTask)` thành `if (isParentTask && !isInternal)`. Khi Backend cập nhật trạng thái tác vụ cha từ luồng đồng bộ nội bộ (`isInternal = true`), luồng ghi đè ngược xuống con sẽ bị bỏ qua hoàn toàn.
+  - **Frontend (TaskTable.tsx)**:
+    - Sử dụng hàm check khóa `isTaskLocked(child)` để chặn không cho nhân viên tick chọn checkbox hoặc đổi trạng thái thủ công của Sub-task con nếu các bước phụ thuộc trước đó của nó chưa hoàn thành (`isChecked` của bước trước là `false`).
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts)
+  - [TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh lỗi.
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
 ## [2026-08-05 10:10:00] - Bug Fix: Sửa lỗi mất Sidebar (Ca trực hiện tại, Tra cứu lịch sử) và mất Phòng ban (Chưa phân phòng) khi lưu cấu hình hồ sơ cá nhân
 
 ### 1. Mục tiêu Thay đổi

@@ -686,7 +686,7 @@ export class ShiftsService {
     }
 
     // Auto-update parent tasks if any child or dependency is updated
-    if (isParentTask) {
+    if (isParentTask && !isInternal) {
       // Auto-update children tasks if updating a parent task directly
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {
@@ -798,6 +798,29 @@ export class ShiftsService {
                 true,
               );
               return resLog;
+            } else if (!parentTask.isChecked) {
+              // Synchronize parent task status to WAITING when any sub-task is active or completed
+              const hasActiveWork = siblings.some(
+                (s) =>
+                  s.status === 'WAITING' ||
+                  s.isChecked ||
+                  s.status === 'FAILED' ||
+                  s.status === 'NEEDS_ATTENTION',
+              );
+              const targetStatus = hasActiveWork ? 'WAITING' : 'PENDING';
+              if (parentTask.status !== targetStatus) {
+                const resLog = await this.updateTaskStatus(
+                  shiftLogId,
+                  parentId as string,
+                  targetStatus,
+                  user,
+                  targetStatus === 'WAITING'
+                    ? 'Tự động chuyển trạng thái sang Đang kiểm tra/Đang thực hiện theo tiến trình các đầu việc con'
+                    : 'Chuyển về trạng thái Chưa thực hiện do chưa có tiến trình đầu việc con nào hoạt động',
+                  true,
+                );
+                return resLog;
+              }
             }
           }
         }
