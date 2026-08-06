@@ -83,7 +83,7 @@ export interface ValueStatisticsResult {
 export class ValueStatisticsService {
   private readonly logger = new Logger(ValueStatisticsService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(private readonly settingsService: SystemSettingsService) { }
 
   /**
    * Processes the "Thống kê giá trị giao dịch" calculation and updates cumulative files.
@@ -102,18 +102,18 @@ export class ValueStatisticsService {
     // 1. Resolve paths
     const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
       ? path.join(
-          process.cwd(),
-          'marco',
-          'Thong ke gia tri giao dich có ACM',
-          'Macro thong ke gia tri giao dich có ACM.xlsm',
-        )
+        process.cwd(),
+        'marco',
+        'Thong ke gia tri giao dich có ACM',
+        'Macro thong ke gia tri giao dich có ACM.xlsm',
+      )
       : path.join(
-          process.cwd(),
-          '..',
-          'marco',
-          'Thong ke gia tri giao dich có ACM',
-          'Macro thong ke gia tri giao dich có ACM.xlsm',
-        );
+        process.cwd(),
+        '..',
+        'marco',
+        'Thong ke gia tri giao dich có ACM',
+        'Macro thong ke gia tri giao dich có ACM.xlsm',
+      );
 
     const macroPath =
       payload?.macroPath ||
@@ -548,7 +548,7 @@ export class ValueStatisticsService {
     const newsletterDir = path.join(
       targetRoot,
       'Thong ke gia tri giao dich',
-      'Gửi team bản tin Thong ke gia tri giao dich',
+      'Gửi team bản tin',
       'Gửi team bản tin',
     );
     if (!fs.existsSync(newsletterDir)) {
