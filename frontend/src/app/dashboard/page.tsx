@@ -23,6 +23,9 @@ import { ActiveIncidentsWidget } from './components/ActiveIncidentsWidget';
 import { MarginChangeRequestsWidget } from './components/MarginChangeRequestsWidget';
 import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/Skeleton';
 
+// Import Reusable UI Components
+import CustomDatePicker from '@/components/ui/CustomDatePicker';
+
 export default function DashboardPage() {
   const { user, token } = useAuth();
   const {
@@ -569,16 +572,17 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ngày giám sát:</span>
-              <input
-                type="date"
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Ngày giám sát:</span>
+              <CustomDatePicker
+                label=""
                 value={dashboardDate}
-                onChange={(e) => {
-                  setDashboardDate(e.target.value);
-                  setJobDate(e.target.value);
+                onChange={(val) => {
+                  const targetDate = val || new Date().toISOString().split('T')[0];
+                  setDashboardDate(targetDate);
+                  setJobDate(targetDate);
                 }}
-                className="form-input"
-                style={{ width: '150px', height: '38px', padding: '0 10px', fontSize: '0.85rem', cursor: 'pointer' }}
+                flex="none"
+                minWidth="160px"
               />
             </div>
             <div ref={layoutSettingsRef} style={{ position: 'relative' }}>

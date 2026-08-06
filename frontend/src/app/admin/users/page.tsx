@@ -20,6 +20,10 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/Sidebar';
 
+// Import Reusable UI Components
+import SearchableSelect from '@/components/ui/SearchableSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
+
 interface Department {
   _id: string;
   name: string;
@@ -307,6 +311,54 @@ export default function AdminUsersPage() {
 
   const filteredDepartments = departments;
 
+  // Options for custom selects and searchable selects
+  const roleFilterOptions = [
+    { value: 'ALL', label: '-- Tất cả vai trò --' },
+    { value: 'STAFF', label: 'Nhân viên vận hành' },
+    { value: 'DEPARTMENT_HEAD', label: 'Trưởng bộ phận / Trưởng ca' },
+    { value: 'DIVISION_DIRECTOR', label: 'Giám đốc Khối' },
+    { value: 'CEO', label: 'Ban Giám đốc (CEO)' },
+    { value: 'CHAIRMAN', label: 'Chủ tịch Hội đồng' },
+    { value: 'ADMIN', label: 'Quản trị hệ thống (ADMIN)' }
+  ];
+
+  const departmentFilterOptions = [
+    { value: 'ALL', label: '-- Tất cả Phòng ban --' },
+    ...departments.map(d => ({
+      value: d._id,
+      label: d.name,
+      sublabel: d.code
+    }))
+  ];
+
+  const activeFilterOptions = [
+    { value: 'ALL', label: '-- Tất cả trạng thái --' },
+    { value: 'true', label: 'Hoạt động' },
+    { value: 'false', label: 'Chờ kích hoạt' }
+  ];
+
+  const modalRoleOptions = [
+    { value: 'STAFF', label: 'STAFF (Nhân viên vận hành)' },
+    { value: 'DEPARTMENT_HEAD', label: 'DEPARTMENT_HEAD (Trưởng bộ phận / Trưởng ca)' },
+    { value: 'DIVISION_DIRECTOR', label: 'DIVISION_DIRECTOR (Giám đốc Khối)' },
+    ...(role === 'CEO' || (editingUser && editingUser.role === 'CEO')
+      ? [{ value: 'CEO', label: 'CEO (Tổng Giám đốc / Ban Giám đốc)' }]
+      : []),
+    ...(role === 'CHAIRMAN' || (editingUser && editingUser.role === 'CHAIRMAN')
+      ? [{ value: 'CHAIRMAN', label: 'CHAIRMAN (Chủ tịch Hội đồng)' }]
+      : []),
+    { value: 'ADMIN', label: 'ADMIN (Quản trị hệ thống)' }
+  ];
+
+  const modalDeptOptions = [
+    { value: 'ALL', label: '-- Chọn bộ phận trực ca --' },
+    ...departments.map(d => ({
+      value: d._id,
+      label: d.name,
+      sublabel: d.code
+    }))
+  ];
+
   return (
     <ProtectedRoute>
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -354,63 +406,44 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* Role Filter */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vai trò / Chức vụ</label>
-                  <select
-                    className="form-input"
-                    value={filterRole}
-                    onChange={(e) => {
-                      setFilterRole(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Tất cả vai trò --</option>
-                    <option value="STAFF">Nhân viên vận hành</option>
-                    <option value="DEPARTMENT_HEAD">Trưởng bộ phận / Trưởng ca</option>
-                    <option value="DIVISION_DIRECTOR">Giám đốc Khối</option>
-                    <option value="CEO">Ban Giám đốc (CEO)</option>
-                    <option value="CHAIRMAN">Chủ tịch Hội đồng</option>
-                    <option value="ADMIN">Quản trị hệ thống (ADMIN)</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Vai trò / Chức vụ"
+                  options={roleFilterOptions}
+                  selectedValue={filterRole || 'ALL'}
+                  onChange={(val) => {
+                    setFilterRole(val === 'ALL' ? '' : val);
+                    setCurrentPage(1);
+                  }}
+                  flex="none"
+                  minWidth="100%"
+                />
 
                 {/* Department Filter */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Phòng ban</label>
-                  <select
-                    className="form-input"
-                    value={filterDepartment}
-                    onChange={(e) => {
-                      setFilterDepartment(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Tất cả Phòng ban --</option>
-                    {departments.map(d => (
-                      <option key={d._id} value={d._id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="Phòng ban"
+                  placeholder="Chọn Phòng ban..."
+                  options={departmentFilterOptions}
+                  selectedValue={filterDepartment || 'ALL'}
+                  onChange={(val) => {
+                    setFilterDepartment(val === 'ALL' ? '' : val);
+                    setCurrentPage(1);
+                  }}
+                  flex="none"
+                  minWidth="100%"
+                />
 
                 {/* Active Status Filter */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Trạng thái hoạt động</label>
-                  <select
-                    className="form-input"
-                    value={filterActive}
-                    onChange={(e) => {
-                      setFilterActive(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Tất cả trạng thái --</option>
-                    <option value="true">Hoạt động</option>
-                    <option value="false">Chờ kích hoạt</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Trạng thái hoạt động"
+                  options={activeFilterOptions}
+                  selectedValue={filterActive === '' ? 'ALL' : filterActive}
+                  onChange={(val) => {
+                    setFilterActive(val === 'ALL' ? '' : val);
+                    setCurrentPage(1);
+                  }}
+                  flex="none"
+                  minWidth="100%"
+                />
 
                 {/* Clear Filter button */}
                 <button
@@ -792,51 +825,32 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              <div>
-                <label className="form-label">Vai trò / Chức vụ *</label>
-                <select
-                  className="form-input"
-                  value={role}
-                  onChange={(e) => {
-                    const newRole = e.target.value as User['role'];
-                    setRole(newRole);
-                    // Clear department if they are board level
-                    if (newRole === 'ADMIN' || newRole === 'CEO' || newRole === 'CHAIRMAN') {
-                      setDepartmentId('');
-                    }
-                  }}
-                  style={{ background: 'var(--bg-app)' }}
-                >
-                  <option value="STAFF">STAFF (Nhân viên vận hành)</option>
-                  <option value="DEPARTMENT_HEAD">DEPARTMENT_HEAD (Trưởng bộ phận / Trưởng ca)</option>
-                  <option value="DIVISION_DIRECTOR">DIVISION_DIRECTOR (Giám đốc Khối)</option>
-                  {(role === 'CEO' || (editingUser && editingUser.role === 'CEO')) && (
-                    <option value="CEO">CEO (Tổng Giám đốc / Ban Giám đốc)</option>
-                  )}
-                  {(role === 'CHAIRMAN' || (editingUser && editingUser.role === 'CHAIRMAN')) && (
-                    <option value="CHAIRMAN">CHAIRMAN (Chủ tịch Hội đồng)</option>
-                  )}
-                  <option value="ADMIN">ADMIN (Quản trị hệ thống)</option>
-                </select>
-              </div>
+              <CustomSelect
+                label="Vai trò / Chức vụ *"
+                options={modalRoleOptions}
+                selectedValue={role}
+                onChange={(val) => {
+                  const newRole = val as User['role'];
+                  setRole(newRole);
+                  // Clear department if they are board level
+                  if (newRole === 'ADMIN' || newRole === 'CEO' || newRole === 'CHAIRMAN') {
+                    setDepartmentId('');
+                  }
+                }}
+              />
 
               {/* Department selection: Hidden for Admin/CEO/Chairman */}
               {(role === 'STAFF' || role === 'DEPARTMENT_HEAD' || role === 'DIVISION_DIRECTOR') && (
                 <div>
-                  <label className="form-label">
-                    Bộ phận trực ca {role === 'DIVISION_DIRECTOR' ? '(Không bắt buộc)' : '*'}
-                  </label>
-                  <select
-                    className="form-input"
-                    value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
-                    style={{ background: 'var(--bg-app)' }}
-                  >
-                    <option value="">-- Chọn bộ phận trực ca --</option>
-                    {filteredDepartments.map(d => (
-                      <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                  label={`Bộ phận trực ca ${role === 'DIVISION_DIRECTOR' ? '(Không bắt buộc)' : '*'}`}
+                  placeholder="Chọn bộ phận trực ca..."
+                  options={modalDeptOptions}
+                  selectedValue={departmentId || 'ALL'}
+                  onChange={(val) => setDepartmentId(val === 'ALL' ? '' : val)}
+                  flex="none"
+                  minWidth="100%"
+                />
 
                   {(() => {
                     const selectedDept = departments.find(d => d._id === departmentId);

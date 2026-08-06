@@ -54,14 +54,26 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
     tps: number;
     systemLoad: string;
   }
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('mxv_sidebar_metrics');
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
 
   interface ChecklistProgress {
     completionPercentage: number;
     completedTasks: number;
     totalTasks: number;
   }
-  const [progress, setProgress] = useState<ChecklistProgress | null>(null);
+  const [progress, setProgress] = useState<ChecklistProgress | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('mxv_sidebar_progress');
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
   const [showStatusCards, setShowStatusCards] = useState(true);
 
   useEffect(() => {
@@ -96,6 +108,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         if (res.ok) {
           const data = await res.json();
           setMetrics(data);
+          sessionStorage.setItem('mxv_sidebar_metrics', JSON.stringify(data));
         }
       } catch (err) {
         console.warn('Error fetching system metrics:', err);
@@ -115,11 +128,13 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         });
         if (res.ok) {
           const data = await res.json();
-          setProgress({
+          const progressData = {
             completionPercentage: data.completionPercentage,
             completedTasks: data.completedTasks,
             totalTasks: data.totalTasks
-          });
+          };
+          setProgress(progressData);
+          sessionStorage.setItem('mxv_sidebar_progress', JSON.stringify(progressData));
         }
       } catch (err) {
         console.warn('Error fetching checklist progress:', err);

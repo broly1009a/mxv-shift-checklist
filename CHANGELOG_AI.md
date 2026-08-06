@@ -5,6 +5,273 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-08-06 12:10:00] - Architecture: Tách layout ra GlobalLayout dùng chung để triệt tiêu việc unmount/remount Sidebar và Header
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triệt tiêu hoàn toàn việc nhấp nháy/vẽ lại của Sidebar (bao gồm các modal con, widget giám sát và thẻ tiến độ) khi click chuyển hướng menu.
+- **Nguyên nhân**: Do trước đây layout `Sidebar` và `Header` được trả về trực tiếp trong component `ProtectedRoute` của từng trang. Mỗi khi chuyển trang, React buộc phải unmount và remount toàn bộ DOM của Sidebar, dẫn đến việc trình duyệt vẽ lại (paint) gây chớp nháy và mất trạng thái lưu trữ tạm thời trên bộ nhớ.
+- **Giải pháp**:
+  - Tạo mới cấu phần **`GlobalLayout.tsx`** đóng vai trò là Layout persistent ở mức root.
+  - Di chuyển toàn bộ cấu trúc giao diện bao gồm `app-container`, `Sidebar`, `Header` và thẻ `<main className="main-content">` từ `ProtectedRoute` sang `GlobalLayout`.
+  - Đăng ký `GlobalLayout` bao bọc `{children}` ở file layout gốc [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx).
+  - Đơn giản hóa [ProtectedRoute.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ProtectedRoute.tsx) thành một component thuần túy chỉ thực hiện kiểm tra quyền truy cập và điều hướng, không render giao diện layout.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Tạo mới**: [GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/GlobalLayout.tsx)
+- **Sửa đổi**:
+  - [ProtectedRoute.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ProtectedRoute.tsx)
+  - [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:06:00] - Fix: Khắc phục hiện tượng nhấp nháy thẻ trạng thái ở Sidebar khi chuyển menu
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi thẻ tiến độ và trạng thái giám sát hệ thống ở dưới cùng Sidebar bị nhấp nháy khi chuyển hướng menu.
+- **Nguyên nhân**: Do layout Sidebar nằm trong component `ProtectedRoute` bao bọc riêng bên trong từng page. Khi chuyển trang, toàn bộ Sidebar bị unmount và remount, khiến các state `metrics` và `progress` reset về `null`, hiện chữ "Đang tải..." hoặc "0%" rồi mới gọi API cập nhật lại.
+- **Giải pháp**:
+  - Tích hợp bộ nhớ tạm thời `sessionStorage` để lưu trữ dữ liệu `metrics` và `progress` vừa tải.
+  - Khi Sidebar được mount lại trên trang mới, khởi tạo state lấy ngay dữ liệu từ `sessionStorage` giúp hiển thị tức thì không bị trễ.
+  - Khi API chạy ngầm có kết quả mới, dữ liệu sẽ tự động được cập nhật mượt mà và lưu lại vào bộ nhớ đệm cho lần chuyển trang kế tiếp.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Khởi tạo giá trị ban đầu của state từ `sessionStorage`.
+  - Cập nhật ghi đè bộ nhớ đệm sau khi gọi API thành công trong `fetchMetrics` và `fetchProgress`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:04:00] - Refactor: Tích hợp CustomDatePicker cho bộ lọc Ngày giao dịch của các panel thống kê Bot Config
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cập nhật bộ chọn ngày giao dịch của hai cấu phần LotStatisticsPanel ([LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx#L598)) và ValueStatisticsPanel ([ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx#L367)) sang `CustomDatePicker` để đồng nhất giao diện lịch.
+- **Giải pháp**:
+  - Import `CustomDatePicker` từ `@/components/ui/CustomDatePicker` vào cả hai tệp tin.
+  - Thay thế các thẻ `<input type="date">` cũ bằng component dùng chung.
+  - Bổ sung logic tự động nhảy về ngày hôm nay nếu người dùng click nút `✕` để xóa ngày, phòng tránh lỗi gọi API khi tham số ngày bị trống.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx)
+  - [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:03:00] - Refactor: Thay thế bộ chọn ngày giám sát trang Dashboard (dashboard) sang CustomDatePicker quy chuẩn
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế bộ chọn ngày giám sát thô sơ ở tiêu đề Dashboard ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/page.tsx)) bằng `CustomDatePicker` quy chuẩn.
+- **Giải pháp**:
+  - Import `CustomDatePicker` từ `@/components/ui/CustomDatePicker`.
+  - Thay thế thẻ `<input type="date">` mặc định của Chrome bằng Component quy chuẩn, truyền `label=""` để giữ nguyên bố cục inline nhỏ gọn ban đầu.
+  - Xử lý fallback ngày nếu người dùng click xóa `✕` lịch sẽ mặc định nhảy về ngày hôm nay thay vì để trống gây lỗi truy vấn API.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/page.tsx)
+  - Thay thế khối input ngày bằng Component `CustomDatePicker`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:02:00] - Refactor: Đồng bộ giao diện bộ lọc trang Lịch Sử Ca Trực & Đối Chiếu (history)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các component quy chuẩn (SearchableSelect, CustomSelect, CustomDatePicker) vào trang Lịch sử ca trực ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx)) để đồng bộ hóa UX/UI.
+- **Giải pháp**:
+  - Tích hợp `SearchableSelect` cho bộ lọc Phòng Ban.
+  - Tích hợp `CustomSelect` cho bộ lọc Trạng Thái.
+  - Tích hợp `CustomDatePicker` cho bộ lọc Từ Ngày và Đến Ngày.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx)
+  - Thêm các import component quy chuẩn.
+  - Định nghĩa các tùy chọn `departmentFilterOptions` và `statusFilterOptions`.
+  - Thay thế các input và select thô sơ bằng component dùng chung.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:01:00] - Refactor: Đồng bộ giao diện bộ lọc và modal trang Quản lý Tài khoản (admin/users)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các component quy chuẩn (SearchableSelect, CustomSelect) vào trang Quản lý Tài khoản cán bộ ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx)) để đồng bộ giao diện bộ lọc và modal thêm/sửa tài khoản.
+- **Giải pháp**:
+  - Tích hợp `CustomSelect` cho bộ lọc Vai trò và bộ lọc Trạng thái hoạt động ở Filter Panel.
+  - Tích hợp `SearchableSelect` cho bộ lọc Phòng ban để dễ tìm kiếm.
+  - Áp dụng tương tự cho Form Modal: dùng `CustomSelect` chọn vai trò và `SearchableSelect` chọn bộ phận trực ca của nhân viên.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx)
+  - Khai báo các options array thích hợp cho từng loại select.
+  - Thay thế các dropdown `<select>` thô sơ bằng component dùng chung.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:58:00] - Refactor: Xây dựng Bộ lịch chọn ngày thuần React (Custom Calendar Component) hoàn mỹ
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục triệt để giao diện thô kệch và lệch tông màu (màu đen tối của lịch mặc định trên nền sáng của trang) của bộ chọn ngày trình duyệt.
+- **Giải pháp**:
+  - Loại bỏ hoàn toàn thẻ `<input type="date">` mặc định của trình duyệt để không bị phụ thuộc vào Shadow DOM của Chrome/Edge/Firefox.
+  - Viết bộ chọn ngày bằng React thuần 100%: hiển thị lịch dạng grid 6 hàng 7 cột (42 ô), hỗ trợ điều hướng tháng, chọn ngày, bôi màu xanh cho ngày được chọn và khoanh viền tròn nổi bật cho ngày hiện tại (Today).
+  - Tích hợp đóng mở bằng Ref và click-outside tự nhiên.
+  - Định dạng hiển thị chuỗi ngày được chuẩn hóa thân thiện sang tiếng Việt (ngày/tháng/năm).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx)
+  - Thay đổi toàn bộ logic code sang sử dụng các state tháng hiện tại, render lưới ngày tự chọn và bảng lịch Custom Popup có thiết kế kính mờ bo viền đồng nhất 100% với các select khác.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:55:00] - Refactor: Tối ưu hóa UI/UX Shadow-DOM và showPicker cho CustomDatePicker
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đồng bộ hóa UX/UI cho phần chọn ngày để vừa đẹp mắt vừa dễ sử dụng.
+- **Giải pháp**:
+  - CSS đè Shadow-DOM của trình duyệt ẩn icon lịch mặc định của `<input type="date">` để tránh thừa icon trùng lặp.
+  - Sử dụng hàm `.showPicker()` khi người dùng nhấp vào bất kỳ đâu trên ô input để kích hoạt mở lịch tự động.
+  - Đặt `e.stopPropagation()` trên nút `✕` để ngăn hành động tắt lịch bị bật ngược lại.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx)
+  - Thêm thẻ `<style>` với luật ẩn indicator, điều hướng màu chữ tương thích dark mode.
+  - Tích hợp hàm `showPicker()` trong thuộc tính `onClick` của input.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:53:00] - Refactor: Chuẩn hóa kiến trúc UI Components dùng chung (SearchableSelect, CustomSelect, CustomDatePicker)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Tạo một quy chuẩn riêng (Component dùng chung) cho các linh kiện chọn thông minh (Autocomplete / Custom select / Date picker) để áp dụng đồng loạt cho nhiều màn hình khác nhau trong hệ thống.
+- **Giải pháp**:
+  - Trích xuất toàn bộ logic tùy biến giao diện thành 3 Component độc lập và tái sử dụng được ở thư mục `frontend/src/components/ui/`.
+  - Giúp rút gọn tệp `page.tsx` từ hơn 800 dòng code xuống chỉ còn dưới 500 dòng (giảm tải logic quản lý state click outside, refs và regex tìm kiếm).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Tạo mới**:
+  - [SearchableSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/SearchableSelect.tsx): Component Combobox tìm kiếm gợi ý động.
+  - [CustomSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomSelect.tsx): Component Dropdown tĩnh giao diện tùy biến.
+  - [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx): Component bộ chọn ngày tích hợp nút xóa nhanh và icon lịch.
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Import 3 Component quy chuẩn mới.
+  - Loại bỏ hoàn toàn hơn 300 dòng code quản lý ref, states đóng mở và layout dropdown cục bộ của trang.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:50:00] - Refactor: Thay thế ô chọn Phương thức HTTP thành Custom Select đồng bộ giao diện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng thiết kế giao diện tùy biến (custom dropdown select) của ô "Người thực hiện" sang ô lọc "Phương thức HTTP" để đảm bảo tính đồng bộ và thẩm mỹ cao cho UX/UI.
+- **Giải pháp**:
+  - Viết lại phần lọc "Phương thức HTTP" ở Frontend bằng Custom Select: dùng Input hiển thị giá trị được chọn + Nút xóa nhanh `✕` + Khối Dropdown menu hiển thị danh sách các phương thức (`ALL`, `POST`, `PUT`, `DELETE`) được bo tròn, kính mờ (blur backdrop).
+  - Tích hợp thêm tham chiếu `methodDropdownRef` và trạng thái `isMethodDropdownOpen` để tự động đóng dropdown khi click outside.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `isMethodDropdownOpen` và ref `methodDropdownRef`.
+  - Cập nhật hàm lắng nghe click-outside để xử lý đóng cả hai dropdown.
+  - Thay thế thẻ `<select>` của phương thức bằng cấu phần Custom Select đồng nhất.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:46:00] - Bugfix: Ép kiểu dữ liệu userId sang Mongoose Types.ObjectId khi lọc Nhật ký hệ thống
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi lọc Nhật ký hệ thống theo tài khoản "Người thực hiện" không trả về kết quả nào (truy vấn trả về danh sách rỗng dù có dữ liệu log khớp ID).
+- **Giải pháp**:
+  - Do `userId` trong MongoDB là kiểu dữ liệu tham chiếu `ObjectId` thay vì kiểu chuỗi String thô. Khi truyền trực tiếp Query string nhận từ API làm tham số tìm kiếm, MongoDB sẽ so khớp kiểu không trùng khớp và trả về 0 kết quả.
+  - Sửa đổi Backend để kiểm tra tính hợp lệ của `userIdQuery` bằng hàm `Types.ObjectId.isValid` và thực hiện ép kiểu tường minh sang `new Types.ObjectId(userIdQuery)` trước khi đưa vào mệnh đề tìm kiếm.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Import `Types` từ `'mongoose'`.
+  - Bổ sung logic ép kiểu dữ liệu `new Types.ObjectId()` đối với `userIdQuery`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Không đổi.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:40:00] - Feature: Nâng cấp bộ lọc Người thực hiện sang ô tìm kiếm thông minh (Searchable Select / Autocomplete)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nâng cấp ô chọn "Người thực hiện" từ dạng Dropdown select truyền thống thành ô tìm kiếm thông minh (Autocomplete / Searchable Select) để tối ưu trải nghiệm tra cứu nhân viên.
+- **Giải pháp**:
+  - Tích hợp bộ tìm kiếm (Combobox) tự chế không phụ thuộc thư viện ngoài cho ô "Người thực hiện" ở Frontend.
+  - Khi người dùng click vào ô, hệ thống hiển thị danh sách tất cả tài khoản. Khi gõ phím, danh sách sẽ lọc khớp thời gian thực theo cả Họ tên (fullName) và Tên tài khoản (username).
+  - Thêm nút "✕" thông minh bên cạnh để xóa nhanh tài khoản đã chọn về mặc định.
+  - Xử lý đóng dropdown tự động khi click ra ngoài vùng chọn (Click Outside Ref hook).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `userSearchQuery` (nhập liệu tìm kiếm) và `isUserDropdownOpen` (đóng mở menu).
+  - Viết `useEffect` lắng nghe sự kiện `mousedown` toàn cục để đóng dropdown when click outside.
+  - Thay thế thẻ `<select>` bằng cấu trúc Combobox Input + Options List panel.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:38:00] - Bugfix: Sửa lỗi phân tích cú pháp và hiển thị danh sách bộ lọc Người thực hiện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi Dropdown "Người thực hiện" chỉ có duy nhất lựa chọn "-- Tất cả tài khoản --" mà không hiển thị danh sách nhân viên trong hệ thống để lọc.
+- **Giải pháp**:
+  - Sửa đổi hàm `fetchUsers` ở Frontend: Đổi cấu trúc đọc mảng người dùng từ `data.users` thành `data.data` cho khớp với định dạng phản hồi thực tế của NestJS `UsersController.findAll`.
+  - Bổ sung tham số truy vấn `limit=1000` vào API call để đảm bảo tải được toàn bộ tài khoản thay vì bị giới hạn mặc định chỉ 10 người.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Thay thế url fetch thành `/api/v1/users?limit=1000`.
+  - Sửa đổi mảng lưu trữ từ `data.data || []`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
 ## [2026-08-06 11:37:00] - Refactor: Tối ưu tỷ lệ cột (%) và chống ngắt dòng (nowrap) bảng Nhật ký thao tác
 
 ### 1. Mục tiêu Thay đổi

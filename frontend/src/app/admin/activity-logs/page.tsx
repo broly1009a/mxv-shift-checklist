@@ -8,6 +8,11 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// Import Reusable UI Components (Quy chuẩn dùng chung)
+import SearchableSelect from '@/components/ui/SearchableSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
+import CustomDatePicker from '@/components/ui/CustomDatePicker';
+
 interface UserInfo {
   _id: string;
   fullName: string;
@@ -46,12 +51,12 @@ export default function ActivityLogsPage() {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/users`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/users?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        const userList = Array.isArray(data) ? data : data.users || [];
+        const userList = Array.isArray(data) ? data : data.data || [];
         setUsers(userList);
       }
     } catch (err) {
@@ -131,7 +136,7 @@ export default function ActivityLogsPage() {
     fetchLogs(1, '', 'ALL', 'ALL', '', '', limit);
   };
 
-  // Trigger fetch when dropdowns / inputs change
+  // Trigger fetch when inputs change
   const handleUserChange = (userId: string) => {
     setSelectedUserId(userId);
     setPage(1);
@@ -259,6 +264,23 @@ export default function ActivityLogsPage() {
     return `Thao tác ghi dữ liệu`;
   };
 
+  // Convert users to SearchableSelect options format
+  const userOptions = [
+    { value: 'ALL', label: '-- Tất cả tài khoản --' },
+    ...users.map(u => ({
+      value: u._id,
+      label: u.fullName,
+      sublabel: `@${u.username}`
+    }))
+  ];
+
+  const methodOptions = [
+    { value: 'ALL', label: '-- Tất cả phương thức --' },
+    { value: 'POST', label: 'POST (Tạo mới)' },
+    { value: 'PUT', label: 'PUT (Cập nhật)' },
+    { value: 'DELETE', label: 'DELETE (Xóa)' }
+  ];
+
   // Pagination bounds
   const startIdx = total === 0 ? 0 : (page - 1) * limit + 1;
   const endIdx = Math.min(page * limit, total);
@@ -289,7 +311,7 @@ export default function ActivityLogsPage() {
           </button>
         </div>
 
-        {/* Filter Toolbar (Matches User Accounts layout) */}
+        {/* Filter Toolbar (Using Reusable UI Components) */}
         <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: '16px' }}>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             
@@ -309,61 +331,44 @@ export default function ActivityLogsPage() {
               </div>
             </div>
 
-            {/* User Select Dropdown */}
-            <div style={{ flex: 1, minWidth: '180px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: 600 }}>Người thực hiện</label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => handleUserChange(e.target.value)}
-                className="form-control"
-                style={{ width: '100%', height: '42px', cursor: 'pointer' }}
-              >
-                <option value="ALL">-- Tất cả tài khoản --</option>
-                {users.map(u => (
-                  <option key={u._id} value={u._id}>{u.fullName} (@{u.username})</option>
-                ))}
-              </select>
-            </div>
+            {/* Reusable SearchableSelect for User Account */}
+            <SearchableSelect
+              label="Người thực hiện"
+              placeholder="Chọn tài khoản..."
+              options={userOptions}
+              selectedValue={selectedUserId}
+              onChange={handleUserChange}
+              flex={1.2}
+              minWidth="220px"
+            />
 
-            {/* HTTP Method Dropdown */}
-            <div style={{ flex: 1, minWidth: '160px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: 600 }}>Phương thức HTTP</label>
-              <select
-                value={selectedMethod}
-                onChange={(e) => handleMethodChange(e.target.value)}
-                className="form-control"
-                style={{ width: '100%', height: '42px', cursor: 'pointer' }}
-              >
-                <option value="ALL">-- Tất cả phương thức --</option>
-                <option value="POST">POST (Tạo mới)</option>
-                <option value="PUT">PUT (Cập nhật)</option>
-                <option value="DELETE">DELETE (Xóa)</option>
-              </select>
-            </div>
+            {/* Reusable CustomSelect for HTTP Method */}
+            <CustomSelect
+              label="Phương thức HTTP"
+              options={methodOptions}
+              selectedValue={selectedMethod}
+              onChange={handleMethodChange}
+              flex={1}
+              minWidth="180px"
+            />
 
-            {/* Start Date */}
-            <div style={{ flex: 1, minWidth: '140px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: 600 }}>Từ ngày</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => handleStartDateChange(e.target.value)}
-                className="form-control"
-                style={{ width: '100%', height: '42px', cursor: 'pointer' }}
-              />
-            </div>
+            {/* Reusable CustomDatePicker for Start Date */}
+            <CustomDatePicker
+              label="Từ ngày"
+              value={startDate}
+              onChange={handleStartDateChange}
+              flex={1}
+              minWidth="170px"
+            />
 
-            {/* End Date */}
-            <div style={{ flex: 1, minWidth: '140px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: 600 }}>Đến ngày</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => handleEndDateChange(e.target.value)}
-                className="form-control"
-                style={{ width: '100%', height: '42px', cursor: 'pointer' }}
-              />
-            </div>
+            {/* Reusable CustomDatePicker for End Date */}
+            <CustomDatePicker
+              label="Đến ngày"
+              value={endDate}
+              onChange={handleEndDateChange}
+              flex={1}
+              minWidth="170px"
+            />
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: '8px' }}>

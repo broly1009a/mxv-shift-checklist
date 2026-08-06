@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ActivityLog } from '../../schemas/activity-log.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -32,7 +32,11 @@ export class ActivityLogController {
     const query: any = {};
 
     if (userIdQuery && userIdQuery !== 'ALL') {
-      query.userId = userIdQuery;
+      if (Types.ObjectId.isValid(userIdQuery)) {
+        query.userId = new Types.ObjectId(userIdQuery);
+      } else {
+        query.userId = userIdQuery;
+      }
     }
 
     if (methodQuery && methodQuery !== 'ALL') {
