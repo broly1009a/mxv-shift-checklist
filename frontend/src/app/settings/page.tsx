@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [telegramNotifications, setTelegramNotifications] = useState(true);
   const [telegramChatId, setTelegramChatId] = useState('');
   const [alertThresholdMinutes, setAlertThresholdMinutes] = useState(15);
+  const [showSidebarStatus, setShowSidebarStatus] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,6 +42,8 @@ export default function SettingsPage() {
           setTelegramChatId(user.settings.telegramChatId || '');
           setAlertThresholdMinutes(user.settings.alertThresholdMinutes || 15);
         }
+        const saved = localStorage.getItem('mxv_sidebar_show_status');
+        setShowSidebarStatus(saved !== 'false');
       });
     }
   }, [user]);
@@ -88,6 +91,11 @@ export default function SettingsPage() {
       updateUser(updatedUser);
       setPassword('');
       setConfirmPassword('');
+      
+      // Save sidebar status cards visibility preference
+      localStorage.setItem('mxv_sidebar_show_status', String(showSidebarStatus));
+      window.dispatchEvent(new Event('sidebar-status-toggle'));
+
       toast.success('Cập nhật thông tin tài khoản thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Có lỗi xảy ra khi lưu cấu hình.');
@@ -338,6 +346,20 @@ export default function SettingsPage() {
                       <option value={120}>2 phút</option>
                       <option value={300}>5 phút</option>
                     </select>
+                  </div>
+
+                  {/* Sidebar status cards toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="showSidebarStatus"
+                      checked={showSidebarStatus} 
+                      onChange={(e) => setShowSidebarStatus(e.target.checked)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="showSidebarStatus" className="form-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 500 }}>
+                      Hiển thị thông tin giám sát ở Sidebar (Hệ thống & Tiến độ ca trực)
+                    </label>
                   </div>
 
                   <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '8px 0' }} />

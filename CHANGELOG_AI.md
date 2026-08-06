@@ -4,6 +4,303 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+
+## [2026-08-06 11:37:00] - Refactor: Tối ưu tỷ lệ cột (%) và chống ngắt dòng (nowrap) bảng Nhật ký thao tác
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Bố cục bảng 7 cột vẫn bị trống nhiều ở cột API route do trình duyệt kéo giãn tự động không đều trên màn hình siêu rộng.
+- **Giải pháp**:
+  - Chuyển đổi định dạng độ rộng cột (`width`) của thẻ `<th>` sang phần trăm (%) cụ thể thay vì pixel: Thời gian (15%), Người thực hiện (18%), Phương thức (10%), Hành động nghiệp vụ (27%), Đường dẫn API (20%), Địa chỉ IP (8%), và Chi tiết (2%).
+  - Thiết lập thuộc tính `whiteSpace: 'nowrap'` cho các cột tĩnh (Thời gian, Người thực hiện, Địa chỉ IP) để tránh việc chữ bị ngắt xuống dòng xấu xí khi co giãn trình duyệt.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Áp dụng các tỷ lệ % độ rộng cột vào `<th>`.
+  - Tích hợp `whiteSpace: 'nowrap'` cho các thẻ `<td>` tương ứng.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:36:00] - Refactor: Tái cấu trúc bảng Nhật ký hệ thống sang 7 cột để lấp đầy khoảng trống UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục hiện tượng bảng hiển thị bị trống một khoảng lớn ở giữa cột hành động và địa chỉ IP do có quá ít cột trên màn hình rộng.
+- **Giải pháp**:
+  - Tách cột "Hành động / API" gộp trước đây thành 3 cột riêng biệt: **Phương thức** (Method), **Hành động nghiệp vụ** (Friendly Action), và **Đường dẫn API** (Technical Endpoint).
+  - Tăng tổng số cột lên thành 7 cột (Thời gian, Người thực hiện, Phương thức, Hành động nghiệp vụ, Đường dẫn API, Địa chỉ IP, Chi tiết), tương tự cấu trúc bảng của Quản lý tài khoản.
+  - Cập nhật `colSpan={7}` cho dòng chi tiết JSON Payload mở rộng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo lại thẻ `<thead>` với 7 cột có thiết lập độ rộng (`width`) hợp lý.
+  - Cập nhật phần map dữ liệu trong `<tbody>` để đưa Phương thức (Method) sang cột riêng biệt, Hành động nghiệp vụ đứng độc lập, và API Endpoint chiếm phần chiều rộng còn lại của bảng.
+  - Sửa `colSpan` từ 5 thành 7 để tránh vỡ khung của khối xem chi tiết Payload.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:35:00] - Refactor: Tích hợp dịch ngôn ngữ nghiệp vụ thân thiện và bộ lọc thời gian cho Nhật ký hệ thống
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các đề xuất nâng cấp: Việt hóa/Biên dịch các đường dẫn API kỹ thuật sang hành động nghiệp vụ dễ hiểu và tích hợp bộ lọc tìm kiếm theo khoảng thời gian (Từ ngày - Đến ngày).
+- **Giải pháp**:
+  - Viết hàm `getFriendlyAction()` ở Frontend để chuyển đổi các phương thức & endpoint (vd: `PUT /api/v1/auth/profile` $\rightarrow$ "Cập nhật thông tin / Cài đặt cá nhân", `PUT /api/v1/roles/STAFF/permissions` $\rightarrow$ "Thay đổi phân quyền vai trò STAFF"). Hiển thị tên nghiệp vụ này làm tiêu đề chính và giữ API thô làm subtext màu nhạt ở dưới.
+  - Bổ sung 2 bộ chọn ngày `startDate` và `endDate` trên thanh công cụ lọc của Frontend.
+  - Cập nhật API Backend `GET /api/v1/activity-logs` để hỗ trợ lọc theo ngày tạo `createdAt` sử dụng các khoảng thời gian `$gte` (lớn hơn hoặc bằng ngày bắt đầu) và `$lte` (nhỏ hơn hoặc bằng ngày kết thúc).
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Khai báo thêm query params `startDateQuery` và `endDateQuery`.
+  - Thiết lập trường `createdAt` trong truy vấn Mongoose để lọc chính xác thời gian bắt đầu và kết thúc ngày.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `startDate` và `endDate`, tích hợp vào API fetch và hàm reset bộ lọc.
+  - Vẽ thêm 2 ô nhập ngày "Từ ngày", "Đến ngày" trên Toolbar.
+  - Viết hàm `getFriendlyAction` để phân tách hiển thị: Hành động thân thiện làm Text chính, API raw làm subtext monospace nhỏ ở dưới.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:32:00] - Bugfix: Đồng bộ màu sắc hiển thị Payload chi tiết theo biến chủ đề Light/Dark Mode
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi màu hiển thị của khối Metadata & Payload trong phần chi tiết Nhật ký thao tác khi chuyển đổi giữa chế độ sáng/tối (Light/Dark Mode) để đảm bảo độ tương phản dễ đọc.
+- **Giải pháp**:
+  - Thay thế các mã màu nền tối cứng (`rgba(0, 0, 0, 0.2)` và `rgba(0, 0, 0, 0.05)`) bằng các biến CSS động của chủ đề hệ thống (`var(--bg-app)` và `var(--bg-input)`).
+  - Đảm bảo trong Light Mode, khung mã JSON sẽ hiển thị nền xám sáng nhạt với chữ tối màu, trong khi ở Dark Mode sẽ hiển thị nền tối đậm với chữ sáng màu tương phản cao.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Đổi màu nền thẻ `<pre>` từ `rgba(0, 0, 0, 0.2)` thành `var(--bg-app)`.
+  - Đổi màu nền dòng chi tiết mở rộng `<tr className="expanded">` từ `rgba(0, 0, 0, 0.05)` thành `var(--bg-input)`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:29:00] - Refactor: Tái thiết kế màn hình Nhật ký hệ thống đạt chuẩn giao diện Quản lý tài khoản
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nâng cấp giao diện Nhật ký hệ thống (System Activity Logs) trở nên chuyên nghiệp, đồng bộ với thiết kế của trang Quản lý tài khoản (hỗ trợ nhiều bộ lọc, phân trang, cấu trúc hiển thị đồng bộ).
+- **Giải pháp**:
+  - Viết lại trang `admin/activity-logs/page.tsx` ở Frontend để tích hợp thanh lọc nâng cao gồm: Tìm kiếm theo API/Hành động, Lọc động theo Người thực hiện (tải danh sách tài khoản từ API), Lọc theo Phương thức HTTP (POST, PUT, DELETE), và nút "Xóa bộ lọc".
+  - Bổ sung cấu trúc phân trang chuẩn (Hiển thị N dòng/trang, nút chọn trang 1, 2, 3... và nút Trước/Sau).
+  - Cập nhật API Backend `GET /api/v1/activity-logs` để hỗ trợ lọc động theo `userId`, `method` và `action` kết hợp.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Cập nhật API `GET` hỗ trợ Query params: `userId`, `method`, `action`, `limit`, `page`.
+  - Kết hợp Regex tìm kiếm và lọc khớp ID người dùng để truy vấn tối ưu.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Thêm API fetch danh sách toàn bộ người dùng hệ thống để đổ vào Dropdown bộ lọc.
+  - Thiết kế thanh Toolbar lọc 3 tầng với nhãn đi kèm.
+  - Thiết lập phân trang linh hoạt kết hợp thay đổi số dòng hiển thị (10, 25, 50 dòng/trang).
+  - Giữ lại phần xem JSON Payload (Metadata) mở rộng đẹp mắt khi bấm biểu tượng con mắt.
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Liên kết liên kết điều hướng tới `/admin/activity-logs`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:20:00] - Feature: Triển khai tính năng Nhật ký kiểm toán phân quyền (Authorization Audit Trail)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triển khai tính năng Nhật ký kiểm toán phân quyền để ghi vết lịch sử thay đổi quyền của các vai trò (ai sửa, sửa vai trò nào, quyền mới là gì, vào lúc nào, từ IP nào) nhằm đạt chuẩn bảo mật và kiểm toán công nghệ thông tin.
+- **Giải pháp**:
+  - Tận dụng `ActivityLogInterceptor` vốn đã chạy toàn cục ở Backend để bắt các thay đổi `PUT /api/v1/roles/:code/permissions` và lưu vào MongoDB collection `activity_logs`.
+  - Tạo thêm đầu API `GET /api/v1/roles/audit-logs` để truy vấn danh sách log thay đổi quyền hạn.
+  - Bổ sung tab **Nhật ký phân quyền** trên trang quản lý Phân Quyền Vai Trò ở Frontend để hiển thị danh sách nhật ký kiểm toán dạng bảng trực quan, đầy đủ thông tin: Thời gian, Người thực hiện, Vai trò tác động, Danh sách quyền mới, và Địa chỉ IP.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [roles.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/roles.controller.ts)
+  - Inject model `ActivityLog` vào constructor.
+  - Viết endpoint `GET roles/audit-logs` để truy vấn từ MongoDB collection `activity_logs` lọc theo biểu thức chính quy (Regex) khớp với luồng lưu quyền vai trò, trả về danh sách được populate đầy đủ thông tin User thực hiện, sắp xếp theo thời gian mới nhất.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/permissions/page.tsx)
+  - Mở rộng kiểu dữ liệu `activeTab` thành `'by-role' | 'by-permission' | 'audit-log'`.
+  - Import icon `History` từ `lucide-react` làm tab icon.
+  - Viết hàm `fetchAuditLogs()` và helper `parseAuditDetails()`, `getRoleFromAction()` để đọc, giải mã dữ liệu chi tiết của log.
+  - Thêm Tab **Nhật ký phân quyền** và render giao diện bảng lịch sử toàn màn hình cực kỳ chi tiết, đẹp mắt.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch và chạy hoàn toàn ổn định.
+
+## [2026-08-06 10:56:00] - Feature: Bổ sung cấu hình Bật/Tắt hiển thị thông tin giám sát Sidebar tại trang Cài đặt
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triển khai tính năng cho phép Bật/Tắt hiển thị thông tin giám sát (Hệ thống & Tiến độ ca trực) ở Sidebar để tránh trùng lặp thông tin hoặc tốn diện tích hiển thị trên các màn hình nhỏ.
+- **Giải pháp**:
+  - Lưu cấu hình hiển thị trong `localStorage` (`mxv_sidebar_show_status`) dưới dạng client-side preference giúp tối ưu, không cần thay đổi schema Database hay chạy migrations.
+  - Sử dụng cơ chế custom event (`sidebar-status-toggle`) để đồng bộ trạng thái hiển thị của Sidebar ngay lập tức (realtime) khi người dùng lưu cấu hình ở trang Cài đặt.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/settings/page.tsx)
+  - Khai báo state `showSidebarStatus` (mặc định là `true`).
+  - Khởi tạo giá trị từ `localStorage` trong `useEffect`.
+  - Thêm checkbox "Hiển thị thông tin giám sát ở Sidebar (Hệ thống & Tiến độ ca trực)" trong Tab **Nhận cảnh báo & Ứng dụng**.
+  - Lưu cấu hình vào `localStorage` và dispatch custom event `sidebar-status-toggle` khi bấm **Lưu cấu hình**.
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Đọc tùy chọn `showSidebarStatus` từ `localStorage`.
+  - Lắng nghe event `sidebar-status-toggle` để cập nhật trạng thái hiển thị tức thì.
+  - Bọc phần render các card giám sát ở dưới cùng Sidebar bằng điều kiện `showStatusCards`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:52:00] - Bugfix: Loại bỏ hoàn toàn điều kiện loại trừ !isTechAdmin trong định nghĩa isOperator
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đã thêm quyền giám sát máy chủ cho nhân viên vận hành nhưng Sidebar vẫn chỉ hiện mỗi card Tiến độ ca trực, không thấy hiện thêm card Hệ thống ổn định.
+- **Nguyên nhân**: Trong định nghĩa biến `isOperator` vẫn còn chứa điều kiện loại trừ `!isTechAdmin`. Do đó, khi `isTechAdmin` bằng `true`, `isOperator` sẽ bị kéo về `false`, làm cho card Tiến độ ca trực biến mất và chỉ hiện card Kỹ thuật, đồng thời nếu session token của user chưa được cập nhật thì thông tin mới chưa được áp dụng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Loại bỏ điều kiện `!isTechAdmin &&` khỏi định nghĩa của `isOperator`:
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isOperator = canViewChecklist || isTradeDept;
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:50:00] - Refactor: Hỗ trợ hiển thị đồng thời cả hai Card thông tin tại Sidebar (Loại bỏ loại trừ lẫn nhau)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đánh giá lại logic phân loại vai trò để chuẩn bị demo cho lãnh đạo, tránh trường hợp bị nhầm lẫn hiển thị giữa các vai trò khi phân quyền chồng chéo.
+- **Giải pháp**: 
+  - Thay vì cơ chế ẩn hiện loại trừ lẫn nhau (chỉ hiện 1 trong 2 card: hoặc chỉ số máy chủ, hoặc tiến độ ca trực), hệ thống sẽ hiển thị **đồng thời cả hai card** nếu tài khoản có cả hai quyền (ví dụ: Admin, Trưởng bộ phận, hoặc Nhân viên vận hành được cấp thêm quyền giám sát hạ tầng).
+  - Điều này giải quyết triệt để vấn đề:
+    1. Lãnh đạo khi đăng nhập (thường có cả quyền xem checklist và xem hạ tầng) sẽ nhìn thấy đầy đủ cả Tiến độ ca trực vận hành lẫn Trạng thái hạ tầng hệ thống.
+    2. Tránh việc một card này che mất card kia khi người dùng có nhiều quyền cùng lúc.
+    3. Phản ánh trực quan 100% các checkbox phân quyền trên UI.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Tách logic fetch dữ liệu (`fetchMetrics` và `fetchProgress`) thành 2 tiến trình polling độc lập chạy song song thay vì `else if`.
+  - Thay thế khối render ternary loại trừ thành 2 khối điều kiện độc lập `{isTechAdmin && ...}` và `{isOperator && ...}`.
+  - Thẻ Hướng Dẫn Sử Dụng chỉ hiển thị nếu tài khoản không thuộc cả hai nhóm trên.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:47:00] - Bugfix: Cho phép STAFF (Nhân viên) được xem thông số kỹ thuật máy chủ nếu có quyền ACCESS_HEALTH_CHECKS
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khi Admin phân quyền "Giám sát hạ tầng (Health Checks)" (`ACCESS_HEALTH_CHECKS`) cho vai trò "Nhân viên vận hành" (STAFF) trên giao diện phân quyền, họ vẫn không thấy được thông số kỹ thuật ở Sidebar.
+- **Nguyên nhân**: Logic trước đó chặn cứng mọi tài khoản có vai trò `STAFF` không được phép nhận `isTechAdmin = true`. Do đó, kể cả khi họ được gán quyền `ACCESS_HEALTH_CHECKS` một cách rõ ràng thì hệ thống vẫn chặn hiển thị.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Cập nhật điều kiện `isTechAdmin` để ưu tiên quyền `canAccessHealthChecks` được gán trực tiếp:
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isTechAdmin = (isAdmin || isITDept || canAccessHealthChecks) && user?.role !== 'STAFF';
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isTechAdmin = isAdmin || canAccessHealthChecks || (isITDept && user?.role !== 'STAFF');
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:45:00] - Bugfix: Loại bỏ vai trò STAFF (Nhân viên) khỏi hiển thị kỹ thuật máy chủ ở Sidebar
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi tài khoản vai trò "Nhân viên" (STAFF) nhưng vẫn hiển thị thông tin giám sát tài nguyên kỹ thuật máy chủ (CPU, RAM, TPS) ở Sidebar thay vì tiến độ ca trực/hướng dẫn sử dụng.
+- **Nguyên nhân**: Trong logic phân loại vai trò tại Sidebar, người dùng thuộc phòng IT (`isITDept = true`) tự động được nhóm vào `isTechAdmin = true` bất kể vai trò của họ là gì, khiến cho nhân viên vận hành thuộc phòng IT không xem được tiến độ ca trực.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Loại bỏ người dùng có vai trò `STAFF` khỏi phân loại `isTechAdmin` để họ hiển thị đúng tiến độ ca trực dành cho nhân viên vận hành.
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isTechAdmin = isAdmin || isITDept || canAccessHealthChecks;
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isTechAdmin = (isAdmin || isITDept || canAccessHealthChecks) && user?.role !== 'STAFF';
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 08:45:00] - Feature: Cải thiện UI/UX & Tích hợp API hệ thống thực tế cùng tiến độ ca trực tại Sidebar
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đánh giá và cải thiện phần hiển thị trạng thái hệ thống tĩnh ở Sidebar để hiển thị thông tin thực tế dựa trên phân quyền vai trò (Role/Permission):
+  - **Admin kỹ thuật / IT (hoặc quyền ACCESS_HEALTH_CHECKS)**: Hiển thị trạng thái máy chủ thực tế (Uptime, CPU, RAM, TPS, Tải hệ thống) lấy từ API backend thực.
+  - **Nhân viên ca trực (hoặc quyền VIEW_CHECKLIST)**: Hiển thị tiến độ hoàn thành các công việc trong ca trực ngày hôm nay (% hoàn thành, số lượng công việc) lấy từ API dashboard summary thực.
+  - **Vai trò khác**: Hiển thị thẻ Hướng Dẫn Sử Dụng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Backend
+- **Tạo Endpoint mới**: [dashboard.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.controller.ts)
+  - Thêm API `GET /api/v1/dashboard/system-status` để tính toán tài nguyên CPU (qua `os.cpus()`), RAM (`os.totalmem()`, `os.freemem()`), Uptime Node (`process.uptime()`), và TPS hoạt động của ứng dụng.
+
+#### 🟢 Frontend
+- **Cập nhật Sidebar**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Thêm state hooks và polling logic (15s đối với hệ thống, 30s đối với tiến độ ca trực).
+  - Phân tách phân quyền render thành `isTechAdmin` (Admin/IT) và `isOperator` (nhân viên vận hành).
+  - Thiết kế UI premium cho cả widget tài nguyên hệ thống (có RAM bar đổi màu khi tải cao) và widget tiến độ ca trực trực quan.
+  - **Tối ưu hóa hiển thị thông tin User (Ẩn/Hiện thông minh)**: Thiết lập card `sidebar-user-details` tự động ẩn trên màn hình lớn (kích thước desktop `@media (min-width: 1024px)`) để tránh trùng lặp thông tin với Header; nhưng vẫn tự động hiển thị trên điện thoại/máy tính bảng khi Sidebar mở dưới dạng menu drawer (nơi mà Header sẽ thu gọn không hiển thị Tên và Vai trò).
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Chạy compiler `node node_modules/typescript/bin/tsc --noEmit` thành công không có lỗi.
+- **Backend**: Chạy `npm run build` thành công không có lỗi.
+
 ## [2026-08-05 17:55:00] - Bug Investigation & Fix: Lỗi "Chưa cấu hình bot_lot_macro_path_value" + Sai số liệu TVKD ngày 22/06/2026
 
 ### 1. Mục tiêu Thay đổi

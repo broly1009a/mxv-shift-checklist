@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -17,7 +17,9 @@ import {
   Bell,
   Cpu,
   ShieldAlert,
-  HelpCircle
+  HelpCircle,
+  Activity,
+  TrendingUp
 } from 'lucide-react';
 
 import { usePermissions } from '@/hooks/usePermissions';
@@ -30,8 +32,118 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
-  const { canManageTemplates, isAdmin, canViewChecklist } = usePermissions();
+  const { user, token, logout } = useAuth();
+  const {
+    canManageTemplates,
+    isAdmin,
+    canViewChecklist,
+    isITDept,
+    isTradeDept,
+    canAccessHealthChecks
+  } = usePermissions();
+
+  const isTechAdmin = isAdmin || canAccessHealthChecks || (isITDept && user?.role !== 'STAFF');
+  const isOperator = canViewChecklist || isTradeDept;
+
+  interface SystemMetrics {
+    uptime: number;
+    cpuUsage: number;
+    memoryUsage: number;
+    totalMemoryGB: number;
+    usedMemoryGB: number;
+    tps: number;
+    systemLoad: string;
+  }
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+
+  interface ChecklistProgress {
+    completionPercentage: number;
+    completedTasks: number;
+    totalTasks: number;
+  }
+  const [progress, setProgress] = useState<ChecklistProgress | null>(null);
+  const [showStatusCards, setShowStatusCards] = useState(true);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      const saved = localStorage.getItem('mxv_sidebar_show_status');
+      setShowStatusCards(saved !== 'false');
+    };
+    handleToggle();
+    window.addEventListener('sidebar-status-toggle', handleToggle);
+    return () => window.removeEventListener('sidebar-status-toggle', handleToggle);
+  }, []);
+
+  const formatUptime = (seconds: number) => {
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return `${d}n ${h}g ${m}p`;
+    if (h > 0) return `${h}g ${m}p`;
+    return `${m}p`;
+  };
+
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/system-status`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMetrics(data);
+        }
+      } catch (err) {
+        console.warn('Error fetching system metrics:', err);
+      }
+    };
+
+    const fetchProgress = async () => {
+      try {
+        const now = new Date();
+        const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+        const todayStr = vietnamTime.toISOString().split('T')[0];
+
+        const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/summary?date=${todayStr}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProgress({
+            completionPercentage: data.completionPercentage,
+            completedTasks: data.completedTasks,
+            totalTasks: data.totalTasks
+          });
+        }
+      } catch (err) {
+        console.warn('Error fetching checklist progress:', err);
+      }
+    };
+
+    let metricsInterval: NodeJS.Timeout | null = null;
+    let progressInterval: NodeJS.Timeout | null = null;
+
+    if (isTechAdmin) {
+      fetchMetrics();
+      metricsInterval = setInterval(fetchMetrics, 15000);
+    }
+    
+    if (isOperator) {
+      fetchProgress();
+      progressInterval = setInterval(fetchProgress, 30000);
+    }
+
+    return () => {
+      if (metricsInterval) clearInterval(metricsInterval);
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [token, isTechAdmin, isOperator]);
 
   const getRoleName = (role: string) => {
     switch (role) {
@@ -121,8 +233,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           </span>
         </div>
       </div>
-
-      {/* User profile widget */}
+      {/* User profile widget - Hidden on desktop to avoid duplicate with Header, shown on mobile */}
       <div className="glass-panel sidebar-user-details" style={{
         padding: '16px',
         borderRadius: '12px',
@@ -296,6 +407,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   <ShieldAlert size={18} style={{ flexShrink: 0 }} />
                   <span>Phân quyền vai trò</span>
                 </Link>
+                <Link
+                  href="/admin/activity-logs"
+                  onClick={onClose}
+                  className={`nav-link ${pathname.startsWith('/admin/activity-logs') ? 'active' : ''}`}
+                  title={isCollapsed ? "Nhật ký hệ thống" : undefined}
+                >
+                  <Activity size={18} style={{ flexShrink: 0 }} />
+                  <span>Nhật ký hệ thống</span>
+                </Link>
               </>
             )}
           </>
@@ -304,66 +424,158 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       </nav>
 
       {/* Sidebar Uptime Status Card or User Guide Link Card */}
-      {!isCollapsed && (
-        isAdmin ? (
-          <div className="sidebar-status-card" style={{ marginTop: '0px', marginBottom: '16px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <div style={{
-                width: '8px',
-                height: '8px',
-                background: '#10b981',
-                borderRadius: '50%',
-                boxShadow: '0 0 6px #10b981'
-              }} />
-              <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                Hệ thống ổn định
-              </strong>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <div>Uptime 99.98%</div>
-              <div>TPS hiện tại: 1,248</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                <span>Tải hệ thống:</span>
-                <span style={{ color: '#10b981', fontWeight: 600 }}>Thấp</span>
-              </div>
-              {/* Progress line */}
-              <div style={{ width: '100%', height: '4px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
-                <div style={{ width: '25%', height: '100%', background: '#10b981', borderRadius: '2px' }} />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <Link
-            href="/guide"
-            onClick={onClose}
-            className="glass-panel"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              padding: '14px',
-              borderRadius: '12px',
+      {!isCollapsed && showStatusCards && (
+        <>
+          {isTechAdmin && (
+            <div className="sidebar-status-card" style={{
+              marginTop: '0px',
               marginBottom: '16px',
-              border: '1px solid rgba(59, 130, 246, 0.15)',
-              background: 'rgba(59, 130, 246, 0.03)',
-              cursor: 'pointer',
-              textDecoration: 'none',
-              transition: 'all 0.2s',
               flexShrink: 0,
+              background: 'rgba(16, 185, 129, 0.03)',
+              border: '1px solid rgba(16, 185, 129, 0.15)',
+              padding: '12px',
+              borderRadius: '12px',
               marginRight: '24px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <HelpCircle size={16} color="var(--color-accent)" />
-              <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
-                Hướng Dẫn Sử Dụng
-              </strong>
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    background: '#10b981',
+                    borderRadius: '50%',
+                    boxShadow: '0 0 8px #10b981'
+                  }} />
+                  <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                    Hệ thống ổn định
+                  </strong>
+                </div>
+                <Cpu size={14} color="#10b981" style={{ opacity: 0.8 }} />
+              </div>
+              
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Uptime:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {metrics ? formatUptime(metrics.uptime) : 'Đang tải...'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>TPS:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {metrics ? metrics.tps.toLocaleString() : '---'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>CPU:</span>
+                  <span style={{ fontWeight: 600, color: metrics && metrics.cpuUsage > 80 ? '#ef4444' : 'var(--text-primary)' }}>
+                    {metrics ? `${metrics.cpuUsage}%` : '---'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>RAM:</span>
+                    <span>{metrics ? `${metrics.usedMemoryGB} / ${metrics.totalMemoryGB} GB` : '---'}</span>
+                  </div>
+                  {/* Memory usage bar */}
+                  <div style={{ width: '100%', height: '4px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: metrics ? `${metrics.memoryUsage}%` : '0%',
+                      height: '100%',
+                      background: metrics && metrics.memoryUsage > 80 ? '#ef4444' : '#10b981',
+                      transition: 'width 0.5s ease-in-out'
+                    }} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-              Xem hướng dẫn chi tiết quy trình bàn giao ca và đối chiếu dữ liệu.
-            </p>
-          </Link>
-        )
+          )}
+
+          {isOperator && (
+            <div className="sidebar-status-card" style={{
+              marginTop: '0px',
+              marginBottom: '16px',
+              flexShrink: 0,
+              background: 'rgba(59, 130, 246, 0.03)',
+              border: '1px solid rgba(59, 130, 246, 0.15)',
+              padding: '12px',
+              borderRadius: '12px',
+              marginRight: '24px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={14} color="#3b82f6" />
+                  <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                    Tiến độ ca trực
+                  </strong>
+                </div>
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  color: '#3b82f6',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  padding: '2px 6px',
+                  borderRadius: '4px'
+                }}>
+                  {progress ? `${progress.completionPercentage}%` : '0%'}
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Hoàn thành:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {progress ? `${progress.completedTasks} / ${progress.totalTasks}` : '0 / 0'} công việc
+                  </span>
+                </div>
+                
+                {/* Progress bar */}
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', marginTop: '4px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: progress ? `${progress.completionPercentage}%` : '0%',
+                    height: '100%',
+                    background: '#3b82f6',
+                    borderRadius: '3px',
+                    transition: 'width 0.5s ease-in-out'
+                  }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isTechAdmin && !isOperator && (
+            <Link
+              href="/guide"
+              onClick={onClose}
+              className="glass-panel"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                padding: '14px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+                background: 'rgba(59, 130, 246, 0.03)',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                transition: 'all 0.2s',
+                flexShrink: 0,
+                marginRight: '24px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <HelpCircle size={16} color="var(--color-accent)" />
+                <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                  Hướng Dẫn Sử Dụng
+                </strong>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                Xem hướng dẫn chi tiết quy trình bàn giao ca và đối chiếu dữ liệu.
+              </p>
+            </Link>
+          )}
+        </>
       )}
 
 
@@ -372,6 +584,11 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         @media (max-width: 1023px) {
           .sidebar-mobile-close {
             display: flex !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .sidebar-user-details {
+            display: none !important;
           }
         }
       `}} />

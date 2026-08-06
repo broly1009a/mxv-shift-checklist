@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { Shield, Save, RotateCcw, AlertCircle, Check, Loader2, Users, LayoutGrid, CheckCircle2, Info } from 'lucide-react';
+import { Shield, Save, RotateCcw, AlertCircle, Check, Loader2, Users, LayoutGrid, CheckCircle2, Info, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/Sidebar';
@@ -50,12 +50,66 @@ export default function PermissionsPage() {
   const [viewMode, setViewMode] = useState<'split' | 'matrix'>('split');
 
   // Split tab view: 'by-role' or 'by-permission'
-  const [activeTab, setActiveTab] = useState<'by-role' | 'by-permission'>('by-role');
+  const [activeTab, setActiveTab] = useState<'by-role' | 'by-permission' | 'audit-log'>('by-role');
   const [selectedRoleCode, setSelectedRoleCode] = useState<string>('DEPARTMENT_HEAD');
   const [selectedPermissionCode, setSelectedPermissionCode] = useState<string>('VIEW_CHECKLIST');
 
   // Local state to keep track of edited permissions
   const [editedPermissions, setEditedPermissions] = useState<Record<string, string[]>>({});
+
+  interface AuditEntry {
+    id: string;
+    userId: {
+      fullName: string;
+      username: string;
+    } | null;
+    action: string;
+    details: string;
+    ipAddress: string;
+    userAgent: string;
+    createdAt: string;
+  }
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  const fetchAuditLogs = async () => {
+    if (!token) return;
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/roles/audit-logs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        throw new Error('Lỗi khi tải nhật ký phân quyền');
+      }
+      const data = await res.json();
+      setAuditLogs(data);
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi xảy ra khi tải nhật ký');
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'audit-log' && token) {
+      fetchAuditLogs();
+    }
+  }, [activeTab, token]);
+
+  const parseAuditDetails = (detailsStr: string): string[] => {
+    try {
+      const parsed = JSON.parse(detailsStr);
+      return parsed?.body?.permissions || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const getRoleFromAction = (actionStr: string) => {
+    const match = actionStr.match(/PUT \/api\/v1\/roles\/(.*)\/permissions/i);
+    return match ? match[1] : 'Không rõ';
+  };
 
   useEffect(() => {
     if (currentUser && currentUser.role !== 'ADMIN') {
@@ -355,6 +409,27 @@ export default function PermissionsPage() {
                   <Shield size={16} />
                   <span>Phân quyền theo Chức năng</span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('audit-log')}
+                  style={{
+                    padding: '12px 18px',
+                    fontWeight: 750,
+                    fontSize: '0.88rem',
+                    color: activeTab === 'audit-log' ? 'var(--color-accent)' : 'var(--text-secondary)',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeTab === 'audit-log' ? '3px solid var(--color-accent)' : '3px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s',
+                    marginBottom: '-2px'
+                  }}
+                >
+                  <History size={16} />
+                  <span>Nhật ký phân quyền</span>
+                </button>
               </>
             ) : (
               <div style={{ padding: '12px 18px', fontWeight: 750, fontSize: '0.88rem', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '-2px', borderBottom: '3px solid var(--color-accent)' }}>
@@ -432,9 +507,132 @@ export default function PermissionsPage() {
           </div>
         ) : (
           viewMode === 'split' ? (
-            
-            /* MODE 1: SPLIT 2-COLUMN VIEW (DETAILED EDITING) */
-            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px' }} className="permissions-grid-layout">
+            activeTab === 'audit-log' ? (
+              /* AUDIT LOG VIEW (FULL WIDTH PANEL) */
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      Nhật Ký Kiểm Toán Phân Quyền
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+                      Ghi vết toàn bộ các lượt thay đổi thiết lập quyền hạn cho các vai trò trong hệ thống.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={fetchAuditLogs} 
+                    disabled={loadingLogs}
+                    className="btn btn-secondary" 
+                    style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <RotateCcw size={14} className={loadingLogs ? "animate-spin" : ""} />
+                    <span>Làm mới</span>
+                  </button>
+                </div>
+
+                {loadingLogs ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                    <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Chưa có lượt thay đổi phân quyền nào được ghi nhận.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)' }}>
+                          <th style={{ padding: '12px 16px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', width: '160px' }}>Thời gian</th>
+                          <th style={{ padding: '12px 16px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', width: '180px' }}>Người thực hiện</th>
+                          <th style={{ padding: '12px 16px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', width: '150px' }}>Vai trò tác động</th>
+                          <th style={{ padding: '12px 16px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Quyền hạn thiết lập mới</th>
+                          <th style={{ padding: '12px 16px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', width: '110px' }}>Địa chỉ IP</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((log) => {
+                          const newPerms = parseAuditDetails(log.details);
+                          const roleImpacted = getRoleFromAction(log.action);
+                          const date = new Date(log.createdAt);
+                          const formattedDate = date.toLocaleString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          });
+
+                          return (
+                            <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} className="table-row-hover">
+                              <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                {formattedDate}
+                              </td>
+                              <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                {log.userId ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontWeight: 600 }}>{log.userId.fullName}</span>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>@{log.userId.username}</span>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Hệ thống</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '14px 16px', fontSize: '0.8rem' }}>
+                                <span style={{ 
+                                  fontSize: '0.72rem', 
+                                  fontWeight: 800, 
+                                  padding: '4px 8px', 
+                                  borderRadius: '6px', 
+                                  background: 'rgba(239, 68, 68, 0.08)', 
+                                  color: '#ef4444', 
+                                  border: '1.5px solid rgba(239, 68, 68, 0.15)',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {roleImpacted}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px', fontSize: '0.78rem' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '500px' }}>
+                                  {newPerms.length === 0 ? (
+                                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Không gán quyền nào</span>
+                                  ) : (
+                                    newPerms.map((p) => (
+                                      <span 
+                                        key={p} 
+                                        style={{ 
+                                          fontSize: '0.7rem', 
+                                          fontWeight: 650, 
+                                          padding: '3px 8px', 
+                                          borderRadius: '6px', 
+                                          background: 'rgba(59, 130, 246, 0.08)', 
+                                          color: 'var(--color-accent)', 
+                                          border: '1.5px solid rgba(59, 130, 246, 0.15)',
+                                          display: 'inline-flex'
+                                        }}
+                                        title={PERMISSION_DESCRIPTIONS[p] || ''}
+                                      >
+                                        {p}
+                                      </span>
+                                    ))
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                                {log.ipAddress || '---'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* MODE 1: SPLIT 2-COLUMN VIEW (DETAILED EDITING) */
+              <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px' }} className="permissions-grid-layout">
               
               {/* LEFT SIDE: LIST SELECTOR */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -776,6 +974,7 @@ export default function PermissionsPage() {
 
               </div>
             </div>
+          )
           ) : (
             
             /* MODE 2: MATRIX COMPARISON VIEW (FULL GRID TABLE) */
