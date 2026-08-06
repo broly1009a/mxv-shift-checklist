@@ -5,6 +5,53 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 
 
+## [2026-08-06 16:40:00] - Refactor: Tối ưu hóa mốc đối chiếu EOD bằng Header Date và lệnh MM bằng Real-World Calendar Date
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đối chiếu ngày EOD T-1 dựa vào ngày hiển thị ở Header (Top-Right) của hệ thống Core thay vì dùng ngày của server clock để tránh lỗi lệch múi giờ/ngày phiên khi UAT/Staging bảo trì hoặc lệch ngày.
+  - Sửa logic đối chiếu lệnh MM (Market Maker) để chỉ chấp nhận lệnh khớp trong ngày lịch thực tế (`realTodayStr`) thay vì lấy cả T-1 (`targetStr`), tránh tình trạng hệ thống chưa EOD vẫn báo MM thành công (lệnh cũ từ hôm trước).
+- **Giải pháp**:
+  - Viết mới hàm `getHeaderDate` trong `oms-watcher.service.ts` quét các thẻ văn bản lá nằm ở vùng góc trên bên phải trang để lấy ngày phiên giao dịch hiện tại của hệ thống.
+  - Viết mới hàm `calculateDatesFromHeader` tính toán mốc `todayStr` và T-1 (`targetStr`) từ ngày Header.
+  - Nâng cấp luồng quét EOD trong `checkOmsStatus` để sử dụng các mốc ngày tính toán từ Header.
+  - Tính toán ngày lịch thực tế (`realTodayStr`) theo múi giờ Việt Nam (UTC+7) để so khớp các lệnh MM.
+  - Cập nhật hàm `scrapeMmOrders` chấp nhận `todayStr` làm tham số và chỉ đếm các lệnh khớp chính xác ngày này, loại bỏ so khớp T-1.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts): Thêm helper `getHeaderDate()`, `calculateDatesFromHeader()`. Cập nhật `scrapeMmOrders()` và các lệnh gọi hàm tương ứng.
+  - [.env](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/.env): Đổi `PLAYWRIGHT_HEADLESS=true` để chạy ngầm trình duyệt, ẩn hiển thị visual.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Biên dịch thành công `nest build`.
+  - Chạy kiểm thử visual thực tế thành công bằng `npm run test:oms-playwright` kiểm tra chính xác cả EOD và lệnh MM trên CCP UAT / CE UAT.
+
+## [2026-08-06 16:25:00] - Feature: Tối ưu hóa logic quét EOD Core CCP & Core CE tương thích UAT/PROD
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi kiểm tra trạng thái EOD trên CCP UAT do môi trường này bị thiếu tab "Lịch sử EOD". Tìm kiếm phương pháp tối ưu giữa việc đi trực tiếp URL và click tab.
+- **Giải pháp**:
+  - Triển khai cơ chế kiểm tra kết hợp (Hybrid): Khi truy cập màn hình `/EOD/EODPROCESS`, Bot sẽ tiến hành kiểm tra bảng danh sách bước vận hành EOD ngay trên màn hình chính trước.
+  - Bổ sung hàm helper `checkMainPageEod` để trích xuất ngày phiên hệ thống từ text giao diện (`Ngày giao dịch: ...` hoặc `Ngày phiên EOD: ...`) và đối chiếu trạng thái bước cuối cùng (như "EOD thành công" hoặc "Hoàn thành batch") có phải là "Thành công" / "Đã hoàn thành" vào ngày hiện tại/ngày T-1 hay không.
+  - Nếu kiểm tra trang chính không thành công hoặc không tìm thấy bảng, Bot sẽ tự động click chuyển sang tab **Lịch sử EOD** (nếu có) để quét bảng lịch sử làm phương án dự phòng (fallback) cực kỳ ổn định.
+  - Đường dẫn kiểm tra EOD được chuyển hẳn sang `/EOD/EODPROCESS` theo đúng thực tế hệ thống.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts)
+  - Viết mới hàm helper `checkMainPageEod()` để quét bảng trạng thái và ngày giao dịch hiển thị trên trang chính.
+  - Cấu trúc lại luồng quét trong `checkOmsStatus()` cho cả CCP và CE.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Kiểm thử tự động chạy thành công 100% bằng lệnh `npm run test:oms-playwright`.
+  - Biên dịch thành công 100% bằng lệnh `npm run build`.
+
 ## [2026-08-06 12:10:00] - Architecture: Tách layout ra GlobalLayout dùng chung để triệt tiêu việc unmount/remount Sidebar và Header
 
 ### 1. Mục tiêu Thay đổi
