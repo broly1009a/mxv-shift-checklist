@@ -2,6 +2,22 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+---
+
+## 💡 CÁC CÂU LỆNH VẬN HÀNH NHANH TRÊN UBUNTU SERVER (PRODUCT)
+
+### 1. Đóng/Chốt tất cả các ca trực đang chạy (PENDING -> COMPLETED):
+```bash
+mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.updateMany({ status: 'PENDING' }, { \$set: { status: 'COMPLETED', closedAt: new Date() } })"
+```
+
+### 2. Khởi chạy và Quản lý ngầm bằng PM2:
+- Backend: `pm2 start dist/main.js --name "mxv-backend"`
+- Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
+- Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+
+---
+
 
 
 
@@ -24,6 +40,12 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **Sửa đổi**:
   - [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts): Thêm helper `getHeaderDate()`, `calculateDatesFromHeader()`. Cập nhật `scrapeMmOrders()` và các lệnh gọi hàm tương ứng.
   - [.env](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/.env): Đổi `PLAYWRIGHT_HEADLESS=true` để chạy ngầm trình duyệt, ẩn hiển thị visual.
+  - [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts): Tối giản đường dẫn thư mục xuất bản tin `newsletterDir` bằng cách loại bỏ cấp thư mục trùng lặp `Gửi team bản tin` lồng nhau.
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx): Tự động phát hiện dấu phân cách đường dẫn (`/` hoặc `\`) từ thư mục gốc để sinh đường dẫn chuẩn đa nền tảng (Windows/Linux).
+  - [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx): Sửa đổi tương tự để tránh lỗi kẹt dấu gạch chéo ngược trên Linux.
 
 ### 3. Xác nhận Build/Kiểm thử
 - **Backend**:

@@ -71,36 +71,39 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBase) return;
     
+    const sep = cleanBase.includes('/') ? '/' : '\\';
     let msFolder = '';
     const cleanBaseLower = cleanBase.toLowerCase();
 
     if (cleanBaseLower.endsWith('backup ms\\futures') || cleanBaseLower.endsWith('backup ms/futures') || cleanBaseLower.endsWith('futures')) {
       // Case 1: Base path ends with Futures -> append year/month/day
-      msFolder = `${cleanBase}\\${year}\\T${month}.${year}\\${day}.${month}`;
+      msFolder = `${cleanBase}${sep}${year}${sep}${month}.${year}${sep}${day}.${month}`;
     } else if (cleanBaseLower.endsWith('backup ms')) {
       // Case 2: Base path ends with Backup MS
       if (cleanBaseLower.includes('uat') || cleanBaseLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBase}\\${day}.${month}`;
+        msFolder = `${cleanBase}${sep}${day}.${month}`;
       } else {
-        msFolder = `${cleanBase}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBase}${sep}Futures${sep}${year}${sep}${month}.${year}${sep}${day}.${month}`;
       }
     } else {
       // Case 3: Standard root directory
       if (cleanBaseLower.includes('uat') || cleanBaseLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBase}\\Backup MS\\${day}.${month}`;
+        msFolder = `${cleanBase}${sep}Backup MS${sep}${day}.${month}`;
       } else {
-        msFolder = `${cleanBase}\\Backup MS\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBase}${sep}Backup MS${sep}Futures${sep}${year}${sep}${month}.${year}${sep}${day}.${month}`;
       }
     }
 
     setFolderPathMs(msFolder);
-    setDsgdPath(`${msFolder}\\DSGD.xlsx`);
+    setDsgdPath(`${msFolder}${sep}DSGD.xlsx`);
   }, [ngayGD, basePath]);
 
   // 2. Only autofill macro & cumulative annual files when basePath changes, OR if they are currently empty
   useEffect(() => {
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBase) return;
+
+    const sep = cleanBase.includes('/') ? '/' : '\\';
 
     // Standardize parent directory to get the root of the operating documents (e.g. "Tai lieu hoat dong")
     let parentRoot = cleanBase;
@@ -125,28 +128,28 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     
     // Auto fill macro path if empty
     if (!macroPath) {
-      const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm`;
+      const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}${sep}marco${sep}Thong ke gia tri giao dich có ACM${sep}Macro thong ke gia tri giao dich có ACM.xlsm`;
       setMacroPath(defaultMacro);
     }
 
     // Auto fill cumulative paths if empty
     if (!pathNormal) {
-      setPathNormal(`${parentRoot}\\Thong ke gia tri giao dich ${year} 1.xlsx`);
+      setPathNormal(`${parentRoot}${sep}Thong ke gia tri giao dich ${year} 1.xlsx`);
     }
     if (!pathAcm) {
-      setPathAcm(`${parentRoot}\\Thong ke gia tri giao dich ACM ${year} 1.xlsx`);
+      setPathAcm(`${parentRoot}${sep}Thong ke gia tri giao dich ACM ${year} 1.xlsx`);
     }
     if (!pathLme) {
-      setPathLme(`${parentRoot}\\Thong ke gia tri giao dich LME ${year}.xlsx`);
+      setPathLme(`${parentRoot}${sep}Thong ke gia tri giao dich LME ${year}.xlsx`);
     }
     if (!pathOptions) {
-      setPathOptions(`${parentRoot}\\Thong ke gia tri giao dich Options ${year}.xlsx`);
+      setPathOptions(`${parentRoot}${sep}Thong ke gia tri giao dich Options ${year}.xlsx`);
     }
     if (!pathSpread) {
-      setPathSpread(`${parentRoot}\\Thong ke gia tri giao dich Spread ${year}.xlsx`);
+      setPathSpread(`${parentRoot}${sep}Thong ke gia tri giao dich Spread ${year}.xlsx`);
     }
     if (!pathTvkd) {
-      setPathTvkd(`${parentRoot}\\Thong ke gia tri giao dich theo TVKD\\Thong ke gia tri giao dich ${year} theo TVKD.xlsx`);
+      setPathTvkd(`${parentRoot}${sep}Thong ke gia tri giao dich theo TVKD${sep}Thong ke gia tri giao dich ${year} theo TVKD.xlsx`);
     }
   }, [basePath]); // Only triggers on basePath change
 

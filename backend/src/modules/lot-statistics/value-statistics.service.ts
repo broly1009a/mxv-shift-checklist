@@ -549,7 +549,6 @@ export class ValueStatisticsService {
       targetRoot,
       'Thong ke gia tri giao dich',
       'Gửi team bản tin',
-      'Gửi team bản tin',
     );
     if (!fs.existsSync(newsletterDir)) {
       this.logger.warn(

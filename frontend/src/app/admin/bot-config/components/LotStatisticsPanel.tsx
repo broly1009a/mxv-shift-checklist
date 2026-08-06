@@ -96,22 +96,25 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBaseMs || !cleanBaseCqg) return;
 
+    const sepMs = cleanBaseMs.includes('/') ? '/' : '\\';
+    const sepCqg = cleanBaseCqg.includes('/') ? '/' : '\\';
+
     let msFolder = '';
     const cleanMsLower = cleanBaseMs.toLowerCase();
 
     if (cleanMsLower.endsWith('backup ms\\futures') || cleanMsLower.endsWith('backup ms/futures') || cleanMsLower.endsWith('futures')) {
-      msFolder = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
+      msFolder = `${cleanBaseMs}${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
     } else if (cleanMsLower.endsWith('backup ms')) {
       if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBaseMs}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}${day}.${month}`;
       } else {
-        msFolder = `${cleanBaseMs}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
       }
     } else {
       if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBaseMs}\\Backup MS\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}${day}.${month}`;
       } else {
-        msFolder = `${cleanBaseMs}\\Backup MS\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
       }
     }
 
@@ -119,18 +122,18 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const cleanCqgLower = cleanBaseCqg.toLowerCase();
 
     if (cleanCqgLower.endsWith('backup cqg\\futures') || cleanCqgLower.endsWith('backup cqg/futures') || cleanCqgLower.endsWith('futures')) {
-      cqgFolder = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
+      cqgFolder = `${cleanBaseCqg}${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
     } else if (cleanCqgLower.endsWith('backup cqg')) {
       if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
-        cqgFolder = `${cleanBaseCqg}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}${day}.${month}`;
       } else {
-        cqgFolder = `${cleanBaseCqg}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
       }
     } else {
       if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
-        cqgFolder = `${cleanBaseCqg}\\Backup CQG\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}${day}.${month}`;
       } else {
-        cqgFolder = `${cleanBaseCqg}\\Backup CQG\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
       }
     }
 
@@ -149,22 +152,25 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBaseMs || !cleanBaseCqg) return;
 
+    const sepMs = cleanBaseMs.includes('/') ? '/' : '\\';
+    const sepCqg = cleanBaseCqg.includes('/') ? '/' : '\\';
+
     let msFolder = '';
     const cleanMsLower = cleanBaseMs.toLowerCase();
 
     if (cleanMsLower.endsWith('backup ms\\futures') || cleanMsLower.endsWith('backup ms/futures') || cleanMsLower.endsWith('futures')) {
-      msFolder = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
+      msFolder = `${cleanBaseMs}${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
     } else if (cleanMsLower.endsWith('backup ms')) {
       if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBaseMs}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}${day}.${month}`;
       } else {
-        msFolder = `${cleanBaseMs}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
       }
     } else {
       if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
-        msFolder = `${cleanBaseMs}\\Backup MS\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}${day}.${month}`;
       } else {
-        msFolder = `${cleanBaseMs}\\Backup MS\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
       }
     }
 
@@ -172,18 +178,18 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const cleanCqgLower = cleanBaseCqg.toLowerCase();
 
     if (cleanCqgLower.endsWith('backup cqg\\futures') || cleanCqgLower.endsWith('backup cqg/futures') || cleanCqgLower.endsWith('futures')) {
-      cqgFolder = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
+      cqgFolder = `${cleanBaseCqg}${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
     } else if (cleanCqgLower.endsWith('backup cqg')) {
       if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
-        cqgFolder = `${cleanBaseCqg}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}${day}.${month}`;
       } else {
-        cqgFolder = `${cleanBaseCqg}\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
       }
     } else {
       if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
-        cqgFolder = `${cleanBaseCqg}\\Backup CQG\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}${day}.${month}`;
       } else {
-        cqgFolder = `${cleanBaseCqg}\\Backup CQG\\Futures\\${year}\\T${month}.${year}\\${day}.${month}`;
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
       }
     }
 
@@ -199,19 +205,19 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       parentBaseCqg = parentBaseCqg.substring(0, parentBaseCqg.length - 10).replace(/\/$/, '').replace(/\\$/, '');
     }
 
-    setPathDsgdCumulative(`${msFolder}\\DSGD T${month}.${year}.xlsx`);
-    setPathNormal(`${cqgFolder}\\Thong ke so lot giao dich ${year} 2.xlsx`);
+    setPathDsgdCumulative(`${msFolder}${sepMs}DSGD T${month}.${year}.xlsx`);
+    setPathNormal(`${cqgFolder}${sepCqg}Thong ke so lot giao dich ${year} 2.xlsx`);
     
     if (lowerCqg.includes('uat') || lowerCqg.includes('operatechecklist_uat')) {
-      setPathAcm(`${parentBaseCqg}\\ACM\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`);
-      setPathLme(`${parentBaseCqg}\\LME\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`);
-      setPathOptions(`${parentBaseCqg}\\Options\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`);
-      setPathSpread(`${parentBaseCqg}\\Spread\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`);
+      setPathAcm(`${parentBaseCqg}${sepCqg}ACM${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich ACM ${year} 2.xlsx`);
+      setPathLme(`${parentBaseCqg}${sepCqg}LME${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich LME ${year}.xlsx`);
+      setPathOptions(`${parentBaseCqg}${sepCqg}Options${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Options ${year}.xlsx`);
+      setPathSpread(`${parentBaseCqg}${sepCqg}Spread${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Spread ${year}.xlsx`);
     } else {
-      setPathAcm(`${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`);
-      setPathLme(`${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`);
-      setPathOptions(`${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`);
-      setPathSpread(`${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`);
+      setPathAcm(`${parentBaseCqg}${sepCqg}ACM${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich ACM ${year} 2.xlsx`);
+      setPathLme(`${parentBaseCqg}${sepCqg}LME${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich LME ${year}.xlsx`);
+      setPathOptions(`${parentBaseCqg}${sepCqg}Options${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Options ${year}.xlsx`);
+      setPathSpread(`${parentBaseCqg}${sepCqg}Spread${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Spread ${year}.xlsx`);
     }
   }, [ngayGD, basePathMs, basePathCqg]);
 
