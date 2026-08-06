@@ -91,7 +91,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const parts = ngayGD.split('-');
     if (parts.length !== 3) return;
     const [year, month, day] = parts;
-    
+
     const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBaseMs || !cleanBaseCqg) return;
@@ -196,18 +196,18 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     // Determine parent base CQG for ACM, LME, Options, Spread trackers
     let parentBaseCqg = cleanBaseCqg;
     const lowerCqg = cleanBaseCqg.toLowerCase();
-    
+
     if (lowerCqg.endsWith('\\futures') || lowerCqg.endsWith('/futures')) {
       parentBaseCqg = cleanBaseCqg.substring(0, cleanBaseCqg.length - 8).replace(/\/$/, '').replace(/\\$/, '');
     }
-    
+
     if (parentBaseCqg.toLowerCase().endsWith('backup cqg')) {
       parentBaseCqg = parentBaseCqg.substring(0, parentBaseCqg.length - 10).replace(/\/$/, '').replace(/\\$/, '');
     }
 
     setPathDsgdCumulative(`${msFolder}${sepMs}DSGD T${month}.${year}.xlsx`);
     setPathNormal(`${cqgFolder}${sepCqg}Thong ke so lot giao dich ${year} 2.xlsx`);
-    
+
     if (lowerCqg.includes('uat') || lowerCqg.includes('operatechecklist_uat')) {
       setPathAcm(`${parentBaseCqg}${sepCqg}ACM${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich ACM ${year} 2.xlsx`);
       setPathLme(`${parentBaseCqg}${sepCqg}LME${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich LME ${year}.xlsx`);
@@ -258,7 +258,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         updateCumulative,
       };
 
-      const res = await fetch(`${apiBaseUrl}/lot-statistics/config`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${apiBaseUrl}/lot-statistics/config`, {
+    fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -411,7 +411,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         const normCqg = folderPathCqg.replace(/\//g, '\\');
         const msOk = normMs.includes(`\\${dateStr}\\`) || normMs.endsWith(`\\${dateStr}`) || normMs.endsWith(`/${dateStr}`);
         const cqgOk = normCqg.includes(`\\${dateStr}\\`) || normCqg.endsWith(`\\${dateStr}`) || normCqg.endsWith(`/${dateStr}`);
-        
+
         if (!msOk || !cqgOk) {
           const confirmOk = window.confirm(
             `Cảnh báo: Ngày trong thư mục nguồn MS/CQG không khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục chạy đối chiếu không?`
@@ -432,14 +432,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       let res: Response;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process-local`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -487,7 +487,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         const normCqg = folderPathCqg.replace(/\//g, '\\');
         const msOk = normMs.includes(`\\${dateStr}\\`) || normMs.endsWith(`\\${dateStr}`) || normMs.endsWith(`/${dateStr}`);
         const cqgOk = normCqg.includes(`\\${dateStr}\\`) || normCqg.endsWith(`\\${dateStr}`) || normCqg.endsWith(`/${dateStr}`);
-        
+
         if (!msOk || !cqgOk) {
           const confirmOk = window.confirm(
             `Cảnh báo: Ngày trong thư mục nguồn MS/CQG không khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục xuất báo cáo Excel không?`
@@ -506,14 +506,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       let res: Response;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process/download`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process/download`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process-local/download`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local/download`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -603,7 +603,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           <Info size={16} color="#10b981" />
           1. Thông tin phiên & Tham số đối chiếu
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
           <div>
             <label style={labelStyle}>Ngày giao dịch</label>
@@ -735,7 +735,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         {/* Form content based on selected Mode */}
         {runMode === 'folder' ? (
           <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
+
             {/* Target Roots */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div>
@@ -822,7 +822,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
               {showAdvanced && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  
+
                   {/* Target Folder Inputs */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
                     <div>
@@ -937,7 +937,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
                 <Info size={14} color="#10b981" style={{ flexShrink: 0 }} />
                 <span>Hệ thống sẽ quét độc lập thư mục MS (đọc DSGD, TTM, TTTT) và thư mục CQG (đọc FR, OP, PS) để tự động nạp dữ liệu.</span>
               </p>
-              
+
               <button
                 type="button"
                 onClick={handleSaveConfig}
@@ -976,8 +976,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             type="button"
             onClick={handleDownloadExcel}
             disabled={
-              downloading || 
-              loading || 
+              downloading ||
+              loading ||
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
@@ -991,8 +991,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             type="button"
             onClick={handleRunProcess}
             disabled={
-              loading || 
-              downloading || 
+              loading ||
+              downloading ||
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
@@ -1007,15 +1007,15 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
       {/* Error View */}
       {error && (
-        <div 
-          className="glass-panel animate-fade-in" 
-          style={{ 
-            padding: '20px', 
-            backgroundColor: 'rgba(239, 68, 68, 0.08)', 
-            border: '1px solid rgba(239, 68, 68, 0.3)', 
-            borderRadius: '10px', 
-            display: 'flex', 
-            alignItems: 'start', 
+        <div
+          className="glass-panel animate-fade-in"
+          style={{
+            padding: '20px',
+            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'start',
             gap: '12px',
             marginTop: '20px',
             marginBottom: '20px'
@@ -1069,7 +1069,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           {resultTab === 'summary' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng đối chiếu số lot giữa các báo cáo</h5>
-              
+
               <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                 <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
                   <thead>

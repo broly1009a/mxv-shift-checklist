@@ -70,7 +70,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
     const cleanBase = basePath.trim().replace(/\/$/, '').replace(/\\$/, '');
     if (!cleanBase) return;
-    
+
     const sep = cleanBase.includes('/') ? '/' : '\\';
     let msFolder = '';
     const cleanBaseLower = cleanBase.toLowerCase();
@@ -108,11 +108,11 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     // Standardize parent directory to get the root of the operating documents (e.g. "Tai lieu hoat dong")
     let parentRoot = cleanBase;
     const lowerBase = cleanBase.toLowerCase();
-    
+
     if (lowerBase.endsWith('\\futures') || lowerBase.endsWith('/futures')) {
       parentRoot = cleanBase.substring(0, cleanBase.length - 8).replace(/\/$/, '').replace(/\\$/, '');
     }
-    
+
     if (parentRoot.toLowerCase().endsWith('backup ms')) {
       parentRoot = parentRoot.substring(0, parentRoot.length - 9).replace(/\/$/, '').replace(/\\$/, '');
     }
@@ -125,7 +125,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
     const idx = parentRoot.toLowerCase().indexOf('marco thong ke gia tri');
     const wsRoot = idx > 0 ? parentRoot.substring(0, idx) : parentRoot;
-    
+
     // Auto fill macro path if empty
     if (!macroPath) {
       const defaultMacro = `${wsRoot.replace(/\/$/, '').replace(/\\$/, '')}${sep}marco${sep}Thong ke gia tri giao dich có ACM${sep}Macro thong ke gia tri giao dich có ACM.xlsm`;
@@ -162,7 +162,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     setSavingConfig(true);
     const toastId = toast.loading('Đang lưu cấu hình tỷ giá & macro path...');
     try {
-      const res = await fetch(`${apiBaseUrl}/value-statistics/config`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         pathTvkd,
       };
 
-      const res = await fetch(`${apiBaseUrl}/value-statistics/process-local`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/process-local`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         pathTvkd,
       };
 
-      const res = await fetch(`${apiBaseUrl}/value-statistics/process-tvkd-only`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/process-tvkd-only`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -312,7 +312,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${apiBaseUrl}/value-statistics/config`, {
+    fetch(`${apiBaseUrl}/api/v1/value-statistics/config`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -334,23 +334,23 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
   const normalItems = result?.normalGtgdBreakdown
     ? Object.entries(result.normalGtgdBreakdown)
-        .map(([k, v]: any) => ({ code: k, val: v }))
-        .filter((i) => i.val > 0)
-        .sort((a, b) => b.val - a.val)
+      .map(([k, v]: any) => ({ code: k, val: v }))
+      .filter((i) => i.val > 0)
+      .sort((a, b) => b.val - a.val)
     : [];
 
   const spreadItems = result?.spreadGtgdBreakdown
     ? Object.entries(result.spreadGtgdBreakdown)
-        .map(([k, v]: any) => ({ code: k, val: v }))
-        .filter((i) => i.val > 0)
-        .sort((a, b) => b.val - a.val)
+      .map(([k, v]: any) => ({ code: k, val: v }))
+      .filter((i) => i.val > 0)
+      .sort((a, b) => b.val - a.val)
     : [];
 
   const tvkdItems = result?.tvkdGtgdBreakdown
     ? Object.entries(result.tvkdGtgdBreakdown)
-        .map(([k, v]: any) => ({ code: k, val: v }))
-        .filter((i) => i.val > 0)
-        .sort((a, b) => b.val - a.val)
+      .map(([k, v]: any) => ({ code: k, val: v }))
+      .filter((i) => i.val > 0)
+      .sort((a, b) => b.val - a.val)
     : [];
 
   const labelStyle: React.CSSProperties = {
@@ -369,7 +369,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           <Info size={16} color="#10b981" />
           1. Thông tin phiên & Tham số đối chiếu
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
           <div style={{ maxWidth: '280px' }}>
             <label style={labelStyle}>Ngày giao dịch</label>
@@ -414,7 +414,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* Thư mục gốc (Target Root) */}
           <div>
             <label style={labelStyle}>
@@ -428,10 +428,10 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
               style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
               placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Marco thong ke gia tri"
             />
-             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-               <Lightbulb size={12} color="#eab308" style={{ flexShrink: 0 }} />
-               <span>Hệ thống tự động đồng bộ đường dẫn file nguồn theo Ngày GD được chọn.</span>
-             </p>
+            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Lightbulb size={12} color="#eab308" style={{ flexShrink: 0 }} />
+              <span>Hệ thống tự động đồng bộ đường dẫn file nguồn theo Ngày GD được chọn.</span>
+            </p>
           </div>
 
           {/* Cumulative Update Checkbox */}
@@ -594,7 +594,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
               <Info size={14} color="#10b981" style={{ flexShrink: 0 }} />
               <span>Hệ thống sẽ thực hiện tính toán giá trị giao dịch (GTGD) chi tiết dựa trên dữ liệu file DSGD và cập nhật lũy kế.</span>
             </p>
-            
+
             <button
               type="button"
               onClick={handleSaveConfig}
@@ -619,7 +619,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
             <Play size={14} className={loadingTvkdOnly ? 'animate-spin' : ''} style={{ color: '#3b82f6' }} />
             {loadingTvkdOnly ? 'Đang cập nhật TVKD...' : 'Chỉ cập nhật Lũy kế TVKD'}
           </button>
-          
+
           <button
             type="button"
             onClick={handleRunProcess}
@@ -635,15 +635,15 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
       {/* Error View */}
       {error && (
-        <div 
-          className="glass-panel animate-fade-in" 
-          style={{ 
-            padding: '20px', 
-            backgroundColor: 'rgba(239, 68, 68, 0.08)', 
-            border: '1px solid rgba(239, 68, 68, 0.3)', 
-            borderRadius: '10px', 
-            display: 'flex', 
-            alignItems: 'start', 
+        <div
+          className="glass-panel animate-fade-in"
+          style={{
+            padding: '20px',
+            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'start',
             gap: '12px',
             marginTop: '20px',
             marginBottom: '20px'
@@ -697,7 +697,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {resultTab === 'summary' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng tổng hợp tham số tỷ giá</h5>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800, color: 'var(--text-muted)' }}>Tổng số dòng Normal</span>
@@ -732,7 +732,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {resultTab === 'normal' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>💵 Thống kê chi tiết Giá trị Giao dịch Normal</h5>
-              
+
               {normalItems.length === 0 ? (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', padding: '24px 0' }}>Không có giá trị giao dịch Normal nào.</div>
               ) : (
@@ -763,7 +763,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {resultTab === 'spread' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🔀 Thống kê chi tiết Giá trị Giao dịch Spread</h5>
-              
+
               {spreadItems.length === 0 ? (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', padding: '24px 0' }}>Không có giao dịch Spread nào trong ngày.</div>
               ) : (
@@ -794,7 +794,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {resultTab === 'tvkd' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🏢 Thống kê chi tiết Giá trị Giao dịch theo TVKD</h5>
-              
+
               {tvkdItems.length === 0 ? (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', padding: '24px 0' }}>Không có giao dịch TVKD nào trong ngày.</div>
               ) : (

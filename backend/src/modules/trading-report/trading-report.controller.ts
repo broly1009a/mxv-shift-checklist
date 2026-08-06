@@ -25,7 +25,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('trading-report')
+@Controller(['trading-report', 'api/v1/trading-report'])
 export class TradingReportController {
   constructor(private readonly tradingReportService: TradingReportService) {}
 

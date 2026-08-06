@@ -16,7 +16,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('value-statistics')
+@Controller(['value-statistics', 'api/v1/value-statistics'])
 export class ValueStatisticsController {
   private readonly logger = new Logger(ValueStatisticsController.name);
 

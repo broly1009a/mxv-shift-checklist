@@ -23,7 +23,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('lot-statistics')
+@Controller(['lot-statistics', 'api/v1/lot-statistics'])
 export class LotStatisticsController {
   private readonly logger = new Logger(LotStatisticsController.name);
 

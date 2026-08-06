@@ -16,7 +16,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('margin-checker')
+@Controller(['margin-checker', 'api/v1/margin-checker'])
 export class MarginCheckerController {
   constructor(private readonly service: MarginCheckerService) {}
 

@@ -20,7 +20,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('reconciliation')
+@Controller(['reconciliation', 'api/v1/reconciliation'])
 export class ReconciliationController {
   private readonly logger = new Logger(ReconciliationController.name);
 
