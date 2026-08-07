@@ -45,7 +45,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     if (!token) return;
     const toastId = toast.loading('Đang tải danh sách ngày đối chiếu...');
     try {
-      const res = await fetch(`${apiBaseUrl}/reconciliation/sample-dates`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/sample-dates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -64,7 +64,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
   };
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/reconciliation/sample-dates`, {
+    fetch(`${apiBaseUrl}/api/v1/reconciliation/sample-dates`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -84,7 +84,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     setReconResult(null);
     const toastId = toast.loading('Đang chạy kiểm thử đối chiếu từ file mẫu...');
     try {
-      const res = await fetch(`${apiBaseUrl}/reconciliation/run-test-local`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/run-test-local`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ samplePath: reconSelectedPath, usdRate: reconUsdRate }),
@@ -113,7 +113,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     setReconAutoRunning(true);
     const toastId = toast.loading('Bot đang đăng nhập M-System và tải file đối chiếu... (2-5 phút)');
     try {
-      const res = await fetch(`${apiBaseUrl}/reconciliation/run-auto`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/run-auto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ usdRate: reconUsdRate }),
@@ -154,7 +154,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
       });
       formData.append('usdRate', String(reconUsdRate));
 
-      const res = await fetch(`${apiBaseUrl}/reconciliation/test-upload`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/test-upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -464,7 +464,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
                   </div>
                 ))}
               </div>
-               {reconResult.results.eod.negativeIMRAcc?.length > 0 && (
+              {reconResult.results.eod.negativeIMRAcc?.length > 0 && (
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', padding: '10px 14px', borderRadius: '0 6px 6px 0', fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', fontWeight: 700 }}>
                   Tài khoản âm ký quỹ: {reconResult.results.eod.negativeIMRAcc.join(', ')}
                 </div>

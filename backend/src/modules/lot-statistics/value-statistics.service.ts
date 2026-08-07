@@ -389,7 +389,7 @@ export class ValueStatisticsService {
     const pathTvkd = payload.pathTvkd;
 
     // Security guard checks
-    const allowedRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
+    const allowedRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
     if (pathTvkd) {
       assertSafeWritePath(pathTvkd, allowedRoot);
     }

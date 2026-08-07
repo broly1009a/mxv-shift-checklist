@@ -447,9 +447,10 @@ export class ShiftsService {
     const oldStatus = task.status || 'PENDING';
     const oldNote = task.note;
 
-    // Check task dependencies if status is not PENDING
+    // Check task dependencies if status is not PENDING or WAITING
     if (
       status !== 'PENDING' &&
+      status !== 'WAITING' &&
       task.dependsOnTaskIdsSnapshot &&
       task.dependsOnTaskIdsSnapshot.length > 0
     ) {
