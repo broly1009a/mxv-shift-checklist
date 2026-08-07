@@ -1194,25 +1194,21 @@ export default function AdminTemplatesPage() {
                             style={{
                               padding: isSubtask ? '12px 16px' : '16px',
                               borderRadius: '8px',
-                              background: isDragged 
-                                ? 'rgba(59, 130, 246, 0.05)' 
+                              backgroundColor: isDragged 
+                                ? 'rgba(59, 130, 246, 0.08)' 
                                 : isSubtask 
-                                  ? 'rgba(139, 92, 246, 0.015)' 
-                                  : 'rgba(255,255,255,0.01)',
-                              border: isOver 
-                                ? '1px dashed var(--color-primary)' 
-                                : isDragged 
-                                  ? '1px solid rgba(59, 130, 246, 0.3)' 
-                                  : isSubtask 
-                                    ? '1px dashed rgba(139, 92, 246, 0.15)' 
-                                    : '1px solid var(--border-color)',
+                                  ? 'rgba(139, 92, 246, 0.04)' 
+                                  : 'rgba(255, 255, 255, 0.03)',
+                              borderTop: isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
+                              borderRight: isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
+                              borderBottom: isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
+                              borderLeft: isSubtask ? '3px solid #8b5cf6' : isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
                               marginLeft: isSubtask ? '32px' : '0px',
-                              borderLeft: isSubtask ? '3px solid #8b5cf6' : undefined,
                               opacity: isDragged ? 0.6 : 1,
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '10px',
-                              transition: 'all 0.2s ease',
+                              transition: 'border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease',
                               cursor: isAdmin ? 'grab' : 'default'
                             }}
                           >
@@ -1304,56 +1300,54 @@ export default function AdminTemplatesPage() {
                               )}
                             </div>
 
-                            {/* Extra fields snapshot view */}
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem', paddingLeft: '72px' }}>
-                              {task.functionUrl && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <Link2 size={12} /> URL: {task.functionUrl}
-                                </span>
-                              )}
-                              {task.urdReference && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <FileText size={12} /> URD: {task.urdReference}
-                                </span>
-                              )}
-                              {task.fileLocation && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <FileText size={12} /> File: {task.fileLocation}
-                                </span>
-                              )}
-                              {task.timetable && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <Clock size={12} /> Khung giờ: {task.timetable}
-                                </span>
-                              )}
-                              {task.isBotCheck && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.06)', color: '#ec4899', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <Cpu size={12} /> Bot Check {task.botTriggerTime ? `(${task.botTriggerTime})` : ''}
-                                </span>
-                              )}
-                              {task.slaType && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
-                                  SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
-                                </span>
-                              )}
-                              {task.triggerTime && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
-                                  Bắt đầu: {task.triggerTime}
-                                </span>
-                              )}
-                              {task.slaDeadline && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
-                                  Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
-                                </span>
-                              )}
-                              {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
-                                  Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
-                                </span>
-                              )}
-                            </div>
+                            {/* Extra fields - flush left, no indentation */}
+                            {(task.functionUrl || task.urdReference || task.fileLocation || task.timetable || task.slaType || task.triggerTime || task.slaDeadline || (task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0)) && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.75rem' }}>
+                                {task.functionUrl && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
+                                    <Link2 size={12} /> URL: {task.functionUrl}
+                                  </span>
+                                )}
+                                {task.urdReference && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
+                                    <FileText size={12} /> URD: {task.urdReference}
+                                  </span>
+                                )}
+                                {task.fileLocation && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
+                                    <FileText size={12} /> File: {task.fileLocation}
+                                  </span>
+                                )}
+                                {task.timetable && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                                    <Clock size={12} /> Khung giờ: {task.timetable}
+                                  </span>
+                                )}
+                                {task.slaType && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
+                                    SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
+                                  </span>
+                                )}
+                                {task.triggerTime && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.06)', color: '#10b981', padding: '2px 8px', borderRadius: '4px' }}>
+                                    Bắt đầu: {task.triggerTime}
+                                  </span>
+                                )}
+                                {task.slaDeadline && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
+                                    Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
+                                  </span>
+                                )}
+                                {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
+                                    Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
                             {task.actionDescription && (
-                              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '72px', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.4 }}>
+                              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.4 }}>
                                 Mô tả: {task.actionDescription}
                               </p>
                             )}
