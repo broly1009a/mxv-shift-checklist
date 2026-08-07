@@ -16,10 +16,26 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
 
+
+## [2026-08-07 10:51:00] - Bugfix: Sửa lỗi TypeScript 'Argument of type 'null' is not assignable to parameter of type 'string | undefined''
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Giải thích và sửa lỗi TypeScript compiler báo lỗi `Argument of type 'null' is not assignable to parameter of type 'string | undefined'` tại dòng 310 trong file `margin-checker.service.ts`.
+- **Nguyên nhân**: Trong môi trường kích hoạt `strictNullChecks` của TypeScript, kiểu dữ liệu `null` không thể gán trực tiếp cho tham số kiểu `string | undefined` (hoặc tham số tùy chọn `errorMsg?: string`). Dòng code gọi `updateDeliveryStatus(checkerType, 'SUCCESS', null, subject)` đã truyền giá trị `null` cho tham số thứ 3 (`errorMsg`).
+- **Giải pháp**: Thay đổi giá trị truyền vào từ `null` thành `undefined` để tương thích với khai báo kiểu dữ liệu của hàm `updateDeliveryStatus`, vì hàm này đã có sẵn logic fallback sang `null` (`errorMsg || null`) khi cập nhật cơ sở dữ liệu/cấu hình.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Thay đổi đối số truyền vào từ `null` sang `undefined` tại dòng 310.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Lệnh kiểm tra lỗi biên dịch TypeScript `npx tsc --noEmit` đã không còn báo lỗi tại file `margin-checker.service.ts`.
+  - Dự án NestJS build thành công bằng lệnh `npm run build`.
+
 ---
-
-
-
 
 ## [2026-08-06 16:40:00] - Refactor: Tối ưu hóa mốc đối chiếu EOD bằng Header Date và lệnh MM bằng Real-World Calendar Date
 
@@ -46,6 +62,7 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
   - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa logic kiểm tra ràng buộc phụ thuộc (dependency check), cho phép bỏ qua kiểm tra khi reset tác vụ về trạng thái chưa thực hiện (`WAITING` hoặc `PENDING`) để tránh gây kẹt lỗi không thể reset.
   - [exported_templates.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/exported_templates.json), [seed-subtasks.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/seed-subtasks.js): Loại bỏ hoàn toàn tác vụ con `ops_open_01_s2` ("Bot gửi cảnh báo hệ thống nếu không có email thành công") để đồng bộ luồng nghiệp vụ tự động hóa và tránh lỗi giả trong Checklist Mở Cửa. Điều chỉnh `sortOrder` của các tác vụ con liền sau.
   - [system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts): Sửa đổi hàm `sendSecurityAuditEmail()`, bổ sung đệ quy loại bỏ các trường thời gian cập nhật động của Bot (`lastEmailSentAt`, `lastEmailStatus`, `lastEmailError`) khi so sánh cấu hình `margin_checker_config` để ngăn chặn spam email cảnh báo đổi cấu hình hệ thống vô nghĩa.
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Sửa đổi hàm `sendEmailNotification()` và `updateDeliveryStatus()`, bổ sung cơ chế lưu tiêu đề gửi gần nhất `lastSubject` và áp dụng bộ kiểm soát tần suất (SMTP Throttle Cooldown) **10 phút** đối với các email gửi đi có nội dung/tiêu đề trùng lặp để ngăn chặn tuyệt đối tình trạng Bot liên tục gửi trùng email đối chiếu số dư EOD.
 
 #### 🟢 Frontend
 - **Sửa đổi**:

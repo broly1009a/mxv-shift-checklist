@@ -218,7 +218,7 @@ export class MarginCheckerService {
     return newDate;
   }
 
-  async updateDeliveryStatus(checkerType: string, status: 'SUCCESS' | 'FAILED', errorMsg?: string) {
+  async updateDeliveryStatus(checkerType: string, status: 'SUCCESS' | 'FAILED', errorMsg?: string, subject?: string) {
     try {
       const configStr = await this.systemSettingsService.getSetting(
         'margin_checker_config',
@@ -231,6 +231,9 @@ export class MarginCheckerService {
       config[checkerType].lastEmailSentAt = new Date().toISOString();
       config[checkerType].lastEmailStatus = status;
       config[checkerType].lastEmailError = errorMsg || null;
+      if (subject) {
+        config[checkerType].lastSubject = subject;
+      }
       
       await this.systemSettingsService.setSetting(
         'margin_checker_config',
@@ -250,6 +253,23 @@ export class MarginCheckerService {
     attachments: Array<{ filename: string; content: Buffer }> = [],
     checkerType?: string,
   ) {
+    if (checkerType) {
+      const lastSentStr = config[checkerType]?.lastEmailSentAt;
+      const lastSubject = config[checkerType]?.lastSubject;
+      if (lastSentStr && lastSubject === subject) {
+        const lastSent = new Date(lastSentStr);
+        const now = new Date();
+        const diffMs = now.getTime() - lastSent.getTime();
+        const cooldownMinutes = 10; // 10 phút cooldown chống gửi trùng mail cùng tiêu đề
+        if (diffMs < cooldownMinutes * 60 * 1000) {
+          this.logger.log(
+            `[SMTP-Throttle] Bỏ qua gửi trùng email cho ${checkerType} (Tiêu đề: "${subject}") trong thời gian cooldown ${cooldownMinutes} phút.`,
+          );
+          return { success: true, messageId: 'throttled' };
+        }
+      }
+    }
+
     const smtp = {
       host: process.env.SMTP_HOST || config.smtp?.host || 'smtp.office365.com',
       port: parseInt(process.env.SMTP_PORT || '') || config.smtp?.port || 587,
@@ -287,13 +307,13 @@ export class MarginCheckerService {
 
       this.logger.log(`Email đã gửi thành công: ${info.messageId}`);
       if (checkerType) {
-        await this.updateDeliveryStatus(checkerType, 'SUCCESS');
+        await this.updateDeliveryStatus(checkerType, 'SUCCESS', undefined, subject);
       }
       return { success: true, messageId: info.messageId };
     } catch (err) {
       this.logger.error(`Lỗi gửi mail: ${err.message}`);
       if (checkerType) {
-        await this.updateDeliveryStatus(checkerType, 'FAILED', err.message);
+        await this.updateDeliveryStatus(checkerType, 'FAILED', err.message, subject);
       }
       return { success: false, error: err.message };
     }
