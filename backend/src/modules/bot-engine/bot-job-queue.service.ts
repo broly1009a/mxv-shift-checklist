@@ -21,6 +21,7 @@ import { LotStatisticsService } from '../lot-statistics/lot-statistics.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { CcpStatisticsService } from '../ccp-statistics/ccp-statistics.service';
+import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import * as XLSX from 'xlsx';
 
 // =========================================================================
@@ -77,6 +78,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly shiftsService: ShiftsService,
     private readonly shiftsGateway: ShiftsGateway,
     private readonly ccpStatisticsService: CcpStatisticsService,
+    private readonly marginCheckerService: MarginCheckerService,
   ) {}
 
   onModuleInit() {
@@ -162,11 +164,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     isOnline: boolean,
   ) {
     try {
-      const configStr = await this.settingsService.getSetting(
-        'margin_checker_config',
-        '{}',
-      );
-      const config = JSON.parse(configStr);
+      const config = await this.marginCheckerService.loadConfig();
       const mailSettings = config.opFailureAlert || {
         isSendWarning: true,
         email: ['it.support@mxv.vn'],
@@ -2520,11 +2518,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async sendOperationalFailureAlert(job: BotJob, errorMsg: string) {
     try {
-      const configStr = await this.settingsService.getSetting(
-        'margin_checker_config',
-        '{}',
-      );
-      const config = JSON.parse(configStr);
+      const config = await this.marginCheckerService.loadConfig();
       const mailSettings = config.opFailureAlert || {
         isSendWarning: true,
         email: ['it.support@mxv.vn'],

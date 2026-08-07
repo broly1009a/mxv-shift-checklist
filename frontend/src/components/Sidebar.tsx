@@ -404,6 +404,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   <Calendar size={18} style={{ flexShrink: 0 }} />
                   <span>Lịch giao dịch</span>
                 </Link>
+                {/* 
                 <Link
                   href="/admin/notifications"
                   onClick={onClose}
@@ -413,6 +414,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   <Bell size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình thông báo</span>
                 </Link>
+                */}
                 <Link
                   href="/admin/permissions"
                   onClick={onClose}

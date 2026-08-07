@@ -15,7 +15,72 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Backend: `pm2 start dist/main.js --name "mxv-backend"`
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+## [2026-08-07 14:15:00] - Bugfix: Sửa lỗi Bot không tự động báo "Không đạt" (FAILED) khi quá hạn SLA
 
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  1. Sửa lỗi Bot kiểm tra email (ví dụ: Job Snapshot) bị kẹt ở trạng thái "Đang kiểm tra" (WAITING) vô thời hạn mặc dù đã quá giờ cam kết SLA đầu ca trực (04:15).
+  2. Ngăn chặn Bot đối chiếu khớp lệnh trong phiên (`CHECK_KLGD`) và Pre-EOD (`CHECK_PRE_EOD`) báo lệch (FAILED) oan và bắn cảnh báo spam lên Telegram khi thư mục backup thiếu các file CQG (do người dùng chưa xin được tài khoản CQG nên không tải được `fr1`, `fr2`, `ps1`, `ps2`...).
+- **Nguyên nhân**:
+  * Tác vụ kiểm tra trễ hạn `isOverdue` cũ chỉ đọc SLA của con (vốn là null) nên không biết là trễ.
+  * Tác vụ đối chiếu KLGD (`runAutoCheckKLGD`) cũ không kiểm tra tính đầy đủ của file nguồn, cứ thế so sánh danh sách lệnh M-System với dữ liệu CQG rỗng (do file CQG không tồn tại), dẫn đến luôn báo LỆCH khớp lệnh (FAILED) và gửi cảnh báo lỗi.
+  * Tác vụ Pre-EOD mặc dù có check thiếu file và trả về `isWaitingFiles: true`, nhưng logic bot-engine cũ lại đánh giá job này thành công (`COMPLETED`) và tự động chuyển tác vụ checklist sang Đạt (`PASSED`), dẫn đến dừng quét và người dùng tưởng rằng đã đối chiếu xong dù thực tế chưa có file.
+- **Giải pháp**:
+  * Cấu trúc lại logic kiểm tra trễ hạn `isOverdue` trong `bot-engine.service.ts`: tự động thừa kế và so sánh song song SLA của cả con và cha (`isSubtaskOverdue || isParentOverdue`).
+  * Bổ sung cơ chế quét file thiếu trong `runAutoCheckKLGD` tương tự Pre-EOD (kiểm tra `DSGD.xlsx`, `Straits.csv`, và `FR.xlsx`). Nếu thiếu bất kỳ file nào, trả về trạng thái `isWaitingFiles: true`.
+  * Cập nhật logic xử lý kết quả job `COMPLETED` trong `bot-engine.service.ts` (dòng 665): Nếu job hoàn thành nhưng trả về `isWaitingFiles: true` (đang chờ file), Bot sẽ trả về kết quả `success: false` cùng mô tả danh sách file thiếu. Nhờ vậy, tác vụ trong ca trực vẫn hiển thị spinner **"Đang kiểm tra" (WAITING)** để tiếp tục quét lại ở chu kỳ tiếp theo, thay vì tự chuyển sang Đạt (`PASSED`) hay chuyển sang Lệch (`FAILED`). Khi chạm mốc SLA trễ hạn mà file vẫn chưa có, tác vụ sẽ tự động chuyển sang **Không đạt (FAILED)**.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Sửa logic tính toán `isOverdue` (thừa kế SLA cha) và sửa xử lý job `COMPLETED` có cờ `isWaitingFiles` để giữ trạng thái `WAITING`.
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts): Thêm kiểm tra thiếu file trong `runAutoCheckKLGD` để trả về cờ `isWaitingFiles`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Chạy `npm run build` biên dịch NestJS thành công 100%.
+
+---
+
+## [2026-08-07 12:05:00] - Refactor: Đồng bộ cấu hình cảnh báo của Bot (Margin Checker) vào bảng Luật thông báo Admin (NotificationRule)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Quy hoạch và đồng bộ hệ thống cấu hình cảnh báo của Bot (Margin Checker Modal) vào cơ sở dữ liệu Luật thông báo chung (B) để tránh trùng lặp, tăng tính mở rộng lâu dài nhưng vẫn giữ nguyên giao diện Card trực quan cho người dùng và không làm ảnh hưởng đến thuật toán chạy lõi của Bot.
+- **Giải pháp**:
+  - Thiết lập cơ chế ánh xạ thông minh tại Backend: Sửa đổi `MarginCheckerService` để khi load/save cấu hình sẽ tương tác trực tiếp với các bản ghi trong bảng `NotificationRule` (thay vì lưu chuỗi JSON tĩnh `margin_checker_config` trong `SystemSetting`).
+  - Giữ nguyên cấu hình kết nối SMTP máy chủ gửi mail trong `SystemSetting` để quản trị tập trung.
+  - Sửa đổi Mongoose schema của `NotificationRule` để hỗ trợ lưu trữ các trường email người nhận (`recipient`), Telegram chat ID (`telegramChatId`), Khối/Bộ phận (`block`), và trạng thái cảnh báo (`isSendWarning`).
+  - Cập nhật dịch vụ vận hành Bot `BotJobQueueService` đọc danh sách email và bật/tắt cảnh báo trực tiếp từ cấu hình động của `MarginCheckerService.loadConfig()`.
+  - Ẩn liên kết truy cập menu "Cấu hình thông báo" cũ trên Sidebar của Admin.
+  - Tích hợp trực tiếp nút mở Modal cấu hình Card trực quan vào tab "Tham số & Lập lịch" của trang quản trị Bot Admin (`/admin/bot-config`).
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [notification-rule.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/notification-rule.schema.ts): Bổ sung các thuộc tính `recipient`, `telegramChatId`, `block`, `isSendWarning`, `customParams` và chuyển `template` thành optional.
+  - [margin-checker.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.module.ts): Import `MongooseModule` và nạp schema của `NotificationRule` & `NotificationChannel`.
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Thay thế lưu trữ JSON `margin_checker_config` bằng cách query và cập nhật bảng `notification_rules`.
+  - [bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.module.ts): Import `MarginCheckerModule` để cho phép tiêm (inject) `MarginCheckerService`.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Tiêm `MarginCheckerService` và thay thế các truy vấn JSON `margin_checker_config` bằng hàm `marginCheckerService.loadConfig()`.
+- **Thêm mới**:
+  - [seed-notification-rules.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/seed-notification-rules.js): Script seed các luật thông báo (`MARGIN_ON_ORDER`, `EOD_CHECK`, `BOT_FAILURE`,...) và kênh thông báo mặc định.
+  - [drop-logs.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/drop-logs.js): Script dọn dẹp các bộ nhớ logs tạm thời giải phóng dung lượng cho MongoDB Atlas.
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx): Comment out liên kết `/admin/notifications`.
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/page.tsx): Thêm state `isMarginModalOpen`, nút kích hoạt mở `MarginCheckerModal` cấu hình card.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Chạy `nest build` biên dịch thành công 100$.
+  - Seed thành công dữ liệu mặc định vào Atlas DB sau khi dọn dẹp log trống.
+- **Frontend**:
+  - Chạy type-checking `npx tsc --noEmit` thành công không phát sinh bất kỳ lỗi nào.
+
+---
 
 ## [2026-08-07 10:51:00] - Bugfix: Sửa lỗi TypeScript 'Argument of type 'null' is not assignable to parameter of type 'string | undefined''
 

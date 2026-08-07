@@ -3432,6 +3432,30 @@ export class ReconciliationService {
       '05:00',
     );
 
+    const missingFiles: string[] = [];
+    if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
+    if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
+    if (!cqgFrPath) missingFiles.push(`CQG FR`);
+
+    if (missingFiles.length > 0) {
+      return {
+        passed: true,
+        isWaitingFiles: true,
+        sessionStart: tradingDate,
+        checkTime: new Date(),
+        message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
+        totals: {
+          totalDSGD: 0,
+          totalFR: 0,
+          totalACM: 0,
+          totalNano: 0,
+          differ: 0,
+          differACM: 0,
+        },
+        mismatchedTrades: [],
+      };
+    }
+
     const files: any = {};
     if (fs.existsSync(dsgdPath)) files.dsgd = fs.readFileSync(dsgdPath);
     if (cqgFrPath && fs.existsSync(cqgFrPath))

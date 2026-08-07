@@ -17,7 +17,7 @@ async function main() {
   const db = client.db('mxv_shift_checklist');
 
   // Mốc thời gian: Xóa các log cũ hơn 7 ngày
-  const daysToKeep = 7;
+  const daysToKeep = 1;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
