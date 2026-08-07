@@ -27,7 +27,11 @@ export const EmailScanVisualReport: React.FC<EmailScanVisualReportProps> = ({ em
 
   // If we couldn't parse the subject from text, try scanning rawText for it:
   let displaySubject = subject;
-  if (!displaySubject) {
+  const isExplicitlyEmpty = rawText.includes('khớp tiêu đề ""') || rawText.includes('tiêu đề ""');
+  
+  if (isExplicitlyEmpty) {
+    displaySubject = 'Bất kỳ tiêu đề nào (Không giới hạn)';
+  } else if (!displaySubject) {
     const match = rawText.match(/khớp tiêu đề\s*["']([^"']+)["']/i) || rawText.match(/email khớp:\s*["']([^"']+)["']/i);
     if (match) displaySubject = match[1];
   }
