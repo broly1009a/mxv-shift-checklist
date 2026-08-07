@@ -1133,14 +1133,21 @@ export class BotEngineService {
             this.logger.log(
               `[Bot] Task [${task.taskId}] check PASSED: ${checkResult.message}`,
             );
-            await this.shiftsService.updateTaskStatus(
-              log._id.toString(),
-              task.taskId,
-              'PASSED',
-              systemUser,
-              checkResult.message,
-              true,
-            );
+            try {
+              await this.shiftsService.updateTaskStatus(
+                log._id.toString(),
+                task.taskId,
+                'PASSED',
+                systemUser,
+                checkResult.message,
+                true,
+              );
+            } catch (updateErr: any) {
+              // Dependency not yet satisfied — skip silently, bot will retry next cycle
+              this.logger.warn(
+                `[Bot] Task [${task.taskId}] PASSED check but skipped update: ${updateErr.message}`,
+              );
+            }
           } else {
             // Check for SLA deadline breach
             let isOverdue = false;
@@ -1196,16 +1203,22 @@ export class BotEngineService {
               this.logger.warn(
                 `[Bot] Task [${task.taskId}] failed immediately or breached SLA. Transitioning to FAILED state.`,
               );
-              await this.shiftsService.updateTaskStatus(
-                log._id.toString(),
-                task.taskId,
-                'FAILED',
-                systemUser,
-                (checkResult as any).forceFailed
-                  ? checkResult.message
-                  : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`,
-                true,
-              );
+              try {
+                await this.shiftsService.updateTaskStatus(
+                  log._id.toString(),
+                  task.taskId,
+                  'FAILED',
+                  systemUser,
+                  (checkResult as any).forceFailed
+                    ? checkResult.message
+                    : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`,
+                  true,
+                );
+              } catch (updateErr: any) {
+                this.logger.warn(
+                  `[Bot] Task [${task.taskId}] FAILED transition skipped: ${updateErr.message}`,
+                );
+              }
             } else {
               // Update status note with retry logs
               const formattedTime = nowVN

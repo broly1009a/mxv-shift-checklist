@@ -625,7 +625,7 @@ export class ShiftsService {
 
     // Create Audit Log record
     let auditLogRecord: any = null;
-    if (oldStatus !== status) {
+    if (oldStatus !== status && oldIsChecked !== isChecked) {
       const audit = new this.auditLogModel({
         shiftLogId: new Types.ObjectId(shiftLogId),
         taskId,

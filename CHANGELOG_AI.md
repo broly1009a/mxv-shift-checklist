@@ -15,6 +15,29 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Backend: `pm2 start dist/main.js --name "mxv-backend"`
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+## [2026-08-07 17:50:00] - Bugfix: Khắc phục lỗi trùng lặp thông báo (Duplicate Notification) & Ẩn log lỗi của Bot khi chưa đủ điều kiện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  1. Loại bỏ hiện tượng trùng lặp thông báo khi một tác vụ được cập nhật (ví dụ: hiển thị cả thông báo của "Hệ thống" và "Trương Hoàng Hiệp" cho cùng một hành động).
+  2. Khắc phục lỗi log `ERROR [BotEngineService] Error executing bot checklist loop` liên tục mỗi phút khi Bot cố gắng cập nhật trạng thái tác vụ nhưng gặp ràng buộc dependency (ví dụ: tác vụ trước đó chưa hoàn thành).
+- **Nguyên nhân**:
+  - **Trùng lặp thông báo**: Khi trạng thái tác vụ chuyển đổi giữa các trạng thái không tích chọn (như `PENDING` -> `WAITING` hoặc `WAITING` -> `FAILED`), mặc dù trạng thái `isChecked` (được tích hoàn thành) đều là `false` (không đổi), backend vẫn ghi nhận một Audit Log có hành động `UNCHECK` (bỏ tích). Điều này tạo ra hai log "bỏ tích" song song: một từ người dùng thực tế thao tác trước đó, một từ Bot cập nhật ghi chú/logs sau đó.
+  - **Log ERROR lặp lại**: Bot Engine khi quét tự động và chạy thành công sẽ gọi `shiftsService.updateTaskStatus` để cập nhật trạng thái tác vụ thành `PASSED`. Tuy nhiên, nếu tác vụ phụ thuộc chưa hoàn thành, hàm này ném ra `BadRequestException`. Ngoại lệ này bị bắt ở khối `try-catch` lớn của Bot Engine và ghi nhận dưới dạng `ERROR` kèm stack trace làm tràn ngập nhật ký hệ thống.
+- **Giải pháp**:
+  - **Khống chế Duplicate Notification**: Trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts), chỉ lưu Audit Log hành động `CHECK` hoặc `UNCHECK` khi trạng thái tích chọn thực tế có thay đổi (`oldIsChecked !== isChecked`). Nếu chỉ đổi trạng thái nội bộ (ví dụ: `PENDING` sang `WAITING`) mà không làm thay đổi trạng thái tick hoàn thành, hệ thống sẽ bỏ qua việc tạo Audit Log trùng lặp.
+  - **Giảm cấp độ log lỗi của Bot**: Trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts), bọc lệnh cập nhật trạng thái `PASSED` bằng khối `try-catch` riêng. Nếu ném ra lỗi do chưa hoàn thành dependency, hệ thống ghi nhận dạng `WARN` và bỏ qua để thử lại ở lượt quét kế tiếp, tránh ném lỗi nghiêm trọng `ERROR`.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa điều kiện lưu Audit Log trạng thái, chỉ tạo bản ghi khi `oldStatus !== status && oldIsChecked !== isChecked`.
+  - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Bổ sung try-catch cục bộ khi cập nhật trạng thái `PASSED` và `FAILED` để xử lý ngoại lệ dependency và chuyển mức log từ `ERROR` sang `WARN`.
+
+### 3. Xác nhận Build/Kiểm thử
+- Chạy `npm run build` trên cả Frontend và Backend thành công, không phát sinh lỗi biên dịch.
+
 ## [2026-08-07 14:15:00] - Bugfix: Sửa lỗi Bot không tự động báo "Không đạt" (FAILED) khi quá hạn SLA
 
 ### 1. Mục tiêu Thay đổi
