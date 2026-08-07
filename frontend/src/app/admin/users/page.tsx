@@ -391,7 +391,7 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
                 {/* Search Text Input */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tìm kiếm tài khoản / họ tên</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tìm kiếm tài khoản / họ tên</label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type="text"
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
                       placeholder="Nhập tên, username..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ paddingLeft: '36px' }}
+                      style={{ paddingLeft: '36px', fontSize: '0.85rem' }}
                     />
                     <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>
@@ -457,11 +457,12 @@ export default function AdminUsersPage() {
                   }}
                   className="btn btn-secondary"
                   style={{
-                    height: '46px',
+                    height: '42px', // changed from 46px to match filter height of 42px
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    fontSize: '0.85rem',
                     borderColor: (searchQuery || filterRole || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)',
                     color: (searchQuery || filterRole || filterDepartment || filterActive) ? '#ef4444' : 'var(--text-muted)',
                     background: (searchQuery || filterRole || filterDepartment || filterActive) ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.02)',

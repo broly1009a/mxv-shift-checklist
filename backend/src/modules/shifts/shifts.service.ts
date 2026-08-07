@@ -438,8 +438,39 @@ export class ShiftsService {
       (d) => d.parentTaskIdSnapshot === taskId,
     );
     if (isParentTask && !isInternal) {
-      throw new BadRequestException(
-        `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
+      if (status !== 'SKIPPED' && status !== 'PENDING') {
+        throw new BadRequestException(
+          `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
+        );
+      }
+      // Cascade update children tasks in the database first to prevent WebSocket out-of-sync lag
+      const childrenIsChecked = status === 'SKIPPED';
+      const nowTime = new Date();
+      const setFields: any = {
+        'details.$[elem].status': status,
+        'details.$[elem].isChecked': childrenIsChecked,
+        'details.$[elem].updatedBy': new Types.ObjectId(user.id || user._id) as any,
+      };
+
+      if (status === 'PENDING') {
+        setFields['details.$[elem].startedAt'] = null;
+        setFields['details.$[elem].completedAt'] = null;
+        setFields['details.$[elem].failedAt'] = null;
+        setFields['details.$[elem].skippedAt'] = null;
+        setFields['details.$[elem].needsAttentionAt'] = null;
+        setFields['details.$[elem].checkedAt'] = null;
+      } else if (status === 'SKIPPED') {
+        setFields['details.$[elem].skippedAt'] = nowTime;
+        setFields['details.$[elem].completedAt'] = null;
+        setFields['details.$[elem].failedAt'] = null;
+        setFields['details.$[elem].needsAttentionAt'] = null;
+        setFields['details.$[elem].checkedAt'] = nowTime;
+      }
+
+      await this.shiftLogModel.updateOne(
+        { _id: shiftLogId },
+        { $set: setFields },
+        { arrayFilters: [{ 'elem.parentTaskIdSnapshot': taskId }] },
       );
     }
 
@@ -687,48 +718,7 @@ export class ShiftsService {
     }
 
     // Auto-update parent tasks if any child or dependency is updated
-    if (isParentTask && !isInternal) {
-      // Auto-update children tasks if updating a parent task directly
-      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
-      if (latestLog) {
-        const children = latestLog.details.filter(
-          (d) => d.parentTaskIdSnapshot === taskId,
-        );
-        if (children.length > 0) {
-          let updatedChild = false;
-          for (const child of children) {
-            if (child.isChecked !== isChecked) {
-              await this.shiftLogModel.updateOne(
-                { _id: shiftLogId, 'details.taskId': child.taskId },
-                {
-                  $set: {
-                    'details.$.status': status,
-                    'details.$.isChecked': isChecked,
-                    'details.$.checkedAt': isChecked ? new Date() : null,
-                    'details.$.updatedBy': new Types.ObjectId(
-                      user.id || user._id,
-                    ),
-                  },
-                },
-              );
-              updatedChild = true;
-            }
-          }
-          if (updatedChild) {
-            return (await this.shiftLogModel
-              .findById(shiftLogId)
-              .populate('userId', 'fullName username')
-              .populate('closedBy', 'fullName username')
-              .populate('details.updatedBy', 'fullName username')
-              .populate({
-                path: 'templateId',
-                populate: { path: 'departmentId' },
-              })
-              .exec()) as ShiftLog;
-          }
-        }
-      }
-    } else {
+    if (!isParentTask) {
       // It is a subtask or regular task. We re-evaluate all parent tasks.
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {

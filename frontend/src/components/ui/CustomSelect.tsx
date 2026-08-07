@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface Option {
   value: string;
@@ -14,6 +15,9 @@ interface CustomSelectProps {
   onChange: (value: string) => void;
   flex?: number | string;
   minWidth?: string;
+  clearable?: boolean;
+  height?: string;
+  fontSize?: string;
 }
 
 export default function CustomSelect({
@@ -22,7 +26,10 @@ export default function CustomSelect({
   selectedValue,
   onChange,
   flex = 1,
-  minWidth = '160px'
+  minWidth = '160px',
+  clearable = true,
+  height = '42px',
+  fontSize = '0.85rem'
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +46,8 @@ export default function CustomSelect({
 
   const selectedOption = options.find(opt => opt.value === selectedValue);
 
+  const showClearButton = clearable && selectedValue && selectedValue !== 'ALL';
+
   return (
     <div style={{ flex, minWidth, position: 'relative' }} ref={containerRef}>
       {label && (
@@ -46,22 +55,29 @@ export default function CustomSelect({
           {label}
         </label>
       )}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <input
           type="text"
           value={selectedOption ? selectedOption.label : ''}
           onClick={() => setIsOpen(!isOpen)}
-          className="form-control"
+          className="form-input"
           style={{ 
             width: '100%', 
-            height: '42px', 
-            paddingRight: selectedValue && selectedValue !== 'ALL' ? '32px' : '14px', 
+            height: height, 
+            paddingRight: '32px', 
             cursor: 'pointer',
-            caretColor: 'transparent'
+            caretColor: 'transparent',
+            fontSize: fontSize,
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            color: 'var(--text-primary)',
+            outline: 'none',
+            paddingLeft: '10px'
           }}
           readOnly
         />
-        {selectedValue && selectedValue !== 'ALL' && (
+        {showClearButton ? (
           <button
             type="button"
             onClick={(e) => {
@@ -85,6 +101,21 @@ export default function CustomSelect({
           >
             ✕
           </button>
+        ) : (
+          <div style={{
+            position: 'absolute',
+            right: '10px',
+            top: '50%',
+            transform: isOpen ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)',
+            pointerEvents: 'none',
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'transform 0.2s ease',
+            transformOrigin: 'center'
+          }}>
+            <ChevronDown size={14} />
+          </div>
         )}
       </div>
 
@@ -100,7 +131,9 @@ export default function CustomSelect({
           boxShadow: 'var(--shadow-lg)',
           zIndex: 50,
           backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)'
+          WebkitBackdropFilter: 'blur(20px)',
+          maxHeight: '260px',
+          overflowY: 'auto'
         }}>
           {options.map(opt => (
             <div
@@ -111,7 +144,7 @@ export default function CustomSelect({
               }}
               style={{
                 padding: '10px 14px',
-                fontSize: '0.85rem',
+                fontSize: fontSize,
                 cursor: 'pointer',
                 background: selectedValue === opt.value ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                 color: selectedValue === opt.value ? 'var(--color-accent)' : 'var(--text-primary)',

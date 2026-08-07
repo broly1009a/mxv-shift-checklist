@@ -325,8 +325,8 @@ export default function ActivityLogsPage() {
                   placeholder="Nhập API, endpoint (vd: users, bot-config...)"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="form-control"
-                  style={{ paddingLeft: '40px', width: '100%', height: '42px' }}
+                  className="form-input"
+                  style={{ paddingLeft: '40px', width: '100%', height: '42px', fontSize: '0.85rem' }}
                 />
               </div>
             </div>
@@ -545,8 +545,8 @@ export default function ActivityLogsPage() {
               <select
                 value={limit}
                 onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
-                className="form-control"
-                style={{ width: '70px', height: '36px', padding: '0 8px', cursor: 'pointer' }}
+                className="form-input"
+                style={{ width: '70px', height: '36px', padding: '0 8px', cursor: 'pointer', fontSize: '0.85rem' }}
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>

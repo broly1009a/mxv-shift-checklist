@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, BarChart2, Terminal, Server, FolderCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
+import { X, BarChart2, Terminal, Server, FolderCheck, FileSpreadsheet, FileCheck, AlertCircle, Clock } from 'lucide-react';
 import { ParsedBotData, FileAuditItem, MarginAccount, MismatchedTrade } from './bot-log-viewer/types';
 import { ReconciliationVisualReport } from './bot-log-viewer/ReconciliationVisualReport';
 import { FileAuditVisualReport } from './bot-log-viewer/FileAuditVisualReport';
@@ -8,6 +8,7 @@ import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisua
 import { EmailScanVisualReport } from './bot-log-viewer/EmailScanVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import CustomSelect from './CustomSelect';
 
 interface BotLogViewerModalProps {
   isOpen: boolean;
@@ -58,6 +59,25 @@ export default function BotLogViewerModal({
   const selectedJob = useMemo(() => {
     return historyJobs.find(j => (j._id || j.id) === selectedJobId);
   }, [historyJobs, selectedJobId]);
+
+  const jobOptions = useMemo(() => {
+    return historyJobs.map((j, index) => {
+      const date = new Date(j.createdAt);
+      const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const isWaiting = j.payload?.result?.isWaitingFiles;
+      const statusStr = isWaiting
+        ? 'Chờ file'
+        : j.status === 'COMPLETED'
+        ? 'Khớp'
+        : j.status === 'PROCESSING'
+        ? 'Đang chạy'
+        : 'Lệch/Lỗi';
+      return {
+        value: j._id || j.id,
+        label: `Lượt #${historyJobs.length - index} (${timeStr}) - ${statusStr}`
+      };
+    });
+  }, [historyJobs]);
 
   const activeResultNote = useMemo(() => {
     if (!selectedJob) return resultNote;
@@ -420,10 +440,11 @@ export default function BotLogViewerModal({
       }
 
       jsonResult = {
+        ...(isJson ? jsonResult : {}),
         totals,
         mismatchedTrades,
         mismatchedPositions,
-        passed: mismatchedTrades.length === 0 && mismatchedPositions.length === 0
+        passed: jsonResult?.isWaitingFiles ? true : (mismatchedTrades.length === 0 && mismatchedPositions.length === 0)
       };
     } else if (jsonType === 'KLGD') {
       // Parsing for KLGD mode (During Session / KLGD)
@@ -504,12 +525,13 @@ export default function BotLogViewerModal({
       }
 
       jsonResult = {
+        ...(isJson ? jsonResult : {}),
         totals,
         mismatchedTrades,
         mismatchedTTM,
         mismatchedPositions: mismatchedTTM,
         mismatchedTTTT,
-        passed: mismatchedTrades.length === 0 && mismatchedTTM.length === 0 && mismatchedTTTT.length === 0
+        passed: jsonResult?.isWaitingFiles ? true : (mismatchedTrades.length === 0 && mismatchedTTM.length === 0 && mismatchedTTTT.length === 0)
       };
     }
 
@@ -839,9 +861,20 @@ export default function BotLogViewerModal({
                 )}
               </h3>
 
-              {activeStatus === 'WAITING' ? (
-                <span style={{ fontSize: '0.68rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                  ⏳ ĐANG XỬ LÝ
+              {activeStatus === 'WAITING' || parsedData.jsonResult?.isWaitingFiles ? (
+                <span style={{ 
+                  fontSize: '0.68rem', 
+                  padding: '3px 10px', 
+                  borderRadius: '20px', 
+                  fontWeight: 700, 
+                  backgroundColor: 'rgba(251, 191, 36, 0.15)', 
+                  color: '#fbbf24', 
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Clock size={12} /> ĐANG CHỜ FILE
                 </span>
               ) : isFailed ? (
                 <span style={{ fontSize: '0.68rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
@@ -857,32 +890,15 @@ export default function BotLogViewerModal({
               {historyJobs.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lần quét:</span>
-                  <select
-                    value={selectedJobId}
-                    onChange={(e) => setSelectedJobId(e.target.value)}
-                    style={{
-                      fontSize: '0.72rem',
-                      padding: '3px 10px',
-                      borderRadius: '6px',
-                      backgroundColor: 'var(--bg-input)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      fontWeight: 600
-                    }}
-                  >
-                    {historyJobs.map((j, index) => {
-                      const date = new Date(j.createdAt);
-                      const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                      const statusStr = j.status === 'COMPLETED' ? 'Khớp' : j.status === 'PROCESSING' ? 'Đang chạy' : 'Lệch/Lỗi';
-                      return (
-                        <option key={j._id || j.id} value={j._id || j.id}>
-                          Lượt #{historyJobs.length - index} ({timeStr}) - {statusStr}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <CustomSelect
+                    options={jobOptions}
+                    selectedValue={selectedJobId}
+                    onChange={setSelectedJobId}
+                    clearable={false}
+                    minWidth="220px"
+                    height="32px"
+                    fontSize="0.72rem"
+                  />
                 </div>
               )}
             </div>

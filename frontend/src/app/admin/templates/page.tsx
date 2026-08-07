@@ -751,20 +751,20 @@ export default function AdminTemplatesPage() {
                 </div>
 
                 {isAdmin && (
-                  <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <button 
                       onClick={() => openEditTemplateModal(selectedTemplate)} 
                       className="btn btn-secondary" 
-                      style={{ padding: '12px 20px' }}
+                      style={{ padding: '8px 14px', fontSize: '0.82rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Edit size={16} /> Sửa thông tin mẫu
+                      <Edit size={14} /> Sửa thông tin mẫu
                     </button>
                     <button 
                       onClick={() => handleDeleteTemplate(selectedTemplate)} 
                       className="btn btn-secondary" 
-                      style={{ padding: '12px 20px', color: '#ef4444' }}
+                      style={{ padding: '8px 14px', fontSize: '0.82rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444' }}
                     >
-                      <Trash2 size={16} /> Xóa mẫu
+                      <Trash2 size={14} /> Xóa mẫu
                     </button>
                   </div>
                 )}

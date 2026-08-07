@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 
 interface Option {
   value: string;
@@ -17,6 +17,7 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   flex?: number | string;
   minWidth?: string;
+  fontSize?: string;
 }
 
 export default function SearchableSelect({
@@ -26,7 +27,8 @@ export default function SearchableSelect({
   selectedValue,
   onChange,
   flex = 1,
-  minWidth = '200px'
+  minWidth = '200px',
+  fontSize = '0.85rem'
 }: SearchableSelectProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -49,6 +51,8 @@ export default function SearchableSelect({
 
   const selectedOption = options.find(opt => opt.value === selectedValue);
 
+  const showClearButton = selectedValue && selectedValue !== 'ALL';
+
   return (
     <div style={{ flex, minWidth, position: 'relative' }} ref={containerRef}>
       {label && (
@@ -56,7 +60,7 @@ export default function SearchableSelect({
           {label}
         </label>
       )}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {isOpen && (
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
         )}
@@ -69,17 +73,23 @@ export default function SearchableSelect({
             setSearchQuery('');
           }}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="form-control"
+          className="form-input"
           style={{ 
             width: '100%', 
             height: '42px', 
             paddingLeft: isOpen ? '32px' : '14px',
-            paddingRight: selectedValue && selectedValue !== 'ALL' ? '32px' : '14px', 
-            cursor: 'pointer' 
+            paddingRight: '32px', 
+            cursor: 'pointer',
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            color: 'var(--text-primary)',
+            outline: 'none',
+            fontSize: fontSize
           }}
           readOnly={!isOpen}
         />
-        {selectedValue && selectedValue !== 'ALL' && (
+        {showClearButton ? (
           <button
             type="button"
             onClick={(e) => {
@@ -104,6 +114,21 @@ export default function SearchableSelect({
           >
             ✕
           </button>
+        ) : (
+          <div style={{
+            position: 'absolute',
+            right: '10px',
+            top: '50%',
+            transform: isOpen ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)',
+            pointerEvents: 'none',
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'transform 0.2s ease',
+            transformOrigin: 'center'
+          }}>
+            <ChevronDown size={14} />
+          </div>
         )}
       </div>
 
@@ -131,7 +156,7 @@ export default function SearchableSelect({
               }}
               style={{
                 padding: '10px 14px',
-                fontSize: '0.85rem',
+                fontSize: fontSize,
                 cursor: 'pointer',
                 background: selectedValue === 'ALL' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                 color: selectedValue === 'ALL' ? 'var(--color-accent)' : 'var(--text-primary)',
@@ -152,14 +177,14 @@ export default function SearchableSelect({
               .filter(opt => opt.value !== 'ALL')
               .map(opt => (
                 <div
-                  key={opt.value}
+                   key={opt.value}
                   onClick={() => {
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
                   style={{
                     padding: '10px 14px',
-                    fontSize: '0.85rem',
+                    fontSize: fontSize,
                     cursor: 'pointer',
                     background: selectedValue === opt.value ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                     color: selectedValue === opt.value ? 'var(--color-accent)' : 'var(--text-primary)',

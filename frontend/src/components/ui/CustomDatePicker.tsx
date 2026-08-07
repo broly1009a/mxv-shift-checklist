@@ -9,6 +9,7 @@ interface CustomDatePickerProps {
   onChange: (value: string) => void;
   flex?: number | string;
   minWidth?: string;
+  fontSize?: string;
 }
 
 export default function CustomDatePicker({
@@ -16,7 +17,8 @@ export default function CustomDatePicker({
   value,
   onChange,
   flex = 1,
-  minWidth = '170px'
+  minWidth = '170px',
+  fontSize = '0.85rem'
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -165,7 +167,7 @@ export default function CustomDatePicker({
           value={getFormattedDisplay()}
           placeholder="Chọn ngày..."
           onClick={() => setIsOpen(!isOpen)}
-          className="form-control"
+          className="form-input"
           style={{ 
             width: '100%', 
             height: '42px', 
@@ -174,7 +176,11 @@ export default function CustomDatePicker({
             paddingRight: value ? '32px' : '14px',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-color)',
-            caretColor: 'transparent'
+            borderRadius: '8px',
+            caretColor: 'transparent',
+            fontSize: fontSize,
+            color: 'var(--text-primary)',
+            outline: 'none'
           }}
           readOnly
         />

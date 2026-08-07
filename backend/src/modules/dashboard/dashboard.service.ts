@@ -242,9 +242,13 @@ export class DashboardService {
       .exec();
     const matchingShiftIds = matchingShifts.map((s) => s._id);
 
-    const auditQuery = {
+    const auditQuery: any = {
       shiftLogId: { $in: matchingShiftIds },
       createdAt: { $gte: startOfDay, $lte: endOfDay },
+      $or: [
+        { action: { $ne: 'NOTE_UPDATE' } },
+        { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } }
+      ]
     };
 
     const auditLogs = await this.auditLogModel
@@ -261,6 +265,7 @@ export class DashboardService {
     // 2. Query System Logs on that date
     const systemQuery: any = {
       createdAt: { $gte: startOfDay, $lte: endOfDay },
+      eventType: { $ne: 'TASK_UPDATED' },
     };
     // For non-admin, filter system logs by department scope
     if (scopeFilter.departmentId) {
@@ -357,13 +362,18 @@ export class DashboardService {
       .exec();
     const matchingShiftIds = matchingShifts.map((s) => s._id);
 
-    const auditQuery = {
+    const auditQuery: any = {
       shiftLogId: { $in: matchingShiftIds },
       createdAt: { $gt: filterStart, $lte: endOfDay },
+      $or: [
+        { action: { $ne: 'NOTE_UPDATE' } },
+        { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } }
+      ]
     };
 
     const systemQuery: any = {
       createdAt: { $gt: filterStart, $lte: endOfDay },
+      eventType: { $ne: 'TASK_UPDATED' },
     };
 
     if (scopeFilter.departmentId) {
