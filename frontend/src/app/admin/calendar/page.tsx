@@ -16,6 +16,7 @@ import {
   Info,
   List,
   Clock,
+  Moon,
   Settings,
   Check
 } from 'lucide-react';
@@ -237,12 +238,21 @@ export default function AdminCalendarPage() {
         ? `${API_BASE_URL}/api/v1/shift-slots/${editingSlot.id}`
         : `${API_BASE_URL}/api/v1/shift-slots`;
       const method = editingSlot ? 'PUT' : 'POST';
+      let detectedIsOvernight = slotIsOvernight;
+      if (slotEndTime < slotStartTime && !slotIsOvernight) {
+        detectedIsOvernight = true;
+        toast.success('Tự động bật "Ca qua đêm" do giờ kết thúc sớm hơn giờ bắt đầu');
+      } else if (slotEndTime > slotStartTime && slotIsOvernight) {
+        detectedIsOvernight = false;
+        toast.success('Tự động tắt "Ca qua đêm" do giờ kết thúc muộn hơn giờ bắt đầu');
+      }
+
       const bodyData = {
         name: slotName,
         code: slotCode,
         startTime: slotStartTime,
         endTime: slotEndTime,
-        isOvernight: slotIsOvernight,
+        isOvernight: detectedIsOvernight,
         isActive: slotIsActive,
         sortOrder: Number(slotSortOrder)
       };
@@ -691,7 +701,6 @@ export default function AdminCalendarPage() {
                             <th style={{ padding: '12px 8px' }}>Mã ca</th>
                             <th style={{ padding: '12px 8px' }}>Bắt đầu</th>
                             <th style={{ padding: '12px 8px' }}>Kết thúc</th>
-                            <th style={{ padding: '12px 8px' }}>Qua đêm</th>
                             <th style={{ padding: '12px 8px' }}>Trạng thái</th>
                             <th style={{ padding: '12px 8px', textAlign: 'right' }}>Thao tác</th>
                           </tr>
@@ -702,13 +711,22 @@ export default function AdminCalendarPage() {
                               <td style={{ padding: '14px 8px', fontWeight: 600 }}>{slot.name}</td>
                               <td style={{ padding: '14px 8px' }}><code style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{slot.code}</code></td>
                               <td style={{ padding: '14px 8px' }}>{slot.startTime}</td>
-                              <td style={{ padding: '14px 8px' }}>{slot.endTime}</td>
                               <td style={{ padding: '14px 8px' }}>
-                                {slot.isOvernight ? (
-                                  <span style={{ color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600 }}>Có</span>
-                                ) : (
-                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>Không</span>
-                                )}
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  {slot.endTime}
+                                  {slot.isOvernight && (
+                                    <span title="Ca trực qua đêm (Vắt sang ngày tiếp theo)" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                      <Moon 
+                                        size={14} 
+                                        color="#f59e0b" 
+                                        style={{ 
+                                          fill: 'rgba(245, 158, 11, 0.25)', 
+                                          filter: 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.4))'
+                                        }}
+                                      />
+                                    </span>
+                                  )}
+                                </span>
                               </td>
                               <td style={{ padding: '14px 8px' }}>
                                 {slot.isActive ? (

@@ -6,6 +6,7 @@ import { BotEngineModule } from '../bot-engine/bot-engine.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     SystemSettingsModule,
     MarginCheckerModule,
     NotificationsModule,
+    AuthModule,
   ],
   providers: [ReconciliationService],
   controllers: [ReconciliationController],

@@ -10,6 +10,7 @@ type TabType = 'profile' | 'notifications' | 'security';
 
 export default function SettingsPage() {
   const { user, token, updateUser } = useAuth();
+  const showTitleField = false; // Đổi sang true nếu muốn hiển thị trường Chức danh công việc
 
   // Tab State
   const [activeTab, setActiveTab] = useState<TabType>('profile');
@@ -236,7 +237,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <label className="form-label">Chức vụ / Vai trò (Read-only)</label>
+                    <label className="form-label">Vai trò phân quyền (Read-only)</label>
                     <input 
                       type="text" 
                       className="form-input" 
@@ -244,6 +245,7 @@ export default function SettingsPage() {
                         user.role === 'ADMIN' ? 'Quản trị viên hệ thống' :
                         user.role === 'CHAIRMAN' ? 'Chủ tịch Hội đồng' :
                         user.role === 'CEO' ? 'Tổng Giám đốc' :
+                        user.role === 'DIVISION_DIRECTOR' ? 'Giám đốc Khối' :
                         user.role === 'DEPARTMENT_HEAD' ? 'Trưởng bộ phận' :
                         'Nhân viên vận hành'
                       } 
@@ -252,17 +254,49 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  {user.department && (
+                  {showTitleField && user.title && (
                     <div>
-                      <label className="form-label">Bộ phận / Phòng ban (Read-only)</label>
+                      <label className="form-label">Chức danh / Chức vụ (Read-only)</label>
                       <input 
                         type="text" 
                         className="form-input" 
-                        value={user.department.name} 
+                        value={user.title} 
                         disabled 
                         style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
                       />
                     </div>
+                  )}
+
+                  {user.department && (
+                    <>
+                      {user.department.parentDepartmentId && (
+                        <div>
+                          <label className="form-label">Đơn vị công tác (Read-only)</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={
+                              typeof user.department.parentDepartmentId === 'object'
+                                ? (user.department.parentDepartmentId as any).name
+                                : user.department.parentDepartmentId
+                            } 
+                            disabled 
+                            style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="form-label">Bộ phận / Phòng ban (Read-only)</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={user.department.name} 
+                          disabled 
+                          style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

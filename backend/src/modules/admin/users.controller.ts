@@ -18,8 +18,8 @@ import { User } from '../../schemas/user.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { Incident } from '../../schemas/incident.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/users')
@@ -31,8 +31,8 @@ export class UsersController {
   ) {}
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD')
+  @UseGuards(PermissionsGuard)
+  @Permissions('VIEW_CHECKLIST', 'MANAGE_USERS')
   async findAll(
     @Query('page') pageNum?: string,
     @Query('limit') limitNum?: string,
@@ -69,7 +69,10 @@ export class UsersController {
     const [data, total] = await Promise.all([
       this.userModel
         .find(filter)
-        .populate('departmentId')
+        .populate({
+          path: 'departmentId',
+          populate: { path: 'parentDepartmentId' },
+        })
         .sort({ username: 1 })
         .skip(skip)
         .limit(limit)
@@ -89,13 +92,14 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   async create(@Body() body: any) {
     const {
       username,
       password,
       fullName,
+      title,
       departmentId,
       role,
       isActive,
@@ -122,6 +126,7 @@ export class UsersController {
       username: lowerUsername,
       passwordHash,
       fullName,
+      title: title || '',
       departmentId: departmentId || null,
       role,
       isActive: isActiveVal,
@@ -130,8 +135,8 @@ export class UsersController {
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   async update(@Param('id') id: string, @Body() body: any) {
     const { password, departmentId, ...rest } = body;
     const isActiveVal = body.isActive;
@@ -157,13 +162,16 @@ export class UsersController {
     }
     return this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
-      .populate('departmentId')
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
       .exec();
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_USERS')
   async remove(@Param('id') id: string) {
     const [hasLog, hasIncident] = await Promise.all([
       this.shiftLogModel

@@ -24,17 +24,24 @@ interface Department {
   _id: string;
   name: string;
   code: string;
+  parentDepartmentId?: string | { _id: string; name: string; code: string } | null;
 }
 
 interface User {
   _id: string;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'CHAIRMAN' | 'CEO' | 'DEPARTMENT_HEAD' | 'STAFF';
+  title?: string;
+  role: 'ADMIN' | 'CHAIRMAN' | 'CEO' | 'DEPARTMENT_HEAD' | 'STAFF' | 'DIVISION_DIRECTOR';
   departmentId?: {
     _id: string;
     name: string;
     code: string;
+    parentDepartmentId?: {
+      _id: string;
+      name: string;
+      code: string;
+    } | null;
   };
   isActive: boolean;
 }
@@ -43,6 +50,7 @@ export default function AdminUsersPage() {
   const { user: currentUser, token } = useAuth();
   const router = useRouter();
   const isAdmin = currentUser?.role === 'ADMIN';
+  const showTitleField = false; // Đổi sang true nếu muốn hiển thị trường Chức danh công việc
 
   // Data state
   const [users, setUsers] = useState<User[]>([]);
@@ -80,13 +88,14 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState<User['role']>('STAFF');
   const [departmentId, setDepartmentId] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [title, setTitle] = useState('');
 
 
 
   // Redirect if not admin or manager
   useEffect(() => {
     if (currentUser) {
-      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD'];
+      const allowedRoles = ['ADMIN', 'CHAIRMAN', 'CEO', 'DEPARTMENT_HEAD', 'DIVISION_DIRECTOR'];
       if (!allowedRoles.includes(currentUser.role)) {
         router.push('/dashboard');
       }
@@ -162,6 +171,7 @@ export default function AdminUsersPage() {
     setUsername('');
     setPassword('');
     setFullName('');
+    setTitle('');
     setRole('STAFF');
     setDepartmentId('');
     setIsActive(true);
@@ -173,6 +183,7 @@ export default function AdminUsersPage() {
     setUsername(u.username);
     setPassword('');
     setFullName(u.fullName);
+    setTitle(u.title || '');
     setRole(u.role);
     setDepartmentId(u.departmentId?._id || '');
     setIsActive(u.isActive !== undefined ? u.isActive : true);
@@ -199,6 +210,7 @@ export default function AdminUsersPage() {
       const bodyPayload = {
         username,
         fullName,
+        title,
         role,
         departmentId: departmentId || null,
         isActive,
@@ -275,6 +287,7 @@ export default function AdminUsersPage() {
       case 'ADMIN': return 'Quản trị viên';
       case 'CHAIRMAN': return 'Chủ tịch';
       case 'CEO': return 'Ban Giám đốc';
+      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
       case 'STAFF': return 'Nhân viên';
       default: return role;
@@ -286,6 +299,7 @@ export default function AdminUsersPage() {
       case 'ADMIN': return { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
       case 'CHAIRMAN': return { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' };
       case 'CEO': return { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' };
+      case 'DIVISION_DIRECTOR': return { background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.2)' };
       case 'DEPARTMENT_HEAD': return { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' };
       default: return { background: 'rgba(107, 114, 128, 0.1)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.2)' };
     }
@@ -354,6 +368,7 @@ export default function AdminUsersPage() {
                     <option value="">-- Tất cả vai trò --</option>
                     <option value="STAFF">Nhân viên vận hành</option>
                     <option value="DEPARTMENT_HEAD">Trưởng bộ phận / Trưởng ca</option>
+                    <option value="DIVISION_DIRECTOR">Giám đốc Khối</option>
                     <option value="CEO">Ban Giám đốc (CEO)</option>
                     <option value="CHAIRMAN">Chủ tịch Hội đồng</option>
                     <option value="ADMIN">Quản trị hệ thống (ADMIN)</option>
@@ -440,9 +455,11 @@ export default function AdminUsersPage() {
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                         <th style={{ padding: '12px 16px' }}>Tên đăng nhập</th>
                         <th style={{ padding: '12px 16px' }}>Họ và tên</th>
-                        <th style={{ padding: '12px 16px' }}>Đơn vị quản lý</th>
+                        <th style={{ padding: '12px 16px' }}>Đơn vị công tác</th>
+                        <th style={{ padding: '12px 16px' }}>Bộ phận trực ca</th>
+                        {showTitleField && <th style={{ padding: '12px 16px' }}>Chức danh / Chức vụ</th>}
                         <th style={{ padding: '12px 16px' }}>Trạng thái</th>
-                        <th style={{ padding: '12px 16px' }}>Vai trò / Chức vụ</th>
+                        <th style={{ padding: '12px 16px' }}>Vai trò phân quyền</th>
                         {isAdmin && <th style={{ padding: '12px 16px' }}>Hành động</th>}
                       </tr>
                     </thead>
@@ -453,15 +470,35 @@ export default function AdminUsersPage() {
                           <td style={{ padding: '14px 16px' }}>{u.fullName}</td>
                           <td style={{ padding: '14px 16px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              {u.departmentId ? (
+                              {u.departmentId?.parentDepartmentId?.name ? (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Layers size={12} /> {u.departmentId.parentDepartmentId.name}
+                                </span>
+                              ) : u.departmentId?.name ? (
                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                   <Layers size={12} /> {u.departmentId.name}
                                 </span>
                               ) : (
-                                <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ban Lãnh Đạo / Admin</em>
+                                <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ban Lãnh đạo / Admin</em>
                               )}
                             </div>
                           </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            {u.departmentId?.parentDepartmentId ? (
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                {u.departmentId.name}
+                              </span>
+                            ) : u.departmentId ? (
+                              <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Toàn đơn vị</em>
+                            ) : (
+                              <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Toàn hệ thống</em>
+                            )}
+                          </td>
+                          {showTitleField && (
+                            <td style={{ padding: '14px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {u.title || <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Chưa gán</em>}
+                            </td>
+                          )}
                           <td style={{ padding: '14px 16px' }}>
                             {u.isActive ? (
                               <span style={{ 
@@ -732,6 +769,29 @@ export default function AdminUsersPage() {
                 />
               </div>
 
+              {showTitleField && (
+                <div>
+                  <label className="form-label">Chức danh (Ví dụ: Chuyên viên, Trưởng ca...)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Nhập hoặc chọn chức danh..."
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    list="title-suggestions"
+                  />
+                  <datalist id="title-suggestions">
+                    <option value="Chuyên viên" />
+                    <option value="Chuyên viên chính" />
+                    <option value="Trưởng ca" />
+                    <option value="Trưởng bộ phận" />
+                    <option value="Phó ban" />
+                    <option value="Trưởng ban" />
+                    <option value="Giám đốc Khối" />
+                  </datalist>
+                </div>
+              )}
+
               <div>
                 <label className="form-label">Vai trò / Chức vụ *</label>
                 <select
@@ -749,6 +809,7 @@ export default function AdminUsersPage() {
                 >
                   <option value="STAFF">STAFF (Nhân viên vận hành)</option>
                   <option value="DEPARTMENT_HEAD">DEPARTMENT_HEAD (Trưởng bộ phận / Trưởng ca)</option>
+                  <option value="DIVISION_DIRECTOR">DIVISION_DIRECTOR (Giám đốc Khối)</option>
                   {(role === 'CEO' || (editingUser && editingUser.role === 'CEO')) && (
                     <option value="CEO">CEO (Tổng Giám đốc / Ban Giám đốc)</option>
                   )}
@@ -760,20 +821,45 @@ export default function AdminUsersPage() {
               </div>
 
               {/* Department selection: Hidden for Admin/CEO/Chairman */}
-              {(role === 'STAFF' || role === 'DEPARTMENT_HEAD') && (
+              {(role === 'STAFF' || role === 'DEPARTMENT_HEAD' || role === 'DIVISION_DIRECTOR') && (
                 <div>
-                  <label className="form-label">Phòng ban trực *</label>
+                  <label className="form-label">
+                    Bộ phận trực ca {role === 'DIVISION_DIRECTOR' ? '(Không bắt buộc)' : '*'}
+                  </label>
                   <select
                     className="form-input"
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
                     style={{ background: 'var(--bg-app)' }}
                   >
-                    <option value="">-- Chọn phòng ban trực --</option>
+                    <option value="">-- Chọn bộ phận trực ca --</option>
                     {filteredDepartments.map(d => (
                       <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
                     ))}
                   </select>
+
+                  {(() => {
+                    const selectedDept = departments.find(d => d._id === departmentId);
+                    const parentDeptId = selectedDept?.parentDepartmentId;
+                    const parentDept = parentDeptId 
+                      ? departments.find(d => d._id === (typeof parentDeptId === 'object' ? (parentDeptId as any)._id : parentDeptId))
+                      : null;
+                    if (parentDept) {
+                      return (
+                        <div style={{ marginTop: '12px' }}>
+                          <label className="form-label">Đơn vị công tác (Tự động theo Bộ phận)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={parentDept.name}
+                            disabled
+                            style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
+                          />
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               )}
 

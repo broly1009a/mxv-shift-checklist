@@ -11,6 +11,7 @@ import {
   Res,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   FileFieldsInterceptor,
@@ -19,37 +20,47 @@ import {
 import * as express from 'express';
 import * as fs from 'fs';
 import { TradingReportService } from './trading-report.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('trading-report')
 export class TradingReportController {
   constructor(private readonly tradingReportService: TradingReportService) {}
 
   @Get('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getConfig() {
     return this.tradingReportService.getConfig();
   }
 
   @Post('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async saveConfig(@Body() config: any) {
     return this.tradingReportService.saveConfig(config);
   }
 
   @Get('exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getExchangeRates() {
     return this.tradingReportService.getExchangeRates();
   }
 
   @Post('exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async saveExchangeRate(@Body() body: any) {
     return this.tradingReportService.saveExchangeRate(body);
   }
 
   @Delete('exchange-rates/:id')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async deleteExchangeRate(@Param('id') id: string) {
     return this.tradingReportService.deleteExchangeRate(id);
   }
 
   @Post('import-exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(FileInterceptor('file'))
   async importExchangeRates(@UploadedFile() file: any) {
     if (!file) {
@@ -62,6 +73,7 @@ export class TradingReportController {
   }
 
   @Post('process-month')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'monthDSGDT', maxCount: 20 },
@@ -150,6 +162,7 @@ export class TradingReportController {
   }
 
   @Post('process-quarter')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'quarterDSGD', maxCount: 20 },
@@ -239,6 +252,7 @@ export class TradingReportController {
   }
 
   @Post('process-tttt')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'ttttT', maxCount: 20 },

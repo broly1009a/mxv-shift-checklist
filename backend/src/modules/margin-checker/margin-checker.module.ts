@@ -3,9 +3,10 @@ import { MarginCheckerService } from './margin-checker.service';
 import { MarginCheckerController } from './margin-checker.controller';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { ShiftsModule } from '../shifts/shifts.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [forwardRef(() => ShiftsModule)],
+  imports: [forwardRef(() => ShiftsModule), AuthModule],
   providers: [MarginCheckerService],
   controllers: [MarginCheckerController],
   exports: [MarginCheckerService],

@@ -651,6 +651,7 @@ export class IncidentsService {
 
   async searchIncidents(query: string, user: any): Promise<Incident[]> {
     const scopeFilter = await this.accessControlService.getScopeFilter(user);
+    console.log('[DEBUG] searchIncidents scopeFilter:', JSON.stringify(scopeFilter));
     const regex = new RegExp(query, 'i');
     const filter: any = {
       $or: [

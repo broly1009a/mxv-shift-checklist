@@ -7,10 +7,15 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { ValueStatisticsService } from './value-statistics.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('value-statistics')
 export class ValueStatisticsController {
   private readonly logger = new Logger(ValueStatisticsController.name);
@@ -21,6 +26,7 @@ export class ValueStatisticsController {
   ) {}
 
   @Get('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getConfig() {
     const macroPath = await this.settingsService.getSetting(
       'bot_macro_value_path',
@@ -37,6 +43,7 @@ export class ValueStatisticsController {
   }
 
   @Put('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async saveConfig(
     @Body() config: { macroPath?: string; targetRoot?: string },
   ) {
@@ -56,6 +63,7 @@ export class ValueStatisticsController {
   }
 
   @Post('process-local')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async processLocal(
     @Body('ngayGD') ngayGD: string,
     @Body('macroPath') macroPath: string,

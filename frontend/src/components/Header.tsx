@@ -152,9 +152,12 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
 
   const getRoleLabel = (role: string = '') => {
     switch (role) {
-      case 'ADMIN': return 'Risk Officer / Admin';
+      case 'ADMIN': return 'Quản trị viên';
+      case 'CHAIRMAN': return 'Chủ tịch';
+      case 'CEO': return 'Ban Giám đốc';
+      case 'DIVISION_DIRECTOR': return 'Giám đốc Khối';
       case 'DEPARTMENT_HEAD': return 'Trưởng bộ phận';
-      case 'STAFF': return 'Risk Staff';
+      case 'STAFF': return 'Nhân viên';
       default: return role;
     }
   };

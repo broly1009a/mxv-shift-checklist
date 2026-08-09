@@ -13,6 +13,9 @@ export class User extends Document {
   @Prop({ required: true })
   fullName: string;
 
+  @Prop({ required: false, type: String, default: '' })
+  title?: string;
+
   @Prop({
     type: Types.ObjectId,
     ref: 'Department',

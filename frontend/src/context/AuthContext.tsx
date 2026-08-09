@@ -7,12 +7,18 @@ interface User {
   id: string;
   username: string;
   fullName: string;
+  title?: string;
   role: string;
   department?: {
     _id: string;
     id: string;
     name: string;
     code: string;
+    parentDepartmentId?: {
+      _id: string;
+      name: string;
+      code: string;
+    } | null;
   };
   permissions?: string[];
   settings?: {

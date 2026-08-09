@@ -24,7 +24,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.userModel
       .findById(payload.sub)
-      .populate('departmentId')
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
       .exec();
     if (!user) {
       throw new UnauthorizedException('User no longer exists');

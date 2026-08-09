@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Department } from '../schemas/department.schema';
 import { User } from '../schemas/user.schema';
@@ -27,7 +27,7 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly workingCalendarModel: Model<WorkingCalendar>,
     @InjectModel(Role.name)
     private readonly roleModel: Model<Role>,
-  ) {}
+  ) { }
 
   async onApplicationBootstrap() {
     const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED !== 'false';
@@ -60,20 +60,29 @@ export class SeedService implements OnApplicationBootstrap {
 
     const departments = [
       {
-        name: 'IT Core Operations',
+        name: 'Vận hành Công nghệ Thông tin',
         code: 'IT_CORE',
+        parentCode: null,
       },
       {
         name: 'Nghiên cứu và Phát triển Công nghệ',
         code: 'IT_RND',
+        parentCode: null,
       },
       {
-        name: 'Trading Operations',
+        name: 'Ban Giám sát thị trường',
+        code: 'BAN_GSTT',
+        parentCode: null,
+      },
+      {
+        name: 'Quản lý giám sát giao dịch',
         code: 'QLGD_OPS',
+        parentCode: 'BAN_GSTT',
       },
       {
-        name: 'Risk Management',
+        name: 'Quản lý giám sát rủi ro',
         code: 'QLRR_RISK',
+        parentCode: 'BAN_GSTT',
       },
     ];
 
@@ -81,7 +90,11 @@ export class SeedService implements OnApplicationBootstrap {
     for (const dept of departments) {
       let doc = await this.departmentModel.findOne({ code: dept.code }).exec();
       if (!doc) {
-        doc = new this.departmentModel(dept);
+        doc = new this.departmentModel({
+          name: dept.name,
+          code: dept.code,
+          parentDepartmentId: null,
+        });
         await doc.save();
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
@@ -90,6 +103,29 @@ export class SeedService implements OnApplicationBootstrap {
       }
       mapping[dept.code] = doc._id.toString();
     }
+
+    // Set parent relationships
+    for (const dept of departments) {
+      if (dept.parentCode) {
+        const parentId = mapping[dept.parentCode];
+        if (parentId) {
+          await this.departmentModel
+            .updateOne(
+              { code: dept.code },
+              { $set: { parentDepartmentId: new Types.ObjectId(parentId) } },
+            )
+            .exec();
+        }
+      } else {
+        await this.departmentModel
+          .updateOne(
+            { code: dept.code },
+            { $set: { parentDepartmentId: null } },
+          )
+          .exec();
+      }
+    }
+
     return mapping;
   }
 
@@ -107,6 +143,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'admin',
         passwordHash: passwordHashAdmin,
         fullName: 'System Administrator',
+        title: 'Quản trị viên hệ thống',
         departmentId: null,
         role: 'ADMIN',
         isActive: true,
@@ -115,6 +152,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'chairman',
         passwordHash: passwordHashChairman,
         fullName: 'Chủ tịch Hội đồng',
+        title: 'Chủ tịch Hội đồng',
         departmentId: null,
         role: 'CHAIRMAN',
         isActive: true,
@@ -123,6 +161,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'ceo',
         passwordHash: passwordHashCeo,
         fullName: 'Tổng Giám đốc',
+        title: 'Tổng Giám đốc',
         departmentId: null,
         role: 'CEO',
         isActive: true,
@@ -131,6 +170,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'lead_it_ops',
         passwordHash: passwordHashLeader,
         fullName: 'Trưởng bộ phận Vận hành',
+        title: 'Trưởng bộ phận Vận hành',
         departmentId: depts['IT_CORE'],
         role: 'DEPARTMENT_HEAD',
         isActive: true,
@@ -139,6 +179,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'sonhh',
         passwordHash: passwordHashStaff,
         fullName: 'Hồ Huy Sơn',
+        title: 'Chuyên viên Vận hành',
         departmentId: depts['IT_CORE'],
         role: 'STAFF',
         isActive: true,
@@ -147,6 +188,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'ops_staff',
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giao nhận',
+        title: 'Chuyên viên Giám sát Giao dịch',
         departmentId: depts['QLGD_OPS'],
         role: 'STAFF',
         isActive: true,
@@ -155,6 +197,7 @@ export class SeedService implements OnApplicationBootstrap {
         username: 'surv_staff',
         passwordHash: passwordHashStaff,
         fullName: 'Nhân viên Giám sát',
+        title: 'Chuyên viên Giám sát Rủi ro',
         departmentId: depts['QLRR_RISK'],
         role: 'STAFF',
         isActive: true,
@@ -174,6 +217,7 @@ export class SeedService implements OnApplicationBootstrap {
         existing.role = user.role;
         existing.fullName = user.fullName;
         existing.departmentId = user.departmentId as any;
+        existing.title = user.title;
         await existing.save();
       }
     }
@@ -372,13 +416,18 @@ export class SeedService implements OnApplicationBootstrap {
       if (!slotId) continue;
 
       const existing = await this.templateModel
-        .findOne({ departmentId: deptId, sessionType: tpl.sessionType })
+        .findOne({
+          departmentId: {
+            $in: [new Types.ObjectId(deptId), deptId.toString()],
+          },
+          sessionType: tpl.sessionType,
+        })
         .exec();
 
       if (!existing) {
         const doc = new this.templateModel({
           title: tpl.title,
-          departmentId: deptId,
+          departmentId: new Types.ObjectId(deptId),
           sessionType: tpl.sessionType,
           shiftSlotId: slotId,
           isActive: true,
@@ -391,6 +440,7 @@ export class SeedService implements OnApplicationBootstrap {
           existing.tasks && existing.tasks.some((t: any) => t.parentTaskId);
         const updateData: any = {
           title: tpl.title,
+          departmentId: new Types.ObjectId(deptId),
           shiftSlotId: slotId,
           isActive: true,
         };
@@ -429,6 +479,13 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Nhân viên vận hành',
         permissions: [
           'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'RESOLVE_INCIDENTS', 'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS'
+        ]
+      },
+      {
+        code: 'DIVISION_DIRECTOR',
+        name: 'Giám đốc Khối',
+        permissions: [
+          'VIEW_CHECKLIST', 'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS', 'RESOLVE_INCIDENTS'
         ]
       },
       {

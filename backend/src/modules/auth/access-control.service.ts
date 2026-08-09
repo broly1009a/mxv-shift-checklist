@@ -24,14 +24,23 @@ export class AccessControlService {
 
     const { role, departmentId } = user;
 
-    if (role === 'ADMIN' || role === 'CEO' || role === 'CHAIRMAN') {
+    if (
+      role === 'ADMIN' ||
+      role === 'CEO' ||
+      role === 'CHAIRMAN' ||
+      role === 'DIVISION_DIRECTOR'
+    ) {
       return {};
     }
 
     const deptId = departmentId?._id || departmentId;
     if (!deptId) return { _id: null };
 
-    return { departmentId: new Types.ObjectId(deptId.toString()) };
+    return {
+      departmentId: {
+        $in: [new Types.ObjectId(deptId.toString()), deptId.toString()],
+      },
+    };
   }
 
   /**
@@ -48,8 +57,13 @@ export class AccessControlService {
 
     const { role } = user;
 
-    // General admins can access everything
-    if (role === 'ADMIN' || role === 'CEO' || role === 'CHAIRMAN') {
+    // General admins and division directors can access everything
+    if (
+      role === 'ADMIN' ||
+      role === 'CEO' ||
+      role === 'CHAIRMAN' ||
+      role === 'DIVISION_DIRECTOR'
+    ) {
       return true;
     }
 

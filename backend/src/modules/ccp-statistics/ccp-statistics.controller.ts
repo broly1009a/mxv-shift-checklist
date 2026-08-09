@@ -8,27 +8,35 @@ import {
   Res,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as fs from 'fs';
 import { CcpStatisticsService } from './ccp-statistics.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('ccp-statistics')
 export class CcpStatisticsController {
   constructor(private readonly ccpStatisticsService: CcpStatisticsService) {}
 
   @Get('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async getConfig() {
     return this.ccpStatisticsService.getConfig();
   }
 
   @Post('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
   async saveConfig(@Body() config: any) {
     return this.ccpStatisticsService.saveConfig(config);
   }
 
   @Post('process')
+  @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgdCcp', maxCount: 1 },

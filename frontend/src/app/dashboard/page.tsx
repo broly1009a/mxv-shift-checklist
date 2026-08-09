@@ -30,6 +30,7 @@ export default function DashboardPage() {
     canAccessMarginChange,
     canAccessAutoShift,
     canAccessHealthChecks,
+    canViewChecklist,
   } = usePermissions();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [activeShifts, setActiveShifts] = useState<ShiftLog[]>([]);
@@ -38,6 +39,7 @@ export default function DashboardPage() {
   const [dashboardDate, setDashboardDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [isInitializingShift, setIsInitializingShift] = useState(false);
 
   // Shift job states
   const [jobDate, setJobDate] = useState('');
@@ -329,6 +331,8 @@ export default function DashboardPage() {
       toast.error('Vui lòng chọn một mẫu checklist');
       return;
     }
+    if (isInitializingShift) return;
+    setIsInitializingShift(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/initialize`, {
         method: 'POST',
@@ -349,6 +353,8 @@ export default function DashboardPage() {
       fetchDashboardData();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi xảy ra khi khởi tạo ca trực');
+    } finally {
+      setIsInitializingShift(false);
     }
   };
 
@@ -399,15 +405,18 @@ export default function DashboardPage() {
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'chart':
+        if (!canViewChecklist) return null;
         return <HourlyChartWidget showChart={showChart} summary={summary} />;
 
       case 'activeShifts':
+        if (!canViewChecklist) return null;
         return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} />;
 
       case 'activeIncidents':
         return <ActiveIncidentsWidget token={token} />;
 
       case 'history':
+        if (!canViewChecklist) return null;
         return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} />;
 
       case 'initShift':
@@ -418,6 +427,7 @@ export default function DashboardPage() {
             selectedTemplate={selectedTemplate}
             setSelectedTemplate={setSelectedTemplate}
             handleInitializeShift={handleInitializeShift}
+            isInitializing={isInitializingShift}
           />
         );
 

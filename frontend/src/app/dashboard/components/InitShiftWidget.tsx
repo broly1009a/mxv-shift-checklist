@@ -7,6 +7,7 @@ interface InitShiftWidgetProps {
   selectedTemplate: string;
   setSelectedTemplate: (val: string) => void;
   handleInitializeShift: (e: React.FormEvent) => void;
+  isInitializing: boolean;
 }
 
 export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
@@ -14,6 +15,7 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
   selectedTemplate,
   setSelectedTemplate,
   handleInitializeShift,
+  isInitializing,
 }) => {
   return (
     <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
@@ -71,8 +73,29 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
           );
         })()}
 
-        <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}>
-          <Play size={14} /> Bắt đầu ca trực
+        <button
+          type="submit"
+          className="btn btn-success"
+          disabled={isInitializing || !selectedTemplate}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            fontSize: '0.85rem',
+            opacity: isInitializing ? 0.7 : 1,
+            cursor: isInitializing ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          {isInitializing ? (
+            'Đang khởi tạo...'
+          ) : (
+            <>
+              <Play size={14} /> Bắt đầu ca trực
+            </>
+          )}
         </button>
       </form>
     </div>

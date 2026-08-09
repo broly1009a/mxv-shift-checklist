@@ -11,13 +11,16 @@ import {
 } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('api/v1/incidents')
 export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
   @Post()
+  @Permissions('RESOLVE_INCIDENTS')
   async createIncident(@Request() req: any, @Body() body: any) {
     const { shiftLogId, taskId, code, severity, requiredAction, slaMinutes } =
       body;
@@ -35,6 +38,7 @@ export class IncidentsController {
   }
 
   @Get('shift/:shiftLogId')
+  @Permissions('VIEW_CHECKLIST')
   async getByShift(
     @Request() req: any,
     @Param('shiftLogId') shiftLogId: string,
@@ -43,11 +47,13 @@ export class IncidentsController {
   }
 
   @Get('pending')
+  @Permissions('VIEW_CHECKLIST')
   async getPending(@Request() req: any) {
     return this.incidentsService.getPendingIncidents(req.user);
   }
 
   @Get(':id/export')
+  @Permissions('VIEW_CHECKLIST')
   async exportIncident(
     @Param('id') incidentId: string,
     @Request() req: any,
@@ -61,6 +67,7 @@ export class IncidentsController {
   }
 
   @Patch(':id/resolve')
+  @Permissions('RESOLVE_INCIDENTS')
   async resolveIncident(
     @Param('id') incidentId: string,
     @Request() req: any,
