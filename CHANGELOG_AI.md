@@ -4,6 +4,35 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-10] Tách Template PDF QLGD ra Trang Riêng + Tái Cấu Trúc Layout Theo Ảnh Gốc
+
+### Mục tiêu thay đổi
+- Người dùng yêu cầu tách template PDF QLGD ra một trang riêng (route `/checklist/print`) thay vì nhét vào trang checklist.
+- Người dùng yêu cầu tái cấu trúc layout HTML để khớp với ảnh chụp phiếu gốc (Khổ A4 Landscape nằm ngang, bỏ xoay dọc chữ/tiêu đề bị lệch do hiểu nhầm chiều ảnh chụp đứng, căn lề và định dạng bảng ký xác nhận cột phải).
+
+### Danh sách file chỉnh sửa
+- **[NEW]** [frontend/src/app/checklist/print/layout.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/print/layout.tsx) — Layout độc lập (không có sidebar/header) cho trang in QLGD.
+- **[NEW]** [frontend/src/app/checklist/print/page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/print/page.tsx) — Trang in QLGD hoàn chỉnh: tự fetch dữ liệu, render 2 trang phiếu, auto `window.print()`.
+- **[MODIFY]** [frontend/src/app/checklist/page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) — Xóa toàn bộ block QLGD inline (~658 dòng), thay nút `handlePrint('QLGD')` bằng `window.open('/checklist/print?id=...', '_blank')`.
+
+### Tóm tắt nội dung code đã sửa
+
+**Trước:** Nút "In Phiếu QLGD" toggle `printTemplate` state → render ~650 dòng JSX inline trong `page.tsx` → `window.print()` ẩn UI bằng CSS.
+
+**Sau:**
+- Nút "In Phiếu QLGD" mở tab mới: `window.open('/checklist/print?id=<shiftLogId>', '_blank')`
+- Route `/checklist/print` có layout riêng (không kế thừa sidebar), tự fetch API lấy shift log, render phiếu 2 trang chuẩn A4 landscape theo ảnh gốc:
+  - **Trang 1 (Mặt Trước):** Bảng STT 1–9, header MXV dọc bên phải cột
+  - **Trang 2 (Mặt Sau):** Bảng STT 10–11 với từng giờ (06h–04h), nội dung bàn giao, bảng ký xác nhận cột phải
+- Action bar "🖨 In / Lưu PDF" + "✕ Đóng" hiển thị trên màn hình, ẩn khi in
+
+### Xác nhận Build/Kiểm thử
+- `npx tsc --noEmit` → **0 lỗi** ✅
+- `npm run build` → **Build thành công**, route `/checklist/print` xuất hiện trong danh sách ✅
+- Playwright script tạo PDF landscape A4 → **PDF generated successfully** ✅
+
+
+
 ## 💡 CÁC CÂU LỆNH VẬN HÀNH NHANH TRÊN UBUNTU SERVER (PRODUCT)
 
 ### 1. Đóng/Chốt tất cả các ca trực đang chạy (PENDING -> COMPLETED):
@@ -15,7 +44,59 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Backend: `pm2 start dist/main.js --name "mxv-backend"`
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+
+## [2026-08-10 00:25:00] - Feature: Khắc phục lỗi kiểu dữ liệu TypeScript & Hoàn thiện Mẫu in báo cáo QLGD (2 mặt)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  1. Đảm bảo toàn bộ hệ thống (Frontend và Backend) đều biên dịch thành công không phát sinh bất kỳ lỗi kiểm tra kiểu dữ liệu (TypeScript compiler errors).
+  2. Khắc phục lỗi thuộc tính `shiftSlotId` không tồn tại trong kiểu `ShiftLog` ở component in báo cáo QLGD.
+- **Giải pháp**:
+  - Bọc khối mã JSX in QLGD trong một biểu thức IIFE tự thực thi để khai báo an toàn các biến cục bộ `sessionType` và `titleText` nhằm suy ra `caNumber` động dựa trên thông tin template:
+    - `sessionType: 'OPEN'` hoặc tiêu đề chứa "mở cửa" -> Ca 1.
+    - `sessionType: 'DURING'` hoặc tiêu đề chứa "trong phiên" -> Ca 2.
+    - `sessionType: 'CLOSE'` hoặc tiêu đề chứa "đóng cửa" -> Ca 3.
+  - Thay thế toàn bộ các tham chiếu lỗi `log.shiftSlotId?.name` bằng biến số hiệu ca trực `caNumber`.
+  - Loại bỏ các dòng JSX bị dư thừa do lượt biên dịch/thay thế trước đó còn sót lại gây ra lỗi thẻ đóng không hợp lệ.
+
+### 2. Kết quả Thay đổi
+
+#### 🔵 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx): Khắc phục toàn bộ các lỗi kiểu dữ liệu liên quan đến `shiftSlotId`, hoàn thiện logic xác định ca và làm sạch JSX.
+
+### 3. Xác nhận Build/Kiểm thử
+- Chạy `npx tsc --noEmit` thành công 100% không có lỗi.
+- Chạy `npm run build` trên cả Frontend và Backend thành công rực rỡ.
+
+---
+
+## [2026-08-10 00:08:00] - Feature: Phát triển song song Mẫu Báo cáo PDF Ca trực mới (Mẫu QLGD 2 mặt) chuẩn hóa
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  1. Số hóa biểu mẫu truyền thống "Phiếu Theo Dõi Thực Hiện Trực Giao Dịch" (gồm 2 mặt trước và sau) dùng trong công tác trực vận hành giao dịch tại MXV.
+  2. Phát triển song song mẫu mới dành riêng cho QLGD và giữ nguyên vẹn mẫu biên bản in PDF cũ hiện tại của hệ thống.
+- **Giải pháp**:
+  - Thêm trạng thái `printTemplate` ('OLD' | 'QLGD') và hàm điều khiển `handlePrint` trong màn hình checklist.
+  - Thêm nút in mới **In Phiếu QLGD (PDF)** (nền xanh `#0d9488`, chữ trắng) song song với nút in cũ **In Biên Bản (PDF)**.
+  - Thiết kế CSS Print `@media print` cho lớp `.print-container-qlgd` hỗ trợ ngắt trang cứng (`page-break-after: always;` / `break-after: page;`) để phân định rõ Trang 1 (Mặt Trước) và Trang 2 (Mặt Sau).
+  - Xây dựng bố cục JSX cho mẫu QLGD mới:
+    - **Trang 1 (Mặt Trước):** Tiêu đề chuẩn của MXV/Phòng Vận hành, Phiếu theo dõi, thông tin hành chính của ca trực, bảng danh sách công việc theo timeline hiển thị kết quả đã Việt hóa (`ĐẠT`, `K.ĐẠT`, `BỎ QUA`, `LƯU Ý`, `CHƯA KIỂM`).
+    - **Trang 2 (Mặt Sau):** Bảng tổng hợp Sự cố & Ngoại lệ phát sinh trong ca trực (lấy từ dữ liệu sự cố `incidents`), phần ghi nhận bàn giao ca trực (Handover Note) và Khung chữ ký xác nhận 3 bên (Người bàn giao, Người nhận bàn giao, Trưởng bộ phận phê duyệt).
+
+### 2. Kết quả Thay đổi
+
+#### 🔵 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///d:/sontayweb/mxv-shift-checklist/frontend/src/app/checklist/page.tsx): Khai báo state, thêm nút in QLGD, bổ sung CSS Print cho mẫu QLGD và tạo container in QLGD mới (`print-container-qlgd`) song song với container in cũ.
+
+### 3. Xác nhận Build/Kiểm thử
+- Chạy `npx tsc --noEmit` thành công.
+- Chạy `npm run build` trên Frontend thành công 100%, không phát sinh lỗi biên dịch.
+
 ## [2026-08-07 17:50:00] - Bugfix: Khắc phục lỗi trùng lặp thông báo (Duplicate Notification) & Ẩn log lỗi của Bot khi chưa đủ điều kiện
+
 
 ### 1. Mục tiêu Thay đổi
 - **Yêu cầu từ USER**:

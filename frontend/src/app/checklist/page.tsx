@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
@@ -103,6 +103,20 @@ function ChecklistWorksheet() {
   const [omsTaskId, setOmsTaskId] = React.useState('');
   const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
   const [showTechDetails, setShowTechDetails] = React.useState(false);
+  const [printTemplate] = React.useState<'OLD'>('OLD');
+
+  const handlePrint = () => {
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const openQlgdPrint = () => {
+    if (shiftLogId) {
+      window.open(`/checklist/print?id=${shiftLogId}`, '_blank');
+    }
+  };
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -130,9 +144,9 @@ function ChecklistWorksheet() {
 
   const getSessionBadge = (type: string) => {
     switch (type) {
-      case 'OPEN': return <span className="badge badge-low">Mở Cửa</span>;
-      case 'DURING': return <span className="badge badge-medium">Trong Phiên</span>;
-      default: return <span className="badge badge-high">Đóng Cửa</span>;
+      case 'OPEN': return <span className="badge badge-low">Má»Ÿ Cá»­a</span>;
+      case 'DURING': return <span className="badge badge-medium">Trong PhiÃªn</span>;
+      default: return <span className="badge badge-high">ÄÃ³ng Cá»­a</span>;
     }
   };
 
@@ -149,10 +163,10 @@ function ChecklistWorksheet() {
         gap: '12px'
       }}>
         <AlertCircle size={40} color="var(--color-critical)" />
-        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Không có quyền truy cập</p>
-        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Tài khoản của bạn không có quyền xem checklist ca trực.</p>
+        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>KhÃ´ng cÃ³ quyá»n truy cáº­p</p>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>TÃ i khoáº£n cá»§a báº¡n khÃ´ng cÃ³ quyá»n xem checklist ca trá»±c.</p>
         <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '8px' }}>
-          Quay lại bảng điều khiển
+          Quay láº¡i báº£ng Ä‘iá»u khiá»ƒn
         </Link>
       </div>
     );
@@ -264,10 +278,10 @@ function ChecklistWorksheet() {
         gap: '12px'
       }}>
         <AlertCircle size={40} color="var(--color-critical)" />
-        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Lỗi tải ca trực</p>
-        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{loadError || 'Vui lòng kiểm tra lại đường dẫn.'}</p>
+        <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: 0 }}>Lá»—i táº£i ca trá»±c</p>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{loadError || 'Vui lÃ²ng kiá»ƒm tra láº¡i Ä‘Æ°á»ng dáº«n.'}</p>
         <Link href="/dashboard" className="btn btn-secondary" style={{ marginTop: '8px' }}>
-          Quay lại bảng điều khiển
+          Quay láº¡i báº£ng Ä‘iá»u khiá»ƒn
         </Link>
       </div>
     );
@@ -391,6 +405,68 @@ function ChecklistWorksheet() {
             text-align: center;
             font-size: 0.95rem;
           }
+          .print-container-qlgd {
+            font-family: "Times New Roman", Times, serif, sans-serif;
+            color: #000 !important;
+            padding: 15px;
+            background: #fff !important;
+            line-height: 1.3;
+          }
+          .print-page-front {
+            page-break-after: always;
+            break-after: page;
+          }
+          .print-page-back {
+            page-break-inside: avoid;
+          }
+          .qlgd-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            margin-bottom: 15px;
+            font-size: 0.82rem;
+          }
+          .qlgd-table th, .qlgd-table td {
+            border: 1px solid #000 !important;
+            padding: 4px 6px;
+            text-align: left;
+            color: #000 !important;
+            vertical-align: middle;
+          }
+          .qlgd-table th {
+            background-color: #f3f4f6 !important;
+            font-weight: bold;
+            text-align: center;
+          }
+          .print-signature-section-3 {
+            margin-top: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            text-align: center;
+            font-size: 0.9rem;
+          }
+          .qlgd-section-title {
+            font-size: 0.92rem;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+            color: #000 !important;
+          }
+          .crossed-out {
+            background: linear-gradient(to top right, transparent 49.5%, #000 49.5%, #000 50.5%, transparent 50.5%),
+                        linear-gradient(to bottom right, transparent 49.5%, #000 49.5%, #000 50.5%, transparent 50.5%) !important;
+            position: relative;
+          }
+          .cursive-signature {
+            font-family: 'Courier New', Courier, monospace;
+            font-style: italic;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #1e3a8a;
+          }
         }
         .print-only {
           display: none;
@@ -411,22 +487,22 @@ function ChecklistWorksheet() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
+              <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Báº£ng Ä‘iá»u khiá»ƒn</Link>
               <span style={{ margin: '0 8px' }}>/</span>
               {shiftLogId ? (
                 <>
-                  <Link href="/checklist?redirect=false" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Danh sách ca trực</Link>
+                  <Link href="/checklist?redirect=false" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Danh sÃ¡ch ca trá»±c</Link>
                   <span style={{ margin: '0 8px' }}>/</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiết ca trực</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Chi tiáº¿t ca trá»±c</span>
                 </>
               ) : (
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Danh sách ca trực</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Danh sÃ¡ch ca trá»±c</span>
               )}
             </div>
 
             {activeLogs.length > 1 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>| Chuyển nhanh ca:</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>| Chuyá»ƒn nhanh ca:</span>
                 <select
                   value={shiftLogId || ''}
                   onChange={(e) => router.push(`/checklist?id=${e.target.value}`)}
@@ -444,7 +520,7 @@ function ChecklistWorksheet() {
                 >
                   {activeLogs.map((item, idx) => (
                     <option key={`${item._id}-${idx}`} value={item._id}>
-                      {item.templateId?.title} ({item.shiftDate}) {item.status === 'COMPLETED' ? '[Đã chốt]' : '[Đang chạy]'}
+                      {item.templateId?.title} ({item.shiftDate}) {item.status === 'COMPLETED' ? '[ÄÃ£ chá»‘t]' : '[Äang cháº¡y]'}
                     </option>
                   ))}
                 </select>
@@ -459,16 +535,19 @@ function ChecklistWorksheet() {
               style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <Cpu size={14} />
-              {showTechDetails ? 'Ẩn mã kỹ thuật' : 'Xem mã kỹ thuật'}
+              {showTechDetails ? 'áº¨n mÃ£ ká»¹ thuáº­t' : 'Xem mÃ£ ká»¹ thuáº­t'}
             </button>
             <button onClick={() => setIsTradingReportModalOpen(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <FileSpreadsheet size={14} /> Báo cáo Giao dịch
+              <FileSpreadsheet size={14} /> BÃ¡o cÃ¡o Giao dá»‹ch
             </button>
             <button onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
-              <Download size={14} /> Xuất file Excel
+              <Download size={14} /> Xuáº¥t file Excel
             </button>
-            <button onClick={triggerPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
-              <Printer size={14} /> In Biên Bản (PDF)
+            <button onClick={() => handlePrint()} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Printer size={14} /> In BiÃªn Báº£n (PDF)
+            </button>
+            <button onClick={openQlgdPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0d9488', color: '#fff', border: 'none' }}>
+              <Printer size={14} /> In Phiáº¿u QLGD (PDF)
             </button>
           </div>
         </div>
@@ -502,29 +581,29 @@ function ChecklistWorksheet() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={15} /> Ngày trực: <strong style={{ color: 'var(--text-primary)' }}>{log.shiftDate}</strong>
+                <Clock size={15} /> NgÃ y trá»±c: <strong style={{ color: 'var(--text-primary)' }}>{log.shiftDate}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <UserIcon size={15} /> Trực chính: <strong style={{ color: 'var(--text-primary)' }}>{log.userId?.fullName}</strong>
+                <UserIcon size={15} /> Trá»±c chÃ­nh: <strong style={{ color: 'var(--text-primary)' }}>{log.userId?.fullName}</strong>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isCompleted ? <Lock size={15} color="var(--color-primary)" /> : <Unlock size={15} color="var(--color-accent)" />}
-                Trạng thái:
+                Tráº¡ng thÃ¡i:
                 {isCompleted ? (
-                  <strong style={{ color: 'var(--color-primary)' }}>ĐÃ CHỐT</strong>
+                  <strong style={{ color: 'var(--color-primary)' }}>ÄÃƒ CHá»T</strong>
                 ) : (
-                  <strong style={{ color: 'var(--color-accent)' }}>ĐANG TRỰC</strong>
+                  <strong style={{ color: 'var(--color-accent)' }}>ÄANG TRá»°C</strong>
                 )}
               </span>
               {isCompleted && log.closedBy && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <UserCheck size={15} color="var(--color-primary)" /> Người chốt: <strong style={{ color: 'var(--text-primary)' }}>{log.closedBy.fullName}</strong>
+                  <UserCheck size={15} color="var(--color-primary)" /> NgÆ°á»i chá»‘t: <strong style={{ color: 'var(--text-primary)' }}>{log.closedBy.fullName}</strong>
                 </span>
               )}
             </div>
             {isCompleted && log.handoverNote && (
               <div style={{ marginTop: '16px', padding: '14px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px', borderLeft: '4px solid var(--color-primary)', maxWidth: '700px' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Biên bản bàn giao ca trực:</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>BiÃªn báº£n bÃ n giao ca trá»±c:</span>
                 <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.88rem', fontStyle: 'italic', lineHeight: '1.4' }}>"{log.handoverNote}"</p>
               </div>
             )}
@@ -532,7 +611,7 @@ function ChecklistWorksheet() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tiến độ ca trực</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tiáº¿n Ä‘á»™ ca trá»±c</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '120px', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{ width: `${log.progressPercentage}%`, height: '100%', background: isCompleted ? 'var(--color-primary)' : 'var(--color-accent)' }}></div>
@@ -545,7 +624,7 @@ function ChecklistWorksheet() {
 
             {!isCompleted && (
               <button onClick={() => setIsCloseShiftModalOpen(true)} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
-                <CheckCircle2 size={16} /> Chốt Ca Trực
+                <CheckCircle2 size={16} /> Chá»‘t Ca Trá»±c
               </button>
             )}
           </div>
@@ -736,80 +815,83 @@ function ChecklistWorksheet() {
       )}
 
       {/* PDF PRINT ONLY CONTAINER (Normally hidden, shown only in media print mode) */}
-      <div className="print-only print-container">
-        <div className="print-header">
-          <h1>SỞ GIAO DỊCH HÀNG HÓA VIỆT NAM (MXV)</h1>
-          <h2>BIÊN BẢN BÀN GIAO CA TRỰC VẬN HÀNH</h2>
-          <div style={{ width: '150px', height: '1px', background: '#000', margin: '0 auto 16px auto' }}></div>
-        </div>
+      {printTemplate === 'OLD' && (
+        <div className="print-only print-container">
+          <div className="print-header">
+            <h1>Sá»ž GIAO Dá»ŠCH HÃ€NG HÃ“A VIá»†T NAM (MXV)</h1>
+            <h2>BIÃŠN Báº¢N BÃ€N GIAO CA TRá»°C Váº¬N HÃ€NH</h2>
+            <div style={{ width: '150px', height: '1px', background: '#000', margin: '0 auto 16px auto' }}></div>
+          </div>
 
-        <div className="print-meta-grid">
-          <div><strong>Biên bản ca:</strong> {log.templateId?.title}</div>
-          <div><strong>Ngày trực:</strong> {log.shiftDate}</div>
-          <div><strong>Phòng ban:</strong> {log.templateId?.departmentId?.name || 'Vận Hành Nghiệp Vụ'}</div>
-          <div><strong>Trực chính:</strong> {log.userId?.fullName}</div>
-          <div><strong>Tiến độ ca trực:</strong> {log.progressPercentage}%</div>
-          <div><strong>Trạng thái:</strong> {log.status === 'COMPLETED' ? 'ĐÃ CHỐT CA' : 'ĐANG VẬN HÀNH'}</div>
-          {log.handoverNote && (
-            <div style={{ gridColumn: 'span 2', marginTop: '10px', padding: '8px', border: '1px dashed #000' }}>
-              <strong>Biên bản bàn giao ca trực:</strong> <i>"{log.handoverNote}"</i>
-            </div>
-          )}
-        </div>
+          <div className="print-meta-grid">
+            <div><strong>BiÃªn báº£n ca:</strong> {log.templateId?.title}</div>
+            <div><strong>NgÃ y trá»±c:</strong> {log.shiftDate}</div>
+            <div><strong>PhÃ²ng ban:</strong> {log.templateId?.departmentId?.name || 'Váº­n HÃ nh Nghiá»‡p Vá»¥'}</div>
+            <div><strong>Trá»±c chÃ­nh:</strong> {log.userId?.fullName}</div>
+            <div><strong>Tiáº¿n Ä‘á»™ ca trá»±c:</strong> {log.progressPercentage}%</div>
+            <div><strong>Tráº¡ng thÃ¡i:</strong> {log.status === 'COMPLETED' ? 'ÄÃƒ CHá»T CA' : 'ÄANG Váº¬N HÃ€NH'}</div>
+            {log.handoverNote && (
+              <div style={{ gridColumn: 'span 2', marginTop: '10px', padding: '8px', border: '1px dashed #000' }}>
+                <strong>BiÃªn báº£n bÃ n giao ca trá»±c:</strong> <i>"{log.handoverNote}"</i>
+              </div>
+            )}
+          </div>
 
-        <table className="print-table">
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}>STT</th>
-              <th style={{ width: '100px' }}>Mã Tác Vụ</th>
-              <th>Nội Dung Tác Vụ</th>
-              <th style={{ width: '80px' }}>Ưu Tiên</th>
-              <th style={{ width: '80px' }}>Hạn Chót</th>
-              <th style={{ width: '90px' }}>Trạng Thái</th>
-              <th style={{ width: '120px' }}>Thời Gian Kiểm</th>
-              <th>Ghi Chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {log.details?.map((item, idx) => (
-              <tr key={item.taskId}>
-                <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                <td>{item.taskId}</td>
-                <td>{item.taskNameSnapshot}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {item.prioritySnapshot === 'LOW' && 'Thấp'}
-                  {item.prioritySnapshot === 'MEDIUM' && 'Trung Bình'}
-                  {item.prioritySnapshot === 'HIGH' && 'Cao'}
-                  {item.prioritySnapshot === 'CRITICAL' && 'Khẩn Cấp'}
-                </td>
-                <td style={{ textAlign: 'center' }}>{item.deadlineSnapshot || '-'}</td>
-                <td style={{ textAlign: 'center', fontWeight: item.isChecked ? 'bold' : 'normal' }}>
-                  {item.isChecked ? 'ĐÃ KIỂM' : 'CHƯA KIỂM'}
-                </td>
-                <td>
-                  {item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') + ' ' + new Date(item.checkedAt).toLocaleDateString('vi-VN') : ''}
-                </td>
-                <td>{item.note || ''}</td>
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>STT</th>
+                <th style={{ width: '100px' }}>MÃ£ TÃ¡c Vá»¥</th>
+                <th>Ná»™i Dung TÃ¡c Vá»¥</th>
+                <th style={{ width: '80px' }}>Æ¯u TiÃªn</th>
+                <th style={{ width: '80px' }}>Háº¡n ChÃ³t</th>
+                <th style={{ width: '90px' }}>Tráº¡ng ThÃ¡i</th>
+                <th style={{ width: '120px' }}>Thá»i Gian Kiá»ƒm</th>
+                <th>Ghi ChÃº</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {log.details?.map((item, idx) => (
+                <tr key={item.taskId}>
+                  <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                  <td>{item.taskId}</td>
+                  <td>{item.taskNameSnapshot}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {item.prioritySnapshot === 'LOW' && 'Tháº¥p'}
+                    {item.prioritySnapshot === 'MEDIUM' && 'Trung BÃ¬nh'}
+                    {item.prioritySnapshot === 'HIGH' && 'Cao'}
+                    {item.prioritySnapshot === 'CRITICAL' && 'Kháº©n Cáº¥p'}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{item.deadlineSnapshot || '-'}</td>
+                  <td style={{ textAlign: 'center', fontWeight: item.isChecked ? 'bold' : 'normal' }}>
+                    {item.isChecked ? 'ÄÃƒ KIá»‚M' : 'CHÆ¯A KIá»‚M'}
+                  </td>
+                  <td>
+                    {item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') + ' ' + new Date(item.checkedAt).toLocaleDateString('vi-VN') : ''}
+                  </td>
+                  <td>{item.note || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        <div className="print-signature-section">
-          <div>
-            <p><strong>NGƯỜI BÀN GIAO</strong></p>
-            <p style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '4px' }}>(Ký và ghi rõ họ tên)</p>
-            <div style={{ height: '80px' }}></div>
-            <p>......................................................</p>
-          </div>
-          <div>
-            <p><strong>NGƯỜI NHẬN BÀN GIAO</strong></p>
-            <p style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '4px' }}>(Ký và ghi rõ họ tên)</p>
-            <div style={{ height: '80px' }}></div>
-            <p>......................................................</p>
+          <div className="print-signature-section">
+            <div>
+              <p><strong>NGÆ¯á»œI BÃ€N GIAO</strong></p>
+              <p style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '4px' }}>(KÃ½ vÃ  ghi rÃµ há» tÃªn)</p>
+              <div style={{ height: '80px' }}></div>
+              <p>......................................................</p>
+            </div>
+            <div>
+              <p><strong>NGÆ¯á»œI NHáº¬N BÃ€N GIAO</strong></p>
+              <p style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '4px' }}>(KÃ½ vÃ  ghi rÃµ há» tÃªn)</p>
+              <div style={{ height: '80px' }}></div>
+              <p>......................................................</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
 
       {/* Bot Structured Log Viewer Modal */}
       {viewingBotLog && (
@@ -830,7 +912,7 @@ function ChecklistWorksheet() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '100px 0' }}>Đang tải ca trực...</div>}>
+    <Suspense fallback={<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '100px 0' }}>Äang táº£i ca trá»±c...</div>}>
       <ProtectedRoute>
         <ChecklistWorksheet />
       </ProtectedRoute>
