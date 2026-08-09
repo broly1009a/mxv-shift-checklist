@@ -4,9 +4,10 @@
  *
  * Chạy: node src/scripts/seed-subtasks.js
  */
+require('dotenv').config();
 const { MongoClient, ObjectId } = require('mongodb');
 
-const URI = 'mongodb+srv://broly1009a_db_user:C1m2altuPaseoDOx@devs.bqtaxow.mongodb.net/mxv_shift_checklist?retryWrites=true&w=majority';
+const URI = process.env.MONGODB_URI || 'mongodb+srv://broly1009a_db_user:C1m2altuPaseoDOx@devs.bqtaxow.mongodb.net/mxv_shift_checklist?retryWrites=true&w=majority';
 
 // ============================================================
 // Định nghĩa sub-tasks cho từng taskId cha
@@ -21,7 +22,6 @@ const SUBTASK_DEFINITIONS = {
   'ops_open_01': { // Kiểm tra Job Snapshot → 🤝 Bot+Maker
     children: [
       { id: 'ops_open_01_s1', name: 'Bot kiểm tra email "Job Snapshot" trong Inbox', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'HIGH' },
-      { id: 'ops_open_01_s2', name: 'Bot gửi cảnh báo hệ thống nếu không có email thành công', isBotCheck: true, botCheckType: 'EMAIL_PARSE', priority: 'MEDIUM' },
       { id: 'ops_open_01_s3', name: 'Maker xác nhận đã đọc kết quả (OK → tick; FAILED → ghi nhận đã liên hệ Newgen)', isBotCheck: false, priority: 'HIGH' },
     ],
   },

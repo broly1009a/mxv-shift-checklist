@@ -4,6 +4,7 @@ import "./globals.css";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "react-hot-toast";
+import GlobalLayout from "@/components/GlobalLayout";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
@@ -59,7 +60,9 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          {children}
+          <GlobalLayout>
+            {children}
+          </GlobalLayout>
           <Toaster 
             position="top-right"
             containerStyle={{
@@ -77,6 +80,9 @@ export default function RootLayout({
                 fontFamily: 'inherit',
                 fontSize: '0.9rem',
                 backdropFilter: 'blur(8px)',
+                maxWidth: '600px',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
               },
               success: {
                 iconTheme: {

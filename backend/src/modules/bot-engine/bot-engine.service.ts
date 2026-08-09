@@ -663,10 +663,19 @@ export class BotEngineService {
                 };
               } else {
                 if (existingJob.status === 'COMPLETED') {
-                  const lastLog =
-                    existingJob.logs[existingJob.logs.length - 1] ||
-                    'Đối chiếu dữ liệu 3 bên thành công.';
-                  checkResult = { success: true, message: lastLog };
+                  const payload = existingJob.payload || {};
+                  const result = payload.result || {};
+                  if (result.isWaitingFiles) {
+                    checkResult = {
+                      success: false,
+                      message: result.message || 'Đang chờ file đối chiếu...',
+                    };
+                  } else {
+                    const lastLog =
+                      existingJob.logs[existingJob.logs.length - 1] ||
+                      'Đối chiếu dữ liệu 3 bên thành công.';
+                    checkResult = { success: true, message: lastLog };
+                  }
                 } else if (existingJob.status === 'FAILED') {
                   const logsSummary = existingJob.logs.join('\n');
                   checkResult = {
@@ -1124,54 +1133,92 @@ export class BotEngineService {
             this.logger.log(
               `[Bot] Task [${task.taskId}] check PASSED: ${checkResult.message}`,
             );
-            await this.shiftsService.updateTaskStatus(
-              log._id.toString(),
-              task.taskId,
-              'PASSED',
-              systemUser,
-              checkResult.message,
-              true,
-            );
+            try {
+              await this.shiftsService.updateTaskStatus(
+                log._id.toString(),
+                task.taskId,
+                'PASSED',
+                systemUser,
+                checkResult.message,
+                true,
+              );
+            } catch (updateErr: any) {
+              // Dependency not yet satisfied — skip silently, bot will retry next cycle
+              this.logger.warn(
+                `[Bot] Task [${task.taskId}] PASSED check but skipped update: ${updateErr.message}`,
+              );
+            }
           } else {
             // Check for SLA deadline breach
             let isOverdue = false;
-            if (task.slaDeadlineSnapshot) {
-              if (task.slaDeadlineSnapshot.includes(':')) {
-                const [slaH, slaM] = task.slaDeadlineSnapshot
-                  .split(':')
-                  .map(Number);
+
+            const checkTimeOverdue = (
+              sla: string | null | undefined,
+              trigger: string | null | undefined,
+            ): boolean => {
+              if (!sla) return false;
+              if (sla.includes(':')) {
+                const [slaH, slaM] = sla.split(':').map(Number);
                 const currH = nowVN.getUTCHours();
                 const currM = nowVN.getUTCMinutes();
-                isOverdue = currH > slaH || (currH === slaH && currM >= slaM);
+                return currH > slaH || (currH === slaH && currM >= slaM);
               } else {
                 // Relative SLA (minutes from trigger time)
-                const trigger = task.botTriggerTimeSnapshot || '00:00';
-                const [trigH, trigM] = trigger.split(':').map(Number);
+                const trig = trigger || '00:00';
+                const [trigH, trigM] = trig.split(':').map(Number);
                 const triggerDate = new Date(nowVN);
                 triggerDate.setUTCHours(trigH, trigM, 0, 0);
 
-                const durationMinutes =
-                  parseInt(task.slaDeadlineSnapshot, 10) || 15;
+                const durationMinutes = parseInt(sla, 10) || 15;
                 const overdueTime =
                   triggerDate.getTime() + durationMinutes * 60 * 1000;
-                isOverdue = nowVN.getTime() >= overdueTime;
+                return nowVN.getTime() >= overdueTime;
+              }
+            };
+
+            // 1. Kiểm tra trễ hạn của tác vụ con
+            const isSubtaskOverdue = checkTimeOverdue(
+              task.slaDeadlineSnapshot,
+              task.botTriggerTimeSnapshot,
+            );
+
+            // 2. Kiểm tra trễ hạn của tác vụ cha (nếu có)
+            let isParentOverdue = false;
+            if (task.parentTaskIdSnapshot) {
+              const parentTask = log.details.find(
+                (d) => d.taskId === task.parentTaskIdSnapshot,
+              );
+              if (parentTask) {
+                isParentOverdue = checkTimeOverdue(
+                  parentTask.slaDeadlineSnapshot,
+                  parentTask.botTriggerTimeSnapshot,
+                );
               }
             }
+
+            // Quá hạn nếu tác vụ con quá hạn HOẶC tác vụ cha đã quá hạn
+            isOverdue = isSubtaskOverdue || isParentOverdue;
 
             if (isOverdue || (checkResult as any).forceFailed) {
               this.logger.warn(
                 `[Bot] Task [${task.taskId}] failed immediately or breached SLA. Transitioning to FAILED state.`,
               );
-              await this.shiftsService.updateTaskStatus(
-                log._id.toString(),
-                task.taskId,
-                'FAILED',
-                systemUser,
-                (checkResult as any).forceFailed
-                  ? checkResult.message
-                  : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`,
-                true,
-              );
+              try {
+                await this.shiftsService.updateTaskStatus(
+                  log._id.toString(),
+                  task.taskId,
+                  'FAILED',
+                  systemUser,
+                  (checkResult as any).forceFailed
+                    ? checkResult.message
+                    : `[BOT TRỄ SLA] Kiểm tra tự động thất bại: ${checkResult.message}`,
+                  true,
+                );
+              } catch (updateErr: any) {
+                this.logger.warn(
+                  `[Bot] Task [${task.taskId}] FAILED transition skipped: ${updateErr.message}`,
+                );
+              }
             } else {
               // Update status note with retry logs
               const formattedTime = nowVN

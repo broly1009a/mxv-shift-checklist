@@ -12,6 +12,8 @@ import {
   Info,
   FileSpreadsheet,
   FolderOpen,
+  Settings,
+  Lightbulb,
 } from 'lucide-react';
 
 interface LotStatisticsPanelProps {
@@ -72,6 +74,9 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
   const [basePathMs, setBasePathMs] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
   const [basePathCqg, setBasePathCqg] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures');
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // Load basePaths from localStorage on mount
   useEffect(() => {
     const savedMs = localStorage.getItem('lot_stats_base_path_ms');
@@ -80,30 +85,140 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     if (savedCqg) setBasePathCqg(savedCqg);
   }, []);
 
-  // Automatically compute and sync paths when ngayGD or base paths change
+  // 1. Automatically compute and sync daily folders when ngayGD or base paths change
   useEffect(() => {
     if (!ngayGD) return;
     const parts = ngayGD.split('-');
     if (parts.length !== 3) return;
     const [year, month, day] = parts;
-    
+
     const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
-    const computedMs = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
-    setFolderPathMs(computedMs);
-
     const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
-    const computedCqg = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
-    setFolderPathCqg(computedCqg);
+    if (!cleanBaseMs || !cleanBaseCqg) return;
 
-    const lastPartCqgIdx = cleanBaseCqg.lastIndexOf('\\');
-    const parentBaseCqg = lastPartCqgIdx > 0 ? cleanBaseCqg.substring(0, lastPartCqgIdx) : cleanBaseCqg;
+    const sepMs = cleanBaseMs.includes('/') ? '/' : '\\';
+    const sepCqg = cleanBaseCqg.includes('/') ? '/' : '\\';
 
-    setPathDsgdCumulative(`${computedMs}\\DSGD T${month}.${year}.xlsx`);
-    setPathNormal(`${computedCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`);
-    setPathAcm(`${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`);
-    setPathLme(`${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`);
-    setPathOptions(`${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`);
-    setPathSpread(`${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`);
+    let msFolder = '';
+    const cleanMsLower = cleanBaseMs.toLowerCase();
+
+    if (cleanMsLower.endsWith('backup ms\\futures') || cleanMsLower.endsWith('backup ms/futures') || cleanMsLower.endsWith('futures')) {
+      msFolder = `${cleanBaseMs}${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+    } else if (cleanMsLower.endsWith('backup ms')) {
+      if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBaseMs}${sepMs}${day}.${month}`;
+      } else {
+        msFolder = `${cleanBaseMs}${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+      }
+    } else {
+      if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}${day}.${month}`;
+      } else {
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+      }
+    }
+
+    let cqgFolder = '';
+    const cleanCqgLower = cleanBaseCqg.toLowerCase();
+
+    if (cleanCqgLower.endsWith('backup cqg\\futures') || cleanCqgLower.endsWith('backup cqg/futures') || cleanCqgLower.endsWith('futures')) {
+      cqgFolder = `${cleanBaseCqg}${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+    } else if (cleanCqgLower.endsWith('backup cqg')) {
+      if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}${day}.${month}`;
+      } else {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+      }
+    } else {
+      if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}${day}.${month}`;
+      } else {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+      }
+    }
+
+    setFolderPathMs(msFolder);
+    setFolderPathCqg(cqgFolder);
+  }, [ngayGD, basePathMs, basePathCqg]);
+
+  // 2. Automatically compute and sync cumulative paths when ngayGD or base paths change
+  useEffect(() => {
+    if (!ngayGD) return;
+    const parts = ngayGD.split('-');
+    if (parts.length !== 3) return;
+    const [year, month, day] = parts;
+
+    const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
+    const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
+    if (!cleanBaseMs || !cleanBaseCqg) return;
+
+    const sepMs = cleanBaseMs.includes('/') ? '/' : '\\';
+    const sepCqg = cleanBaseCqg.includes('/') ? '/' : '\\';
+
+    let msFolder = '';
+    const cleanMsLower = cleanBaseMs.toLowerCase();
+
+    if (cleanMsLower.endsWith('backup ms\\futures') || cleanMsLower.endsWith('backup ms/futures') || cleanMsLower.endsWith('futures')) {
+      msFolder = `${cleanBaseMs}${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+    } else if (cleanMsLower.endsWith('backup ms')) {
+      if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBaseMs}${sepMs}${day}.${month}`;
+      } else {
+        msFolder = `${cleanBaseMs}${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+      }
+    } else {
+      if (cleanMsLower.includes('uat') || cleanMsLower.includes('operatechecklist_uat')) {
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}${day}.${month}`;
+      } else {
+        msFolder = `${cleanBaseMs}${sepMs}Backup MS${sepMs}Futures${sepMs}${year}${sepMs}T${month}.${year}${sepMs}${day}.${month}`;
+      }
+    }
+
+    let cqgFolder = '';
+    const cleanCqgLower = cleanBaseCqg.toLowerCase();
+
+    if (cleanCqgLower.endsWith('backup cqg\\futures') || cleanCqgLower.endsWith('backup cqg/futures') || cleanCqgLower.endsWith('futures')) {
+      cqgFolder = `${cleanBaseCqg}${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+    } else if (cleanCqgLower.endsWith('backup cqg')) {
+      if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}${day}.${month}`;
+      } else {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+      }
+    } else {
+      if (cleanCqgLower.includes('uat') || cleanCqgLower.includes('operatechecklist_uat')) {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}${day}.${month}`;
+      } else {
+        cqgFolder = `${cleanBaseCqg}${sepCqg}Backup CQG${sepCqg}Futures${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}`;
+      }
+    }
+
+    // Determine parent base CQG for ACM, LME, Options, Spread trackers
+    let parentBaseCqg = cleanBaseCqg;
+    const lowerCqg = cleanBaseCqg.toLowerCase();
+
+    if (lowerCqg.endsWith('\\futures') || lowerCqg.endsWith('/futures')) {
+      parentBaseCqg = cleanBaseCqg.substring(0, cleanBaseCqg.length - 8).replace(/\/$/, '').replace(/\\$/, '');
+    }
+
+    if (parentBaseCqg.toLowerCase().endsWith('backup cqg')) {
+      parentBaseCqg = parentBaseCqg.substring(0, parentBaseCqg.length - 10).replace(/\/$/, '').replace(/\\$/, '');
+    }
+
+    setPathDsgdCumulative(`${msFolder}${sepMs}DSGD T${month}.${year}.xlsx`);
+    setPathNormal(`${cqgFolder}${sepCqg}Thong ke so lot giao dich ${year} 2.xlsx`);
+
+    if (lowerCqg.includes('uat') || lowerCqg.includes('operatechecklist_uat')) {
+      setPathAcm(`${parentBaseCqg}${sepCqg}ACM${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich ACM ${year} 2.xlsx`);
+      setPathLme(`${parentBaseCqg}${sepCqg}LME${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich LME ${year}.xlsx`);
+      setPathOptions(`${parentBaseCqg}${sepCqg}Options${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Options ${year}.xlsx`);
+      setPathSpread(`${parentBaseCqg}${sepCqg}Spread${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Spread ${year}.xlsx`);
+    } else {
+      setPathAcm(`${parentBaseCqg}${sepCqg}ACM${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich ACM ${year} 2.xlsx`);
+      setPathLme(`${parentBaseCqg}${sepCqg}LME${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich LME ${year}.xlsx`);
+      setPathOptions(`${parentBaseCqg}${sepCqg}Options${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Options ${year}.xlsx`);
+      setPathSpread(`${parentBaseCqg}${sepCqg}Spread${sepCqg}${year}${sepCqg}T${month}.${year}${sepCqg}${day}.${month}${sepCqg}Thong ke so lot giao dich Spread ${year}.xlsx`);
+    }
   }, [ngayGD, basePathMs, basePathCqg]);
 
   const handleBasePathMsChange = (val: string) => {
@@ -114,39 +229,6 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
   const handleBasePathCqgChange = (val: string) => {
     setBasePathCqg(val);
     localStorage.setItem('lot_stats_base_path_cqg', val);
-  };
-
-  const applyQuickPaths = () => {
-    if (!ngayGD) {
-      toast.error('Vui lòng chọn ngày giao dịch.');
-      return;
-    }
-    const parts = ngayGD.split('-');
-    if (parts.length !== 3) {
-      toast.error('Ngày giao dịch không đúng định dạng YYYY-MM-DD.');
-      return;
-    }
-    const [year, month, day] = parts;
-    
-    const cleanBaseMs = basePathMs.trim().replace(/\/$/, '').replace(/\\$/, '');
-    const computedMs = `${cleanBaseMs}\\${year}\\T${month}.${year}\\${day}.${month}`;
-    setFolderPathMs(computedMs);
-
-    const cleanBaseCqg = basePathCqg.trim().replace(/\/$/, '').replace(/\\$/, '');
-    const computedCqg = `${cleanBaseCqg}\\${year}\\T${month}.${year}\\${day}.${month}`;
-    setFolderPathCqg(computedCqg);
-
-    const lastPartCqgIdx = cleanBaseCqg.lastIndexOf('\\');
-    const parentBaseCqg = lastPartCqgIdx > 0 ? cleanBaseCqg.substring(0, lastPartCqgIdx) : cleanBaseCqg;
-
-    setPathDsgdCumulative(`${cleanBaseMs}\\${year}\\DSGD T${month}.${year}.xlsx`);
-    setPathNormal(`${cleanBaseCqg}\\${year}\\Thong ke so lot giao dich ${year} 2.xlsx`);
-    setPathAcm(`${parentBaseCqg}\\ACM\\${year}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`);
-    setPathLme(`${parentBaseCqg}\\LME\\${year}\\Thong ke so lot giao dich LME ${year}.xlsx`);
-    setPathOptions(`${parentBaseCqg}\\Options\\${year}\\Thong ke so lot giao dich Options ${year}.xlsx`);
-    setPathSpread(`${parentBaseCqg}\\Spread\\${year}\\Thong ke so lot giao dich Spread ${year}.xlsx`);
-
-    toast.success('Đã tự động tính toán & điền toàn bộ đường dẫn MS, CQG và 6 file lũy kế!');
   };
 
   const handleSaveConfig = async () => {
@@ -173,9 +255,10 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         defaultPathLme: pathLme.trim(),
         defaultPathOptions: pathOptions.trim(),
         defaultPathSpread: pathSpread.trim(),
+        updateCumulative,
       };
 
-      const res = await fetch(`${apiBaseUrl}/lot-statistics/config`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -193,9 +276,39 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     }
   };
 
+  const extractMsBase = (fullPath: string): string => {
+    const pathNormalized = fullPath.replace(/\//g, '\\');
+    const target = 'backup ms\\futures';
+    const idx = pathNormalized.toLowerCase().indexOf(target);
+    if (idx !== -1) {
+      return fullPath.substring(0, idx + target.length);
+    }
+    const targetBackup = 'backup ms';
+    const idxBackup = pathNormalized.toLowerCase().indexOf(targetBackup);
+    if (idxBackup !== -1) {
+      return fullPath.substring(0, idxBackup + targetBackup.length);
+    }
+    return fullPath;
+  };
+
+  const extractCqgBase = (fullPath: string): string => {
+    const pathNormalized = fullPath.replace(/\//g, '\\');
+    const target = 'backup cqg\\futures';
+    const idx = pathNormalized.toLowerCase().indexOf(target);
+    if (idx !== -1) {
+      return fullPath.substring(0, idx + target.length);
+    }
+    const targetBackup = 'backup cqg';
+    const idxBackup = pathNormalized.toLowerCase().indexOf(targetBackup);
+    if (idxBackup !== -1) {
+      return fullPath.substring(0, idxBackup + targetBackup.length);
+    }
+    return fullPath;
+  };
+
   useEffect(() => {
     if (!token) return;
-    fetch(`${apiBaseUrl}/lot-statistics/config`, {
+    fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -204,11 +317,19 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           if (data.defaultLmeKyHan) setFilterLmeKyHan(data.defaultLmeKyHan);
           if (data.defaultPathDsgd) {
             const lastSlash = Math.max(data.defaultPathDsgd.lastIndexOf('\\'), data.defaultPathDsgd.lastIndexOf('/'));
-            if (lastSlash > 0) setFolderPathMs(data.defaultPathDsgd.substring(0, lastSlash));
+            if (lastSlash > 0) {
+              const fullMsFolder = data.defaultPathDsgd.substring(0, lastSlash);
+              const msBase = extractMsBase(fullMsFolder);
+              setBasePathMs(msBase);
+            }
           }
           if (data.defaultPathFr) {
             const lastSlash = Math.max(data.defaultPathFr.lastIndexOf('\\'), data.defaultPathFr.lastIndexOf('/'));
-            if (lastSlash > 0) setFolderPathCqg(data.defaultPathFr.substring(0, lastSlash));
+            if (lastSlash > 0) {
+              const fullCqgFolder = data.defaultPathFr.substring(0, lastSlash);
+              const cqgBase = extractCqgBase(fullCqgFolder);
+              setBasePathCqg(cqgBase);
+            }
           }
           if (data.defaultPathDsgdCumulative) setPathDsgdCumulative(data.defaultPathDsgdCumulative);
           if (data.defaultPathNormal) setPathNormal(data.defaultPathNormal);
@@ -216,6 +337,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           if (data.defaultPathLme) setPathLme(data.defaultPathLme);
           if (data.defaultPathOptions) setPathOptions(data.defaultPathOptions);
           if (data.defaultPathSpread) setPathSpread(data.defaultPathSpread);
+          if (data.updateCumulative !== undefined) setUpdateCumulative(data.updateCumulative);
         }
       })
       .catch((err) => console.error('Error fetching lot statistics config:', err));
@@ -279,22 +401,45 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       return;
     }
 
+    // Mismatch check for folder mode
+    if (runMode === 'folder') {
+      const parts = ngayGD.split('-');
+      if (parts.length === 3) {
+        const [_, month, day] = parts;
+        const dateStr = `${day}.${month}`; // e.g. "05.08"
+        const normMs = folderPathMs.replace(/\//g, '\\');
+        const normCqg = folderPathCqg.replace(/\//g, '\\');
+        const msOk = normMs.includes(`\\${dateStr}\\`) || normMs.endsWith(`\\${dateStr}`) || normMs.endsWith(`/${dateStr}`);
+        const cqgOk = normCqg.includes(`\\${dateStr}\\`) || normCqg.endsWith(`\\${dateStr}`) || normCqg.endsWith(`/${dateStr}`);
+
+        if (!msOk || !cqgOk) {
+          const confirmOk = window.confirm(
+            `Cảnh báo: Ngày trong thư mục nguồn MS/CQG không khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục chạy đối chiếu không?`
+          );
+          if (!confirmOk) {
+            return;
+          }
+        }
+      }
+    }
+
     setLoading(true);
     setResult(null);
+    setError(null);
     const toastId = toast.loading('Đang xử lý thống kê số lot...');
 
     try {
       let res: Response;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process-local`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -315,6 +460,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         toast('Xử lý hoàn thành: Phát hiện chênh lệch đối chiếu.', { id: toastId, icon: '⚠️', duration: 5000 });
       }
     } catch (err: any) {
+      setError(err.message || 'Lỗi khi xử lý');
       toast.error(err.message || 'Lỗi khi xử lý', { id: toastId });
     } finally {
       setLoading(false);
@@ -331,6 +477,28 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       return;
     }
 
+    // Mismatch check for folder mode
+    if (runMode === 'folder') {
+      const parts = ngayGD.split('-');
+      if (parts.length === 3) {
+        const [_, month, day] = parts;
+        const dateStr = `${day}.${month}`; // e.g. "05.08"
+        const normMs = folderPathMs.replace(/\//g, '\\');
+        const normCqg = folderPathCqg.replace(/\//g, '\\');
+        const msOk = normMs.includes(`\\${dateStr}\\`) || normMs.endsWith(`\\${dateStr}`) || normMs.endsWith(`/${dateStr}`);
+        const cqgOk = normCqg.includes(`\\${dateStr}\\`) || normCqg.endsWith(`\\${dateStr}`) || normCqg.endsWith(`/${dateStr}`);
+
+        if (!msOk || !cqgOk) {
+          const confirmOk = window.confirm(
+            `Cảnh báo: Ngày trong thư mục nguồn MS/CQG không khớp với Ngày giao dịch đã chọn (${dateStr}).\n\nBạn có chắc chắn muốn tiếp tục xuất báo cáo Excel không?`
+          );
+          if (!confirmOk) {
+            return;
+          }
+        }
+      }
+    }
+
     setDownloading(true);
     const toastId = toast.loading('Đang khởi tạo và xuất file Excel báo cáo...');
 
@@ -338,14 +506,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       let res: Response;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process/download`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process/download`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/lot-statistics/process-local/download`, {
+        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local/download`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -435,7 +603,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           <Info size={16} color="#10b981" />
           1. Thông tin phiên & Tham số đối chiếu
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
           <div>
             <label style={labelStyle}>Ngày giao dịch</label>
@@ -567,176 +735,197 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         {/* Form content based on selected Mode */}
         {runMode === 'folder' ? (
           <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* Quick generate panel */}
-            <div style={{ backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <h5 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                <RefreshCw size={14} color="#10b981" />
-                Cấu hình Thư mục gốc & Tạo đường dẫn nhanh theo Ngày GD
-              </h5>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                <div>
-                  <label style={labelStyle}>Thư mục gốc MS (Backup MS)</label>
-                  <input
-                    type="text"
-                    value={basePathMs || ''}
-                    onChange={(e) => handleBasePathMsChange(e.target.value)}
-                    className="form-input"
-                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                    placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures"
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Thư mục gốc CQG (Backup CQG)</label>
-                  <input
-                    type="text"
-                    value={basePathCqg || ''}
-                    onChange={(e) => handleBasePathCqgChange(e.target.value)}
-                    className="form-input"
-                    style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                    placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures"
-                  />
-                </div>
-              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={applyQuickPaths}
-                  style={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <RefreshCw size={13} /> Tạo nhanh cả 2 thư mục theo Ngày GD
-                </button>
-              </div>
-            </div>
-
-            {/* Target Folder Inputs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {/* Target Roots */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div>
                 <label style={labelStyle}>
-                  Thư mục M-System (Chứa DSGD, TTM, TTTT) <span style={{ color: '#ef4444' }}>*</span>
+                  Thư mục gốc MS (Backup MS) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
-                  value={folderPathMs || ''}
-                  onChange={(e) => setFolderPathMs(e.target.value)}
+                  value={basePathMs || ''}
+                  onChange={(e) => handleBasePathMsChange(e.target.value)}
                   className="form-input"
                   style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                  placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T07.2026\16.07"
+                  placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures"
                 />
+                <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Lightbulb size={12} color="#eab308" style={{ flexShrink: 0 }} />
+                  <span>Hệ thống tự động đồng bộ thư mục con của MS theo Ngày GD được chọn.</span>
+                </p>
               </div>
               <div>
                 <label style={labelStyle}>
-                  Thư mục CQG (Chứa FR, OP, PS) <span style={{ color: '#ef4444' }}>*</span>
+                  Thư mục gốc CQG (Backup CQG) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
-                  value={folderPathCqg || ''}
-                  onChange={(e) => setFolderPathCqg(e.target.value)}
+                  value={basePathCqg || ''}
+                  onChange={(e) => handleBasePathCqgChange(e.target.value)}
                   className="form-input"
                   style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                  placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\2026\T07.2026\16.07"
+                  placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures"
                 />
+                <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Lightbulb size={12} color="#eab308" style={{ flexShrink: 0 }} />
+                  <span>Hệ thống tự động đồng bộ thư mục con của CQG theo Ngày GD được chọn.</span>
+                </p>
               </div>
             </div>
 
-            {/* Cumulative Update Panel */}
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '12px', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={updateCumulative}
-                  onChange={(e) => setUpdateCumulative(e.target.checked)}
-                  style={{ accentColor: '#10b981' }}
-                />
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Cập nhật dữ liệu lũy kế năm</span>
+            {/* Cumulative Update Checkbox */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                id="updateCumulative"
+                checked={updateCumulative}
+                onChange={(e) => setUpdateCumulative(e.target.checked)}
+                style={{ accentColor: '#10b981' }}
+              />
+              <label htmlFor="updateCumulative" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                Ghi đè dữ liệu vào các file lũy kế (Cumulative annual files)
               </label>
+            </div>
 
-              {updateCumulative && (
-                <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <h6 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                    <FileSpreadsheet size={13} color="#10b981" />
-                    Đường dẫn 6 file Excel lũy kế năm
-                  </h6>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            {/* Toggle Advanced Settings */}
+            <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  outline: 'none',
+                }}
+              >
+                <Settings
+                  size={14}
+                  className={showAdvanced ? 'animate-spin' : ''}
+                  style={{
+                    animationDuration: '4s',
+                    color: 'var(--text-muted)',
+                    flexShrink: 0
+                  }}
+                />
+                <span>{showAdvanced ? 'Thu gọn cấu hình nâng cao' : 'Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)'}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '2px' }}>{showAdvanced ? '▲' : '▼'}</span>
+              </button>
+
+              {showAdvanced && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+
+                  {/* Target Folder Inputs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label style={labelStyle}>File DSGD lũy kế tháng</label>
+                      <label style={labelStyle}>
+                        Thư mục M-System (Chứa DSGD, TTM, TTTT) <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
                       <input
                         type="text"
-                        value={pathDsgdCumulative || ''}
-                        onChange={(e) => setPathDsgdCumulative(e.target.value)}
+                        value={folderPathMs || ''}
+                        onChange={(e) => setFolderPathMs(e.target.value)}
                         className="form-input"
                         style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Backup MS\Futures\2026\DSGD T07.2026.xlsx"
+                        placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T07.2026\16.07"
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>Tracker Standard Futures</label>
+                      <label style={labelStyle}>
+                        Thư mục CQG (Chứa FR, OP, PS) <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
                       <input
                         type="text"
-                        value={pathNormal || ''}
-                        onChange={(e) => setPathNormal(e.target.value)}
+                        value={folderPathCqg || ''}
+                        onChange={(e) => setFolderPathCqg(e.target.value)}
                         className="form-input"
                         style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Thong ke so lot giao dich 2026 2.xlsx"
+                        placeholder="M:\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\2026\T07.2026\16.07"
                       />
                     </div>
-                    <div>
-                      <label style={labelStyle}>Tracker ACM</label>
-                      <input
-                        type="text"
-                        value={pathAcm || ''}
-                        onChange={(e) => setPathAcm(e.target.value)}
-                        className="form-input"
-                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Thong ke so lot giao dich ACM 2026 2.xlsx"
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Tracker LME</label>
-                      <input
-                        type="text"
-                        value={pathLme || ''}
-                        onChange={(e) => setPathLme(e.target.value)}
-                        className="form-input"
-                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Thong ke so lot giao dich LME 2026.xlsx"
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Tracker Options</label>
-                      <input
-                        type="text"
-                        value={pathOptions || ''}
-                        onChange={(e) => setPathOptions(e.target.value)}
-                        className="form-input"
-                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Thong ke so lot giao dich Options 2026.xlsx"
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Tracker Spread</label>
-                      <input
-                        type="text"
-                        value={pathSpread || ''}
-                        onChange={(e) => setPathSpread(e.target.value)}
-                        className="form-input"
-                        style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
-                        placeholder="M:\...\Thong ke so lot giao dich Spread 2026.xlsx"
-                      />
+                  </div>
+
+                  {/* Cumulative Spreadsheet Paths */}
+                  <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <h6 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                      <FileSpreadsheet size={13} color="#10b981" />
+                      Đường dẫn 6 file Excel lũy kế năm
+                    </h6>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                      <div>
+                        <label style={labelStyle}>File DSGD lũy kế tháng</label>
+                        <input
+                          type="text"
+                          value={pathDsgdCumulative || ''}
+                          onChange={(e) => setPathDsgdCumulative(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Backup MS\Futures\2026\DSGD T07.2026.xlsx"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Tracker Standard Futures</label>
+                        <input
+                          type="text"
+                          value={pathNormal || ''}
+                          onChange={(e) => setPathNormal(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Thong ke so lot giao dich 2026 2.xlsx"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Tracker ACM</label>
+                        <input
+                          type="text"
+                          value={pathAcm || ''}
+                          onChange={(e) => setPathAcm(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Thong ke so lot giao dich ACM 2026 2.xlsx"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Tracker LME</label>
+                        <input
+                          type="text"
+                          value={pathLme || ''}
+                          onChange={(e) => setPathLme(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Thong ke so lot giao dich LME 2026.xlsx"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Tracker Options</label>
+                        <input
+                          type="text"
+                          value={pathOptions || ''}
+                          onChange={(e) => setPathOptions(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Thong ke so lot giao dich Options 2026.xlsx"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Tracker Spread</label>
+                        <input
+                          type="text"
+                          value={pathSpread || ''}
+                          onChange={(e) => setPathSpread(e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: '0.75rem', padding: '8px 12px', fontFamily: 'monospace', width: '100%' }}
+                          placeholder="M:\...\Thong ke so lot giao dich Spread 2026.xlsx"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -748,7 +937,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
                 <Info size={14} color="#10b981" style={{ flexShrink: 0 }} />
                 <span>Hệ thống sẽ quét độc lập thư mục MS (đọc DSGD, TTM, TTTT) và thư mục CQG (đọc FR, OP, PS) để tự động nạp dữ liệu.</span>
               </p>
-              
+
               <button
                 type="button"
                 onClick={handleSaveConfig}
@@ -787,8 +976,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             type="button"
             onClick={handleDownloadExcel}
             disabled={
-              downloading || 
-              loading || 
+              downloading ||
+              loading ||
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
@@ -802,8 +991,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
             type="button"
             onClick={handleRunProcess}
             disabled={
-              loading || 
-              downloading || 
+              loading ||
+              downloading ||
               (runMode === 'upload' && (!files.fileDsgd || !files.fileFr)) ||
               (runMode === 'folder' && (!folderPathMs.trim() || !folderPathCqg.trim()))
             }
@@ -815,6 +1004,34 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           </button>
         </div>
       </div>
+
+      {/* Error View */}
+      {error && (
+        <div
+          className="glass-panel animate-fade-in"
+          style={{
+            padding: '20px',
+            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'start',
+            gap: '12px',
+            marginTop: '20px',
+            marginBottom: '20px'
+          }}
+        >
+          <AlertTriangle size={18} color="#ef4444" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <h5 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', margin: 0 }}>
+              Xảy ra lỗi trong quá trình đối soát
+            </h5>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Results View */}
       {result && (
@@ -852,7 +1069,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           {resultTab === 'summary' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng đối chiếu số lot giữa các báo cáo</h5>
-              
+
               <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                 <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
                   <thead>
@@ -966,33 +1183,22 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
                       <th style={{ padding: '10px 12px' }}>Mã Sản phẩm</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Spread DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>LME DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Product DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng FR</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#6366f1' }}>Product FR</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>Lệch Product</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981' }}>KL Mua (BUY)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>KL Bán (SELL)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Tổng số lot</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.byProduct?.map((item: any, i: number) => {
-                      const diff = (item.dsgdProduct ?? 0) - (item.frProduct ?? 0);
-                      return (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
-                          <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.productCode}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.dsgdTotal ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdSpread ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdLme ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>{(item.dsgdProduct ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.frTotal ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{(item.frProduct ?? 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: diff !== 0 ? '#ef4444' : 'var(--text-muted)' }}>
-                            {diff.toLocaleString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {result.byProduct?.map((item: any, i: number) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
+                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.maSP}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#10b981' }}>{(item.klm ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>{(item.klb ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#0284c7' }}>
+                          {(item.total ?? 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1007,26 +1213,18 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
                       <th style={{ padding: '10px 12px' }}>Mã TVKD</th>
-                      <th style={{ padding: '10px 12px' }}>Tên Thành Viên</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Spread DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>LME DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Options DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Product DSGD</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981' }}>ACM Lot (-A)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981' }}>KL Mua (BUY)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>KL Bán (SELL)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7' }}>Tổng số lot</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.byTvkd?.map((item: any, i: number) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', fontFamily: 'monospace' }}>
-                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: '#10b981' }}>{item.tvkdCode}</td>
-                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.tvkdName || 'N/A'}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{(item.dsgdTotal ?? 0).toLocaleString()}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdSpread ?? 0).toLocaleString()}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdLme ?? 0).toLocaleString()}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{(item.dsgdOptions ?? 0).toLocaleString()}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>{(item.dsgdProduct ?? 0).toLocaleString()}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>{(item.acmLot ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'sans-serif', fontWeight: 800, color: 'var(--text-primary)' }}>{item.tvkd}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#10b981' }}>{(item.klm ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>{(item.klb ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#0284c7' }}>{(item.total ?? 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

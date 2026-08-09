@@ -55,6 +55,21 @@ export class SystemSettingsService {
         return;
       }
 
+      // Nếu chỉ thay đổi timestamp gửi mail động thì bỏ qua không báo cấu hình thay đổi
+      if (key === 'margin_checker_config') {
+        try {
+          const oldObj = JSON.parse(oldValue);
+          const newObj = JSON.parse(newValue);
+          const oldSanitized = sanitizeConfig(oldObj);
+          const newSanitized = sanitizeConfig(newObj);
+          if (JSON.stringify(oldSanitized) === JSON.stringify(newSanitized)) {
+            return;
+          }
+        } catch (e) {
+          // Bỏ qua lỗi parse JSON và chạy so sánh text bình thường
+        }
+      }
+
       const configStr = await this.getSetting('margin_checker_config', '{}');
       const config = JSON.parse(configStr);
       const mailSettings = config.securityAudit || {
@@ -262,4 +277,22 @@ export class SystemSettingsService {
   async findAll(): Promise<SystemSetting[]> {
     return this.systemSettingModel.find().exec();
   }
+}
+
+/**
+ * Đệ quy loại bỏ các trường thời gian động để so sánh cấu hình tĩnh
+ */
+function sanitizeConfig(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeConfig);
+  
+  const copy = { ...obj };
+  const keysToIgnore = ['lastEmailSentAt', 'lastEmailStatus', 'lastEmailError'];
+  for (const k of keysToIgnore) {
+    delete copy[k];
+  }
+  for (const k of Object.keys(copy)) {
+    copy[k] = sanitizeConfig(copy[k]);
+  }
+  return copy;
 }

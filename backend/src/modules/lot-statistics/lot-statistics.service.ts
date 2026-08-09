@@ -541,7 +541,7 @@ export class LotStatisticsService {
 
   // ─── Config management (lưu vào SystemSettings MongoDB) ──────────────────
 
-  async getConfig(): Promise<Record<string, string>> {
+  async getConfig(): Promise<Record<string, any>> {
     const configStr = await this.settingsService.getSetting(
       'lot_statistics_config',
       '{}',
@@ -562,6 +562,7 @@ export class LotStatisticsService {
         defaultPathLme: parsed.defaultPathLme || '',
         defaultPathOptions: parsed.defaultPathOptions || '',
         defaultPathSpread: parsed.defaultPathSpread || '',
+        updateCumulative: parsed.updateCumulative === true || parsed.updateCumulative === 'true',
       };
     } catch {
       return {
@@ -578,6 +579,7 @@ export class LotStatisticsService {
         defaultPathLme: '',
         defaultPathOptions: '',
         defaultPathSpread: '',
+        updateCumulative: false,
       };
     }
   }

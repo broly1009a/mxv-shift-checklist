@@ -23,6 +23,7 @@ import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 import { OmsWatcherService } from './oms-watcher.service';
 
 import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
+import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MarginChangeRequestsModule } from '../margin-change-requests/margin-cha
     NotificationsModule,
     LotStatisticsModule,
     CcpStatisticsModule,
+    MarginCheckerModule,
   ],
   providers: [
     EmailWatcherService,

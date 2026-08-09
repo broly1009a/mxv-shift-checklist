@@ -1043,6 +1043,7 @@ export default function TaskTable({
                           const cSaving = savingTaskId === child.taskId;
                           const cToggling = togglingTaskIds.has(child.taskId);
                           const isChildDropdownOpen = openStatusDropdownTaskId === child.taskId;
+                          const childLocked = isTaskLocked(child);
 
                           return (
                             <div key={`${child.taskId}-${cIdx}`} style={{
@@ -1062,14 +1063,20 @@ export default function TaskTable({
                               <button
                                 type="button"
                                 onClick={() => handleToggle(child.taskId, child.isChecked)}
-                                disabled={isCompleted || cSaving || cToggling}
-                                title={isBot ? "Bot tự động check (Maker có thể can thiệp thủ công)" : "Đánh dấu hoàn thành"}
+                                disabled={isCompleted || cSaving || cToggling || childLocked}
+                                title={
+                                  childLocked
+                                    ? "Đầu việc đang bị khóa (Chờ các bước phụ thuộc trước đó hoàn thành)"
+                                    : isBot
+                                      ? "Bot tự động check (Maker có thể can thiệp thủ công)"
+                                      : "Đánh dấu hoàn thành"
+                                }
                                 className="transition-transform duration-150 hover:scale-110 active:scale-95 flex items-center justify-center"
                                 style={{
                                   background: 'transparent',
                                   border: 'none',
                                   padding: 0,
-                                  cursor: (isCompleted || cToggling) ? 'not-allowed' : 'pointer',
+                                  cursor: (isCompleted || cToggling || childLocked) ? 'not-allowed' : 'pointer',
                                   color: child.isChecked
                                     ? '#10b981'
                                     : isBot
@@ -1140,9 +1147,9 @@ export default function TaskTable({
                               {!isCompleted && (
                                 <button
                                   onClick={() => setOpenStatusDropdownTaskId(openStatusDropdownTaskId === child.taskId ? null : child.taskId)}
-                                  disabled={isCompleted || cSaving || cToggling}
-                                  style={{ background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '2px 6px', cursor: 'pointer', flexShrink: 0 }}
-                                  title="Can thiệp / Đổi trạng thái thủ công"
+                                  disabled={isCompleted || cSaving || cToggling || childLocked}
+                                  style={{ background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '2px 6px', cursor: (isCompleted || cSaving || cToggling || childLocked) ? 'not-allowed' : 'pointer', flexShrink: 0 }}
+                                  title={childLocked ? "Đầu việc đang bị khóa" : "Can thiệp / Đổi trạng thái thủ công"}
                                 >
                                   <ChevronDown size={12} color="var(--text-muted)" />
                                 </button>

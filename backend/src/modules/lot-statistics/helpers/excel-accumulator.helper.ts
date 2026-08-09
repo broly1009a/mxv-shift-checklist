@@ -179,7 +179,7 @@ function matchProductHeader(header: string, productCode: string): boolean {
  * Ensures directory exists and validates safety against allowed root
  */
 export function ensureDirExists(filePath: string) {
-  const allowedRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
+  const allowedRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
   if (allowedRoot) {
     assertSafeWritePath(filePath, allowedRoot);
   }

@@ -21,6 +21,7 @@ import { LotStatisticsService } from '../lot-statistics/lot-statistics.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { CcpStatisticsService } from '../ccp-statistics/ccp-statistics.service';
+import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import * as XLSX from 'xlsx';
 
 // =========================================================================
@@ -77,6 +78,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly shiftsService: ShiftsService,
     private readonly shiftsGateway: ShiftsGateway,
     private readonly ccpStatisticsService: CcpStatisticsService,
+    private readonly marginCheckerService: MarginCheckerService,
   ) {}
 
   onModuleInit() {
@@ -162,11 +164,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     isOnline: boolean,
   ) {
     try {
-      const configStr = await this.settingsService.getSetting(
-        'margin_checker_config',
-        '{}',
-      );
-      const config = JSON.parse(configStr);
+      const config = await this.marginCheckerService.loadConfig();
       const mailSettings = config.opFailureAlert || {
         isSendWarning: true,
         email: ['it.support@mxv.vn'],
@@ -286,6 +284,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     await job.save();
     this.logger.log(`Enqueued job: ${jobType} (ID: ${job._id})`);
+
+    if (payload.shiftLogId && payload.taskId) {
+      try {
+        await this.syncJobToChecklist(job, 'PENDING');
+      } catch (err: any) {
+        this.logger.error(`Failed to sync enqueued job to checklist: ${err.message}`);
+      }
+    }
+
     return job;
   }
 
@@ -1301,6 +1308,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               mismatchedTrades.slice(0, 10).forEach((t: any) => {
                 note += `  - [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}\n`;
               });
+            } else if (result.isWaitingFiles) {
+              note += `⚠️ ${result.message || 'Đang chờ cập nhật file đối chiếu...'}\n`;
             } else {
               note += `✓ Dữ liệu khớp hoàn toàn.\n`;
             }
@@ -1330,33 +1339,37 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               );
               note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
             }
-            const totals = result.totals || {};
-            note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;
-            note += `• Khớp lệnh thường (MS vs CQG): ${totals.totalCQG_MS || 0} vs ${totals.totalCQG_FR || 0} lot (Chênh lệch: ${totals.differCQG || 0} lot)\n`;
-
-            const mismatchedPositions = result.mismatchedPositions || [];
-            note += `• Chênh lệch vị thế net position (MS vs CQG): ${mismatchedPositions.length} tài khoản\n`;
-
-            const mismatchedTrades = result.mismatchedTrades || [];
-            if (mismatchedTrades.length > 0) {
-              note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
-              mismatchedTrades.slice(0, 10).forEach((m: any) => {
-                note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
-              });
-              if (mismatchedTrades.length > 10) {
-                note += `  - ... và ${mismatchedTrades.length - 10} giao dịch khác.\n`;
-              }
+            if (result.isWaitingFiles) {
+              note += `⚠️ ${result.message || 'Đang chờ cập nhật file đối chiếu...'}\n`;
             } else {
-              note += `✓ Không có lệch chi tiết khớp lệnh.\n`;
-            }
+              const totals = result.totals || {};
+              note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;
+              note += `• Khớp lệnh thường (MS vs CQG): ${totals.totalCQG_MS || 0} vs ${totals.totalCQG_FR || 0} lot (Chênh lệch: ${totals.differCQG || 0} lot)\n`;
 
-            if (mismatchedPositions.length > 0) {
-              note += `⚠️ Phát hiện ${mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
-              mismatchedPositions.slice(0, 10).forEach((m: any) => {
-                note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
-              });
-              if (mismatchedPositions.length > 10) {
-                note += `  - ... và ${mismatchedPositions.length - 10} chênh lệch khác.\n`;
+              const mismatchedPositions = result.mismatchedPositions || [];
+              note += `• Chênh lệch vị thế net position (MS vs CQG): ${mismatchedPositions.length} tài khoản\n`;
+
+              const mismatchedTrades = result.mismatchedTrades || [];
+              if (mismatchedTrades.length > 0) {
+                note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+                mismatchedTrades.slice(0, 10).forEach((m: any) => {
+                  note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
+                });
+                if (mismatchedTrades.length > 10) {
+                  note += `  - ... và ${mismatchedTrades.length - 10} giao dịch khác.\n`;
+                }
+              } else {
+                note += `✓ Không có lệch chi tiết khớp lệnh.\n`;
+              }
+
+              if (mismatchedPositions.length > 0) {
+                note += `⚠️ Phát hiện ${mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+                mismatchedPositions.slice(0, 10).forEach((m: any) => {
+                  note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
+                });
+                if (mismatchedPositions.length > 10) {
+                  note += `  - ... và ${mismatchedPositions.length - 10} chênh lệch khác.\n`;
+                }
               }
             }
             return JSON.stringify({
@@ -1423,7 +1436,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           return null;
         };
 
-        if (status === 'PROCESSING') {
+        if (status === 'PROCESSING' || status === 'PENDING') {
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,
@@ -1447,7 +1460,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'CHECK_KLGD',
             ].includes(job.jobType)
           ) {
-            const jsonMsg = getReconciliationJson(job.jobType, payload, true);
+            const isWaitingFiles = payload?.result?.isWaitingFiles;
+            const jsonMsg = getReconciliationJson(job.jobType, payload, !isWaitingFiles);
             if (jsonMsg) {
               message = jsonMsg;
             } else if (job.jobType === 'AUTO_CHECK_SOD') {
@@ -1486,10 +1500,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = JSON.stringify(checkData);
           }
 
+          const isWaitingFiles = payload?.result?.isWaitingFiles;
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,
-            'PASSED',
+            isWaitingFiles ? 'WAITING' : 'PASSED',
             systemUser,
             message,
             true,
@@ -2337,12 +2352,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           `[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`,
         );
       }
-      job.logs.push(
-        `[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`,
-      );
-      job.logs.push(
-        `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
-      );
+      if (result.isWaitingFiles) {
+        job.logs.push(`[${new Date().toISOString()}] ${result.message}`);
+      } else {
+        job.logs.push(
+          `[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`,
+        );
+        job.logs.push(
+          `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
+        );
+      }
       payload.result = result;
       job.payload = payload;
       await job.save();
@@ -2511,11 +2530,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async sendOperationalFailureAlert(job: BotJob, errorMsg: string) {
     try {
-      const configStr = await this.settingsService.getSetting(
-        'margin_checker_config',
-        '{}',
-      );
-      const config = JSON.parse(configStr);
+      const config = await this.marginCheckerService.loadConfig();
       const mailSettings = config.opFailureAlert || {
         isSendWarning: true,
         email: ['it.support@mxv.vn'],

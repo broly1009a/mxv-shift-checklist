@@ -63,8 +63,8 @@ export default function OmsStatusModal({
     setLoading(true);
     try {
       const endpoint = taskId === 'ops_open_07' 
-        ? `${API_BASE_URL}/bot/check-email`
-        : `${API_BASE_URL}/bot/check-oms`;
+        ? `${API_BASE_URL}/api/v1/bot-engine/trigger-email-check/${shiftLogId}/${taskId}`
+        : `${API_BASE_URL}/api/v1/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`;
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -72,7 +72,6 @@ export default function OmsStatusModal({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ shiftLogId, taskId }),
       });
 
       if (!res.ok) {

@@ -10,6 +10,8 @@ import { ChecklistTemplate } from '../schemas/template.schema';
 import { ShiftSlot } from '../schemas/shift-slot.schema';
 import { WorkingCalendar } from '../schemas/working-calendar.schema';
 import { Role } from '../schemas/role.schema';
+import { Exchange } from '../schemas/exchange.schema';
+import { ExchangeHoliday } from '../schemas/exchange-holiday.schema';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -27,6 +29,10 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly workingCalendarModel: Model<WorkingCalendar>,
     @InjectModel(Role.name)
     private readonly roleModel: Model<Role>,
+    @InjectModel(Exchange.name)
+    private readonly exchangeModel: Model<Exchange>,
+    @InjectModel(ExchangeHoliday.name)
+    private readonly exchangeHolidayModel: Model<ExchangeHoliday>,
   ) { }
 
   async onApplicationBootstrap() {
@@ -41,6 +47,7 @@ export class SeedService implements OnApplicationBootstrap {
     this.logger.log('Starting database seeding...');
     try {
       await this.seedRoles();
+      await this.seedExchangesAndHolidays();
       const depts = await this.seedDepartments();
       await this.seedUsers(depts);
       const slots = await this.seedShiftSlots();
@@ -51,6 +58,7 @@ export class SeedService implements OnApplicationBootstrap {
       this.logger.error('Error seeding database', error);
     }
   }
+
 
   private async seedDepartments(): Promise<Record<string, string>> {
     // Delete legacy departments to clean up old codes
@@ -63,26 +71,31 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Vận hành Công nghệ Thông tin',
         code: 'IT_CORE',
         parentCode: null,
+        monitoredExchanges: ['CME', 'ICE_US', 'ICE_EU', 'LME', 'SGX', 'BMD', 'OSE'],
       },
       {
         name: 'Nghiên cứu và Phát triển Công nghệ',
         code: 'IT_RND',
         parentCode: null,
+        monitoredExchanges: [],
       },
       {
         name: 'Ban Giám sát thị trường',
         code: 'BAN_GSTT',
         parentCode: null,
+        monitoredExchanges: [],
       },
       {
         name: 'Quản lý giám sát giao dịch',
         code: 'QLGD_OPS',
         parentCode: 'BAN_GSTT',
+        monitoredExchanges: ['CME', 'ICE_US', 'ICE_EU', 'LME'],
       },
       {
         name: 'Quản lý giám sát rủi ro',
         code: 'QLRR_RISK',
         parentCode: 'BAN_GSTT',
+        monitoredExchanges: ['CME', 'ICE_US', 'ICE_EU', 'LME', 'SGX', 'BMD', 'OSE'],
       },
     ];
 
@@ -94,15 +107,18 @@ export class SeedService implements OnApplicationBootstrap {
           name: dept.name,
           code: dept.code,
           parentDepartmentId: null,
+          monitoredExchanges: dept.monitoredExchanges,
         });
         await doc.save();
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
         doc.name = dept.name;
+        doc.monitoredExchanges = dept.monitoredExchanges;
         await doc.save();
       }
       mapping[dept.code] = doc._id.toString();
     }
+
 
     // Set parent relationships
     for (const dept of departments) {
@@ -230,6 +246,10 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Ca 1',
         startTime: '14:00',
         endTime: '22:00',
+        seasonalHours: [
+          { name: 'SUMMER', startTime: '14:00', endTime: '22:00', timezoneRef: 'America/Chicago' },
+          { name: 'WINTER', startTime: '14:00', endTime: '22:00', timezoneRef: 'America/Chicago' }
+        ],
         isOvernight: false,
         isActive: true,
         sortOrder: 1,
@@ -239,6 +259,10 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Ca 2 (Qua đêm)',
         startTime: '22:00',
         endTime: '06:00',
+        seasonalHours: [
+          { name: 'SUMMER', startTime: '21:00', endTime: '05:00', timezoneRef: 'America/Chicago' },
+          { name: 'WINTER', startTime: '22:00', endTime: '06:00', timezoneRef: 'America/Chicago' }
+        ],
         isOvernight: true,
         isActive: true,
         sortOrder: 2,
@@ -248,6 +272,10 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Ca 3',
         startTime: '06:00',
         endTime: '14:00',
+        seasonalHours: [
+          { name: 'SUMMER', startTime: '05:00', endTime: '13:00', timezoneRef: 'America/Chicago' },
+          { name: 'WINTER', startTime: '06:00', endTime: '14:00', timezoneRef: 'America/Chicago' }
+        ],
         isOvernight: false,
         isActive: true,
         sortOrder: 3,
@@ -257,6 +285,10 @@ export class SeedService implements OnApplicationBootstrap {
         name: 'Ca hành chính',
         startTime: '08:00',
         endTime: '17:30',
+        seasonalHours: [
+          { name: 'SUMMER', startTime: '08:00', endTime: '17:30', timezoneRef: 'America/Chicago' },
+          { name: 'WINTER', startTime: '08:00', endTime: '17:30', timezoneRef: 'America/Chicago' }
+        ],
         isOvernight: false,
         isActive: true,
         sortOrder: 4,
@@ -274,6 +306,7 @@ export class SeedService implements OnApplicationBootstrap {
         doc.name = slot.name;
         doc.startTime = slot.startTime;
         doc.endTime = slot.endTime;
+        doc.seasonalHours = slot.seasonalHours;
         doc.isOvernight = slot.isOvernight;
         doc.isActive = slot.isActive;
         doc.sortOrder = slot.sortOrder;
@@ -283,6 +316,8 @@ export class SeedService implements OnApplicationBootstrap {
     }
     return mapping;
   }
+
+
 
   private async seedWorkingCalendar() {
     const now = new Date();
@@ -519,4 +554,49 @@ export class SeedService implements OnApplicationBootstrap {
       }
     }
   }
+
+  private async seedExchangesAndHolidays() {
+    const exchanges = [
+      { code: 'CME', name: 'CME Group', timezone: 'America/Chicago', description: 'Chicago Mercantile Exchange' },
+      { code: 'ICE_US', name: 'ICE US', timezone: 'America/New_York', description: 'Intercontinental Exchange US' },
+      { code: 'ICE_EU', name: 'ICE EU', timezone: 'Europe/London', description: 'Intercontinental Exchange Europe' },
+      { code: 'LME', name: 'LME', timezone: 'Europe/London', description: 'London Metal Exchange' },
+      { code: 'SGX', name: 'SGX', timezone: 'Asia/Singapore', description: 'Singapore Exchange' },
+      { code: 'BMD', name: 'BMD', timezone: 'Asia/Kuala_Lumpur', description: 'Bursa Malaysia Derivatives' },
+      { code: 'OSE', name: 'OSE', timezone: 'Asia/Tokyo', description: 'Osaka Exchange' },
+    ];
+
+    for (const ex of exchanges) {
+      const existing = await this.exchangeModel.findOne({ code: ex.code }).exec();
+      if (!existing) {
+        const doc = new this.exchangeModel(ex);
+        await doc.save();
+        this.logger.log(`Seeded exchange: ${ex.code}`);
+      } else {
+        existing.name = ex.name;
+        existing.timezone = ex.timezone;
+        existing.description = ex.description;
+        await existing.save();
+      }
+    }
+
+    const holidays = [
+      { exchangeCode: 'CME', date: '2026-11-26', isClosed: true, note: 'Thanksgiving Day 2026' },
+      { exchangeCode: 'CME', date: '*-12-25', isClosed: true, note: 'Christmas Day' },
+      { exchangeCode: 'CME', date: '*-01-01', isClosed: true, note: 'New Year\'s Day' },
+    ];
+
+    for (const h of holidays) {
+      const existing = await this.exchangeHolidayModel.findOne({
+        exchangeCode: h.exchangeCode,
+        date: h.date,
+      }).exec();
+      if (!existing) {
+        const doc = new this.exchangeHolidayModel(h);
+        await doc.save();
+        this.logger.log(`Seeded exchange holiday: ${h.exchangeCode} on ${h.date}`);
+      }
+    }
+  }
 }
+

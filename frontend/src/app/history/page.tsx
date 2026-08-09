@@ -15,6 +15,11 @@ import {
 import Link from 'next/link';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 
+// Import Reusable UI Components
+import SearchableSelect from '@/components/ui/SearchableSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
+import CustomDatePicker from '@/components/ui/CustomDatePicker';
+
 interface Department {
   _id: string;
   name: string;
@@ -167,6 +172,22 @@ function HistoryAudit() {
     }
   };
 
+  // Options for reusable filter components
+  const departmentFilterOptions = [
+    { value: 'ALL', label: 'Tất cả phòng ban' },
+    ...departments.map(d => ({
+      value: d._id,
+      label: d.name,
+      sublabel: d.code
+    }))
+  ];
+
+  const statusFilterOptions = [
+    { value: 'ALL', label: 'Tất cả trạng thái' },
+    { value: 'PENDING', label: 'Đang trực' },
+    { value: 'COMPLETED', label: 'Hoàn thành' }
+  ];
+
   if (!canViewChecklist) {
     return (
       <ProtectedRoute>
@@ -209,34 +230,56 @@ function HistoryAudit() {
           </h3>
 
           <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Phòng Ban</label>
-              <select className="form-input" value={selectedDept} onChange={(e) => { setSelectedDept(e.target.value); setCurrentPage(1); }} style={{ background: 'var(--bg-app)' }}>
-                <option value="">Tất cả phòng ban</option>
-                {departments.map(d => (
-                  <option key={d._id} value={d._id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+            {/* Department Filter */}
+            <SearchableSelect
+              label="Phòng Ban"
+              placeholder="Chọn phòng ban..."
+              options={departmentFilterOptions}
+              selectedValue={selectedDept || 'ALL'}
+              onChange={(val) => {
+                setSelectedDept(val === 'ALL' ? '' : val);
+                setCurrentPage(1);
+              }}
+              flex="none"
+              minWidth="100%"
+            />
 
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Trạng Thái</label>
-              <select className="form-input" value={selectedStatus} onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }} style={{ background: 'var(--bg-app)' }}>
-                <option value="">Tất cả trạng thái</option>
-                <option value="PENDING">ĐANG TRỰC</option>
-                <option value="COMPLETED">HOÀN THÀNH</option>
-              </select>
-            </div>
+            {/* Status Filter */}
+            <CustomSelect
+              label="Trạng Thái"
+              options={statusFilterOptions}
+              selectedValue={selectedStatus || 'ALL'}
+              onChange={(val) => {
+                setSelectedStatus(val === 'ALL' ? '' : val);
+                setCurrentPage(1);
+              }}
+              flex="none"
+              minWidth="100%"
+            />
 
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Từ Ngày</label>
-              <input type="date" className="form-input" value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} style={{ background: 'var(--bg-app)' }} />
-            </div>
+            {/* Start Date Filter */}
+            <CustomDatePicker
+              label="Từ Ngày"
+              value={startDate}
+              onChange={(val) => {
+                setStartDate(val);
+                setCurrentPage(1);
+              }}
+              flex="none"
+              minWidth="100%"
+            />
 
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đến Ngày</label>
-              <input type="date" className="form-input" value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} style={{ background: 'var(--bg-app)' }} />
-            </div>
+            {/* End Date Filter */}
+            <CustomDatePicker
+              label="Đến Ngày"
+              value={endDate}
+              onChange={(val) => {
+                setEndDate(val);
+                setCurrentPage(1);
+              }}
+              flex="none"
+              minWidth="100%"
+            />
 
             <div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>

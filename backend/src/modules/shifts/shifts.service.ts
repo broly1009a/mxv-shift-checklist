@@ -18,6 +18,7 @@ import { SystemLogsService } from '../system-logs/system-logs.service';
 import { IncidentsService } from '../incidents/incidents.service';
 import { AccessControlService } from '../auth/access-control.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
+import { WorkingCalendarService } from '../working-calendar/working-calendar.service';
 
 @Injectable()
 export class ShiftsService {
@@ -36,7 +37,9 @@ export class ShiftsService {
     private readonly incidentsService: IncidentsService,
     private readonly accessControlService: AccessControlService,
     private readonly marginCheckerService: MarginCheckerService,
+    private readonly workingCalendarService: WorkingCalendarService,
   ) {}
+
 
   private validateScope(
     user: any,
@@ -249,11 +252,13 @@ export class ShiftsService {
         {},
       );
 
+      this.adjustShiftSlotTimesForSeason(result);
       return result;
     } finally {
       this.initializingKeys.delete(lockKey);
     }
   }
+
 
   async addAdhocTask(
     shiftLogId: string,
@@ -433,8 +438,39 @@ export class ShiftsService {
       (d) => d.parentTaskIdSnapshot === taskId,
     );
     if (isParentTask && !isInternal) {
-      throw new BadRequestException(
-        `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
+      if (status !== 'SKIPPED' && status !== 'PENDING') {
+        throw new BadRequestException(
+          `Tác vụ "${task.taskNameSnapshot}" là tác vụ tổng hợp. Nó sẽ tự động hoàn thành khi tất cả các tác vụ con của nó hoàn thành.`,
+        );
+      }
+      // Cascade update children tasks in the database first to prevent WebSocket out-of-sync lag
+      const childrenIsChecked = status === 'SKIPPED';
+      const nowTime = new Date();
+      const setFields: any = {
+        'details.$[elem].status': status,
+        'details.$[elem].isChecked': childrenIsChecked,
+        'details.$[elem].updatedBy': new Types.ObjectId(user.id || user._id) as any,
+      };
+
+      if (status === 'PENDING') {
+        setFields['details.$[elem].startedAt'] = null;
+        setFields['details.$[elem].completedAt'] = null;
+        setFields['details.$[elem].failedAt'] = null;
+        setFields['details.$[elem].skippedAt'] = null;
+        setFields['details.$[elem].needsAttentionAt'] = null;
+        setFields['details.$[elem].checkedAt'] = null;
+      } else if (status === 'SKIPPED') {
+        setFields['details.$[elem].skippedAt'] = nowTime;
+        setFields['details.$[elem].completedAt'] = null;
+        setFields['details.$[elem].failedAt'] = null;
+        setFields['details.$[elem].needsAttentionAt'] = null;
+        setFields['details.$[elem].checkedAt'] = nowTime;
+      }
+
+      await this.shiftLogModel.updateOne(
+        { _id: shiftLogId },
+        { $set: setFields },
+        { arrayFilters: [{ 'elem.parentTaskIdSnapshot': taskId }] },
       );
     }
 
@@ -442,9 +478,10 @@ export class ShiftsService {
     const oldStatus = task.status || 'PENDING';
     const oldNote = task.note;
 
-    // Check task dependencies if status is not PENDING
+    // Check task dependencies if status is not PENDING or WAITING
     if (
       status !== 'PENDING' &&
+      status !== 'WAITING' &&
       task.dependsOnTaskIdsSnapshot &&
       task.dependsOnTaskIdsSnapshot.length > 0
     ) {
@@ -588,7 +625,7 @@ export class ShiftsService {
 
     // Create Audit Log record
     let auditLogRecord: any = null;
-    if (oldStatus !== status) {
+    if (oldStatus !== status && oldIsChecked !== isChecked) {
       const audit = new this.auditLogModel({
         shiftLogId: new Types.ObjectId(shiftLogId),
         taskId,
@@ -681,48 +718,7 @@ export class ShiftsService {
     }
 
     // Auto-update parent tasks if any child or dependency is updated
-    if (isParentTask) {
-      // Auto-update children tasks if updating a parent task directly
-      const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
-      if (latestLog) {
-        const children = latestLog.details.filter(
-          (d) => d.parentTaskIdSnapshot === taskId,
-        );
-        if (children.length > 0) {
-          let updatedChild = false;
-          for (const child of children) {
-            if (child.isChecked !== isChecked) {
-              await this.shiftLogModel.updateOne(
-                { _id: shiftLogId, 'details.taskId': child.taskId },
-                {
-                  $set: {
-                    'details.$.status': status,
-                    'details.$.isChecked': isChecked,
-                    'details.$.checkedAt': isChecked ? new Date() : null,
-                    'details.$.updatedBy': new Types.ObjectId(
-                      user.id || user._id,
-                    ),
-                  },
-                },
-              );
-              updatedChild = true;
-            }
-          }
-          if (updatedChild) {
-            return (await this.shiftLogModel
-              .findById(shiftLogId)
-              .populate('userId', 'fullName username')
-              .populate('closedBy', 'fullName username')
-              .populate('details.updatedBy', 'fullName username')
-              .populate({
-                path: 'templateId',
-                populate: { path: 'departmentId' },
-              })
-              .exec()) as ShiftLog;
-          }
-        }
-      }
-    } else {
+    if (!isParentTask) {
       // It is a subtask or regular task. We re-evaluate all parent tasks.
       const latestLog = await this.shiftLogModel.findById(shiftLogId).exec();
       if (latestLog) {
@@ -793,6 +789,29 @@ export class ShiftsService {
                 true,
               );
               return resLog;
+            } else if (!parentTask.isChecked) {
+              // Synchronize parent task status to WAITING when any sub-task is active or completed
+              const hasActiveWork = siblings.some(
+                (s) =>
+                  s.status === 'WAITING' ||
+                  s.isChecked ||
+                  s.status === 'FAILED' ||
+                  s.status === 'NEEDS_ATTENTION',
+              );
+              const targetStatus = hasActiveWork ? 'WAITING' : 'PENDING';
+              if (parentTask.status !== targetStatus) {
+                const resLog = await this.updateTaskStatus(
+                  shiftLogId,
+                  parentId as string,
+                  targetStatus,
+                  user,
+                  targetStatus === 'WAITING'
+                    ? 'Tự động chuyển trạng thái sang Đang kiểm tra/Đang thực hiện theo tiến trình các đầu việc con'
+                    : 'Chuyển về trạng thái Chưa thực hiện do chưa có tiến trình đầu việc con nào hoạt động',
+                  true,
+                );
+                return resLog;
+              }
             }
           }
         }
@@ -1147,6 +1166,9 @@ export class ShiftsService {
     }
 
     const data = await query.exec();
+    for (const log of data) {
+      this.adjustShiftSlotTimesForSeason(log);
+    }
 
     return {
       data,
@@ -1154,6 +1176,7 @@ export class ShiftsService {
       page: page || 1,
       limit: limit || total,
     };
+
   }
 
   async getActiveShiftsByDepartment(
@@ -1203,7 +1226,7 @@ export class ShiftsService {
       filter.templateId = { $in: templateIds };
     }
 
-    return this.shiftLogModel
+    const logs = await this.shiftLogModel
       .find(filter)
       .populate('userId', 'fullName username')
       .populate('closedBy', 'fullName username')
@@ -1215,6 +1238,12 @@ export class ShiftsService {
       .populate('shiftSlotId')
       .populate('departmentId')
       .exec();
+
+    for (const log of logs) {
+      this.adjustShiftSlotTimesForSeason(log);
+    }
+    return logs;
+
   }
 
   async getShiftById(id: string, user: any): Promise<ShiftLog> {
@@ -1241,7 +1270,9 @@ export class ShiftsService {
     const deptId = dept?._id || dept;
     this.validateScope(user, deptId);
 
+    this.adjustShiftSlotTimesForSeason(log);
     return log;
+
   }
 
   async getShiftByIdInternal(id: string): Promise<ShiftLog | null> {
@@ -1362,4 +1393,38 @@ export class ShiftsService {
       handovers: matchedHandovers.slice(0, 10),
     };
   }
+
+  adjustShiftSlotTimesForSeason(log: any) {
+    if (log && log.shiftSlotId && log.shiftDate) {
+      const slot = log.shiftSlotId;
+      if (slot.seasonalHours && slot.seasonalHours.length > 0) {
+        const timezone = 'America/Chicago';
+        const isSummer = this.workingCalendarService.isDaylightSavingTime(
+          log.shiftDate,
+          timezone,
+        );
+        const seasonName = isSummer ? 'SUMMER' : 'WINTER';
+        const matched = slot.seasonalHours.find(
+          (h: any) => h.name === seasonName,
+        );
+        if (matched) {
+          const st = matched.startTime;
+          const et = matched.endTime;
+          try {
+            slot.startTime = st;
+            slot.endTime = et;
+          } catch {
+            if (typeof slot.toObject === 'function') {
+              log.shiftSlotId = slot.toObject();
+              log.shiftSlotId.startTime = st;
+              log.shiftSlotId.endTime = et;
+            }
+          }
+        }
+      }
+    }
+    return log;
+  }
+
 }
+

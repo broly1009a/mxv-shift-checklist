@@ -7,14 +7,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WorkingCalendar } from '../../schemas/working-calendar.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { Exchange } from '../../schemas/exchange.schema';
+import { ExchangeHoliday } from '../../schemas/exchange-holiday.schema';
 
 @Injectable()
 export class WorkingCalendarService {
   constructor(
     @InjectModel(WorkingCalendar.name)
     private readonly workingCalendarModel: Model<WorkingCalendar>,
+    @InjectModel(Exchange.name)
+    private readonly exchangeModel: Model<Exchange>,
+    @InjectModel(ExchangeHoliday.name)
+    private readonly exchangeHolidayModel: Model<ExchangeHoliday>,
     private readonly settingsService: SystemSettingsService,
   ) {}
+
 
   async findAll(): Promise<WorkingCalendar[]> {
     return this.workingCalendarModel.find().sort({ date: 1 }).exec();
@@ -128,6 +135,97 @@ export class WorkingCalendarService {
     };
   }
 
+  async isExchangeClosed(exchangeCode: string, dateStr: string): Promise<boolean> {
+    // 1. Check exact date holiday
+    let holiday = await this.exchangeHolidayModel.findOne({
+      exchangeCode,
+      date: dateStr,
+    }).exec();
+
+    // 2. Check recurring holiday (e.g. *-12-25)
+    if (!holiday) {
+      const [, mm, dd] = dateStr.split('-');
+      holiday = await this.exchangeHolidayModel.findOne({
+        exchangeCode,
+        date: `*-${mm}-${dd}`,
+      }).exec();
+    }
+
+    return holiday ? holiday.isClosed : false;
+  }
+
+  async getExchangeTimezone(exchangeCode: string): Promise<string> {
+    const exchange = await this.exchangeModel.findOne({ code: exchangeCode }).exec();
+    return exchange ? exchange.timezone : 'Asia/Saigon';
+  }
+
+  async isDepartmentClosedOnDate(monitoredExchanges: string[], dateStr: string): Promise<boolean> {
+    if (!monitoredExchanges || monitoredExchanges.length === 0) {
+      return this.checkWeekend(dateStr);
+    }
+
+    // If day is a weekend, they are closed.
+    const isWeekendVal = await this.checkWeekend(dateStr);
+    if (isWeekendVal) {
+      return true;
+    }
+
+    // Check if ALL monitored exchanges are closed on this date
+    let allClosed = true;
+    for (const exCode of monitoredExchanges) {
+      const closed = await this.isExchangeClosed(exCode, dateStr);
+      if (!closed) {
+        allClosed = false;
+        break;
+      }
+    }
+
+    return allClosed;
+  }
+
+  isDaylightSavingTime(dateStr: string, timezone: string): boolean {
+    if (!timezone) return false;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    // US DST (America/Chicago, America/New_York)
+    if (timezone.startsWith('America/')) {
+      const dstStart = this.getNthSundayOfMonth(year, 3, 2);
+      const dstEnd = this.getNthSundayOfMonth(year, 11, 1);
+      return date >= dstStart && date < dstEnd;
+    }
+
+    // UK/Europe DST (Europe/London)
+    if (timezone.startsWith('Europe/')) {
+      const dstStart = this.getLastSundayOfMonth(year, 3);
+      const dstEnd = this.getLastSundayOfMonth(year, 10);
+      return date >= dstStart && date < dstEnd;
+    }
+
+    return false;
+  }
+
+  private getNthSundayOfMonth(year: number, month: number, n: number): Date {
+    const date = new Date(year, month - 1, 1);
+    let count = 0;
+    while (count < n) {
+      if (date.getDay() === 0) {
+        count++;
+        if (count === n) return date;
+      }
+      date.setDate(date.getDate() + 1);
+    }
+    return date;
+  }
+
+  private getLastSundayOfMonth(year: number, month: number): Date {
+    const date = new Date(year, month, 0);
+    while (date.getDay() !== 0) {
+      date.setDate(date.getDate() - 1);
+    }
+    return date;
+  }
+
   private async checkWeekend(dateStr: string): Promise<boolean> {
     if (dateStr.startsWith('*-')) {
       return false;
@@ -152,3 +250,4 @@ export class WorkingCalendarService {
     }
   }
 }
+

@@ -22,6 +22,7 @@
     "test:bot": "ts-node src/test-bot-engine.ts",
     "test:post-eod": "ts-node src/test-post-eod.ts",
     "test:rpa": "ts-node src/test-rpa-flow.ts",
+    "test:oms-playwright": "ts-node src/test-oms-playwright.ts",
     "test:ms-login": "ts-node src/test-ms-login.ts",
     "test:ms-download": "ts-node src/test-ms-download.ts",
     "test:ms-prices": "ts-node src/test-ms-prices.ts",

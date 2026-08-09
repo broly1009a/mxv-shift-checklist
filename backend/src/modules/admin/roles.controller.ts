@@ -10,6 +10,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role } from '../../schemas/role.schema';
+import { ActivityLog } from '../../schemas/activity-log.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -19,7 +20,22 @@ import { Permissions } from '../auth/permissions.decorator';
 export class RolesController {
   constructor(
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
+    @InjectModel(ActivityLog.name) private readonly activityLogModel: Model<ActivityLog>,
   ) {}
+
+  @UseGuards(PermissionsGuard)
+  @Permissions('MANAGE_ROLES')
+  @Get('roles/audit-logs')
+  async getRoleAuditLogs() {
+    return this.activityLogModel
+      .find({
+        action: { $regex: /PUT \/api\/v1\/roles\/.*\/permissions/i }
+      })
+      .populate('userId', 'fullName username')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .exec();
+  }
 
   @UseGuards(PermissionsGuard)
   @Permissions('MANAGE_ROLES')

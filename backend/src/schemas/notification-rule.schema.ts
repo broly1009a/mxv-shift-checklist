@@ -47,8 +47,23 @@ export class NotificationRule extends Document {
   @Prop({ type: Object, default: {} })
   conditions: Record<string, any>;
 
-  @Prop({ type: RuleTemplateSchema, required: true })
-  template: RuleTemplate;
+  @Prop({ type: String, default: '' })
+  recipient?: string;
+
+  @Prop({ type: String, default: '' })
+  telegramChatId?: string;
+
+  @Prop({ type: String, default: '' })
+  block?: string;
+
+  @Prop({ type: Boolean, default: true })
+  isSendWarning?: boolean;
+
+  @Prop({ type: Object, default: {} })
+  customParams?: Record<string, any>;
+
+  @Prop({ type: RuleTemplateSchema, required: false, default: null })
+  template?: RuleTemplate | null;
 }
 
 export const NotificationRuleSchema =

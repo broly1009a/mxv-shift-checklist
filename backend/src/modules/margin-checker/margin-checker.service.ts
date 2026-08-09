@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,6 +8,8 @@ import * as vm from 'vm';
 import * as nodemailer from 'nodemailer';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { NotificationRule } from '../../schemas/notification-rule.schema';
+import { NotificationChannel } from '../../schemas/notification-channel.schema';
 const { PDFParse } = require('pdf-parse');
 
 @Injectable()
@@ -15,139 +19,154 @@ export class MarginCheckerService {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly systemSettingsService: SystemSettingsService,
+    @InjectModel(NotificationRule.name)
+    private readonly ruleModel: Model<NotificationRule>,
+    @InjectModel(NotificationChannel.name)
+    private readonly channelModel: Model<NotificationChannel>,
   ) {}
 
   async loadConfig() {
-    const defaultVal = JSON.stringify({
-      marginOnOrder: {
-        warningRate: 20,
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      marginChange: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      sodCheck: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-        differThreshold: 100,
-      },
-      preEodCheck: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      eodCheck: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      negativeMarginReport: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      opFailureAlert: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      shiftHandoverReport: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      securityAudit: {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-        telegramChatId: '',
-      },
-      smtp: {
-        host: 'smtp.office365.com',
-        port: 587,
-        user: 'it.support@mxv.vn',
-        pass: 'OFmng239',
-        senderEmail: 'it.support@mxv.vn',
-        senderName: 'MXV IT Support',
-      },
-    });
+    const defaultSmtp = {
+      host: 'smtp.office365.com',
+      port: 587,
+      user: 'it.support@mxv.vn',
+      pass: 'OFmng239',
+      senderEmail: 'it.support@mxv.vn',
+      senderName: 'MXV IT Support',
+    };
 
-    const configStr = await this.systemSettingsService.getSetting(
-      'margin_checker_config',
-      defaultVal,
-    );
+    let smtp = defaultSmtp;
     try {
+      const configStr = await this.systemSettingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
       const parsed = JSON.parse(configStr);
-      const fallbackEmails = parsed.marginOnOrder?.email || [
-        'it.support@mxv.vn',
-      ];
-      const fallbackChatId = parsed.marginOnOrder?.telegramChatId || '';
-
-      if (!parsed.sodCheck) {
-        parsed.sodCheck = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-          differThreshold: 100,
-        };
+      if (parsed.smtp) {
+        smtp = { ...defaultSmtp, ...parsed.smtp };
       }
-      if (!parsed.preEodCheck) {
-        parsed.preEodCheck = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      if (!parsed.eodCheck) {
-        parsed.eodCheck = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      if (!parsed.negativeMarginReport) {
-        parsed.negativeMarginReport = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      if (!parsed.opFailureAlert) {
-        parsed.opFailureAlert = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      if (!parsed.shiftHandoverReport) {
-        parsed.shiftHandoverReport = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      if (!parsed.securityAudit) {
-        parsed.securityAudit = {
-          isSendWarning: true,
-          email: fallbackEmails,
-          telegramChatId: fallbackChatId,
-        };
-      }
-      return parsed;
     } catch (err) {
-      return JSON.parse(defaultVal);
+      this.logger.error(`Lỗi khi đọc SMTP từ cài đặt hệ thống: ${err.message}`);
     }
+
+    let rules: any[] = [];
+    try {
+      rules = await this.ruleModel.find({
+        code: {
+          $in: [
+            'MARGIN_ON_ORDER',
+            'MARGIN_CHANGE',
+            'SOD_CHECK',
+            'PRE_EOD_CHECK',
+            'EOD_CHECK',
+            'NEGATIVE_MARGIN',
+            'BOT_FAILURE',
+            'SHIFT_HANDOVER',
+            'SECURITY_AUDIT',
+          ],
+        },
+      }).exec();
+    } catch (err) {
+      this.logger.error(`Lỗi khi truy vấn NotificationRules: ${err.message}`);
+    }
+
+    const mapRule = (code: string, fallbackRate?: number) => {
+      const rule = rules.find((r) => r.code === code);
+      const emails = rule && rule.recipient
+        ? rule.recipient.split(',').map((e: string) => e.trim()).filter(Boolean)
+        : ['it.support@mxv.vn'];
+
+      const configObj: any = {
+        isSendWarning: rule ? rule.isSendWarning !== false : true,
+        email: emails,
+        telegramChatId: rule ? rule.telegramChatId || '' : '',
+      };
+
+      if (fallbackRate !== undefined) {
+        configObj.warningRate = rule?.customParams?.warningRate !== undefined 
+          ? rule.customParams.warningRate 
+          : fallbackRate;
+      }
+      return configObj;
+    };
+
+    const sodRule = rules.find((r) => r.code === 'SOD_CHECK');
+    const sodEmails = sodRule && sodRule.recipient
+      ? sodRule.recipient.split(',').map((e: string) => e.trim()).filter(Boolean)
+      : ['it.support@mxv.vn'];
+    const sodThreshold = sodRule?.customParams?.differThreshold !== undefined
+      ? sodRule.customParams.differThreshold
+      : 100;
+
+    return {
+      marginOnOrder: mapRule('MARGIN_ON_ORDER', 20),
+      marginChange: mapRule('MARGIN_CHANGE'),
+      sodCheck: {
+        isSendWarning: sodRule ? sodRule.isSendWarning !== false : true,
+        email: sodEmails,
+        telegramChatId: sodRule ? sodRule.telegramChatId || '' : '',
+        differThreshold: sodThreshold,
+      },
+      preEodCheck: mapRule('PRE_EOD_CHECK'),
+      eodCheck: mapRule('EOD_CHECK'),
+      negativeMarginReport: mapRule('NEGATIVE_MARGIN'),
+      opFailureAlert: mapRule('BOT_FAILURE'),
+      shiftHandoverReport: mapRule('SHIFT_HANDOVER'),
+      securityAudit: mapRule('SECURITY_AUDIT'),
+      smtp: smtp,
+    };
   }
 
   async saveConfig(config: any) {
+    // 1. Lưu SMTP vào system_settings
+    let currentSettings: any = {};
+    try {
+      const currentSettingsStr = await this.systemSettingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
+      currentSettings = JSON.parse(currentSettingsStr);
+    } catch (e) {}
+
+    currentSettings.smtp = config.smtp;
     await this.systemSettingsService.setSetting(
       'margin_checker_config',
-      JSON.stringify(config),
+      JSON.stringify(currentSettings),
     );
+
+    // 2. Cập nhật các Luật thông báo
+    const rulesToUpdate = [
+      { code: 'MARGIN_ON_ORDER', config: config.marginOnOrder, extraParams: { warningRate: config.marginOnOrder?.warningRate } },
+      { code: 'MARGIN_CHANGE', config: config.marginChange },
+      { code: 'SOD_CHECK', config: config.sodCheck, extraParams: { differThreshold: config.sodCheck?.differThreshold } },
+      { code: 'PRE_EOD_CHECK', config: config.preEodCheck },
+      { code: 'EOD_CHECK', config: config.eodCheck },
+      { code: 'NEGATIVE_MARGIN', config: config.negativeMarginReport },
+      { code: 'BOT_FAILURE', config: config.opFailureAlert },
+      { code: 'SHIFT_HANDOVER', config: config.shiftHandoverReport },
+      { code: 'SECURITY_AUDIT', config: config.securityAudit },
+    ];
+
+    for (const item of rulesToUpdate) {
+      if (item.config) {
+        const emailsStr = Array.isArray(item.config.email)
+          ? item.config.email.join(', ')
+          : item.config.email || '';
+
+        await this.ruleModel.updateOne(
+          { code: item.code },
+          {
+            $set: {
+              isSendWarning: item.config.isSendWarning,
+              recipient: emailsStr,
+              telegramChatId: item.config.telegramChatId || '',
+              customParams: item.extraParams || {},
+            },
+          },
+        ).exec();
+      }
+    }
+
     return { success: true, message: 'Cấu hình đã được lưu thành công' };
   }
 
@@ -218,20 +237,65 @@ export class MarginCheckerService {
     return newDate;
   }
 
+  async updateDeliveryStatus(checkerType: string, status: 'SUCCESS' | 'FAILED', errorMsg?: string, subject?: string) {
+    try {
+      const configStr = await this.systemSettingsService.getSetting(
+        'margin_checker_config',
+        '{}',
+      );
+      const config = JSON.parse(configStr);
+      if (!config[checkerType]) {
+        config[checkerType] = {};
+      }
+      config[checkerType].lastEmailSentAt = new Date().toISOString();
+      config[checkerType].lastEmailStatus = status;
+      config[checkerType].lastEmailError = errorMsg || null;
+      if (subject) {
+        config[checkerType].lastSubject = subject;
+      }
+      
+      await this.systemSettingsService.setSetting(
+        'margin_checker_config',
+        JSON.stringify(config),
+      );
+      this.logger.log(`Đã cập nhật trạng thái gửi tin cho ${checkerType}: ${status}`);
+    } catch (err) {
+      this.logger.error(`Không thể cập nhật trạng thái gửi tin cho ${checkerType}: ${err.message}`);
+    }
+  }
+
   async sendEmailNotification(
     config: any,
     toEmails: string[],
     subject: string,
     htmlBody: string,
     attachments: Array<{ filename: string; content: Buffer }> = [],
+    checkerType?: string,
   ) {
-    const smtp = config.smtp || {
-      host: 'smtp.office365.com',
-      port: 587,
-      user: 'it.support@mxv.vn',
-      pass: 'OFmng239',
-      senderEmail: 'it.support@mxv.vn',
-      senderName: 'MXV IT Support',
+    if (checkerType) {
+      const lastSentStr = config[checkerType]?.lastEmailSentAt;
+      const lastSubject = config[checkerType]?.lastSubject;
+      if (lastSentStr && lastSubject === subject) {
+        const lastSent = new Date(lastSentStr);
+        const now = new Date();
+        const diffMs = now.getTime() - lastSent.getTime();
+        const cooldownMinutes = 10; // 10 phút cooldown chống gửi trùng mail cùng tiêu đề
+        if (diffMs < cooldownMinutes * 60 * 1000) {
+          this.logger.log(
+            `[SMTP-Throttle] Bỏ qua gửi trùng email cho ${checkerType} (Tiêu đề: "${subject}") trong thời gian cooldown ${cooldownMinutes} phút.`,
+          );
+          return { success: true, messageId: 'throttled' };
+        }
+      }
+    }
+
+    const smtp = {
+      host: process.env.SMTP_HOST || config.smtp?.host || 'smtp.office365.com',
+      port: parseInt(process.env.SMTP_PORT || '') || config.smtp?.port || 587,
+      user: process.env.SMTP_USER || config.smtp?.user || 'it.support@mxv.vn',
+      pass: process.env.SMTP_PASS || config.smtp?.pass || 'OFmng239',
+      senderEmail: process.env.SMTP_SENDER_EMAIL || config.smtp?.senderEmail || 'it.support@mxv.vn',
+      senderName: process.env.SMTP_SENDER_NAME || config.smtp?.senderName || 'MXV IT Support',
     };
 
     try {
@@ -261,9 +325,15 @@ export class MarginCheckerService {
       });
 
       this.logger.log(`Email đã gửi thành công: ${info.messageId}`);
+      if (checkerType) {
+        await this.updateDeliveryStatus(checkerType, 'SUCCESS', undefined, subject);
+      }
       return { success: true, messageId: info.messageId };
     } catch (err) {
       this.logger.error(`Lỗi gửi mail: ${err.message}`);
+      if (checkerType) {
+        await this.updateDeliveryStatus(checkerType, 'FAILED', err.message, subject);
+      }
       return { success: false, error: err.message };
     }
   }
@@ -271,7 +341,7 @@ export class MarginCheckerService {
   async sendTelegramNotification(chatId: string, message: string) {
     if (!chatId) return;
     try {
-      await this.telegramService.sendMessage(message);
+      await this.telegramService.sendMessage(message, chatId);
       this.logger.log(`Đã gửi cảnh báo Telegram đến chat ID: ${chatId}`);
     } catch (err) {
       this.logger.error(`Lỗi gửi Telegram: ${err.message}`);
@@ -1228,6 +1298,7 @@ export class MarginCheckerService {
         subject,
         emailBody,
         attachments,
+        'marginOnOrder',
       );
 
       // Send Telegram Alert
@@ -1456,6 +1527,7 @@ export class MarginCheckerService {
         subject,
         emailBody,
         attachments,
+        'marginChange',
       );
 
       // Send Telegram Alert

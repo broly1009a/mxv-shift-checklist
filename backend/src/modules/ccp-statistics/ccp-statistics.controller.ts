@@ -19,7 +19,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('ccp-statistics')
+@Controller(['ccp-statistics', 'api/v1/ccp-statistics'])
 export class CcpStatisticsController {
   constructor(private readonly ccpStatisticsService: CcpStatisticsService) {}
 

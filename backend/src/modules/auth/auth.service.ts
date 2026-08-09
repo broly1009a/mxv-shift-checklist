@@ -335,14 +335,42 @@ export class AuthService {
 
     await user.save();
 
+    const updated = await this.userModel
+      .findById(userId)
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
+      .exec();
+
+    if (!updated) {
+      throw new UnauthorizedException('Không tìm thấy tài khoản sau khi lưu');
+    }
+
+    let permissions: string[] = [];
+    if (updated.role === 'ADMIN') {
+      permissions = [
+        'VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'INITIALIZE_SHIFT', 'CLOSE_SHIFT',
+        'ACCESS_MARGIN_CHANGE', 'ACCESS_AUTO_SHIFT', 'ACCESS_HEALTH_CHECKS', 'RESOLVE_INCIDENTS',
+        'MANAGE_TEMPLATES', 'MANAGE_USERS', 'MANAGE_ROLES', 'MANAGE_CALENDAR'
+      ];
+    } else {
+      const roleDoc = await this.roleModel.findOne({ code: updated.role }).exec();
+      if (roleDoc) {
+        permissions = roleDoc.permissions || [];
+      }
+    }
+
     return {
-      id: user._id,
-      username: user.username,
-      fullName: user.fullName,
-      role: user.role,
-      departmentId: user.departmentId || null,
-      isActive: user.isActive,
-      settings: user.settings,
+      id: updated._id,
+      username: updated.username,
+      fullName: updated.fullName,
+      title: updated.title || '',
+      role: updated.role,
+      department: updated.departmentId || null,
+      isActive: updated.isActive,
+      permissions,
+      settings: updated.settings,
     };
   }
 

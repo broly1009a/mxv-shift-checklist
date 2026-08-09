@@ -14,6 +14,9 @@ export class Department extends Document {
 
   @Prop({ required: true, type: Boolean, default: true })
   isActive: boolean;
+
+  @Prop({ type: [String], default: [] })
+  monitoredExchanges: string[]; // e.g., ['CME', 'LME', 'ICE_US']
 }
 
 export const DepartmentSchema = SchemaFactory.createForClass(Department);
@@ -22,3 +25,4 @@ DepartmentSchema.virtual('id').get(function (this: Department) {
 });
 DepartmentSchema.set('toJSON', { virtuals: true });
 DepartmentSchema.set('toObject', { virtuals: true });
+

@@ -107,12 +107,17 @@ export const ReconciliationVisualReport: React.FC<ReconciliationVisualReportProp
   };
 
   const totals = parsedData.jsonResult?.totals || {};
+  const isWaitingFiles = parsedData.jsonResult?.isWaitingFiles;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Status Summary Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-        {parsedData.jsonResult?.passed ? (
+        {isWaitingFiles ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24' }}>
+            <AlertCircle size={18} /> Trạng Thái: Đang chờ tệp đối chiếu từ CQG/Straits
+          </span>
+        ) : parsedData.jsonResult?.passed ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399' }}>
             <CheckCircle2 size={18} /> Kết Quả: Dữ liệu khớp hoàn toàn
           </span>
@@ -122,6 +127,28 @@ export const ReconciliationVisualReport: React.FC<ReconciliationVisualReportProp
           </span>
         )}
       </div>
+
+      {isWaitingFiles && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: 'rgba(251, 191, 36, 0.08)',
+          border: '1px solid rgba(251, 191, 36, 0.25)',
+          borderRadius: '8px',
+          color: '#fbbf24',
+          fontSize: '0.82rem',
+          fontWeight: 600,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+            <AlertCircle size={16} /> Đang chờ dữ liệu đầu vào:
+          </div>
+          <div style={{ fontWeight: 500, fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
+            {parsedData.jsonResult?.message || 'Thư mục backup đang chờ cập nhật đầy đủ file đối chiếu.'}
+          </div>
+        </div>
+      )}
 
       {/* Mode D: CQG SOD Balance View */}
       {isCqg && (

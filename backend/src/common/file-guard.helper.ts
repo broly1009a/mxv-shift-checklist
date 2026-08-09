@@ -17,7 +17,7 @@ export function assertSafeWritePath(
   const resolvedTarget = path.resolve(filePath);
   const resolvedAllowed = path.resolve(allowedOutputRoot);
 
-  if (!resolvedTarget.startsWith(resolvedAllowed)) {
+  if (!resolvedTarget.toLowerCase().startsWith(resolvedAllowed.toLowerCase())) {
     throw new Error(
       `[SECURITY GUARD] Từ chối ghi file ra ngoài thư mục output cho phép!\n` +
         `  - Thư mục được phép: "${resolvedAllowed}"\n` +
@@ -36,7 +36,7 @@ export function ensureBaseFileExists(filePath: string): boolean {
   }
 
   const dataRoot = process.env.DATA_ROOT;
-  const targetRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT;
+  const targetRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT;
 
   if (dataRoot && targetRoot) {
     const resolvedTarget = path.resolve(filePath);
@@ -75,7 +75,7 @@ export function ensureBaseDirectoryExists(dirPath: string): boolean {
   }
 
   const dataRoot = process.env.DATA_ROOT;
-  const targetRoot = process.env.BOT_LOT_MACRO_TARGET_ROOT;
+  const targetRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT;
 
   if (dataRoot && targetRoot) {
     const resolvedTarget = path.resolve(dirPath);

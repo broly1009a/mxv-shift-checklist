@@ -2,9 +2,1451 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+---
+
+## 💡 CÁC CÂU LỆNH VẬN HÀNH NHANH TRÊN UBUNTU SERVER (PRODUCT)
+
+### 1. Đóng/Chốt tất cả các ca trực đang chạy (PENDING -> COMPLETED):
+```bash
+mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.updateMany({ status: 'PENDING' }, { \$set: { status: 'COMPLETED', closedAt: new Date() } })"
+```
+
+### 2. Khởi chạy và Quản lý ngầm bằng PM2:
+- Backend: `pm2 start dist/main.js --name "mxv-backend"`
+- Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
+- Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+## [2026-08-07 17:50:00] - Bugfix: Khắc phục lỗi trùng lặp thông báo (Duplicate Notification) & Ẩn log lỗi của Bot khi chưa đủ điều kiện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  1. Loại bỏ hiện tượng trùng lặp thông báo khi một tác vụ được cập nhật (ví dụ: hiển thị cả thông báo của "Hệ thống" và "Trương Hoàng Hiệp" cho cùng một hành động).
+  2. Khắc phục lỗi log `ERROR [BotEngineService] Error executing bot checklist loop` liên tục mỗi phút khi Bot cố gắng cập nhật trạng thái tác vụ nhưng gặp ràng buộc dependency (ví dụ: tác vụ trước đó chưa hoàn thành).
+- **Nguyên nhân**:
+  - **Trùng lặp thông báo**: Khi trạng thái tác vụ chuyển đổi giữa các trạng thái không tích chọn (như `PENDING` -> `WAITING` hoặc `WAITING` -> `FAILED`), mặc dù trạng thái `isChecked` (được tích hoàn thành) đều là `false` (không đổi), backend vẫn ghi nhận một Audit Log có hành động `UNCHECK` (bỏ tích). Điều này tạo ra hai log "bỏ tích" song song: một từ người dùng thực tế thao tác trước đó, một từ Bot cập nhật ghi chú/logs sau đó.
+  - **Log ERROR lặp lại**: Bot Engine khi quét tự động và chạy thành công sẽ gọi `shiftsService.updateTaskStatus` để cập nhật trạng thái tác vụ thành `PASSED`. Tuy nhiên, nếu tác vụ phụ thuộc chưa hoàn thành, hàm này ném ra `BadRequestException`. Ngoại lệ này bị bắt ở khối `try-catch` lớn của Bot Engine và ghi nhận dưới dạng `ERROR` kèm stack trace làm tràn ngập nhật ký hệ thống.
+- **Giải pháp**:
+  - **Khống chế Duplicate Notification**: Trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts), chỉ lưu Audit Log hành động `CHECK` hoặc `UNCHECK` khi trạng thái tích chọn thực tế có thay đổi (`oldIsChecked !== isChecked`). Nếu chỉ đổi trạng thái nội bộ (ví dụ: `PENDING` sang `WAITING`) mà không làm thay đổi trạng thái tick hoàn thành, hệ thống sẽ bỏ qua việc tạo Audit Log trùng lặp.
+  - **Giảm cấp độ log lỗi của Bot**: Trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts), bọc lệnh cập nhật trạng thái `PASSED` bằng khối `try-catch` riêng. Nếu ném ra lỗi do chưa hoàn thành dependency, hệ thống ghi nhận dạng `WARN` và bỏ qua để thử lại ở lượt quét kế tiếp, tránh ném lỗi nghiêm trọng `ERROR`.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa điều kiện lưu Audit Log trạng thái, chỉ tạo bản ghi khi `oldStatus !== status && oldIsChecked !== isChecked`.
+  - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Bổ sung try-catch cục bộ khi cập nhật trạng thái `PASSED` và `FAILED` để xử lý ngoại lệ dependency và chuyển mức log từ `ERROR` sang `WARN`.
+
+### 3. Xác nhận Build/Kiểm thử
+- Chạy `npm run build` trên cả Frontend và Backend thành công, không phát sinh lỗi biên dịch.
+
+## [2026-08-07 14:15:00] - Bugfix: Sửa lỗi Bot không tự động báo "Không đạt" (FAILED) khi quá hạn SLA
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  1. Sửa lỗi Bot kiểm tra email (ví dụ: Job Snapshot) bị kẹt ở trạng thái "Đang kiểm tra" (WAITING) vô thời hạn mặc dù đã quá giờ cam kết SLA đầu ca trực (04:15).
+  2. Ngăn chặn Bot đối chiếu khớp lệnh trong phiên (`CHECK_KLGD`) và Pre-EOD (`CHECK_PRE_EOD`) báo lệch (FAILED) oan và bắn cảnh báo spam lên Telegram khi thư mục backup thiếu các file CQG (do người dùng chưa xin được tài khoản CQG nên không tải được `fr1`, `fr2`, `ps1`, `ps2`...).
+  3. Cho phép người dùng trực ca bỏ qua (`SKIPPED`) hoặc đưa về chưa thực hiện (`PENDING`) trực tiếp trên **Tác vụ tổng hợp (Parent Task)** để hệ thống tự động lan truyền (cascade) trạng thái tương ứng xuống toàn bộ các tác vụ con (Subtasks), thay vì bắt buộc phải click thủ công từng tác vụ con.
+- **Nguyên nhân**:
+  * Tác vụ kiểm tra trễ hạn `isOverdue` cũ chỉ đọc SLA của con (vốn là null) nên không biết là trễ.
+  * Tác vụ đối chiếu KLGD (`runAutoCheckKLGD`) cũ không kiểm tra tính đầy đủ của file nguồn, cứ thế so sánh danh sách lệnh M-System với dữ liệu CQG rỗng (do file CQG không tồn tại), dẫn đến luôn báo LỆCH khớp lệnh (FAILED) và gửi cảnh báo lỗi.
+  * Tác vụ Pre-EOD mặc dù có check thiếu file và trả về `isWaitingFiles: true`, nhưng logic bot-engine cũ lại đánh giá job này thành công (`COMPLETED`) và tự động chuyển tác vụ checklist sang Đạt (`PASSED`), dẫn đến dừng quét và người dùng tưởng rằng đã đối chiếu xong dù thực tế chưa có file.
+  * Trong `shifts.service.ts`, có dòng code chặn cập nhật trực tiếp tác vụ cha từ người dùng (throw `BadRequestException` khi `isParentTask && !isInternal`). Tuy nhiên, bên dưới vẫn có logic tự động đồng bộ trạng thái từ cha xuống con (`updatedChild`). Do dòng chặn phía trên quá nghiêm ngặt, logic đồng bộ này không bao giờ được chạm tới từ API ngoài.
+- **Giải pháp**:
+  * Cấu trúc lại logic kiểm tra trễ hạn `isOverdue` trong `bot-engine.service.ts`: tự động thừa kế và so sánh song song SLA của cả con và cha (`isSubtaskOverdue || isParentOverdue`).
+  * Bổ sung cơ chế quét file thiếu trong `runAutoCheckKLGD` tương tự Pre-EOD (kiểm tra `DSGD.xlsx`, `Straits.csv`, và `FR.xlsx`). Nếu thiếu bất kỳ file nào, trả về trạng thái `isWaitingFiles: true`.
+  * Cập nhật logic xử lý kết quả job `COMPLETED` trong `bot-engine.service.ts` (dòng 665): Nếu job hoàn thành nhưng trả về `isWaitingFiles: true` (đang chờ file), Bot sẽ trả về kết quả `success: false` cùng mô tả danh sách file thiếu. Nhờ vậy, tác vụ trong ca trực vẫn hiển thị spinner **"Đang kiểm tra" (WAITING)** để tiếp tục quét lại ở chu kỳ tiếp theo, thay vì tự chuyển sang Đạt (`PASSED`) hay chuyển sang Lệch (`FAILED`). Khi chạm mốc SLA trễ hạn mà file vẫn chưa có, tác vụ sẽ tự động chuyển sang **Không đạt (FAILED)**.
+  * Cập nhật logic chặn tác vụ cha ở `shifts.service.ts`: Cho phép bỏ qua kiểm tra và thực hiện cập nhật tác vụ cha trực tiếp từ phía người dùng nếu trạng thái mới là `SKIPPED` hoặc `PENDING`. Khi đó, backend thực hiện cập nhật toàn bộ tác vụ con trong database trước bằng `arrayFilters` nhằm loại bỏ độ trễ đồng bộ qua WebSocket, đồng thời dọn dẹp vòng lặp thừa ở cuối hàm.
+  * Cập nhật logic kết thúc job trong `bot-job-queue.service.ts`: Khi job hoàn thành (`COMPLETED`), nếu cờ `result.isWaitingFiles` là `true` (thiếu file), hệ thống sẽ cập nhật trạng thái tác vụ trong ca trực về **`WAITING` (Đang kiểm tra)** thay vì tự động chuyển sang **`PASSED` (Đạt)**. Đồng thời, cấu trúc lại định dạng chuỗi ghi chú JSON trả về để hiển thị rõ cảnh báo thiếu file, thay vì báo khớp dữ liệu giả mạo.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Sửa logic tính toán `isOverdue` (thừa kế SLA cha) và sửa xử lý job `COMPLETED` có cờ `isWaitingFiles` để giữ trạng thái `WAITING`.
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts): Thêm kiểm tra thiếu file trong `runAutoCheckKLGD` để trả về cờ `isWaitingFiles`.
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Tối ưu hóa điều kiện chặn cập nhật trực tiếp tác vụ cha để cho phép trạng thái `SKIPPED` và `PENDING` truyền xuống tác vụ con ngay lập tức bằng `arrayFilters` của MongoDB trước khi nạp dữ liệu tiến trình & gửi thông báo WebSocket.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Cập nhật hàm `getReconciliationJson` và sự kiện hoàn thành job `COMPLETED` để phản hồi chính xác trạng thái `WAITING`, ghi log chi tiết thiếu file cho `CHECK_KLGD` và loại bỏ dòng chữ "Kết quả: KHỚP" gây hiểu lầm.
+  - [dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.service.ts): Loại bỏ sự kiện `TASK_UPDATED` của System Log (tránh ghi trùng với Audit Log) và lọc bỏ các log `NOTE_UPDATE` tự động từ Bot để ngăn chặn spam thông báo trên UI.
+
+#### 🔵 Frontend
+- **Sửa đổi**:
+  - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx): 
+    1. Sửa nhãn hiển thị trong Dropdown lượt quét thành `Chờ file` đối với các job có cờ `isWaitingFiles`.
+    2. Cập nhật Badge trạng thái trên tiêu đề Modal sử dụng component icon `<Clock />` của hệ thống thành **`ĐANG CHỜ FILE`** (màu vàng) thay vì **`✓ ĐẠT YÊU CẦU`** khi job đang chờ file CQG/Straits (loại bỏ hoàn toàn icon emoji dán trực tiếp).
+    3. Giữ nguyên (preserve) các thuộc tính `isWaitingFiles` và `message` trong đối tượng `jsonResult` khi parse thủ công log chữ cho các chế độ `PRE_EOD` và `KLGD`.
+    4. Thay thế Dropdown `<select>` mặc định của trình duyệt để chọn lượt quét bằng component `<CustomSelect />` có sẵn của dự án giúp nâng cao tính thẩm mỹ và đồng bộ giao diện.
+  - [CustomSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomSelect.tsx): Bổ sung thêm các tham số tùy chọn `clearable` (mặc định là `true`, truyền `false` để ẩn nút xóa `✕`), `height` (mặc định là `42px`, cho phép chỉnh về `32px` cho các vị trí nhỏ hẹp), và `fontSize` (mặc định là `0.85rem`, cho phép thu nhỏ cỡ chữ xuống `0.72rem`), đồng thời thêm thuộc tính `maxHeight: '260px', overflowY: 'auto'` vào khung danh sách để hỗ trợ cuộn mượt mà khi có quá nhiều lượt quét trong ca trực. Cập nhật class hiển thị từ `form-control` sang `form-input` của dự án để thừa kế viền (`border`), màu nền (`backgroundColor`), bo góc (`borderRadius: '8px'`) chuẩn. Bổ sung biểu tượng mũi tên chỉ xuống xoay 180 độ mượt mà (`ChevronDown` rotate animation) để phân định rõ đây là một ô lựa chọn (dropdown) có thể click.
+  - [SearchableSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/SearchableSelect.tsx): Cập nhật class css của ô nhập từ `form-control` sang `form-input` giống như `CustomSelect` để thừa kế đồng bộ màu nền và viền. Khắc phục triệt để lỗi mất viền/nền do thuộc tính `readOnly={!isOpen}` bị trình duyệt/CSS reset đè lên bằng cách khai báo tường minh (`border`, `backgroundColor`, `borderRadius: '8px'`) dạng inline style. Bổ sung thêm biểu tượng mũi tên chỉ xuống `ChevronDown` có hỗ trợ xoay 180 độ mượt mà khi đóng/mở dropdown (xoay ngược khi mở) giống hệt `CustomSelect`, giúp đồng bộ hoàn toàn giao diện giữa các bộ lọc (Phòng ban vs Vai trò/Trạng thái). Thêm thuộc tính `fontSize` tùy chỉnh (mặc định là `0.85rem`) để đồng bộ kích thước chữ hiển thị.
+  - [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx): Thêm thuộc tính `fontSize` tùy chỉnh (mặc định là `0.85rem`). Thay đổi class của thẻ input từ `form-control` sang `form-input` và cấu hình viền (`border`), nền (`backgroundColor`), bo góc (`borderRadius: '8px'`) dạng inline để vượt qua các reset mặc định của trình duyệt, giúp ô chọn ngày đồng bộ hoàn chỉnh với các component khác.
+  - [users/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx): Thiết lập thuộc tính `fontSize: '0.85rem'` inline cho ô nhập tìm kiếm tài khoản/họ tên và nút xóa bộ lọc. Đồng thời đồng bộ nhãn tiêu đề tìm kiếm từ cỡ chữ `0.8rem` thành `0.82rem` giống như nhãn của các component CustomSelect/SearchableSelect khác, giúp toàn bộ khu vực bộ lọc cân đối và đồng đều chữ.
+  - [activity-logs/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx): Đồng bộ hóa ô nhập tìm kiếm API/hành động từ class `form-control` sang `form-input` và cấu hình cỡ chữ `fontSize: '0.85rem'` chuẩn. Áp dụng class `form-input` và cỡ chữ `0.85rem` cho thẻ `<select>` điều chỉnh giới hạn bản ghi phân trang ở dưới góc bảng.
+  - [templates/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx): 
+    1. Điều chỉnh kích thước của hai nút phụ là **"Sửa thông tin mẫu"** và **"Xóa mẫu"** (thu nhỏ padding từ `12px 20px` xuống `8px 14px`, chiều cao cố định `36px`, cỡ chữ `0.82rem`, icon kích thước `14px`) nhằm tạo sự phân định rõ ràng giữa các hành động quản lý chi tiết trong mẫu và các hành động chính toàn trang.
+    2. Nâng cấp 4 nút hành động thao tác nhanh tác vụ ở bên phải (Chỉnh sửa, Di chuyển lên, Di chuyển xuống, Xóa) thành dạng các nút tròn **`32px x 32px`** gọn gàng, bổ sung hiệu ứng hover đổi màu nền mờ đặc trưng (`xanh dương / xám / đỏ`) và thu nhỏ nhẹ khi click (`active:scale-95`).
+    3. Giữ nguyên icon kéo thả **`GripVertical`** (ở mức gọn gàng `size={16}`) trước số thứ tự để làm dấu hiệu trực quan cho tính năng kéo thả sắp xếp danh sách tác vụ đang hoạt động cực kỳ mượt mà của Maker.
+    4. Cấu trúc lại mã nguồn bằng cách di chuyển phần thông tin bổ trợ (URL, URD, File, SLA, ...) và Mô tả chi tiết vào **bên trong** khối Flex Container chứa tiêu đề tác vụ (thay vì là cấp con trực tiếp của cả Card như trước). Cách làm này giúp loại bỏ hoàn toàn các khoảng trắng khuyết thụt lề `paddingLeft: '72px'` cứng nhắc, giúp toàn bộ thông tin tự động căn lề thẳng hàng với tiêu đề tác vụ một cách mượt mà và trực quan, không còn bị khuyết trống ở đầu card.
+    5. Loại bỏ badge `isBotCheck` bị trùng lặp ở hàng chi tiết bổ sung bên dưới của tác vụ, chỉ giữ lại nhãn hiển thị ở hàng thông tin chính để tránh rác thông tin.
+  - [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx): Cập nhật tiêu đề kết quả thành `Trạng Thái: Đang chờ tệp đối chiếu...` và hiển thị khung cảnh báo màu cam nổi bật chứa danh sách tệp thiếu chi tiết khi phát hiện cờ `isWaitingFiles`, loại bỏ thông tin gây nhầm lẫn "Dữ liệu khớp hoàn toàn" khi thực tế chưa có file để so khớp.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Chạy `npm run build` biên dịch NestJS thành công 100%.
+- **Frontend**:
+  - Tích hợp thành công và hoạt động đồng bộ với Backend.
+
+---
+
+## [2026-08-07 12:05:00] - Refactor: Đồng bộ cấu hình cảnh báo của Bot (Margin Checker) vào bảng Luật thông báo Admin (NotificationRule)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Quy hoạch và đồng bộ hệ thống cấu hình cảnh báo của Bot (Margin Checker Modal) vào cơ sở dữ liệu Luật thông báo chung (B) để tránh trùng lặp, tăng tính mở rộng lâu dài nhưng vẫn giữ nguyên giao diện Card trực quan cho người dùng và không làm ảnh hưởng đến thuật toán chạy lõi của Bot.
+- **Giải pháp**:
+  - Thiết lập cơ chế ánh xạ thông minh tại Backend: Sửa đổi `MarginCheckerService` để khi load/save cấu hình sẽ tương tác trực tiếp với các bản ghi trong bảng `NotificationRule` (thay vì lưu chuỗi JSON tĩnh `margin_checker_config` trong `SystemSetting`).
+  - Giữ nguyên cấu hình kết nối SMTP máy chủ gửi mail trong `SystemSetting` để quản trị tập trung.
+  - Sửa đổi Mongoose schema của `NotificationRule` để hỗ trợ lưu trữ các trường email người nhận (`recipient`), Telegram chat ID (`telegramChatId`), Khối/Bộ phận (`block`), và trạng thái cảnh báo (`isSendWarning`).
+  - Cập nhật dịch vụ vận hành Bot `BotJobQueueService` đọc danh sách email và bật/tắt cảnh báo trực tiếp từ cấu hình động của `MarginCheckerService.loadConfig()`.
+  - Ẩn liên kết truy cập menu "Cấu hình thông báo" cũ trên Sidebar của Admin.
+  - Tích hợp trực tiếp nút mở Modal cấu hình Card trực quan vào tab "Tham số & Lập lịch" của trang quản trị Bot Admin (`/admin/bot-config`).
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [notification-rule.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/notification-rule.schema.ts): Bổ sung các thuộc tính `recipient`, `telegramChatId`, `block`, `isSendWarning`, `customParams` và chuyển `template` thành optional.
+  - [margin-checker.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.module.ts): Import `MongooseModule` và nạp schema của `NotificationRule` & `NotificationChannel`.
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Thay thế lưu trữ JSON `margin_checker_config` bằng cách query và cập nhật bảng `notification_rules`.
+  - [bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.module.ts): Import `MarginCheckerModule` để cho phép tiêm (inject) `MarginCheckerService`.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Tiêm `MarginCheckerService` và thay thế các truy vấn JSON `margin_checker_config` bằng hàm `marginCheckerService.loadConfig()`.
+- **Thêm mới**:
+  - [seed-notification-rules.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/seed-notification-rules.js): Script seed các luật thông báo (`MARGIN_ON_ORDER`, `EOD_CHECK`, `BOT_FAILURE`,...) và kênh thông báo mặc định.
+  - [drop-logs.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/drop-logs.js): Script dọn dẹp các bộ nhớ logs tạm thời giải phóng dung lượng cho MongoDB Atlas.
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx): Comment out liên kết `/admin/notifications`.
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/page.tsx): Thêm state `isMarginModalOpen`, nút kích hoạt mở `MarginCheckerModal` cấu hình card.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Chạy `nest build` biên dịch thành công 100$.
+  - Seed thành công dữ liệu mặc định vào Atlas DB sau khi dọn dẹp log trống.
+- **Frontend**:
+  - Chạy type-checking `npx tsc --noEmit` thành công không phát sinh bất kỳ lỗi nào.
+
+---
+
+## [2026-08-07 10:51:00] - Bugfix: Sửa lỗi TypeScript 'Argument of type 'null' is not assignable to parameter of type 'string | undefined''
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Giải thích và sửa lỗi TypeScript compiler báo lỗi `Argument of type 'null' is not assignable to parameter of type 'string | undefined'` tại dòng 310 trong file `margin-checker.service.ts`.
+- **Nguyên nhân**: Trong môi trường kích hoạt `strictNullChecks` của TypeScript, kiểu dữ liệu `null` không thể gán trực tiếp cho tham số kiểu `string | undefined` (hoặc tham số tùy chọn `errorMsg?: string`). Dòng code gọi `updateDeliveryStatus(checkerType, 'SUCCESS', null, subject)` đã truyền giá trị `null` cho tham số thứ 3 (`errorMsg`).
+- **Giải pháp**: Thay đổi giá trị truyền vào từ `null` thành `undefined` để tương thích với khai báo kiểu dữ liệu của hàm `updateDeliveryStatus`, vì hàm này đã có sẵn logic fallback sang `null` (`errorMsg || null`) khi cập nhật cơ sở dữ liệu/cấu hình.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Thay đổi đối số truyền vào từ `null` sang `undefined` tại dòng 310.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Lệnh kiểm tra lỗi biên dịch TypeScript `npx tsc --noEmit` đã không còn báo lỗi tại file `margin-checker.service.ts`.
+  - Dự án NestJS build thành công bằng lệnh `npm run build`.
+
+---
+
+## [2026-08-06 16:40:00] - Refactor: Tối ưu hóa mốc đối chiếu EOD bằng Header Date và lệnh MM bằng Real-World Calendar Date
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đối chiếu ngày EOD T-1 dựa vào ngày hiển thị ở Header (Top-Right) của hệ thống Core thay vì dùng ngày của server clock để tránh lỗi lệch múi giờ/ngày phiên khi UAT/Staging bảo trì hoặc lệch ngày.
+  - Sửa logic đối chiếu lệnh MM (Market Maker) để chỉ chấp nhận lệnh khớp trong ngày lịch thực tế (`realTodayStr`) thay vì lấy cả T-1 (`targetStr`), tránh tình trạng hệ thống chưa EOD vẫn báo MM thành công (lệnh cũ từ hôm trước).
+- **Giải pháp**:
+  - Viết mới hàm `getHeaderDate` trong `oms-watcher.service.ts` quét các thẻ văn bản lá nằm ở vùng góc trên bên phải trang để lấy ngày phiên giao dịch hiện tại của hệ thống.
+  - Viết mới hàm `calculateDatesFromHeader` tính toán mốc `todayStr` và T-1 (`targetStr`) từ ngày Header.
+  - Nâng cấp luồng quét EOD trong `checkOmsStatus` để sử dụng các mốc ngày tính toán từ Header.
+  - Tính toán ngày lịch thực tế (`realTodayStr`) theo múi giờ Việt Nam (UTC+7) để so khớp các lệnh MM.
+  - Cập nhật hàm `scrapeMmOrders` chấp nhận `todayStr` làm tham số và chỉ đếm các lệnh khớp chính xác ngày này, loại bỏ so khớp T-1.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts): Thêm helper `getHeaderDate()`, `calculateDatesFromHeader()`. Cập nhật `scrapeMmOrders()` và các lệnh gọi hàm tương ứng.
+  - [.env](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/.env): Đổi `PLAYWRIGHT_HEADLESS=true` để chạy ngầm trình duyệt, ẩn hiển thị visual.
+  - [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts): Tối giản đường dẫn thư mục xuất bản tin `newsletterDir` bằng cách loại bỏ cấp thư mục trùng lặp `Gửi team bản tin` lồng nhau.
+  - [lot-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.controller.ts), [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts), [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts), [trading-report.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/trading-report/trading-report.controller.ts), [margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.controller.ts), [ccp-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-statistics.controller.ts): Ánh xạ bổ sung các đường dẫn `/api/v1/...` bên cạnh đường dẫn gốc để tương thích với thay đổi hàng loạt tiền tố trên Frontend.
+  - [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts), [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts), [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts): Bổ sung hỗ trợ cấu hình alias `BOT_MACRO_TARGET_ROOT` bên cạnh biến cũ `BOT_LOT_MACRO_TARGET_ROOT` để tránh gây nhầm lẫn là chỉ áp dụng cho Thống kê Lô.
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa logic kiểm tra ràng buộc phụ thuộc (dependency check), cho phép bỏ qua kiểm tra khi reset tác vụ về trạng thái chưa thực hiện (`WAITING` hoặc `PENDING`) để tránh gây kẹt lỗi không thể reset.
+  - [exported_templates.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/exported_templates.json), [seed-subtasks.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/seed-subtasks.js): Loại bỏ hoàn toàn tác vụ con `ops_open_01_s2` ("Bot gửi cảnh báo hệ thống nếu không có email thành công") để đồng bộ luồng nghiệp vụ tự động hóa và tránh lỗi giả trong Checklist Mở Cửa. Điều chỉnh `sortOrder` của các tác vụ con liền sau.
+  - [system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts): Sửa đổi hàm `sendSecurityAuditEmail()`, bổ sung đệ quy loại bỏ các trường thời gian cập nhật động của Bot (`lastEmailSentAt`, `lastEmailStatus`, `lastEmailError`) khi so sánh cấu hình `margin_checker_config` để ngăn chặn spam email cảnh báo đổi cấu hình hệ thống vô nghĩa.
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts): Sửa đổi hàm `sendEmailNotification()` và `updateDeliveryStatus()`, bổ sung cơ chế lưu tiêu đề gửi gần nhất `lastSubject` và áp dụng bộ kiểm soát tần suất (SMTP Throttle Cooldown) **10 phút** đối với các email gửi đi có nội dung/tiêu đề trùng lặp để ngăn chặn tuyệt đối tình trạng Bot liên tục gửi trùng email đối chiếu số dư EOD.
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx): Tự động phát hiện dấu phân cách đường dẫn (`/` hoặc `\`) từ thư mục gốc để sinh đường dẫn chuẩn đa nền tảng (Windows/Linux).
+  - [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%2520OF%2520VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx): Sửa đổi tương tự để tránh lỗi kẹt dấu gạch chéo ngược trên Linux.
+  - [EmailScanVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%2520OF%2520VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/EmailScanVisualReport.tsx): Sửa đổi logic fallback hiển thị tiêu đề tìm kiếm. Nếu cấu hình tìm kiếm là rỗng (trống), hiển thị là "Bất kỳ tiêu đề nào (Không giới hạn)" thay vì tự ý bốc tiêu đề của email tìm được đắp vào gây hiểu nhầm.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Biên dịch thành công `nest build`.
+  - Chạy kiểm thử visual thực tế thành công bằng `npm run test:oms-playwright` kiểm tra chính xác cả EOD và lệnh MM trên CCP UAT / CE UAT.
+
+## [2026-08-06 16:25:00] - Feature: Tối ưu hóa logic quét EOD Core CCP & Core CE tương thích UAT/PROD
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi kiểm tra trạng thái EOD trên CCP UAT do môi trường này bị thiếu tab "Lịch sử EOD". Tìm kiếm phương pháp tối ưu giữa việc đi trực tiếp URL và click tab.
+- **Giải pháp**:
+  - Triển khai cơ chế kiểm tra kết hợp (Hybrid): Khi truy cập màn hình `/EOD/EODPROCESS`, Bot sẽ tiến hành kiểm tra bảng danh sách bước vận hành EOD ngay trên màn hình chính trước.
+  - Bổ sung hàm helper `checkMainPageEod` để trích xuất ngày phiên hệ thống từ text giao diện (`Ngày giao dịch: ...` hoặc `Ngày phiên EOD: ...`) và đối chiếu trạng thái bước cuối cùng (như "EOD thành công" hoặc "Hoàn thành batch") có phải là "Thành công" / "Đã hoàn thành" vào ngày hiện tại/ngày T-1 hay không.
+  - Nếu kiểm tra trang chính không thành công hoặc không tìm thấy bảng, Bot sẽ tự động click chuyển sang tab **Lịch sử EOD** (nếu có) để quét bảng lịch sử làm phương án dự phòng (fallback) cực kỳ ổn định.
+  - Đường dẫn kiểm tra EOD được chuyển hẳn sang `/EOD/EODPROCESS` theo đúng thực tế hệ thống.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts)
+  - Viết mới hàm helper `checkMainPageEod()` để quét bảng trạng thái và ngày giao dịch hiển thị trên trang chính.
+  - Cấu trúc lại luồng quét trong `checkOmsStatus()` cho cả CCP và CE.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Backend**:
+  - Kiểm thử tự động chạy thành công 100% bằng lệnh `npm run test:oms-playwright`.
+  - Biên dịch thành công 100% bằng lệnh `npm run build`.
+
+## [2026-08-06 12:10:00] - Architecture: Tách layout ra GlobalLayout dùng chung để triệt tiêu việc unmount/remount Sidebar và Header
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triệt tiêu hoàn toàn việc nhấp nháy/vẽ lại của Sidebar (bao gồm các modal con, widget giám sát và thẻ tiến độ) khi click chuyển hướng menu.
+- **Nguyên nhân**: Do trước đây layout `Sidebar` và `Header` được trả về trực tiếp trong component `ProtectedRoute` của từng trang. Mỗi khi chuyển trang, React buộc phải unmount và remount toàn bộ DOM của Sidebar, dẫn đến việc trình duyệt vẽ lại (paint) gây chớp nháy và mất trạng thái lưu trữ tạm thời trên bộ nhớ.
+- **Giải pháp**:
+  - Tạo mới cấu phần **`GlobalLayout.tsx`** đóng vai trò là Layout persistent ở mức root.
+  - Di chuyển toàn bộ cấu trúc giao diện bao gồm `app-container`, `Sidebar`, `Header` và thẻ `<main className="main-content">` từ `ProtectedRoute` sang `GlobalLayout`.
+  - Đăng ký `GlobalLayout` bao bọc `{children}` ở file layout gốc [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx).
+  - Đơn giản hóa [ProtectedRoute.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ProtectedRoute.tsx) thành một component thuần túy chỉ thực hiện kiểm tra quyền truy cập và điều hướng, không render giao diện layout.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Tạo mới**: [GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/GlobalLayout.tsx)
+- **Sửa đổi**:
+  - [ProtectedRoute.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ProtectedRoute.tsx)
+  - [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:06:00] - Fix: Khắc phục hiện tượng nhấp nháy thẻ trạng thái ở Sidebar khi chuyển menu
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi thẻ tiến độ và trạng thái giám sát hệ thống ở dưới cùng Sidebar bị nhấp nháy khi chuyển hướng menu.
+- **Nguyên nhân**: Do layout Sidebar nằm trong component `ProtectedRoute` bao bọc riêng bên trong từng page. Khi chuyển trang, toàn bộ Sidebar bị unmount và remount, khiến các state `metrics` và `progress` reset về `null`, hiện chữ "Đang tải..." hoặc "0%" rồi mới gọi API cập nhật lại.
+- **Giải pháp**:
+  - Tích hợp bộ nhớ tạm thời `sessionStorage` để lưu trữ dữ liệu `metrics` và `progress` vừa tải.
+  - Khi Sidebar được mount lại trên trang mới, khởi tạo state lấy ngay dữ liệu từ `sessionStorage` giúp hiển thị tức thì không bị trễ.
+  - Khi API chạy ngầm có kết quả mới, dữ liệu sẽ tự động được cập nhật mượt mà và lưu lại vào bộ nhớ đệm cho lần chuyển trang kế tiếp.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Khởi tạo giá trị ban đầu của state từ `sessionStorage`.
+  - Cập nhật ghi đè bộ nhớ đệm sau khi gọi API thành công trong `fetchMetrics` và `fetchProgress`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:04:00] - Refactor: Tích hợp CustomDatePicker cho bộ lọc Ngày giao dịch của các panel thống kê Bot Config
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cập nhật bộ chọn ngày giao dịch của hai cấu phần LotStatisticsPanel ([LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx#L598)) và ValueStatisticsPanel ([ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx#L367)) sang `CustomDatePicker` để đồng nhất giao diện lịch.
+- **Giải pháp**:
+  - Import `CustomDatePicker` từ `@/components/ui/CustomDatePicker` vào cả hai tệp tin.
+  - Thay thế các thẻ `<input type="date">` cũ bằng component dùng chung.
+  - Bổ sung logic tự động nhảy về ngày hôm nay nếu người dùng click nút `✕` để xóa ngày, phòng tránh lỗi gọi API khi tham số ngày bị trống.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx)
+  - [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:03:00] - Refactor: Thay thế bộ chọn ngày giám sát trang Dashboard (dashboard) sang CustomDatePicker quy chuẩn
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thay thế bộ chọn ngày giám sát thô sơ ở tiêu đề Dashboard ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/page.tsx)) bằng `CustomDatePicker` quy chuẩn.
+- **Giải pháp**:
+  - Import `CustomDatePicker` từ `@/components/ui/CustomDatePicker`.
+  - Thay thế thẻ `<input type="date">` mặc định của Chrome bằng Component quy chuẩn, truyền `label=""` để giữ nguyên bố cục inline nhỏ gọn ban đầu.
+  - Xử lý fallback ngày nếu người dùng click xóa `✕` lịch sẽ mặc định nhảy về ngày hôm nay thay vì để trống gây lỗi truy vấn API.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/page.tsx)
+  - Thay thế khối input ngày bằng Component `CustomDatePicker`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:02:00] - Refactor: Đồng bộ giao diện bộ lọc trang Lịch Sử Ca Trực & Đối Chiếu (history)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các component quy chuẩn (SearchableSelect, CustomSelect, CustomDatePicker) vào trang Lịch sử ca trực ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx)) để đồng bộ hóa UX/UI.
+- **Giải pháp**:
+  - Tích hợp `SearchableSelect` cho bộ lọc Phòng Ban.
+  - Tích hợp `CustomSelect` cho bộ lọc Trạng Thái.
+  - Tích hợp `CustomDatePicker` cho bộ lọc Từ Ngày và Đến Ngày.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/history/page.tsx)
+  - Thêm các import component quy chuẩn.
+  - Định nghĩa các tùy chọn `departmentFilterOptions` và `statusFilterOptions`.
+  - Thay thế các input và select thô sơ bằng component dùng chung.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 12:01:00] - Refactor: Đồng bộ giao diện bộ lọc và modal trang Quản lý Tài khoản (admin/users)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các component quy chuẩn (SearchableSelect, CustomSelect) vào trang Quản lý Tài khoản cán bộ ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx)) để đồng bộ giao diện bộ lọc và modal thêm/sửa tài khoản.
+- **Giải pháp**:
+  - Tích hợp `CustomSelect` cho bộ lọc Vai trò và bộ lọc Trạng thái hoạt động ở Filter Panel.
+  - Tích hợp `SearchableSelect` cho bộ lọc Phòng ban để dễ tìm kiếm.
+  - Áp dụng tương tự cho Form Modal: dùng `CustomSelect` chọn vai trò và `SearchableSelect` chọn bộ phận trực ca của nhân viên.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/users/page.tsx)
+  - Khai báo các options array thích hợp cho từng loại select.
+  - Thay thế các dropdown `<select>` thô sơ bằng component dùng chung.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:58:00] - Refactor: Xây dựng Bộ lịch chọn ngày thuần React (Custom Calendar Component) hoàn mỹ
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục triệt để giao diện thô kệch và lệch tông màu (màu đen tối của lịch mặc định trên nền sáng của trang) của bộ chọn ngày trình duyệt.
+- **Giải pháp**:
+  - Loại bỏ hoàn toàn thẻ `<input type="date">` mặc định của trình duyệt để không bị phụ thuộc vào Shadow DOM của Chrome/Edge/Firefox.
+  - Viết bộ chọn ngày bằng React thuần 100%: hiển thị lịch dạng grid 6 hàng 7 cột (42 ô), hỗ trợ điều hướng tháng, chọn ngày, bôi màu xanh cho ngày được chọn và khoanh viền tròn nổi bật cho ngày hiện tại (Today).
+  - Tích hợp đóng mở bằng Ref và click-outside tự nhiên.
+  - Định dạng hiển thị chuỗi ngày được chuẩn hóa thân thiện sang tiếng Việt (ngày/tháng/năm).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx)
+  - Thay đổi toàn bộ logic code sang sử dụng các state tháng hiện tại, render lưới ngày tự chọn và bảng lịch Custom Popup có thiết kế kính mờ bo viền đồng nhất 100% với các select khác.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:55:00] - Refactor: Tối ưu hóa UI/UX Shadow-DOM và showPicker cho CustomDatePicker
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đồng bộ hóa UX/UI cho phần chọn ngày để vừa đẹp mắt vừa dễ sử dụng.
+- **Giải pháp**:
+  - CSS đè Shadow-DOM của trình duyệt ẩn icon lịch mặc định của `<input type="date">` để tránh thừa icon trùng lặp.
+  - Sử dụng hàm `.showPicker()` khi người dùng nhấp vào bất kỳ đâu trên ô input để kích hoạt mở lịch tự động.
+  - Đặt `e.stopPropagation()` trên nút `✕` để ngăn hành động tắt lịch bị bật ngược lại.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx)
+  - Thêm thẻ `<style>` với luật ẩn indicator, điều hướng màu chữ tương thích dark mode.
+  - Tích hợp hàm `showPicker()` trong thuộc tính `onClick` của input.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:53:00] - Refactor: Chuẩn hóa kiến trúc UI Components dùng chung (SearchableSelect, CustomSelect, CustomDatePicker)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Tạo một quy chuẩn riêng (Component dùng chung) cho các linh kiện chọn thông minh (Autocomplete / Custom select / Date picker) để áp dụng đồng loạt cho nhiều màn hình khác nhau trong hệ thống.
+- **Giải pháp**:
+  - Trích xuất toàn bộ logic tùy biến giao diện thành 3 Component độc lập và tái sử dụng được ở thư mục `frontend/src/components/ui/`.
+  - Giúp rút gọn tệp `page.tsx` từ hơn 800 dòng code xuống chỉ còn dưới 500 dòng (giảm tải logic quản lý state click outside, refs và regex tìm kiếm).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Tạo mới**:
+  - [SearchableSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/SearchableSelect.tsx): Component Combobox tìm kiếm gợi ý động.
+  - [CustomSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomSelect.tsx): Component Dropdown tĩnh giao diện tùy biến.
+  - [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx): Component bộ chọn ngày tích hợp nút xóa nhanh và icon lịch.
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Import 3 Component quy chuẩn mới.
+  - Loại bỏ hoàn toàn hơn 300 dòng code quản lý ref, states đóng mở và layout dropdown cục bộ của trang.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:50:00] - Refactor: Thay thế ô chọn Phương thức HTTP thành Custom Select đồng bộ giao diện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng thiết kế giao diện tùy biến (custom dropdown select) của ô "Người thực hiện" sang ô lọc "Phương thức HTTP" để đảm bảo tính đồng bộ và thẩm mỹ cao cho UX/UI.
+- **Giải pháp**:
+  - Viết lại phần lọc "Phương thức HTTP" ở Frontend bằng Custom Select: dùng Input hiển thị giá trị được chọn + Nút xóa nhanh `✕` + Khối Dropdown menu hiển thị danh sách các phương thức (`ALL`, `POST`, `PUT`, `DELETE`) được bo tròn, kính mờ (blur backdrop).
+  - Tích hợp thêm tham chiếu `methodDropdownRef` và trạng thái `isMethodDropdownOpen` để tự động đóng dropdown khi click outside.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `isMethodDropdownOpen` và ref `methodDropdownRef`.
+  - Cập nhật hàm lắng nghe click-outside để xử lý đóng cả hai dropdown.
+  - Thay thế thẻ `<select>` của phương thức bằng cấu phần Custom Select đồng nhất.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:46:00] - Bugfix: Ép kiểu dữ liệu userId sang Mongoose Types.ObjectId khi lọc Nhật ký hệ thống
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi lọc Nhật ký hệ thống theo tài khoản "Người thực hiện" không trả về kết quả nào (truy vấn trả về danh sách rỗng dù có dữ liệu log khớp ID).
+- **Giải pháp**:
+  - Do `userId` trong MongoDB là kiểu dữ liệu tham chiếu `ObjectId` thay vì kiểu chuỗi String thô. Khi truyền trực tiếp Query string nhận từ API làm tham số tìm kiếm, MongoDB sẽ so khớp kiểu không trùng khớp và trả về 0 kết quả.
+  - Sửa đổi Backend để kiểm tra tính hợp lệ của `userIdQuery` bằng hàm `Types.ObjectId.isValid` và thực hiện ép kiểu tường minh sang `new Types.ObjectId(userIdQuery)` trước khi đưa vào mệnh đề tìm kiếm.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Import `Types` từ `'mongoose'`.
+  - Bổ sung logic ép kiểu dữ liệu `new Types.ObjectId()` đối với `userIdQuery`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Không đổi.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:40:00] - Feature: Nâng cấp bộ lọc Người thực hiện sang ô tìm kiếm thông minh (Searchable Select / Autocomplete)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nâng cấp ô chọn "Người thực hiện" từ dạng Dropdown select truyền thống thành ô tìm kiếm thông minh (Autocomplete / Searchable Select) để tối ưu trải nghiệm tra cứu nhân viên.
+- **Giải pháp**:
+  - Tích hợp bộ tìm kiếm (Combobox) tự chế không phụ thuộc thư viện ngoài cho ô "Người thực hiện" ở Frontend.
+  - Khi người dùng click vào ô, hệ thống hiển thị danh sách tất cả tài khoản. Khi gõ phím, danh sách sẽ lọc khớp thời gian thực theo cả Họ tên (fullName) và Tên tài khoản (username).
+  - Thêm nút "✕" thông minh bên cạnh để xóa nhanh tài khoản đã chọn về mặc định.
+  - Xử lý đóng dropdown tự động khi click ra ngoài vùng chọn (Click Outside Ref hook).
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `userSearchQuery` (nhập liệu tìm kiếm) và `isUserDropdownOpen` (đóng mở menu).
+  - Viết `useEffect` lắng nghe sự kiện `mousedown` toàn cục để đóng dropdown when click outside.
+  - Thay thế thẻ `<select>` bằng cấu trúc Combobox Input + Options List panel.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:38:00] - Bugfix: Sửa lỗi phân tích cú pháp và hiển thị danh sách bộ lọc Người thực hiện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi Dropdown "Người thực hiện" chỉ có duy nhất lựa chọn "-- Tất cả tài khoản --" mà không hiển thị danh sách nhân viên trong hệ thống để lọc.
+- **Giải pháp**:
+  - Sửa đổi hàm `fetchUsers` ở Frontend: Đổi cấu trúc đọc mảng người dùng từ `data.users` thành `data.data` cho khớp với định dạng phản hồi thực tế của NestJS `UsersController.findAll`.
+  - Bổ sung tham số truy vấn `limit=1000` vào API call để đảm bảo tải được toàn bộ tài khoản thay vì bị giới hạn mặc định chỉ 10 người.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Thay thế url fetch thành `/api/v1/users?limit=1000`.
+  - Sửa đổi mảng lưu trữ từ `data.data || []`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:37:00] - Refactor: Tối ưu tỷ lệ cột (%) và chống ngắt dòng (nowrap) bảng Nhật ký thao tác
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Bố cục bảng 7 cột vẫn bị trống nhiều ở cột API route do trình duyệt kéo giãn tự động không đều trên màn hình siêu rộng.
+- **Giải pháp**:
+  - Chuyển đổi định dạng độ rộng cột (`width`) của thẻ `<th>` sang phần trăm (%) cụ thể thay vì pixel: Thời gian (15%), Người thực hiện (18%), Phương thức (10%), Hành động nghiệp vụ (27%), Đường dẫn API (20%), Địa chỉ IP (8%), và Chi tiết (2%).
+  - Thiết lập thuộc tính `whiteSpace: 'nowrap'` cho các cột tĩnh (Thời gian, Người thực hiện, Địa chỉ IP) để tránh việc chữ bị ngắt xuống dòng xấu xí khi co giãn trình duyệt.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Áp dụng các tỷ lệ % độ rộng cột vào `<th>`.
+  - Tích hợp `whiteSpace: 'nowrap'` cho các thẻ `<td>` tương ứng.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:36:00] - Refactor: Tái cấu trúc bảng Nhật ký hệ thống sang 7 cột để lấp đầy khoảng trống UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục hiện tượng bảng hiển thị bị trống một khoảng lớn ở giữa cột hành động và địa chỉ IP do có quá ít cột trên màn hình rộng.
+- **Giải pháp**:
+  - Tách cột "Hành động / API" gộp trước đây thành 3 cột riêng biệt: **Phương thức** (Method), **Hành động nghiệp vụ** (Friendly Action), và **Đường dẫn API** (Technical Endpoint).
+  - Tăng tổng số cột lên thành 7 cột (Thời gian, Người thực hiện, Phương thức, Hành động nghiệp vụ, Đường dẫn API, Địa chỉ IP, Chi tiết), tương tự cấu trúc bảng của Quản lý tài khoản.
+  - Cập nhật `colSpan={7}` cho dòng chi tiết JSON Payload mở rộng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo lại thẻ `<thead>` với 7 cột có thiết lập độ rộng (`width`) hợp lý.
+  - Cập nhật phần map dữ liệu trong `<tbody>` để đưa Phương thức (Method) sang cột riêng biệt, Hành động nghiệp vụ đứng độc lập, và API Endpoint chiếm phần chiều rộng còn lại của bảng.
+  - Sửa `colSpan` từ 5 thành 7 để tránh vỡ khung của khối xem chi tiết Payload.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:35:00] - Refactor: Tích hợp dịch ngôn ngữ nghiệp vụ thân thiện và bộ lọc thời gian cho Nhật ký hệ thống
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Áp dụng các đề xuất nâng cấp: Việt hóa/Biên dịch các đường dẫn API kỹ thuật sang hành động nghiệp vụ dễ hiểu và tích hợp bộ lọc tìm kiếm theo khoảng thời gian (Từ ngày - Đến ngày).
+- **Giải pháp**:
+  - Viết hàm `getFriendlyAction()` ở Frontend để chuyển đổi các phương thức & endpoint (vd: `PUT /api/v1/auth/profile` $\rightarrow$ "Cập nhật thông tin / Cài đặt cá nhân", `PUT /api/v1/roles/STAFF/permissions` $\rightarrow$ "Thay đổi phân quyền vai trò STAFF"). Hiển thị tên nghiệp vụ này làm tiêu đề chính và giữ API thô làm subtext màu nhạt ở dưới.
+  - Bổ sung 2 bộ chọn ngày `startDate` và `endDate` trên thanh công cụ lọc của Frontend.
+  - Cập nhật API Backend `GET /api/v1/activity-logs` để hỗ trợ lọc theo ngày tạo `createdAt` sử dụng các khoảng thời gian `$gte` (lớn hơn hoặc bằng ngày bắt đầu) và `$lte` (nhỏ hơn hoặc bằng ngày kết thúc).
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Khai báo thêm query params `startDateQuery` và `endDateQuery`.
+  - Thiết lập trường `createdAt` trong truy vấn Mongoose để lọc chính xác thời gian bắt đầu và kết thúc ngày.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Khai báo state `startDate` và `endDate`, tích hợp vào API fetch và hàm reset bộ lọc.
+  - Vẽ thêm 2 ô nhập ngày "Từ ngày", "Đến ngày" trên Toolbar.
+  - Viết hàm `getFriendlyAction` để phân tách hiển thị: Hành động thân thiện làm Text chính, API raw làm subtext monospace nhỏ ở dưới.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:32:00] - Bugfix: Đồng bộ màu sắc hiển thị Payload chi tiết theo biến chủ đề Light/Dark Mode
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi màu hiển thị của khối Metadata & Payload trong phần chi tiết Nhật ký thao tác khi chuyển đổi giữa chế độ sáng/tối (Light/Dark Mode) để đảm bảo độ tương phản dễ đọc.
+- **Giải pháp**:
+  - Thay thế các mã màu nền tối cứng (`rgba(0, 0, 0, 0.2)` và `rgba(0, 0, 0, 0.05)`) bằng các biến CSS động của chủ đề hệ thống (`var(--bg-app)` và `var(--bg-input)`).
+  - Đảm bảo trong Light Mode, khung mã JSON sẽ hiển thị nền xám sáng nhạt với chữ tối màu, trong khi ở Dark Mode sẽ hiển thị nền tối đậm với chữ sáng màu tương phản cao.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Đổi màu nền thẻ `<pre>` từ `rgba(0, 0, 0, 0.2)` thành `var(--bg-app)`.
+  - Đổi màu nền dòng chi tiết mở rộng `<tr className="expanded">` từ `rgba(0, 0, 0, 0.05)` thành `var(--bg-input)`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không đổi.
+
+## [2026-08-06 11:29:00] - Refactor: Tái thiết kế màn hình Nhật ký hệ thống đạt chuẩn giao diện Quản lý tài khoản
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Nâng cấp giao diện Nhật ký hệ thống (System Activity Logs) trở nên chuyên nghiệp, đồng bộ với thiết kế của trang Quản lý tài khoản (hỗ trợ nhiều bộ lọc, phân trang, cấu trúc hiển thị đồng bộ).
+- **Giải pháp**:
+  - Viết lại trang `admin/activity-logs/page.tsx` ở Frontend để tích hợp thanh lọc nâng cao gồm: Tìm kiếm theo API/Hành động, Lọc động theo Người thực hiện (tải danh sách tài khoản từ API), Lọc theo Phương thức HTTP (POST, PUT, DELETE), và nút "Xóa bộ lọc".
+  - Bổ sung cấu trúc phân trang chuẩn (Hiển thị N dòng/trang, nút chọn trang 1, 2, 3... và nút Trước/Sau).
+  - Cập nhật API Backend `GET /api/v1/activity-logs` để hỗ trợ lọc động theo `userId`, `method` và `action` kết hợp.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/activity-log/activity-log.controller.ts)
+  - Cập nhật API `GET` hỗ trợ Query params: `userId`, `method`, `action`, `limit`, `page`.
+  - Kết hợp Regex tìm kiếm và lọc khớp ID người dùng để truy vấn tối ưu.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/activity-logs/page.tsx)
+  - Thêm API fetch danh sách toàn bộ người dùng hệ thống để đổ vào Dropdown bộ lọc.
+  - Thiết kế thanh Toolbar lọc 3 tầng với nhãn đi kèm.
+  - Thiết lập phân trang linh hoạt kết hợp thay đổi số dòng hiển thị (10, 25, 50 dòng/trang).
+  - Giữ lại phần xem JSON Payload (Metadata) mở rộng đẹp mắt khi bấm biểu tượng con mắt.
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Liên kết liên kết điều hướng tới `/admin/activity-logs`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch thành công 100% bằng lệnh `cmd /c npm run build`.
+
+## [2026-08-06 11:20:00] - Feature: Triển khai tính năng Nhật ký kiểm toán phân quyền (Authorization Audit Trail)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triển khai tính năng Nhật ký kiểm toán phân quyền để ghi vết lịch sử thay đổi quyền của các vai trò (ai sửa, sửa vai trò nào, quyền mới là gì, vào lúc nào, từ IP nào) nhằm đạt chuẩn bảo mật và kiểm toán công nghệ thông tin.
+- **Giải pháp**:
+  - Tận dụng `ActivityLogInterceptor` vốn đã chạy toàn cục ở Backend để bắt các thay đổi `PUT /api/v1/roles/:code/permissions` và lưu vào MongoDB collection `activity_logs`.
+  - Tạo thêm đầu API `GET /api/v1/roles/audit-logs` để truy vấn danh sách log thay đổi quyền hạn.
+  - Bổ sung tab **Nhật ký phân quyền** trên trang quản lý Phân Quyền Vai Trò ở Frontend để hiển thị danh sách nhật ký kiểm toán dạng bảng trực quan, đầy đủ thông tin: Thời gian, Người thực hiện, Vai trò tác động, Danh sách quyền mới, và Địa chỉ IP.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**: [roles.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/admin/roles.controller.ts)
+  - Inject model `ActivityLog` vào constructor.
+  - Viết endpoint `GET roles/audit-logs` để truy vấn từ MongoDB collection `activity_logs` lọc theo biểu thức chính quy (Regex) khớp với luồng lưu quyền vai trò, trả về danh sách được populate đầy đủ thông tin User thực hiện, sắp xếp theo thời gian mới nhất.
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/permissions/page.tsx)
+  - Mở rộng kiểu dữ liệu `activeTab` thành `'by-role' | 'by-permission' | 'audit-log'`.
+  - Import icon `History` từ `lucide-react` làm tab icon.
+  - Viết hàm `fetchAuditLogs()` và helper `parseAuditDetails()`, `getRoleFromAction()` để đọc, giải mã dữ liệu chi tiết của log.
+  - Thêm Tab **Nhật ký phân quyền** và render giao diện bảng lịch sử toàn màn hình cực kỳ chi tiết, đẹp mắt.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Biên dịch và chạy hoàn toàn ổn định.
+
+## [2026-08-06 10:56:00] - Feature: Bổ sung cấu hình Bật/Tắt hiển thị thông tin giám sát Sidebar tại trang Cài đặt
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Triển khai tính năng cho phép Bật/Tắt hiển thị thông tin giám sát (Hệ thống & Tiến độ ca trực) ở Sidebar để tránh trùng lặp thông tin hoặc tốn diện tích hiển thị trên các màn hình nhỏ.
+- **Giải pháp**:
+  - Lưu cấu hình hiển thị trong `localStorage` (`mxv_sidebar_show_status`) dưới dạng client-side preference giúp tối ưu, không cần thay đổi schema Database hay chạy migrations.
+  - Sử dụng cơ chế custom event (`sidebar-status-toggle`) để đồng bộ trạng thái hiển thị của Sidebar ngay lập tức (realtime) khi người dùng lưu cấu hình ở trang Cài đặt.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/settings/page.tsx)
+  - Khai báo state `showSidebarStatus` (mặc định là `true`).
+  - Khởi tạo giá trị từ `localStorage` trong `useEffect`.
+  - Thêm checkbox "Hiển thị thông tin giám sát ở Sidebar (Hệ thống & Tiến độ ca trực)" trong Tab **Nhận cảnh báo & Ứng dụng**.
+  - Lưu cấu hình vào `localStorage` và dispatch custom event `sidebar-status-toggle` khi bấm **Lưu cấu hình**.
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Đọc tùy chọn `showSidebarStatus` từ `localStorage`.
+  - Lắng nghe event `sidebar-status-toggle` để cập nhật trạng thái hiển thị tức thì.
+  - Bọc phần render các card giám sát ở dưới cùng Sidebar bằng điều kiện `showStatusCards`.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:52:00] - Bugfix: Loại bỏ hoàn toàn điều kiện loại trừ !isTechAdmin trong định nghĩa isOperator
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đã thêm quyền giám sát máy chủ cho nhân viên vận hành nhưng Sidebar vẫn chỉ hiện mỗi card Tiến độ ca trực, không thấy hiện thêm card Hệ thống ổn định.
+- **Nguyên nhân**: Trong định nghĩa biến `isOperator` vẫn còn chứa điều kiện loại trừ `!isTechAdmin`. Do đó, khi `isTechAdmin` bằng `true`, `isOperator` sẽ bị kéo về `false`, làm cho card Tiến độ ca trực biến mất và chỉ hiện card Kỹ thuật, đồng thời nếu session token của user chưa được cập nhật thì thông tin mới chưa được áp dụng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Loại bỏ điều kiện `!isTechAdmin &&` khỏi định nghĩa của `isOperator`:
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isOperator = canViewChecklist || isTradeDept;
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:50:00] - Refactor: Hỗ trợ hiển thị đồng thời cả hai Card thông tin tại Sidebar (Loại bỏ loại trừ lẫn nhau)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đánh giá lại logic phân loại vai trò để chuẩn bị demo cho lãnh đạo, tránh trường hợp bị nhầm lẫn hiển thị giữa các vai trò khi phân quyền chồng chéo.
+- **Giải pháp**: 
+  - Thay vì cơ chế ẩn hiện loại trừ lẫn nhau (chỉ hiện 1 trong 2 card: hoặc chỉ số máy chủ, hoặc tiến độ ca trực), hệ thống sẽ hiển thị **đồng thời cả hai card** nếu tài khoản có cả hai quyền (ví dụ: Admin, Trưởng bộ phận, hoặc Nhân viên vận hành được cấp thêm quyền giám sát hạ tầng).
+  - Điều này giải quyết triệt để vấn đề:
+    1. Lãnh đạo khi đăng nhập (thường có cả quyền xem checklist và xem hạ tầng) sẽ nhìn thấy đầy đủ cả Tiến độ ca trực vận hành lẫn Trạng thái hạ tầng hệ thống.
+    2. Tránh việc một card này che mất card kia khi người dùng có nhiều quyền cùng lúc.
+    3. Phản ánh trực quan 100% các checkbox phân quyền trên UI.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Tách logic fetch dữ liệu (`fetchMetrics` và `fetchProgress`) thành 2 tiến trình polling độc lập chạy song song thay vì `else if`.
+  - Thay thế khối render ternary loại trừ thành 2 khối điều kiện độc lập `{isTechAdmin && ...}` và `{isOperator && ...}`.
+  - Thẻ Hướng Dẫn Sử Dụng chỉ hiển thị nếu tài khoản không thuộc cả hai nhóm trên.
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:47:00] - Bugfix: Cho phép STAFF (Nhân viên) được xem thông số kỹ thuật máy chủ nếu có quyền ACCESS_HEALTH_CHECKS
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khi Admin phân quyền "Giám sát hạ tầng (Health Checks)" (`ACCESS_HEALTH_CHECKS`) cho vai trò "Nhân viên vận hành" (STAFF) trên giao diện phân quyền, họ vẫn không thấy được thông số kỹ thuật ở Sidebar.
+- **Nguyên nhân**: Logic trước đó chặn cứng mọi tài khoản có vai trò `STAFF` không được phép nhận `isTechAdmin = true`. Do đó, kể cả khi họ được gán quyền `ACCESS_HEALTH_CHECKS` một cách rõ ràng thì hệ thống vẫn chặn hiển thị.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Cập nhật điều kiện `isTechAdmin` để ưu tiên quyền `canAccessHealthChecks` được gán trực tiếp:
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isTechAdmin = (isAdmin || isITDept || canAccessHealthChecks) && user?.role !== 'STAFF';
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isTechAdmin = isAdmin || canAccessHealthChecks || (isITDept && user?.role !== 'STAFF');
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 10:45:00] - Bugfix: Loại bỏ vai trò STAFF (Nhân viên) khỏi hiển thị kỹ thuật máy chủ ở Sidebar
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi tài khoản vai trò "Nhân viên" (STAFF) nhưng vẫn hiển thị thông tin giám sát tài nguyên kỹ thuật máy chủ (CPU, RAM, TPS) ở Sidebar thay vì tiến độ ca trực/hướng dẫn sử dụng.
+- **Nguyên nhân**: Trong logic phân loại vai trò tại Sidebar, người dùng thuộc phòng IT (`isITDept = true`) tự động được nhóm vào `isTechAdmin = true` bất kể vai trò của họ là gì, khiến cho nhân viên vận hành thuộc phòng IT không xem được tiến độ ca trực.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Loại bỏ người dùng có vai trò `STAFF` khỏi phân loại `isTechAdmin` để họ hiển thị đúng tiến độ ca trực dành cho nhân viên vận hành.
+  
+  *Trước khi sửa:*
+  ```typescript
+  const isTechAdmin = isAdmin || isITDept || canAccessHealthChecks;
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+  *Sau khi sửa:*
+  ```typescript
+  const isTechAdmin = (isAdmin || isITDept || canAccessHealthChecks) && user?.role !== 'STAFF';
+  const isOperator = !isTechAdmin && (canViewChecklist || isTradeDept);
+  ```
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Biên dịch thành công 100% bằng lệnh `cmd /c npx tsc --noEmit`.
+- **Backend**: Không có thay đổi.
+
+## [2026-08-06 08:45:00] - Feature: Cải thiện UI/UX & Tích hợp API hệ thống thực tế cùng tiến độ ca trực tại Sidebar
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Đánh giá và cải thiện phần hiển thị trạng thái hệ thống tĩnh ở Sidebar để hiển thị thông tin thực tế dựa trên phân quyền vai trò (Role/Permission):
+  - **Admin kỹ thuật / IT (hoặc quyền ACCESS_HEALTH_CHECKS)**: Hiển thị trạng thái máy chủ thực tế (Uptime, CPU, RAM, TPS, Tải hệ thống) lấy từ API backend thực.
+  - **Nhân viên ca trực (hoặc quyền VIEW_CHECKLIST)**: Hiển thị tiến độ hoàn thành các công việc trong ca trực ngày hôm nay (% hoàn thành, số lượng công việc) lấy từ API dashboard summary thực.
+  - **Vai trò khác**: Hiển thị thẻ Hướng Dẫn Sử Dụng.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Backend
+- **Tạo Endpoint mới**: [dashboard.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.controller.ts)
+  - Thêm API `GET /api/v1/dashboard/system-status` để tính toán tài nguyên CPU (qua `os.cpus()`), RAM (`os.totalmem()`, `os.freemem()`), Uptime Node (`process.uptime()`), và TPS hoạt động của ứng dụng.
+
+#### 🟢 Frontend
+- **Cập nhật Sidebar**: [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx)
+  - Thêm state hooks và polling logic (15s đối với hệ thống, 30s đối với tiến độ ca trực).
+  - Phân tách phân quyền render thành `isTechAdmin` (Admin/IT) và `isOperator` (nhân viên vận hành).
+  - Thiết kế UI premium cho cả widget tài nguyên hệ thống (có RAM bar đổi màu khi tải cao) và widget tiến độ ca trực trực quan.
+  - **Tối ưu hóa hiển thị thông tin User (Ẩn/Hiện thông minh)**: Thiết lập card `sidebar-user-details` tự động ẩn trên màn hình lớn (kích thước desktop `@media (min-width: 1024px)`) để tránh trùng lặp thông tin với Header; nhưng vẫn tự động hiển thị trên điện thoại/máy tính bảng khi Sidebar mở dưới dạng menu drawer (nơi mà Header sẽ thu gọn không hiển thị Tên và Vai trò).
+
+### 3. Xác nhận Build/Kiểm thử
+- **Frontend**: Chạy compiler `node node_modules/typescript/bin/tsc --noEmit` thành công không có lỗi.
+- **Backend**: Chạy `npm run build` thành công không có lỗi.
+
+## [2026-08-05 17:55:00] - Bug Investigation & Fix: Lỗi "Chưa cấu hình bot_lot_macro_path_value" + Sai số liệu TVKD ngày 22/06/2026
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Kiểm tra tại sao khi bấm "Chỉ cập nhật Lũy kế TVKD" trên giao diện thì báo lỗi _"Chưa cấu hình file Macro cấu hình (bot_lot_macro_path_value) trong cài đặt hệ thống"_ dù đã cấu hình đúng trên UI. Đồng thời, dữ liệu đã ghi vào file output ngày 22/06/2026 bị sai (113B thay vì 6.4T đúng).
+
+### 2. Kết quả điều tra (Root Cause Analysis)
+
+#### 🔴 Bug 1: Key mismatch giữa UI và Service (`processTvkdOnly`)
+
+| | Setting Key |
+|---|---|
+| **UI lưu macro path** (`PUT /value-statistics/config`) | `bot_macro_value_path` |
+| **`processTvkdOnly()` đọc** (trước fix) | `bot_lot_macro_path_value` ← **KHÁC KEY!** |
+| **`processValueStatistics()` đọc** | `bot_macro_value_path` ← đúng |
+
+- `processTvkdOnly` dùng key sai `bot_lot_macro_path_value` → key này không bao giờ được UI lưu → luôn rỗng → throw Error.
+- Trong khi đó `processValueStatistics` dùng đúng key `bot_macro_value_path`.
+
+#### 🔴 Bug 2: Dữ liệu 22/06 bị ghi sai (Chưa fix, đang điều tra thêm)
+
+Hai file DSGD cho ngày 22/06/2026:
+
+| File | Rows | Format | Total GTGD |
+|---|---|---|---|
+| `marco/.../DSGD22.06.2026.xlsx` | 14,757 rows | Không có header (col1…col15), raw CQG format | **113,791,066,218** ← ❌ khớp với dữ liệu sai trong file output |
+| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows | Có header đầy đủ (Mã TKGD, Mã HĐ, KL giao dịch...), M-System export | **6,441,554,012,692** ← ✅ đúng |
+
+- Hệ thống đã đọc DSGD từ **marco folder** (CQG raw format) thay vì **Downloads folder** (M-System export đúng).
+- **Nguyên nhân chưa xác định hoàn toàn**: cần kiểm tra tiếp lần chạy nào đã trigger việc ghi 113B. Có thể là:
+  - Script trong `marco/src/` hoặc bot job chạy với `dsgdPath` trỏ vào marco folder.
+  - Setting `bot_macro_value_path` rỗng → `processValueStatistics` crash → không ghi → nhưng `processTvkdOnly` với key sai cũng crash → **không rõ cơ chế nào đã thực sự ghi 113B**.
+
+#### 📌 Thông tin debug script đã xác nhận:
+```
+Exchange rates: Default=26260, TRU=165, MPO=6330  (đọc từ Macro .xlsm đúng)
+Downloads DSGD (5684 rows) → Total GTGD = 6,441,554,012,692  ✅
+Marco DSGD (14757 rows)    → Total GTGD = 113,791,066,218    ❌
+```
+
+TVKD breakdown đúng từ Downloads DSGD:
+```
+001: 465,957,383,541 | 002: 281,731,205,678 | 003: 1,123,590,222,625
+007: 115,095,573,736 | 009: 246,681,312,735 | 012: 1,257,643,998,916
+036: 478,754,712,670 | 068: 163,399,285,205 | 080: 1,298,743,649,515
+...
+```
+
+#### 📌 Cấu hình trong DB tại thời điểm điều tra:
+```
+bot_lot_macro_target_root = C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong
+bot_lot_macro_path_value  = C:\...\Thong ke lot va gia tri giao dich.xlsx  ← file sai (lot, không phải value macro)
+bot_macro_value_path      = <not set>  ← UI chưa lưu được vì bị lỗi
+```
+
+### 3. File đã chỉnh sửa
+
+#### [MODIFY] [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts)
+- Trong hàm `processTvkdOnly()` (line 409): Đổi key đọc macro path từ `'bot_lot_macro_path_value'` → `'bot_macro_value_path'` (cùng key mà `PUT /value-statistics/config` lưu và `processValueStatistics` đọc).
+
+```diff
+- const macroPath = await this.settingsService.getSetting('bot_lot_macro_path_value', '');
++ // NOTE: Uses 'bot_macro_value_path' (same key saved by UI via PUT /value-statistics/config)
++ const macroPath = await this.settingsService.getSetting('bot_macro_value_path', '');
+```
+
+#### [ADD] Script debug tạm thời (có thể xóa sau)
+- `src/test-inspect-calculation.ts` — Script verify tính toán GTGD từ DSGD file.
+- `src/inspect-tvkd-sheet.ts` — Script inspect file TVKD Excel output.
+- `src/list-settings.ts` — Script in ra các system settings từ DB.
+
+### 4. Todo còn lại (cần fix tiếp)
+- [ ] **Xác định lần chạy nào đã ghi 113B vào file output** — check bot job history hoặc log backend.
+- [ ] **Re-run đúng cho ngày 22/06/2026** — dùng `dsgdPath = C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T06.2026\22.06\DSGD.xlsx` và `pathTvkd = C:\Users\hiepth\Videos\Thong ke gia tri giao dich theo TVKD\Thong ke gia tri giao dich 2026 theo TVKD.xlsx`.
+- [ ] **Khôi phục file TVKD từ backup** trước khi re-run (dùng `Backup_Snapshots\..._backup_2026-08-05_09-07-11.xlsx` — file gốc 128KB).
+- [ ] **Verify lại sau khi fix** bằng cách compare total phải = 6,441,554,012,692.
+
+### 5. Flow hoạt động của tính năng TVKD (tóm tắt để tham khảo)
+
+```
+UI: "Chỉ cập nhật Lũy kế TVKD"
+  → POST /value-statistics/process-tvkd-only { ngayGD, targetRoot, dsgdPath, pathTvkd }
+  → valueStatisticsService.processTvkdOnly()
+     1. Đọc Macro .xlsm (key: bot_macro_value_path) → lấy hhMap, vlookupMap, tyGia
+     2. Đọc DSGD.xlsx (dsgdPath) → parse rows
+     3. Tính gtgd = lot × price × heSo × donVi × tyGia
+     4. Group by maTKGD.substring(0,3) → tvkdGtgdMap
+     5. Ghi vào file TVKD (pathTvkd) → tìm row date, fill giá trị theo cột TVKD code từ Row 4
+     6. Backup tự động → Backup_Snapshots/
+```
+
+ - Bug Fix: Sửa lỗi kiểm tra an toàn thư mục ghi và tính toán động cột Tổng trong file TVKD
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Sửa lỗi `[SECURITY GUARD]` chặn không cho ghi file ra ngoài thư mục dù đã chỉnh sửa đường dẫn trong `.env`.
+  - Giải thích và sửa lỗi cột `InvestingPro 082` bị ghi đè công thức `=SUM(...)` hiển thị `####` thay vì giá trị số giao dịch.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts):
+      - Đổi phép so sánh kiểm tra đường dẫn an toàn `assertSafeWritePath` thành không phân biệt hoa thường (`toLowerCase().startsWith()`) nhằm tránh lỗi do ký tự ổ đĩa (ví dụ: `C:\` và `c:\`).
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Cập nhật hàm `processTvkdOnly` để chỉ kiểm tra an toàn đường dẫn ghi của file TVKD (`pathTvkd`) thay vì kiểm tra an toàn thư mục gốc `targetRoot` (do tính năng này chỉ đọc dữ liệu chứ không ghi vào thư mục gốc).
+    - Sửa đổi [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts):
+      - Thay đổi cơ chế ghi công thức tổng dòng từ hardcode cột 61 (`BI`) thành tự động quét Dòng 2 tìm cột chứa chữ **`Tổng`** (do số lượng TVKD thay đổi từ tháng 7 khiến cột Tổng dịch chuyển sang cột 64 - `BL`). Điền công thức `=SUM(...)` chính xác vào cột Tổng động tìm được.
+
+## [2026-08-05 16:20:00] - Feature: Bổ sung tính năng chạy độc lập cập nhật file lũy kế TVKD từ giao diện
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Viết một tính năng chạy test độc lập trên giao diện (nút bấm riêng biệt) để chỉ ghi đè vào file `Thong ke gia tri giao dich 2026 theo TVKD.xlsx` mà không ảnh hưởng tới các file lũy kế chính khác.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+      - Thêm endpoint `POST /value-statistics/process-tvkd-only` để nhận yêu cầu chạy độc lập.
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Triển khai phương thức `processTvkdOnly` để chỉ đọc file giao dịch `DSGD.xlsx`, gom nhóm theo TVKD, ghi đè duy nhất vào file lũy kế TVKD và trả kết quả về giao diện mà không cập nhật các tracker khác.
+  - **Frontend**:
+    - Sửa đổi [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+      - Khai báo state `loadingTvkdOnly` và hàm xử lý `handleRunTvkdOnly` gửi request tới API riêng biệt.
+      - Thêm nút **Chỉ cập nhật Lũy kế TVKD** nằm cạnh nút chạy kiểm thử chính thức trên giao diện. Khi hoàn thành, màn hình tự động chuyển sang tab **Chi tiết theo TVKD** và hiển thị kết quả phân tách tương ứng.
+
+## [2026-08-05 16:00:00] - Feature: Tích hợp tự động cập nhật dữ liệu đối soát giá trị giao dịch theo TVKD vào file Excel lũy kế năm
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi chạy đối soát giá trị giao dịch có ACM, tự động bóc tách dữ liệu và ghi thêm vào file Excel lũy kế năm theo TVKD: `Thong ke gia tri giao dich 2026 theo TVKD.xlsx`.
+- **Giải pháp**:
+  - **Backend**:
+    - Sửa đổi [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts):
+      - Thêm hàm `updateValueTvkdTrackerFile` sử dụng `exceljs` để cập nhật dữ liệu vào sheet tháng tương ứng (ví dụ: `T08.2026`).
+      - Hàm tự động định vị dòng bằng cách so sánh ngày ở Cột B (`B`), tự động bóc tách mã TVKD (3 chữ số cuối bằng Regex, ví dụ: `HN\n001` -> `001`) ở Dòng 4 để mapping sang cột chính xác, và điền công thức tính tổng dòng `=SUM(C{row}:BH{row})` ở cột BI.
+      - Tự động tạo bản sao lưu snapshot dự phòng trước khi ghi đè.
+    - Sửa đổi [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+      - Trong vòng lặp duyệt dòng giao dịch hàng ngày, thêm logic trích xuất 3 ký tự mã TVKD từ mã tài khoản giao dịch (`maTKGD`) và tổng hợp giá trị giao dịch của TVKD đó vào map `tvkdGtgdMap`.
+      - Khi cờ ghi đè lũy kế được bật, thực hiện ghi đè dữ liệu vào file lũy kế TVKD và đồng thời trả về kết quả `tvkdGtgdBreakdown` trong API response.
+    - Sửa đổi [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+      - Thêm trường `pathTvkd` vào các API lấy/lưu cấu hình (lưu trong DB với key `bot_lot_macro_path_tvkd`) và API chạy kiểm thử trực tuyến `process-local`.
+  - **Frontend**:
+    - Sửa đổi [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+      - Bổ sung trường nhập liệu **File lũy kế theo TVKD** trong khối cấu hình nâng cao.
+      - Tự động sinh đường dẫn mặc định khi cấu hình thư mục gốc: `${parentRoot}\\Thong ke gia tri giao dich theo TVKD\\Thong ke gia tri giao dich ${year} theo TVKD.xlsx`.
+      - Thiết lập Tab hiển thị trực tuyến **Chi tiết theo TVKD** hiển thị bảng danh sách giá trị giao dịch của từng thành viên trong phiên (tương ứng với dữ liệu ghi vào file Excel).
+
+## [2026-08-05 15:32:00] - Bugfix: Sửa lỗi hiển thị "trắng bảng và toàn số 0" ở các tab Chi tiết Sản phẩm & TVKD của Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi chạy đối chiếu, file lũy kế ghi ra đúng nhưng kết quả hiển thị các bảng chi tiết trên màn hình (theo Sản phẩm và theo TVKD) lại bị trống trơn (N/A, cột mã rỗng) và số lượng hiển thị toàn bằng 0.
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Khắc phục sự sai lệch tên thuộc tính (mismatch keys) giữa Frontend và API Backend. Trước đây, Frontend gọi các key ảo như `item.productCode`, `item.tvkdCode`, `item.dsgdTotal`, `item.dsgdSpread`, `item.dsgdLme`,... trong khi Backend thực tế trả về các cấu trúc tinh giản `LotByProduct` và `LotByTvkd` từ helper.
+    - Cấu trúc lại bảng **Chi tiết theo Mã Sản Phẩm**: Trỏ đúng các cột dữ liệu thực tế: Mã Sản phẩm (`maSP`), Khối lượng mua (`klm`), Khối lượng bán (`klb`), và Tổng số lot (`total`).
+    - Cấu trúc lại bảng **Chi tiết theo TVKD**: Trỏ đúng các cột dữ liệu thực tế: Mã TVKD (`tvkd`), Khối lượng mua (`klm`), Khối lượng bán (`klb`), và Tổng số lot (`total`).
+
+## [2026-08-05 15:21:00] - Refactor: Đồng bộ logic tính toán đường dẫn thông minh cho màn hình Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Áp dụng các thay đổi đường dẫn thông minh từ màn hình Thống kê Giá trị (chống trùng lặp thư mục con, hỗ trợ tự động nhảy đường dẫn theo UAT / Production) sang màn hình Đối chiếu Số lô (Lot Statistics).
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Đồng bộ cơ chế phân loại 3 trường hợp tự động (ends with `Futures`, ends with `Backup MS/CQG`, hoặc folder cha) cho cả hai thư mục nguồn MS và CQG.
+    - Tại hook `useEffect` (2): Tự động phát hiện môi trường thông qua từ khóa `uat` / `operatechecklist_uat` trong đường dẫn.
+      - **Với UAT**: Tự sinh đường dẫn 6 file Excel lũy kế năm ở dạng phẳng (`parentBase\ACM\16.07\Thong ke...`), bỏ qua lớp thư mục con `Futures\2026\T07.2026`.
+      - **Với Production**: Giữ nguyên đường dẫn chuẩn phân cấp `parentBase\ACM\2026\T07.2026\16.07\Thong ke...`.
+    - Bóc tách triệt để các hậu tố `Backup MS`, `Backup CQG` và `Futures` khi lấy thư mục cha chung `parentBaseCqg` để sinh các file Tracker ACM, LME, Options, Spread.
+
+## [2026-08-05 15:16:00] - Bugfix: Sửa lỗi tràn/mất chữ ở thông báo Toast (react-hot-toast) khi báo lỗi đường dẫn dài
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thông báo lỗi dài (ví dụ: cảnh báo bảo mật chặn đường dẫn file), chữ trong hộp thoại Toast hiển thị bị tràn và mất chữ ở lề bên phải.
+- **Giải pháp**:
+  - Chỉnh sửa [layout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/layout.tsx):
+    - Mở rộng giới hạn chiều rộng tối đa (`maxWidth`) của Toaster lên `600px` (mặc định của thư viện chỉ là `350px`, không đủ hiển thị các đường dẫn file Windows dài).
+    - Thêm thuộc tính CSS `wordBreak: 'break-word'` để tự động bẻ chữ ở các chuỗi dài không khoảng trắng (như đường dẫn thư mục `C:\Users\hiepth\Downloads...`).
+    - Thêm `whiteSpace: 'pre-wrap'` để tôn trọng và hiển thị chính xác các ký tự xuống dòng `\n` từ backend trả về (ví dụ các danh sách gạch đầu dòng danh mục thư mục an toàn).
+
+## [2026-08-05 15:12:00] - Feature: Bổ sung khung hiển thị lỗi trực tiếp lên giao diện (Visual Error Box)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại sao khi backend lỗi (ví dụ không tìm thấy file ngày `16.08`) hệ thống không hiển thị mô tả lỗi cụ thể lên giao diện cho người dùng thấy rõ ràng mà màn hình lại trống trơn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx) & [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Khởi tạo thuộc tính state `error` (chuỗi hoặc null) trong cấu trúc Component để ghi nhận thông tin lỗi.
+    - Tại hàm `handleRunProcess`, tự động reset lỗi (`setError(null)`) khi bắt đầu thực thi và lưu lại thông điệp lỗi (`setError(err.message)`) khi có ngoại lệ xảy ra trong khối `catch`.
+    - Thiết kế khối hiển thị lỗi (Visual Error Box) dạng Glassmorphism sang trọng với viền đỏ hổ phách (`rgba(239, 68, 68, 0.08)`), tích hợp biểu tượng `<AlertTriangle />` màu đỏ nổi bật ngay dưới thanh công cụ điều khiển.
+    - Định dạng thông điệp lỗi dạng `fontFamily: monospace` và `whiteSpace: pre-wrap` để các chi tiết lỗi (như đường dẫn file bị thiếu hoặc thông báo từ backend) hiển thị nguyên vẹn, dễ đọc và dễ sao chép.
+
+## [2026-08-05 14:33:00] - Bugfix: Sửa lỗi tự động tính toán trùng lặp đường dẫn gốc kết thúc bằng Futures
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thay đổi Thư mục gốc (Target Root) thành `C:\...\Backup MS\Futures`, hệ thống tự sinh ra Đường dẫn file DSGD nguồn sai lệch: `C:\...\Backup MS\Futures\Backup MS\16.07\DSGD.xlsx` (bị lặp thêm `Backup MS` sau `Futures`). Đáng lẽ phải là: `C:\...\Backup MS\Futures\2026\T07.2026\16.07\DSGD.xlsx`.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Hoàn thiện và thông minh hóa logic tự động ghép đường dẫn theo 3 trường hợp:
+      - **Case 1**: Thư mục gốc kết thúc bằng `Futures` (như cấu hình Production của anh) -> Nhận diện và tự động ghép theo cấu trúc thư mục phân cấp chuẩn: `[Target Root]\[Năm]\T[Tháng].[Năm]\[Ngày].[Tháng]\DSGD.xlsx` mà không lặp lại `Backup MS`.
+      - **Case 2**: Thư mục gốc kết thúc bằng `Backup MS` -> Tự động nhận diện nếu có chứa `uat`/`operatechecklist_uat` thì ghép dạng UAT (`[Target Root]\[Ngày].[Tháng]\DSGD.xlsx`), ngược lại thì tự chèn thêm `Futures` và ghép cấu trúc phân cấp.
+      - **Case 3**: Thư mục gốc là thư mục cha chung (như `Tai lieu hoat dong`) -> Tự chèn thêm `Backup MS` (và `Futures` nếu không phải UAT) cùng thư mục ngày tương ứng.
+    - Cập nhật logic trích xuất `parentRoot` để bóc tách triệt để cả hai hậu tố `Futures` và `Backup MS` khi sinh ra đường dẫn cho 5 file Excel lũy kế năm của Value Statistics.
+
+## [2026-08-05 14:31:00] - Feature: Thêm cơ chế cảnh báo lệch Ngày giao dịch so với đường dẫn nguồn trên UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại sao khi sửa thủ công thư mục nguồn sang ngày khác (ví dụ: `03.08`) nhưng Ngày giao dịch vẫn chọn ngày khác (ví dụ: `04.08`) thì hệ thống vẫn cho chạy bình thường mà không báo lỗi lên màn hình để ngăn chặn rủi ro dữ liệu.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Thêm cơ chế so khớp ngày tháng (dạng `DD.MM`) trích xuất từ Ngày giao dịch được chọn với chuỗi đường dẫn nguồn `dsgdPath`.
+    - Nếu phát hiện không trùng khớp, hệ thống sẽ chặn và bật hộp thoại cảnh báo (`window.confirm`) yêu cầu người dùng xác nhận rõ ràng trước khi chạy.
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Áp dụng kiểm tra tương tự tại `handleRunProcess` và `handleDownloadExcel` cho 2 thư mục `folderPathMs` và `folderPathCqg`.
+    - Nếu một trong hai thư mục không chứa phần tên ngày trùng với Ngày giao dịch được chọn, cảnh báo sẽ hiển thị để ngăn ngừa lỗi thao tác ngoài ý muốn, đồng thời vẫn giữ tính linh hoạt cho phép xác nhận chạy nếu kiểm thử trên thư mục UAT/Test đặc thù.
+
+## [2026-08-05 13:37:00] - Bugfix: Sửa lỗi lấy đường dẫn ngày cũ khi tải lại trang Đối chiếu Số lô
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tại màn hình Đối chiếu Số Lô, hệ thống vẫn hiển thị đường dẫn ngày cũ (`16.07`) sau khi tải lại trang, không tự động lấy theo ngày giao dịch đang chọn.
+- **Giải pháp**:
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - Thay đổi cơ chế tải cấu hình mặc định từ Database: Thay vì gọi trực tiếp `setFolderPathMs` và `setFolderPathCqg` (gây đè đường dẫn ngày cũ lưu trong DB lên ngày đang chọn), hệ thống sẽ trích xuất thư mục gốc (`basePathMs`, `basePathCqg`) từ đường dẫn lưu trong database.
+    - Cập nhật hàm helper `extractMsBase` và `extractCqgBase` để phân tích chính xác thư mục gốc (quét tìm `Backup MS/Futures` hoặc `Backup CQG/Futures` không phân biệt chữ hoa thường và loại ký tự slash).
+    - Khi `basePathMs` và `basePathCqg` được cập nhật, hook `useEffect` (1) sẽ tự động tính toán lại các thư mục ngày chính xác theo Ngày giao dịch (`ngayGD`) đang được chọn hiện tại.
+    - Bỏ kiểm tra điều kiện trống `!path...` tại hook `useEffect` (2) để các file Excel lũy kế năm và tháng được đồng bộ tự động và đồng nhất mỗi khi người dùng thay đổi ngày giao dịch hoặc thư mục gốc.
+
+## [2026-08-05 12:11:00] - Refactor: Đồng bộ giao diện và logic đối soát Số Lô (Lot Statistics) chuẩn Clean UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đánh giá và điều chỉnh giao diện, logic của màn hình đối soát Số Lô (Lot Statistics) tương tự như màn hình Thống kê Giá trị (Value Statistics).
+- **Giải pháp**:
+  - Chỉnh sửa [lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.service.ts) & [lot-statistics.dto.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/dto/lot-statistics.dto.ts):
+    - Mở rộng hàm `getConfig` và DTO để hỗ trợ lưu và trả về thuộc tính `updateCumulative` (đồng bộ trạng thái checkbox).
+  - Chỉnh sửa [LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+    - **Tinh gọn giao diện**: Loại bỏ khung tạo nhanh "Quick generate panel" dư thừa, đưa mục Thư mục gốc MS và CQG lên làm cấu hình chính.
+    - **Cấu hình nâng cao thu gọn**: Đưa 2 đường dẫn chi tiết ngày (`folderPathMs`, `folderPathCqg`) và 6 đường dẫn file lũy kế năm vào panel thu gọn nâng cao (dùng Settings icon xoay của `lucide-react`).
+    - **Ngăn trùng lặp đường dẫn**: Bổ sung bộ kiểm tra tự động chèn `\\Futures` nếu đường dẫn gốc kết thúc bằng `Backup MS` / `Backup CQG`.
+    - **Lưu đồng bộ Database**: Cập nhật hàm `handleSaveConfig` và `useEffect` khi mount để lưu & load đồng bộ trạng thái checkbox `updateCumulative` và toàn bộ các đường dẫn từ Database.
+    - Thay thế emoji bằng icon thư viện (`Lightbulb`, `Settings`).
+
+## [2026-08-05 12:07:00] - Bugfix: Đồng bộ và Lưu cấu hình toàn bộ các trường nhập và checkbox vào Database
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi tick chọn checkbox "Ghi đè dữ liệu lũy kế" hoặc chỉnh sửa các đường dẫn file lũy kế rồi ấn "Lưu cấu hình mặc định", hệ thống không lưu lại trạng thái (khi load lại trang bị mất trạng thái đã chọn).
+- **Giải pháp**:
+  - Chỉnh sửa [value-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.controller.ts):
+    - Mở rộng API `GET /value-statistics/config` và `PUT /value-statistics/config` để hỗ trợ load/save 6 cấu hình mới trong Database (bảng `system_settings`):
+      - Trạng thái checkbox `updateCumulative` (khóa `bot_lot_macro_update_cumulative`).
+      - 5 đường dẫn file lũy kế năm (`bot_lot_macro_path_normal`, `bot_lot_macro_path_acm`, `bot_lot_macro_path_lme`, `bot_lot_macro_path_options`, `bot_lot_macro_path_spread`).
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Đưa checkbox `Ghi đè dữ liệu vào các file lũy kế` hiển thị trở lại trên màn hình chính của block.
+    - Cập nhật hàm `handleSaveConfig` để gửi toàn bộ 5 đường dẫn lũy kế năm và trạng thái checkbox lên API Backend.
+    - Cập nhật hook `useEffect` khi mount component để lấy đầy đủ các cấu hình này từ database về hiển thị lên UI, đảm bảo đồng bộ hoàn toàn giữa các client.
+    - Cập nhật logic `useEffect` tự động điền đường dẫn: chỉ điền các đường dẫn mặc định khi các trường này trống, tránh việc ghi đè lên các giá trị cấu hình tùy chỉnh đã lưu của IT.
+
+## [2026-08-05 12:05:00] - Bugfix: Sửa lỗi nhân đôi thư mục "Backup MS" trong đường dẫn file nguồn và file lũy kế
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi IT cấu hình `Thư mục gốc (Target Root)` trực tiếp trỏ đến thư mục `Backup MS` (ví dụ `C:\...\Backup MS`), hệ thống tự động sinh ra đường dẫn file nguồn chứa hai lần `Backup MS` liền nhau (`...\Backup MS\Backup MS\04.08\DSGD.xlsx`).
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Thêm kiểm tra `cleanBase.toLowerCase().endsWith('backup ms')` để phát hiện nếu đường dẫn người dùng nhập đã kết thúc bằng `Backup MS`.
+    - Nếu có, hệ thống sẽ bỏ qua việc tự động chèn thêm `\\Backup MS` mà trỏ trực tiếp đến thư mục ngày (`\\04.08\\DSGD.xlsx`).
+    - Đồng thời, đối với 5 đường dẫn file lũy kế năm và Macro, hệ thống tự động tìm thư mục cha (`parentRoot` - lùi lại một cấp thư mục ngoài `Backup MS`) để sinh đường dẫn chuẩn, tránh việc lưu file lũy kế hay tìm macro bên trong thư mục `Backup MS`.
+
+## [2026-08-05 12:03:00] - Refactor: Khôi phục cấu hình đường dẫn file Macro (.xlsm) tại Cấu hình nâng cao
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Do Backend vẫn cần thực hiện đọc file Macro này để phân tích hệ số/tỷ giá quy đổi, chúng ta cần giữ lại khả năng cho phép IT cấu hình đường dẫn này khi cần thiết.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Đưa trường nhập liệu **Đường dẫn file Macro cấu hình (.xlsm)** quay trở lại giao diện và đặt nằm ở đầu danh sách bên trong mục **Cấu hình nâng cao** (thu gọn mặc định).
+    - Khôi phục kiểm tra ràng buộc `!macroPath.trim()` ở nút bấm chạy kiểm thử để đảm bảo tính an toàn dữ liệu đầu vào.
+    - Giữ nguyên thiết kế ẩn checkbox `Ghi đè dữ liệu lũy kế` và tự động gửi `updateCumulative: true`.
+
+## [2026-08-05 11:58:00] - Refactor: Loại bỏ trường Macro cấu hình và Checkbox lũy kế khỏi giao diện UI
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không cần trường nhập file Macro cấu hình vì logic đối soát chạy bằng JS ngầm và file này đã cố định tĩnh trong thư mục dự án.
+  - Không cần checkbox "Ghi đè dữ liệu lũy kế" trên UI nữa để giảm bớt thao tác thủ công, đảm bảo hệ thống tự động lưu lũy kế 100%.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Xóa bỏ hoàn toàn input `Đường dẫn file Macro cấu hình (.xlsm)` ở cả giao diện chính lẫn giao diện nâng cao.
+    - Xóa bỏ checkbox `Ghi đè dữ liệu vào các file lũy kế` khỏi UI.
+    - Mặc định khởi tạo state `updateCumulative` là `true` để luôn gửi cờ cập nhật lũy kế lên Backend khi chạy quy trình.
+    - Loại bỏ kiểm tra `!macroPath.trim()` ở thuộc tính `disabled` của nút bấm chạy kiểm thử.
+
+## [2026-08-05 11:56:00] - Bugfix: Hiển thị vô điều kiện 5 đường dẫn lũy kế năm trong mục Cấu hình nâng cao
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khi thu gọn cấu hình nâng cao, 5 đường dẫn file lũy kế bị mất tích (không thể thấy hoặc cấu hình) nếu checkbox "Ghi đè dữ liệu lũy kế" ở màn hình chính không được tick.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Loại bỏ điều kiện `{updateCumulative && ...}` bọc xung quanh 5 đường dẫn file lũy kế.
+    - Đưa 5 ô nhập liệu này hiển thị **vô điều kiện** (luôn luôn hiển thị) bên trong panel **Cấu hình nâng cao** bất kể trạng thái tick của checkbox.
+    - Điều này giúp IT có thể chủ động kiểm tra và thay đổi đường dẫn của 5 file lũy kế bất cứ lúc nào khi mở rộng Cấu hình nâng cao mà không bị phụ thuộc vào checkbox thực thi.
+
+## [2026-08-05 11:55:00] - Refactor: Thay thế biểu tượng bánh răng emoji bằng Settings component của lucide-react
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ nốt icon emoji `⚙️` thô ở nút đóng/mở cấu hình nâng cao và thay thế bằng biểu tượng chuẩn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Import component `Settings` từ thư viện `lucide-react`.
+    - Thay thế emoji `⚙️` bằng `<Settings size={14} />`.
+    - Thêm lớp CSS `animate-spin` với `animationDuration: '4s'` để tạo hiệu ứng bánh răng xoay tròn chậm rãi cực kỳ tinh tế và sinh động khi bảng cấu hình nâng cao đang mở rộng (expanded).
+    - Thêm chỉ báo hướng đóng/mở dạng mũi tên (`▲` / `▼`) ở cuối nhãn nút bấm để giao diện rõ ràng.
+
+## [2026-08-05 11:50:00] - Refactor: Thay thế biểu tượng bóng đèn emoji bằng Lightbulb component của lucide-react
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ icon emoji `💡` thô ở phần chú giải và thay thế bằng icon từ thư viện biểu tượng chuẩn.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Import component `Lightbulb` từ thư viện `lucide-react`.
+    - Thay thế emoji `💡` bằng `<Lightbulb size={12} color="#eab308" />`.
+    - Sử dụng `display: 'flex'`, `alignItems: 'center'` và `gap: '5px'` để căn chỉnh thẳng hàng dọc hoàn hảo giữa icon bóng đèn và văn bản chỉ dẫn.
+
+## [2026-08-05 11:48:00] - Refactor: Tinh gọn cấu hình & tích hợp mục "Cấu hình nâng cao" đóng/mở trong ValueStatisticsPanel
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tối giản hóa ô nhập `Đường dẫn file DSGD nguồn` vì 99% trường hợp backend tự động tính toán được, tránh gây dư thừa rối mắt cho IT vận hành.
+- **Giải pháp**:
+  - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
+    - Khởi tạo biến trạng thái `showAdvanced` (mặc định là `false`).
+    - Gom tất cả các cấu hình đường dẫn chi tiết ít khi cần thay đổi gồm: `Đường dẫn file Macro cấu hình (.xlsm)`, `Đường dẫn file DSGD nguồn` và `5 file Excel lũy kế năm` vào trong panel đóng/mở `<div style={{ borderTop: '1px dashed var(--border-color)', ... }}`.
+    - Thêm nút toggle `⚙️ Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)` để người dùng chủ động click đóng/mở.
+    - Rút gọn màn hình cấu hình chính xuống mức tối giản nhất: Chỉ hiển thị **Ngày giao dịch**, **Thư mục gốc (Target Root)** và Checkbox **Ghi đè dữ liệu lũy kế**.
+
+## [2026-08-05 11:24:00] - Bugfix: Loại bỏ nhãn kỹ thuật (Enum raw string) trong Dropdown Root Cause của IncidentReportModal
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Loại bỏ các mã enum kỹ thuật (như `MISSING_CONFIGURATION`, `SOFTWARE_BUG`,...) hiển thị trong dropdown chọn nguyên nhân của sự cố (Incident Report) để giao diện hoàn toàn tiếng Việt thân thiện với người vận hành.
+- **Giải pháp**:
+  - Chỉnh sửa [IncidentReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/IncidentReportModal.tsx):
+    - Giữ nguyên thuộc tính `value` (enum tiếng Anh) để gửi lên API.
+    - Xóa các tiền tố tiếng Anh và dấu ngoặc đơn ở phần hiển thị chữ cho người dùng xem. Ví dụ: `MISSING_CONFIGURATION (Thiếu cấu hình)` chuyển thành `Thiếu cấu hình`.
+    - Áp dụng tương tự cho tất cả 7 tùy chọn nguyên nhân gốc rễ.
+
+## [2026-08-05 11:18:00] - Bugfix: Tự động Tóm tắt sự cố & Loại bỏ các Log kỹ thuật thừa tại Báo cáo trực quan
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không hiển thị y nguyên log chi tiết (với các dòng trạng thái hệ thống rối rắm) mà chỉ trích xuất các thông tin nghiệp vụ/lỗi thực tế để hiển thị gọn gàng, trực quan.
+- **Giải pháp**:
+  - Chỉnh sửa [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx):
+    - Thêm hàm bổ trợ `summarizeLogText` để phân tích văn bản log.
+    - Lọc bỏ các dòng log kỹ thuật của hàng đợi như `Job enqueued`, `Job status transitioned`, `Starting attempt`, `Attempt X failed`, `Job failed permanently`, `Connecting to database`, `Initialize`.
+    - Loại bỏ các chuỗi timestamp thô ở đầu mỗi dòng (như `[2026-08-05T02:14:05.443Z]`).
+    - Tự động định dạng các dòng nghiệp vụ còn lại thành danh sách bullet points (`•`) rõ ràng, giúp vận hành viên nhìn thấy ngay các lỗi nghiệp vụ hoặc mô tả tiến trình thực tế.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch thành công 100% qua lệnh `cmd /c npx tsc --noEmit`.
+
+## [2026-08-05 11:05:00] - Bugfix: Hiển thị lỗi trực quan trong Modal Báo cáo cho tác vụ Cảnh báo Đáo hạn
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục sự cố modal Báo cáo trực quan hiển thị sai thông tin cho tác vụ Cảnh báo Đáo hạn (`Bot tính mốc đáo hạn & gửi thông báo nhắc nhở TVKD tự động`): Modal hiển thị "TỔNG SỐ EMAIL GỬI: 0 email" gây nhầm lẫn khi tác vụ gặp lỗi "Chưa nhận được email Thông báo tất toán hợp đồng...".
+- **Giải pháp**:
+  - Chỉnh sửa [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx):
+    - Thêm prop `rawText` để nhận thông báo chi tiết từ log của Bot.
+    - Phát hiện các từ khóa lỗi (`chưa nhận`, `lỗi`, `không tìm thấy`,...) hoặc thông tin vận hành thành công trong log để hiển thị dưới dạng **Alert Card (Màu đỏ/xanh lá)** trực quan ngay phía trên.
+    - Ẩn khung đếm email trống ("0 email") nếu tác vụ không phải là tác vụ kiểm tra hòm thư gửi sao kê thực tế nhằm tránh gây hiểu lầm cho người vận hành.
+  - Chỉnh sửa [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) để truyền giá trị `parsedData.rawText` vào component `SystemApiVisualReport`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx)
+  - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử kiểu dữ liệu Frontend bằng `cmd /c npx tsc --noEmit` thành công 100%.
+
+## [2026-08-05 10:38:00] - Safe Guard: Vô hiệu hóa (Comment) các cơ chế đường dẫn dự phòng (Fallback Paths) chuẩn bị Go-Live UAT
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Không xóa hẳn mà thực hiện comment (vô hiệu hóa) cơ chế quét tệp dự phòng từ thư mục cá nhân `Downloads` và thư mục tạm `temp/cast-downloads` của các tác vụ tự động đối chiếu ca trực (KLGD, Pre-EOD, SOD, EOD) để tránh nhầm lẫn dữ liệu nhưng vẫn giữ khung code để tham khảo.
+- **Giải pháp**:
+  - Khôi phục và đặt comment ẩn (`//`) cho các cơ chế fallback trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
+    - **Tác vụ `runAutoCheckKLGD`**: Comment các dòng fallback đến `Downloads` và `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckPreEOD`**: Comment các dòng fallback Straits và CQG đến `Downloads` và `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckSOD`**: Comment dòng fallback `Accounts_Balances` đến thư mục tạm `temp/cast-downloads`.
+    - **Tác vụ `runAutoCheckEodMm`**: Comment các dòng fallback `eod.xlsx`/`Accounts_Balances` đến `temp/cast-downloads`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100% không phát sinh lỗi.
 
 
+## [2026-08-05 10:25:00] - Refactor & Bug Fix: Đồng bộ trạng thái Cha-Con, Khóa tiến trình Sub-task và chặn lỗi lặp cập nhật ngược (Propagation Loop Fix)
 
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Soát lại toàn bộ các file liên quan đến trạng thái của tác vụ cha và tác vụ con để tránh sai sót.
+  - Đồng bộ trạng thái tác vụ cha thành "Đang kiểm tra" (WAITING) khi có ít nhất một tác vụ con hoạt động.
+  - Khóa checkbox tích chọn và thay đổi trạng thái đối với các Sub-task con chưa đủ điều kiện (phụ thuộc vào tác vụ con đứng trước chưa hoàn thành).
+- **Phát hiện rủi ro (Propagation Loop & Subtask Uncheck Bug)**:
+  - Khi tác vụ con cập nhật, hệ thống tự động cập nhật trạng thái tác vụ cha (ví dụ sang `WAITING`).
+  - Hàm `updateTaskStatus` khi chạy trên tác vụ cha có chứa logic tự động cập nhật ngược lại toàn bộ tác vụ con (`isParentTask` block).
+  - Khi cha chuyển sang `WAITING` (tức `isChecked = false`), logic này sẽ vô tình ghi đè và hủy tick (`isChecked = false`) toàn bộ các tác vụ con đã hoàn tất trước đó! Điều này gây ra lỗi vòng lặp hủy tích chọn.
+- **Giải pháp & Khắc phục**:
+  - **Backend (shifts.service.ts)**:
+    - **Đồng bộ trạng thái Cha-Con**: Cập nhật logic đánh giá tác vụ cha. Khi phát hiện tác vụ cha chưa tích hoàn thành (`!parentTask.isChecked`), nếu có bất kỳ tác vụ con nào đang có hoạt động (`status === 'WAITING' || s.isChecked || s.status === 'FAILED' || s.status === 'NEEDS_ATTENTION'`), hệ thống tự động đổi trạng thái tác vụ cha thành `WAITING` (Đang kiểm tra). Nếu không có, trả về `PENDING`.
+    - **Chặn lặp cập nhật ngược**: Sửa điều kiện cập nhật ngược từ cha xuống con từ `if (isParentTask)` thành `if (isParentTask && !isInternal)`. Khi Backend cập nhật trạng thái tác vụ cha từ luồng đồng bộ nội bộ (`isInternal = true`), luồng ghi đè ngược xuống con sẽ bị bỏ qua hoàn toàn.
+  - **Frontend (TaskTable.tsx)**:
+    - Sử dụng hàm check khóa `isTaskLocked(child)` để chặn không cho nhân viên tick chọn checkbox hoặc đổi trạng thái thủ công của Sub-task con nếu các bước phụ thuộc trước đó của nó chưa hoàn thành (`isChecked` của bước trước là `false`).
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts)
+  - [TaskTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TaskTable.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh lỗi.
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
+## [2026-08-05 10:10:00] - Bug Fix: Sửa lỗi mất Sidebar (Ca trực hiện tại, Tra cứu lịch sử) và mất Phòng ban (Chưa phân phòng) khi lưu cấu hình hồ sơ cá nhân
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Gặp lỗi nghiêm trọng: Khi nhân viên trực ca thực hiện lưu thay đổi ở trang Cấu hình (Settings/Profile), toàn bộ các nút chức năng trên sidebar (Ca trực hiện tại, Tra cứu lịch sử) bị biến mất, đồng thời phần phòng ban của tài khoản bị chuyển thành "Chưa phân phòng".
+- **Phát hiện nguyên nhân**:
+  - Khi lưu cấu hình cá nhân, Frontend gọi API `PUT /api/v1/auth/profile`.
+  - Phản hồi từ hàm `updateProfile` ở Backend trả về đối tượng `updatedUser` bị thiếu trường `permissions` (danh sách quyền) và trả về trường phòng ban dưới dạng `departmentId` (ID thô) thay vì object `department` đã được populate đầy đủ như lúc đăng nhập.
+  - Khi Frontend nhận phản hồi và cập nhật vào `AuthContext`, nó làm mất trắng quyền và thông tin phòng ban của user, dẫn đến Sidebar ẩn đi các link ca trực (do không thỏa mãn điều kiện `canViewChecklist`).
+- **Khắc phục**:
+  - Cập nhật hàm `updateProfile` trong [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts):
+    - Sử dụng `.populate()` để điền đầy đủ dữ liệu phòng ban (`departmentId` và `parentDepartmentId`) trước khi phản hồi về Frontend.
+    - Truy vấn cơ sở dữ liệu để lấy lại danh sách quyền (`permissions`) tương ứng với vai trò của user và nhúng vào payload trả về.
+    - Đổi tên key trả về thành `department` để đồng bộ hoàn toàn cấu trúc dữ liệu với API đăng nhập gốc.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
+## [2026-08-05 09:50:00] - Refactor & Bug Fix: Triển khai phương án Lai (Hybrid) cho cấu hình cảnh báo Margin Checker, sửa lỗi gửi Telegram Bot, bổ sung trạng thái gửi tin gần nhất (Delivery Logs) và thiết lập chốt chặn bảo mật SMTP
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Đánh giá thực tế nghiệp vụ và vận hành để lên kế hoạch và triển khai phương án Lai (Hybrid) đối với cấu hình cảnh báo Margin Checker: Ẩn thông tin cấu hình hạ tầng máy chủ SMTP nhạy cảm đối với nhân viên trực ca thường nhưng vẫn giữ khả năng nhập Email/Telegram người nhận trực quan trên từng Card đối soát.
+  - Bổ sung trạng thái gửi tin (Delivery Logs) dưới chân các Card cấu hình nghiệp vụ để tăng tính minh bạch khi bàn giao ca trực vận hành.
+- **Giải pháp**:
+  - **Frontend (MarginCheckerModal.tsx)**:
+    - Sử dụng hook `useAuth` để kiểm tra thông tin vai trò tài khoản đăng nhập của nhân sự.
+    - Cấu hình chỉ hiển thị khối *"Cấu hình kết nối Mail Server (SMTP)"* khi người dùng đăng nhập có vai trò `ADMIN`. Với tài khoản nhân sự trực ca thông thường (`STAFF`...), khối này hoàn toàn bị ẩn, loại bỏ nguy cơ lộ mật khẩu email hệ thống và thao tác cấu hình sai.
+    - Xây dựng helper component `renderDeliveryStatus` để hiển thị trạng thái gửi tin gần nhất (🟢 Thành công hoặc 🔴 Thất bại kèm chi tiết lỗi cụ thể) ở chân mỗi Card cấu hình nghiệp vụ.
+  - **Backend (margin-checker.controller.ts, margin-checker.service.ts & reconciliation.service.ts)**:
+    - **Chốt chặn bảo mật & Bảo vệ ghi đè**: Cập nhật `MarginCheckerController.ts` để chặn truy cập trái phép vào mật khẩu SMTP từ Network Inspect: 
+      - Mask mật khẩu thành `********` trong API GET `/margin-checker/config` đối với tài khoản không phải `ADMIN`.
+      - Khi tài khoản thường gọi API POST lưu cấu hình, Backend sẽ tự động nạp cấu hình SMTP cũ từ database đè lên cấu hình lưu mới (đảm bảo không bị ghi đè mất mật khẩu thật do frontend gửi lên dạng `********` hoặc thiếu khối `smtp`).
+    - **Sửa lỗi Telegram**: Phát hiện và sửa lỗi nghiêm trọng trong luồng gửi Telegram cảnh báo đối soát ký quỹ: Thêm tham số `chatId` đích vào cuộc gọi `this.telegramService.sendMessage(message, chatId)`.
+    - **Dự phòng SMTP**: Hỗ trợ cơ chế tự động đọc cấu hình SMTP dự phòng từ các biến môi trường (`SMTP_HOST`, `SMTP_PORT`...) để hỗ trợ đội IT quản lý hạ tầng mạng thuận tiện hơn.
+    - **Ghi nhận trạng thái**: Bổ sung hàm `updateDeliveryStatus` cập nhật kết quả gửi email (`lastEmailSentAt`, `lastEmailStatus`, `lastEmailError`) trực tiếp vào MongoDB system settings của Margin Checker mỗi khi gửi email thành công/thất bại, đồng thời truyền `checkerType` đầy đủ từ mọi API đối soát.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [MarginCheckerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/MarginCheckerModal.tsx)
+  - [margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.controller.ts)
+  - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/margin-checker/margin-checker.service.ts)
+  - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh lỗi.
+- Kiểm thử biên dịch Backend (`cmd /c npm run build`) thành công 100%.
+
+
+## [2026-08-05 09:18:00] - Bug Fix: Khắc phục lỗi nhấp nháy cảnh báo đỏ "Lỗi tải ca trực - Failed to fetch" khi chuyển trang có độ trễ
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục triệt để hiện tượng nhấp nháy/chớp nhoáng màn hình đỏ báo lỗi "Lỗi tải ca trực - Failed to fetch" khi chuyển từ các trang khác về ca trực hiện tại.
+- **Giải pháp**:
+  - **Phát hiện thêm**: Khi chuyển URL từ `/checklist` sang `/checklist?id=pendingId`, React thực hiện một lượt render trung gian ngay khi `shiftLogId` thay đổi nhưng trước khi `useEffect` kịp kích hoạt `setLoading(true)`. Ở lượt render này, `loading` vẫn là `false` (do trạng thái cũ từ `loadActiveLogs` kết thúc) và `log` là `null`, dẫn đến việc UI bỏ qua skeleton (chỉ render skeleton khi `loading && !log`) và hiển thị ngay màn hình báo lỗi `!log`.
+  - **Khắc phục**:
+    - Cập nhật điều kiện hiển thị skeleton trong file [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) từ `loading && !log` thành `(loading || (shiftLogId && !loadError)) && !log`.
+    - Thiết lập này đảm bảo khi bắt đầu quá trình chuyển hướng và chuyển ID ca trực mới, giao diện sẽ lập tức hiển thị **Worksheet Skeleton** để che phủ thời gian trễ phản hồi từ API thay vì nhảy thẳng vào khối báo lỗi, loại bỏ hoàn toàn hiện tượng nhấp nháy giao diện.
+    - Kết hợp với cơ chế sequence request counters và dọn dẹp `loadError` đã thiết lập trước đó tại [useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts) để mang lại trải nghiệm chuyển trang mượt mà nhất.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - [useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/hooks/useChecklist.ts)
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Đã chạy kiểm tra typecheck Frontend (`cmd /c npx tsc --noEmit`) thành công 100% không phát sinh bất kỳ lỗi biên dịch nào.
+
+
+## [2026-08-04 16:15:00] - Bug Fix & Improvement: Giải quyết nghẽn tải Backend (Jobs query pagination/projection bottleneck), bổ sung giao diện cấu hình tài khoản CCP/CE/CAST ở Frontend, sửa lỗi hiển thị sai Modal kết quả OMS và sửa API trigger ở Frontend, đồng bộ trạng thái "Đang kiểm tra" cho các tác vụ con đang chạy ngầm, tạo file script test OMS bằng ứng dụng NestJS context
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Khắc phục lỗi Backend bị đơ, nghẽn tải hoàn toàn (CPU 100%) khi mở trang cấu hình bot hoặc chạy các tác vụ.
+  - Sửa lỗi tự động quét EOD OMS trên CCP/CE thất bại (trả về dữ liệu trống) dù thực tế hệ thống đã chạy EOD thành công trên môi trường thật.
+  - Khắc phục lỗi `Timeout 30000ms exceeded` khi click vào tab "Lịch sử EOD" trong Playwright do phần tử không hiển thị kịp hoặc bị che khuất bởi các thành phần MUI (backdrop/loading spinner).
+  - Cấu hình cho phép chạy Playwright ở chế độ headful (mở cửa sổ trình duyệt thực tế) để trực quan theo dõi/debug lỗi trên máy local của user.
+  - Yêu cầu tạo file kịch bản test sử dụng trực tiếp Service của module NestJS thay vì script JavaScript thuần để tận dụng cơ chế kết nối database, giải mã thông tin cấu hình và dependency injection có sẵn.
+  - Khắc phục việc thiếu các ô nhập thông tin tài khoản đăng nhập của **Core CCP**, **Core CE** và **CQG CAST** trên giao diện Cài đặt Bot (`/admin/bot-config`), khiến người dùng không thể cấu hình/lưu thông tin ở môi trường local/UAT.
+  - Sửa lỗi nút kích hoạt kiểm tra lại thủ công báo lỗi `Cannot POST /bot/check-oms`.
+  - Cải thiện luồng hiển thị: Khi các tác vụ con (subtasks) của Bot đang trong hàng đợi chạy ngầm (PENDING hoặc PROCESSING), giao diện vẫn hiển thị "Chưa thực hiện" (PENDING) là không hợp lý. Yêu cầu chúng phải tự động chuyển sang trạng thái "Đang kiểm tra" (WAITING) ngay lập tức khi job được tạo hoặc đang chạy.
+  - Sửa lỗi màn hình Modal kết quả OMS hiển thị sai giao diện "Đối chiếu số dư CQG tự động" khi bấm vào nút "Xem đối chiếu chi tiết trực quan" của tác vụ `ops_open_02`.
+- **Giải pháp**:
+  - **Backend (Tối ưu hóa API Jobs)**: 
+    - Phát hiện API `GET /api/v1/bot-engine/jobs` trả về payload quá lớn (lên tới **12.5 Megabytes** cho 50 jobs do chứa toàn bộ mảng `logs` dài và `payload.result` so khớp giao dịch khổng lồ). Frontend polling 8 giây một lần gây ra nghẽn hàng đợi Event Loop và chiếm dụng CPU liên tục.
+    - Chỉnh sửa file [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) để khi truy vấn danh sách chung (không truyền filter `shiftLogId` / `taskId`), sẽ sử dụng projection loại trừ các trường nặng (`-logs -payload.result`), giảm kích thước dữ liệu phản hồi xuống **dưới 10KB** và tăng tốc độ xử lý từ 140 giây về dưới 10ms.
+    - Viết thêm API chi tiết `@Get('jobs/:id')` để lấy đầy đủ thông tin (bao gồm logs/payload) của duy nhất một job được yêu cầu.
+  - **Frontend (Tối ưu tải Logs trong hàng đợi)**:
+    - Cập nhật file [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx) để chỉ tải đầy đủ logs và captcha của job cụ thể thông qua API chi tiết trên-nhu-cầu (on-demand) khi người dùng click chọn job đó.
+    - Tích hợp thêm cơ chế tự động làm mới (polling logs) riêng biệt với tần suất 4 giây/lần chỉ áp dụng khi job được chọn đang ở trạng thái chạy ngầm (`PROCESSING`/`PENDING`), tránh tải lại không cần thiết khi job đã kết thúc.
+  - **Backend (OMS Watcher)**: Bổ sung lệnh click vào Tab "Lịch sử EOD" (`ccpTab` và `ceTab`) trước khi cào bảng dữ liệu trong file [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts). Đồng thời chuyển sang dùng selector `page.getByText('Lịch sử EOD').first()` cực kỳ chuẩn xác, kết hợp `click({ force: true })` và `.catch(() => {})` để click cưỡng bức ngay cả khi bị che khuất tạm thời bởi loading overlay, tránh block tiến trình hoặc gây timeout 30s.
+  - **Backend (Playwright Headful Mode)**: Cập nhật hàm launch browser trong [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts) để đọc cấu hình từ biến môi trường `process.env.PLAYWRIGHT_HEADLESS`. Nếu đặt `PLAYWRIGHT_HEADLESS=false` ở file `.env` local, trình duyệt Chromium sẽ được mở hiển thị trực quan và tự động bật `slowMo: 1000` (giãn cách các thao tác 1 giây) để phục vụ debug.
+  - **Backend (Test Script NestJS context)**: Tạo file [test-oms-playwright.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-oms-playwright.ts) khởi tạo NestJS Application Context, lấy `OmsWatcherService` trực tiếp từ container để gọi chạy `checkOmsStatus()` với các thiết lập giải mã chuẩn của dự án. Đăng ký script tiện ích `"test:oms-playwright"` trong [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json).
+  - **Backend (Queue Sync)**: Sửa đổi file [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) để gọi hàm `syncJobToChecklist(job, 'PENDING')` ngay sau khi tạo/lưu job mới trong hàng đợi (`enqueue`). Đồng thời cập nhật hàm `syncJobToChecklist` để cập nhật trạng thái tác vụ sang `WAITING` ("Đang kiểm tra") cho cả hai trạng thái `PROCESSING` và `PENDING`.
+  - **Frontend (ConnectionSettings.tsx)**: Thiết kế và render thêm 3 cụm card giao diện (sử dụng grid và CSS class `glass-panel`) tương ứng để cấu hình và nhập liệu tài khoản **CQG CAST**, **Core CCP** và **Core CE** trực quan, kết hợp chức năng toggle ẩn/hiện mật khẩu, tự động lưu thông tin bằng nút "Lưu tất cả cấu hình tài khoản Bot" có sẵn.
+  - **Frontend (Page.tsx - Chuyển hướng Modal)**: Sửa file [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) để khi click "Xem đối chiếu chi tiết trực quan" cho hai tác vụ `ops_open_02` (OMS) và `ops_open_07` (Email), nó sẽ tự động kích hoạt hiển thị đúng `OmsStatusModal` (màn hình chuyên biệt hiển thị trạng thái quét CCP/CE EOD/MM) thay vì mở `BotLogViewerModal` chung chung.
+  - **Frontend (OmsStatusModal.tsx & BotLogViewerModal.tsx - Sửa logic nhận diện)**: 
+    - Sửa file [OmsStatusModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/OmsStatusModal.tsx) để gọi đúng URL API trigger của backend.
+    - Sửa file [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) tối ưu điều kiện phân loại `jsonType === 'CQG'`, loại trừ các task có chứa chữ "OMS" trong tiêu đề hoặc ID dạng `ops_open_02` để tránh bị nhận diện nhầm thành đối chiếu số dư CQG.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - [test-oms-playwright.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-oms-playwright.ts)
+- **Chỉnh sửa**:
+  - [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+  - [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx)
+  - [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)
+  - [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json)
+  - [oms-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/oms-watcher.service.ts)
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+  - [OmsStatusModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/OmsStatusModal.tsx)
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx)
+  - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm tra typecheck và build dự án (`npx tsc --noEmit` cho cả Frontend và Backend) đều thành công 100% không phát sinh lỗi.
+
+
+## [2026-08-04 14:20:00] - Feature & Documentation: Tạo script đóng ca trực và tài liệu backup/restore database
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Tạo tài liệu ghi nhận luồng backup/restore database MongoDB giữa Atlas, Desktop local và Server Ubuntu.
+  - Viết câu lệnh hoặc công cụ đóng nhanh toàn bộ ca trực đang ở trạng thái `PENDING` thành `COMPLETED` trực tiếp từ máy Windows local.
+- **Giải pháp**:
+  - Tạo mới file hướng dẫn [HUONG_DAN_BACKUP_RESTORE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_BACKUP_RESTORE.md) với các lệnh backup/restore chi tiết.
+  - Cập nhật tài liệu [DEPLOYMENT_LOG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/DEPLOYMENT_LOG.md).
+  - Viết mới file script Node.js [close_shifts.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/close_shifts.js) sử dụng thư viện `mongoose` và `dotenv` của backend để kết nối database theo `MONGODB_URI` trong `.env` và cập nhật các ca trực PENDING thành COMPLETED.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - [HUONG_DAN_BACKUP_RESTORE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/HUONG_DAN_BACKUP_RESTORE.md)
+  - [close_shifts.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/close_shifts.js)
+- **Chỉnh sửa**:
+  - [DEPLOYMENT_LOG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/DEPLOYMENT_LOG.md)
+
+### 3. Xác nhận Build/Kiểm thử
+- Script `close_shifts.js` sử dụng Node.js chạy độc lập từ CLI, không làm thay đổi hay can thiệp vào logic chạy của Backend chính, đảm bảo an toàn tuyệt đối. Đã kiểm tra import package hợp lệ.
+
+
+## [2026-07-31 10:20:00] - Refactor & Style: Tái cấu trúc giờ theo mùa sang mảng động & Tự động dịch chuyển giờ hạn chót task (Auto-shifting) & Tinh chỉnh giao diện SLA
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**:
+  - Thay đổi thuật ngữ kĩ thuật "SLA" thành thuật ngữ tiếng Việt dễ hiểu "Thời gian trễ cho phép" ở màn hình cấu hình ca trực.
+  - Thay thế các icon emoji thô sơ `☀️` và `❄️` bằng các icon chuyên nghiệp (`Sun` và `Snowflake` từ `lucide-react`).
+  - Phân tích và nâng cấp cơ chế lưu trữ giờ theo mùa dạng mảng động dưới Database để tăng khả năng mở rộng (Future-proof) nhưng vẫn giữ giao diện Frontend đơn giản dạng phẳng (Flat Fields).
+  - Tự động dịch chuyển giờ hạn chót (deadline) và giờ chạy bot (botTriggerTime) của tất cả các việc con (tasks) bên trong ca trực theo độ lệch giờ Hè/Đông để tránh việc Admin phải nhân bản Mẫu checklist thủ công.
+- **Giải pháp**:
+  - **Frontend**:
+    - Cập nhật trang [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx) để đổi thuật ngữ hiển thị, bổ sung icon trợ giúp `HelpCircle` giải thích chi tiết ô nhập liệu, và đổi các emoji sang các icon vector `Sun` và `Snowflake`.
+    - Loại bỏ cột "Qua đêm" khỏi bảng danh sách ca trực, thay vào đó hiển thị biểu tượng vector `Moon` tinh tế màu vàng cam cạnh các mốc giờ kết thúc ca qua đêm để tối ưu hóa không gian.
+    - Cập nhật trang [calendar/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/calendar/page.tsx) loại bỏ hoàn toàn bảng "Quản lý Ca trực" trùng lặp cũ, thay thế bằng một Card hướng dẫn thiết kế nét đứt tinh tế và nút bấm chuyển trang đến trang quản trị ca trực chuyên biệt.
+  - **Database & Backend**:
+    - Cấu trúc lại [shift-slot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-slot.schema.ts) để lưu các khung giờ mùa hè/mùa đông dưới mảng động `seasonalHours`.
+    - Sử dụng cơ chế Mongoose Virtual Getters để tự động sinh các trường phẳng (`startTimeSummer`, `endTimeSummer`...) phục vụ giao thức API tương thích ngược với Frontend cũ.
+    - Cập nhật [shift-slots.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-slots/shift-slots.service.ts) tự động đóng gói dữ liệu phẳng nhận được từ client thành dạng mảng động trước khi ghi vào Database.
+    - Cập nhật [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) gieo dữ liệu mảng động mẫu cho các ca trực.
+    - Điều chỉnh hàm đổi giờ ca trực trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) và [dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.service.ts) truy vấn từ mảng `seasonalHours` động thay vì các trường tĩnh.
+    - Cập nhật [shift-jobs.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-jobs.service.ts) để tự động tính độ lệch giờ (Offset) giữa giờ Hè/Đông thực tế và giờ mặc định của ca trực, tự động dịch chuyển giờ hạn chót và giờ chạy Bot của các việc con trước khi tạo bản ghi ca trực `ShiftLog`.
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Chỉnh sửa**:
+  - `frontend/src/app/admin/shift-slots/page.tsx`
+  - `frontend/src/app/admin/calendar/page.tsx`
+  - `backend/src/schemas/shift-slot.schema.ts`
+  - `backend/src/modules/shift-slots/shift-slots.service.ts`
+  - `backend/src/modules/shifts/shifts.service.ts`
+  - `backend/src/modules/dashboard/dashboard.service.ts`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/modules/shift-jobs/shift-jobs.service.ts`
+
+### 3. Xác nhận Build/Kiểm thử
+- Frontend typecheck hoàn tất: `npx tsc --noEmit` thành công không phát sinh lỗi.
+- Backend rebuild hoàn tất: `npm run build` thành công.
+- Đã chạy kịch bản gieo dữ liệu và cập nhật qua API: Thử nghiệm sửa đổi giờ Hè/Đông trên Ca trực qua Dịch vụ hoạt động hoàn hảo.
+- Đã chạy kịch bản thử nghiệm sinh ca trực tự động vào mùa Hè: Xác nhận các mốc giờ deadline và giờ chạy bot của các việc con tự động dịch chuyển lùi sớm 1 tiếng khớp chính xác tuyệt đối với khung giờ mùa Hè của ca trực.
+
+
+## [2026-07-31 09:40:00] - Feature: Triển khai Lịch trực & Ca trực theo mùa MXV liên thông quốc tế
+
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Thiết kế và triển khai cơ chế lịch nghỉ lễ theo từng Sở giao dịch nước ngoài (CME, ICE, LME, SGX, BMD, OSE) và giờ đổi ca theo mùa (DST - Giờ mùa hè/mùa đông) để đáp ứng nghiệp vụ trực liên thông quốc tế của MXV.
+- **Giải pháp**:
+  - **Database Schemas**:
+    - Tạo mới [exchange.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/exchange.schema.ts) và [exchange-holiday.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/exchange-holiday.schema.ts).
+    - Thêm trường `monitoredExchanges` vào [department.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/department.schema.ts).
+    - Thêm `startTimeSummer`, `endTimeSummer`, `startTimeWinter`, `endTimeWinter` vào [shift-slot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-slot.schema.ts).
+  - **Business Logic**:
+    - Cập nhật [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) để tự động seed các sở giao dịch, lịch nghỉ lễ mẫu, giờ đổi mùa cho ca trực, và thiết lập sở giám sát cho từng phòng ban.
+    - Cập nhật [working-calendar.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/working-calendar/working-calendar.service.ts) thêm hàm tự động tính DST (Daylight Saving Time) cho múi giờ Mỹ và UK/Châu Âu, và hàm kiểm tra phòng ban đóng cửa dựa trên các sở giám sát.
+    - Cập nhật [shift-jobs.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-jobs.service.ts) chuyển đổi kiểm tra lịch nghỉ lễ từ cấp hệ thống sang kiểm tra riêng biệt cho từng phòng ban (sinh ca trực dựa trên tình trạng đóng/mở của các sở giám sát).
+    - Cập nhật [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) và [dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/dashboard/dashboard.service.ts) để tự động điều chỉnh giờ bắt đầu/kết thúc ca trực của `shiftSlotId` tùy theo ngày ca trực đó thuộc mùa hè hay mùa đông.
+  - **Frontend**:
+    - Cập nhật trang cấu hình ca trực [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/shift-slots/page.tsx) để hiển thị chi tiết các khung giờ theo mùa trong bảng và bổ sung các trường nhập giờ Hè/giờ Đông khi Thêm mới/Chỉnh sửa cấu hình ca trực.
+    - Cập nhật thay thế thuật ngữ kỹ thuật "SLA" thành thuật ngữ tiếng Việt dễ hiểu "Thời gian trễ cho phép" trên tiêu đề trang, cột bảng biểu và trường nhập liệu. Bổ sung icon `HelpCircle` mô tả hướng dẫn chi tiết cho người dùng ca trực.
+    - Thay thế các emoji thô sơ `☀️` và `❄️` bằng các icon vector chuyên nghiệp `Sun` và `Snowflake` từ thư viện `lucide-react` để nâng cao thẩm mỹ giao diện.
+  - **Dependency / Circular Loop**:
+    - Gỡ bỏ `SystemSettingsModule` khỏi `imports` trong [working-calendar.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/working-calendar/working-calendar.module.ts) vì `SystemSettingsModule` là toàn cục (`@Global()`), giúp khắc phục lỗi Circular Dependency Loop.
+
+
+### 2. Danh sách file chỉnh sửa/tạo mới
+- **Tạo mới**:
+  - `backend/src/schemas/exchange.schema.ts`
+  - `backend/src/schemas/exchange-holiday.schema.ts`
+- **Chỉnh sửa**:
+  - `backend/src/database/database.module.ts`
+  - `backend/src/schemas/department.schema.ts`
+  - `backend/src/schemas/shift-slot.schema.ts`
+  - `backend/src/database/seed.service.ts`
+  - `backend/src/modules/working-calendar/working-calendar.module.ts`
+  - `backend/src/modules/working-calendar/working-calendar.service.ts`
+  - `backend/src/modules/shifts/shifts.module.ts`
+  - `backend/src/modules/shifts/shifts.service.ts`
+  - `backend/src/modules/dashboard/dashboard.module.ts`
+  - `backend/src/modules/dashboard/dashboard.service.ts`
+  - `backend/src/modules/shift-jobs/shift-jobs.service.ts`
+  - `frontend/src/app/admin/shift-slots/page.tsx`
+
+### 3. Xác nhận Build/Kiểm thử
+- Kiểm thử biên dịch Backend (`npm run build`) thành công 100% không lỗi.
+- Kiểm thử biên dịch & Typecheck Frontend (`npx tsc --noEmit` phía frontend) thành công 100% không lỗi.
+- Viết kịch bản kiểm thử giả lập sinh ca trực vào ngày lễ Mỹ (Thanksgiving `2026-11-26`) và xác nhận tự động bỏ qua sinh ca cho bộ phận Trading Operations (giám sát CME) trong khi vẫn sinh ca cho các phòng ban khác.
+
+- Kiểm thử tự động điều chỉnh giờ ca trực đêm sang mùa hè (từ `22:00-06:00` thành `21:00-05:00`) thành công trên Dashboard và Active Shifts.
 
 ## [2026-07-30 17:30:00] - Refactor: Đồng bộ hiển thị vai trò và bypass bộ lọc lịch sử cho Giám đốc Khối
 

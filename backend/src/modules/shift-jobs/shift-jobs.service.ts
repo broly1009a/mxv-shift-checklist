@@ -32,39 +32,11 @@ export class ShiftJobsService {
       `Starting shift job generation for date ${dateStr} (Trigger: ${triggerType})`,
     );
 
-    // 1. Validate if it's a trading day
-    const calendarValidation =
-      await this.workingCalendarService.validateDate(dateStr);
-    if (!calendarValidation.isTradingDay) {
-      this.logger.warn(
-        `Date ${dateStr} is not a trading day. Skipping shift job generation.`,
-      );
-
-      await this.systemLogsService.logEvent({
-        eventType: 'JOB_GENERATION_SKIPPED',
-        source: triggerType,
-        actorUserId: userId || null,
-        status: 'SKIPPED',
-        message: `Bỏ qua sinh ca trực ngày ${dateStr} do không phải ngày giao dịch.`,
-        metadata: { date: dateStr },
-      });
-
-      return {
-        success: false,
-        reason: 'NOT_A_TRADING_DAY',
-        date: dateStr,
-        isTradingDay: false,
-        processedCount: 0,
-        createdCount: 0,
-        skippedCount: 0,
-        details: [],
-      };
-    }
-
-    // 2. Fetch active checklist templates
+    // 1. Fetch active checklist templates
     const templates = await this.templateModel
       .find({ isActive: true })
       .populate('departmentId')
+      .populate('shiftSlotId')
       .exec();
     this.logger.log(
       `Found ${templates.length} active checklist templates to process.`,
@@ -75,7 +47,39 @@ export class ShiftJobsService {
     const details = [];
 
     for (const template of templates) {
+      const dept = template.departmentId as any;
+      if (dept) {
+        const isClosed = await this.workingCalendarService.isDepartmentClosedOnDate(
+          dept.monitoredExchanges || [],
+          dateStr,
+        );
+        if (isClosed) {
+          skippedCount++;
+          details.push({
+            templateId: template._id.toString(),
+            title: template.title,
+            status: 'SKIPPED_HOLIDAY',
+          });
+          this.logger.log(
+            `Department "${dept.name}" is closed on ${dateStr} due to holiday/weekend. Skipping.`,
+          );
+
+          await this.systemLogsService.logEvent({
+            eventType: 'JOB_GENERATION_SKIPPED',
+            source: triggerType,
+            actorUserId: userId || null,
+            departmentId: dept._id,
+            shiftSlotId: template.shiftSlotId,
+            status: 'SKIPPED',
+            message: `Bỏ qua sinh ca trực "${template.title}" ngày ${dateStr} do phòng ban nghỉ lễ/cuối tuần.`,
+            metadata: { templateTitle: template.title, date: dateStr },
+          });
+
+          continue;
+        }
+      }
       // Check if a ShiftLog already exists for this template and date
+
       const existing = await this.shiftLogModel
         .findOne({
           templateId: template._id,
@@ -108,12 +112,28 @@ export class ShiftJobsService {
         continue;
       }
 
+      // Calculate time offset if shiftSlot is configured with seasonal hours
+      let offsetMinutes = 0;
+      const slot = template.shiftSlotId as any;
+      if (slot && slot.seasonalHours && slot.seasonalHours.length > 0) {
+        const isSummer = this.workingCalendarService.isDaylightSavingTime(dateStr, 'America/Chicago');
+        const seasonName = isSummer ? 'SUMMER' : 'WINTER';
+        const matched = slot.seasonalHours.find((h: any) => h.name === seasonName);
+        if (matched) {
+          const getMinutes = (t: string) => {
+            const parts = t.split(':');
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+          };
+          offsetMinutes = getMinutes(matched.startTime) - getMinutes(slot.startTime);
+        }
+      }
+
       // Clone tasks
       const tasksSnapshot = template.tasks.map((task) => ({
         taskId: task.taskId,
         taskNameSnapshot: task.taskName,
         prioritySnapshot: task.priority,
-        deadlineSnapshot: task.deadline || null,
+        deadlineSnapshot: offsetMinutes !== 0 ? this.shiftTimeStr(task.deadline, offsetMinutes) : (task.deadline || null),
         isChecked: false,
         checkedAt: null,
         updatedBy: null,
@@ -123,7 +143,7 @@ export class ShiftJobsService {
         fileLocationSnapshot: task.fileLocation || '',
         timetableSnapshot: task.timetable || '',
         isBotCheckSnapshot: task.isBotCheck || false,
-        botTriggerTimeSnapshot: task.botTriggerTime || '',
+        botTriggerTimeSnapshot: offsetMinutes !== 0 ? (this.shiftTimeStr(task.botTriggerTime, offsetMinutes) || '') : (task.botTriggerTime || ''),
         botCheckTypeSnapshot: task.botCheckType || '',
         botCheckTargetSnapshot: task.botCheckTarget || '',
         botSuccessConditionSnapshot: task.botSuccessCondition || '',
@@ -131,10 +151,10 @@ export class ShiftJobsService {
         status: 'PENDING',
         dependsOnTaskIdsSnapshot: task.dependsOnTaskIds || [],
         sessionTypeSnapshot: task.sessionType || null,
-        triggerTimeSnapshot: task.triggerTime || null,
-        slaDeadlineSnapshot: task.slaDeadline || null,
-        slaWindowStartSnapshot: task.slaWindowStart || null,
-        slaWindowEndSnapshot: task.slaWindowEnd || null,
+        triggerTimeSnapshot: offsetMinutes !== 0 ? this.shiftTimeStr(task.triggerTime, offsetMinutes) : (task.triggerTime || null),
+        slaDeadlineSnapshot: offsetMinutes !== 0 ? this.shiftTimeStr(task.slaDeadline, offsetMinutes) : (task.slaDeadline || null),
+        slaWindowStartSnapshot: offsetMinutes !== 0 ? this.shiftTimeStr(task.slaWindowStart, offsetMinutes) : (task.slaWindowStart || null),
+        slaWindowEndSnapshot: offsetMinutes !== 0 ? this.shiftTimeStr(task.slaWindowEnd, offsetMinutes) : (task.slaWindowEnd || null),
         actionDescriptionSnapshot: task.actionDescription || '',
         exceptionCodeSnapshot: task.exceptionCode || '',
         frequencyMinutesSnapshot: task.frequencyMinutes || null,
@@ -148,7 +168,7 @@ export class ShiftJobsService {
         templateId: template._id,
         userId: userId ? new Types.ObjectId(userId) : null,
         shiftSlotId: template.shiftSlotId
-          ? new Types.ObjectId(template.shiftSlotId as any)
+          ? new Types.ObjectId((template.shiftSlotId as any)._id || template.shiftSlotId)
           : null,
         departmentId: template.departmentId
           ? new Types.ObjectId(template.departmentId as any)
@@ -231,4 +251,20 @@ export class ShiftJobsService {
       details,
     };
   }
+
+  private shiftTimeStr(timeStr: string | null | undefined, offsetMinutes: number): string | null {
+    if (!timeStr) return null;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return timeStr;
+    let totalMinutes = h * 60 + m + offsetMinutes;
+    totalMinutes = (totalMinutes + 1440) % 1440;
+    const newH = Math.floor(totalMinutes / 60);
+    const newM = totalMinutes % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(newH)}:${pad(newM)}`;
+  }
 }
+

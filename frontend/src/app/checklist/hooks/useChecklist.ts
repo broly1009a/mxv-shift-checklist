@@ -123,26 +123,39 @@ export function useChecklist() {
   const [togglingTaskIds, setTogglingTaskIds] = useState<Set<string>>(new Set());
   const focusedTaskIdRef = useRef<string | null>(null);
 
+  const activeLogsSeqRef = useRef(0);
+  const logDetailSeqRef = useRef(0);
+  const auditLogsSeqRef = useRef(0);
+  const incidentsSeqRef = useRef(0);
+
   const loadActiveLogs = useCallback(async () => {
     if (!token) return;
+    const seq = ++activeLogsSeqRef.current;
     setLoading(true);
+    setLoadError('');
     try {
       const deptIdFilter = user?.role === 'ADMIN' ? '' : `departmentId=${user?.department?.id || user?.department?._id || ''}`;
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/active?${deptIdFilter}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setActiveLogs(Array.from(new Map(data.map((item: any) => [item._id, item])).values()) as ShiftLog[]);
+      if (seq === activeLogsSeqRef.current) {
+        setActiveLogs(Array.from(new Map(data.map((item: any) => [item._id, item])).values()) as ShiftLog[]);
+      }
     } catch (err) {
       console.warn(err);
     } finally {
-      setLoading(false);
+      if (seq === activeLogsSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [token, user]);
 
   const loadLogDetail = useCallback(async (id: string) => {
     if (!token) return;
+    const seq = ++logDetailSeqRef.current;
     setLoading(true);
+    setLoadError('');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -152,23 +165,30 @@ export function useChecklist() {
         throw new Error(err.message || 'Không tìm thấy ca trực tương ứng.');
       }
       const target: ShiftLog = await res.json();
-      setLog(target);
-      // Pre-fill notesState
-      const notes: Record<string, string> = {};
-      target.details.forEach(item => {
-        notes[item.taskId] = item.note || '';
-      });
-      setNotesState(notes);
+      if (seq === logDetailSeqRef.current) {
+        setLog(target);
+        // Pre-fill notesState
+        const notes: Record<string, string> = {};
+        target.details.forEach(item => {
+          notes[item.taskId] = item.note || '';
+        });
+        setNotesState(notes);
+      }
     } catch (err: any) {
       console.warn(err);
-      setLoadError(err.message || 'Lỗi kết nối máy chủ.');
+      if (seq === logDetailSeqRef.current) {
+        setLoadError(err.message || 'Lỗi kết nối máy chủ.');
+      }
     } finally {
-      setLoading(false);
+      if (seq === logDetailSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [token]);
 
   const loadAuditLogs = useCallback(async (id: string) => {
     if (!token) return;
+    const seq = ++auditLogsSeqRef.current;
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${id}/audit-logs`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -176,7 +196,9 @@ export function useChecklist() {
       if (res.ok) {
         const data = await res.json();
         const uniqueAudits = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
-        setAuditLogs(uniqueAudits as AuditLog[]);
+        if (seq === auditLogsSeqRef.current) {
+          setAuditLogs(uniqueAudits as AuditLog[]);
+        }
       }
     } catch (err) {
       console.warn('Lỗi tải nhật ký kiểm toán:', err);
@@ -185,6 +207,7 @@ export function useChecklist() {
 
   const loadIncidents = useCallback(async (id: string) => {
     if (!token) return;
+    const seq = ++incidentsSeqRef.current;
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/incidents/shift/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -192,7 +215,9 @@ export function useChecklist() {
       if (res.ok) {
         const data = await res.json();
         const uniqueIncidents = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
-        setIncidents(uniqueIncidents);
+        if (seq === incidentsSeqRef.current) {
+          setIncidents(uniqueIncidents);
+        }
       }
     } catch (err) {
       console.warn('Lỗi tải danh sách sự cố:', err);

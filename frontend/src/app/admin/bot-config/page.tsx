@@ -27,6 +27,7 @@ import JobQueuePanel from './components/JobQueuePanel';
 import ReportDownloader from './components/ReportDownloader';
 import LotStatisticsPanel from './components/LotStatisticsPanel';
 import ValueStatisticsPanel from './components/ValueStatisticsPanel';
+import MarginCheckerModal from '@/app/checklist/components/MarginCheckerModal';
 
 interface BotJob {
   _id: string;
@@ -48,6 +49,7 @@ export default function AdminBotConfigPage() {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState<TabType>('credentials');
+  const [isMarginModalOpen, setIsMarginModalOpen] = useState(false);
 
   // Background Job States
   const [jobs, setJobs] = useState<BotJob[]>([]);
@@ -356,7 +358,38 @@ export default function AdminBotConfigPage() {
           )}
 
           {activeTab === 'scheduler' && (
-            <SystemSchedulerSettings token={token} apiBaseUrl={API_BASE_URL} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    Cấu hình Cảnh báo & Email nhận tin (Khối QLGD)
+                  </h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                    Cấu hình danh sách email nhận thông báo đối soát SOD, EOD, On-Order, hoặc thiết lập thông tin máy chủ SMTP.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMarginModalOpen(true)}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'opacity 0.2s',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.opacity = '0.9')}
+                  onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+                >
+                  Cấu hình Nhận Cảnh báo
+                </button>
+              </div>
+              <SystemSchedulerSettings token={token} apiBaseUrl={API_BASE_URL} />
+            </div>
           )}
 
           {activeTab === 'gtt' && (
@@ -410,6 +443,16 @@ export default function AdminBotConfigPage() {
             />
           )}
         </div>
+
+        {/* Margin Checker Modal configuration for QLGD / IT */}
+        {isMarginModalOpen && (
+          <MarginCheckerModal
+            isOpen={isMarginModalOpen}
+            onClose={() => setIsMarginModalOpen(false)}
+            shiftLogId="admin-global-config"
+            token={token}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );
