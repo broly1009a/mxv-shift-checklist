@@ -16,6 +16,116 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
 
+## [2026-08-10 17:22:00] - Feature: Đơn giản hóa logic tải file CCP MM thành Double click trực tiếp làm mặc định
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phản hồi từ người dùng cho thấy hành động di chuột và xổ danh sách để click chọn "Xuất tất cả" không hoạt động ổn định trên giao diện thực tế. Ngược lại, hành động Double click trực tiếp vào nút "Kết xuất" hoạt động chính xác và tải về bản đầy đủ một cách ổn định.
+- **Giải pháp**:
+  - Tại [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Thay thế toàn bộ cụm logic hover/click menu phức tạp bằng lệnh `dblclick` (Double click) trực tiếp vào nút "Kết xuất" (Kết xuất) với delay giữa các click là 150ms.
+    - Duy trì cơ chế catch lỗi: Nếu vì lý do nào đó double-click bị lỗi, Bot sẽ tự động fallback click đơn bình thường.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Sắp xếp trực tiếp hành động Double click làm mặc định.
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Đồng bộ hóa logic Double click làm hành động xuất file Excel mặc định.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:20:00] - Feature: Bổ sung hành vi di chuột chọn "Xuất tất cả" và Double click khi tải báo cáo CCP MM
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải tiến logic tải tệp tin khi ấn vào nút Kết xuất tại trang MM Trades. Do trang này chỉ hỗ trợ tải bản đầy đủ bằng cách: (1) Di chuột để xổ tùy chọn và click vào "Xuất tất cả" hoặc (2) Double click trực tiếp 2 lần vào nút "Kết xuất".
+- **Giải pháp**:
+  - Tại [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Tối ưu hóa logic xuất file: Thử hover lên nút "Kết xuất" trước, nếu thấy menu xuất hiện thì click "Xuất tất cả". Nếu không thấy xuất hiện trên hover, thử single click vào nút "Kết xuất" để mở dropdown. Nếu vẫn không được, thực hiện double-click (`dblclick`) trực tiếp vào nút "Kết xuất" để tải bản đầy đủ. Cuối cùng, fallback về click đơn thông thường nếu tất cả các cách trên gặp sự cố.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Cập nhật quy trình click/hover nút "Kết xuất" và menu "Xuất tất cả".
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Đồng bộ hóa logic click/hover nút "Kết xuất" tương tự ở script test để Bot chạy thật hoạt động chính xác.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:15:00] - Bugfix: Sửa lỗi thiếu định nghĩa biến destFile trong script test ccp download
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi `Cannot find name 'destFile'` tại file [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) dòng 112.
+- **Nguyên nhân**: Script chạy thử nghiệm tải báo cáo CCP MM được thêm mới trước đó sử dụng biến `destFile` để lưu trữ đường dẫn xuất file Excel tải về, nhưng chưa khai báo và định nghĩa biến này trong thân hàm `runCcpDownloadTest`.
+- **Giải pháp**: Khai báo biến `destFile` trỏ tới thư mục lưu trữ uploads của backend (`backend/uploads/DSGD MM CCP.xlsx`) và tự động kiểm tra, khởi tạo thư mục này nếu chưa tồn tại trước khi tiến hành lưu trữ file tải về từ Playwright.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Khai báo bổ sung `destFile` và tự động tạo thư mục `uploads` nếu chưa có.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:05:00] - Feature: Tối ưu hóa kiểm lỗi đăng nhập CCP & Bổ sung selector tải file MM CCP
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Giải thích và tối ưu hóa quy trình tự động tải file `DSGD MM CCP` của Bot. Sử dụng duy nhất nút "Kết xuất" (tải về) của trang `ORDERS/ORDERMATCH_DETAIL_MM` Core CCP để click tải file MM CCP, tinh gọn mã nguồn không cần giả lập tìm kiếm nhiều bộ chọn thừa. Bổ sung script chạy test tải file visually (headful mode) và sửa lỗi định tuyến nhầm do Hash.
+- **Giải pháp**:
+  - Tại [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Sửa đổi login flow trong `downloadDsgdMmCcp`: thay vì chỉ đợi `successIndicator` và bị timeout 15s khi sai thông tin đăng nhập, đã sử dụng `Promise.race` để chờ cả thông báo lỗi `.message-error`. Nếu gặp lỗi đăng nhập, sẽ ném ra ngoại lệ rõ ràng với nội dung lỗi lấy trực tiếp từ trang web (ví dụ: "Sai mật khẩu", "Tài khoản bị khóa", v.v.).
+    - Tinh gọn mã nguồn click xuất Excel: Chỉ sử dụng đúng bộ chọn `page.locator('button:has-text("Kết xuất")')` để chờ hiển thị và click trực tiếp, loại bỏ hoàn toàn danh sách selector dự phòng và vòng lặp tìm kiếm nút mờ.
+  - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+    - Bao bọc lệnh gọi `downloadDsgdMmCcp` bằng khối `try-catch` và ghi log chi tiết lỗi (`⚠️ Không tải được DSGD MM CCP tự động: ...`) vào danh sách log của `BotJob` để hiển thị trực quan lên giao diện giám sát của người dùng.
+  - Tạo mới file script test [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) mô phỏng cấu trúc của `test-oms-playwright.ts` nhưng để kiểm tra trực quan quá trình tải tệp tin CCP MM. Tự động tìm kiếm đường dẫn nhị phân Chrome có sẵn (`it-tool-src`) để tránh lỗi thiếu browser của Playwright cục bộ. Đồng thời, cấu hình đi trực tiếp tới đường dẫn không hash (`/ORDERS/...`) để tránh bị kẹt tại dashboard.
+  - Đăng ký script `"test:ccp-download": "ts-node src/test-ccp-download.ts"` trong [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json) để chạy độc lập dễ dàng.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Nâng cấp error-checking đăng nhập và rút gọn chỉ click đúng duy nhất bộ chọn nút "Kết xuất".
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Thêm try-catch để log chính xác nội dung lỗi tải tự động lên UI.
+  - [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json): Đăng ký script `test:ccp-download`.
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) [NEW]: Tạo script test trực quan đầu ra file MM CCP (sử dụng Chrome bundled và đi trực tiếp URL).
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+
+## [2026-08-10 16:55:00] - Bugfix: Sửa lỗi cú pháp tại bot-job-queue.service.ts do đóng ngoặc nháy chuỗi bị lệch
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi syntax `Cannot find name 'P'` tại dòng 2790 trong tệp `bot-job-queue.service.ts`.
+- **Nguyên nhân**: Trong chuỗi log của file DSGD MM CCP vắng mặt, ký tự ngoặc nháy ngược (backtick) bị đóng sớm tại `trống.`, dẫn đến đoạn `, P riêng biệt vắng` bị đẩy ra ngoài chuỗi. Trình biên dịch TypeScript coi `P` là một biến chưa được định nghĩa và báo lỗi cú pháp.
+- **Giải pháp**: Đưa toàn bộ đoạn text `, P riêng biệt vắng` (đầy đủ là `riêng biệt vắng mặt`) vào trong ngoặc nháy chuỗi template literal chuẩn xác.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Chuẩn hóa lại câu log bị sai cú pháp:
+    - **Trước**:
+      ```typescript
+      `File DSGD MM CC mặt (không bắt buộc). Khởi tạo buffer trống.`, P riêng biệt vắng
+      ```
+    - **Sau**:
+      ```typescript
+      `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,
+      ```
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+
 ## [2026-08-10 16:00:00] - Feature: Phân loại trực quan và định tuyến thủ công tệp đối chiếu
 
 ### 1. Mục tiêu Thay đổi
@@ -34,6 +144,9 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 #### 🔴 Backend
 - **Sửa đổi**:
   - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Cập nhật endpoint `upload-backup` tiếp nhận tham số `@Body('categories')` và thực hiện copy file dựa trên phân loại được chỉ định cụ thể.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Tối ưu hóa câu log thông báo khi thiếu file tùy chọn `DSGD MM CCP`. Tích hợp gọi tự động `rpaDownloaderService.downloadDsgdMmCcp` để tải file MM về từ Core CCP nếu file này chưa có sẵn trong thư mục backup trước khi chạy báo cáo CCP.
+  - [lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.service.ts): Sửa lỗi quét file trong các thư mục MS Backup khi chạy Macro Số Lốt. Đã loại trừ các file chứa từ khóa `mm` và `ccp` khi tìm file giao dịch chính `DSGD.xlsx`, tránh trường hợp file `DSGD MM CCP.xlsx` ghi đè nhầm lên file dữ liệu giao dịch thông thường.
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Thêm phương thức `downloadDsgdMmCcp` dùng Playwright đăng nhập tự động vào cổng Core CCP, truy cập trang chi tiết khớp lệnh MM `/ORDERS/ORDERMATCH_DETAIL_MM` và kích hoạt tính năng Xuất Excel để tải file `DSGD MM CCP.xlsx` về máy.
 
 ### 3. Xác nhận Build/Kiểm thử
 - Dự án NestJS build thành công (`npm run build`).

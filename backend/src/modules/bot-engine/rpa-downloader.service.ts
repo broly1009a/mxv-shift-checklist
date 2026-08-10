@@ -1022,6 +1022,142 @@ export class RpaDownloaderService {
     }
   }
 
+  async downloadDsgdMmCcp(destFile: string): Promise<boolean> {
+    const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    if (!ccpRaw) {
+      throw new Error('Chưa cấu hình tài khoản đăng nhập CCP trong Hệ thống Settings.');
+    }
+    let ccpCreds: any;
+    try {
+      ccpCreds = JSON.parse(decrypt(ccpRaw));
+    } catch (err: any) {
+      throw new Error(`Không thể giải mã cấu hình tài khoản CCP: ${err.message}`);
+    }
+
+    const ccpUrl = (ccpCreds.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
+
+    const executablePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: process.env.HEADLESS_BOT !== 'false',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-dev-shm-usage',
+        '--window-size=1280,800',
+      ],
+    };
+    if (executablePath) {
+      launchOptions.executablePath = executablePath;
+    }
+
+    this.logger.log('Starting Playwright session to download DSGD MM CCP from CCP Core...');
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1280, height: 800 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    });
+
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
+    page.setDefaultTimeout(30000);
+
+    try {
+      this.logger.log(`Navigating to CCP: ${ccpUrl}/login`);
+      await page.goto(`${ccpUrl}/login`);
+
+      const userInputSelector = 'input#username, input[type="text"], input[name="username"]';
+      const passInputSelector = 'input#password, input[type="password"], input[name="password"]';
+      const submitBtnSelector = 'button.submit-button, button[type="submit"], button.btn-primary';
+
+      await page.waitForSelector(userInputSelector, { state: 'visible', timeout: 10000 });
+      await page.fill(userInputSelector, ccpCreds.username);
+      await page.fill(passInputSelector, ccpCreds.password);
+      await page.waitForTimeout(500);
+      await page.click(submitBtnSelector);
+
+      const result = await Promise.race([
+        page.waitForFunction(() => !window.location.href.includes('/login'), { timeout: 15000 }).then(() => 'success'),
+        page.waitForSelector('text=Xin chào', { state: 'visible', timeout: 15000 }).then(() => 'success'),
+        page.waitForSelector('.message-error', { state: 'visible', timeout: 15000 }).then(() => 'error'),
+      ]);
+
+      if (result === 'error') {
+        const errorText = await page.locator('.message-error').innerText();
+        throw new Error(`Đăng nhập CCP thất bại. Thông tin lỗi từ website: "${errorText.trim()}"`);
+      }
+      this.logger.log('Logged in to CCP successfully.');
+
+      const mmUrl = `${ccpUrl}/ORDERS/ORDERMATCH_DETAIL_MM`;
+      this.logger.log(`Navigating to MM Trades detail page: ${mmUrl}`);
+      await page.goto(mmUrl);
+      await page.waitForTimeout(2000);
+
+      this.logger.log('Clicking export excel button...');
+      const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+
+      const exportBtn = page.locator('button:has-text("Kết xuất")').first();
+      await exportBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+      this.logger.log('Trying to hover or click to choose "Xuất tất cả"...');
+      let clicked = false;
+      try {
+        await exportBtn.hover().catch(() => {});
+        await page.waitForTimeout(1000);
+        
+        const exportAllBtn = page.getByText('Xuất tất cả').first();
+        let isVisible = await exportAllBtn.isVisible().catch(() => false);
+        
+        if (!isVisible) {
+          this.logger.log('Dropdown not visible on hover, trying single click to open dropdown...');
+          await exportBtn.click().catch(() => {});
+          await page.waitForTimeout(1000);
+          isVisible = await exportAllBtn.isVisible().catch(() => false);
+        }
+        
+        if (isVisible) {
+          this.logger.log('Found "Xuất tất cả", clicking it...');
+          await exportAllBtn.click();
+          clicked = true;
+        } else {
+          this.logger.log('"Xuất tất cả" dropdown option is still not visible.');
+        }
+      } catch (btnErr) {
+        this.logger.warn(`Error trying to use dropdown menu: ${btnErr.message}`);
+      }
+
+      if (!clicked) {
+        this.logger.log('Dropdown option not triggered, trying double click on "Kết xuất" button...');
+        await exportBtn.dblclick({ delay: 150 }).catch(async (dblErr) => {
+          this.logger.warn(`Double click failed, trying regular click as last resort: ${dblErr.message}`);
+          await exportBtn.click();
+        });
+      }
+
+      const download = await downloadPromise;
+      await download.saveAs(destFile);
+      this.logger.log(`DSGD MM CCP downloaded successfully to: ${destFile}`);
+      await browser.close();
+      return true;
+    } catch (err: any) {
+      try {
+        const screenshotPath = path.join(process.cwd(), 'uploads', 'ccp-login-failed.png');
+        await page.screenshot({ path: screenshotPath });
+        this.logger.log(`Đã chụp ảnh màn hình lỗi tại: ${screenshotPath}`);
+      } catch (screenshotErr: any) {
+        this.logger.warn(`Không thể chụp ảnh màn hình lỗi: ${screenshotErr.message}`);
+      }
+      this.logger.error(`Lỗi tải tự động DSGD MM CCP: ${err.message}`);
+      await browser.close().catch(() => {});
+      throw err;
+    }
+  }
+
+
   /**
    * Download eod.csv from M-System.
    * Path: QL hệ thống -> Kết quả EOD (xuất file kết quả sau khi EOD thành công)

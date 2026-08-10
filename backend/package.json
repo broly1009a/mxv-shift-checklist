@@ -39,7 +39,8 @@
     "test:scheduler": "ts-node src/test-dynamic-scheduler.ts",
     "test:email-sod": "ts-node src/test-email-sod.ts",
     "test:all-emails": "ts-node src/test-all-emails.ts",
-    "test:email-filter": "ts-node src/test-email-filter.ts"
+    "test:email-filter": "ts-node src/test-email-filter.ts",
+    "test:ccp-download": "ts-node src/test-ccp-download.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

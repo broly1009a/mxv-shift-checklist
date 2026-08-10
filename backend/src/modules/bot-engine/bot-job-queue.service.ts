@@ -1987,14 +1987,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy thống kê số lot native cho ngày: ${targetDateStr}`);
+    const targetDate = new Date(targetDateStr);
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+
+    log(`[Macro Thống kê Số Lốt] Bắt đầu chạy tính toán [Thống kê số lốt giao dịch có ACM] cho ngày: ${targetDateStr}`);
+    log(`[Macro Thống kê Số Lốt] Báo cáo đầu ra sẽ cập nhật vào các tệp cumulative: Thong ke so lot giao dich ${year} 2.xlsx, Thong ke so lot giao dich ACM/LME/Options...`);
     await safeSave();
 
     try {
-      const targetDate = new Date(targetDateStr);
-      const year = targetDate.getFullYear().toString();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
 
       const backupMs =
         payload.backupPathMs ||
@@ -2150,7 +2152,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     };
 
     log(
-      `Bắt đầu chạy thống kê giá trị giao dịch native cho ngày: ${targetDateStr}`,
+      `[Macro Thống kê Giá Trị] Bắt đầu chạy tính toán [Thống kê giá trị giao dịch có ACM] cho ngày: ${targetDateStr}`,
+    );
+    log(
+      `[Macro Thống kê Giá Trị] Kết quả sẽ được ghi vào thư mục: Thong ke gia tri giao dich theo TVKD`,
     );
     await safeSave();
 
@@ -2739,7 +2744,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     };
 
     log(
-      `Bắt đầu chạy macro thống kê số lô & giá trị giao dịch CCP cho ngày: ${targetDateStr}`,
+      `[Báo cáo CCP Bạc Thỏi] Bắt đầu chạy tính toán [Macro Thống kê Số Lô & Giá Trị Giao Dịch CCP] cho ngày: ${targetDateStr}`,
+    );
+    log(
+      `[Báo cáo CCP Bạc Thỏi] Lưu ý: Đây là báo cáo dành riêng cho Pilot Bạc Thỏi (đầu ra Thong_ke_kich_ban_Pilot_Bac_Final.xlsx), biệt lập với Macro Số Lốt hoặc Macro Giá Trị.`,
     );
     await safeSave();
 
@@ -2785,10 +2793,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPath2);
         log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath2}`);
       } else {
-        dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
-        log(
-          `Không tìm thấy file DSGD MM CCP riêng biệt. Khởi tạo buffer trống.`,
-        );
+        log(`Không tìm thấy file DSGD MM CCP trong thư mục backup. Tiến hành đăng nhập Core CCP để tải tự động...`);
+        await safeSave();
+        try {
+          const downloadSuccess = await this.rpaDownloaderService.downloadDsgdMmCcp(dsgdMmCcpPathStd);
+          if (downloadSuccess && fs.existsSync(dsgdMmCcpPathStd)) {
+            dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPathStd);
+            log(`✅ Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
+          } else {
+            throw new Error('Tải tệp tin không thành công không rõ lý do.');
+          }
+        } catch (err: any) {
+          log(`⚠️ Không tải được DSGD MM CCP tự động: ${err.message}`);
+          dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
+          log(
+            `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,
+          );
+        }
       }
 
       const dstkgdPath = path.join(dailyPath, 'DSTKGD-Futures.xlsx');

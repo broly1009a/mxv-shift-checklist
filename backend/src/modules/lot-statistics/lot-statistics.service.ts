@@ -150,6 +150,8 @@ export class LotStatisticsService {
 
       if (
         lower.includes('dsgd') &&
+        !lower.includes('mm') &&
+        !lower.includes('ccp') &&
         (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
       ) {
         fileDsgd = fs.readFileSync(fullPath);
@@ -249,6 +251,8 @@ export class LotStatisticsService {
 
       if (
         lower.includes('dsgd') &&
+        !lower.includes('mm') &&
+        !lower.includes('ccp') &&
         (lower.endsWith('.xlsx') || lower.endsWith('.xls'))
       ) {
         fileDsgd = fs.readFileSync(fullPath);
