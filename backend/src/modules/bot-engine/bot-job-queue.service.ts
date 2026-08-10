@@ -2181,12 +2181,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
       
+      // Ghi chú: targetRoot đã trỏ tới thư mục ...\ Backup MS\Futures
+      // KHÔNG append thêm 'Backup MS', 'Futures' để tránh duplicate path.
       const dsgdPath =
         payload.dsgdPath ||
         path.join(
           targetRoot,
-          'Backup MS',
-          'Futures',
           String(year),
           `T${monthStr}.${year}`,
           `${dayStr}.${monthStr}`,
@@ -2201,14 +2201,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ${year}.xlsx`,
         );
+      // pathSpread dùng setting riêng nếu cấu hình, fallback về Videos folder chuẩn
       const pathSpread =
         payload.pathSpread ||
         (await this.settingsService.getSetting('bot_lot_macro_path_spread')) ||
         path.join(
-          targetRoot,
-          'Backup MS',
-          'Spread',
-          String(year),
+          'C:\\Users\\hiepth\\Videos\\Marco thong ke gia tri',
           `Thong ke gia tri giao dich Spread ${year}.xlsx`,
         );
       const pathLme =
@@ -2281,7 +2279,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       const result = await this.valueStatisticsService.processValueStatistics(
         targetDate,
-        payload,
+        {
+          ...payload,
+          // Truyền các path đã tính đúng để value-statistics.service.ts
+          // dùng payload?.dsgdPath (logic có sẵn) thay vì tự build lại
+          dsgdPath,
+          targetRoot,
+          pathNormal,
+          pathSpread,
+          pathLme,
+          pathOptions,
+          pathAcm,
+          pathTvkd,
+          macroPath,
+        },
       );
       log(`✅ Chạy tính toán thống kê giá trị thành công.`);
       log(

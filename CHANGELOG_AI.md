@@ -4,6 +4,33 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-10] Fix: Lỗi đường dẫn DSGD bị lặp đôi trong handleRunValueMacroJob
+
+### Mục tiêu thay đổi
+Task `ops_close_01_s4_value` (RUN_VALUE_MACRO) báo lỗi `"Không tìm thấy file DSGD"` mặc dù file tồn tại. Nguyên nhân: setting `bot_lot_macro_target_root` lưu giá trị `...\Backup MS\Futures` nhưng code lại tiếp tục append thêm `'Backup MS', 'Futures'` → đường dẫn bị lặp đôi thành `...\Backup MS\Futures\Backup MS\Futures\...`.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Sửa `dsgdPath` và `pathSpread` construction trong `handleRunValueMacroJob`
+
+### Tóm tắt nội dung code đã sửa
+
+**Trước:**
+```ts
+dsgdPath = path.join(targetRoot, 'Backup MS', 'Futures', year, `T${m}.${year}`, `${d}.${m}`, 'DSGD.xlsx')
+// → ...\Backup MS\Futures\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  ❌
+```
+
+**Sau:**
+```ts
+dsgdPath = path.join(targetRoot, year, `T${m}.${year}`, `${d}.${m}`, 'DSGD.xlsx')
+// → ...\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  ✅
+```
+
+### Xác nhận Build/Kiểm thử
+- Backend hot-reload `npm run start:dev` — không có lỗi compile.
+
+---
+
 ## [2026-08-10] Fix: Thêm handler RUN_LOT_MACRO & RUN_VALUE_MACRO vào bot-engine.service.ts
 
 ### Mục tiêu thay đổi
