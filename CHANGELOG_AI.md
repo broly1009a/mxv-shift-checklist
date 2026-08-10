@@ -15,6 +15,72 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Backend: `pm2 start dist/main.js --name "mxv-backend"`
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+
+## [2026-08-10 16:00:00] - Feature: Phân loại trực quan và định tuyến thủ công tệp đối chiếu
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phân chia giao diện và tính năng tải tệp đối chiếu thủ công một cách trực quan hơn, giúp quản trị viên biết rõ tệp nào sẽ đi vào thư mục nào (CQG, M-System, Straits ACM) để tránh nhầm lẫn hoặc khó hiểu.
+- **Giải pháp**:
+  - Triển khai **Bộ lọc Tab Phân loại (Category Tabs)** tại frontend: cho phép chọn giữa `Tự động nhận dạng`, `CQG Backup`, `M-System Futures`, và `Straits ACM`. Khi click chọn Tab, dropzone sẽ tự động thay đổi mô tả và khóa đích đến của các tệp tin được kéo thả/lựa chọn.
+  - Thiết kế **Menu ghi đè thủ công (Category Override Dropdown)** bên cạnh mỗi tệp tin trong danh sách đã chọn: cho phép người dùng thay đổi đích đến của từng tệp tin độc lập trước khi ấn Tải lên.
+  - Cập nhật backend hỗ trợ tiếp nhận tham số mảng `categories` từ thân `FormData` để định tuyến chính xác tuyệt đối tệp tin vào đúng thư mục cấu hình (`Backup CQG\Futures`, `Backup MS\Futures`, `Backup MS\ACM`) tương ứng mà không cần hoàn toàn phụ thuộc vào việc kiểm tra từ khóa trong tên file như trước.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Thiết kế lại toàn bộ kiểu dáng (styling) sử dụng Vanilla CSS, các biến hệ thống (CSS Variables như `var(--bg-main)`, `var(--border-color)`, `var(--text-primary)`...) và lớp cấu trúc `glass-panel`, `form-input`, `btn-primary` đồng nhất 100% với giao diện cấu hình của Bot (`bot-config`). Loại bỏ hoàn toàn các lớp Tailwind CSS thô cứng gây lệch tông màu. Tích hợp Tab bar phân loại dạng tab hệ thống phẳng, thay đổi label dropzone động, tạo dropdown menu thay đổi phân loại tệp tin và truyền tham số `categories` khi gọi API. Đồng thời loại bỏ việc khai báo lặp lại cấu trúc `Sidebar` thủ công và thẻ bao `h-screen bg-background-dark` (do đã được bao bọc tự động bởi lớp layout toàn cục `GlobalLayout`), giúp khắc phục triệt để lỗi hiển thị vệt nền đen cục bộ trên trang.
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Cập nhật endpoint `upload-backup` tiếp nhận tham số `@Body('categories')` và thực hiện copy file dựa trên phân loại được chỉ định cụ thể.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 09:00:00] - Feature: Tự động kiểm tra và sinh ca trực khi khởi động hệ thống (Startup Catch-up)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục hiện tượng khi cài đặt thời gian sinh ca tự động lúc 12:01 AM thì sáng ra lúc 8h không tự động sinh ca, nhưng nếu cài lúc 8:10 AM thì lại tự sinh ca thành công.
+- **Nguyên nhân**: 
+  - **Lệch định dạng giờ trên Ubuntu**: Khi gọi `Intl.DateTimeFormat` với `hour12: false` trên Linux/Ubuntu, mốc giờ đêm (12:01 AM) có thể bị định dạng thành `24:01` thay vì `00:01` (chu kỳ `h24` thay vì `h23`). Vì DB lưu là `00:01` nên điều kiện không khớp và không sinh ca. Ngoài ra nếu server ngủ/cắt kết nối lúc 12:01 AM thì sẽ bị bỏ lỡ.
+  - Các mốc giờ khác như 8:10 AM không bị ảnh hưởng.
+- **Giải pháp**: 
+  - Triển khai interface `OnApplicationBootstrap` và sửa format giờ thành `hourCycle: 'h23'` kèm dự phòng đổi `24` thành `00` trong [shift-job.scheduler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-job.scheduler.ts).
+  - Khi server backend vừa khởi động lên, nó sẽ tự động chạy hàm `runStartupGeneration` để quét kiểm tra xem các ca trực của ngày hôm nay đã được tạo chưa. Nếu chưa (do server tắt qua đêm hoặc bị crash/restart xung quanh mốc 12:01 AM), hệ thống sẽ tự động khởi tạo bù ngay lập tức. Điều này giúp loại bỏ hoàn toàn rủi ro bị sót ca trực.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [shift-job.scheduler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-job.scheduler.ts): Implement hook `onApplicationBootstrap`, bổ sung helper `runStartupGeneration()` để tự sinh ca khi khởi chạy server, và tối ưu hóa tái cấu trúc trích xuất hàm dùng chung `getSaigonTimeParts()` giúp triệt tiêu mã nguồn dư thừa.
+  - [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts): Áp dụng `hourCycle: 'h23'` và chuẩn hóa giờ `'24'` thành `'00'` để ngăn chặn lỗi lệch ngày khi seeding dữ liệu lịch làm việc vào thời điểm nửa đêm.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+
+## [2026-08-10 08:20:00] - Feature: Định tuyến và phân loại tệp đối chiếu Straits ACM khi upload thủ công
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Bổ sung hỗ trợ tải lên (upload) thủ công tệp tin khớp lệnh Straits ACM (`EOD FO trades_PT Straits Financial Indonesia - 10017890000_10082026.csv`...) theo ngày đối chiếu do chưa thiết lập kết nối SFTP tự động.
+- **Giải pháp**:
+  - Tại backend, cập nhật logic định tuyến file trong `reconciliation.controller.ts`: các file chứa từ khóa `straits` sẽ tự động được lưu vào thư mục con `Backup MS\ACM` (thay vì lưu chung vào `Backup MS\Futures` như các file của M-System). Việc này đảm bảo khớp hoàn toàn với đường dẫn tìm kiếm của dịch vụ đối chiếu dữ liệu Pre-EOD.
+  - Tại frontend, cập nhật hàm phân loại `getFileCategory` và phần hướng dẫn sử dụng trong `upload-backup/page.tsx` để hiển thị danh mục `Straits ACM (Thư mục ACM)` tách biệt với các tệp thô M-System.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Thêm nhánh kiểm tra `lowerName.includes('straits')` để thay thế `Futures` bằng `ACM` trong đường dẫn lưu tệp và đổi tên danh mục hiển thị thành `Straits (ACM)`.
+
+#### 🔵 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Tách riêng file Straits khỏi M-System trong hàm `getFileCategory` và bổ sung hướng dẫn chi tiết về thư mục lưu trữ Straits ACM trên Card Hướng dẫn.
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch thành công NestJS backend (`npm run build`) và Next.js frontend (`npx tsc --noEmit` & `npm run build`).
+
 ## [2026-08-07 17:50:00] - Bugfix: Khắc phục lỗi trùng lặp thông báo (Duplicate Notification) & Ẩn log lỗi của Bot khi chưa đủ điều kiện
 
 ### 1. Mục tiêu Thay đổi
@@ -34,6 +100,11 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - **Sửa đổi**:
   - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa điều kiện lưu Audit Log trạng thái, chỉ tạo bản ghi khi `oldStatus !== status && oldIsChecked !== isChecked`.
   - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Bổ sung try-catch cục bộ khi cập nhật trạng thái `PASSED` và `FAILED` để xử lý ngoại lệ dependency và chuyển mức log từ `ERROR` sang `WARN`.
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Thêm API `@Post('upload-backup')` nhận file upload thủ công, tự động định tuyến file vào thư mục backup theo ngày tương ứng dựa trên tên file và cấu hình hệ thống.
+
+#### 🔵 Frontend
+- **Thêm mới**:
+  - [upload-backup/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Trang upload độc lập hỗ trợ kéo thả tệp tin đối chiếu CQG/M-System/Straits, tự động phân loại danh mục file theo thời gian tuỳ chọn.
 
 ### 3. Xác nhận Build/Kiểm thử
 - Chạy `npm run build` trên cả Frontend và Backend thành công, không phát sinh lỗi biên dịch.

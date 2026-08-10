@@ -10,11 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ReconciliationService } from './reconciliation.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { RpaDownloaderService } from '../bot-engine/rpa-downloader.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as fs from 'fs';
+import * as path from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -28,6 +30,7 @@ export class ReconciliationController {
     private readonly reconciliationService: ReconciliationService,
     private readonly shiftsService: ShiftsService,
     private readonly rpaService: RpaDownloaderService,
+    private readonly settingsService: SystemSettingsService,
   ) {}
 
   @Post('upload-klgd')
@@ -1021,4 +1024,112 @@ export class ReconciliationController {
       jsonContent,
     };
   }
+
+  @Post('upload-backup')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(FilesInterceptor('files'))
+  async uploadBackupFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('date') dateStr?: string,
+    @Body('categories') categories?: string | string[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Không có file nào được tải lên');
+    }
+
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    if (isNaN(targetDate.getTime())) {
+      throw new BadRequestException('Định dạng ngày không hợp lệ. Sử dụng YYYY-MM-DD');
+    }
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    // Retrieve configured backup base paths
+    const cqgBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+    const msBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+
+    const savedFiles: { filename: string; path: string; category: string }[] = [];
+
+    let index = 0;
+    for (const file of files) {
+      const name = file.originalname;
+      const lowerName = name.toLowerCase();
+      let targetBase = '';
+      let category = '';
+
+      // Determine explicit category if sent from frontend
+      let explicitCategory = '';
+      if (categories) {
+        if (Array.isArray(categories)) {
+          explicitCategory = categories[index];
+        } else {
+          // If only one file is uploaded, NestJS/body-parser parses categories as a single string
+          // Or if multiple identical keys are sent, they are parsed as an array.
+          // In some cases if we have multiple files but only one category parameter, it might be a string.
+          // So we should safely handle it or check if it matches the files index.
+          explicitCategory = categories;
+        }
+      }
+
+      const isCqg = explicitCategory === 'CQG' || (!explicitCategory && (
+        lowerName.includes('fr') ||
+        lowerName.includes('od') ||
+        lowerName.includes('op') ||
+        lowerName.includes('ps') ||
+        lowerName.includes('as')
+      ));
+
+      const isAcm = explicitCategory === 'ACM' || (!explicitCategory && lowerName.includes('straits'));
+
+      const isMs = explicitCategory === 'MS' || (!explicitCategory && (
+        lowerName.includes('dsgd') ||
+        lowerName.includes('tttt') ||
+        lowerName.includes('ttm')
+      ));
+
+      if (isCqg) {
+        targetBase = cqgBase;
+        category = 'CQG';
+      } else if (isAcm) {
+        targetBase = msBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
+        category = 'Straits (ACM)';
+      } else if (isMs) {
+        targetBase = msBase;
+        category = 'M-System';
+      } else {
+        // Default to MS if unrecognized but keep user informed
+        targetBase = msBase;
+        category = 'M-System (Default)';
+      }
+
+      const destFolder = path.join(targetBase, subFolder);
+      fs.mkdirSync(destFolder, { recursive: true });
+      const destPath = path.join(destFolder, name);
+      fs.writeFileSync(destPath, file.buffer);
+
+      savedFiles.push({
+        filename: name,
+        path: destPath,
+        category,
+      });
+      index++;
+    }
+
+    return {
+      success: true,
+      message: `Đã upload thành công ${files.length} file vào thư mục backup ngày ${day}/${month}/${year}`,
+      date: targetDate.toISOString().split('T')[0],
+      savedFiles,
+    };
+  }
 }
+
