@@ -1987,14 +1987,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
     };
 
-    log(`Bắt đầu chạy thống kê số lot native cho ngày: ${targetDateStr}`);
+    const targetDate = new Date(targetDateStr);
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+
+    log(`[Macro Thống kê Số Lốt] Bắt đầu chạy tính toán [Thống kê số lốt giao dịch có ACM] cho ngày: ${targetDateStr}`);
+    log(`[Macro Thống kê Số Lốt] Báo cáo đầu ra sẽ cập nhật vào các tệp cumulative: Thong ke so lot giao dich ${year} 2.xlsx, Thong ke so lot giao dich ACM/LME/Options...`);
     await safeSave();
 
     try {
-      const targetDate = new Date(targetDateStr);
-      const year = targetDate.getFullYear().toString();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
 
       const backupMs =
         payload.backupPathMs ||
@@ -2051,6 +2053,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const pathSpread =
         lotConfig.defaultPathSpread ||
         `${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`;
+
+      log(`[NestJS Thống kê Số Lốt] Chi tiết các đường dẫn tệp tin xử lý:`);
+      log(`   - File DSGD Tuần/Tháng (Cumulative): ${pathDsgdCumulative}`);
+      log(`   - File Thống kê số lốt (Normal): ${pathNormal}`);
+      log(`   - File Thống kê số lốt ACM: ${pathAcm}`);
+      log(`   - File Thống kê số lốt LME: ${pathLme}`);
+      log(`   - File Thống kê số lốt Options: ${pathOptions}`);
+      log(`   - File Thống kê số lốt Spread: ${pathSpread}`);
+      await safeSave();
 
       const parseDateArray = (input: any) => {
         if (!input) return [];
@@ -2150,15 +2161,138 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     };
 
     log(
-      `Bắt đầu chạy thống kê giá trị giao dịch native cho ngày: ${targetDateStr}`,
+      `[Macro Thống kê Giá Trị] Bắt đầu chạy tính toán [Thống kê giá trị giao dịch có ACM] cho ngày: ${targetDateStr}`,
+    );
+    log(
+      `[Macro Thống kê Giá Trị] Kết quả sẽ được ghi vào thư mục: Thong ke gia tri giao dich theo TVKD`,
     );
     await safeSave();
 
     try {
       const targetDate = new Date(targetDateStr);
+      const year = targetDate.getFullYear();
+      const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(targetDate.getDate()).padStart(2, '0');
+
+      const targetRoot =
+        payload.targetRoot ||
+        (await this.settingsService.getSetting(
+          'bot_lot_macro_target_root',
+          'M:\\Quanlygiaodich\\Tai lieu hoat dong',
+        ));
+      
+      // Ghi chú: targetRoot đã trỏ tới thư mục ...\ Backup MS\Futures
+      // KHÔNG append thêm 'Backup MS', 'Futures' để tránh duplicate path.
+      const dsgdPath =
+        payload.dsgdPath ||
+        path.join(
+          targetRoot,
+          String(year),
+          `T${monthStr}.${year}`,
+          `${dayStr}.${monthStr}`,
+          'DSGD.xlsx',
+        );
+
+      const pathNormal =
+        payload.pathNormal ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_normal')) ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich',
+          `Thong ke gia tri giao dich ${year}.xlsx`,
+        );
+      // pathSpread dùng setting riêng nếu cấu hình, fallback về Videos folder chuẩn
+      const pathSpread =
+        payload.pathSpread ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_spread')) ||
+        path.join(
+          'C:\\Users\\hiepth\\Videos\\Marco thong ke gia tri',
+          `Thong ke gia tri giao dich Spread ${year}.xlsx`,
+        );
+      const pathLme =
+        payload.pathLme ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_lme')) ||
+        path.join(
+          targetRoot,
+          'Backup CQG',
+          'LME',
+          String(year),
+          `Thong ke gia tri giao dich LME ${year}.xlsx`,
+        );
+      const pathOptions =
+        payload.pathOptions ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_options')) ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich',
+          `Thong ke gia tri giao dich Options ${year}.xlsx`,
+        );
+      const pathAcm =
+        payload.pathAcm ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_acm')) ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich',
+          `Thong ke gia tri giao dich ACM ${year}.xlsx`,
+        );
+      const pathTvkd =
+        payload.pathTvkd ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich theo TVKD',
+          `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
+        );
+
+      const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
+        ? path.join(
+            process.cwd(),
+            'marco',
+            'Thong ke gia tri giao dich có ACM',
+            'Macro thong ke gia tri giao dich có ACM.xlsm',
+          )
+        : path.join(
+            process.cwd(),
+            '..',
+            'marco',
+            'Thong ke gia tri giao dich có ACM',
+            'Macro thong ke gia tri giao dich có ACM.xlsm',
+          );
+      const macroPath =
+        payload.macroPath ||
+        (await this.settingsService.getSetting(
+          'bot_macro_value_path',
+          defaultMacroPath,
+        ));
+
+      log(`[NestJS Thống kê Giá Trị] Chi tiết các đường dẫn tệp tin xử lý:`);
+      log(`   - Tệp bản đồ cấu hình (Excel): ${macroPath}`);
+      log(`   - Thư mục gốc dữ liệu (Target Root): ${targetRoot}`);
+      log(`   - File DSGD đầu vào: ${dsgdPath}`);
+      log(`   - File Thống kê giá trị (Normal): ${pathNormal}`);
+      log(`   - File Thống kê giá trị Spread: ${pathSpread}`);
+      log(`   - File Thống kê giá trị LME: ${pathLme}`);
+      log(`   - File Thống kê giá trị Options: ${pathOptions}`);
+      log(`   - File Thống kê giá trị ACM: ${pathAcm}`);
+      log(`   - File Thống kê giá trị theo TVKD: ${pathTvkd}`);
+      await safeSave();
+
       const result = await this.valueStatisticsService.processValueStatistics(
         targetDate,
-        payload,
+        {
+          ...payload,
+          // Truyền các path đã tính đúng để value-statistics.service.ts
+          // dùng payload?.dsgdPath (logic có sẵn) thay vì tự build lại
+          dsgdPath,
+          targetRoot,
+          pathNormal,
+          pathSpread,
+          pathLme,
+          pathOptions,
+          pathAcm,
+          pathTvkd,
+          macroPath,
+        },
       );
       log(`✅ Chạy tính toán thống kê giá trị thành công.`);
       log(
@@ -2739,7 +2873,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     };
 
     log(
-      `Bắt đầu chạy macro thống kê số lô & giá trị giao dịch CCP cho ngày: ${targetDateStr}`,
+      `[Báo cáo CCP Bạc Thỏi] Bắt đầu chạy tính toán [Macro Thống kê Số Lô & Giá Trị Giao Dịch CCP] cho ngày: ${targetDateStr}`,
+    );
+    log(
+      `[Báo cáo CCP Bạc Thỏi] Lưu ý: Đây là báo cáo dành riêng cho Pilot Bạc Thỏi (đầu ra Thong_ke_kich_ban_Pilot_Bac_Final.xlsx), biệt lập với Macro Số Lốt hoặc Macro Giá Trị.`,
     );
     await safeSave();
 
@@ -2785,10 +2922,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPath2);
         log(`Tìm thấy file DSGD MM CCP tại: ${dsgdMmCcpPath2}`);
       } else {
-        dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
-        log(
-          `Không tìm thấy file DSGD MM CCP riêng biệt. Khởi tạo buffer trống.`,
-        );
+        log(`Chưa có file DSGD MM CCP trong thư mục backup. Tiến hành đăng nhập Core CCP để tải tự động...`);
+        await safeSave();
+        try {
+          const downloadSuccess = await this.rpaDownloaderService.downloadDsgdMmCcp(dsgdMmCcpPathStd);
+          if (downloadSuccess && fs.existsSync(dsgdMmCcpPathStd)) {
+            dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPathStd);
+            log(`✅ Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
+          } else {
+            throw new Error('Tải tệp tin không thành công không rõ lý do.');
+          }
+        } catch (err: any) {
+          log(`⚠️ Không tải được DSGD MM CCP tự động: ${err.message}`);
+          dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
+          log(
+            `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,
+          );
+        }
       }
 
       const dstkgdPath = path.join(dailyPath, 'DSTKGD-Futures.xlsx');
@@ -2827,6 +2977,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         );
       }
 
+      log(`[Báo cáo CCP Bạc Thỏi] Chi tiết 6 tệp tin dữ liệu đầu vào nạp vào bộ nhớ:`);
+      log(`   - File giao dịch CCP: ${dsgdCcpPath}`);
+      log(`   - File giao dịch MM CCP: ${dsgdMmCcpPathStd}`);
+      log(`   - File danh sách tài khoản: ${finalDstkgdPath}`);
+      log(`   - File nộp rút: ${nrPath}`);
+      log(`   - File trạng thái mở: ${ttmPath}`);
+      log(`   - File trạng thái tất toán: ${ttttPath}`);
       log(`Tất cả 6 file báo cáo đã được nạp thành công.`);
       await safeSave();
 
@@ -2839,12 +2996,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         tttt: fs.readFileSync(ttttPath),
       };
 
-      log(`Bắt đầu xử lý dữ liệu báo cáo CCP qua CcpStatisticsService...`);
+      const ccpPathSetting = await this.settingsService.getSetting('bot_macro_ccp_path', '');
+      const defaultOutputPath = path.join(
+        process.cwd(),
+        'uploads',
+        'ccp-statistics',
+        'Thong_ke_kich_ban_Pilot_Bac_Final.xlsx',
+      );
+      const targetOutputPath = ccpPathSetting || defaultOutputPath;
+
+      log(`[Báo cáo CCP Bạc Thỏi] Bắt đầu xử lý dữ liệu báo cáo CCP qua CcpStatisticsService...`);
+      log(`[Báo cáo CCP Bạc Thỏi] Đường dẫn tệp tin đầu ra kết quả (Output): ${targetOutputPath}`);
       await safeSave();
 
       const outputPath = await this.ccpStatisticsService.processCcpData(
         files,
         targetDate,
+        targetOutputPath,
       );
 
       log(`✅ Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);

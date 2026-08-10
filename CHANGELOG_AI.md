@@ -4,6 +4,59 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-10] Fix: Lỗi đường dẫn DSGD bị lặp đôi trong handleRunValueMacroJob
+
+### Mục tiêu thay đổi
+Task `ops_close_01_s4_value` (RUN_VALUE_MACRO) báo lỗi `"Không tìm thấy file DSGD"` mặc dù file tồn tại. Nguyên nhân: setting `bot_lot_macro_target_root` lưu giá trị `...\Backup MS\Futures` nhưng code lại tiếp tục append thêm `'Backup MS', 'Futures'` → đường dẫn bị lặp đôi thành `...\Backup MS\Futures\Backup MS\Futures\...`.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Sửa `dsgdPath` và `pathSpread` construction trong `handleRunValueMacroJob`
+
+### Tóm tắt nội dung code đã sửa
+
+**Trước:**
+```ts
+dsgdPath = path.join(targetRoot, 'Backup MS', 'Futures', year, `T${m}.${year}`, `${d}.${m}`, 'DSGD.xlsx')
+// → ...\Backup MS\Futures\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  ❌
+```
+
+**Sau:**
+```ts
+dsgdPath = path.join(targetRoot, year, `T${m}.${year}`, `${d}.${m}`, 'DSGD.xlsx')
+// → ...\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  ✅
+```
+
+### Xác nhận Build/Kiểm thử
+- Backend hot-reload `npm run start:dev` — không có lỗi compile.
+
+---
+
+## [2026-08-10] Fix: Thêm handler RUN_LOT_MACRO & RUN_VALUE_MACRO vào bot-engine.service.ts
+
+### Mục tiêu thay đổi
+Hai task bot mới `ops_close_01_s4_lot` (RUN_LOT_MACRO) và `ops_close_01_s4_value` (RUN_VALUE_MACRO) bị kẹt ở trạng thái "Đang kiểm tra" với log lỗi `"Loại kiểm tra không được hỗ trợ."`. Nguyên nhân: `bot-engine.service.ts` không có `else if` branch xử lý 2 loại `botCheckType` này, dẫn đến rơi vào default trả về lỗi không hỗ trợ.
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Thêm 2 handler mới
+
+### Tóm tắt nội dung code đã sửa
+
+**Trước:** Sau block `else if (checkType === 'RUN_MACRO')` không có xử lý cho `RUN_LOT_MACRO` và `RUN_VALUE_MACRO`.
+
+**Sau:** Thêm 2 block xử lý ngay sau `RUN_MACRO`:
+- `else if (checkType === 'RUN_LOT_MACRO')` → enqueue job `RUN_LOT_MACRO` (đã có handler trong `bot-job-queue.service.ts` line 422)
+- `else if (checkType === 'RUN_VALUE_MACRO')` → enqueue job `RUN_VALUE_MACRO` (đã có handler trong `bot-job-queue.service.ts` line 424)
+
+### Lưu ý liên quan
+- Controller (`bot-engine.controller.ts` line 638-641) đã có từ trước.
+- `bot-job-queue.service.ts` (`handleRunLotMacroJob`, `handleRunValueMacroJob`) đã có từ trước.
+- Chỉ thiếu dispatcher trong `bot-engine.service.ts`.
+
+### Xác nhận Build/Kiểm thử
+- `npx tsc --noEmit` — Không có lỗi trong `bot-engine.service.ts`.
+
+---
+
 ## 💡 CÁC CÂU LỆNH VẬN HÀNH NHANH TRÊN UBUNTU SERVER (PRODUCT)
 
 ### 1. Đóng/Chốt tất cả các ca trực đang chạy (PENDING -> COMPLETED):
@@ -15,6 +68,351 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - Backend: `pm2 start dist/main.js --name "mxv-backend"`
 - Frontend: `pm2 start npm --name "mxv-frontend" -- run start`
 - Quét logs: `pm2 logs mxv-backend` hoặc `pm2 logs mxv-frontend`
+
+## [2026-08-10 18:04:00] - Rule: Bổ sung luật nghiêm cấm AI tự ý can thiệp xóa/sửa dữ liệu Database
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ngăn chặn AI tự viết/chạy các script xóa dữ liệu ca trực thực tế đang chạy, làm ảnh hưởng đến dữ liệu kiểm thử của người dùng. Viết quy tắc này vào luật `AGENTS.md`.
+- **Giải pháp**:
+  - Tại [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md):
+    - Thêm điều khoản số 3 trong mục `1. Strict Change Audit Rule` quy định rõ: AI tuyệt đối không tự ý can thiệp vào Database (delete, update, reset) các bảng ghi thực tế như Checklist templates, ShiftLogs, Users... trừ khi có chỉ đạo trực tiếp từ USER.
+  - Tại [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts):
+    - Loại bỏ việc tự động xóa các template hoạt động trong cơ chế seed để bảo toàn ID mẫu gốc.
+
+### 2. Kết quả Thay đổi
+- **Sửa đổi**:
+  - [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md)
+  - [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+
+## [2026-08-10 17:55:00] - Feature: Tách biệt hoàn toàn các tác vụ Bot tự động chạy Macro Pilot Bạc, Thống kê Số Lốt và Giá Trị giao dịch
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Tách biệt hoàn toàn 3 tác vụ bot tự động:
+  1. Bot chạy Macro Pilot Bạc Thỏi (`RUN_MACRO`).
+  2. Bot tự động tính toán Thống kê Giá Trị giao dịch (`RUN_VALUE_MACRO`).
+  3. Bot tự động tính toán Thống kê Số Lốt giao dịch (`RUN_LOT_MACRO`).
+  Lược bỏ log chỉ định file macro `.xlsm` cấu hình gốc do logic tính toán đã chuyển đổi hoàn toàn sang mã nguồn NestJS in-memory (ExcelJS), không còn trực tiếp thực thi file macro `.xlsm` nữa.
+- **Giải pháp**:
+  - Tại [exported_templates.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/exported_templates.json):
+    - Tách tác vụ `TASK_CCP_STATISTICS_s1` (DURING) thành 3 tác vụ con: `TASK_CCP_STATISTICS_s1_lot` (`RUN_LOT_MACRO`), `TASK_CCP_STATISTICS_s1_value` (`RUN_VALUE_MACRO`), `TASK_CCP_STATISTICS_s1_ccp` (`RUN_MACRO`).
+    - Tách tác vụ `ops_close_01_s4` (CLOSE) thành 3 tác vụ con: `ops_close_01_s4_lot` (`RUN_LOT_MACRO`), `ops_close_01_s4_value` (`RUN_VALUE_MACRO`), `ops_close_01_s4_ccp` (`RUN_MACRO`).
+    - Điều chỉnh lại thứ tự `sortOrder` của các tác vụ kế thừa để đảm bảo tính tuần tự.
+  - Tại [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts):
+    - Thêm 2 template ca trực `Checklist Trong Phiên - Trading Operations` và `Checklist Đóng Cửa - Trading Operations` vào danh sách tự động xóa trước khi seed để buộc cập nhật lại cấu trúc mới từ file JSON.
+  - Tại [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts):
+    - Thêm ánh xạ loại công việc `RUN_LOT_MACRO`, `RUN_VALUE_MACRO`, `RUN_MACRO` trong API trigger tác vụ thủ công `triggerTaskRpa`.
+  - Tại [reset-today-shifts.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/reset-today-shifts.ts) [NEW]:
+    - Tạo script tự động xóa ca trực đã sinh trong ngày hôm nay và sinh lại ca trực mới theo mẫu cấu hình tác vụ bot tách biệt vừa cập nhật.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [exported_templates.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/exported_templates.json)
+  - [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts)
+  - [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+- **Tạo mới**:
+  - [reset-today-shifts.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/reset-today-shifts.ts)
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+- Chạy thành công kịch bản cập nhật cơ sở dữ liệu `reset-today-shifts.ts` để sinh lại ca trực với cấu trúc 3 tác vụ bot mới.
+
+## [2026-08-10 17:48:00] - Feature: Ghi log chi tiết đường dẫn file Excel Macro cấu hình (.xlsm) cho Job Số Lốt và Giá Trị
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Ghi log rõ ràng đường dẫn file Excel Macro (.xlsm) cấu hình chạy ngầm (được lấy từ Database: `bot_macro_lot_path` và `bot_macro_value_path`) để người dùng theo dõi và biết chắc chắn hệ thống đang chạy chính xác file Macro nào.
+- **Giải pháp**:
+  - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+    - Trong `handleRunLotMacroJob`: Truy xuất cấu hình `bot_macro_lot_path` từ Database và in chi tiết vào `job.logs`.
+    - Trong `handleRunValueMacroJob`: Truy xuất cấu hình `bot_macro_value_path` từ Database và in chi tiết vào `job.logs`.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Thêm log `File Macro cấu hình (.xlsm)` cho cả Job thống kê Lốt và Giá Trị.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:43:00] - Feature: Tích hợp đọc cấu hình đầu ra Macro CCP từ Database và bổ sung log chi tiết 6 file đầu vào
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Job chạy Macro CCP (`RUN_MACRO` - Báo cáo CCP Bạc Thỏi) vẫn xuất tệp tin ra thư mục mặc định `uploads/ccp-statistics/Thong_ke_kich_ban_Pilot_Bac_Final.xlsx` và chưa log chi tiết các tệp tin được xử lý.
+- **Giải pháp**:
+  - Tại [ccp-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-statistics.service.ts):
+    - Cập nhật hàm `processCcpData` để nhận tham số `outputPath?: string` tùy chọn và truy cập cài đặt `bot_macro_ccp_path` từ database để ghi đè đường dẫn xuất file Excel kết quả.
+  - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+    - Trong hàm `handleRunMacroJob`: Truy xuất cài đặt `bot_macro_ccp_path` từ database và chuyển làm tham số đầu ra cho `processCcpData`.
+    - Bổ sung log hiển thị chi tiết tuyệt đối đường dẫn của **cả 6 file đầu vào** (gồm: DSGD, DSGD MM CCP, DSTKGD, NR, TTM, TTTT) và **file đầu ra** (Output) lên bảng giám sát giao diện người dùng.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [ccp-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-statistics.service.ts): Thêm tham số `outputPath` động và tích hợp đọc cài đặt DB.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Cập nhật log chi tiết các tệp tin và truyền tham số Output động từ DB.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:40:00] - Feature: Đọc cấu hình đường dẫn tệp tin Macro Giá Trị từ Database thay vì gán mặc định
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Hệ thống cần đọc cấu hình các đường dẫn xuất tệp tin cumulative của Macro Giá Trị (`RUN_VALUE_MACRO`) từ database (`SystemSettings` với các key `bot_lot_macro_path_*`) thay vì tự động khởi tạo theo thư mục gốc mặc định (`M:\Quanlygiaodich\...`).
+- **Giải pháp**:
+  - Tại [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts):
+    - Cập nhật hàm `processValueStatistics` để truy vấn động các giá trị cấu hình `bot_lot_macro_path_normal`, `bot_lot_macro_path_spread`, `bot_lot_macro_path_lme`, `bot_lot_macro_path_options`, `bot_lot_macro_path_acm`, `bot_lot_macro_path_tvkd` và `bot_lot_macro_update_cumulative` từ database thông qua `SystemSettingsService`.
+  - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+    - Tương thích hóa logic hiển thị log trong hàm `handleRunValueMacroJob` để cùng đọc từ các biến cấu hình trong database này, giúp log hiển thị chính xác các tệp tin được cập nhật theo đúng cấu hình hệ thống.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts): Đọc động các đường dẫn tệp tin từ Settings DB.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Cập nhật log chi tiết đồng bộ theo Settings DB.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:33:00] - Bugfix: Loại bỏ nhãn cảnh báo giả lập và Bổ sung ghi log chi tiết đường dẫn cho Macro Lot & Value
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: 
+  1. Khắc phục hiện tượng giao diện vẫn hiện hộp thoại "Phát Hiện Sự Cố / Cảnh Báo Hệ Thống" màu hồng dù Job CCP đã chạy thành công 100%.
+  2. Bổ sung ghi vết các đường dẫn thư mục và file xử lý của Macro Số Lốt (`RUN_LOT_MACRO`) và Macro Giá Trị (`RUN_VALUE_MACRO`) để hiển thị lên bảng giám sát giao diện người dùng.
+- **Giải pháp**:
+  - **Khắc phục cảnh báo giả lập**: Do frontend quét chuỗi `Không tìm thấy` trong log để kích hoạt giao diện cảnh báo lỗi (đỏ/hồng), trong khi log của job CCP ghi: `Không tìm thấy file DSGD MM CCP trong thư mục backup...`. Đã đổi cụm từ này thành `Chưa có file DSGD MM CCP...` trong [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) để tránh kích hoạt cảnh báo lỗi khi Job tự sửa đổi thành công.
+  - **Bổ sung ghi log chi tiết**: 
+    - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): 
+      - Trong `handleRunLotMacroJob`: Bổ sung ghi log trực tiếp toàn bộ 6 file cumulative đầu ra vào `job.logs`.
+      - Trong `handleRunValueMacroJob`: Bổ sung tính toán và log chi tiết thư mục gốc (`Target Root`), file `DSGD.xlsx` đầu vào và toàn bộ 6 file cumulative đầu ra của thống kê giá trị vào `job.logs`.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Thay đổi log tự động tải và bổ sung các hàm log chi tiết thư mục/đường dẫn của thống kê Lốt và Giá Trị.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:28:00] - Feature: Tối ưu hóa toàn diện kết hợp di chuột chọn "Xuất tất cả" và Double click dự phòng (Double download logic)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Do phương án chỉ double-click trực tiếp đôi khi bị lỗi timeout không kích hoạt được download trên môi trường test, người dùng yêu cầu duy trì cả hai giải pháp (kết hợp) như ban đầu nhưng căn chỉnh lại thời gian chờ cho ổn định.
+- **Giải pháp**:
+  - Tại [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Khôi phục logic đa phương thức: Đầu tiên hover lên nút "Kết xuất", đợi 1 giây cho dropdown animation hoàn tất để bấm "Xuất tất cả".
+    - Nếu không hiện dropdown, click đơn vào nút "Kết xuất" rồi đợi 1 giây để tìm nút "Xuất tất cả".
+    - Nếu vẫn không xuất hiện, thực hiện đúp chuột `dblclick` làm phương án dự phòng chính.
+    - Cuối cùng fallback về click đơn nếu tất cả đều không kích hoạt được.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Tích hợp đồng bộ phương pháp click/hover kèm double click dự phòng.
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Đồng bộ hóa logic kết hợp hoàn toàn giống script test.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:22:00] - Feature: Đơn giản hóa logic tải file CCP MM thành Double click trực tiếp làm mặc định
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phản hồi từ người dùng cho thấy hành động di chuột và xổ danh sách để click chọn "Xuất tất cả" không hoạt động ổn định trên giao diện thực tế. Ngược lại, hành động Double click trực tiếp vào nút "Kết xuất" hoạt động chính xác và tải về bản đầy đủ một cách ổn định.
+- **Giải pháp**:
+  - Tại [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Thay thế toàn bộ cụm logic hover/click menu phức tạp bằng lệnh `dblclick` (Double click) trực tiếp vào nút "Kết xuất" (Kết xuất) với delay giữa các click là 150ms.
+    - Duy trì cơ chế catch lỗi: Nếu vì lý do nào đó double-click bị lỗi, Bot sẽ tự động fallback click đơn bình thường.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Sắp xếp trực tiếp hành động Double click làm mặc định.
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Đồng bộ hóa logic Double click làm hành động xuất file Excel mặc định.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:20:00] - Feature: Bổ sung hành vi di chuột chọn "Xuất tất cả" và Double click khi tải báo cáo CCP MM
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Cải tiến logic tải tệp tin khi ấn vào nút Kết xuất tại trang MM Trades. Do trang này chỉ hỗ trợ tải bản đầy đủ bằng cách: (1) Di chuột để xổ tùy chọn và click vào "Xuất tất cả" hoặc (2) Double click trực tiếp 2 lần vào nút "Kết xuất".
+- **Giải pháp**:
+  - Tại [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Tối ưu hóa logic xuất file: Thử hover lên nút "Kết xuất" trước, nếu thấy menu xuất hiện thì click "Xuất tất cả". Nếu không thấy xuất hiện trên hover, thử single click vào nút "Kết xuất" để mở dropdown. Nếu vẫn không được, thực hiện double-click (`dblclick`) trực tiếp vào nút "Kết xuất" để tải bản đầy đủ. Cuối cùng, fallback về click đơn thông thường nếu tất cả các cách trên gặp sự cố.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Cập nhật quy trình click/hover nút "Kết xuất" và menu "Xuất tất cả".
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Đồng bộ hóa logic click/hover nút "Kết xuất" tương tự ở script test để Bot chạy thật hoạt động chính xác.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:15:00] - Bugfix: Sửa lỗi thiếu định nghĩa biến destFile trong script test ccp download
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi `Cannot find name 'destFile'` tại file [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) dòng 112.
+- **Nguyên nhân**: Script chạy thử nghiệm tải báo cáo CCP MM được thêm mới trước đó sử dụng biến `destFile` để lưu trữ đường dẫn xuất file Excel tải về, nhưng chưa khai báo và định nghĩa biến này trong thân hàm `runCcpDownloadTest`.
+- **Giải pháp**: Khai báo biến `destFile` trỏ tới thư mục lưu trữ uploads của backend (`backend/uploads/DSGD MM CCP.xlsx`) và tự động kiểm tra, khởi tạo thư mục này nếu chưa tồn tại trước khi tiến hành lưu trữ file tải về từ Playwright.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts): Khai báo bổ sung `destFile` và tự động tạo thư mục `uploads` nếu chưa có.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 17:05:00] - Feature: Tối ưu hóa kiểm lỗi đăng nhập CCP & Bổ sung selector tải file MM CCP
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Giải thích và tối ưu hóa quy trình tự động tải file `DSGD MM CCP` của Bot. Sử dụng duy nhất nút "Kết xuất" (tải về) của trang `ORDERS/ORDERMATCH_DETAIL_MM` Core CCP để click tải file MM CCP, tinh gọn mã nguồn không cần giả lập tìm kiếm nhiều bộ chọn thừa. Bổ sung script chạy test tải file visually (headful mode) và sửa lỗi định tuyến nhầm do Hash.
+- **Giải pháp**:
+  - Tại [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+    - Sửa đổi login flow trong `downloadDsgdMmCcp`: thay vì chỉ đợi `successIndicator` và bị timeout 15s khi sai thông tin đăng nhập, đã sử dụng `Promise.race` để chờ cả thông báo lỗi `.message-error`. Nếu gặp lỗi đăng nhập, sẽ ném ra ngoại lệ rõ ràng với nội dung lỗi lấy trực tiếp từ trang web (ví dụ: "Sai mật khẩu", "Tài khoản bị khóa", v.v.).
+    - Tinh gọn mã nguồn click xuất Excel: Chỉ sử dụng đúng bộ chọn `page.locator('button:has-text("Kết xuất")')` để chờ hiển thị và click trực tiếp, loại bỏ hoàn toàn danh sách selector dự phòng và vòng lặp tìm kiếm nút mờ.
+  - Tại [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+    - Bao bọc lệnh gọi `downloadDsgdMmCcp` bằng khối `try-catch` và ghi log chi tiết lỗi (`⚠️ Không tải được DSGD MM CCP tự động: ...`) vào danh sách log của `BotJob` để hiển thị trực quan lên giao diện giám sát của người dùng.
+  - Tạo mới file script test [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) mô phỏng cấu trúc của `test-oms-playwright.ts` nhưng để kiểm tra trực quan quá trình tải tệp tin CCP MM. Tự động tìm kiếm đường dẫn nhị phân Chrome có sẵn (`it-tool-src`) để tránh lỗi thiếu browser của Playwright cục bộ. Đồng thời, cấu hình đi trực tiếp tới đường dẫn không hash (`/ORDERS/...`) để tránh bị kẹt tại dashboard.
+  - Đăng ký script `"test:ccp-download": "ts-node src/test-ccp-download.ts"` trong [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json) để chạy độc lập dễ dàng.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Nâng cấp error-checking đăng nhập và rút gọn chỉ click đúng duy nhất bộ chọn nút "Kết xuất".
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Thêm try-catch để log chính xác nội dung lỗi tải tự động lên UI.
+  - [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/package.json): Đăng ký script `test:ccp-download`.
+  - [test-ccp-download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-ccp-download.ts) [NEW]: Tạo script test trực quan đầu ra file MM CCP (sử dụng Chrome bundled và đi trực tiếp URL).
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+
+## [2026-08-10 16:55:00] - Bugfix: Sửa lỗi cú pháp tại bot-job-queue.service.ts do đóng ngoặc nháy chuỗi bị lệch
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi syntax `Cannot find name 'P'` tại dòng 2790 trong tệp `bot-job-queue.service.ts`.
+- **Nguyên nhân**: Trong chuỗi log của file DSGD MM CCP vắng mặt, ký tự ngoặc nháy ngược (backtick) bị đóng sớm tại `trống.`, dẫn đến đoạn `, P riêng biệt vắng` bị đẩy ra ngoài chuỗi. Trình biên dịch TypeScript coi `P` là một biến chưa được định nghĩa và báo lỗi cú pháp.
+- **Giải pháp**: Đưa toàn bộ đoạn text `, P riêng biệt vắng` (đầy đủ là `riêng biệt vắng mặt`) vào trong ngoặc nháy chuỗi template literal chuẩn xác.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Chuẩn hóa lại câu log bị sai cú pháp:
+    - **Trước**:
+      ```typescript
+      `File DSGD MM CC mặt (không bắt buộc). Khởi tạo buffer trống.`, P riêng biệt vắng
+      ```
+    - **Sau**:
+      ```typescript
+      `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,
+      ```
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án NestJS typecheck thành công (`npx tsc --noEmit -p tsconfig.build.json`).
+
+## [2026-08-10 16:00:00] - Feature: Phân loại trực quan và định tuyến thủ công tệp đối chiếu
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Phân chia giao diện và tính năng tải tệp đối chiếu thủ công một cách trực quan hơn, giúp quản trị viên biết rõ tệp nào sẽ đi vào thư mục nào (CQG, M-System, Straits ACM) để tránh nhầm lẫn hoặc khó hiểu.
+- **Giải pháp**:
+  - Triển khai **Bộ lọc Tab Phân loại (Category Tabs)** tại frontend: cho phép chọn giữa `Tự động nhận dạng`, `CQG Backup`, `M-System Futures`, và `Straits ACM`. Khi click chọn Tab, dropzone sẽ tự động thay đổi mô tả và khóa đích đến của các tệp tin được kéo thả/lựa chọn.
+  - Thiết kế **Menu ghi đè thủ công (Category Override Dropdown)** bên cạnh mỗi tệp tin trong danh sách đã chọn: cho phép người dùng thay đổi đích đến của từng tệp tin độc lập trước khi ấn Tải lên.
+  - Cập nhật backend hỗ trợ tiếp nhận tham số mảng `categories` từ thân `FormData` để định tuyến chính xác tuyệt đối tệp tin vào đúng thư mục cấu hình (`Backup CQG\Futures`, `Backup MS\Futures`, `Backup MS\ACM`) tương ứng mà không cần hoàn toàn phụ thuộc vào việc kiểm tra từ khóa trong tên file như trước.
+
+### 2. Kết quả Thay đổi
+
+#### 🟢 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Thiết kế lại toàn bộ kiểu dáng (styling) sử dụng Vanilla CSS, các biến hệ thống (CSS Variables như `var(--bg-main)`, `var(--border-color)`, `var(--text-primary)`...) và lớp cấu trúc `glass-panel`, `form-input`, `btn-primary` đồng nhất 100% với giao diện cấu hình của Bot (`bot-config`). Loại bỏ hoàn toàn các lớp Tailwind CSS thô cứng gây lệch tông màu. Tích hợp Tab bar phân loại dạng tab hệ thống phẳng, thay đổi label dropzone động, tạo dropdown menu thay đổi phân loại tệp tin và truyền tham số `categories` khi gọi API. Đồng thời loại bỏ việc khai báo lặp lại cấu trúc `Sidebar` thủ công và thẻ bao `h-screen bg-background-dark` (do đã được bao bọc tự động bởi lớp layout toàn cục `GlobalLayout`), giúp khắc phục triệt để lỗi hiển thị vệt nền đen cục bộ trên trang.
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Cập nhật endpoint `upload-backup` tiếp nhận tham số `@Body('categories')` và thực hiện copy file dựa trên phân loại được chỉ định cụ thể.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Tối ưu hóa câu log thông báo khi thiếu file tùy chọn `DSGD MM CCP`. Tích hợp gọi tự động `rpaDownloaderService.downloadDsgdMmCcp` để tải file MM về từ Core CCP nếu file này chưa có sẵn trong thư mục backup trước khi chạy báo cáo CCP.
+  - [lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/lot-statistics.service.ts): Sửa lỗi quét file trong các thư mục MS Backup khi chạy Macro Số Lốt. Đã loại trừ các file chứa từ khóa `mm` và `ccp` khi tìm file giao dịch chính `DSGD.xlsx`, tránh trường hợp file `DSGD MM CCP.xlsx` ghi đè nhầm lên file dữ liệu giao dịch thông thường.
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts): Thêm phương thức `downloadDsgdMmCcp` dùng Playwright đăng nhập tự động vào cổng Core CCP, truy cập trang chi tiết khớp lệnh MM `/ORDERS/ORDERMATCH_DETAIL_MM` và kích hoạt tính năng Xuất Excel để tải file `DSGD MM CCP.xlsx` về máy.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+- Dự án Next.js typecheck thành công (`npx tsc --noEmit`).
+
+## [2026-08-10 09:00:00] - Feature: Tự động kiểm tra và sinh ca trực khi khởi động hệ thống (Startup Catch-up)
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Khắc phục hiện tượng khi cài đặt thời gian sinh ca tự động lúc 12:01 AM thì sáng ra lúc 8h không tự động sinh ca, nhưng nếu cài lúc 8:10 AM thì lại tự sinh ca thành công.
+- **Nguyên nhân**: 
+  - **Lệch định dạng giờ trên Ubuntu**: Khi gọi `Intl.DateTimeFormat` với `hour12: false` trên Linux/Ubuntu, mốc giờ đêm (12:01 AM) có thể bị định dạng thành `24:01` thay vì `00:01` (chu kỳ `h24` thay vì `h23`). Vì DB lưu là `00:01` nên điều kiện không khớp và không sinh ca. Ngoài ra nếu server ngủ/cắt kết nối lúc 12:01 AM thì sẽ bị bỏ lỡ.
+  - Các mốc giờ khác như 8:10 AM không bị ảnh hưởng.
+- **Giải pháp**: 
+  - Triển khai interface `OnApplicationBootstrap` và sửa format giờ thành `hourCycle: 'h23'` kèm dự phòng đổi `24` thành `00` trong [shift-job.scheduler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-job.scheduler.ts).
+  - Khi server backend vừa khởi động lên, nó sẽ tự động chạy hàm `runStartupGeneration` để quét kiểm tra xem các ca trực của ngày hôm nay đã được tạo chưa. Nếu chưa (do server tắt qua đêm hoặc bị crash/restart xung quanh mốc 12:01 AM), hệ thống sẽ tự động khởi tạo bù ngay lập tức. Điều này giúp loại bỏ hoàn toàn rủi ro bị sót ca trực.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [shift-job.scheduler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shift-jobs/shift-job.scheduler.ts): Implement hook `onApplicationBootstrap`, bổ sung helper `runStartupGeneration()` để tự sinh ca khi khởi chạy server, và tối ưu hóa tái cấu trúc trích xuất hàm dùng chung `getSaigonTimeParts()` giúp triệt tiêu mã nguồn dư thừa.
+  - [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts): Áp dụng `hourCycle: 'h23'` và chuẩn hóa giờ `'24'` thành `'00'` để ngăn chặn lỗi lệch ngày khi seeding dữ liệu lịch làm việc vào thời điểm nửa đêm.
+
+### 3. Xác nhận Build/Kiểm thử
+- Dự án NestJS build thành công (`npm run build`).
+
+## [2026-08-10 08:20:00] - Feature: Định tuyến và phân loại tệp đối chiếu Straits ACM khi upload thủ công
+
+### 1. Mục tiêu Thay đổi
+- **Yêu cầu từ USER**: Bổ sung hỗ trợ tải lên (upload) thủ công tệp tin khớp lệnh Straits ACM (`EOD FO trades_PT Straits Financial Indonesia - 10017890000_10082026.csv`...) theo ngày đối chiếu do chưa thiết lập kết nối SFTP tự động.
+- **Giải pháp**:
+  - Tại backend, cập nhật logic định tuyến file trong `reconciliation.controller.ts`: các file chứa từ khóa `straits` sẽ tự động được lưu vào thư mục con `Backup MS\ACM` (thay vì lưu chung vào `Backup MS\Futures` như các file của M-System). Việc này đảm bảo khớp hoàn toàn với đường dẫn tìm kiếm của dịch vụ đối chiếu dữ liệu Pre-EOD.
+  - Tại frontend, cập nhật hàm phân loại `getFileCategory` và phần hướng dẫn sử dụng trong `upload-backup/page.tsx` để hiển thị danh mục `Straits ACM (Thư mục ACM)` tách biệt với các tệp thô M-System.
+
+### 2. Kết quả Thay đổi
+
+#### 🔴 Backend
+- **Sửa đổi**:
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Thêm nhánh kiểm tra `lowerName.includes('straits')` để thay thế `Futures` bằng `ACM` trong đường dẫn lưu tệp và đổi tên danh mục hiển thị thành `Straits (ACM)`.
+
+#### 🔵 Frontend
+- **Sửa đổi**:
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Tách riêng file Straits khỏi M-System trong hàm `getFileCategory` và bổ sung hướng dẫn chi tiết về thư mục lưu trữ Straits ACM trên Card Hướng dẫn.
+
+### 3. Xác nhận Build/Kiểm thử
+- Biên dịch thành công NestJS backend (`npm run build`) và Next.js frontend (`npx tsc --noEmit` & `npm run build`).
+
 ## [2026-08-07 17:50:00] - Bugfix: Khắc phục lỗi trùng lặp thông báo (Duplicate Notification) & Ẩn log lỗi của Bot khi chưa đủ điều kiện
 
 ### 1. Mục tiêu Thay đổi
@@ -34,6 +432,11 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 - **Sửa đổi**:
   - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts): Sửa điều kiện lưu Audit Log trạng thái, chỉ tạo bản ghi khi `oldStatus !== status && oldIsChecked !== isChecked`.
   - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts): Bổ sung try-catch cục bộ khi cập nhật trạng thái `PASSED` và `FAILED` để xử lý ngoại lệ dependency và chuyển mức log từ `ERROR` sang `WARN`.
+  - [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts): Thêm API `@Post('upload-backup')` nhận file upload thủ công, tự động định tuyến file vào thư mục backup theo ngày tương ứng dựa trên tên file và cấu hình hệ thống.
+
+#### 🔵 Frontend
+- **Thêm mới**:
+  - [upload-backup/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/upload-backup/page.tsx): Trang upload độc lập hỗ trợ kéo thả tệp tin đối chiếu CQG/M-System/Straits, tự động phân loại danh mục file theo thời gian tuỳ chọn.
 
 ### 3. Xác nhận Build/Kiểm thử
 - Chạy `npm run build` trên cả Frontend và Backend thành công, không phát sinh lỗi biên dịch.

@@ -15,6 +15,9 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
      - **Tóm tắt nội dung code đã sửa**: Nêu rõ trước và sau khi sửa.
      - **Xác nhận Build/Kiểm thử**: Đảm bảo cả Frontend và Backend đều chạy build thành công (`npx tsc --noEmit` & `npm run build`).
 
+3. **Tuyệt đối không tự ý can thiệp vào Database của hệ thống**:
+   - AI tuyệt đối không được viết và chạy các script tự phát để xóa (delete), sửa đổi (update) hoặc reset các bảng ghi dữ liệu thực tế đang chạy (như Checklist templates, ShiftLogs, Users...) nếu không có chỉ đạo bằng văn bản rõ ràng từ USER. Phải bảo vệ tính toàn vẹn của dữ liệu ca trực đang kiểm thử/vận hành của USER.
+
 ---
 
 ## 2. Standard Business Rules for MXV Shift Checklist

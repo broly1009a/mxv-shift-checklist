@@ -85,6 +85,7 @@ export class CcpStatisticsService {
       tttt: Buffer;
     },
     selectedDate: Date,
+    outputPath?: string,
   ): Promise<string> {
     const config = await this.getConfig();
     const tkMmCodes = config.tkMmCodes || [];
@@ -116,13 +117,13 @@ export class CcpStatisticsService {
     const todayStrDate = `${day}/${month}/${year}`;
 
     // Target file path
-    const outputFileName = 'Thong_ke_kich_ban_Pilot_Bac_Final.xlsx';
-    const outputPath = path.join(this.uploadDir, outputFileName);
+    const ccpPathSetting = outputPath || await this.systemSettingsService.getSetting('bot_macro_ccp_path', '');
+    const finalOutputPath = ccpPathSetting || path.join(this.uploadDir, 'Thong_ke_kich_ban_Pilot_Bac_Final.xlsx');
 
     const workbook = new ExcelJS.Workbook();
-    if (fs.existsSync(outputPath)) {
+    if (fs.existsSync(finalOutputPath)) {
       try {
-        await workbook.xlsx.readFile(outputPath);
+        await workbook.xlsx.readFile(finalOutputPath);
       } catch (err) {
         this.logger.error(
           `Error reading existing file: ${err.message}. Starting fresh.`,
@@ -193,8 +194,8 @@ export class CcpStatisticsService {
     );
 
     // Save final report
-    await workbook.xlsx.writeFile(outputPath);
-    return outputPath;
+    await workbook.xlsx.writeFile(finalOutputPath);
+    return finalOutputPath;
   }
 
   private processGiaoDichSheet(

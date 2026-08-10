@@ -1,57 +1,25 @@
-/**
- * Script tạm thời để kiểm tra cấu trúc template hiện có trong DB
- * Chạy: npx ts-node -r tsconfig-paths/register src/scripts/inspect-templates.ts
- */
-import * as mongoose from 'mongoose';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from '../app.module';
+import { getModelToken } from '@nestjs/mongoose';
+import { ChecklistTemplate } from '../schemas/template.schema';
 
-const MONGO_URI =
-  'mongodb+srv://broly1009a_db_user:C1m2altuPaseoDOx@devs.bqtaxow.mongodb.net/mxv_shift_checklist?retryWrites=true&w=majority';
+async function run() {
+  const app = await NestFactory.createApplicationContext(AppModule);
+  const templateModel = app.get<any>(getModelToken(ChecklistTemplate.name));
 
-async function main() {
-  console.log('Connecting to MongoDB...');
-  await mongoose.connect(MONGO_URI);
-  console.log('Connected!\n');
-
-  const db = mongoose.connection.db;
-  if (!db) {
-    throw new Error('Database connection failed');
+  const templates = await templateModel.find().populate('departmentId').exec();
+  console.log(`Total templates found in DB: ${templates.length}`);
+  
+  for (const t of templates) {
+    console.log(`- Template: "${t.title}"`);
+    console.log(`  ID: ${t._id}`);
+    console.log(`  isActive: ${t.isActive}`);
+    console.log(`  sessionType: ${t.sessionType}`);
+    console.log(`  department: ${t.departmentId?.name} (Code: ${t.departmentId?.code})`);
+    console.log(`  tasks count: ${t.tasks?.length || 0}`);
   }
 
-  // 1. Departments
-  const depts = await db.collection('departments').find({}).toArray();
-  console.log('=== DEPARTMENTS ===');
-  depts.forEach((d) => console.log(`  _id: ${d._id}  name: ${d.name}`));
-
-  // 2. Templates
-  const templates = await db
-    .collection('checklist_templates')
-    .find({})
-    .toArray();
-  console.log(`\n=== CHECKLIST TEMPLATES (${templates.length} docs) ===`);
-  templates.forEach((t) => {
-    console.log(`\n--- Template: "${t.title}" ---`);
-    console.log(`  _id: ${t._id}`);
-    console.log(`  sessionType: ${t.sessionType}`);
-    console.log(`  departmentId: ${t.departmentId}`);
-    console.log(`  isActive: ${t.isActive}`);
-    console.log(`  tasks count: ${(t.tasks || []).length}`);
-    (t.tasks || []).forEach((task: any) => {
-      const hasParent = task.parentTaskId
-        ? ` [child of ${task.parentTaskId}]`
-        : '';
-      const isBot = task.isBotCheck ? ' [BOT]' : '';
-      const botType = task.botCheckType ? ` (${task.botCheckType})` : '';
-      console.log(
-        `    - [${task.taskId}] ${task.taskName}${hasParent}${isBot}${botType}`,
-      );
-    });
-  });
-
-  await mongoose.disconnect();
-  console.log('\nDone.');
+  await app.close();
 }
 
-main().catch((err) => {
-  console.error('Error:', err);
-  process.exit(1);
-});
+run().catch(console.error);

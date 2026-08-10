@@ -295,6 +295,7 @@ export class ValueStatisticsService {
     const paths: ValueAccumulatorPaths = {
       pathNormal:
         payload?.pathNormal ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_normal')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
@@ -302,6 +303,7 @@ export class ValueStatisticsService {
         ),
       pathSpread:
         payload?.pathSpread ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_spread')) ||
         path.join(
           targetRoot,
           'Backup MS',
@@ -311,6 +313,7 @@ export class ValueStatisticsService {
         ),
       pathLme:
         payload?.pathLme ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_lme')) ||
         path.join(
           targetRoot,
           'Backup CQG',
@@ -320,6 +323,7 @@ export class ValueStatisticsService {
         ),
       pathOptions:
         payload?.pathOptions ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_options')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
@@ -327,6 +331,7 @@ export class ValueStatisticsService {
         ),
       pathAcm:
         payload?.pathAcm ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_acm')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
@@ -334,6 +339,7 @@ export class ValueStatisticsService {
         ),
       pathTvkd:
         payload?.pathTvkd ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich theo TVKD',
@@ -341,9 +347,12 @@ export class ValueStatisticsService {
         ),
     };
 
+    const updateCumulativeStr = await this.settingsService.getSetting('bot_lot_macro_update_cumulative', 'true');
     const updateCumulative =
       payload?.updateCumulative === true ||
-      payload?.updateCumulative === 'true';
+      payload?.updateCumulative === 'true' ||
+      updateCumulativeStr === 'true';
+      
     if (updateCumulative) {
       this.logger.log(`Updating cumulative value tracker files...`);
       await updateAllValueCumulativeFiles(
@@ -357,7 +366,7 @@ export class ValueStatisticsService {
         `Successfully completed all cumulative updates for target date: ${dayStr}.${monthStr}.${year}`,
       );
     } else {
-      this.logger.log(`Cumulative update is disabled by payload setting.`);
+      this.logger.log(`Cumulative update is disabled by setting.`);
     }
 
     // 6. Generate newsletter report files (Gửi team bản tin)

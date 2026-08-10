@@ -329,17 +329,22 @@ export class SeedService implements OnApplicationBootstrap {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
+      hourCycle: 'h23',
     });
     const parts = formatter.formatToParts(now);
     const partMap = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+
+    let hh = partMap.hour;
+    if (hh === '24') {
+      hh = '00';
+    }
 
     // Construct a Date object representing Saigon timezone components locally
     const saigonTime = new Date(
       Number(partMap.year),
       Number(partMap.month) - 1,
       Number(partMap.day),
-      Number(partMap.hour),
+      Number(hh),
       Number(partMap.minute),
       Number(partMap.second),
     );
