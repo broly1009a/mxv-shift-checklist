@@ -16,8 +16,11 @@ import {
   Printer,
   AlertCircle,
   FileSpreadsheet,
-  Cpu
+  Cpu,
+  HelpCircle
 } from 'lucide-react';
+import { useTutorial } from '@/context/TutorialContext';
+import { checklistTutorialSteps } from '@/tutorials/checklistTutorial';
 
 import { useChecklist } from './hooks/useChecklist';
 import ShiftCardGrid from './components/ShiftCardGrid';
@@ -105,6 +108,7 @@ function ChecklistWorksheet() {
   const [showTechDetails, setShowTechDetails] = React.useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { startTutorial, isDone, resetTutorial } = useTutorial();
 
   const taskNamesMap = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -408,7 +412,7 @@ function ChecklistWorksheet() {
       }}>
 
         {/* Navigation Breadcrumb & Live Socket status */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div id="tutorial-checklist-breadcrumb" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <Link href="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Bảng điều khiển</Link>
@@ -425,7 +429,7 @@ function ChecklistWorksheet() {
             </div>
 
             {activeLogs.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div id="tutorial-checklist-shift-switcher" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>| Chuyển nhanh ca:</span>
                 <select
                   value={shiftLogId || ''}
@@ -453,7 +457,45 @@ function ChecklistWorksheet() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
+            {/* Tutorial Help Button */}
+            <button
+              onClick={() => {
+                resetTutorial('checklist');
+                startTutorial('checklist', checklistTutorialSteps);
+              }}
+              className={`btn ${isDone('checklist') ? 'btn-secondary' : 'btn-secondary'}`}
+              style={{
+                padding: '8px 16px',
+                fontSize: '0.85rem',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                position: 'relative',
+                background: isDone('checklist')
+                  ? undefined
+                  : 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))',
+                border: isDone('checklist') ? undefined : '1px solid rgba(99,102,241,0.4)',
+              }}
+              title="Xem hướng dẫn sử dụng trang này"
+            >
+              <HelpCircle size={14} color={isDone('checklist') ? undefined : '#818cf8'} />
+              <span style={{ color: isDone('checklist') ? undefined : '#818cf8' }}>Hướng dẫn</span>
+              {!isDone('checklist') && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  width: '9px',
+                  height: '9px',
+                  background: '#6366f1',
+                  borderRadius: '50%',
+                  animation: 'tutorial-pulse-ring 2s infinite',
+                }} />
+              )}
+            </button>
+            <button
+              id="tutorial-checklist-tech-btn"
               onClick={() => setShowTechDetails(!showTechDetails)} 
               className={`btn ${showTechDetails ? 'btn-primary' : 'btn-secondary'}`} 
               style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -461,20 +503,20 @@ function ChecklistWorksheet() {
               <Cpu size={14} />
               {showTechDetails ? 'Ẩn mã kỹ thuật' : 'Xem mã kỹ thuật'}
             </button>
-            <button onClick={() => setIsTradingReportModalOpen(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button id="tutorial-checklist-trading-report-btn" onClick={() => setIsTradingReportModalOpen(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileSpreadsheet size={14} /> Báo cáo Giao dịch
             </button>
-            <button onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
+            <button id="tutorial-checklist-export-btn" onClick={exportToExcel} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
               <Download size={14} /> Xuất file Excel
             </button>
-            <button onClick={triggerPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
+            <button id="tutorial-checklist-print-btn" onClick={triggerPrint} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem', height: '36px' }}>
               <Printer size={14} /> In Biên Bản (PDF)
             </button>
           </div>
         </div>
 
         {/* Shift log state banner */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+        <div id="tutorial-checklist-shift-banner" className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
@@ -530,7 +572,7 @@ function ChecklistWorksheet() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div id="tutorial-checklist-progress" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tiến độ ca trực</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -544,7 +586,7 @@ function ChecklistWorksheet() {
             </div>
 
             {!isCompleted && (
-              <button onClick={() => setIsCloseShiftModalOpen(true)} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
+              <button id="tutorial-checklist-close-shift-btn" onClick={() => setIsCloseShiftModalOpen(true)} className="btn btn-success" style={{ padding: '10px 18px', height: '40px', fontSize: '0.85rem' }}>
                 <CheckCircle2 size={16} /> Chốt Ca Trực
               </button>
             )}
@@ -557,6 +599,7 @@ function ChecklistWorksheet() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
           {/* Top Panel: Checklist Tasks */}
+          <div id="tutorial-checklist-task-table">
           <TaskTable
             log={log}
             filteredDetails={filteredDetails}
@@ -602,11 +645,13 @@ function ChecklistWorksheet() {
             }}
             showTechDetails={showTechDetails}
           />
+          </div>
 
           {/* Bottom Layout Grid: Incident Manager & Audit Trail */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Incident Manager Panel */}
+            <div id="tutorial-checklist-incidents">
             <IncidentList
               incidents={incidents}
               isCompleted={isCompleted}
@@ -617,13 +662,16 @@ function ChecklistWorksheet() {
               showTechDetails={showTechDetails}
               taskNamesMap={taskNamesMap}
             />
+            </div>
 
             {/* Audit Trail Timeline */}
+            <div id="tutorial-checklist-audit">
             <AuditLogsPanel 
               auditLogs={auditLogs} 
               showTechDetails={showTechDetails}
               taskNamesMap={taskNamesMap}
             />
+            </div>
 
           </div>
 

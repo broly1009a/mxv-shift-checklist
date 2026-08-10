@@ -239,6 +239,7 @@ export default function TaskTable({
         </h3>
         {!isCompleted && (
           <button
+            id="tutorial-checklist-adhoc-btn"
             onClick={() => setIsAdhocModalOpen(true)}
             className="btn btn-secondary"
             style={{ padding: '8px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -250,6 +251,7 @@ export default function TaskTable({
 
       {/* Live Search and Filters group */}
       <div
+        id="tutorial-checklist-filter-bar"
         style={{
           display: 'flex',
           flexDirection: 'row',

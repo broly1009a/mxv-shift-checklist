@@ -3,13 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Save, Shield, Bell, RefreshCw, User as UserIcon } from 'lucide-react';
+import { Save, Shield, Bell, RefreshCw, User as UserIcon, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTutorial } from '@/context/TutorialContext';
+import { settingsTutorialSteps } from '@/tutorials/settingsTutorial';
 
 type TabType = 'profile' | 'notifications' | 'security';
 
 export default function SettingsPage() {
   const { user, token, updateUser } = useAuth();
+  const { startTutorial, isDone, resetTutorial } = useTutorial();
   const showTitleField = false; // Đổi sang true nếu muốn hiển thị trường Chức danh công việc
 
   // Tab State
@@ -115,9 +118,46 @@ export default function SettingsPage() {
   return (
     <ProtectedRoute>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình & Hồ Sơ</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Quản lý thông tin cá nhân, cài đặt ứng dụng và bảo mật tài khoản</p>
+      <div id="tutorial-settings-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Cấu Hình & Hồ Sơ</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Quản lý thông tin cá nhân, cài đặt ứng dụng và bảo mật tài khoản</p>
+        </div>
+        <button
+          onClick={() => {
+            resetTutorial('settings');
+            startTutorial('settings', settingsTutorialSteps);
+          }}
+          className="btn btn-secondary"
+          style={{
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            height: '38px',
+            position: 'relative',
+            background: isDone('settings')
+              ? undefined
+              : 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))',
+            border: isDone('settings') ? undefined : '1px solid rgba(99,102,241,0.4)',
+          }}
+          title="Xem hướng dẫn sử dụng trang này"
+        >
+          <HelpCircle size={15} color={isDone('settings') ? undefined : '#818cf8'} />
+          <span style={{ color: isDone('settings') ? undefined : '#818cf8' }}>Hướng dẫn</span>
+          {!isDone('settings') && (
+            <span style={{
+              position: 'absolute',
+              top: '-5px',
+              right: '-5px',
+              width: '10px',
+              height: '10px',
+              background: '#6366f1',
+              borderRadius: '50%',
+              animation: 'tutorial-pulse-ring 2s infinite',
+            }} />
+          )}
+        </button>
       </div>
 
       <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
@@ -137,6 +177,7 @@ export default function SettingsPage() {
             gap: '6px',
           }}>
             <button
+              id="tutorial-settings-tab-profile"
               type="button"
               onClick={() => setActiveTab('profile')}
               style={{
@@ -160,6 +201,7 @@ export default function SettingsPage() {
               <span>Hồ sơ cá nhân</span>
             </button>
             <button
+              id="tutorial-settings-tab-notifications"
               type="button"
               onClick={() => setActiveTab('notifications')}
               style={{
@@ -183,6 +225,7 @@ export default function SettingsPage() {
               <span>Nhận cảnh báo & Ứng dụng</span>
             </button>
             <button
+              id="tutorial-settings-tab-security"
               type="button"
               onClick={() => setActiveTab('security')}
               style={{
@@ -232,7 +275,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   
-                  <div>
+                  <div id="tutorial-settings-fullname">
                     <label className="form-label">Họ và tên</label>
                     <input 
                       type="text" 
@@ -320,7 +363,7 @@ export default function SettingsPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   {/* Theme preference */}
-                  <div>
+                  <div id="tutorial-settings-theme">
                     <label className="form-label">Giao diện mặc định</label>
                     <select 
                       className="form-input" 
@@ -333,7 +376,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Auto refresh interval */}
-                  <div>
+                  <div id="tutorial-settings-refresh">
                     <label className="form-label">Tần suất tự động làm mới dữ liệu ca trực</label>
                     <select 
                       className="form-input" 
@@ -349,7 +392,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Sidebar status cards toggle */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div id="tutorial-settings-sidebar-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input 
                       type="checkbox" 
                       id="showSidebarStatus"
@@ -365,7 +408,7 @@ export default function SettingsPage() {
                   <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '8px 0' }} />
 
                   {/* Telegram Notifications toggle */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div id="tutorial-settings-telegram-toggle" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input 
                       type="checkbox" 
                       id="telegramNotifications"
@@ -381,7 +424,7 @@ export default function SettingsPage() {
                   {/* Telegram Chat ID & Alert threshold */}
                   {telegramNotifications && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '20px', borderLeft: '2px solid var(--color-accent)' }}>
-                      <div>
+                      <div id="tutorial-settings-telegram-id">
                         <label className="form-label">Telegram Chat ID cá nhân</label>
                         <input 
                           type="text" 
@@ -397,7 +440,7 @@ export default function SettingsPage() {
                         </small>
                       </div>
 
-                      <div>
+                      <div id="tutorial-settings-alert-threshold">
                         <label className="form-label">Thời gian nhắc nhở trước hạn chót (phút)</label>
                         <input 
                           type="number" 
@@ -453,7 +496,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Action button */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '12px' }}>
+          <div id="tutorial-settings-save-btn" style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '12px' }}>
             <button 
               type="submit" 
               className="btn btn-primary" 

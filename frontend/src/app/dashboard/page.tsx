@@ -6,8 +6,12 @@ import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   Layers,
-  GripVertical
+  GripVertical,
+  HelpCircle,
+  RotateCcw
 } from 'lucide-react';
+import { useTutorial } from '@/context/TutorialContext';
+import { dashboardTutorialSteps } from '@/tutorials/dashboardTutorial';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { Template, ShiftLog } from './types';
@@ -28,6 +32,7 @@ import CustomDatePicker from '@/components/ui/CustomDatePicker';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
+  const { startTutorial, isDone, resetTutorial } = useTutorial();
   const {
     canManageTemplates,
     canAccessMarginChange,
@@ -409,53 +414,57 @@ export default function DashboardPage() {
     switch (widgetId) {
       case 'chart':
         if (!canViewChecklist) return null;
-        return <HourlyChartWidget showChart={showChart} summary={summary} />;
+        return <div id="tutorial-widget-chart"><HourlyChartWidget showChart={showChart} summary={summary} /></div>;
 
       case 'activeShifts':
         if (!canViewChecklist) return null;
-        return <ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} />;
+        return <div id="tutorial-widget-active-shifts"><ActiveShiftsWidget loading={loading} activeShifts={activeShifts} dateStr={dashboardDate} /></div>;
 
       case 'activeIncidents':
-        return <ActiveIncidentsWidget token={token} />;
+        return <div id="tutorial-widget-incidents"><ActiveIncidentsWidget token={token} /></div>;
 
       case 'history':
         if (!canViewChecklist) return null;
-        return <RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} />;
+        return <div id="tutorial-widget-history"><RecentShiftsWidget showAuditLogs={showAuditLogs} recentShifts={recentShifts} dateStr={dashboardDate} /></div>;
 
       case 'initShift':
         if (!canManageTemplates) return null;
         return (
-          <InitShiftWidget
-            templates={templates}
-            selectedTemplate={selectedTemplate}
-            setSelectedTemplate={setSelectedTemplate}
-            handleInitializeShift={handleInitializeShift}
-            isInitializing={isInitializingShift}
-          />
+          <div id="tutorial-widget-init-shift">
+            <InitShiftWidget
+              templates={templates}
+              selectedTemplate={selectedTemplate}
+              setSelectedTemplate={setSelectedTemplate}
+              handleInitializeShift={handleInitializeShift}
+              isInitializing={isInitializingShift}
+            />
+          </div>
         );
 
       case 'autoShift':
         if (!canAccessAutoShift) return null;
         return (
-          <AutoShiftWidget
-            jobDate={jobDate}
-            setJobDate={setJobDate}
-            jobRunning={jobRunning}
-            handleTriggerJob={handleTriggerJob}
-          />
+          <div id="tutorial-widget-auto-shift">
+            <AutoShiftWidget
+              jobDate={jobDate}
+              setJobDate={setJobDate}
+              jobRunning={jobRunning}
+              handleTriggerJob={handleTriggerJob}
+            />
+          </div>
         );
 
       case 'templatesSummary':
         if (!canManageTemplates) return null;
-        return <TemplatesSummaryWidget templates={templates} />;
+        return <div id="tutorial-widget-templates"><TemplatesSummaryWidget templates={templates} /></div>;
 
       case 'healthChecks':
         if (!canAccessHealthChecks) return null;
-        return <HealthChecksWidget />;
+        return <div id="tutorial-widget-health"><HealthChecksWidget /></div>;
 
       case 'marginChangeRequests':
         if (!canAccessMarginChange) return null;
-        return <MarginChangeRequestsWidget token={token} currentUser={user} />;
+        return <div id="tutorial-widget-margin"><MarginChangeRequestsWidget token={token} currentUser={user} /></div>;
 
       default:
         return null;
@@ -558,7 +567,7 @@ export default function DashboardPage() {
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
         {/* Realtime Dashboard Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div id="tutorial-dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
@@ -571,7 +580,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div id="tutorial-dashboard-date-picker" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Ngày giám sát:</span>
               <CustomDatePicker
                 label=""
@@ -585,7 +594,43 @@ export default function DashboardPage() {
                 minWidth="160px"
               />
             </div>
-            <div ref={layoutSettingsRef} style={{ position: 'relative' }}>
+            {/* Tutorial Help Button */}
+            <button
+              onClick={() => {
+                resetTutorial('dashboard');
+                startTutorial('dashboard', dashboardTutorialSteps);
+              }}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '38px',
+                position: 'relative',
+                background: isDone('dashboard')
+                  ? undefined
+                  : 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))',
+                border: isDone('dashboard') ? undefined : '1px solid rgba(99,102,241,0.4)',
+              }}
+              title="Xem hướng dẫn sử dụng trang này"
+            >
+              <HelpCircle size={15} color={isDone('dashboard') ? undefined : '#818cf8'} />
+              <span style={{ color: isDone('dashboard') ? undefined : '#818cf8' }}>Hướng dẫn</span>
+              {!isDone('dashboard') && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  width: '10px',
+                  height: '10px',
+                  background: '#6366f1',
+                  borderRadius: '50%',
+                  animation: 'tutorial-pulse-ring 2s infinite',
+                }} />
+              )}
+            </button>
+            <div id="tutorial-dashboard-layout-btn" ref={layoutSettingsRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowLayoutSettings(!showLayoutSettings)}
                 className="btn btn-secondary"
@@ -705,10 +750,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <PerformanceOverview
-              summary={summary}
-              dateStr={dashboardDate}
-            />
+            <div id="tutorial-dashboard-performance">
+              <PerformanceOverview
+                summary={summary}
+                dateStr={dashboardDate}
+              />
+            </div>
 
             {/* Mid Section Responsive Grid Layout */}
             <div

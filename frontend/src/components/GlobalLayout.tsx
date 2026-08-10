@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { TutorialProvider } from '@/context/TutorialContext';
+import TutorialOverlay from '@/components/ui/TutorialOverlay';
 
 export default function GlobalLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -70,52 +72,57 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="app-container">
-      {/* Dark overlay backdrop for mobile sidebar */}
-      <div 
-        className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`} 
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* Sidebar with mobile toggle state and collapsed layout */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        isCollapsed={isCollapsed} 
-        onClose={() => setSidebarOpen(false)} 
-      />
-
-      {/* Right Content Column */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          flex: 1, 
-          minHeight: '100vh',
-          marginLeft: isCollapsed ? 'calc(72px / var(--app-zoom, 1))' : 'calc(260px / var(--app-zoom, 1))',
-          transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: isCollapsed ? 'calc(100% - (72px / var(--app-zoom, 1)))' : 'calc(100% - (260px / var(--app-zoom, 1)))'
-        }}
-        className="mobile-content-layout"
-      >
-        <Header 
-          isCollapsed={isCollapsed} 
-          onToggleCollapse={handleToggleCollapse}
-          onOpenMobileSidebar={() => setSidebarOpen(true)}
+    <TutorialProvider>
+      <div className="app-container">
+        {/* Dark overlay backdrop for mobile sidebar */}
+        <div 
+          className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`} 
+          onClick={() => setSidebarOpen(false)}
         />
-        
-        <main className="main-content">
-          {children}
-        </main>
-      </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media (max-width: 1023px) {
-          .mobile-content-layout {
-            margin-left: 0 !important;
-            width: 100% !important;
+        {/* Sidebar with mobile toggle state and collapsed layout */}
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          isCollapsed={isCollapsed} 
+          onClose={() => setSidebarOpen(false)} 
+        />
+
+        {/* Right Content Column */}
+        <div 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            flex: 1, 
+            minHeight: '100vh',
+            marginLeft: isCollapsed ? 'calc(72px / var(--app-zoom, 1))' : 'calc(260px / var(--app-zoom, 1))',
+            transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            width: isCollapsed ? 'calc(100% - (72px / var(--app-zoom, 1)))' : 'calc(100% - (260px / var(--app-zoom, 1)))'
+          }}
+          className="mobile-content-layout"
+        >
+          <Header 
+            isCollapsed={isCollapsed} 
+            onToggleCollapse={handleToggleCollapse}
+            onOpenMobileSidebar={() => setSidebarOpen(true)}
+          />
+          
+          <main className="main-content">
+            {children}
+          </main>
+        </div>
+
+        {/* Global Tutorial Overlay — mounted once at layout level */}
+        <TutorialOverlay />
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 1023px) {
+            .mobile-content-layout {
+              margin-left: 0 !important;
+              width: 100% !important;
+            }
           }
-        }
-      `}} />
-    </div>
+        `}} />
+      </div>
+    </TutorialProvider>
   );
 }

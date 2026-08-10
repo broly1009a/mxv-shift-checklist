@@ -4,6 +4,28 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-10] Feature: Hệ thống Tutorial Overlay cho người dùng (Dashboard, Checklist, Settings)
+
+### Mục tiêu thay đổi
+Theo yêu cầu của USER: Triển khai hệ thống hướng dẫn sử dụng (Tutorial Spotlight Step-by-Step) tương tác, dành cho 3 trang người dùng chính: **Dashboard** (12 bước), **Checklist** (14 bước), **Settings** (12 bước).
+
+### Danh sách file chỉnh sửa
+- `frontend/src/context/TutorialContext.tsx` — [NEW] React Context + `useTutorial()` hook, localStorage persistence
+- `frontend/src/components/ui/TutorialOverlay.tsx` — [NEW] Spotlight SVG mask + animated tooltip card + auto-positioning
+- `frontend/src/tutorials/dashboardTutorial.ts` — [NEW] 12 bước hướng dẫn Dashboard
+- `frontend/src/tutorials/checklistTutorial.ts` — [NEW] 14 bước hướng dẫn Checklist
+- `frontend/src/tutorials/settingsTutorial.ts` — [NEW] 12 bước hướng dẫn Settings
+- `frontend/src/components/GlobalLayout.tsx` — [MOD] Wrap TutorialProvider + mount TutorialOverlay
+- `frontend/src/app/dashboard/page.tsx` — [MOD] Nút "Hướng dẫn" + 12 id attributes
+- `frontend/src/app/checklist/page.tsx` — [MOD] Nút "Hướng dẫn" + 12 id attributes
+- `frontend/src/app/checklist/components/TaskTable.tsx` — [MOD] id filter-bar, adhoc-btn
+- `frontend/src/app/settings/page.tsx` — [MOD] Nút "Hướng dẫn" + 10 id attributes
+
+### Xác nhận Build
+- ✅ `npx tsc --noEmit` — Không có lỗi liên quan đến code tutorial mới
+
+---
+
 ## [2026-08-10] Fix: Lỗi đường dẫn DSGD bị lặp đôi trong handleRunValueMacroJob
 
 ### Mục tiêu thay đổi
