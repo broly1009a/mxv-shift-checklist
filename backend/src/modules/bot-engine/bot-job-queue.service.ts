@@ -1229,10 +1229,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     await job.save();
 
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const jobObj = job.toObject();
+    const payload = jobObj.payload || {};
     const shiftLogId = payload.shiftLogId;
     const taskId = payload.taskId;
 

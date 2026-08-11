@@ -295,10 +295,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (existingJob.status === 'FAILED' &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               // Enqueue new job
@@ -313,6 +310,7 @@ export class BotEngineService {
                 message: 'Đang khởi tạo tác vụ RPA tải file báo cáo...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 checkResult = {
                   success: true,
@@ -339,10 +337,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (existingJob.status === 'FAILED' &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('DOWNLOAD_CAST', {
@@ -355,6 +350,7 @@ export class BotEngineService {
                 message: 'Đang bắt đầu tải báo cáo CQG CAST Balances...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 checkResult = {
                   success: true,
@@ -381,10 +377,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (existingJob.status === 'FAILED' &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
@@ -397,11 +390,10 @@ export class BotEngineService {
                 message: 'Đang bắt đầu xác minh gửi email sao kê...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
-                const jobPayload =
-                  existingJob.payload instanceof Map
-                    ? Object.fromEntries(existingJob.payload)
-                    : existingJob.payload || {};
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
                 const failedCount = jobPayload.failedCount || 0;
                 const totalCount = jobPayload.totalCount || 0;
                 const failedList = jobPayload.failedList || '';
@@ -464,10 +456,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (existingJob.status === 'FAILED' &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('AUTO_CHECK_SOD', {
@@ -480,14 +469,13 @@ export class BotEngineService {
                 message: 'Đang bắt đầu đối chiếu SOD...',
               };
             } else {
+              if (!existingJob) continue;
               if (
                 existingJob.status === 'COMPLETED' ||
                 existingJob.status === 'FAILED'
               ) {
-                const jobPayload =
-                  existingJob.payload instanceof Map
-                    ? Object.fromEntries(existingJob.payload)
-                    : existingJob.payload || {};
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
                 const resData = jobPayload.result || {};
                 const discrepancies = resData.discrepancies || resData || [];
                 const isSuccess =
@@ -643,10 +631,7 @@ export class BotEngineService {
                 task.taskId,
                 log._id.toString(),
               );
-              const shouldEnqueueNewJob =
-                !existingJob ||
-                (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                  (task.status === 'WAITING' || task.status === 'PENDING'));
+              const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
               if (shouldEnqueueNewJob) {
                 const targetJobType =
@@ -662,8 +647,10 @@ export class BotEngineService {
                     'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...',
                 };
               } else {
+                if (!existingJob) continue;
                 if (existingJob.status === 'COMPLETED') {
-                  const payload = existingJob.payload || {};
+                  const jobObj = existingJob.toObject();
+                  const payload = jobObj.payload || {};
                   const result = payload.result || {};
                   if (result.isWaitingFiles) {
                     checkResult = {
@@ -697,10 +684,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_ACM', {
@@ -713,6 +697,7 @@ export class BotEngineService {
                 message: 'Đang khởi chạy kiểm tra file backup ACM...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: true, message: logsSummary };
@@ -736,10 +721,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_MS', {
@@ -752,6 +734,7 @@ export class BotEngineService {
                 message: 'Đang khởi chạy kiểm tra file backup MS...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: true, message: logsSummary };
@@ -775,10 +758,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('FILE_AUDIT_CQG', {
@@ -791,6 +771,7 @@ export class BotEngineService {
                 message: 'Đang khởi chạy kiểm tra file backup CQG...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = { success: true, message: logsSummary };
@@ -814,10 +795,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('RUN_MACRO', {
@@ -830,6 +808,7 @@ export class BotEngineService {
                 message: 'Đang bắt đầu chạy thống kê báo cáo CCP...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 checkResult = {
                   success: true,
@@ -857,10 +836,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('RUN_LOT_MACRO', {
@@ -873,6 +849,7 @@ export class BotEngineService {
                 message: 'Đang bắt đầu chạy thống kê số lốt giao dịch cuối ngày...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary =
                   existingJob.logs.length > 0
@@ -902,10 +879,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('RUN_VALUE_MACRO', {
@@ -918,6 +892,7 @@ export class BotEngineService {
                 message: 'Đang bắt đầu chạy thống kê giá trị giao dịch cuối ngày...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary =
                   existingJob.logs.length > 0
@@ -947,10 +922,7 @@ export class BotEngineService {
               task.taskId,
               log._id.toString(),
             );
-            const shouldEnqueueNewJob =
-              !existingJob ||
-              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
-                (task.status === 'WAITING' || task.status === 'PENDING'));
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
               await this.botJobQueueService.enqueue('RUN_VALUE_TVKD_MACRO', {
@@ -963,6 +935,7 @@ export class BotEngineService {
                 message: 'Đang bắt đầu chạy thống kê TVKD lũy kế cuối ngày...',
               };
             } else {
+              if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
                 const logsSummary =
                   existingJob.logs.length > 0
@@ -1549,5 +1522,48 @@ export class BotEngineService {
     }
 
     return contracts;
+  }
+
+  private shouldEnqueueNewJob(task: any, existingJob: any): boolean {
+    if (!existingJob) {
+      return true;
+    }
+
+    if (['COMPLETED', 'FAILED'].includes(existingJob.status)) {
+      if (task.status === 'PENDING' || task.status === 'WAITING') {
+        // Cooldown: use task frequencyMinutesSnapshot if configured and > 0, otherwise default to 15 minutes
+        const cooldownMinutes =
+          task.frequencyMinutesSnapshot && task.frequencyMinutesSnapshot > 0
+            ? task.frequencyMinutesSnapshot
+            : 15;
+
+        // Bypass cooldown if the task was updated/started after the last job was created/updated
+        const taskStartedAt = task.startedAt ? new Date(task.startedAt).getTime() : 0;
+        const lastJobTime = existingJob.updatedAt 
+          ? new Date(existingJob.updatedAt).getTime() 
+          : new Date(existingJob.createdAt).getTime();
+
+        if (taskStartedAt > lastJobTime) {
+          this.logger.debug(
+            `[Bot] Task [${task.taskId}] started time (${new Date(taskStartedAt).toISOString()}) is newer than last job time (${new Date(lastJobTime).toISOString()}). Bypassing cooldown and enqueuing job immediately.`,
+          );
+          return true;
+        }
+
+        const lastRunTime = existingJob.updatedAt || existingJob.createdAt;
+        const diffMs = Date.now() - new Date(lastRunTime).getTime();
+        const diffMin = diffMs / (60 * 1000);
+
+        if (diffMin >= cooldownMinutes) {
+          return true;
+        } else {
+          this.logger.debug(
+            `[Bot] Cooldown active for Task [${task.taskId}] (cooldown: ${cooldownMinutes}m, elapsed: ${Math.round(diffMin)}m). Skipping enqueue.`,
+          );
+        }
+      }
+    }
+
+    return false;
   }
 }
