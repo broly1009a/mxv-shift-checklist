@@ -18,6 +18,7 @@ PrivilegesRequired=admin
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "vietnamese"; MessagesFile: "Vietnamese.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -25,10 +26,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "dist\MXVAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist
+Source: "app\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\MXV RPA Agent"; Filename: "{app}\MXVAgent.exe"
-Name: "{autodesktop}\MXV RPA Agent"; Filename: "{app}\MXVAgent.exe"; Tasks: desktopicon
+Name: "{group}\MXV RPA Agent"; Filename: "{app}\MXVAgent.exe"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\MXV RPA Agent"; Filename: "{app}\MXVAgent.exe"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
 
 [Run]
 Filename: "{app}\MXVAgent.exe"; Description: "{cm:LaunchProgram,MXV RPA Agent}"; Flags: nowait postinstall skipifsilent

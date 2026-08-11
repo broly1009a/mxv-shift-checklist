@@ -7,24 +7,23 @@ echo   MXV RPA Agent - Build Script
 echo ================================================
 echo.
 
-:: ── 1. Activate venv ─────────────────────────────────────────────────────────
-if not exist "%~dp0venv\Scripts\activate.bat" (
+:: ── 1. Check venv ────────────────────────────────────────────────────────────
+if not exist "%~dp0venv\Scripts\python.exe" (
     echo [ERROR] Chua co venv. Chay setup_agent.bat truoc.
     pause & exit /b 1
 )
-call "%~dp0venv\Scripts\activate.bat"
 
-:: ── 2. Install build deps ─────────────────────────────────────────────────────
-echo [INFO] Cai dat PyInstaller va Pillow...
-pip install --quiet pyinstaller pillow
+:: ── 2. Install build deps inside venv ─────────────────────────────────────────
+echo [INFO] Cai dat PyInstaller va Pillow trong venv...
+"%~dp0venv\Scripts\pip.exe" install --quiet pyinstaller pillow
 
 :: ── 3. Convert PNG → ICO & Generate Status Icons ────────────────────────────────
 echo [INFO] Dang tao asset logo & tray status icons...
-python app\generate_icons.py
+"%~dp0venv\Scripts\python.exe" app\generate_icons.py
 
-:: ── 4. Build EXE ──────────────────────────────────────────────────────────────
-echo [INFO] Build MXVAgent.exe voi PyInstaller...
-pyinstaller build.spec --clean --noconfirm
+:: ── 4. Build EXE using venv PyInstaller ─────────────────────────────────────────
+echo [INFO] Build MXVAgent.exe voi PyInstaller trong venv...
+"%~dp0venv\Scripts\pyinstaller.exe" build.spec --clean --noconfirm
 
 if errorlevel 1 (
     echo [ERROR] PyInstaller build that bai.
