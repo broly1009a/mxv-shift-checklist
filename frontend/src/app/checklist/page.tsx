@@ -33,6 +33,7 @@ import TradingReportModal from './components/TradingReportModal';
 import OmsStatusModal from './components/OmsStatusModal';
 import MaturityTemplateModal from './components/MaturityTemplateModal';
 import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
+import CustomSelect from '@/components/ui/CustomSelect';
 import CloseShiftModal from './components/CloseShiftModal';
 
 function ChecklistWorksheet() {
@@ -427,27 +428,19 @@ function ChecklistWorksheet() {
             {activeLogs.length > 1 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>| Chuyển nhanh ca:</span>
-                <select
-                  value={shiftLogId || ''}
-                  onChange={(e) => router.push(`/checklist?id=${e.target.value}`)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
-                >
-                  {activeLogs.map((item, idx) => (
-                    <option key={`${item._id}-${idx}`} value={item._id}>
-                      {item.templateId?.title} ({item.shiftDate}) {item.status === 'COMPLETED' ? '[Đã chốt]' : '[Đang chạy]'}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  options={activeLogs.map((item) => ({
+                    value: item._id,
+                    label: `${item.templateId?.title || 'Không rõ'} (${item.shiftDate}) ${item.status === 'COMPLETED' ? '[Đã chốt]' : '[Đang chạy]'}`
+                  }))}
+                  selectedValue={shiftLogId || ''}
+                  onChange={(val) => router.push(`/checklist?id=${val}`)}
+                  clearable={false}
+                  height="32px"
+                  fontSize="0.8rem"
+                  minWidth="320px"
+                  flex="none"
+                />
               </div>
             )}
           </div>

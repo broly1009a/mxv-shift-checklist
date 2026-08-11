@@ -4,6 +4,99 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-11] UI/UX: Thay thế select thường bằng CustomSelect tại Checklist Page
+
+### Mục tiêu thay đổi
+- Thay thế dropdown selector chuyển nhanh ca trực dạng `<select>` HTML mặc định bằng component `<CustomSelect>` có giao diện trực quan và hiện đại hơn.
+
+### Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) — Import và thay thế JSX `<select>` sang `<CustomSelect>`.
+
+### Tóm tắt nội dung code đã sửa
+- Import `CustomSelect` từ `@/components/ui/CustomSelect`.
+- Map danh sách `activeLogs` thành định dạng `{ value, label }` tương thích với prop `options` của `CustomSelect`.
+- Thiết lập cấu hình: `clearable={false}` để tránh nút xóa, `height="32px"`, `fontSize="0.8rem"`, `minWidth="320px"` và `flex="none"`.
+
+### Xác nhận Build/Kiểm thử
+- ✅ `npx tsc --noEmit` chạy thành công không phát hiện lỗi kiểu dữ liệu (TypeScript).
+
+
+## [2026-08-11] Feature: Thêm nút Test Connection cho CQG1 Trade và CQG3 Trade
+
+### Mục tiêu thay đổi
+- Nút "Test CQG Desktop" hiện chỉ test bằng mxvprice (CQG Price) — không xác nhận được credentials CQG1 Trade / CQG3 Trade.
+- Nếu credentials trade sai, chỉ phát hiện được khi chạy CHECK_KLGD (mất 15-30 phút chờ đợi).
+- Bổ sung 2 nút test riêng để QLGD/admin xác nhận credentials ngay sau khi nhập.
+
+### Danh sách file chỉnh sửa
+1. [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) — Thêm `POST test-connection-cqg1` và `POST test-connection-cqg3`
+2. [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts) — Thêm method `loginCQGTrade(account: 'cqg1'|'cqg3')`
+3. [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx) — Thêm state, handler, và nút test trong UI
+
+### Tóm tắt
+- **Backend**: `loginCQGTrade()` đọc `username1`/`password1` hoặc `username2`/`password2` tùy tham số `account`. 2 endpoint mới gọi service này.
+- **Frontend**: Nút "Test CQG1 Trade" và "Test CQG3 Trade" — disabled khi chưa nhập credentials, spinner khi đang test, toast thành công/thất bại.
+
+### Xác nhận Build/Kiểm thử
+- ✅ Không có lỗi TypeScript mới trong các file đã sửa
+
+---
+
+## [2026-08-11] Fix Bug: Nhầm lẫn tài khoản CQG Price vs CQG Trade trong downloadCqgBackup
+
+### Mục tiêu thay đổi
+- USER xác nhận với QLGD: tài khoản `mxvprice` chỉ dùng **xem giá**, không có quyền tải bất kỳ file backup nào.
+- Hệ thống hiện tại có bug nghiêm trọng: `downloadCqgBackup()` fallback về `creds.username` (= mxvprice) khi không tìm thấy `username1` — gây lỗi xác thực khi tải FR1/PS1.
+- QLGD xác nhận tên chính xác: CQG1 Trade + CQG3 Trade (không phải CQG2).
+- Cần thêm field `username1`/`password1` cho CQG1 Trade vào cùng setting key `bot_credentials_cqg`.
+
+### Danh sách file chỉnh sửa
+
+1. [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+2. [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+3. [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)
+
+### Tóm tắt nội dung code đã sửa
+
+#### 1. bot-engine.controller.ts — `getConfig()` và `saveConfig()`
+- **Trước:** `cqg` object chỉ có `username/password` (mxvprice) và `username2/password2` (CQG3). Không có field cho CQG1 Trade.
+- **Sau:** Thêm `username1/password1` (CQG1 Trade). Comments rõ ràng: `username` = CQG Price, `username1` = CQG1 Trade, `username2` = CQG3 Trade.
+
+#### 2. rpa-downloader.service.ts — `downloadCqgBackup()`
+- **Trước (BUG):** `const username1 = creds.username1 || creds.usernameCQG1 || creds.username;` → fallback về mxvprice!
+- **Sau (FIX):** `const username1 = creds.username1 || creds.usernameCQG1;` → KHÔNG fallback về price account. Nếu thiếu → báo lỗi rõ ràng yêu cầu cấu hình.
+- Cập nhật comment và error message block CQG3 Trade (thay "CQG2" bằng "CQG3 Trade").
+
+#### 3. ConnectionSettings.tsx — BotConfig UI
+- **Trước:** Chỉ có 2 section: "CQG1 (mxvprice)" + "CQG3". Không có chỗ nhập CQG1 Trade.
+- **Sau:** 3 section riêng biệt, màu sắc phân biệt rõ:
+  - 🟡 **CQG Price (mxvprice)** — cảnh báo "⚠️ Chỉ xem giá, không tải file"
+  - 🟢 **CQG1 Trade** — ghi chú "Tải FR1/PS1/OP1/OD1"
+  - 🟡 **CQG3 Trade** — ghi chú "Tải FR2/PS2/OP2/OD2"
+- Thêm state: `cqgUsername1`, `cqgPassword1`, `showCqgPassword1`
+- Load/save `username1`/`password1` vào API
+
+### Cấu trúc `bot_credentials_cqg` sau khi sửa
+```json
+{
+  "url": "https://m.cqg.com/cqg/desktop/logon?ref=forced",
+  "username": "mxvprice",      // CQG Price — chỉ xem giá
+  "password": "***",
+  "username1": "<CQG1_trade>", // CQG1 Trade — tải FR1/PS1/OP1/OD1
+  "password1": "***",
+  "username2": "<CQG3_trade>", // CQG3 Trade — tải FR2/PS2/OP2/OD2
+  "password2": "***"
+}
+```
+
+### Xác nhận Build/Kiểm thử
+- ✅ `npx tsc --noEmit` — không có lỗi mới trong các file đã sửa
+- ✅ Frontend dev server đang chạy (hot reload)
+- ⚠️ **Hành động yêu cầu từ USER:** Vào BotConfig → Tab "Tài khoản kết nối" → Nhập credentials CQG1 Trade và CQG3 Trade → Lưu
+
+---
+
+
 ## [2026-08-11] Refactor: Conditional log/payload truncation & Fresh download for CHECK_KLGD & Ubuntu cleanup
 
 ### Mục tiêu thay đổi

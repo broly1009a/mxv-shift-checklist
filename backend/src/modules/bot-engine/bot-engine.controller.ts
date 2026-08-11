@@ -98,9 +98,11 @@ export class BotEngineController {
     };
     let cqg = {
       url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
-      username: '',
+      username: '',     // CQG Price (mxvprice) - chỉ xem giá
       password: '',
-      username2: '',
+      username1: '',    // CQG1 Trade - tải FR1/PS1/OP1/OD1
+      password1: '',
+      username2: '',    // CQG3 Trade - tải FR2/PS2/OP2/OD2
       password2: '',
     };
     let acm = {
@@ -149,13 +151,13 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(cqgRaw));
         cqg = {
-          url:
-            decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
-          username: decrypted.username || '',
-          password: decrypted.password ? '********' : '',
-          username2: decrypted.username2 || decrypted.usernameCQG2 || '',
-          password2:
-            decrypted.password2 || decrypted.passwordCQG2 ? '********' : '',
+          url: decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+          username:  decrypted.username  || '',            // CQG Price (mxvprice)
+          password:  decrypted.password  ? '********' : '',
+          username1: decrypted.username1 || '',            // CQG1 Trade
+          password1: decrypted.password1 ? '********' : '',
+          username2: decrypted.username2 || decrypted.usernameCQG2 || '', // CQG3 Trade
+          password2: decrypted.password2 || decrypted.passwordCQG2 ? '********' : '',
         };
       } catch (err) {}
     }
@@ -353,22 +355,16 @@ export class BotEngineController {
       }
 
       const mergedCqg = {
-        url:
-          cqg.url ||
-          currentCqg.url ||
-          'https://m.cqg.com/cqg/desktop/logon?ref=forced',
-        username:
-          cqg.username !== undefined ? cqg.username : currentCqg.username,
-        password:
-          cqg.password && cqg.password !== '********'
-            ? cqg.password
-            : currentCqg.password,
-        username2:
-          cqg.username2 !== undefined ? cqg.username2 : currentCqg.username2,
-        password2:
-          cqg.password2 && cqg.password2 !== '********'
-            ? cqg.password2
-            : currentCqg.password2,
+        url: cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        // CQG Price (mxvprice) — chỉ xem giá, không tải file
+        username: cqg.username !== undefined ? cqg.username : currentCqg.username,
+        password: cqg.password && cqg.password !== '********' ? cqg.password : currentCqg.password,
+        // CQG1 Trade — tải FR1/PS1/OP1/OD1
+        username1: cqg.username1 !== undefined ? cqg.username1 : currentCqg.username1,
+        password1: cqg.password1 && cqg.password1 !== '********' ? cqg.password1 : currentCqg.password1,
+        // CQG3 Trade — tải FR2/PS2/OP2/OD2
+        username2: cqg.username2 !== undefined ? cqg.username2 : currentCqg.username2,
+        password2: cqg.password2 && cqg.password2 !== '********' ? cqg.password2 : currentCqg.password2,
       };
 
       await this.settingsService.setSetting(
@@ -1166,6 +1162,7 @@ export class BotEngineController {
 
   /**
    * Performs an instant headless trial login to CQG to verify configurations.
+   * Uses the CQG Price account (mxvprice) — NOT the trade accounts.
    */
   @Post('test-connection-cqg')
   async testConnectionCQG() {
@@ -1180,11 +1177,65 @@ export class BotEngineController {
       return {
         success: true,
         message:
-          'Kết nối thử nghiệm CQG thành công! Robot đăng nhập CQG hoàn tất.',
+          'Kết nối thử nghiệm CQG Price (mxvprice) thành công! Robot đăng nhập CQG hoàn tất.',
       };
     } catch (err: any) {
       throw new HttpException(
-        `Kết nối thử nghiệm CQG thất bại: ${err.message || 'Lỗi không xác định'}`,
+        `Kết nối thử nghiệm CQG Price thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant headless trial login to CQG using CQG1 Trade credentials (username1/password1).
+   * Used to verify trade account that downloads FR1, PS1, OP1, OD1.
+   */
+  @Post('test-connection-cqg1')
+  async testConnectionCQG1() {
+    const tempDir = path.join(process.cwd(), 'temp', 'test-connection-cqg1');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    try {
+      const { browser } = await this.rpaService.loginCQGTrade(tempDir, 'cqg1');
+      await browser.close();
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm CQG1 Trade thành công! Tài khoản có thể dùng để tải FR1/PS1/OP1/OD1.',
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CQG1 Trade thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Performs an instant headless trial login to CQG using CQG3 Trade credentials (username2/password2).
+   * Used to verify trade account that downloads FR2, PS2, OP2, OD2.
+   */
+  @Post('test-connection-cqg3')
+  async testConnectionCQG3() {
+    const tempDir = path.join(process.cwd(), 'temp', 'test-connection-cqg3');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    try {
+      const { browser } = await this.rpaService.loginCQGTrade(tempDir, 'cqg3');
+      await browser.close();
+      return {
+        success: true,
+        message:
+          'Kết nối thử nghiệm CQG3 Trade thành công! Tài khoản có thể dùng để tải FR2/PS2/OP2/OD2.',
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Kết nối thử nghiệm CQG3 Trade thất bại: ${err.message || 'Lỗi không xác định'}`,
         HttpStatus.BAD_REQUEST,
       );
     }

@@ -493,6 +493,93 @@ export class RpaDownloaderService {
     }
   }
 
+  /**
+   * Launches browser and logs in to CQG using a Trade account (CQG1 or CQG3).
+   * CQG1 Trade: username1/password1 (tải FR1, PS1, OP1, OD1)
+   * CQG3 Trade: username2/password2 (tải FR2, PS2, OP2, OD2)
+   */
+  async loginCQGTrade(
+    downloadDir: string,
+    account: 'cqg1' | 'cqg3',
+  ): Promise<{ browser: Browser; page: Page }> {
+    const credentialsRaw = await this.settingsService.getSetting(
+      'bot_credentials_cqg',
+      '',
+    );
+    if (!credentialsRaw) {
+      throw new Error('Chưa cấu hình tài khoản CQG trong cài đặt hệ thống.');
+    }
+
+    let creds: any;
+    try {
+      creds = JSON.parse(decrypt(credentialsRaw));
+    } catch {
+      throw new Error('Không thể giải mã cấu hình tài khoản CQG.');
+    }
+
+    const cqgUrl = creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+
+    let username: string;
+    let password: string;
+    if (account === 'cqg1') {
+      username = creds.username1 || creds.usernameCQG1 || '';
+      password = creds.password1 || creds.passwordCQG1 || '';
+      if (!username || !password) {
+        throw new Error(
+          'Chưa cấu hình tài khoản CQG1 Trade (username1/password1). Vui lòng nhập vào BotConfig.',
+        );
+      }
+    } else {
+      username = creds.username2 || creds.usernameCQG2 || '';
+      password = creds.password2 || creds.passwordCQG2 || '';
+      if (!username || !password) {
+        throw new Error(
+          'Chưa cấu hình tài khoản CQG3 Trade (username2/password2). Vui lòng nhập vào BotConfig.',
+        );
+      }
+    }
+
+    const executablePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
+    if (executablePath) launchOptions.executablePath = executablePath;
+
+    this.logger.log(`Starting Playwright browser session for ${account.toUpperCase()} Trade...`);
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1280, height: 800 },
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+
+    try {
+      this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
+      await page.goto(cqgUrl);
+      await page.waitForSelector('input[name="userName"]', {
+        state: 'visible',
+        timeout: 20000,
+      });
+      await page.fill('input[name="userName"]', username);
+      await page.fill('input[name="password"]', password);
+      await page.click('button[type="submit"]');
+
+      await page.waitForSelector('div.wpfe-logo-image', {
+        state: 'visible',
+        timeout: 60000,
+      });
+
+      this.logger.log(`Login ${account.toUpperCase()} Trade SUCCESSFUL.`);
+      return { browser, page };
+    } catch (err: any) {
+      this.logger.error(`Đăng nhập ${account.toUpperCase()} Trade thất bại: ${err.message}`);
+      await browser.close();
+      throw err;
+    }
+  }
+
   private async gotoAndDownload(
     page: Page,
     hashPath: string,
@@ -3244,8 +3331,8 @@ export class RpaDownloaderService {
     const needCqg1 =
       reports.FR1 || reports.PS1 || reports.OP1 || reports.OD1 || reports.AS;
     if (needCqg1) {
-      const username1 = creds.username1 || creds.usernameCQG1 || creds.username;
-      const password1 = creds.password1 || creds.passwordCQG1 || creds.password;
+      const username1 = creds.username1 || creds.usernameCQG1;
+      const password1 = creds.password1 || creds.passwordCQG1;
 
       if (!username1 || !password1) {
         errors.push(
@@ -3316,7 +3403,7 @@ export class RpaDownloaderService {
 
       if (!username2 || !password2) {
         errors.push(
-          'Thiếu thông tin tài khoản CQG2 (username2/password2 trong bot_credentials_cqg).',
+          'Thiếu thông tin tài khoản CQG3 Trade (username2/password2 trong bot_credentials_cqg).',
         );
       } else {
         let browser2: any = null;

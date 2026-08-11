@@ -36,9 +36,12 @@ export default function ConnectionSettings({
   const [msystemPin, setMsystemPin] = useState('');
 
   const [cqgUrl, setCqgUrl] = useState('https://m.cqg.com/cqg/desktop/logon?ref=forced');
-  const [cqgUsername, setCqgUsername] = useState('');
+  const [cqgUsername, setCqgUsername] = useState('');   // CQG Price (mxvprice)
   const [cqgPassword, setCqgPassword] = useState('');
-  const [cqgUsername2, setCqgUsername2] = useState('');
+  const [cqgUsername1, setCqgUsername1] = useState(''); // CQG1 Trade
+  const [cqgPassword1, setCqgPassword1] = useState('');
+  const [showCqgPassword1, setShowCqgPassword1] = useState(false);
+  const [cqgUsername2, setCqgUsername2] = useState(''); // CQG3 Trade
   const [cqgPassword2, setCqgPassword2] = useState('');
   const [showCqgPassword2, setShowCqgPassword2] = useState(false);
 
@@ -98,6 +101,8 @@ export default function ConnectionSettings({
   // Connection testing states
   const [testingConnection, setTestingConnection] = useState(false);
   const [testingCqgConnection, setTestingCqgConnection] = useState(false);
+  const [testingCqg1Connection, setTestingCqg1Connection] = useState(false);
+  const [testingCqg3Connection, setTestingCqg3Connection] = useState(false);
   const [testingAcmConnection, setTestingAcmConnection] = useState(false);
   const [testingCppConnection, setTestingCppConnection] = useState(false);
   const [testingCeConnection, setTestingCeConnection] = useState(false);
@@ -129,6 +134,8 @@ export default function ConnectionSettings({
           setCqgUrl(data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
+          setCqgUsername1(data.cqg.username1 || '');
+          setCqgPassword1(data.cqg.password1 || '');
           setCqgUsername2(data.cqg.username2 || '');
           setCqgPassword2(data.cqg.password2 || '');
         }
@@ -215,6 +222,8 @@ export default function ConnectionSettings({
             url: cqgUrl.trim(),
             username: cqgUsername.trim(),
             password: cqgPassword,
+            username1: cqgUsername1.trim(),
+            password1: cqgPassword1,
             username2: cqgUsername2.trim(),
             password2: cqgPassword2,
           },
@@ -296,7 +305,7 @@ export default function ConnectionSettings({
   const handleTestCqgConnection = async () => {
     if (!token) return;
     setTestingCqgConnection(true);
-    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CQG...');
+    const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CQG Price...');
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg`, {
         method: 'POST',
@@ -304,12 +313,50 @@ export default function ConnectionSettings({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CQG thất bại');
-      toast.success(data.message || 'Kết nối CQG thành công!', { id: toastId });
+      toast.success(data.message || 'Kết nối CQG Price thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
-      toast.error(err.message || 'Thử nghiệm CQG thất bại', { id: toastId });
+      toast.error(err.message || 'Thử nghiệm CQG Price thất bại', { id: toastId });
     } finally {
       setTestingCqgConnection(false);
+    }
+  };
+
+  const handleTestCqg1Connection = async () => {
+    if (!token) return;
+    setTestingCqg1Connection(true);
+    const toastId = toast.loading('Đang kiểm tra đăng nhập CQG1 Trade...');
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg1`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập CQG1 Trade thất bại');
+      toast.success(data.message || 'Kết nối CQG1 Trade thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm CQG1 Trade thất bại', { id: toastId });
+    } finally {
+      setTestingCqg1Connection(false);
+    }
+  };
+
+  const handleTestCqg3Connection = async () => {
+    if (!token) return;
+    setTestingCqg3Connection(true);
+    const toastId = toast.loading('Đang kiểm tra đăng nhập CQG3 Trade...');
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg3`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập CQG3 Trade thất bại');
+      toast.success(data.message || 'Kết nối CQG3 Trade thành công!', { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Thử nghiệm CQG3 Trade thất bại', { id: toastId });
+    } finally {
+      setTestingCqg3Connection(false);
     }
   };
 
@@ -582,31 +629,34 @@ export default function ConnectionSettings({
                 </div>
               </div>
 
-               {/* CQG1 Account */}
+               {/* CQG Price Account (mxvprice) — chỉ xem giá, KHÔNG tải file */}
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>
-                  Tài khoản CQG1 (mxvprice)
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '4px' }}>
+                  Tài khoản CQG Price (mxvprice)
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                  ⚠️ Chỉ dùng xem giá / hợp đồng. Không có quyền tải bất kỳ file backup nào.
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={labelStyle}>Username CQG1</label>
+                    <label style={labelStyle}>Username CQG Price</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="CQG1 Username..."
+                      placeholder="mà giá CQG (VD: mxvprice)..."
                       value={cqgUsername}
                       onChange={(e) => setCqgUsername(e.target.value)}
                       required
                     />
                   </div>
                   <div>
-                    <label style={labelStyle}>Mật khẩu CQG1</label>
+                    <label style={labelStyle}>Mật khẩu CQG Price</label>
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showCqgPassword ? 'text' : 'password'}
                         className="form-input"
                         style={{ paddingRight: '38px' }}
-                        placeholder="CQG1 Password..."
+                        placeholder="CQG Price Password..."
                         value={cqgPassword}
                         onChange={(e) => setCqgPassword(e.target.value)}
                         required
@@ -632,10 +682,77 @@ export default function ConnectionSettings({
                 </div>
               </div>
 
-              {/* CQG3 Account */}
+              {/* CQG1 Trade Account — tải FR1/PS1/OP1/OD1 */}
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>
-                  Tài khoản CQG3
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '4px' }}>
+                  Tài khoản CQG1 Trade
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                  Tải báo cáo: FR1.xlsx / PS1.xlsx / OP1.xlsx / OD1.xlsx
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Username CQG1</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="CQG1 Trade Username..."
+                      value={cqgUsername1}
+                      onChange={(e) => setCqgUsername1(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mật khẩu CQG1</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCqgPassword1 ? 'text' : 'password'}
+                        className="form-input"
+                        style={{ paddingRight: '38px' }}
+                        placeholder="CQG1 Trade Password..."
+                        value={cqgPassword1}
+                        onChange={(e) => setCqgPassword1(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCqgPassword1(!showCqgPassword1)}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {showCqgPassword1 ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {/* Test CQG1 Trade button */}
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleTestCqg1Connection}
+                    disabled={testingCqg1Connection || !cqgUsername1 || !cqgPassword1}
+                    className="btn btn-sm btn-outline"
+                    style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Play size={12} className={testingCqg1Connection ? 'animate-spin' : ''} />
+                    {testingCqg1Connection ? 'Đang kiểm tra...' : 'Test CQG1 Trade'}
+                  </button>
+                </div>
+              </div>
+
+              {/* CQG3 Account — QLGD gọi là CQG3, DB lưu field username2/password2 */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '4px' }}>
+                  Tài khoản CQG3 Trade
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                  Tải báo cáo: FR2.xlsx / PS2.xlsx / OP2.xlsx / OD2.xlsx
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
@@ -677,6 +794,19 @@ export default function ConnectionSettings({
                       </button>
                     </div>
                   </div>
+                </div>
+                {/* Test CQG3 Trade button */}
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleTestCqg3Connection}
+                    disabled={testingCqg3Connection || !cqgUsername2 || !cqgPassword2}
+                    className="btn btn-sm btn-outline"
+                    style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Play size={12} className={testingCqg3Connection ? 'animate-spin' : ''} />
+                    {testingCqg3Connection ? 'Đang kiểm tra...' : 'Test CQG3 Trade'}
+                  </button>
                 </div>
               </div>
             </div>
