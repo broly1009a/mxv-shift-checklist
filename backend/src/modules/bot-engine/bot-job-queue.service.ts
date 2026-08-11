@@ -358,7 +358,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    // ── Remote-mode: skip Windows-only jobs ──────────────────────────────────
+    // ── Remote-mode: skip Windows-only jobs (Đã comment lại vì chạy 100% trên Ubuntu) ───────────────────
+    /*
     const isRemoteMode = process.env.RPA_AGENT_MODE === 'remote';
     const WINDOWS_ONLY_JOB_TYPES = [
       'RUN_LOT_MACRO',
@@ -371,11 +372,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       'FILE_AUDIT_CQG',
       'FILE_AUDIT_ACM',
     ];
+    */
 
-    // Build the query filter based on mode
-    const jobFilter = isRemoteMode
-      ? { status: 'PENDING', jobType: { $nin: WINDOWS_ONLY_JOB_TYPES } }
-      : { status: 'PENDING' };
+    // Chạy tất cả các job PENDING trực tiếp trên local (Ubuntu)
+    const jobFilter = { status: 'PENDING' };
 
     // Fetch next PENDING job
     const job = await this.botJobModel

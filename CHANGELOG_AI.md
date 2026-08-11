@@ -4,6 +4,28 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-11] Refactor: Conditional log/payload truncation & Fresh download for CHECK_KLGD & Ubuntu cleanup
+
+### Mục tiêu thay đổi
+Cải tiến hiệu năng và độ ổn định của hệ thống trước giờ chạy thực tế (Go-Live):
+1. **Rút gọn log có điều kiện**: Chỉ cắt bớt logs và payload của các tác vụ đối chiếu (Check KLGD, Pre-EOD, EOD MM) khi số lượng chênh lệch thực tế lớn hơn **50 dòng**. Dưới ngưỡng này, hệ thống lưu đầy đủ chi tiết từng dòng như cũ để Maker dễ tra cứu trực tiếp mà không cần mở file CSV.
+2. **Fresh-download cho CHECK_KLGD**: Chuyển đổi `CHECK_KLGD` từ việc sử dụng các file backup cũ sang tự động đăng nhập và tải dữ liệu tươi mới từ cả 3 nguồn (M-System, CQG, ACM) tuần tự trước mỗi chu kỳ đối chiếu định kỳ. Hành vi này tương thích 100% với C# IT Tool tại phòng trực và có thể tự thực thi trực tiếp trên máy chủ Ubuntu mà không phụ thuộc tác vụ file audit khác.
+3. **Dọn dẹp Remote-mode Filter**: Comment lại phần lọc remote-mode `WINDOWS_ONLY_JOB_TYPES` để hệ thống chạy 100% các job trực tiếp trên Ubuntu local.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Sửa đổi các handler đối chiếu chênh lệch áp dụng ngưỡng 50 dòng; cấu trúc lại `handleCheckKlgdJob` để chạy Playwright download tuần tự từ MS, CQG, ACM; comment phần lọc agent remote-mode.
+
+### Tóm tắt nội dung code đã sửa
+* Sửa logic ghi logs trong `handleCheckKlgdJob`, `handleCheckPreEodJob`, `handleCheckEodMmJob` với điều kiện `mismatchedTrades.length > 50` để chuyển sang chế độ nén + preview thay vì nén cứng 30 dòng.
+* Thêm các tác vụ download `downloadDSGD`, `downloadTTM`, `downloadCqgBackup` và `downloadAcmBackup` vào trong luồng thực thi của `handleCheckKlgdJob`.
+* Đổi `jobFilter` từ `isRemoteMode` sang `{ status: 'PENDING' }` cố định để chạy toàn bộ job trực tiếp trên Ubuntu.
+
+### Xác nhận Build/Kiểm thử
+- Kiểm tra biên dịch TypeScript thành công (`npx tsc --noEmit` hoàn thành sạch sẽ cho module backend chính).
+- Dev server NestJS hot-reload thành công và sẵn sàng phục vụ.
+
+---
+
 ## [2026-08-11] Refactor: Cải tiến UI/UX vùng chọn Tác Vụ Phụ Thuộc (Depends On) thành Grid 2 cột & Hiệu ứng Hover Card
 
 ### Mục tiêu thay đổi
