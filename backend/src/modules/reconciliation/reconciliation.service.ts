@@ -3432,6 +3432,17 @@ export class ReconciliationService {
       '05:00',
     );
 
+    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+    const sessionStart = new Date(tradingDate);
+    sessionStart.setHours(sHour, sMin, 0, 0);
+    const checkTime = new Date();
+    if (checkTime < sessionStart) {
+      sessionStart.setDate(sessionStart.getDate() - 1);
+    }
+    while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+      sessionStart.setDate(sessionStart.getDate() - 1);
+    }
+
     const missingFiles: string[] = [];
     if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
     if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
@@ -3441,8 +3452,8 @@ export class ReconciliationService {
       return {
         passed: true,
         isWaitingFiles: true,
-        sessionStart: tradingDate,
-        checkTime: new Date(),
+        sessionStart,
+        checkTime,
         message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
         totals: {
           totalDSGD: 0,
@@ -3474,6 +3485,7 @@ export class ReconciliationService {
     // Đối chiếu Pre-EOD chốt số liệu cho phiên giao dịch T-1 (ngày làm việc vừa kết thúc)
     const targetDate = new Date(tradingDate);
     targetDate.setDate(targetDate.getDate() - 1);
+    targetDate.setHours(0, 0, 0, 0);
 
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
@@ -3533,6 +3545,20 @@ export class ReconciliationService {
       // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
       // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
 
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+
+    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+    const sessionStart = new Date(targetDate);
+    sessionStart.setHours(sHour, sMin, 0, 0);
+    while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+      sessionStart.setDate(sessionStart.getDate() - 1);
+    }
+    const checkTime = new Date(sessionStart);
+    checkTime.setDate(checkTime.getDate() + 1);
+
     const missingFiles: string[] = [];
     if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
     if (!fs.existsSync(ttttPath)) missingFiles.push(`TTTT.xlsx`);
@@ -3544,8 +3570,8 @@ export class ReconciliationService {
       return {
         passed: true,
         isWaitingFiles: true,
-        sessionStart: tradingDate,
-        checkTime: new Date(),
+        sessionStart,
+        checkTime,
         message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
         totals: {
           totalDSGD: 0,
@@ -3564,11 +3590,6 @@ export class ReconciliationService {
         mismatchedTTTT: [],
       };
     }
-
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
 
     const result = await this.checkPreEOD(
       {

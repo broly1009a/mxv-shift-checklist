@@ -4,20 +4,26 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
-## [2026-08-11] UI/UX: Sửa lỗi React Hooks render và Thêm Banners hàng đợi/lỗi kỹ thuật cho Visual Report
+## [2026-08-11] UI/UX: Sửa lỗi React Hooks render, Banners hàng đợi/lỗi kỹ thuật & Sửa khoảng thời gian lọc Pre-EOD
 
 ### Mục tiêu thay đổi
 - **Khắc phục lỗi React Hook Runtime Error (`Rendered fewer hooks than expected`)**: Đảm bảo tất cả các React hooks (`useState`, `useMemo`) chạy ở phía trên cùng của component trước bất kỳ câu lệnh `if` return sớm (early return statement) nào để tuân thủ Rules of Hooks của React.
 - **Tích hợp Banners trạng thái động**: Hiển thị thông báo trạng thái trực quan rõ ràng khi tác vụ đang xếp hàng (`PENDING`), đang xử lý (`PROCESSING`), hoặc thất bại kỹ thuật (`FAILED` khi chưa có file kết quả đối chiếu), thay vì mặc định hiển thị "Dữ liệu khớp hoàn toàn" với dữ liệu rỗng.
+- **Sửa lỗi khoảng thời gian lọc Pre-EOD (T-1) bị lệch**:
+  - Reset giờ của `targetDate` về `00:00:00` tại `bot-job-queue.service.ts` để `checkPreEOD` luôn hiểu đây là một lượt check lịch sử hoàn chỉnh (historical full session check), tránh việc check time bị rơi vào `else` (dưới dạng live check) làm giới hạn khoảng thời gian kiểm tra chỉ đến giờ chạy hiện tại của ngày hôm trước.
+  - Sửa lỗi placeholder `sessionStart` và `checkTime` trả về khi đang chờ file (`isWaitingFiles = true`) của `runAutoCheckPreEOD` (trong `reconciliation.service.ts`), đổi từ hôm nay (`tradingDate`) thành đúng thời gian của phiên T-1 (ngày hôm trước `targetDate`), giúp log và báo cáo hiển thị chính xác chu kỳ đối chiếu `10/8 05:00` đến `11/8 05:00`.
 
 ### Danh sách file chỉnh sửa
 - [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
 - [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
 - [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx) — Cập nhật prop signature để chuyển `activeStatus` tới các component con.
 - [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Truyền prop `activeStatus` sang `<ReconciliationVisualReport>`.
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Đảm bảo `targetDate` truyền vào `runAutoCheckPreEOD` luôn có giờ UTC bằng 0 (UTC midnight).
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts) — Set giờ của `targetDate` trong `runAutoCheckPreEOD` về 0, đồng thời tính toán và trả về đúng thời gian bắt đầu và kết thúc của phiên T-1 (ngày hôm trước) khi đang chờ file.
 
 ### Xác nhận Build/Kiểm thử
-- Biên dịch TypeScript thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
+- Frontend biên dịch thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
+- Backend NestJS biên dịch thành công (`npm run build`) không gặp bất kỳ lỗi biên dịch nào.
 
 ---
 

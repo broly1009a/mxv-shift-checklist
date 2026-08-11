@@ -2781,13 +2781,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.payload instanceof Map
         ? Object.fromEntries(job.payload)
         : job.payload || {};
-    let targetDate = new Date();
+    let targetDate: Date;
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
     } else {
-      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+      const localNow = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+      targetDate = new Date(Date.UTC(
+        localNow.getUTCFullYear(),
+        localNow.getUTCMonth(),
+        localNow.getUTCDate()
+      ));
     }
-    const dateStr = targetDate.toISOString().split('T')[0];
+    // Ensure targetDate is always UTC midnight (date-only) to trigger historical full session checks in checkPreEOD
+    targetDate.setUTCHours(0, 0, 0, 0);
+    const dateStr = payload.sessionDay || targetDate.toISOString().split('T')[0];
     job.logs.push(
       `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`,
     );
