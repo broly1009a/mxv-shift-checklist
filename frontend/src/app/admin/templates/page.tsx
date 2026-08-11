@@ -682,7 +682,7 @@ export default function AdminTemplatesPage() {
         {/* Layout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
           {/* Templates list panel */}
-          <div className={`glass-panel ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={`glass-panel ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'sticky', top: '90px', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
               <Layers size={18} color="var(--color-accent)" /> Các mẫu checklist
             </h3>
@@ -770,400 +770,32 @@ export default function AdminTemplatesPage() {
                 )}
               </div>
 
-              {/* Add Task Subform */}
+                            {/* Add Task Button */}
               {isAdmin && (
-                !isTaskFormExpanded ? (
-                  <button 
-                    onClick={() => setIsTaskFormExpanded(true)} 
-                    className="btn btn-secondary" 
-                    style={{ 
-                      width: '100%', 
-                      padding: '16px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      gap: '8px', 
-                      background: 'rgba(59, 130, 246, 0.04)', 
-                      border: '1px dashed rgba(59, 130, 246, 0.2)',
-                      borderRadius: '12px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Plus size={18} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
-                  </button>
-                ) : (
-                  <div className="glass-panel animate-fade-in" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {editingTaskId ? <Edit size={16} color="var(--color-primary)" /> : <Plus size={16} color="var(--color-primary)" />}
-                        {editingTaskId ? `Chỉnh sửa tác vụ: ${editingTaskId}` : 'Thêm tác vụ mới vào danh sách'}
-                      </h4>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (editingTaskId) {
-                            handleCancelEditTask();
-                          }
-                          setIsTaskFormExpanded(false);
-                        }} 
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: it_open_06"
-                            value={newTaskId}
-                            onChange={(e) => setNewTaskId(e.target.value)}
-                            disabled={!!editingTaskId}
-                            style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Nhập nội dung tác vụ..."
-                            value={newTaskName}
-                            onChange={(e) => setNewTaskName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
-                          <select
-                            className="form-input"
-                            value={newPriority}
-                            onChange={(e) => setNewPriority(e.target.value as any)}
-                            style={{ background: 'var(--bg-app)' }}
-                          >
-                            <option value="LOW">THẤP</option>
-                            <option value="MEDIUM">T.BÌNH</option>
-                            <option value="HIGH">CAO</option>
-                            <option value="CRITICAL">KHẨN CẤP</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: 16:30"
-                            value={newDeadline}
-                            onChange={(e) => setNewDeadline(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="http://..."
-                            value={newFunctionUrl}
-                            onChange={(e) => setNewFunctionUrl(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="URD-XXX"
-                            value={newUrdReference}
-                            onChange={(e) => setNewUrdReference(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: /var/log/..."
-                            value={newFileLocation}
-                            onChange={(e) => setNewFileLocation(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: 08:00 - 10:00"
-                            value={newTimetable}
-                            onChange={(e) => setNewTimetable(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
-                          <select
-                            className="form-input"
-                            value={newParentTaskId}
-                            onChange={(e) => setNewParentTaskId(e.target.value)}
-                            style={{ background: 'var(--bg-app)', width: '100%' }}
-                          >
-                            <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
-                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
-                              <option key={t.taskId} value={t.taskId}>
-                                {t.taskName} ({t.taskId})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
-                          <select
-                            className="form-input"
-                            value={newSlaType}
-                            onChange={(e) => setNewSlaType(e.target.value as any)}
-                            style={{ background: 'var(--bg-app)', width: '100%' }}
-                          >
-                            <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
-                            <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: 06:00"
-                            value={newTriggerTime}
-                            onChange={(e) => setNewTriggerTime(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                            {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
-                          </label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder={newSlaType === 'FIXED_TIME' ? 'vd: 07:30' : 'vd: 30'}
-                            value={newSlaDeadline}
-                            onChange={(e) => setNewSlaDeadline(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
-                          <div style={{
-                            maxHeight: '120px',
-                            overflowY: 'auto',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '8px',
-                            padding: '8px',
-                            background: 'var(--bg-app)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '6px'
-                          }} className="custom-scrollbar">
-                            {selectedTemplate.tasks?.filter(t => 
-                              t.taskId !== editingTaskId && 
-                              (!newParentTaskId || t.taskId !== newParentTaskId) &&
-                              (!editingTaskId || t.parentTaskId !== editingTaskId)
-                            ).map(t => {
-                              const isChecked = newDependsOnTaskIds.includes(t.taskId);
-                              return (
-                                <label key={t.taskId} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  padding: '4px 8px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.78rem',
-                                  borderRadius: '6px',
-                                  background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-                                  transition: 'background 0.15s ease'
-                                }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setNewDependsOnTaskIds([...newDependsOnTaskIds, t.taskId]);
-                                      } else {
-                                        setNewDependsOnTaskIds(newDependsOnTaskIds.filter(id => id !== t.taskId));
-                                      }
-                                    }}
-                                    style={{ width: '14px', height: '14px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-                                  />
-                                  <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400 }}>
-                                    {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
-                                  </span>
-                                </label>
-                              );
-                            })}
-                            {(!selectedTemplate.tasks || selectedTemplate.tasks.filter(t => t.taskId !== editingTaskId).length === 0) && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px', textAlign: 'center' }}>
-                                Chưa có tác vụ nào khác trong mẫu.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '12px', marginBottom: '12px' }}>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mô tả hành động chi tiết</label>
-                        <textarea
-                          className="form-input"
-                          placeholder="Mô tả các bước thực hiện của công việc này..."
-                          value={newActionDescription}
-                          onChange={(e) => setNewActionDescription(e.target.value)}
-                          style={{ width: '100%', height: '60px', resize: 'vertical', padding: '8px 12px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="checkbox"
-                            id="newIsBotCheck"
-                            checked={newIsBotCheck}
-                            onChange={(e) => setNewIsBotCheck(e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                          <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                            Sử dụng Bot Check tự động
-                          </label>
-                        </div>
-
-                        {newIsBotCheck && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder="vd: 08:30"
-                                  value={newBotTriggerTime}
-                                  onChange={(e) => setNewBotTriggerTime(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
-                                <select
-                                  className="form-input"
-                                  value={newBotCheckType}
-                                  onChange={(e) => setNewBotCheckType(e.target.value)}
-                                  style={{ background: 'var(--bg-app)', width: '100%' }}
-                                >
-                                  <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
-                                  <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
-                                  <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
-                                  <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
-                                  <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
-                                  <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
-                                  <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
-                                  <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
-                                  <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
-                                  <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
-                                  <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  placeholder="Bỏ trống nếu chạy 1 lần"
-                                  value={newFrequencyMinutes}
-                                  onChange={(e) => setNewFrequencyMinutes(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE'
-                                    ? 'Tham số Email (JSON: subject, sender, downloadDir)'
-                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                    ? 'Đường dẫn tệp tin / Thư mục'
-                                    : newBotCheckType === 'API_STATUS'
-                                    ? 'Địa chỉ API Endpoint'
-                                    : 'Tham số / Cấu hình bổ sung (JSON, để trống nếu dùng mặc định)'}
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder={
-                                    newBotCheckType === 'EMAIL_PARSE'
-                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
-                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                      ? 'vd: C:\\Backup\\EOD_TTM.csv'
-                                      : newBotCheckType === 'API_STATUS'
-                                      ? 'vd: http://oms.mxv.vn/api/v1/health'
-                                      : 'vd: {"allowDiffer": 0}'
-                                  }
-                                  value={newBotCheckTarget}
-                                  onChange={(e) => setNewBotCheckTarget(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE'
-                                    ? 'Từ khóa thành công (vd: successfully)'
-                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                    ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
-                                    : newBotCheckType === 'API_STATUS'
-                                    ? 'Điều kiện API thành công (vd: {"status": "UP"})'
-                                    : 'Điều kiện kết quả đối chiếu (để trống nếu dùng mặc định)'}
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder={
-                                    newBotCheckType === 'EMAIL_PARSE'
-                                      ? 'successfully'
-                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                      ? '{"minSizeKb": 10}'
-                                      : newBotCheckType === 'API_STATUS'
-                                      ? '{"status": "UP"}'
-                                      : '{"allowDiffer": 0}'
-                                  }
-                                  value={newBotSuccessCondition}
-                                  onChange={(e) => setNewBotSuccessCondition(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {editingTaskId && (
-                          <button type="button" onClick={handleCancelEditTask} className="btn btn-secondary" style={{ marginLeft: 'auto', marginRight: '8px', padding: '10px 20px' }}>
-                            Hủy chỉnh sửa
-                          </button>
-                        )}
-                        <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ marginLeft: editingTaskId ? '0' : 'auto', padding: '10px 24px' }}>
-                          {editingTaskId ? <Save size={16} /> : <Plus size={16} />}
-                          {editingTaskId ? ' Lưu thay đổi' : ' Thêm tác vụ'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
+                <button 
+                  onClick={() => setIsTaskFormExpanded(true)} 
+                  className="btn btn-secondary" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '16px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '8px', 
+                    background: 'rgba(59, 130, 246, 0.04)', 
+                    border: '1px dashed rgba(59, 130, 246, 0.2)',
+                    borderRadius: '12px',
+                    color: 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Plus size={18} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
+                </button>
               )}
-
+              
               {/* Tasks List Table */}
               <div>
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1554,6 +1186,465 @@ export default function AdminTemplatesPage() {
           </div>
         </div>
       )}
+    
+      {/* Task Create/Edit Modal at Root Level */}
+      {isAdmin && isTaskFormExpanded && selectedTemplate && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ 
+            padding: 0, 
+            background: 'var(--bg-card)',
+            width: '100%',
+            maxWidth: '850px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            borderRadius: '16px'
+          }}>
+            {/* Modal Header */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '20px 24px', 
+              borderBottom: '1px solid var(--border-color)',
+              backgroundColor: 'rgba(255,255,255,0.01)'
+            }}>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                {editingTaskId ? <Edit size={18} color="var(--color-primary)" /> : <Plus size={18} color="var(--color-primary)" />}
+                {editingTaskId ? `Chỉnh sửa tác vụ: ${editingTaskId}` : 'Thêm tác vụ mới vào danh sách'}
+              </h4>
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (editingTaskId) {
+                    handleCancelEditTask();
+                  } else {
+                    setIsTaskFormExpanded(false);
+                  }
+                }} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }} className="custom-scrollbar">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: it_open_06"
+                            value={newTaskId}
+                            onChange={(e) => setNewTaskId(e.target.value)}
+                            disabled={!!editingTaskId}
+                            style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Nhập nội dung tác vụ..."
+                            value={newTaskName}
+                            onChange={(e) => setNewTaskName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
+                          <select
+                            className="form-input"
+                            value={newPriority}
+                            onChange={(e) => setNewPriority(e.target.value as any)}
+                            style={{ background: 'var(--bg-app)' }}
+                          >
+                            <option value="LOW">THẤP</option>
+                            <option value="MEDIUM">T.BÌNH</option>
+                            <option value="HIGH">CAO</option>
+                            <option value="CRITICAL">KHẨN CẤP</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 16:30"
+                            value={newDeadline}
+                            onChange={(e) => setNewDeadline(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="http://..."
+                            value={newFunctionUrl}
+                            onChange={(e) => setNewFunctionUrl(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="URD-XXX"
+                            value={newUrdReference}
+                            onChange={(e) => setNewUrdReference(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: /var/log/..."
+                            value={newFileLocation}
+                            onChange={(e) => setNewFileLocation(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 08:00 - 10:00"
+                            value={newTimetable}
+                            onChange={(e) => setNewTimetable(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
+                          <select
+                            className="form-input"
+                            value={newParentTaskId}
+                            onChange={(e) => setNewParentTaskId(e.target.value)}
+                            style={{ background: 'var(--bg-app)', width: '100%' }}
+                          >
+                            <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
+                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
+                              <option key={t.taskId} value={t.taskId}>
+                                {t.taskName} ({t.taskId})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
+                          <select
+                            className="form-input"
+                            value={newSlaType}
+                            onChange={(e) => setNewSlaType(e.target.value as any)}
+                            style={{ background: 'var(--bg-app)', width: '100%' }}
+                          >
+                            <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
+                            <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="vd: 06:00"
+                            value={newTriggerTime}
+                            onChange={(e) => setNewTriggerTime(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder={newSlaType === 'FIXED_TIME' ? 'vd: 07:30' : 'vd: 30'}
+                            value={newSlaDeadline}
+                            onChange={(e) => setNewSlaDeadline(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '12px' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
+                        <div style={{
+                          maxHeight: '160px',
+                          overflowY: 'auto',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          background: 'var(--bg-app)',
+                        }} className="custom-scrollbar">
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                            gap: '10px'
+                          }}>
+                            {selectedTemplate.tasks?.filter(t => 
+                              t.taskId !== editingTaskId && 
+                              (!newParentTaskId || t.taskId !== newParentTaskId) &&
+                              (!editingTaskId || t.parentTaskId !== editingTaskId)
+                            ).map(t => {
+                              const isChecked = newDependsOnTaskIds.includes(t.taskId);
+                              return (
+                                <label 
+                                  key={t.taskId} 
+                                  className={`dependency-card ${isChecked ? 'checked' : ''}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    padding: '10px 14px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.82rem',
+                                    borderRadius: '8px',
+                                    border: isChecked ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                                    background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.01)',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: isChecked ? '0 2px 4px rgba(59, 130, 246, 0.05)' : 'none'
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setNewDependsOnTaskIds([...newDependsOnTaskIds, t.taskId]);
+                                      } else {
+                                        setNewDependsOnTaskIds(newDependsOnTaskIds.filter(id => id !== t.taskId));
+                                      }
+                                    }}
+                                    style={{ width: '15px', height: '15px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                                  />
+                                  <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400, lineHeight: 1.4 }}>
+                                    {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
+                                  </span>
+                                </label>
+                              );
+                            })}
+                            {(!selectedTemplate.tasks || selectedTemplate.tasks.filter(t => t.taskId !== editingTaskId && (!newParentTaskId || t.taskId !== newParentTaskId) && (!editingTaskId || t.parentTaskId !== editingTaskId)).length === 0) && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px', textAlign: 'center', gridColumn: '1 / -1' }}>
+                                Chưa có tác vụ nào khác trong mẫu để chọn phụ thuộc.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mô tả hành động chi tiết</label>
+                        <textarea
+                          className="form-input"
+                          placeholder="Mô tả các bước thực hiện của công việc này..."
+                          value={newActionDescription}
+                          onChange={(e) => setNewActionDescription(e.target.value)}
+                          style={{ width: '100%', height: '60px', resize: 'vertical', padding: '8px 12px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            id="newIsBotCheck"
+                            checked={newIsBotCheck}
+                            onChange={(e) => setNewIsBotCheck(e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                            Sử dụng Bot Check tự động
+                          </label>
+                        </div>
+
+                        {newIsBotCheck && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="vd: 08:30"
+                                  value={newBotTriggerTime}
+                                  onChange={(e) => setNewBotTriggerTime(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
+                                <select
+                                  className="form-input"
+                                  value={newBotCheckType}
+                                  onChange={(e) => setNewBotCheckType(e.target.value)}
+                                  style={{ background: 'var(--bg-app)', width: '100%' }}
+                                >
+                                  <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
+                                  <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
+                                  <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
+                                  <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
+                                  <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
+                                  <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
+                                  <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
+                                  <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
+                                  <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
+                                  <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
+                                  <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
+                                  <option value="RUN_LOT_MACRO">Thống kê số lốt giao dịch (RUN_LOT_MACRO)</option>
+                                  <option value="RUN_VALUE_MACRO">Thống kê giá trị giao dịch (RUN_VALUE_MACRO)</option>
+                                  <option value="RUN_VALUE_TVKD_MACRO">Thống kê TVKD lũy kế (RUN_VALUE_TVKD_MACRO)</option>
+                                  <option value="RPA_DOWNLOAD">RPA Tải báo cáo M-System (RPA_DOWNLOAD)</option>
+                                  <option value="RPA_DOWNLOAD_CAST">RPA Tải báo cáo CQG CAST (RPA_DOWNLOAD_CAST)</option>
+                                  <option value="EMAIL_STATUS_CHECK">RPA Xác minh gửi email (EMAIL_STATUS_CHECK)</option>
+                                  <option value="CHECK_MARGIN_DECISION">RPA Quét quyết định ký quỹ (CHECK_MARGIN_DECISION)</option>
+                                  <option value="NOTIFY_MATURITY">RPA Thông báo HĐ đến hạn (NOTIFY_MATURITY)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  placeholder="Bỏ trống nếu chạy 1 lần"
+                                  value={newFrequencyMinutes}
+                                  onChange={(e) => setNewFrequencyMinutes(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                            </div>
+                            {['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'].includes(newBotCheckType) && (
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                  {newBotCheckType === 'EMAIL_PARSE'
+                                    ? 'Tham số Email (JSON: subject, sender, downloadDir)'
+                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? 'Đường dẫn tệp tin / Thư mục'
+                                    : newBotCheckType === 'API_STATUS'
+                                    ? 'Địa chỉ API Endpoint'
+                                    : 'Tham số / Cấu hình bổ sung (JSON, để trống nếu dùng mặc định)'}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={
+                                    newBotCheckType === 'EMAIL_PARSE'
+                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
+                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                      ? 'vd: C:\\Backup\\EOD_TTM.csv'
+                                      : newBotCheckType === 'API_STATUS'
+                                      ? 'vd: http://oms.mxv.vn/api/v1/health'
+                                      : 'vd: {"allowDiffer": 0}'
+                                  }
+                                  value={newBotCheckTarget}
+                                  onChange={(e) => setNewBotCheckTarget(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                  {newBotCheckType === 'EMAIL_PARSE'
+                                    ? 'Từ khóa thành công (vd: successfully)'
+                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
+                                    : newBotCheckType === 'API_STATUS'
+                                    ? 'Điều kiện API thành công (vd: {"status": "UP"})'
+                                    : 'Điều kiện kết quả đối chiếu (để trống nếu dùng mặc định)'}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={
+                                    newBotCheckType === 'EMAIL_PARSE'
+                                      ? 'successfully'
+                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                      ? '{"minSizeKb": 10}'
+                                      : newBotCheckType === 'API_STATUS'
+                                      ? '{"status": "UP"}'
+                                      : '{"allowDiffer": 0}'
+                                  }
+                                  value={newBotSuccessCondition}
+                                  onChange={(e) => setNewBotSuccessCondition(e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                            </div>
+)}
+                          </div>
+                        )}
+                        </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              gap: '12px', 
+              padding: '16px 24px', 
+              borderTop: '1px solid var(--border-color)',
+              backgroundColor: 'rgba(255,255,255,0.01)'
+            }}>
+              {editingTaskId && (
+                <button type="button" onClick={handleCancelEditTask} className="btn btn-secondary" style={{ padding: '10px 20px' }}>
+                  Hủy chỉnh sửa
+                </button>
+              )}
+              {!editingTaskId && (
+                <button type="button" onClick={() => setIsTaskFormExpanded(false)} className="btn btn-secondary" style={{ padding: '10px 20px' }}>
+                  Đóng
+                </button>
+              )}
+              <button type="button" onClick={handleAddTask} className="btn btn-success" style={{ padding: '10px 24px' }}>
+                {editingTaskId ? <Save size={16} /> : <Plus size={16} />}
+                {editingTaskId ? ' Lưu thay đổi' : ' Thêm tác vụ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .dependency-card {
+          user-select: none;
+        }
+        .dependency-card:hover {
+          background: rgba(255, 255, 255, 0.04) !important;
+          border-color: rgba(59, 130, 246, 0.3) !important;
+          transform: translateY(-1px);
+        }
+        .dependency-card.checked:hover {
+          background: rgba(59, 130, 246, 0.12) !important;
+          border-color: var(--color-accent) !important;
+        }
+      `}} />
+
     </ProtectedRoute>
   );
 }

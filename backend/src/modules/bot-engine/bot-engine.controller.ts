@@ -639,6 +639,8 @@ export class BotEngineController {
       jobType = 'RUN_LOT_MACRO';
     } else if (checkType === 'RUN_VALUE_MACRO') {
       jobType = 'RUN_VALUE_MACRO';
+    } else if (checkType === 'RUN_VALUE_TVKD_MACRO') {
+      jobType = 'RUN_VALUE_TVKD_MACRO';
     } else if (checkType === 'RUN_MACRO') {
       jobType = 'RUN_MACRO';
     } else {

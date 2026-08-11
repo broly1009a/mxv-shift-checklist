@@ -423,6 +423,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await this.handleRunLotMacroJob(job);
       } else if (job.jobType === 'RUN_VALUE_MACRO') {
         await this.handleRunValueMacroJob(job);
+      } else if (job.jobType === 'RUN_VALUE_TVKD_MACRO') {
+        await this.handleRunValueTvkdMacroJob(job);
       } else if (job.jobType === 'RUN_MACRO') {
         await this.handleRunMacroJob(job);
       } else if (job.jobType === 'DOWNLOAD_CQG_BACKUP') {
@@ -2304,6 +2306,96 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       await safeSave();
     } catch (err: any) {
       log(`❌ Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
+      await safeSave();
+      throw err;
+    }
+  }
+
+  /**
+   * Xử lý Job RUN_VALUE_TVKD_MACRO: Sử dụng ValueStatisticsService để chạy tính toán TVKD-only.
+   */
+  private async handleRunValueTvkdMacroJob(job: BotJob) {
+    const payload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
+    if (!targetDateStr) {
+      throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
+    }
+
+    let savePromise: Promise<any> = Promise.resolve();
+    const safeSave = () => {
+      savePromise = savePromise
+        .then(() => job.save())
+        .catch((err) => {
+          this.logger.error(
+            `Error saving bot job in handleRunValueTvkdMacroJob: ${err.message}`,
+          );
+        });
+      return savePromise;
+    };
+
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(
+      `[Macro Thống kê TVKD Lũy Kế] Bắt đầu chạy tính toán [TVKD lũy kế] cho ngày: ${targetDateStr}`,
+    );
+    await safeSave();
+
+    try {
+      const targetDate = new Date(targetDateStr);
+      const year = targetDate.getFullYear();
+      const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(targetDate.getDate()).padStart(2, '0');
+
+      const targetRoot =
+        payload.targetRoot ||
+        (await this.settingsService.getSetting(
+          'bot_lot_macro_target_root',
+          'M:\\Quanlygiaodich\\Tai lieu hoat dong',
+        ));
+      
+      const dsgdPath =
+        payload.dsgdPath ||
+        path.join(
+          targetRoot,
+          String(year),
+          `T${monthStr}.${year}`,
+          `${dayStr}.${monthStr}`,
+          'DSGD.xlsx',
+        );
+
+      const pathTvkd =
+        payload.pathTvkd ||
+        (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
+        path.join(
+          targetRoot,
+          'Thong ke gia tri giao dich theo TVKD',
+          `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
+        );
+
+      log(`[NestJS Thống kê TVKD Lũy Kế] Chi tiết các đường dẫn tệp tin xử lý:`);
+      log(`   - Thư mục gốc dữ liệu (Target Root): ${targetRoot}`);
+      log(`   - File DSGD đầu vào: ${dsgdPath}`);
+      log(`   - File Thống kê giá trị theo TVKD: ${pathTvkd}`);
+      await safeSave();
+
+      const result = await this.valueStatisticsService.processTvkdOnly(
+        targetDate,
+        {
+          targetRoot,
+          dsgdPath,
+          pathTvkd,
+        },
+      );
+      log(`✅ Chạy tính toán thống kê TVKD lũy kế thành công.`);
+      await safeSave();
+    } catch (err: any) {
+      log(`❌ Lỗi chạy thống kê TVKD lũy kế: ${err.message}`);
       await safeSave();
       throw err;
     }

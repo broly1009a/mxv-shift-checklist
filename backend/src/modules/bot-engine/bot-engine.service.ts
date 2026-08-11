@@ -941,6 +941,51 @@ export class BotEngineService {
                 checkResult = { success: false, message: logsSummary };
               }
             }
+          } else if (checkType === 'RUN_VALUE_TVKD_MACRO') {
+            // Handler: Thống kê TVKD lũy kế cuối ngày
+            const existingJob = await this.botJobQueueService.getJobForTask(
+              task.taskId,
+              log._id.toString(),
+            );
+            const shouldEnqueueNewJob =
+              !existingJob ||
+              (['COMPLETED', 'FAILED'].includes(existingJob.status) &&
+                (task.status === 'WAITING' || task.status === 'PENDING'));
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('RUN_VALUE_TVKD_MACRO', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                targetDate: log.shiftDate,
+              });
+              checkResult = {
+                success: false,
+                message: 'Đang bắt đầu chạy thống kê TVKD lũy kế cuối ngày...',
+              };
+            } else {
+              if (existingJob.status === 'COMPLETED') {
+                const logsSummary =
+                  existingJob.logs.length > 0
+                    ? existingJob.logs.join('\n')
+                    : 'Thống kê TVKD lũy kế cuối ngày thành công.';
+                checkResult = { success: true, message: logsSummary };
+              } else if (existingJob.status === 'FAILED') {
+                const lastLog =
+                  existingJob.logs[existingJob.logs.length - 1] ||
+                  'Lỗi không xác định';
+                checkResult = {
+                  success: false,
+                  message: `Thống kê TVKD lũy kế thất bại: ${lastLog}`,
+                };
+                (checkResult as any).forceFailed = true;
+              } else {
+                const logsSummary =
+                  existingJob.logs.length > 0
+                    ? existingJob.logs.join('\n')
+                    : 'Đang chạy thống kê TVKD lũy kế cuối ngày...';
+                checkResult = { success: false, message: logsSummary };
+              }
+            }
           } else if (checkType === 'NOTIFY_MATURITY') {
             try {
               let expiringContracts: ExpiringContract[] = [];

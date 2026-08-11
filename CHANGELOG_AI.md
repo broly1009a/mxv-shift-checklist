@@ -4,6 +4,57 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-11] Refactor: Cải tiến UI/UX vùng chọn Tác Vụ Phụ Thuộc (Depends On) thành Grid 2 cột & Hiệu ứng Hover Card
+
+### Mục tiêu thay đổi
+Khắc phục vấn đề hiển thị của vùng chọn tác vụ phụ thuộc (Depends On) bị bó hẹp trong cột 180px, làm chữ bị xuống dòng thẳng đứng gây mất thẩm mỹ và giảm trải nghiệm người dùng (UX):
+1. Tách vùng chọn "Tác Vụ Phụ Thuộc (Depends On)" ra khỏi grid 4 cột nhỏ để hiển thị riêng trên một hàng có chiều rộng 100% full-width.
+2. Dàn trải danh sách checkbox theo mạng lưới CSS Grid 2 cột (`grid-cols-1 md:grid-cols-2`) với kích thước tối thiểu mỗi ô là `320px` giúp tên tác vụ hiển thị trọn vẹn, dễ đọc.
+3. Thiết kế các checkbox thành dạng "Clickable Card" với hiệu ứng hover và đổi màu nền/viền (xanh dương) khi được chọn để tăng tính tương tác trực quan.
+
+### Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Di chuyển container "Depends On" ra ngoài grid nhỏ; chuyển đổi sang CSS Grid 2 cột; áp dụng class `dependency-card` và style hover/checked.
+
+### Xác nhận Build/Kiểm thử
+- Biên dịch sản phẩm Next.js thành công 100% không lỗi TypeScript (`npm run build`).
+
+---
+
+## [2026-08-11] Refactor: Giao diện động (Dynamic Form) & Modal Popup cho cấu hình tác vụ trên trang quản trị mẫu Checklist
+
+### Mục tiêu thay đổi
+Cải thiện trải nghiệm người dùng (UX) và giảm bớt sự nhầm lẫn khi thêm/sửa tác vụ tự động:
+1. Ẩn đi các trường cấu hình nâng cao như "Đường dẫn / Target" và "Điều kiện kết quả" đối với các tác vụ chạy Macro thống kê, kiểm tra backup hoặc RPA vì các tham số này đã được cấu hình chung trong cài đặt hệ thống. Chỉ hiện các trường này đối với các tác vụ cần tham số riêng như quét email, check file tồn tại hoặc check API status.
+2. Chuyển form Thêm/Sửa tác vụ từ hiển thị inline chiếm nhiều diện tích sang dạng **Modal Popup (cố định giữa màn hình, nền mờ overlay)**. Điều này giúp giao diện danh sách tác vụ chính vô cùng thoáng đãng, người dùng tập trung điền dữ liệu và không bị cuộn trang hỗn loạn khi bấm Sửa tác vụ ở cuối trang.
+3. Thiết lập Sidebar Danh sách mẫu bám sát màn hình khi cuộn trang, không bị che khuất bởi thanh Header search bar.
+
+### Danh sách file chỉnh sửa
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Điều kiện hóa việc hiển thị Target/Condition inputs; thiết lập `position: 'sticky'` kèm `top: '90px'` cho Sidebar; đóng gói form Thêm/Sửa tác vụ vào cấu trúc Modal Overlay.
+
+### Xác nhận Build/Kiểm thử
+- Biên dịch production thành công (`npm run build` thành công không lỗi TS).
+- Giao diện Admin Templates phản hồi động theo lựa chọn của dropdown "Loại Bot Check" và hiển thị Modal mượt mà.
+
+---
+
+## [2026-08-11] Feature: Hỗ trợ chạy tự động xử lý File lũy kế theo TVKD (RUN_VALUE_TVKD_MACRO)
+
+### Mục tiêu thay đổi
+Cung cấp thêm logic chạy tự động cho việc cập nhật riêng File lũy kế theo TVKD (tương ứng với hàm `processTvkdOnly` của `ValueStatisticsService`) thông qua hệ thống Bot Job Queue và ca trực, đồng thời đảm bảo không cần can thiệp database bằng code/seeding mà có thể cấu hình hoàn toàn từ giao diện Web UI.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Thêm job type `RUN_VALUE_TVKD_MACRO` và implement hàm `handleRunValueTvkdMacroJob` gọi `valueStatisticsService.processTvkdOnly`.
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Bổ sung dispatcher `checkType === 'RUN_VALUE_TVKD_MACRO'` trong vòng quét kiểm tra của Bot.
+- [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) — Thêm map checkType cho nút bấm trigger thủ công trên ca trực.
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Thêm đầy đủ 8 option check type mới (RUN_LOT_MACRO, RUN_VALUE_MACRO, RUN_VALUE_TVKD_MACRO, RPA_DOWNLOAD, RPA_DOWNLOAD_CAST, EMAIL_STATUS_CHECK, CHECK_MARGIN_DECISION, NOTIFY_MATURITY) vào dropdown quản trị để admin dễ dàng cấu hình từ giao diện.
+
+### Xác nhận Build/Kiểm thử
+- Không phát sinh lỗi biên dịch TypeScript (`npx tsc --noEmit`) trong các file chỉnh sửa.
+- Phù hợp với hướng dẫn thêm Task thủ công trên UI để bảo vệ database.
+- Next.js compile thành công.
+
+---
+
 ## [2026-08-10] Fix: Lỗi đường dẫn DSGD bị lặp đôi trong handleRunValueMacroJob
 
 ### Mục tiêu thay đổi
