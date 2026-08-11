@@ -2559,14 +2559,151 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
     }
     const dateStr = targetDate.toISOString().split('T')[0];
-    job.logs.push(
-      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`,
-    );
+    const log = (msg: string) => {
+      this.logger.log(msg);
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log(`Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`);
     await job.save();
 
+    // ── Bước 1: Xác định thư mục backup từ cấu hình DB ─────────────────────
+    // Đường dẫn được lấy từ Settings DB (bot_backup_path_ms, bot_backup_path_cqg).
+    // Fallback cross-platform: thư mục 'backup' trong thư mục data của app.
+    const defaultMsPath = path.join(process.cwd(), 'data', 'backup', 'ms', 'futures');
+    const defaultCqgPath = path.join(process.cwd(), 'data', 'backup', 'cqg', 'futures');
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      defaultMsPath,
+    );
+    const cqgBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      defaultCqgPath,
+    );
+    // ACM nằm trong thư mục cha của Futures, chỉ khác tên folder cuối:
+    // Ví dụ: .../Backup MS/Futures → .../Backup MS/ACM
+    // path.dirname() lấy thư mục cha → cross-platform Windows/Ubuntu
+    const acmBackupBase = path.join(path.dirname(msBackupBase), 'ACM');
+
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
+    const acmDailyPath = path.join(acmBackupBase, subFolder);
+
+    for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath]) {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // ── Bước 2: Tải dữ liệu tươi đồng thời từ cả 3 nguồn ───────────────────
+    // Giống hệt C# Tool: mỗi lần CHECK_KLGD đều tải mới hoàn toàn.
+    log('Bắt đầu tải dữ liệu tươi từ MS, CQG và ACM song song...');
+    await job.save();
+
+    const errors: string[] = [];
+
+    // --- MS: DSGD + TTM (sequential trong 1 session) ---
+    const downloadMs = async () => {
+      log('MS → Đăng nhập M-System...');
+      const { browser, page } = await this.rpaDownloaderService.loginMSystem(msDailyPath);
+      try {
+        log('MS → Đang tải DSGD.xlsx (Danh sách giao dịch)...');
+        await this.rpaDownloaderService.downloadDSGD(
+          page,
+          path.join(msDailyPath, 'DSGD.xlsx'),
+        );
+        log('MS ✅ Tải DSGD.xlsx thành công.');
+
+        log('MS → Đang tải TTM.xlsx (Trạng thái mở)...');
+        await this.rpaDownloaderService.downloadTTM(
+          page,
+          path.join(msDailyPath, 'TTM.xlsx'),
+        );
+        log('MS ✅ Tải TTM.xlsx thành công.');
+      } catch (err: any) {
+        errors.push(`MS: ${err.message}`);
+        log(`MS ❌ Lỗi tải file MS: ${err.message}`);
+      } finally {
+        await browser.close().catch(() => {});
+      }
+    };
+
+    // --- CQG: FR1 + FR2 → merge thành FR.xlsx (2 session song song) ---
+    const downloadCqg = async () => {
+      log('CQG → Tải FR1 + FR2 từ 2 tài khoản CQG...');
+      const result = await this.rpaDownloaderService.downloadCqgBackup(
+        { FR1: true, FR2: true },
+        cqgDailyPath,
+      );
+      if (result.downloaded.length > 0) {
+        log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
+      }
+      if (result.errors.length > 0) {
+        errors.push(...result.errors.map((e) => `CQG: ${e}`));
+        log(`CQG ⚠️ Lỗi: ${result.errors.join(' | ')}`);
+      }
+      // Merge FR1+FR2 → FR.xlsx
+      log('CQG → Merge FR1+FR2 → FR.xlsx...');
+      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+      for (const l of mergeResult.logs) {
+        log(`CQG Merge: ${l}`);
+      }
+      if (!mergeResult.success) {
+        errors.push(`CQG Merge: ${mergeResult.logs.filter(l => l.includes('❌')).join(' | ')}`);
+      } else {
+        log('CQG ✅ Merge FR.xlsx thành công.');
+      }
+    };
+
+    // --- ACM: Fill.xlsx (Nano trades) ---
+    const downloadAcm = async () => {
+      log('ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...');
+      const jobLogFn = (msg: string) => log(`ACM: ${msg}`);
+      const { browser, page } = await this.rpaDownloaderService.loginACM(
+        acmDailyPath,
+        undefined,
+        jobLogFn,
+      );
+      try {
+        await this.rpaDownloaderService.downloadAcmBackup(page, acmDailyPath, jobLogFn);
+        log('ACM ✅ Tải báo cáo Fill/Order thành công.');
+      } catch (err: any) {
+        errors.push(`ACM: ${err.message}`);
+        log(`ACM ❌ Lỗi tải file ACM: ${err.message}`);
+      } finally {
+        await browser.close().catch(() => {});
+      }
+    };
+
+    // Chạy MS → CQG → ACM tuần tự để tránh nhiều Chrome instance chạy cùng lúc.
+    // C# Tool chạy song song vì là desktop app riêng lẻ; NestJS server chia sẻ tài nguyên
+    // với các process khác nên chạy tuần tự an toàn hơn.
+    log('1/3 - Đang tải dữ liệu từ M-System (DSGD, TTM)...');
+    await downloadMs();
+    await job.save();
+
+    log('2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...');
+    await downloadCqg();
+    await job.save();
+
+    log('3/3 - Đang tải dữ liệu từ ACM (Fill, Order)...');
+    await downloadAcm();
+    await job.save();
+
+
+    if (errors.length > 0) {
+      log(`⚠️ Có ${errors.length} lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...`);
+    } else {
+      log('✅ Tải dữ liệu tươi hoàn tất từ tất cả 3 nguồn (MS, CQG, ACM).');
+    }
+
+    // ── Bước 3: Đối chiếu với file vừa tải ──────────────────────────────────
     try {
-      const result =
-        await this.reconciliationService.runAutoCheckKLGD(targetDate);
+      const result = await this.reconciliationService.runAutoCheckKLGD(targetDate);
       if (result.sessionStart && result.checkTime) {
         const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
@@ -2574,34 +2711,57 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
         });
-        job.logs.push(
-          `[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`,
-        );
+        log(`Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
       }
       if (result.isWaitingFiles) {
-        job.logs.push(`[${new Date().toISOString()}] ${result.message}`);
+        log(result.message);
       } else {
-        job.logs.push(
-          `[${new Date().toISOString()}] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.`,
-        );
-        job.logs.push(
-          `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
-        );
+        log('Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.');
+        log(`Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);
       }
-      payload.result = result;
+      // Ngưỡng cắt bớt log: chỉ rút gọn khi số lượng lệch vượt quá giới hạn.
+      // Dưới ngưỡng: lưu đầy đủ từng dòng như cũ → trải nghiệm không thay đổi.
+      // Trên ngưỡng: chỉ lưu tóm tắt + preview để tránh document bloat.
+      const LOG_THRESHOLD = 50;
+      const MAX_PREVIEW = 30;
+      const mismatchedAll = result.mismatchedTrades ?? [];
+      if (mismatchedAll.length > LOG_THRESHOLD) {
+        // Vượt ngưỡng: cắt bớt payload, ghi 1 dòng tóm tắt
+        payload.result = {
+          ...result,
+          mismatchedTrades: mismatchedAll.slice(0, MAX_PREVIEW),
+          mismatchedTradesTotal: mismatchedAll.length,
+          isPreviewOnly: true,
+        };
+      } else {
+        // Bình thường: lưu nguyên đầy đủ
+        payload.result = result;
+      }
       job.payload = payload;
+      job.markModified('payload');
       await job.save();
 
       if (!result.passed) {
-        if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
-          job.logs.push(
-            `[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`,
-          );
-          result.mismatchedTrades.forEach((t: any) => {
-            job.logs.push(
-              `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+        if (mismatchedAll.length > 0) {
+          if (mismatchedAll.length > LOG_THRESHOLD) {
+            // Vượt ngưỡng: ghi 1 dòng tóm tắt + preview ngắn
+            const preview = mismatchedAll.slice(0, MAX_PREVIEW)
+              .map((t: any) => `[${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}: ${t.reason}`)
+              .join(' | ');
+            log(
+              `⚠️ Phát hiện ${mismatchedAll.length} lệch KLGD (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+              `Chi tiết đầy đủ xem file CSV đính kèm email. ` +
+              `Preview ${MAX_PREVIEW} đầu tiên: ${preview}`,
             );
-          });
+          } else {
+            // Dưới ngưỡng: ghi từng dòng như cũ
+            log('Chi tiết chênh lệch khớp lệnh:');
+            mismatchedAll.forEach((t: any) => {
+              job.logs.push(
+                `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+              );
+            });
+          }
         }
         await job.save();
         throw new Error(
@@ -2609,13 +2769,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         );
       }
     } catch (err: any) {
-      job.logs.push(
-        `[${new Date().toISOString()}] Lỗi đối chiếu khớp lệnh tự động: ${err.message}`,
-      );
+      log(`Lỗi đối chiếu khớp lệnh tự động: ${err.message}`);
       await job.save();
       throw err;
     }
   }
+
 
   private async handleCheckPreEodJob(job: BotJob) {
     const payload =
@@ -2658,33 +2817,64 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
         );
       }
-      payload.result = result;
+      // Ngưỡng cắt bớp log: chỉ rút gọn khi số lượng lệch vượt quá giới hạn.
+      const LOG_THRESHOLD = 50;
+      const MAX_PREVIEW = 30;
+      const mismatchedTradesAll = result.mismatchedTrades ?? [];
+      const mismatchedPositionsAll = result.mismatchedPositions ?? [];
+      const needTruncate = mismatchedTradesAll.length > LOG_THRESHOLD || mismatchedPositionsAll.length > LOG_THRESHOLD;
+      if (needTruncate) {
+        payload.result = {
+          ...result,
+          mismatchedTrades: mismatchedTradesAll.slice(0, MAX_PREVIEW),
+          mismatchedTradesTotal: mismatchedTradesAll.length,
+          mismatchedPositions: mismatchedPositionsAll.slice(0, MAX_PREVIEW),
+          mismatchedPositionsTotal: mismatchedPositionsAll.length,
+          isPreviewOnly: true,
+        };
+      } else {
+        payload.result = result;
+      }
       job.payload = payload;
+      job.markModified('payload');
       await job.save();
 
       if (!result.passed) {
-        if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
-          job.logs.push(
-            `[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`,
-          );
-          result.mismatchedTrades.forEach((t: any) => {
+        if (mismatchedTradesAll.length > 0) {
+          if (mismatchedTradesAll.length > LOG_THRESHOLD) {
+            const preview = mismatchedTradesAll.slice(0, MAX_PREVIEW)
+              .map((t: any) => `[${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}: ${t.reason}`)
+              .join(' | ');
             job.logs.push(
-              `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+              `[${new Date().toISOString()}] ⚠️ Phát hiện ${mismatchedTradesAll.length} lệch KLGD (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+              `Chi tiết xem CSV email. Preview: ${preview}`,
             );
-          });
+          } else {
+            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
+            mismatchedTradesAll.forEach((t: any) => {
+              job.logs.push(
+                `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
+              );
+            });
+          }
         }
-        if (
-          result.mismatchedPositions &&
-          result.mismatchedPositions.length > 0
-        ) {
-          job.logs.push(
-            `[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`,
-          );
-          result.mismatchedPositions.forEach((p: any) => {
+        if (mismatchedPositionsAll.length > 0) {
+          if (mismatchedPositionsAll.length > LOG_THRESHOLD) {
+            const preview = mismatchedPositionsAll.slice(0, MAX_PREVIEW)
+              .map((p: any) => `TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition}`)
+              .join(' | ');
             job.logs.push(
-              `- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`,
+              `[${new Date().toISOString()}] ⚠️ Phát hiện ${mismatchedPositionsAll.length} lệch vị thế Net (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+              `Chi tiết xem CSV email. Preview: ${preview}`,
             );
-          });
+          } else {
+            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`);
+            mismatchedPositionsAll.forEach((p: any) => {
+              job.logs.push(
+                `- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`,
+              );
+            });
+          }
         }
         await job.save();
         throw new Error(
@@ -2721,24 +2911,47 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const result =
         await this.reconciliationService.runAutoCheckEodMm(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD.`);
-      payload.result = result;
+
+      // Ngưỡng cắt bớp log: chỉ rút gọn khi số lượng lệch vượt quá giới hạn.
+      const LOG_THRESHOLD = 50;
+      const MAX_PREVIEW = 30;
+      const cqgResultAll = result.cqgResult ?? [];
+      if (cqgResultAll.length > LOG_THRESHOLD) {
+        payload.result = {
+          ...result,
+          cqgResult: cqgResultAll.slice(0, MAX_PREVIEW),
+          cqgResultTotal: cqgResultAll.length,
+          isPreviewOnly: true,
+        };
+      } else {
+        payload.result = result;
+      }
       job.payload = payload;
+      job.markModified('payload');
       await job.save();
 
       const totalNegative =
         result.eodResult.negativeBalanceAccs.length +
         result.eodResult.negativeIMRAcc.length;
-      const totalMismatched = result.cqgResult.length;
+      const totalMismatched = cqgResultAll.length;
       if (totalNegative > 0 || totalMismatched > 0) {
-        if (result.cqgResult && result.cqgResult.length > 0) {
-          job.logs.push(
-            `[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`,
-          );
-          result.cqgResult.forEach((d: any) => {
+        if (cqgResultAll.length > 0) {
+          if (cqgResultAll.length > LOG_THRESHOLD) {
+            const preview = cqgResultAll.slice(0, MAX_PREVIEW)
+              .map((d: any) => `TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)}`)
+              .join(' | ');
             job.logs.push(
-              `- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
+              `[${new Date().toISOString()}] ⚠️ Phát hiện ${cqgResultAll.length} TK lệch số dư EOD (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+              `Chi tiết xem CSV email. Preview: ${preview}`,
             );
-          });
+          } else {
+            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`);
+            cqgResultAll.forEach((d: any) => {
+              job.logs.push(
+                `- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
+              );
+            });
+          }
         }
         await job.save();
         throw new Error(

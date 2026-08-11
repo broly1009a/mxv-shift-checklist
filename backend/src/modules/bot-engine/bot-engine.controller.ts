@@ -565,7 +565,15 @@ export class BotEngineController {
     if (taskId) {
       query['payload.taskId'] = taskId;
     }
-    
+
+    // Mặc định chỉ lấy jobs trong vòng 30 ngày gần nhất để giảm số bản ghi
+    // cần sắp xếp. Nếu có shiftLogId/taskId cụ thể thì không cần giới hạn thời gian.
+    if (!shiftLogId && !taskId) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      query['createdAt'] = { $gte: thirtyDaysAgo };
+    }
+
     // Nếu không truyền filter (shiftLogId / taskId), loại trừ 'logs' và 'payload.result' để tránh nghẽn tải.
     const selectFields = (!shiftLogId && !taskId) ? '-logs -payload.result' : '';
 
