@@ -50,3 +50,23 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 | **Quét Ký quỹ Âm (Negative Margin)**| `margin-checker` $\rightarrow$ `MarginChecking.cs` | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` |
 | **Tải báo cáo RPA M-System/CQG** | `operate-transaction-app` $\rightarrow$ `ChromeBot.cs` | `rpa-downloader.service.ts` $\rightarrow$ `loginMSystem()`, `downloadTTM()`, `downloadDSGD()` |
 | **Thống kê Báo cáo CCP (Macro)** | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs` | `bot-job-queue.service.ts` $\rightarrow$ `handleRunLotMacroJob()`, `handleRunValueMacroJob()` |
+
+---
+
+## 4. Critical Technical Guidelines & Code Patterns (Quy tắc Kỹ thuật Quan trọng)
+
+Để tránh tái diễn các lỗi nghiêm trọng về logic chạy bot và hiển thị UI, AI Assistant phải tuân thủ tuyệt đối các quy tắc sau khi sửa đổi code:
+
+1. **Chuyển đổi Mongoose Map sang Object (`.toObject()`)**:
+   - Khi truy xuất trường `payload` hoặc các nested map từ Mongoose Model, **bắt buộc** dùng `job.toObject().payload` thay vì `Object.fromEntries(job.payload)`.
+   - `Object.fromEntries` chỉ chuyển đổi được cấp ngoài cùng, làm các trường lồng nhau (như `payload.result`) vẫn giữ cấu trúc Map của Mongoose dẫn tới việc truy xuất `payload.result.isWaitingFiles` bị trả về `undefined`.
+
+2. **Quy tắc React Hooks (Rules of Hooks)**:
+   - Các React hooks (`useState`, `useMemo`, `useEffect`...) phải luôn được khai báo ở trên cùng (top-level) của component, trước mọi câu lệnh return sớm (early returns). Không bao giờ đặt hook bên trong hoặc bên dưới các điều kiện `if (!isOpen) return null;`.
+
+3. **Cơ chế Cooldown tránh lặp Job**:
+   - Khi bot quét các tác vụ chưa có file hoặc gặp sự cố, phải dùng phương thức helper `shouldEnqueueNewJob(task, existingJob)` trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) để áp dụng khoảng nghỉ (cooldown 15 phút hoặc theo tần suất) nhằm ngăn việc tạo hàng loạt Job chạy trùng lặp mỗi phút.
+
+4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
+   - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
+

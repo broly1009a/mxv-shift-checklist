@@ -177,7 +177,7 @@ body {
 
 .sidebar.collapsed {
   width: calc(72px / var(--app-zoom, 1));
-  padding: 24px 8px;
+  padding: 24px 8px !important;
   overflow: hidden;
 }
 
@@ -219,7 +219,7 @@ body {
     transform: translateX(-100%);
     z-index: 1000;
     width: 260px !important;
-    padding: 24px !important;
+    padding: 24px 0 24px 24px !important;
   }
   
   .sidebar.open {
@@ -229,7 +229,7 @@ body {
   
   .sidebar.collapsed {
     width: 260px;
-    padding: 24px;
+    padding: 24px 0 24px 24px !important;
   }
   
   .sidebar.collapsed .nav-link span,

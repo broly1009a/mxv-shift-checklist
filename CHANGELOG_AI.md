@@ -4,6 +4,29 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-11] UI/UX: Sửa lỗi xê dịch thanh cuộn & lệch vị trí icon khi thu hẹp / collapsed Sidebar
+
+### Mục tiêu thay đổi
+- **Khắc phục lỗi xê dịch thanh cuộn (scrollbar padding) khi thu hẹp màn hình**:
+  - Khi chiều rộng màn hình giảm dưới 1024px, media query `@media (max-width: 1023px)` đổi padding của `.sidebar` từ `24px 0 24px 24px !important` sang `24px !important`, vô tình tạo khoảng đệm `padding-right: 24px` đẩy thanh cuộn của thẻ `<nav>` (có `overflowY: 'auto'`) sâu vào trong.
+  - Sửa đổi padding thành `padding: 24px 0 24px 24px !important` để giữ thanh cuộn sát mép phải tương tự màn hình Desktop.
+- **Khắc phục lỗi lệch vị trí của các icon khi collapsed Sidebar trên Desktop**:
+  - Class `.sidebar` có thuộc tính `padding: 24px 0 24px 24px !important` (chứa `!important`).
+  - Khi Sidebar bị thu hẹp/collapsed, lớp `.sidebar.collapsed` định nghĩa `padding: 24px 8px` nhưng không thể ghi đè do thiếu `!important`. Vì vậy Sidebar vẫn giữ `padding-left: 24px` và `padding-right: 0`, làm các icon bên trong bị lệch sang bên phải (không nằm giữa cột 72px).
+  - Bổ sung `!important` vào các thuộc tính padding của `.sidebar.collapsed` ở cả Desktop và Mobile để căn giữa các icon hoàn hảo.
+
+### Danh sách file chỉnh sửa
+- [globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/globals.css) — Cập nhật padding của `.sidebar` và `.sidebar.collapsed` trong media query và desktop layout.
+
+### Tóm tắt nội dung code đã sửa
+- Sửa padding của `.sidebar` ở `@media (max-width: 1023px)` thành `24px 0 24px 24px !important`.
+- Sửa padding của `.sidebar.collapsed` thành `24px 8px !important` (Desktop) và `24px 0 24px 24px !important` (Mobile).
+
+### Xác nhận Build/Kiểm thử
+- ✅ Frontend biên dịch thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
+
+---
+
 ## [2026-08-11] UI/UX: Sửa lỗi React Hooks, Lọc Pre-EOD, Khắc phục lặp Job, Thay thế Emojis bằng Lucide Icons & Lỗi TypeScript
 
 ### Mục tiêu thay đổi
@@ -30,6 +53,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thay thế và áp dụng đồng nhất cơ chế kiểm soát này cho tất cả các tác vụ bot check tự động trong hệ thống.
 
 ### Danh sách file chỉnh sửa
+- [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md) — Bổ sung phần 4 ghi chép các quy tắc kỹ thuật nghiêm ngặt nhằm tránh lặp lại bug (React hooks, Mongoose Map `.toObject()`, Bot Cooldown, chuẩn hóa API v1).
 - [ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx) — Bổ sung tiền tố `/api/v1/` vào các URL fetch đối chiếu.
 - [MaturityTemplateModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/MaturityTemplateModal.tsx) — Bổ sung tiền tố `/api/v1/` vào URL fetch danh sách đáo hạn.
 - [TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/TradingReportModal.tsx) — Bổ sung tiền tố `/api/v1/` vào toàn bộ 9 URL fetch của module báo cáo doanh thu/tất toán.
