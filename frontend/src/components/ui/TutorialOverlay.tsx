@@ -340,9 +340,7 @@ export default function TutorialOverlay() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
                 }}>
-                  {step.icon
-                    ? React.createElement(step.icon, { size: 14, color: 'white', strokeWidth: 2 })
-                    : <BookOpen size={14} color="white" />}
+                  <BookOpen size={14} color="white" />
                 </div>
                 <span style={{
                   fontSize: '0.7rem',

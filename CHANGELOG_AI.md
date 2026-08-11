@@ -4,9 +4,13 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
-## [2026-08-11] UI/UX: Sửa lỗi React Hooks, Sửa khoảng thời gian lọc Pre-EOD, Khắc phục lỗi lặp Job, Fix Mongoose Map & Lỗi biên dịch TypeScript
+## [2026-08-11] UI/UX: Sửa lỗi React Hooks, Lọc Pre-EOD, Khắc phục lặp Job, Thay thế Emojis bằng Lucide Icons & Lỗi TypeScript
 
 ### Mục tiêu thay đổi
+- **Thay thế Emojis bằng hệ thống Lucide React Icons trong hướng dẫn sử dụng (Tutorials) & Sửa lỗi trùng lặp icon**:
+  - Cấu hình các icon tương ứng cho 3 file hướng dẫn: [checklistTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/checklistTutorial.ts), [dashboardTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/dashboardTutorial.ts), và [settingsTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/settingsTutorial.ts).
+  - Loại bỏ hoàn toàn các emoji text thủ công trong trường `title` của các bước hướng dẫn, thay thế bằng Lucide Component qua thuộc tính `icon` để hiển thị chuyên nghiệp bên cạnh tiêu đề.
+  - Sửa lỗi hiển thị trùng lặp icon trong [TutorialOverlay.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/TutorialOverlay.tsx): Đặt biểu tượng tiêu đề trên cùng góc trái (header) cố định là hình cuốn sách (`BookOpen`), đại diện chung cho cẩm nang hướng dẫn sử dụng, tránh việc lặp lại biểu tượng đặc thù của bước hiện tại ở cả phần header lẫn tiêu đề chính.
 - **Khắc phục lỗi định dạng Mongoose Map làm mất nhận diện trạng thái chờ file (`isWaitingFiles`)**:
   - Khi Mongoose lưu dữ liệu kiểu `Map`, lệnh chuyển đổi `Object.fromEntries(job.payload)` chỉ chuyển đổi lớp ngoài (top-level) sang Object, trong khi các đối tượng lồng nhau (như `payload.result`) vẫn giữ nguyên cấu trúc Map của Mongoose. Do đó, biểu thức `payload.result.isWaitingFiles` trả về `undefined` (khiến hệ thống tưởng đối chiếu đã xong và tự chuyển trạng thái Checklist sang `PASSED` mặc dù thực tế đang chờ file).
   - Thay thế toàn bộ bằng `job.toObject().payload` / `existingJob.toObject().payload`. Cách này đảm bảo tất cả các đối tượng con/lồng nhau được chuyển đổi hoàn toàn sang JavaScript Object thuần túy, giúp bot nhận diện chính xác trạng thái `isWaitingFiles` để đưa Checklist về `WAITING` (Chờ file) thay vì tự ý đặt thành `PASSED` (Đạt).
@@ -24,6 +28,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thay thế và áp dụng đồng nhất cơ chế kiểm soát này cho tất cả các tác vụ bot check tự động trong hệ thống.
 
 ### Danh sách file chỉnh sửa
+- [checklistTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/checklistTutorial.ts) — Thay thế emoji tiêu đề bằng import và sử dụng Lucide React Icon.
+- [dashboardTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/dashboardTutorial.ts) — Thay thế emoji tiêu đề bằng import và sử dụng Lucide React Icon.
+- [settingsTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/settingsTutorial.ts) — Thay thế emoji tiêu đề bằng import và sử dụng Lucide React Icon.
 - [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
 - [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
 - [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx) — Cập nhật prop signature để chuyển `activeStatus` tới các component con.
