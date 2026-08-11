@@ -861,7 +861,37 @@ export default function BotLogViewerModal({
                 )}
               </h3>
 
-              {activeStatus === 'WAITING' || parsedData.jsonResult?.isWaitingFiles ? (
+              {activeStatus === 'PROCESSING' ? (
+                <span style={{ 
+                  fontSize: '0.68rem', 
+                  padding: '3px 10px', 
+                  borderRadius: '20px', 
+                  fontWeight: 700, 
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)', 
+                  color: '#60a5fa', 
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Clock size={12} /> ĐANG XỬ LÝ
+                </span>
+              ) : activeStatus === 'PENDING' ? (
+                <span style={{ 
+                  fontSize: '0.68rem', 
+                  padding: '3px 10px', 
+                  borderRadius: '20px', 
+                  fontWeight: 700, 
+                  backgroundColor: 'rgba(156, 163, 175, 0.15)', 
+                  color: '#9ca3af', 
+                  border: '1px solid rgba(156, 163, 175, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Clock size={12} /> ĐANG XẾP HÀNG (CHỜ CHẠY)
+                </span>
+              ) : activeStatus === 'WAITING' || parsedData.jsonResult?.isWaitingFiles ? (
                 <span style={{ 
                   fontSize: '0.68rem', 
                   padding: '3px 10px', 
@@ -975,7 +1005,7 @@ export default function BotLogViewerModal({
           ) : (
             <>
               {category === 'MARGIN_DECISION' && <MarginDecisionVisualReport jsonResult={parsedData.jsonResult} rawText={parsedData.rawText} />}
-              {category === 'RECONCILIATION' && <ReconciliationVisualReport parsedData={parsedData} />}
+              {category === 'RECONCILIATION' && <ReconciliationVisualReport parsedData={parsedData} activeStatus={activeStatus} />}
               {category === 'FILE_AUDIT' && <FileAuditVisualReport fileItems={parsedData.fileItems} />}
               {category === 'SYSTEM_API' && <SystemApiVisualReport jsonResult={parsedData.jsonResult} marginAccounts={parsedData.marginAccounts} rawText={parsedData.rawText} />}
               {category === 'EMAIL_SCAN' && <EmailScanVisualReport emailScanResult={parsedData.emailScanResult} rawText={parsedData.rawText} />}

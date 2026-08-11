@@ -4,21 +4,53 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
-## [2026-08-11] UI/UX: Thay thế select thường bằng CustomSelect tại Checklist Page
+## [2026-08-11] UI/UX: Sửa lỗi React Hooks render và Thêm Banners hàng đợi/lỗi kỹ thuật cho Visual Report
 
 ### Mục tiêu thay đổi
-- Thay thế dropdown selector chuyển nhanh ca trực dạng `<select>` HTML mặc định bằng component `<CustomSelect>` có giao diện trực quan và hiện đại hơn.
+- **Khắc phục lỗi React Hook Runtime Error (`Rendered fewer hooks than expected`)**: Đảm bảo tất cả các React hooks (`useState`, `useMemo`) chạy ở phía trên cùng của component trước bất kỳ câu lệnh `if` return sớm (early return statement) nào để tuân thủ Rules of Hooks của React.
+- **Tích hợp Banners trạng thái động**: Hiển thị thông báo trạng thái trực quan rõ ràng khi tác vụ đang xếp hàng (`PENDING`), đang xử lý (`PROCESSING`), hoặc thất bại kỹ thuật (`FAILED` khi chưa có file kết quả đối chiếu), thay vì mặc định hiển thị "Dữ liệu khớp hoàn toàn" với dữ liệu rỗng.
 
 ### Danh sách file chỉnh sửa
-- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) — Import và thay thế JSX `<select>` sang `<CustomSelect>`.
-
-### Tóm tắt nội dung code đã sửa
-- Import `CustomSelect` từ `@/components/ui/CustomSelect`.
-- Map danh sách `activeLogs` thành định dạng `{ value, label }` tương thích với prop `options` của `CustomSelect`.
-- Thiết lập cấu hình: `clearable={false}` để tránh nút xóa, `height="32px"`, `fontSize="0.8rem"`, `minWidth="320px"` và `flex="none"`.
+- [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
+- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Di chuyển hooks lên trên cùng và sửa logic early return.
+- [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx) — Cập nhật prop signature để chuyển `activeStatus` tới các component con.
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Truyền prop `activeStatus` sang `<ReconciliationVisualReport>`.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ `npx tsc --noEmit` chạy thành công không phát hiện lỗi kiểu dữ liệu (TypeScript).
+- Biên dịch TypeScript thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
+
+---
+
+## [2026-08-11] UI/UX: Tách biệt Báo cáo trực quan Pre-EOD vs KLGD, tích hợp CustomSelect & Sửa lỗi status badge
+
+### Mục tiêu thay đổi
+- **Tách độc lập hai tác vụ Đối chiếu**: Tách riêng component hiển thị báo cáo trực quan cho tác vụ KLGD (Trong phiên) và tác vụ Pre-EOD (Trước EOD) để tránh nhầm lẫn giao diện và dễ dàng nâng cấp riêng biệt.
+- **Thay thế select thường bằng CustomSelect**: Thay thế dropdown selector chuyển nhanh ca trực dạng `<select>` HTML mặc định bằng component `<CustomSelect>` có giao diện trực quan và hiện đại hơn.
+- **Loại bỏ mockup data trong Pre-EOD**: Loại bỏ hoàn toàn các con số mockup dữ liệu cũ (`1146`, `1683`, `1305`, `1360`, `572`, `1877`) trong phần hiển thị của tác vụ Đối Chiếu Trước EOD Tự Động, thay bằng giá trị thực tế hoặc mặc định `0`.
+- **Cải tiến giao diện động**: Đổi màu sắc (Xanh khi khớp hoàn toàn / Đỏ khi có lệch) cho các thẻ chênh lệch chi tiết và Net Position của Pre-EOD.
+- **Sửa lỗi hiển thị trạng thái**: Tránh việc modal hiển thị sai trạng thái `✓ ĐẠT YÊU CẦU` trong khi Job đang xếp hàng (`PENDING`) hoặc đang chạy (`PROCESSING`).
+
+### Danh sách file chỉnh sửa
+- [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — **[NEW]** Component chuyên trách hiển thị đối chiếu Trước EOD (Pre-EOD).
+- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — **[NEW]** Component chuyên trách hiển thị đối chiếu KLGD, CQG SOD và EOD Margin.
+- [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx) — **[MODIFY]** Chuyển đổi thành component phân phối (dispatcher) sạch sẽ, tự động điều hướng sang 1 trong 2 component trên dựa vào `jsonType`.
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx) — Import và thay thế JSX `<select>` sang `<CustomSelect>`.
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Thêm điều kiện check hiển thị status badge khi Job ở trạng thái `PROCESSING` hoặc `PENDING`.
+
+### Tóm tắt nội dung code đã sửa
+- Ở [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx): Rút gọn toàn bộ logic cũ, chỉ giữ lại định tuyến đơn giản: nếu `jsonType === 'PRE_EOD'` trả về `PreEodReconciliationVisualReport`, ngược lại trả về `KlgdReconciliationVisualReport`.
+- Ở [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx):
+  - Chỉ giữ lại logic render 4 thẻ Pre-EOD: Tự doanh, Lệnh thường, Giao dịch lệch chi tiết, Lệch Net position.
+  - Sử dụng toán tử nullish coalescing `?? 0` thay thế toàn bộ mockup data.
+  - Đồng bộ hóa các màu sắc trạng thái (Xanh khi `count === 0` và Đỏ khi `count > 0`).
+- Ở [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx):
+  - Quản lý logic hiển thị của 3 loại đối chiếu còn lại: KLGD trong phiên (6 thẻ), CQG SOD (Lệch số dư > 100 USD), và EOD (Lọc tài khoản âm ký quỹ).
+  - Khắc phục lỗi hiển thị ký tự đặc biệt `>` trong text JSX bằng cách chuyển thành `&gt;`.
+- Ở [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/page.tsx): Map danh sách `activeLogs` thành định dạng `{ value, label }` tương thích với prop `options` của `CustomSelect`.
+- Ở [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx): Bổ sung hiển thị `ĐANG XỬ LÝ` cho status `'PROCESSING'` và `ĐANG XẾP HÀNG (CHỜ CHẠY)` cho status `'PENDING'`.
+
+### Xác nhận Build/Kiểm thử
+- ✅ `npx tsc --noEmit` chạy thành công không phát hiện lỗi kiểu dữ liệu (TypeScript) trên toàn bộ dự án frontend.
 
 
 ## [2026-08-11] Feature: Thêm nút Test Connection cho CQG1 Trade và CQG3 Trade
