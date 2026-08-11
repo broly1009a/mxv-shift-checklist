@@ -70,7 +70,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
   const fetchExchangeRates = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/exchange-rates`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -84,7 +84,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
   const fetchSystemConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/config`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/config`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -115,7 +115,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('reportTypes', JSON.stringify(monthReportTypes));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/process-month`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-month`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -165,7 +165,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('endDate', qEndDate);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/process-quarter`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-quarter`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -206,7 +206,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('reportTypes', JSON.stringify(ttttReportTypes));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/process-tttt`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-tttt`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -241,7 +241,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/exchange-rates`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +270,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
   const handleDeleteRate = async (id: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa tỷ giá này?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/exchange-rates/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -295,7 +295,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('file', ratesFile);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trading-report/import-exchange-rates`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/import-exchange-rates`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -322,7 +322,7 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     try {
       const parsed = JSON.parse(systemConfigText);
       setIsSavingConfig(true);
-      const res = await fetch(`${API_BASE_URL}/trading-report/config`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

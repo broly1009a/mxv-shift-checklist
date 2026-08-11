@@ -50,7 +50,7 @@ export default function MaturityTemplateModal({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/reconciliation/maturity-manual-messages?shiftLogId=${shiftLogId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/maturity-manual-messages?shiftLogId=${shiftLogId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

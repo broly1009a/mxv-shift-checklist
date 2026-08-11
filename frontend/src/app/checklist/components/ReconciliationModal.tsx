@@ -84,7 +84,7 @@ export default function ReconciliationModal({
   const handleSyncUsdRate = async () => {
     setSyncingRate(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/reconciliation/sync-usd-rate`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-usd-rate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ export default function ReconciliationModal({
     if (isOpen) {
       const fetchUsdRate = async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/reconciliation/usd-rate`, {
+          const response = await fetch(`${API_BASE_URL}/api/v1/reconciliation/usd-rate`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -190,7 +190,7 @@ export default function ReconciliationModal({
     formData.append('tradingDate', tradingDate);
     formData.append('sessionStart', sessionStart);
 
-    let endpoint = `${API_BASE_URL}/reconciliation/upload-klgd`;
+    let endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-klgd`;
 
     if (mode === 'PRE_EOD') {
       if (!files.dsgd) {
@@ -218,7 +218,7 @@ export default function ReconciliationModal({
       formData.append('cqgFr', files.cqgFr);
       formData.append('tttt', files.tttt);
       formData.append('cqgPs', files.cqgPs);
-      endpoint = `${API_BASE_URL}/reconciliation/upload-pre-eod`;
+      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-pre-eod`;
     } else if (mode === 'EOD') {
       if (!files.qltkgd) {
         toast.error('File QLTKGD.xlsx là bắt buộc!');
@@ -228,7 +228,7 @@ export default function ReconciliationModal({
       if (files.eod) {
         formData.append('eod', files.eod);
       }
-      endpoint = `${API_BASE_URL}/reconciliation/upload-eod`;
+      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-eod`;
     } else if (mode === 'CQG') {
       if (!files.qltkgd) {
         toast.error('File QLTKGD.xlsx là bắt buộc!');
@@ -241,7 +241,7 @@ export default function ReconciliationModal({
       formData.append('qltkgd', files.qltkgd);
       formData.append('accountsBalances', files.accountsBalances);
       formData.append('usdRate', usdRate.toString());
-      endpoint = `${API_BASE_URL}/reconciliation/upload-eod`;
+      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-eod`;
     } else {
       if (!files.dsgd) {
         toast.error('File dsgd (M-System) là bắt buộc!');
