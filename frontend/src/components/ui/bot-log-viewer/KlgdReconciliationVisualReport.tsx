@@ -17,18 +17,9 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
   const [selectedSource, setSelectedSource] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const isCqg = parsedData.jsonType === 'CQG';
   const isEod = parsedData.jsonType === 'EOD';
-  const isKlgd = parsedData.jsonType === 'KLGD' || (!parsedData.jsonType && !isCqg && !isEod);
+  const isKlgd = parsedData.jsonType === 'KLGD' || (!parsedData.jsonType && !isEod);
 
-  // 1. CQG SOD balances discrepancies memo
-  const cqgDiscrepancies = useMemo(() => {
-    if (!isCqg) return [];
-    const list = parsedData.jsonResult || [];
-    if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase().trim();
-    return list.filter((item: any) => (item.maTKGD || '').toLowerCase().includes(q));
-  }, [isCqg, parsedData, searchQuery]);
 
   // 2. EOD Margin memo
   const marginAccounts = useMemo(() => {
@@ -107,10 +98,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
 
   const handleExportFiltered = () => {
     let content = '';
-    if (isCqg) {
-      content = 'Mã TKGD\tSố dư MS\tSố dư CQG\tChênh lệch\n' +
-        cqgDiscrepancies.map((c: any) => `${c.maTKGD}\t${c.calculatedBalance}\t${c.cqgBalance}\t${c.differ}`).join('\n');
-    } else if (isEod) {
+    if (isEod) {
       content = 'Mã TKGD\tSố dư ký quỹ âm (VND)\n' +
         marginAccounts.map((m: any) => `${m.account}\t${m.value}`).join('\n');
     } else {
@@ -173,29 +161,6 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
         </div>
       )}
 
-      {/* CQG Dashboard Cards */}
-      {isCqg && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-          <div style={{ padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>TỶ GIÁ USD/VND</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {parsedData.jsonResult?.usdRate ? `${parsedData.jsonResult.usdRate.toLocaleString('vi-VN')} VND` : 'Chưa cập nhật'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Dùng để quy đổi đối chiếu
-            </div>
-          </div>
-          <div style={{ padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: cqgDiscrepancies.length > 0 ? '4px solid #ef4444' : '4px solid #10b981' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>SỐ TÀI KHOẢN LỆCH SỐ DƯ (&gt; 100 USD)</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: cqgDiscrepancies.length > 0 ? '#f87171' : '#34d399' }}>
-              {cqgDiscrepancies.length} tài khoản
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              So sánh số dư QLTKGD vs CQG Cast
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* EOD Dashboard Cards */}
       {isEod && (
@@ -271,7 +236,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       {/* Subtab Buttons & Search Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {!isCqg && !isEod && (
+          {!isEod && (
             <>
               <button
                 type="button"
@@ -369,7 +334,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
             )}
           </div>
 
-          {!isCqg && !isEod && preEodSubTab === 'TRADES' && (
+          {!isEod && preEodSubTab === 'TRADES' && (
             <select
               value={selectedSource}
               onChange={(e) => {
@@ -417,101 +382,6 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
         </div>
       </div>
 
-      {/* Table Section: CQG SOD Discrepancies */}
-      {isCqg && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertCircle size={14} color="#f87171" /> Danh sách tài khoản chênh lệch số dư đầu ngày (&gt; 100 USD) ({cqgDiscrepancies.length})
-            </h4>
-            {cqgDiscrepancies.length > 0 && (
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                Trang {currentPage} / {Math.ceil(cqgDiscrepancies.length / ITEMS_PER_PAGE)}
-              </span>
-            )}
-          </div>
-
-          {cqgDiscrepancies.length > 0 ? (
-            <>
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: '10px', width: '60px' }}>STT</th>
-                      <th style={{ padding: '10px' }}>Mã TKGD</th>
-                      <th style={{ padding: '10px' }}>Số dư QLTKGD ($)</th>
-                      <th style={{ padding: '10px' }}>Số dư CQG ($)</th>
-                      <th style={{ padding: '10px' }}>Chênh lệch ($)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cqgDiscrepancies
-                      .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                      .map((c: any, idx: number) => {
-                        const itemIdx = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
-                        return (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', background: idx % 2 === 0 ? 'var(--bg-app)' : 'transparent' }}>
-                            <td style={{ padding: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>{itemIdx}</td>
-                            <td style={{ padding: '10px', color: '#fbbf24', fontFamily: 'monospace', fontWeight: 700 }}>{c.maTKGD}</td>
-                            <td style={{ padding: '10px', color: 'var(--text-primary)' }}>{c.calculatedBalance?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                            <td style={{ padding: '10px', color: 'var(--text-primary)' }}>{c.cqgBalance?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                            <td style={{ padding: '10px', color: '#f87171', fontWeight: 700 }}>
-                              ${c.differ?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-
-              {cqgDiscrepancies.length > ITEMS_PER_PAGE && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Hiển thị {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, cqgDiscrepancies.length)} trên tổng số {cqgDiscrepancies.length} bản ghi
-                  </span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      style={{
-                        padding: '4px 10px',
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        fontSize: '0.72rem',
-                        color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Trang trước
-                    </button>
-                    <button
-                      disabled={currentPage >= Math.ceil(cqgDiscrepancies.length / ITEMS_PER_PAGE)}
-                      onClick={() => setCurrentPage(p => p + 1)}
-                      style={{
-                        padding: '4px 10px',
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        fontSize: '0.72rem',
-                        color: currentPage >= Math.ceil(cqgDiscrepancies.length / ITEMS_PER_PAGE) ? 'var(--text-muted)' : 'var(--text-primary)',
-                        cursor: currentPage >= Math.ceil(cqgDiscrepancies.length / ITEMS_PER_PAGE) ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Trang sau
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-input)', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              Không có tài khoản nào bị lệch số dư CQG.
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Table Section: EOD Negative Margin Accounts */}
       {isEod && (
@@ -612,7 +482,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: TRADES */}
-      {preEodSubTab === 'TRADES' && !isCqg && !isEod && (
+      {preEodSubTab === 'TRADES' && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -705,7 +575,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: POSITIONS / TTM */}
-      {preEodSubTab === 'POSITIONS' && !isCqg && !isEod && (
+      {preEodSubTab === 'POSITIONS' && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -794,7 +664,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: TTTT (KLGD Mode Only) */}
-      {preEodSubTab === 'TTTT' && isKlgd && !isCqg && !isEod && (
+      {preEodSubTab === 'TTTT' && isKlgd && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>

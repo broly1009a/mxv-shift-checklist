@@ -4,6 +4,30 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-12] Tách biệt component báo cáo trực quan cho đối chiếu số dư CQG (SOD)
+
+### Mục tiêu thay đổi
+- Tránh hiển thị chung giao diện đối chiếu số dư đầu ngày (SOD) trong component KLGD (`KlgdReconciliationVisualReport`), giúp code mạch lạc, dễ quản lý và tối ưu hóa giao diện hiển thị cho từng loại đối chiếu riêng biệt.
+
+### Danh sách file chỉnh sửa
+- [SodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SodReconciliationVisualReport.tsx) (Tạo mới)
+- [ReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/ReconciliationVisualReport.tsx) (Chỉnh sửa)
+- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Tạo mới `SodReconciliationVisualReport.tsx`**: Trực quan hóa dữ liệu đối chiếu SOD bao gồm:
+   - Các chỉ số thống kê (Số tài khoản lệch >$100, Chênh lệch lớn nhất, Tổng chênh lệch).
+   - Thanh tìm kiếm mã tài khoản, chức năng sao chép danh sách thô dưới dạng tab-separated text.
+   - Bảng hiển thị thông tin chi tiết (Mã TKGD, Số dư MS, Số dư CQG, Chênh lệch) hỗ trợ sắp xếp theo Mã hoặc Chênh lệch và phân trang (50 dòng/trang).
+2. **Cập nhật `ReconciliationVisualReport.tsx`**: Thêm rẽ nhánh điều kiện nếu `parsedData.jsonType === 'CQG'` thì render component `SodReconciliationVisualReport` thay vì fallback sang `KlgdReconciliationVisualReport`.
+3. **Dọn dẹp `KlgdReconciliationVisualReport.tsx`**: Loại bỏ toàn bộ code thừa (dead-code) và logic xử lý liên quan đến CQG/SOD (mảng `cqgDiscrepancies`, flag `isCqg`, card thống kê và bảng chi tiết SOD) vì chức năng này đã được chuyển hoàn toàn sang component chuyên biệt.
+
+### Xác nhận Build/Kiểm thử
+- Chạy `npx tsc --noEmit` trên frontend biên dịch thành công 100%, không phát sinh lỗi TypeScript.
+
+
+---
+
 ## [2026-08-12] Sửa hiển thị timestamp UTC trong Báo cáo trực quan (FileAuditVisualReport)
 
 ### Mục tiêu thay đổi
