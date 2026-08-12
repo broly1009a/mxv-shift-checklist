@@ -64,7 +64,7 @@ export default function BotLogViewerModal({
   const jobOptions = useMemo(() => {
     return historyJobs.map((j, index) => {
       const date = new Date(j.createdAt);
-      const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
       const isWaiting = j.payload?.result?.isWaitingFiles;
       const statusStr = getBotStatusText(j.status, isWaiting);
       return {
@@ -531,6 +531,16 @@ export default function BotLogViewerModal({
     }
 
     // Parse File items for File Audit
+    // Helper: chuyển đổi timestamp UTC [2026-08-12T08:03:31.602Z] → [15:03:31] (giờ VN)
+    const stripUtcTimestamp = (line: string): string =>
+      line.replace(/\[\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2})(?:\.\d+)?Z\]/g, (_, isoStr: string) => {
+        // Chuyển giờ UTC sang giờ Việt Nam (+07:00)
+        const [h, m, s] = isoStr.split(':').map(Number);
+        const utcDate = new Date();
+        utcDate.setUTCHours(h, m, s, 0);
+        return `[${utcDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}]`;
+      }).trim();
+
     const fileItems: FileAuditItem[] = [];
     const fileLines = text.split('\n');
     const fileMap = new Map<string, { status: 'OK' | 'MISSING' | 'OUTDATED' | 'DOWNLOADED'; detail: string }>();
@@ -600,13 +610,34 @@ export default function BotLogViewerModal({
         });
       }
 
-      // Pattern 5: Merge CQG success
-      const mergeSuccessMatch = trimmed.match(/(?:Ghép|Merge) file CQG thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      // Pattern 5: Merge CQG success — "✅ Ghép file FR.xlsx thành công."
+      const mergeSuccessMatch = trimmed.match(/(?:✅\s*)?Ghép file\s+([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s+thành công/i);
       if (mergeSuccessMatch) {
         const filename = mergeSuccessMatch[1].trim();
         fileMap.set(filename, {
           status: 'OK',
-          detail: 'Ghép file CQG thành công'
+          detail: 'Đã ghép file thành công'
+        });
+      }
+
+
+      // Pattern 6: CQG Backup download success — "✅ Đã tải: FR1.xlsx"
+      const cqgDownloadMatch = trimmed.match(/✅\s*Đã tải:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      if (cqgDownloadMatch) {
+        const filename = cqgDownloadMatch[1].trim();
+        fileMap.set(filename, {
+          status: 'DOWNLOADED',
+          detail: `Đã tải từ CQG Web`
+        });
+      }
+
+      // Pattern 7: Merged file already exists — "FR.xlsx đã tồn tại và cập nhật hôm nay."
+      const existsMatch = trimmed.match(/([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s+đã tồn tại/i);
+      if (existsMatch) {
+        const filename = existsMatch[1].trim();
+        fileMap.set(filename, {
+          status: 'OK',
+          detail: 'File gộp đã sẵn sàng (cập nhật hôm nay)'
         });
       }
     });
@@ -630,7 +661,7 @@ export default function BotLogViewerModal({
               }
               fileMap.set(filename, {
                 status: fileStatus,
-                detail: trimmed
+                detail: stripUtcTimestamp(trimmed)
               });
             });
           }
@@ -879,7 +910,7 @@ export default function BotLogViewerModal({
               )}
             </div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '6px 0 0 0' }}>
-              Tác vụ: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{taskTitle}</span> {activeCheckedAt && `• Thực hiện lúc ${new Date(activeCheckedAt).toLocaleTimeString('vi-VN')}`}
+              Tác vụ: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{taskTitle}</span> {activeCheckedAt && `• Thực hiện lúc ${new Date(activeCheckedAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`}
             </p>
           </div>
           <button

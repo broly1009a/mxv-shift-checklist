@@ -4,7 +4,29 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-12] Sửa hiển thị timestamp UTC trong Báo cáo trực quan (FileAuditVisualReport)
+
+### Mục tiêu thay đổi
+- Cột "Chi tiết" trong bảng kiểm tra file (`FILE_AUDIT`) hiển thị chuỗi thô `[2026-08-12T08:03:31.602Z] ✅ Đã tải: FR1.xlsx` do pattern parse chưa khớp format log CQG backup → fallback parser lưu cả dòng thô vào `detail`.
+- Các timestamp UTC trong UI cần hiển thị đúng giờ Việt Nam (+07:00).
+
+### Danh sách file chỉnh sửa
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)
+
+### Tóm tắt nội dung code đã sửa
+1. **Thêm `timeZone: 'Asia/Ho_Chi_Minh'`** vào `toLocaleTimeString` (lines 67, 882) → đảm bảo giờ đúng kể cả khi deploy server UTC+0.
+2. **Thêm helper `stripUtcTimestamp()`** — regex replace `[2026-08-12T08:03:31.602Z]` → `[15:03:31]` cho chuỗi log text thuần.
+3. **Pattern 6 mới**: `✅ Đã tải: FR1.xlsx` → `status: DOWNLOADED`, `detail: "Đã tải từ CQG Web"`.
+4. **Pattern 7 mới**: `FR.xlsx đã tồn tại và cập nhật hôm nay.` → `status: OK`, `detail: "File gộp đã sẵn sàng"`.
+5. **Fallback parser**: áp dụng `stripUtcTimestamp(trimmed)` thay vì lưu nguyên `trimmed`.
+
+### Xác nhận Build/Kiểm thử
+- Frontend hot-reload OK. UI hiển thị `"Đã tải từ CQG Web"` và `"File gộp đã sẵn sàng (cập nhật hôm nay)"` đúng như mong đợi.
+
+---
+
 ## [2026-08-12] Sửa lỗi Stacking Context Dropdown, database seed overwrite, cấu hình DOWNLOAD_CQG_BACKUP và Playwright click avatar timeout
+
 
 ### Mục tiêu thay đổi
 - **Sửa lỗi UI**: Dropdown và Lịch trong `CustomSelect` và `CustomDatePicker` bị stacking context của CSS grid block che mất. Khắc phục bằng cách đổi sang `position: fixed` và định vị tọa độ bằng `getBoundingClientRect()`.
@@ -22,6 +44,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) — Đổi cơ chế seed sang không bao giờ ghi đè đối tượng đã tồn tại (Templates, Users, Departments).
 - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Thêm cấu hình dropdown cho `DOWNLOAD_CQG_BACKUP`.
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Bổ sung dispatch case cho `DOWNLOAD_CQG_BACKUP`.
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Thêm kiểm tra đầu ra và throw lỗi khi tải/ghép CQG2 bị thiếu file thay vì tự động mark COMPLETED.
 - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts) — Tái cấu trúc logic mở widget CQG, click add-widget trực tiếp, loại bỏ rủi ro click nhầm avatar menu.
 - [test-cqg-backup.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-cqg-backup.ts) — Bổ sung các file báo cáo CQG2 (FR2, PS2, OP2, OD2) vào payload test.
 

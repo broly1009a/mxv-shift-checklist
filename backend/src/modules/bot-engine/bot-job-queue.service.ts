@@ -1214,6 +1214,35 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         );
       }
     }
+
+    // Quét lại toàn bộ thư mục CQG sau khi tải/ghép để kiểm tra kết quả cuối cùng
+    const finalScan = await this.cqgSyncService.scanCqgBackupFiles(targetDate);
+    const requiredConsolidated = ['FR', 'OP', 'Od', 'PS'];
+    const hasMissingConsolidated = finalScan.some(
+      (r) => requiredConsolidated.includes(r.key) && r.status !== 'OK',
+    );
+
+    // Cập nhật kết quả vào payload để frontend hiển thị đúng bảng audit
+    job.payload = {
+      ...payload,
+      result: {
+        isWaitingFiles: hasMissingConsolidated,
+        audit: finalScan,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissingConsolidated) {
+      const missingKeys = finalScan
+        .filter((r) => requiredConsolidated.includes(r.key) && r.status !== 'OK')
+        .map((r) => r.key)
+        .join(', ');
+      throw new Error(
+        `Tải & ghép file CQG thất bại: Chưa có đủ các file gộp bắt buộc [${missingKeys}]`,
+      );
+    }
   }
 
   /**
