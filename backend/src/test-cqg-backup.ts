@@ -102,6 +102,10 @@ async function runCqgBackupTest() {
         PS1: true,
         OP1: true,
         OD1: true,
+        FR2: true,
+        PS2: true,
+        OP2: true,
+        OD2: true,
         AS: true,
       },
       skipMerge: false, // Chạy cả bước merge

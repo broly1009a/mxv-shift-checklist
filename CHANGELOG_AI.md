@@ -23,6 +23,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Thêm cấu hình dropdown cho `DOWNLOAD_CQG_BACKUP`.
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Bổ sung dispatch case cho `DOWNLOAD_CQG_BACKUP`.
 - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts) — Tái cấu trúc logic mở widget CQG, click add-widget trực tiếp, loại bỏ rủi ro click nhầm avatar menu.
+- [test-cqg-backup.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-cqg-backup.ts) — Bổ sung các file báo cáo CQG2 (FR2, PS2, OP2, OD2) vào payload test.
 
 ### Kết quả kiểm thử
 - ✅ Các dropdown hiển thị đúng layer, không còn bị grid block che mất.

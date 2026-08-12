@@ -1,14 +1,15 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 
 @Injectable()
-export class TelegramService implements OnModuleInit {
+export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramService.name);
   private botToken: string | null = null;
   private chatId: string | null = null;
   private sentWarnings = new Set<string>();
+  private intervalId: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
@@ -25,11 +26,18 @@ export class TelegramService implements OnModuleInit {
   onModuleInit() {
     this.logger.log('Khởi chạy daemon giám sát deadline Telegram Bot...');
     // Quét mỗi 60 giây để kiểm thử thời gian thực nhanh nhạy
-    setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.scanDeadlines().catch((err) => {
         this.logger.error('Lỗi khi quét hạn chót tác vụ:', err);
       });
     }, 60000);
+  }
+
+  onModuleDestroy() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.logger.log('Đã tắt daemon giám sát deadline Telegram Bot.');
+    }
   }
 
   async sendMessage(text: string, customChatId?: string): Promise<void> {
