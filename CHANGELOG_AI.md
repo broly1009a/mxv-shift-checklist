@@ -4,21 +4,46 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
-## [2026-08-12] Chuẩn hóa Trạng thái Job Selector & Badge Header trong `BotLogViewerModal`
+## [2026-08-12] Nâng cấp UI Widget Dashboard: Thay thế Select & Input bằng `CustomSelect` & `CustomDatePicker`
 
 ### Mục tiêu thay đổi
-- **Vấn đề**: Giao diện Modal xem log bot ([BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)) chưa chuẩn hóa đầy đủ các trạng thái của Bot (`PENDING`, `AWAITING_CAPTCHA`, `FAILED`). Trong danh sách chọn lượt quét (`jobOptions`) và phần Badge Header, các trạng thái `PENDING` hoặc `AWAITING_CAPTCHA` bị rơi vào nhánh mặc định gây hiển thị nhầm thành `"Lệch/Lỗi"` hoặc `"✕ CHƯA ĐẠT"`.
+- **Yêu cầu từ USER**:
+  1. Trong [InitShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/InitShiftWidget.tsx): Thay thế thẻ `<select>` mặc định bằng component `CustomSelect`. Đồng thời lọc danh sách mẫu checklist chỉ hiển thị những mẫu đang ở trạng thái hoạt động (`isActive !== false`).
+  2. Trong [AutoShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/AutoShiftWidget.tsx): Thay thế thẻ `<input type="date">` mặc định bằng component `CustomDatePicker`.
 - **Cách khắc phục**:
-  1. Cập nhật `jobOptions`: bổ sung nhánh check cho `PENDING` ('Chờ xử lý'), `AWAITING_CAPTCHA` ('Chờ gõ Captcha'), `FAILED` ('Thất bại'), `COMPLETED` ('Thành công').
-  2. Cập nhật Badge Header JSX trong [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx): Bổ sung badge màu cam hiển thị **`CHỜ NHẬP CAPTCHA`** khi `activeStatus === 'AWAITING_CAPTCHA'`.
+  - Bổ sung thuộc tính `isActive?: boolean` vào interface `Template` tại [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/types.ts).
+  - Tích hợp `CustomSelect` vào `InitShiftWidget.tsx` kèm bộ lọc `activeTemplates`.
+  - Tích hợp `CustomDatePicker` vào `AutoShiftWidget.tsx`.
 
 ### Danh sách file chỉnh sửa
-- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Thêm đầy đủ nhãn và badge cho các trạng thái `PENDING`, `AWAITING_CAPTCHA`, `FAILED`.
-- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Bổ sung khối UI thông báo hướng dẫn khi `activeStatus === 'AWAITING_CAPTCHA'`.
-- [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Bổ sung khối UI thông báo hướng dẫn khi `activeStatus === 'AWAITING_CAPTCHA'`.
+- [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/types.ts) — Thêm `isActive?: boolean` vào interface `Template`.
+- [InitShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/InitShiftWidget.tsx) — Dùng `CustomSelect` và lọc template đang active.
+- [AutoShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/AutoShiftWidget.tsx) — Dùng `CustomDatePicker` chọn ngày sinh ca tự động.
 
 ### Kết quả kiểm thử
-- ✅ Frontend đã tự động load lại và hiển thị chính xác màn hình hướng dẫn gõ Captcha trong cả 2 component báo cáo đối chiếu trực quan (`KLGD` và `Pre-EOD`).
+- ✅ Giao diện Widget Dashboard đã đồng bộ dùng UI component thiết kế riêng (`CustomSelect` & `CustomDatePicker`), không còn bị lệch style do browser default input.
+- ✅ Widget khởi tạo ca trực chỉ hiển thị các mẫu checklist đang hoạt động.
+
+---
+
+## [2026-08-12] Tái cấu trúc & Tạo Component dùng chung cho Trạng thái Bot (`BotStatusBadge` & `BotStatusStateBanner`)
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Các component xem log bot ([BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx), [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx), và [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx)) đều tự lặp lại cùng một đoạn code logic render Badge trạng thái và Khung thông báo trực quan (`PENDING`, `PROCESSING`, `AWAITING_CAPTCHA`, `FAILED`). Điều này vi phạm nguyên tắc DRY và dễ gây bỏ sót trạng thái khi cập nhật UI.
+- **Cách khắc phục**:
+  1. Tạo component mới [BotStatusBadge.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/BotStatusBadge.tsx): Chuẩn hóa nhãn và badge màu sắc cho từng trạng thái (`PROCESSING`, `PENDING`, `AWAITING_CAPTCHA`, `WAITING`, `COMPLETED`, `FAILED`). Đồng thời xuất helper `getBotStatusText`.
+  2. Tạo component mới [BotStatusStateBanner.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/BotStatusStateBanner.tsx): Chuẩn hóa khung card nét đứt thông báo trạng thái trung tâm cho các tác vụ chưa hoàn tất hoặc gặp sự cố kỹ thuật.
+  3. Thay thế các khối code trùng lặp ở cả 3 file UI trên bằng 2 component mới.
+
+### Danh sách file chỉnh sửa
+- [BotStatusBadge.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/BotStatusBadge.tsx) — [NEW] Component render badge trạng thái bot dùng chung.
+- [BotStatusStateBanner.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/BotStatusStateBanner.tsx) — [NEW] Component render khung thông báo trạng thái bot dùng chung.
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Tái cấu trúc dùng `BotStatusBadge` và `getBotStatusText`.
+- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Tái cấu trúc dùng `BotStatusStateBanner`.
+- [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Tái cấu trúc dùng `BotStatusStateBanner`.
+
+### Kết quả kiểm thử
+- ✅ Frontend đã tự động load lại và biên dịch hoàn toàn sạch sẽ, không có lỗi runtime. Tất cả các giao diện xem log bot đều dùng chung 1 logic hiển thị thống nhất.
 
 ---
 

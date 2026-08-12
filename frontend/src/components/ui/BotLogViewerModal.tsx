@@ -7,6 +7,7 @@ import { SystemApiVisualReport } from './bot-log-viewer/SystemApiVisualReport';
 import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisualReport';
 import { EmailScanVisualReport } from './bot-log-viewer/EmailScanVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
+import { BotStatusBadge, getBotStatusText } from './bot-log-viewer/BotStatusBadge';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import CustomSelect from './CustomSelect';
 
@@ -65,19 +66,7 @@ export default function BotLogViewerModal({
       const date = new Date(j.createdAt);
       const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const isWaiting = j.payload?.result?.isWaitingFiles;
-      const statusStr = isWaiting
-        ? 'Chờ file'
-        : j.status === 'PENDING'
-          ? 'Chờ xử lý'
-          : j.status === 'PROCESSING'
-            ? 'Đang chạy'
-            : j.status === 'AWAITING_CAPTCHA'
-              ? 'Chờ gõ Captcha'
-              : j.status === 'COMPLETED'
-                ? 'Thành công'
-                : j.status === 'FAILED'
-                  ? 'Thất bại'
-                  : 'Không xác định';
+      const statusStr = getBotStatusText(j.status, isWaiting);
       return {
         value: j._id || j.id,
         label: `Lượt #${historyJobs.length - index} (${timeStr}) - ${statusStr}`
@@ -867,75 +856,11 @@ export default function BotLogViewerModal({
                 )}
               </h3>
 
-              {activeStatus === 'PROCESSING' ? (
-                <span style={{
-                  fontSize: '0.68rem',
-                  padding: '3px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                  color: '#60a5fa',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Clock size={12} /> ĐANG XỬ LÝ
-                </span>
-              ) : activeStatus === 'PENDING' ? (
-                <span style={{
-                  fontSize: '0.68rem',
-                  padding: '3px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(156, 163, 175, 0.15)',
-                  color: '#9ca3af',
-                  border: '1px solid rgba(156, 163, 175, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Clock size={12} /> ĐANG XẾP HÀNG (CHỜ CHẠY)
-                </span>
-              ) : activeStatus === 'AWAITING_CAPTCHA' ? (
-                <span style={{
-                  fontSize: '0.68rem',
-                  padding: '3px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Clock size={12} /> CHỜ NHẬP CAPTCHA
-                </span>
-              ) : activeStatus === 'WAITING' || parsedData.jsonResult?.isWaitingFiles ? (
-                <span style={{
-                  fontSize: '0.68rem',
-                  padding: '3px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(251, 191, 36, 0.15)',
-                  color: '#fbbf24',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Clock size={12} /> ĐANG CHỜ FILE
-                </span>
-              ) : isFailed ? (
-                <span style={{ fontSize: '0.68rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                  ✕ CHƯA ĐẠT
-                </span>
-              ) : (
-                <span style={{ fontSize: '0.68rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  ✓ ĐẠT YÊU CẦU
-                </span>
-              )}
+              <BotStatusBadge
+                status={activeStatus}
+                isWaitingFiles={parsedData.jsonResult?.isWaitingFiles}
+                isFailed={isFailed}
+              />
 
               {/* Lịch sử lần chạy selector */}
               {historyJobs.length > 0 && (

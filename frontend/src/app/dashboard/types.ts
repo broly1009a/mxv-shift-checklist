@@ -3,6 +3,7 @@ export interface Template {
   id: string;
   title: string;
   sessionType: 'OPEN' | 'DURING' | 'CLOSE';
+  isActive?: boolean;
   departmentId?: {
     _id: string;
     name: string;
