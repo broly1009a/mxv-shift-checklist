@@ -38,7 +38,7 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
             style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
           >
             <option value="">-- Chọn mẫu checklist --</option>
-            {templates.map((tpl) => (
+            {templates.filter((tpl) => tpl.isActive !== false).map((tpl) => (
               <option key={tpl._id} value={tpl._id}>
                 [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
               </option>
