@@ -185,7 +185,7 @@ export class RpaDownloaderService {
       // Playwright 1.49+: headless:true tự động dùng New Headless Chrome
       // (headless:'new' đã bị xóa khỏi API, không còn dùng được)
       // New Headless: không cần màn hình (chạy được trên server) + khó bị anti-bot hơn old headless
-      headless: process.env.HEADLESS_BOT !== 'false',
+      headless: process.env.HEADLESS_BOT !== 'false' && process.env.PLAYWRIGHT_HEADLESS !== 'false',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -1125,7 +1125,7 @@ export class RpaDownloaderService {
 
     const executablePath = this.getChromeExecutablePath();
     const launchOptions: any = {
-      headless: process.env.HEADLESS_BOT !== 'false',
+      headless: process.env.HEADLESS_BOT !== 'false' && process.env.PLAYWRIGHT_HEADLESS !== 'false',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -3064,15 +3064,46 @@ export class RpaDownloaderService {
 
     this.logger.log(`[CQG] Mở widget "${searchTerm}"...`);
 
-    // Click 'Ho' (Home menu) first
-    await page.locator("//div[text()='Ho']").first().click({ timeout: 15000 });
-    await page.waitForTimeout(1000);
+    // Click plus icon to add widget directly if visible
+    let clickedPlus = false;
+    try {
+      await page
+        .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
+        .first()
+        .click({ timeout: 4000 });
+      clickedPlus = true;
+    } catch (e) {
+      this.logger.log(`[CQG] Nút add-widget không trực tiếp click được, thử reset state...`);
+    }
 
-    // Click plus icon to add widget
-    await page
-      .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
-      .first()
-      .click({ timeout: 15000 });
+    if (!clickedPlus) {
+      // Dismiss any open menus/popups
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+
+      // Thử tìm tab Home / Trang chủ / Ho để click (ưu tiên class tab/page để tránh click nhầm avatar/profile menu)
+      const homeTabSelectors = [
+        "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+        "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+        "//div[text()='Home' or text()='Trang chủ']"
+      ];
+      for (const selector of homeTabSelectors) {
+        try {
+          const tab = page.locator(selector).first();
+          if (await tab.isVisible()) {
+            await tab.click({ timeout: 3000 });
+            await page.waitForTimeout(1000);
+            break;
+          }
+        } catch {}
+      }
+
+      // Thử click lại plus icon lần nữa với timeout đầy đủ
+      await page
+        .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
+        .first()
+        .click({ timeout: 15000 });
+    }
     await page.waitForTimeout(1000);
 
     // Fill search input
@@ -3295,7 +3326,7 @@ export class RpaDownloaderService {
     const loginCqgAccount = async (username: string, password: string) => {
       const executablePath = this.getChromeExecutablePath();
       const launchOptions: any = {
-        headless: process.env.HEADLESS_BOT !== 'false',
+        headless: process.env.HEADLESS_BOT !== 'false' && process.env.PLAYWRIGHT_HEADLESS !== 'false',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       };
       if (executablePath) launchOptions.executablePath = executablePath;

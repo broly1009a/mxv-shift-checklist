@@ -4,6 +4,33 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-12] Sửa lỗi Stacking Context Dropdown, database seed overwrite, cấu hình DOWNLOAD_CQG_BACKUP và Playwright click avatar timeout
+
+### Mục tiêu thay đổi
+- **Sửa lỗi UI**: Dropdown và Lịch trong `CustomSelect` và `CustomDatePicker` bị stacking context của CSS grid block che mất. Khắc phục bằng cách đổi sang `position: fixed` và định vị tọa độ bằng `getBoundingClientRect()`.
+- **Lọc template hoạt động**: Cập nhật bộ chọn native select ở [InitShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/InitShiftWidget.tsx) để chỉ hiển thị template hoạt động (`isActive !== false`).
+- **Sửa lỗi Database Seed**: Sửa bug [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) ghi đè ghi nhận người dùng (tên template, trạng thái active, thông tin user, department) mỗi khi server khởi động lại. Chuyển sang mô hình "Create-only" (bỏ qua nếu đã tồn tại).
+- **Hỗ trợ DOWNLOAD_CQG_BACKUP**:
+  1. Thêm lựa chọn `DOWNLOAD_CQG_BACKUP` vào trang quản lý template admin ở frontend ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx)).
+  2. Bổ sung ánh xạ xử lý job `DOWNLOAD_CQG_BACKUP` trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts).
+- **Sửa lỗi Playwright Timeout click add-widget**: Lỗi click `"Ho"` (Home menu) trong [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts) click nhầm vào avatar viết tắt tên của user (Ví dụ: "Hồ" / "Ho" từ "Hồ Huy Sơn"), làm mở bảng cấu hình tài khoản cá nhân đè lên nút "+". Khắc phục bằng cơ chế click trực tiếp nút "+" trước, nếu không được mới tìm tab mang class `tab` hoặc `page` chứa từ khóa "Home"/"Trang chủ"/"Ho".
+
+### Danh sách file chỉnh sửa
+- [CustomSelect.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomSelect.tsx) — Đổi sang `position: fixed` + getBoundingClientRect.
+- [CustomDatePicker.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/CustomDatePicker.tsx) — Đổi sang `position: fixed` + getBoundingClientRect + disabled prop.
+- [InitShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/InitShiftWidget.tsx) — Lọc template có `isActive !== false` trên thẻ select native.
+- [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/seed.service.ts) — Đổi cơ chế seed sang không bao giờ ghi đè đối tượng đã tồn tại (Templates, Users, Departments).
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/templates/page.tsx) — Thêm cấu hình dropdown cho `DOWNLOAD_CQG_BACKUP`.
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Bổ sung dispatch case cho `DOWNLOAD_CQG_BACKUP`.
+- [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts) — Tái cấu trúc logic mở widget CQG, click add-widget trực tiếp, loại bỏ rủi ro click nhầm avatar menu.
+
+### Kết quả kiểm thử
+- ✅ Các dropdown hiển thị đúng layer, không còn bị grid block che mất.
+- ✅ Khởi động lại backend không còn làm mất cấu hình đã chỉnh sửa của templates/users/departments.
+- ✅ Job `DOWNLOAD_CQG_BACKUP` chạy trơn tru, đăng nhập thành công và không bị nghẽn ở bước click add-widget button.
+
+---
+
 ## [2026-08-12] Nâng cấp UI Widget Dashboard: Thay thế Select & Input bằng `CustomSelect` & `CustomDatePicker`
 
 ### Mục tiêu thay đổi
