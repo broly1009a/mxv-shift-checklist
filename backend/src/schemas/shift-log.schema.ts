@@ -89,6 +89,9 @@ export class ShiftLogDetail {
   @Prop({ type: Date, default: null })
   needsAttentionAt?: Date | null;
 
+  @Prop({ type: Date, default: Date.now })
+  updatedAt?: Date;
+
   @Prop({ required: false, type: [String], default: [] })
   dependsOnTaskIdsSnapshot?: string[];
 

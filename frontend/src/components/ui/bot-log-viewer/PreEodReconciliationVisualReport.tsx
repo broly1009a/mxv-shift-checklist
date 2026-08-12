@@ -52,7 +52,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
     });
   }, [parsedData, searchQuery]);
 
-  if (activeStatus === 'PENDING' || activeStatus === 'PROCESSING') {
+  if (activeStatus === 'PENDING' || activeStatus === 'PROCESSING' || activeStatus === 'AWAITING_CAPTCHA') {
     return (
       <div style={{
         padding: '30px',
@@ -68,13 +68,29 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
         gap: '12px',
         margin: '20px 0'
       }}>
-        <Clock size={28} className="animate-pulse" style={{ color: activeStatus === 'PROCESSING' ? '#60a5fa' : '#9ca3af' }} />
+        <Clock 
+          size={28} 
+          className="animate-pulse" 
+          style={{ 
+            color: activeStatus === 'PROCESSING' 
+              ? '#60a5fa' 
+              : activeStatus === 'AWAITING_CAPTCHA' 
+              ? '#f59e0b' 
+              : '#9ca3af' 
+          }} 
+        />
         <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-          {activeStatus === 'PROCESSING' ? 'Tác vụ đang chạy đối chiếu...' : 'Tác vụ đang xếp hàng chờ chạy...'}
+          {activeStatus === 'PROCESSING' 
+            ? 'Tác vụ đang chạy đối chiếu...' 
+            : activeStatus === 'AWAITING_CAPTCHA'
+            ? 'Tác vụ đang chờ nhập mã Captcha...'
+            : 'Tác vụ đang xếp hàng chờ chạy...'}
         </h4>
         <p style={{ fontSize: '0.78rem', maxWidth: '400px', margin: 0, lineHeight: 1.4 }}>
           {activeStatus === 'PROCESSING' 
             ? 'Bot đang thực hiện tải file và tính toán đối chiếu dữ liệu. Báo cáo trực quan sẽ hiển thị đầy đủ ngay sau khi tác vụ hoàn tất.'
+            : activeStatus === 'AWAITING_CAPTCHA'
+            ? 'Vui lòng gõ mã Captcha trong thông báo phía trên để Bot có thể tiếp tục tự động đăng nhập và tải dữ liệu báo cáo.'
             : 'Hàng đợi đang bận xử lý tác vụ khác. Bot sẽ tự động thực hiện đối chiếu này ngay khi đến lượt.'}
         </p>
       </div>

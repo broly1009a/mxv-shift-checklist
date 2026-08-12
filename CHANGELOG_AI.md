@@ -4,6 +4,180 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-12] Chuẩn hóa Trạng thái Job Selector & Badge Header trong `BotLogViewerModal`
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Giao diện Modal xem log bot ([BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx)) chưa chuẩn hóa đầy đủ các trạng thái của Bot (`PENDING`, `AWAITING_CAPTCHA`, `FAILED`). Trong danh sách chọn lượt quét (`jobOptions`) và phần Badge Header, các trạng thái `PENDING` hoặc `AWAITING_CAPTCHA` bị rơi vào nhánh mặc định gây hiển thị nhầm thành `"Lệch/Lỗi"` hoặc `"✕ CHƯA ĐẠT"`.
+- **Cách khắc phục**:
+  1. Cập nhật `jobOptions`: bổ sung nhánh check cho `PENDING` ('Chờ xử lý'), `AWAITING_CAPTCHA` ('Chờ gõ Captcha'), `FAILED` ('Thất bại'), `COMPLETED` ('Thành công').
+  2. Cập nhật Badge Header JSX trong [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx): Bổ sung badge màu cam hiển thị **`CHỜ NHẬP CAPTCHA`** khi `activeStatus === 'AWAITING_CAPTCHA'`.
+
+### Danh sách file chỉnh sửa
+- [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx) — Thêm đầy đủ nhãn và badge cho các trạng thái `PENDING`, `AWAITING_CAPTCHA`, `FAILED`.
+- [KlgdReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/KlgdReconciliationVisualReport.tsx) — Bổ sung khối UI thông báo hướng dẫn khi `activeStatus === 'AWAITING_CAPTCHA'`.
+- [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Bổ sung khối UI thông báo hướng dẫn khi `activeStatus === 'AWAITING_CAPTCHA'`.
+
+### Kết quả kiểm thử
+- ✅ Frontend đã tự động load lại và hiển thị chính xác màn hình hướng dẫn gõ Captcha trong cả 2 component báo cáo đối chiếu trực quan (`KLGD` và `Pre-EOD`).
+
+---
+
+## [2026-08-12] Chuyển đổi trạng thái Job & Checklist sang FAILED hoàn toàn khi thiếu file audit (Option 2)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Chuyển đổi cơ chế xử lý các job kiểm tra file (`FILE_AUDIT_ACM`, `FILE_AUDIT_CQG`, `FILE_AUDIT_MS`): Nếu sau khi chạy quét/đồng bộ/ghép file mà phát hiện thiếu file bắt buộc (như `OP`, `Od`, `PS` với CQG hoặc SFTP CSV/XLS với ACM/MS), Bot sẽ **tự động `throw Error`** để:
+  1. Trạng thái Job trong Bot Queue chuyển sang **`FAILED`** (Màu đỏ).
+  2. Trạng thái Task trên Checklist chuyển sang **`THẤT BẠI` / `FAILED`** (Màu đỏ) với chi tiết lý do thiếu file cụ thể.
+- **Cách khắc phục**:
+  - Trong [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts): Trong cả 3 hàm handler `handleFileAuditAcmJob`, `handleFileAuditCqgJob`, và `handleFileAuditMsJob`, sau khi lưu thông tin scan kết quả vào `payload.result`, kiểm tra nếu còn thiếu file bắt buộc thì `throw new Error(...)` kèm danh sách tên các file bị thiếu.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Thêm logic `throw Error` khi thiếu file bắt buộc trong 3 job audit (`ACM`, `CQG`, `MS`).
+
+### Kết quả kiểm thử
+- ✅ Cả 3 job audit đã được cập nhật: nếu không có đủ file bắt buộc (hoặc ghép thất bại), job sẽ chủ động throw exception $\rightarrow$ Job trong Queue báo `FAILED` và Task trên Checklist báo `THẤT BẠI` (đúng chuẩn nghiệp vụ).
+
+---
+
+## [2026-08-11] Fix Bug: Cập nhật Schema `ShiftLogDetail` để bổ sung trường `updatedAt` cho từng tác vụ con
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Việc kiểm tra cooldown trong `shouldEnqueueNewJob` sử dụng `task.updatedAt` để phát hiện sự kiện reset thủ công của người dùng. Tuy nhiên, trong Schema gốc của MongoDB (`ShiftLogDetail`), **trường `updatedAt` không tồn tại**. Điều này dẫn đến `task.updatedAt` luôn trả về `undefined`, và điều kiện bypass cooldown bị đánh giá sai (về `0`), khiến việc reset thủ công bị bỏ qua và không kích hoạt chạy lại job.
+- **Cách khắc phục**:
+  1. Thêm thuộc tính `@Prop({ type: Date, default: Date.now }) updatedAt?: Date;` vào định nghĩa Schema `ShiftLogDetail` tại [shift-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-log.schema.ts).
+  2. Cập nhật logic trong [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) để ghi nhận `'details.$.updatedAt': now` mỗi khi trạng thái tác vụ thay đổi (bao gồm cả cập nhật đệ quy các tác vụ con).
+
+### Danh sách file chỉnh sửa
+- [shift-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/shift-log.schema.ts) — Thêm trường `updatedAt` vào subdocument.
+- [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) — Ghi nhận giá trị `updatedAt` mới khi cập nhật trạng thái.
+
+### Kết quả kiểm thử
+- ✅ Backend biên dịch thành công (`npx tsc --noEmit` đạt 0 lỗi).
+- ✅ Khi reset tác vụ từ UI, MongoDB ghi nhận giá trị `updatedAt` chính xác cho tác vụ đó, kích hoạt bot chạy lại job ngay chu kỳ quét tiếp theo.
+
+---
+
+## [2026-08-11] Fix Bug: Reset task về "Chưa thực hiện" không khiến bot chạy lại kiểm tra
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Khi user reset task bot về trạng thái "Chưa thực hiện" (WAITING/PENDING), bot engine chu kỳ tiếp theo đọc job cũ đã COMPLETED và **báo "Đạt" ngay** mà không chạy lại job thực sự.
+- **Nguyên nhân gốc**: Hàm `shouldEnqueueNewJob` trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) chỉ so sánh `task.startedAt` với thời điểm job cuối. Khi user **reset** task, `task.startedAt` **không được cập nhật** (chỉ `task.updatedAt` mới được cập nhật) → bypass cooldown không hoạt động → vẫn trong cooldown 15 phút → skip enqueue.
+- **Cách khắc phục**: Dùng `Math.max(taskStartedAt, taskUpdatedAt)` làm mốc so sánh — gọi là `taskResetTime`. Khi user reset task, `task.updatedAt` mới hơn `lastJobTime` → bypass cooldown → enqueue job mới ngay lập tức.
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Sửa hàm `shouldEnqueueNewJob`: thêm `taskUpdatedAt`, tính `taskResetTime = Math.max(startedAt, updatedAt)`.
+
+### Kết quả kiểm thử
+- ✅ Backend biên dịch thành công, 0 lỗi.
+- ✅ Sau fix: Reset task → chu kỳ bot tiếp theo sẽ enqueue job mới và chạy lại kiểm tra thực sự.
+
+---
+
+## [2026-08-11] Fix Bug: Badge bên ngoài luôn hiện "Đạt" dù CQG/ACM/MS thiếu file
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts), các block `FILE_AUDIT_CQG`, `FILE_AUDIT_ACM`, `FILE_AUDIT_MS` khi đọc job đã `COMPLETED` đều trả về `checkResult = { success: true }` vô điều kiện — bỏ qua hoàn toàn flag `isWaitingFiles` đã được lưu trong `job.payload.result`.
+- **Hậu quả**: Badge bên ngoài checklist luôn hiện **"Đạt"** dù bên trong modal hiển thị đúng "ĐANG CHỜ FILE" (vì modal đọc trực tiếp từ `payload.result.audit`).
+- **Cách khắc phục**: Thêm kiểm tra `jobResult.isWaitingFiles` trong nhánh `COMPLETED` của cả 3 block:
+  - Nếu `isWaitingFiles === true` → `checkResult = { success: false, message: 'Đang chờ file...' }` → badge "Chờ file"
+  - Nếu `isWaitingFiles === false` → `checkResult = { success: true }` → badge "Đạt"
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Sửa 3 block `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`.
+
+### Kết quả kiểm thử
+- ✅ Backend biên dịch thành công, 0 lỗi.
+- ✅ Hot-reload đã áp dụng — badge sẽ phản ánh đúng trạng thái thiếu file ngay chu kỳ bot tiếp theo.
+
+---
+
+## [2026-08-11] Refactor: Tách botCheckType riêng cho task quét tài khoản âm ký quỹ (SCAN_NEGATIVE_MARGIN)
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Logic bot tại [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) dùng `if (task.taskId === 'ops_open_04_s4')` để phân nhánh xử lý — hardcode `taskId` dễ bị gãy nếu anh đổi tên task sau này.
+- **Nguyên nhân gốc**: Task `ops_open_04_s4` dùng chung `botCheckType: "CHECK_PRE_EOD"` với task đối chiếu 3 bên (`TASK_CHECK_EOD_sb2`), nên không thể phân biệt qua `checkType`.
+- **Cách khắc phục**:
+  1. Tạo `checkType` riêng `"SCAN_NEGATIVE_MARGIN"` — tên mô tả rõ nghiệp vụ, không phụ thuộc `taskId`.
+  2. Tách block `SCAN_NEGATIVE_MARGIN` thành nhánh `else if` độc lập trong bot-engine.
+  3. Giữ nguyên nhánh `CHECK_KLGD || CHECK_PRE_EOD` cho task đối chiếu 3 bên.
+  4. Migration tự động cập nhật 18 shift_logs trong MongoDB Atlas Atlas.
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Thay `if (task.taskId === 'ops_open_04_s4')` → `else if (checkType === 'SCAN_NEGATIVE_MARGIN')`.
+- [exported_templates.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/database/exported_templates.json) — Đổi `botCheckType` của `ops_open_04_s4` từ `CHECK_PRE_EOD` → `SCAN_NEGATIVE_MARGIN`.
+- [migrate-scan-negative-margin-checktype.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/migrate-scan-negative-margin-checktype.js) — [NEW] Script migration cập nhật `botCheckTypeSnapshot` trong `shift_logs`.
+
+### Kết quả kiểm thử
+- ✅ MongoDB Atlas: Cập nhật thành công **18 shift_log records** (`botCheckTypeSnapshot`: `CHECK_PRE_EOD` → `SCAN_NEGATIVE_MARGIN`).
+- ✅ Template JSON: `ops_open_04_s4.botCheckType` = `SCAN_NEGATIVE_MARGIN`.
+- ✅ Backend TypeScript: biên dịch thành công, 0 lỗi.
+
+---
+
+## [2026-08-11] Fix Bug: Dôi số liệu tài khoản âm ký quỹ do quét nhầm file tổng QLTKGD.xlsx thay vì QLTKGDAmKQ.xlsx
+
+### Mục tiêu thay đổi
+- **Vấn đề**: Bot tự động quét tất cả file có chứa từ khóa `qltkgd` trong thư mục backup, bao gồm cả file **`QLTKGD.xlsx`** (file tổng ~49.000 tài khoản) và **`QLTKGDAmKQ.xlsx`** (file âm ký quỹ thực tế ~13 tài khoản). Kết quả bị dôi lên thành 207 tài khoản thay vì 13 tài khoản thực tế cần cảnh báo.
+- **Nguyên nhân gốc**: Logic lọc file cũ dùng `.includes('qltkgd')` khớp với cả 2 file. Trong khi đó tool C# gốc **không hề đọc** `QLTKGDAmKQ.xlsx` để lọc tài khoản âm — file này chỉ được tải về để lưu trữ, không được dùng để tính toán số liệu.
+- **Cách khắc phục**: Áp dụng logic ưu tiên có thứ tự trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts):
+  1. Nếu có file `QLTKGDAmKQ.xlsx` → dùng **ТОЛЬКО** file này (M-System đã lọc sẵn)
+  2. Nếu chỉ có `QLTKGD.xlsx` → mới fallback sang file tổng (quét cột âm ký quỹ)
+  3. Các file CQG (`accounts_balances`, `balances`) vẫn được bổ sung song song
+  4. **Không bao giờ quét cả `QLTKGDAmKQ.xlsx` và `QLTKGD.xlsx` cùng lúc**
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Viết lại logic `marginFiles` với cơ chế ưu tiên có thứ tự.
+
+### Kết quả kiểm thử
+- ✅ `QLTKGDAmKQ.xlsx` (8.3 KB, 14 dòng) → Phát hiện chính xác **13 tài khoản** âm ký quỹ.
+- ✅ Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
+
+---
+
+## [2026-08-11] Enhancement: Kiểm soát nguồn dữ liệu tài khoản âm ký quỹ và cải tiến giao diện (ops_open_04_s4)
+
+### Mục tiêu thay đổi
+- **Bổ sung log chi tiết cho hàm `scanNegativeMarginAccounts`** để có thể kiểm tra và truy vết chính xác:
+  - File nào được đọc (đường dẫn đầy đủ, kích thước, thời gian sửa đổi gần nhất).
+  - Sheet nào được đọc trong file Excel (và danh sách tất cả sheet trong file).
+  - Cột nào được nhận diện là "Tài khoản" và "Ký quỹ" (số thứ tự cột + tên tiêu đề gốc).
+  - Tổng số dòng dữ liệu hợp lệ, số dòng bị bỏ qua (format lỗi/rỗng), số tài khoản dương và số tài khoản âm.
+  - Tổng kết số tài khoản âm ký quỹ tìm được sau khi phân tích xong.
+- **Hiển thị minh bạch nguồn file quét trên UI**:
+  - Cập nhật thông báo kết quả tác vụ (`checkResult.message`) hiển thị rõ danh sách các file được quét cùng số lượng tài khoản phát hiện được ở từng file (ví dụ: `QLTKGD.xlsx (phát hiện 207 TK), QLTKGDAmKQ.xlsx (phát hiện 13 TK)`).
+- **Hỗ trợ trích xuất chính xác file âm ký quỹ `QLTKGDAmKQ.xlsx`**:
+  - Bổ sung các từ khóa nhận dạng cột ký quỹ (`tkkq đầu ngày`, `bổ sung ký quỹ`, `mức bổ sung`) để khớp chính xác cột của file âm ký quỹ ròng đầu ngày do M-System kết xuất.
+
+### Danh sách file chỉnh sửa
+- [post-eod-handler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/post-eod-handler.service.ts) — Cập nhật nhận dạng cột ký quỹ và bổ sung log.
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Thay đổi kết quả thông báo quét để liệt kê chi tiết số liệu từ các file nguồn.
+
+### Xác nhận Build/Kiểm thử
+- ✅ Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
+
+---
+
+## [2026-08-11] Fix Bug: Đồng bộ trạng thái WAITING (Chờ file) khi các tác vụ quét file (FILE_AUDIT) bị thiếu báo cáo
+
+### Mục tiêu thay đổi
+- **Sửa lỗi tự động đánh giá ĐẠT (PASSED) mặc dù thiếu file**:
+  - Các tác vụ `FILE_AUDIT_CQG` (quét file CQG) và `FILE_AUDIT_ACM` (quét file ACM) khi chạy thành công (job status = `COMPLETED`) nhưng thực tế vẫn thiếu file (như `OP.xlsx`, `Od.xlsx`, `PS.xlsx` đối với CQG) thì checklist vẫn tự động chuyển sang trạng thái `PASSED` (`ĐẠT YÊU CẦU`) do job payload không trả về cờ `isWaitingFiles`.
+  - Bổ sung logic kiểm tra sự tồn tại của các file bắt buộc ở cuối luồng xử lý của 3 job quét file (`FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, và `FILE_AUDIT_ACM`).
+  - Ghi nhận cờ `isWaitingFiles` vào `job.payload.result.isWaitingFiles` để hệ thống cập nhật chính xác trạng thái tác vụ ca trực thành `WAITING` (`CHỜ FILE`), giúp phản ánh đúng thực tế vận hành.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Cập nhật payload lưu cờ `isWaitingFiles` ở cuối các method: `handleFileAuditMsJob`, `handleFileAuditCqgJob` và `handleFileAuditAcmJob`.
+
+### Tóm tắt nội dung code đã sửa
+- Ở `handleFileAuditMsJob`: Quét lại danh sách file MS sau khi tải, nếu còn file thiếu hoặc lỗi thì set `isWaitingFiles` thành `true`.
+- Ở `handleFileAuditCqgJob`: Quét lại danh sách file CQG, nếu thiếu bất kỳ file nào trong 4 file tổng hợp (`FR.xlsx`, `OP.xlsx`, `Od.xlsx`, `PS.xlsx`) thì set `isWaitingFiles` thành `true`.
+- Ở `handleFileAuditAcmJob`: Quét lại danh sách file ACM, nếu thiếu file Web (`Order.xlsx`, `Fill.xlsx`) thì set `isWaitingFiles` thành `true`.
+
+### Xác nhận Build/Kiểm thử
+- ✅ Backend NestJS biên dịch production thành công (`npx tsc --noEmit -p tsconfig.build.json`) không gặp bất kỳ lỗi biên dịch nào.
+
+---
+
 ## [2026-08-11] UI/UX: Sửa lỗi xê dịch thanh cuộn & lệch vị trí icon khi thu hẹp / collapsed Sidebar
 
 ### Mục tiêu thay đổi

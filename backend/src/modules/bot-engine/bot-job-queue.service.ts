@@ -1022,6 +1022,33 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         this.logger.error(`Error closing browser: ${err.message}`);
       });
     }
+
+    const finalScan = await this.scanMsBackupFiles(backupPath, targetDate);
+    const hasMissing = finalScan.some((r) => r.status !== 'OK');
+    const currentPayload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    job.payload = {
+      ...currentPayload,
+      result: {
+        isWaitingFiles: hasMissing,
+        scanResults: finalScan,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissing) {
+      const missingKeys = finalScan
+        .filter((r) => r.status !== 'OK')
+        .map((r) => `${r.key} (${r.filename})`)
+        .join(', ');
+      throw new Error(
+        `Kiểm tra file backup MS thất bại: Thiếu hoặc chưa cập nhật các file [${missingKeys}]`,
+      );
+    }
   }
 
   /**
@@ -1063,6 +1090,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         .join(' | ');
       throw new Error(
         `Ghép file CQG thất bại: ${errorDetails || 'Thiếu file nguồn CQG hoặc sai định dạng.'}`,
+      );
+    }
+
+    const finalScan = await this.cqgSyncService.scanCqgBackupFiles(targetDate);
+    const requiredConsolidated = ['FR', 'OP', 'Od', 'PS'];
+    const hasMissingConsolidated = finalScan.some(
+      (r) => requiredConsolidated.includes(r.key) && r.status !== 'OK',
+    );
+    job.payload = {
+      ...payload,
+      result: {
+        isWaitingFiles: hasMissingConsolidated,
+        audit: finalScan,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissingConsolidated) {
+      const missingKeys = finalScan
+        .filter((r) => requiredConsolidated.includes(r.key) && r.status !== 'OK')
+        .map((r) => r.key)
+        .join(', ');
+      throw new Error(
+        `Kiểm tra & ghép file CQG thất bại: Chưa có đủ các file gộp bắt buộc [${missingKeys}]`,
       );
     }
   }
@@ -1954,6 +2007,33 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           throw err;
         }
       }
+    }
+
+    const finalScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+    const hasMissingFiles = finalScan.some((r) => r.status !== 'OK');
+    const currentPayload =
+      job.payload instanceof Map
+        ? Object.fromEntries(job.payload)
+        : job.payload || {};
+    job.payload = {
+      ...currentPayload,
+      result: {
+        isWaitingFiles: hasMissingFiles,
+        scanResults: finalScan,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissingFiles) {
+      const missingKeys = finalScan
+        .filter((r) => r.status !== 'OK')
+        .map((r) => `${r.key} (${r.filename})`)
+        .join(', ');
+      throw new Error(
+        `Kiểm tra file backup ACM thất bại: Thiếu hoặc chưa cập nhật các file [${missingKeys}]`,
+      );
     }
   }
 

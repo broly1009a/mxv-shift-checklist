@@ -809,7 +809,7 @@
         "priority": "CRITICAL",
         "sortOrder": 21,
         "isBotCheck": true,
-        "botCheckType": "CHECK_PRE_EOD",
+        "botCheckType": "SCAN_NEGATIVE_MARGIN",
         "botTriggerTime": "",
         "botCheckTarget": "",
         "botSuccessCondition": "",

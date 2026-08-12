@@ -450,6 +450,7 @@ export class ShiftsService {
         'details.$[elem].status': status,
         'details.$[elem].isChecked': childrenIsChecked,
         'details.$[elem].updatedBy': new Types.ObjectId(user.id || user._id) as any,
+        'details.$[elem].updatedAt': nowTime,
       };
 
       if (status === 'PENDING') {
@@ -523,6 +524,7 @@ export class ShiftsService {
         'details.$.isChecked': isChecked,
         'details.$.checkedAt': isChecked ? now : null,
         'details.$.updatedBy': new Types.ObjectId(user.id || user._id) as any,
+        'details.$.updatedAt': now,
       },
     };
 

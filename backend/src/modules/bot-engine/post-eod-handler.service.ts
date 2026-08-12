@@ -20,23 +20,35 @@ export class PostEodHandlerService {
     filePath: string,
   ): Promise<NegativeMarginAccount[]> {
     if (!fs.existsSync(filePath)) {
-      this.logger.error(`EOD file does not exist at: ${filePath}`);
+      this.logger.error(`[NegativeMargin] File không tồn tại: ${filePath}`);
       return [];
     }
 
+    const stat = fs.statSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
+    this.logger.log(
+      `[NegativeMargin] Bắt đầu phân tích file:\n` +
+      `  - Đường dẫn  : ${filePath}\n` +
+      `  - Loại file  : ${ext}\n` +
+      `  - Kích thước : ${(stat.size / 1024).toFixed(1)} KB\n` +
+      `  - Sửa lần cuối: ${stat.mtime.toISOString()}`,
+    );
+
     try {
+      let results: NegativeMarginAccount[];
       if (ext === '.xlsx' || ext === '.xls') {
-        return this.parseXlsx(filePath);
-      } else if (ext === '.csv') {
-        return await this.parseCsv(filePath);
+        results = this.parseXlsx(filePath);
       } else {
-        // Try fallback to text/csv
-        return await this.parseCsv(filePath);
+        results = await this.parseCsv(filePath);
       }
+      this.logger.log(
+        `[NegativeMargin] Kết quả phân tích "${path.basename(filePath)}": ` +
+        `Phát hiện ${results.length} tài khoản âm ký quỹ.`,
+      );
+      return results;
     } catch (err: any) {
       this.logger.error(
-        `Failed to parse EOD file for negative margin check: ${err.message}`,
+        `[NegativeMargin] Lỗi khi đọc file "${path.basename(filePath)}": ${err.message}`,
         err.stack,
       );
       return [];
@@ -49,11 +61,19 @@ export class PostEodHandlerService {
   private parseXlsx(filePath: string): NegativeMarginAccount[] {
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
+    this.logger.log(
+      `[NegativeMargin][Excel] Sheet được đọc: "${sheetName}" ` +
+      `(Tổng ${workbook.SheetNames.length} sheet: ${workbook.SheetNames.join(', ')})`,
+    );
+
     const sheet = workbook.Sheets[sheetName];
     const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    this.logger.log(
+      `[NegativeMargin][Excel] Tổng số dòng đọc được từ sheet: ${data.length}`,
+    );
 
     if (data.length < 2) {
-      this.logger.warn(`Excel file is empty or has too few rows: ${filePath}`);
+      this.logger.warn(`[NegativeMargin][Excel] File quá ít dòng (< 2): ${filePath}`);
       return [];
     }
 
@@ -88,23 +108,27 @@ export class PostEodHandlerService {
           cell.includes('margin balance') ||
           cell.includes('available margin') ||
           cell.includes('kq đn') ||
-          cell.includes('kq kd'),
+          cell.includes('kq kd') ||
+          cell.includes('tkkq đầu ngày') ||
+          cell.includes('bổ sung ký quỹ') ||
+          cell.includes('mức bổ sung'),
       );
 
       if (actIdx !== -1 && mgnIdx !== -1) {
         accountColIdx = actIdx;
         marginColIdx = mgnIdx;
         this.logger.log(
-          `Found headers at row ${r}: Account col = ${actIdx}, Margin col = ${mgnIdx}`,
+          `[NegativeMargin][Excel] ✅ Tìm thấy header tại dòng ${r + 1}:\n` +
+          `  - Cột tài khoản: cột số ${actIdx} ("${row[actIdx]}")\n` +
+          `  - Cột ký quỹ  : cột số ${mgnIdx} ("${row[mgnIdx]}")`,
         );
-        // Now parse data starting from row r + 1
         return this.extractFromRows(data, r + 1, accountColIdx, marginColIdx);
       }
     }
 
     // Default fallbacks if headers are not found
     this.logger.warn(
-      `Could not find exact headers in Excel. Using fallback columns: Account = 0, Margin = 1`,
+      `[NegativeMargin][Excel] ⚠️ Không tìm thấy header phù hợp. Dùng fallback: cột 0 = Tài khoản, cột 1 = Ký quỹ.`,
     );
     return this.extractFromRows(data, 1, 0, 1);
   }
@@ -116,6 +140,9 @@ export class PostEodHandlerService {
     mgnIdx: number,
   ): NegativeMarginAccount[] {
     const list: NegativeMarginAccount[] = [];
+    let totalDataRows = 0;
+    let skippedRows = 0;
+
     for (let i = startRow; i < data.length; i++) {
       const row = data[i];
       if (!row) continue;
@@ -126,13 +153,28 @@ export class PostEodHandlerService {
         .trim();
       const mgnVal = parseFloat(mgnValStr);
 
-      if (actVal && !isNaN(mgnVal) && mgnVal < 0) {
+      if (!actVal || isNaN(mgnVal)) {
+        skippedRows++;
+        continue;
+      }
+
+      totalDataRows++;
+      if (mgnVal < 0) {
         list.push({
           account: actVal,
           margin: mgnVal,
         });
       }
     }
+
+    this.logger.log(
+      `[NegativeMargin][Extract] Thống kê:\n` +
+      `  - Tổng dòng dữ liệu hợp lệ: ${totalDataRows}\n` +
+      `  - Dòng bị bỏ qua (rỗng/lỗi format): ${skippedRows}\n` +
+      `  - Tài khoản có ký quỹ dương/bằng 0: ${totalDataRows - list.length}\n` +
+      `  - Tài khoản có ký quỹ ÂM (cần cảnh báo): ${list.length}`,
+    );
+
     return list;
   }
 
@@ -186,7 +228,10 @@ export class PostEodHandlerService {
             cell.includes('margin balance') ||
             cell.includes('available margin') ||
             cell.includes('kq đn') ||
-            cell.includes('kq kd'),
+            cell.includes('kq kd') ||
+            cell.includes('tkkq đầu ngày') ||
+            cell.includes('bổ sung ký quỹ') ||
+            cell.includes('mức bổ sung'),
         );
 
         if (tempActIdx !== -1 && tempMgnIdx !== -1) {
@@ -194,7 +239,9 @@ export class PostEodHandlerService {
           mgnIdx = tempMgnIdx;
           headersFound = true;
           this.logger.log(
-            `CSV Headers found at line ${lineNum}: Account col = ${actIdx}, Margin col = ${mgnIdx}`,
+            `[NegativeMargin][CSV] ✅ Tìm thấy header tại dòng ${lineNum}:\n` +
+            `  - Cột tài khoản: cột số ${actIdx} ("${cols[actIdx]}")\n` +
+            `  - Cột ký quỹ  : cột số ${mgnIdx} ("${cols[mgnIdx]}")`,
           );
           continue;
         }

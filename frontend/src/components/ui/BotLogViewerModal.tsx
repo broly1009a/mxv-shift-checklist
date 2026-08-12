@@ -67,11 +67,17 @@ export default function BotLogViewerModal({
       const isWaiting = j.payload?.result?.isWaitingFiles;
       const statusStr = isWaiting
         ? 'Chờ file'
-        : j.status === 'COMPLETED'
-        ? 'Khớp'
-        : j.status === 'PROCESSING'
-        ? 'Đang chạy'
-        : 'Lệch/Lỗi';
+        : j.status === 'PENDING'
+          ? 'Chờ xử lý'
+          : j.status === 'PROCESSING'
+            ? 'Đang chạy'
+            : j.status === 'AWAITING_CAPTCHA'
+              ? 'Chờ gõ Captcha'
+              : j.status === 'COMPLETED'
+                ? 'Thành công'
+                : j.status === 'FAILED'
+                  ? 'Thất bại'
+                  : 'Không xác định';
       return {
         value: j._id || j.id,
         label: `Lượt #${historyJobs.length - index} (${timeStr}) - ${statusStr}`
@@ -244,8 +250,8 @@ export default function BotLogViewerModal({
     if (jsonType === 'EOD') {
       let marginAccountsList: MarginAccount[] = jsonResult?.marginAccounts || [];
       if (marginAccountsList.length === 0 && (text.includes('âm ký quỹ') || text.includes('tài khoản âm'))) {
-        const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i) || 
-                      text.match(/(?:tài khoản âm):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i);
+        const match = text.match(/(?:âm ký quỹ(?: đầu ngày)?):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i) ||
+          text.match(/(?:tài khoản âm):\s*([\s\S]+?)(?:\.\s*Đã gửi|\n|$)/i);
         if (match) {
           const accountsStr = match[1].trim();
           accountsStr.split(',').forEach((token: string) => {
@@ -679,7 +685,7 @@ export default function BotLogViewerModal({
     let emailScanResult: any = null;
     if (jsonType === 'EMAIL_SCAN') {
       const isFound = text.includes('Đã tìm thấy email khớp') || text.includes('Tìm thấy email');
-      
+
       const timeMatch = text.match(/Quét tự động lúc\s*([0-9-:\s]+)/i) || text.match(/\[([0-9-T:\.Z]+)\]/i);
       const scannedAt = timeMatch ? timeMatch[1].trim() : '';
 
@@ -855,20 +861,20 @@ export default function BotLogViewerModal({
                 {category === 'FILE_AUDIT' && 'Kiểm Tra Tồn Tại File Báo Cáo'}
                 {category === 'RECONCILIATION' && (
                   parsedData.jsonType === 'PRE_EOD' ? 'Đối Chiếu Trước EOD Tự Động' :
-                  parsedData.jsonType === 'CQG' ? 'Đối Chiếu Số Dư CQG Tự Động' :
-                  parsedData.jsonType === 'EOD' ? 'Đối Chiếu Số Dư EOD (Lọc TK ÂM KÝ QUỸ)' :
-                  'Đối Chiếu Khớp Lệnh & Trạng Thái Mở'
+                    parsedData.jsonType === 'CQG' ? 'Đối Chiếu Số Dư CQG Tự Động' :
+                      parsedData.jsonType === 'EOD' ? 'Đối Chiếu Số Dư EOD (Lọc TK ÂM KÝ QUỸ)' :
+                        'Đối Chiếu Khớp Lệnh & Trạng Thái Mở'
                 )}
               </h3>
 
               {activeStatus === 'PROCESSING' ? (
-                <span style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '3px 10px', 
-                  borderRadius: '20px', 
-                  fontWeight: 700, 
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)', 
-                  color: '#60a5fa', 
+                <span style={{
+                  fontSize: '0.68rem',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  color: '#60a5fa',
                   border: '1px solid rgba(59, 130, 246, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -877,13 +883,13 @@ export default function BotLogViewerModal({
                   <Clock size={12} /> ĐANG XỬ LÝ
                 </span>
               ) : activeStatus === 'PENDING' ? (
-                <span style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '3px 10px', 
-                  borderRadius: '20px', 
-                  fontWeight: 700, 
-                  backgroundColor: 'rgba(156, 163, 175, 0.15)', 
-                  color: '#9ca3af', 
+                <span style={{
+                  fontSize: '0.68rem',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                  color: '#9ca3af',
                   border: '1px solid rgba(156, 163, 175, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -891,14 +897,29 @@ export default function BotLogViewerModal({
                 }}>
                   <Clock size={12} /> ĐANG XẾP HÀNG (CHỜ CHẠY)
                 </span>
+              ) : activeStatus === 'AWAITING_CAPTCHA' ? (
+                <span style={{
+                  fontSize: '0.68rem',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  color: '#f59e0b',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Clock size={12} /> CHỜ NHẬP CAPTCHA
+                </span>
               ) : activeStatus === 'WAITING' || parsedData.jsonResult?.isWaitingFiles ? (
-                <span style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '3px 10px', 
-                  borderRadius: '20px', 
-                  fontWeight: 700, 
-                  backgroundColor: 'rgba(251, 191, 36, 0.15)', 
-                  color: '#fbbf24', 
+                <span style={{
+                  fontSize: '0.68rem',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                  color: '#fbbf24',
                   border: '1px solid rgba(251, 191, 36, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',

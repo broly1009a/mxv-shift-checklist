@@ -549,12 +549,8 @@ export class BotEngineService {
                 message: `[Bot quét tự động]: Lỗi quét thư mục quyết định ký quỹ: ${err.message}`,
               };
             }
-          } else if (
-            checkType === 'CHECK_KLGD' ||
-            checkType === 'CHECK_PRE_EOD'
-          ) {
-            if (task.taskId === 'ops_open_04_s4') {
-              const msBackupBase = await this.settingsService.getSetting(
+          } else if (checkType === 'SCAN_NEGATIVE_MARGIN') {
+            const msBackupBase = await this.settingsService.getSetting(
                 'bot_backup_path_ms',
                 'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
               );
@@ -577,33 +573,57 @@ export class BotEngineService {
                 };
               } else {
                 const files = fs.readdirSync(dailyPath);
-                const marginFiles = files.filter(
+                // Ưu tiên file âm ký quỹ chuyên biệt do M-System lọc sẵn (QLTKGDAmKQ.xlsx).
+                // Chỉ fallback sang file tổng QLTKGD.xlsx nếu không tìm thấy file âm ký quỹ.
+                // → Tránh dôi số liệu do quét 49.000+ tài khoản từ file tổng.
+                const allFiles = files.filter(
                   (f) =>
-                    (f.toLowerCase().includes('qltkgd') ||
-                      f.toLowerCase().includes('accounts_balances') ||
-                      f.toLowerCase().includes('balances')) &&
-                    (f.toLowerCase().endsWith('.xlsx') ||
-                      f.toLowerCase().endsWith('.xls') ||
-                      f.toLowerCase().endsWith('.csv')),
+                    f.toLowerCase().endsWith('.xlsx') ||
+                    f.toLowerCase().endsWith('.xls') ||
+                    f.toLowerCase().endsWith('.csv'),
                 );
+
+                const amkqFiles = allFiles.filter((f) =>
+                  f.toLowerCase().includes('qltkgdamkq'),
+                );
+                const qltkgdFiles = amkqFiles.length === 0
+                  ? allFiles.filter(
+                      (f) =>
+                        f.toLowerCase().includes('qltkgd') &&
+                        !f.toLowerCase().includes('qltkgdamkq'),
+                    )
+                  : [];
+                const cqgFiles = allFiles.filter(
+                  (f) =>
+                    f.toLowerCase().includes('accounts_balances') ||
+                    f.toLowerCase().includes('balances'),
+                );
+
+                const marginFiles = [
+                  ...amkqFiles,
+                  ...qltkgdFiles,
+                  ...cqgFiles,
+                ];
 
                 if (marginFiles.length === 0) {
                   checkResult = {
                     success: false,
                     message:
-                      'Đang chờ file báo cáo QLTKGD.xlsx được tải xuống...',
+                      'Đang chờ file báo cáo QLTKGDAmKQ.xlsx (hoặc QLTKGD.xlsx) được tải xuống...',
                   };
                 } else {
                   this.logger.log(
                     `[Negative Margin Check] Quét file ${marginFiles.join(', ')} tại ${dailyPath} để tìm tài khoản âm ký quỹ...`,
                   );
                   let allNegativeAccounts: any[] = [];
+                  const fileDetails: string[] = [];
                   for (const file of marginFiles) {
                     const filePath = path.join(dailyPath, file);
                     const negatives =
                       await this.postEodHandlerService.scanNegativeMarginAccounts(
                         filePath,
                       );
+                    fileDetails.push(`${file} (phát hiện ${negatives.length} TK)`);
                     allNegativeAccounts = [
                       ...allNegativeAccounts,
                       ...negatives,
@@ -611,22 +631,26 @@ export class BotEngineService {
                   }
 
                   if (allNegativeAccounts.length > 0) {
-                    const accNames = allNegativeAccounts
-                      .map((a) => a.maTKGD || a.account)
-                      .join(', ');
+                    const uniqueAccs = Array.from(
+                      new Set(allNegativeAccounts.map((a) => a.maTKGD || a.account))
+                    );
+                    const accNames = uniqueAccs.join(', ');
                     checkResult = {
                       success: true,
-                      message: `⚠️ Phát hiện ${allNegativeAccounts.length} tài khoản âm ký quỹ: ${accNames}`,
+                      message: `⚠️ Phát hiện ${uniqueAccs.length} tài khoản âm ký quỹ (Đối chiếu từ các file: ${fileDetails.join(', ')}):\n${accNames}`,
                     };
                   } else {
                     checkResult = {
                       success: true,
-                      message: `[Quét tự động]: Thành công. Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`,
+                      message: `[Quét tự động]: Thành công (Đã đối chiếu các file: ${fileDetails.join(', ')}). Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`,
                     };
                   }
                 }
               }
-            } else {
+          } else if (
+            checkType === 'CHECK_KLGD' ||
+            checkType === 'CHECK_PRE_EOD'
+          ) {
               const existingJob = await this.botJobQueueService.getJobForTask(
                 task.taskId,
                 log._id.toString(),
@@ -678,7 +702,6 @@ export class BotEngineService {
                   checkResult = { success: false, message: logsSummary };
                 }
               }
-            }
           } else if (checkType === 'FILE_AUDIT_ACM') {
             const existingJob = await this.botJobQueueService.getJobForTask(
               task.taskId,
@@ -699,8 +722,18 @@ export class BotEngineService {
             } else {
               if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
+                const jobResult = jobPayload.result || {};
                 const logsSummary = existingJob.logs.join('\n');
-                checkResult = { success: true, message: logsSummary };
+                if (jobResult.isWaitingFiles) {
+                  checkResult = {
+                    success: false,
+                    message: jobResult.message || `Đang chờ file backup ACM...\n${logsSummary}`,
+                  };
+                } else {
+                  checkResult = { success: true, message: logsSummary };
+                }
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = {
@@ -736,8 +769,18 @@ export class BotEngineService {
             } else {
               if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
+                const jobResult = jobPayload.result || {};
                 const logsSummary = existingJob.logs.join('\n');
-                checkResult = { success: true, message: logsSummary };
+                if (jobResult.isWaitingFiles) {
+                  checkResult = {
+                    success: false,
+                    message: jobResult.message || `Đang chờ file backup MS...\n${logsSummary}`,
+                  };
+                } else {
+                  checkResult = { success: true, message: logsSummary };
+                }
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = {
@@ -773,8 +816,18 @@ export class BotEngineService {
             } else {
               if (!existingJob) continue;
               if (existingJob.status === 'COMPLETED') {
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
+                const jobResult = jobPayload.result || {};
                 const logsSummary = existingJob.logs.join('\n');
-                checkResult = { success: true, message: logsSummary };
+                if (jobResult.isWaitingFiles) {
+                  checkResult = {
+                    success: false,
+                    message: jobResult.message || `Đang chờ file backup CQG...\n${logsSummary}`,
+                  };
+                } else {
+                  checkResult = { success: true, message: logsSummary };
+                }
               } else if (existingJob.status === 'FAILED') {
                 const logsSummary = existingJob.logs.join('\n');
                 checkResult = {
@@ -1537,15 +1590,20 @@ export class BotEngineService {
             ? task.frequencyMinutesSnapshot
             : 15;
 
-        // Bypass cooldown if the task was updated/started after the last job was created/updated
+        // Bypass cooldown if the task was updated/started after the last job was created/updated.
+        // This covers both:
+        //   - task.startedAt: set when task is first started by the bot
+        //   - task.updatedAt: set when user manually resets task to WAITING/PENDING
         const taskStartedAt = task.startedAt ? new Date(task.startedAt).getTime() : 0;
+        const taskUpdatedAt = task.updatedAt ? new Date(task.updatedAt).getTime() : 0;
+        const taskResetTime = Math.max(taskStartedAt, taskUpdatedAt);
         const lastJobTime = existingJob.updatedAt 
           ? new Date(existingJob.updatedAt).getTime() 
           : new Date(existingJob.createdAt).getTime();
 
-        if (taskStartedAt > lastJobTime) {
+        if (taskResetTime > lastJobTime) {
           this.logger.debug(
-            `[Bot] Task [${task.taskId}] started time (${new Date(taskStartedAt).toISOString()}) is newer than last job time (${new Date(lastJobTime).toISOString()}). Bypassing cooldown and enqueuing job immediately.`,
+            `[Bot] Task [${task.taskId}] reset/started at (${new Date(taskResetTime).toISOString()}) is newer than last job (${new Date(lastJobTime).toISOString()}). Bypassing cooldown and enqueuing job immediately.`,
           );
           return true;
         }
