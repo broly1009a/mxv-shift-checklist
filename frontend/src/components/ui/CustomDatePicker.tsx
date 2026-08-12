@@ -10,6 +10,7 @@ interface CustomDatePickerProps {
   flex?: number | string;
   minWidth?: string;
   fontSize?: string;
+  disabled?: boolean;
 }
 
 export default function CustomDatePicker({
@@ -18,11 +19,14 @@ export default function CustomDatePicker({
   onChange,
   flex = 1,
   minWidth = '170px',
-  fontSize = '0.85rem'
+  fontSize = '0.85rem',
+  disabled = false
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 280 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   // Parse ngày hiện tại khi có giá trị truyền vào
   useEffect(() => {
@@ -37,7 +41,10 @@ export default function CustomDatePicker({
   // Click outside to close calendar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current && containerRef.current.contains(target);
+      const inPopup = popupRef.current && popupRef.current.contains(target);
+      if (!inContainer && !inPopup) {
         setIsOpen(false);
       }
     };
@@ -166,7 +173,19 @@ export default function CustomDatePicker({
           type="text"
           value={getFormattedDisplay()}
           placeholder="Chọn ngày..."
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!disabled) {
+              if (!isOpen && containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setPopupPos({
+                  top: rect.bottom + window.scrollY + 6,
+                  left: rect.left + window.scrollX,
+                  width: Math.max(rect.width, 280)
+                });
+              }
+              setIsOpen(!isOpen);
+            }
+          }}
           className="form-input"
           style={{ 
             width: '100%', 
@@ -179,7 +198,9 @@ export default function CustomDatePicker({
             borderRadius: '8px',
             caretColor: 'transparent',
             fontSize: fontSize,
-            color: 'var(--text-primary)',
+            color: disabled ? 'var(--text-muted)' : 'var(--text-primary)',
+            opacity: disabled ? 0.6 : 1,
+            cursor: disabled ? 'not-allowed' : 'pointer',
             outline: 'none'
           }}
           readOnly
@@ -210,17 +231,19 @@ export default function CustomDatePicker({
         )}
       </div>
 
-      {/* Bảng lịch tự viết (Custom Calendar Popup) */}
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 6px)',
-          left: 0,
+      {/* Bảng lịch tự viết (Custom Calendar Popup) — fixed positioning to escape stacking context */}
+      {isOpen && typeof window !== 'undefined' && (
+        <div
+          ref={popupRef}
+          style={{
+          position: 'fixed',
+          top: popupPos.top,
+          left: popupPos.left,
           background: 'var(--bg-sidebar)',
           border: '1px solid var(--border-color)',
           borderRadius: '12px',
           boxShadow: 'var(--shadow-lg)',
-          zIndex: 90,
+          zIndex: 9999,
           padding: '16px',
           width: '280px',
           backdropFilter: 'blur(20px)',

@@ -32,11 +32,16 @@ export default function CustomSelect({
   fontSize = '0.85rem'
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 160 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current && containerRef.current.contains(target);
+      const inPopup = popupRef.current && popupRef.current.contains(target);
+      if (!inContainer && !inPopup) {
         setIsOpen(false);
       }
     };
@@ -59,7 +64,17 @@ export default function CustomSelect({
         <input
           type="text"
           value={selectedOption ? selectedOption.label : ''}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!isOpen && containerRef.current) {
+              const rect = containerRef.current.getBoundingClientRect();
+              setPopupPos({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width
+              });
+            }
+            setIsOpen(!isOpen);
+          }}
           className="form-input"
           style={{ 
             width: '100%', 
@@ -119,22 +134,24 @@ export default function CustomSelect({
         )}
       </div>
 
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 4px)',
-          left: 0,
-          right: 0,
-          background: 'var(--bg-sidebar)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          boxShadow: 'var(--shadow-lg)',
-          zIndex: 50,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          maxHeight: '260px',
-          overflowY: 'auto'
-        }}>
+      {isOpen && typeof window !== 'undefined' && (
+        <div
+          ref={popupRef}
+          style={{
+            position: 'fixed',
+            top: popupPos.top,
+            left: popupPos.left,
+            width: popupPos.width,
+            background: 'var(--bg-sidebar)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 9999,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            maxHeight: '260px',
+            overflowY: 'auto'
+          }}>
           {options.map(opt => (
             <div
               key={opt.value}

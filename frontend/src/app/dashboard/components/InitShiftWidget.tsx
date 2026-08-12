@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Play, ListChecks, GripVertical } from 'lucide-react';
 import { Template } from '../types';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface InitShiftWidgetProps {
   templates: Template[];
@@ -17,6 +18,25 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
   handleInitializeShift,
   isInitializing,
 }) => {
+  const activeTemplates = useMemo(() => {
+    return templates.filter((tpl) => tpl.isActive !== false);
+  }, [templates]);
+
+  const templateOptions = useMemo(() => {
+    return activeTemplates.map((tpl) => {
+      const sessionText =
+        tpl.sessionType === 'OPEN'
+          ? 'Mở'
+          : tpl.sessionType === 'DURING'
+          ? 'Trong'
+          : 'Đóng';
+      return {
+        value: tpl._id,
+        label: `[${sessionText}] ${tpl.title}`,
+      };
+    });
+  }, [activeTemplates]);
+
   return (
     <div className="glass-panel animate-fade-in" style={{ padding: '24px', position: 'relative' }}>
       <div style={{ position: 'absolute', top: '24px', right: '24px', color: 'var(--text-muted)', cursor: 'grab' }} title="Kéo thả để sắp xếp">
@@ -27,23 +47,17 @@ export const InitShiftWidget: React.FC<InitShiftWidgetProps> = ({
       </h3>
 
       <form onSubmit={handleInitializeShift} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <div>
-          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-            Chọn mẫu checklist vận hành
-          </label>
-          <select
-            className="form-input"
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-          >
-            <option value="">-- Chọn mẫu checklist --</option>
-            {templates.map((tpl) => (
-              <option key={tpl._id} value={tpl._id}>
-                [{tpl.sessionType === 'OPEN' ? 'Mở' : tpl.sessionType === 'DURING' ? 'Trong' : 'Đóng'}] {tpl.title}
-              </option>
-            ))}
-          </select>
+        <div style={{ width: '100%' }}>
+          <CustomSelect
+            label="Chọn mẫu checklist vận hành"
+            options={templateOptions}
+            selectedValue={selectedTemplate}
+            onChange={setSelectedTemplate}
+            clearable={false}
+            flex="none"
+            minWidth="0"
+            fontSize="0.85rem"
+          />
         </div>
 
         {/* Template Preview Card */}

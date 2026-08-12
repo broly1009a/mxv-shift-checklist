@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Activity, GripVertical } from 'lucide-react';
+import CustomDatePicker from '@/components/ui/CustomDatePicker';
 
 interface AutoShiftWidgetProps {
   jobDate: string;
@@ -24,19 +25,14 @@ export const AutoShiftWidget: React.FC<AutoShiftWidgetProps> = ({
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div>
-          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-            Chọn ngày cần chạy job
-          </label>
-          <input
-            type="date"
-            className="form-input"
-            value={jobDate}
-            onChange={(e) => setJobDate(e.target.value)}
-            style={{ background: 'var(--bg-app)', cursor: 'pointer', height: '38px', padding: '0 12px', fontSize: '0.85rem' }}
-            disabled={jobRunning}
-          />
-        </div>
+        <CustomDatePicker
+          label="Chọn ngày cần chạy job"
+          value={jobDate}
+          onChange={setJobDate}
+          minWidth="100%"
+          fontSize="0.85rem"
+          disabled={jobRunning}
+        />
 
         <button
           type="button"
