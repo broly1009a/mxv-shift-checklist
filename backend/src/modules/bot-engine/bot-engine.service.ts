@@ -843,6 +843,54 @@ export class BotEngineService {
                 checkResult = { success: false, message: logsSummary };
               }
             }
+          } else if (checkType === 'DOWNLOAD_CQG_BACKUP') {
+            const existingJob = await this.botJobQueueService.getJobForTask(
+              task.taskId,
+              log._id.toString(),
+            );
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
+
+            if (shouldEnqueueNewJob) {
+              await this.botJobQueueService.enqueue('DOWNLOAD_CQG_BACKUP', {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+                targetDate: log.shiftDate,
+              });
+              checkResult = {
+                success: false,
+                message: 'Đang khởi chạy tải & ghép file CQG từ web...',
+              };
+            } else {
+              if (!existingJob) continue;
+              if (existingJob.status === 'COMPLETED') {
+                const jobObj = existingJob.toObject();
+                const jobPayload = jobObj.payload || {};
+                const jobResult = jobPayload.result || {};
+                const logsSummary = existingJob.logs.join('\n');
+                if (jobResult.isWaitingFiles) {
+                  checkResult = {
+                    success: false,
+                    message: jobResult.message || `Đang chờ file CQG...\n${logsSummary}`,
+                  };
+                } else {
+                  checkResult = { success: true, message: logsSummary };
+                }
+              } else if (existingJob.status === 'FAILED') {
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = {
+                  success: false,
+                  message: `Tải & ghép file CQG thất bại:\n${logsSummary}`,
+                };
+                (checkResult as any).forceFailed = true;
+              } else {
+                const logsSummary =
+                  existingJob.logs.length > 0
+                    ? existingJob.logs.join('\n')
+                    : 'Đang thực hiện tải & ghép file CQG từ web...';
+                checkResult = { success: false, message: logsSummary };
+              }
+            }
           } else if (checkType === 'RUN_MACRO') {
             const existingJob = await this.botJobQueueService.getJobForTask(
               task.taskId,

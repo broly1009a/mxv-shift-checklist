@@ -112,9 +112,8 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
-        doc.name = dept.name;
-        doc.monitoredExchanges = dept.monitoredExchanges;
-        await doc.save();
+        // ✅ Không ghi đè name/monitoredExchanges để bảo toàn cấu hình từ UI.
+        this.logger.debug(`Department already exists, skipping update: ${dept.code}`);
       }
       mapping[dept.code] = doc._id.toString();
     }
@@ -148,16 +147,11 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedUsers(
     depts: Record<string, string>,
   ) {
-    const passwordHashAdmin = await bcrypt.hash('Admin@MXV123', 10);
-    const passwordHashStaff = await bcrypt.hash('Staff@MXV123', 10);
-    const passwordHashLeader = await bcrypt.hash('Lead@MXV123', 10);
-    const passwordHashCeo = await bcrypt.hash('Ceo@MXV123', 10);
-    const passwordHashChairman = await bcrypt.hash('Chairman@MXV123', 10);
-
+    // Chỉ hash password khi cần tạo user mới — lazy approach per user
     const users = [
       {
         username: 'admin',
-        passwordHash: passwordHashAdmin,
+        password: 'Admin@MXV123',
         fullName: 'System Administrator',
         title: 'Quản trị viên hệ thống',
         departmentId: null,
@@ -166,7 +160,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'chairman',
-        passwordHash: passwordHashChairman,
+        password: 'Chairman@MXV123',
         fullName: 'Chủ tịch Hội đồng',
         title: 'Chủ tịch Hội đồng',
         departmentId: null,
@@ -175,7 +169,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'ceo',
-        passwordHash: passwordHashCeo,
+        password: 'Ceo@MXV123',
         fullName: 'Tổng Giám đốc',
         title: 'Tổng Giám đốc',
         departmentId: null,
@@ -184,7 +178,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'lead_it_ops',
-        passwordHash: passwordHashLeader,
+        password: 'Lead@MXV123',
         fullName: 'Trưởng bộ phận Vận hành',
         title: 'Trưởng bộ phận Vận hành',
         departmentId: depts['IT_CORE'],
@@ -193,7 +187,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'sonhh',
-        passwordHash: passwordHashStaff,
+        password: 'Staff@MXV123',
         fullName: 'Hồ Huy Sơn',
         title: 'Chuyên viên Vận hành',
         departmentId: depts['IT_CORE'],
@@ -202,7 +196,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'ops_staff',
-        passwordHash: passwordHashStaff,
+        password: 'Staff@MXV123',
         fullName: 'Nhân viên Giao nhận',
         title: 'Chuyên viên Giám sát Giao dịch',
         departmentId: depts['QLGD_OPS'],
@@ -211,7 +205,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'surv_staff',
-        passwordHash: passwordHashStaff,
+        password: 'Staff@MXV123',
         fullName: 'Nhân viên Giám sát',
         title: 'Chuyên viên Giám sát Rủi ro',
         departmentId: depts['QLRR_RISK'],
@@ -225,16 +219,22 @@ export class SeedService implements OnApplicationBootstrap {
         .findOne({ username: user.username })
         .exec();
       if (!existing) {
-        const doc = new this.userModel(user);
+        // Chỉ hash khi thực sự cần tạo mới
+        const passwordHash = await bcrypt.hash(user.password, 10);
+        const doc = new this.userModel({
+          username: user.username,
+          passwordHash,
+          fullName: user.fullName,
+          title: user.title,
+          departmentId: user.departmentId,
+          role: user.role,
+          isActive: user.isActive,
+        });
         await doc.save();
         this.logger.log(`Seeded user: ${user.username}`);
       } else {
-        existing.isActive = true;
-        existing.role = user.role;
-        existing.fullName = user.fullName;
-        existing.departmentId = user.departmentId as any;
-        existing.title = user.title;
-        await existing.save();
+        // ✅ Không ghi đè isActive/role/password để bảo toàn cấu hình admin đã thiết lập.
+        this.logger.debug(`User already exists, skipping update: ${user.username}`);
       }
     }
   }
@@ -476,21 +476,9 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
-        const hasSubTasks =
-          existing.tasks && existing.tasks.some((t: any) => t.parentTaskId);
-        const updateData: any = {
-          title: tpl.title,
-          departmentId: new Types.ObjectId(deptId),
-          shiftSlotId: slotId,
-          isActive: true,
-        };
-        if (!hasSubTasks) {
-          updateData.tasks = tpl.tasks;
-        }
-        await this.templateModel
-          .updateOne({ _id: existing._id }, { $set: updateData })
-          .exec();
-        this.logger.log(`Updated checklist template: ${tpl.title}`);
+        // ✅ Không tự động ghi đè template đã tồn tại để tránh reset cấu hình người dùng.
+        // Chỉ log để theo dõi — mọi thay đổi template phải qua giao diện quản trị.
+        this.logger.debug(`Template already exists, skipping update: ${tpl.title}`);
       }
     }
   }

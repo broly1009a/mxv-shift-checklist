@@ -1515,6 +1515,7 @@ export default function AdminTemplatesPage() {
                                   <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
                                   <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
                                   <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
+                                  <option value="DOWNLOAD_CQG_BACKUP">RPA Tải + Ghép file CQG (DOWNLOAD_CQG_BACKUP)</option>
                                   <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
                                   <option value="RUN_LOT_MACRO">Thống kê số lốt giao dịch (RUN_LOT_MACRO)</option>
                                   <option value="RUN_VALUE_MACRO">Thống kê giá trị giao dịch (RUN_VALUE_MACRO)</option>
