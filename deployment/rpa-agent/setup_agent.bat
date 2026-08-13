@@ -23,18 +23,17 @@ if not exist "%~dp0venv" (
     python -m venv "%~dp0venv"
 )
 
-:: == 3. Activate venv and install deps ==
-echo [INFO] Cai dat dependencies...
-call "%~dp0venv\Scripts\activate.bat"
-pip install --quiet --upgrade pip
-pip install --quiet -r "%~dp0requirements.txt"
+:: == 3. Install dependencies inside venv ==
+echo [INFO] Cai dat dependencies trong venv...
+"%~dp0venv\Scripts\python.exe" -m pip install --quiet --upgrade pip
+"%~dp0venv\Scripts\pip.exe" install --quiet -r "%~dp0requirements.txt"
 
-:: == 4. Check pywin32 (Windows-only COM support) ==
-python -c "import win32com.client" >nul 2>&1
+:: == 4. Check pywin32 (Windows-only COM support) inside venv ==
+"%~dp0venv\Scripts\python.exe" -c "import win32com.client" >nul 2>&1
 if errorlevel 1 (
     echo [INFO] Cai dat pywin32...
-    pip install --quiet pywin32
-    python "%~dp0venv\Scripts\pywin32_postinstall.py" -install >nul 2>&1
+    "%~dp0venv\Scripts\pip.exe" install --quiet pywin32
+    "%~dp0venv\Scripts\python.exe" "%~dp0venv\Scripts\pywin32_postinstall.py" -install >nul 2>&1
 )
 echo [OK] pywin32 san sang.
 

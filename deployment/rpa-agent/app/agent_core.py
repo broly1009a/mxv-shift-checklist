@@ -333,8 +333,8 @@ class AgentWorker(QObject):
         self._post(f"/api/v1/bot-engine/agent/jobs/{job_id}/start", {})
 
         # Sweep orphaned Excel processes if executing macro jobs
-        if job_type in ("RUN_LOT_MACRO", "RUN_VALUE_MACRO"):
-            self.sweep_orphaned_excel()
+        # if job_type in ("RUN_LOT_MACRO", "RUN_VALUE_MACRO"):
+        #     self.sweep_orphaned_excel()
 
         try:
             if job_type in ("RUN_LOT_MACRO", "RUN_VALUE_MACRO", "RPA_DOWNLOAD_REPORTS", "DOWNLOAD_CAST", "FILE_AUDIT_MS", "FILE_AUDIT_CQG", "FILE_AUDIT_ACM"):
@@ -357,7 +357,7 @@ class AgentWorker(QObject):
         self._log("INFO", "=" * 50)
 
         # Initial clean up of Excel processes
-        self.sweep_orphaned_excel()
+        # self.sweep_orphaned_excel()
 
         # Check version updates
         version_info = self._get("/api/v1/bot-engine/agent/version")

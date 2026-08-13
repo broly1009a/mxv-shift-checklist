@@ -93,6 +93,71 @@ class LogWindow(QWidget):
 
         self.setWindowTitle("MXV RPA Agent — Log Viewer")
         self.resize(820, 500)
+
+        # Apply premium design system QSS stylesheet
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f8fafc;
+            }
+            QLabel {
+                color: #475569;
+                font-weight: 600;
+                font-size: 9.5pt;
+            }
+            QComboBox {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 6px 12px;
+                color: #0f172a;
+                font-size: 9.5pt;
+                font-weight: 500;
+                min-width: 100px;
+            }
+            QPushButton {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 8px 16px;
+                color: #475569;
+                font-weight: 600;
+                font-size: 9.5pt;
+            }
+            QPushButton:hover {
+                background-color: #f1f5f9;
+                border-color: #94a3b8;
+                color: #0f172a;
+            }
+            QPushButton:checked {
+                background-color: #e2e8f0;
+                border-color: #cbd5e1;
+            }
+            QPlainTextEdit {
+                background-color: #0f172a;
+                color: #cbd5e1;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 10px;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #f1f5f9;
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: #cbd5e1;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #94a3b8;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
         
         self._build_ui()
 
@@ -157,15 +222,7 @@ class LogWindow(QWidget):
         # Log area
         self._text = QPlainTextEdit()
         self._text.setReadOnly(True)
-        self._text.setFont(QFont("Consolas", 9))
-        self._text.setStyleSheet(
-            "QPlainTextEdit {"
-            "  background-color: #1e1e1e;"
-            "  color: #d4d4d4;"
-            "  border: 1px solid #cbd5e1;"
-            "  border-radius: 4px;"
-            "}"
-        )
+        self._text.setFont(QFont("Consolas", 10))
         self._text.setMaximumBlockCount(2000)
         layout.addWidget(self._text)
 

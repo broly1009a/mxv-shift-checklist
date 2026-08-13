@@ -169,11 +169,141 @@ class SettingsWindow(QDialog):
         super().__init__(parent)
         self._core = core
         self.setWindowTitle("MXV RPA Agent — Cài đặt")
-        self.setMinimumWidth(520)
+        self.setMinimumWidth(560)
         self.setModal(False)
 
         font = QFont("Segoe UI", 10)
         self.setFont(font)
+
+        # Apply premium design system QSS stylesheet
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f8fafc;
+            }
+            QTabWidget::pane {
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                background-color: #ffffff;
+                top: -1px;
+                padding: 16px;
+            }
+            QTabWidget::tab-bar {
+                left: 4px;
+            }
+            QTabBar::tab {
+                background-color: #f1f5f9;
+                color: #64748b;
+                border: 1px solid #e2e8f0;
+                border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
+                margin-right: 6px;
+            }
+            QTabBar::tab:hover {
+                background-color: #e2e8f0;
+                color: #334155;
+            }
+            QTabBar::tab:selected {
+                background-color: #ffffff;
+                color: #1CAEE6;
+                border-color: #e2e8f0;
+                border-bottom: 2px solid #ffffff;
+            }
+            QLabel {
+                color: #475569;
+                font-weight: 600;
+                font-size: 9.5pt;
+            }
+            QLineEdit, QSpinBox {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 8px 12px;
+                color: #0f172a;
+                font-size: 9.5pt;
+            }
+            QLineEdit:focus, QSpinBox:focus {
+                border: 2px solid #1CAEE6;
+                background-color: #f8fafc;
+            }
+            QCheckBox {
+                spacing: 10px;
+                color: #334155;
+                font-size: 9.5pt;
+                font-weight: 500;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                background-color: #ffffff;
+            }
+            QCheckBox::indicator:unchecked:hover {
+                border-color: #94a3b8;
+                background-color: #f8fafc;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #1CAEE6;
+                border-color: #1CAEE6;
+            }
+            QPushButton {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 10px 20px;
+                color: #334155;
+                font-weight: 600;
+                font-size: 9.5pt;
+            }
+            QPushButton:hover {
+                background-color: #f1f5f9;
+                border-color: #94a3b8;
+            }
+            QPushButton#BtnSave {
+                background-color: #1CAEE6;
+                border: 1px solid #1CAEE6;
+                color: #ffffff;
+            }
+            QPushButton#BtnSave:hover {
+                background-color: #1898ca;
+                border-color: #1898ca;
+            }
+            QPushButton#BtnSave:pressed {
+                background-color: #127aa4;
+                border-color: #127aa4;
+            }
+            QPushButton#BtnCancel {
+                background-color: #f1f5f9;
+                border: 1px solid #e2e8f0;
+                color: #475569;
+            }
+            QPushButton#BtnCancel:hover {
+                background-color: #e2e8f0;
+                border-color: #cbd5e1;
+                color: #334155;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #f1f5f9;
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: #cbd5e1;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #94a3b8;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
 
         self._cfg = _load_cfg()
         self._build_ui()
@@ -184,8 +314,8 @@ class SettingsWindow(QDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 16)
+        layout.setSpacing(14)
 
         # Tabs
         self._tabs = QTabWidget()
@@ -197,9 +327,11 @@ class SettingsWindow(QDialog):
         # Buttons
         btn_box = QDialogButtonBox()
         self._btn_save = QPushButton()
-        self._btn_save.setIcon(_draw_svg_icon("save", "#1CAEE6"))
+        self._btn_save.setObjectName("BtnSave")
+        self._btn_save.setIcon(_draw_svg_icon("save", "#ffffff"))
         self._btn_cancel = QPushButton()
-        self._btn_cancel.setIcon(_draw_svg_icon("clear", "#ef4444"))
+        self._btn_cancel.setObjectName("BtnCancel")
+        self._btn_cancel.setIcon(_draw_svg_icon("clear", "#475569"))
         btn_box.addButton(self._btn_save,   QDialogButtonBox.ButtonRole.AcceptRole)
         btn_box.addButton(self._btn_cancel, QDialogButtonBox.ButtonRole.RejectRole)
         btn_box.accepted.connect(self._on_save)
@@ -260,6 +392,7 @@ class SettingsWindow(QDialog):
         self._btn_test.setIcon(_draw_svg_icon("search", "#1CAEE6"))
         self._btn_test.clicked.connect(self._test_connection)
         self._test_label = QLabel("")
+        self._test_label.setWordWrap(True)
         self._test_label.setStyleSheet("font-weight: bold;")
         test_row.addWidget(self._btn_test)
         test_row.addWidget(self._test_label)
@@ -326,8 +459,8 @@ class SettingsWindow(QDialog):
 
         layout.addWidget(sec("guide_tray_title"))
         layout.addWidget(step("guide_tray_desc"))
-        for key, emoji in [("guide_tray_green", "🟢"), ("guide_tray_red", "🔴"), ("guide_tray_yellow", "🟡")]:
-            row = QLabel(f"  {emoji}  {i18n.t(key)}")
+        for key in ["guide_tray_green", "guide_tray_red", "guide_tray_yellow"]:
+            row = QLabel(f"  •  {i18n.t(key)}")
             row.setWordWrap(True)
             row.setStyleSheet("font-size: 9.5pt; color: #334155; padding: 2px 0;")
             layout.addWidget(row)
@@ -477,13 +610,13 @@ class SettingsWindow(QDialog):
             if r.status_code == 200:
                 data = r.json()
                 online_str = "Online" if data.get("online") else "Not started"
-                self._test_label.setStyleSheet("color: green;")
+                self._test_label.setStyleSheet("color: green; font-weight: bold;")
                 self._test_label.setText(f"{i18n.t('conn_ok')} — {online_str}")
             else:
-                self._test_label.setStyleSheet("color: red;")
+                self._test_label.setStyleSheet("color: red; font-weight: bold;")
                 self._test_label.setText(f"HTTP {r.status_code}")
         except Exception as e:
-            self._test_label.setStyleSheet("color: red;")
+            self._test_label.setStyleSheet("color: red; font-weight: bold;")
             self._test_label.setText(f"{str(e)[:60]}")
 
 
