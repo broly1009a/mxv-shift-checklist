@@ -4,6 +4,24 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-13] Vô hiệu hóa tính năng dọn dẹp tiến trình Excel ngầm trên RPA Agent
+
+### Mục tiêu thay đổi
+- Vô hiệu hóa việc dọn dẹp các tiến trình `EXCEL.EXE` ngầm tự động mỗi khi RPA Agent khởi chạy hoặc trước khi chạy các tác vụ macro, theo yêu cầu của USER.
+
+### Danh sách file chỉnh sửa
+- [agent_core.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/agent_core.py)
+
+### Tóm tắt nội dung code đã sửa
+1. Comment out dòng gọi `self.sweep_orphaned_excel()` lúc khởi động Agent ở phương thức `run()` (dòng 360).
+2. Comment out dòng gọi `self.sweep_orphaned_excel()` khi chuẩn bị dispatch tác vụ Macro ở phương thức `_dispatch()` (dòng 336-337).
+
+### Xác nhận Build/Kiểm thử
+- Backend: Chạy lệnh `npm run build` biên dịch thành công 100%.
+- Frontend: Chạy lệnh `npm run build` biên dịch thành công 100%.
+
+---
+
 ## [2026-08-12] Tách biệt component báo cáo trực quan cho đối chiếu số dư CQG (SOD)
 
 ### Mục tiêu thay đổi
