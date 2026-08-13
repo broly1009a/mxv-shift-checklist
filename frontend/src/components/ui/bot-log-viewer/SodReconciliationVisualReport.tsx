@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AlertCircle, CheckCircle2, Search, Copy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ParsedBotData } from './types';
+import { BotStatusStateBanner, shouldShowBotStatusBanner } from './BotStatusStateBanner';
 
 interface SodDiscrepancyItem {
   maTKGD: string;
@@ -31,6 +32,7 @@ export const SodReconciliationVisualReport: React.FC<SodReconciliationVisualRepo
   }, [parsedData]);
 
   const isPassed = allDiscrepancies.length === 0;
+  const isWaitingFiles = parsedData.jsonResult?.isWaitingFiles;
 
   const filteredAndSorted = useMemo(() => {
     let list = [...allDiscrepancies];
@@ -78,10 +80,23 @@ export const SodReconciliationVisualReport: React.FC<SodReconciliationVisualRepo
   const fmtUSD = (v: number) =>
     (v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  if (shouldShowBotStatusBanner(activeStatus, !!parsedData.jsonResult)) {
+    return (
+      <BotStatusStateBanner
+        status={activeStatus}
+        hasJsonResult={!!parsedData.jsonResult}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-        {isPassed ? (
+        {isWaitingFiles ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24' }}>
+            <AlertCircle size={18} /> Trạng Thái: Đang chờ tệp đối chiếu
+          </span>
+        ) : isPassed ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399' }}>
             <CheckCircle2 size={18} /> Kết quả SOD: Số dư khớp hoàn toàn
           </span>
@@ -92,10 +107,32 @@ export const SodReconciliationVisualReport: React.FC<SodReconciliationVisualRepo
         )}
       </div>
 
+      {isWaitingFiles && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: 'rgba(251, 191, 36, 0.08)',
+          border: '1px solid rgba(251, 191, 36, 0.25)',
+          borderRadius: '8px',
+          color: '#fbbf24',
+          fontSize: '0.82rem',
+          fontWeight: 600,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+            <AlertCircle size={16} /> Đang chờ dữ liệu đầu vào:
+          </div>
+          <div style={{ fontWeight: 500, fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
+            {parsedData.jsonResult?.message || 'Thư mục backup đang chờ cập nhật đầy đủ file đối chiếu.'}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-        <div style={{ padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: isPassed ? '4px solid #10b981' : '4px solid #ef4444' }}>
+        <div style={{ padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: isWaitingFiles ? '4px solid #fbbf24' : isPassed ? '4px solid #10b981' : '4px solid #ef4444' }}>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>SỐ TK LỆCH SỐ DƯ (&gt; $100)</div>
-          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: isPassed ? '#34d399' : '#f87171' }}>{allDiscrepancies.length} tài khoản</div>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: isWaitingFiles ? '#fbbf24' : isPassed ? '#34d399' : '#f87171' }}>{isWaitingFiles ? 'Chờ file...' : `${allDiscrepancies.length} tài khoản`}</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>M-System vs CQG CAST (SOD)</div>
         </div>
         {!isPassed && (

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AlertCircle, CheckCircle2, Search, Copy, Clock } from 'lucide-react';
-import { BotStatusStateBanner } from './BotStatusStateBanner';
+import { BotStatusStateBanner, shouldShowBotStatusBanner } from './BotStatusStateBanner';
 import { toast } from 'react-hot-toast';
 import { MismatchedTrade, ParsedBotData } from './types';
 
@@ -88,13 +88,14 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
     });
   }, [isKlgd, parsedData, searchQuery]);
 
-  const statusBanner = (
-    <BotStatusStateBanner
-      status={activeStatus}
-      hasJsonResult={!!parsedData.jsonResult}
-    />
-  );
-  if (statusBanner) return statusBanner;
+  if (shouldShowBotStatusBanner(activeStatus, !!parsedData.jsonResult)) {
+    return (
+      <BotStatusStateBanner
+        status={activeStatus}
+        hasJsonResult={!!parsedData.jsonResult}
+      />
+    );
+  }
 
   const handleExportFiltered = () => {
     let content = '';

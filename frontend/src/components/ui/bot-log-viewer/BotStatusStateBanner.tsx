@@ -1,6 +1,13 @@
 import React from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
 
+export const shouldShowBotStatusBanner = (status: string, hasJsonResult: boolean): boolean => {
+  return (
+    ['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(status) ||
+    (status === 'FAILED' && !hasJsonResult)
+  );
+};
+
 interface BotStatusStateBannerProps {
   status: string;
   hasJsonResult?: boolean;
