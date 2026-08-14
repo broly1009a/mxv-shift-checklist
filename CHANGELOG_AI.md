@@ -4,6 +4,42 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-08-14] Bổ sung tài liệu hướng dẫn triển khai ứng dụng AML Sanction Search
+
+### Mục tiêu thay đổi
+- Cung cấp tài liệu hướng dẫn triển khai chi tiết ứng dụng Python Flask AML Sanction Search chạy trên môi trường ảo (venv) và quản lý bằng PM2 trên server Ubuntu theo yêu cầu.
+- Cập nhật tài liệu dựa trên kết quả kiểm tra tài nguyên RAM vật lý và Swap thực tế của server `mxv-devop-srv-01`.
+
+### Danh sách file chỉnh sửa
+- [HUONG_DAN_DEPLOY_AML.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/AML/HUONG_DAN_DEPLOY_AML.md) (Tạo mới & cập nhật thông số tài nguyên)
+
+### Tóm tắt nội dung code đã sửa
+- Tạo mới và cập nhật tài liệu hướng dẫn triển khai, đánh giá ảnh hưởng về tài nguyên dựa trên thông số thực tế của server (3.8Gi RAM trống 2.0Gi, 3.8Gi Swap sẵn có), sự xung đột thư viện, cấu hình cổng mạng và các lệnh quản lý PM2.
+- Cập nhật toàn bộ đường dẫn triển khai trong tài liệu sang thư mục độc lập `/opt/AML`.
+- Bổ sung cấu hình **Nginx Reverse Proxy** và **Mẫu email gửi bộ phận mạng (anh Long)** yêu cầu mở cổng 80/443 tiêu chuẩn.
+
+### Xác nhận Build/Kiểm thử
+- File tài liệu dạng markdown được lưu thành công tại thư mục `AML`.
+
+---
+
+## [2026-08-14] Tích hợp chụp ảnh debug lỗi đăng nhập CQG và ACM trong Playwright
+
+### Mục tiêu thay đổi
+- Hỗ trợ chẩn đoán và sửa lỗi khi Bot thực hiện đăng nhập vào CQG và ACM bị timeout trên máy chủ Linux/Ubuntu (do pop-up điều khoản, Captcha/Cloudflare chặn hoặc sai thông tin tài khoản).
+
+### Danh sách file chỉnh sửa
+- [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+
+### Tóm tắt nội dung code đã sửa
+1. **Trong `loginCQGTrade`**: Thêm khối `try-catch` chụp màn hình và lưu vào thư mục `temp/debug/cqg-login-failed-<account>-<timestamp>.png` khi gặp lỗi đăng nhập (thất bại hoặc timeout).
+2. **Trong `loginACM`**: Thêm khối `try-catch` chụp màn hình và lưu vào thư mục `temp/debug/acm-login-failed-<timestamp>.png` khi gặp lỗi đăng nhập (thất bại hoặc timeout).
+
+### Xác nhận Build/Kiểm thử
+- Dự án NestJS backend được biên dịch (`npx tsc --noEmit`) thành công, không có lỗi cú pháp hoặc kiểu dữ liệu trong file chỉnh sửa.
+
+---
+
 ## [2026-08-13] Vô hiệu hóa tính năng dọn dẹp tiến trình Excel ngầm trên RPA Agent
 
 ### Mục tiêu thay đổi

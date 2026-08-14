@@ -574,6 +574,22 @@ export class RpaDownloaderService {
       this.logger.log(`Login ${account.toUpperCase()} Trade SUCCESSFUL.`);
       return { browser, page };
     } catch (err: any) {
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({
+          path: path.join(debugDir, `cqg-login-failed-${account}-${ts}.png`),
+          fullPage: true,
+        });
+        this.logger.warn(
+          `Đã chụp ảnh debug lỗi đăng nhập tại temp/debug/cqg-login-failed-${account}-${ts}.png`,
+        );
+      } catch (screenshotErr: any) {
+        this.logger.error(`Không thể chụp ảnh debug: ${screenshotErr.message}`);
+      }
       this.logger.error(`Đăng nhập ${account.toUpperCase()} Trade thất bại: ${err.message}`);
       await browser.close();
       throw err;
@@ -2175,6 +2191,20 @@ export class RpaDownloaderService {
 
       throw new Error('Không thể đăng nhập ACM.');
     } catch (err: any) {
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        await page.screenshot({
+          path: path.join(debugDir, `acm-login-failed-${ts}.png`),
+          fullPage: true,
+        });
+        await log(`Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-${ts}.png`);
+      } catch (screenshotErr: any) {
+        await log(`Không thể chụp ảnh debug ACM: ${screenshotErr.message}`);
+      }
       await log(`Lỗi đăng nhập ACM: ${err.message}`);
       await browser.close().catch(() => {});
       throw err;
