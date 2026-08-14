@@ -90,3 +90,8 @@ deployment/rpa-agent/*.exe
 deployment/rpa-agent/Output/
 **/__pycache__/
 *.pyc
+
+# Graphify
+graphify-out/cache/
+graphify-out/cost.json
+
