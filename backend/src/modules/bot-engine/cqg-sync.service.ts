@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { resolveDailySubfolder } from './helpers/bot-path.helper';
 
 export interface CqgAuditResult {
   key: string;
@@ -47,14 +48,7 @@ export class CqgSyncService {
       'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
 
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-
-    // Format: YYYY\TMM.YYYY\DD.MM
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const fullPath = path.join(baseDir, subFolder);
-
+    const { fullPath } = resolveDailySubfolder(baseDir, targetDate);
     return { baseDir, fullPath };
   }
 

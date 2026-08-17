@@ -2,6 +2,56 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-17] Refactor module bot-engine: Tái sử dụng parseJobPayload & getMsBackupBase/getCqgBackupBase
+
+### Mục tiêu thay đổi
+- Thu gọn triệt để đoạn code lặp 25+ lần unwrap Mongoose Map (`job.payload instanceof Map ? ...`) thành hàm helper `parseJobPayload(job)`.
+- Gom nhóm logic lấy đường dẫn backup base mặc định cho MS (`getMsBackupBase()`) và CQG (`getCqgBackupBase()`) trong `bot-job-queue.service.ts` để loại bỏ các chuỗi fallback cứng bị lặp lại.
+
+### Danh sách file chỉnh sửa
+- [bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/bot-path.helper.ts)
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+
+### Tóm tắt nội dung code đã sửa
+1. **Bổ sung `parseJobPayload` vào `bot-path.helper.ts`**:
+   - Tái sử dụng hàm helper `parseJobPayload<T>(job)` xử lý unwrap Mongoose Map / Object an toàn. Hỗ trợ tự động gọi `job.toObject()` khi nhận vào Mongoose Document instance để đảm bảo các Map lồng nhau (như `payload.result`) được chuyển đổi an toàn sang Plain Object (tuân thủ **Quy tắc 4.1 trong AGENTS.md**).
+2. **Refactor `bot-job-queue.service.ts` & `bot-engine.service.ts`**:
+   - Thay thế toàn bộ 25+ vị trí kiểm tra `job.payload instanceof Map` thủ công bằng `parseJobPayload(job)`.
+   - Thêm 2 hàm `getMsBackupBase()` và `getCqgBackupBase()` để truy xuất setting từ `SystemSettingsService`, loại bỏ các đoạn chuỗi fallback cứng rải rác.
+   - Bổ sung tham số `targetDate: log.shiftDate` đồng bộ cho tất cả lệnh khởi tạo Job `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `FILE_AUDIT_ACM`, `DOWNLOAD_CQG_BACKUP`.
+
+### Xác nhận Build/Kiểm thử
+- Dự án NestJS backend biên dịch thành công (`npm run build` exit code 0).
+
+---
+
+## [2026-08-17] Refactor module bot-engine: Đóng gói helper chuẩn hóa targetDate & subfolder path
+
+### Mục tiêu thay đổi
+- Tạo module Helper dùng chung (`bot-path.helper.ts`) để đóng gói toàn bộ logic xác định ngày ca trực (`targetDate` / `sessionDay`) và định dạng đường dẫn thư mục `YYYY\TMM.YYYY\DD.MM`.
+- Ép buộc tất cả Bot Job của MS, CQG, ACM, Macro... phải dùng đúng `shiftDate` của ca trực làm `targetDate`.
+- Loại bỏ hoàn toàn việc fallback về `new Date()` rạng sáng để ngăn Backend tự ý gọi `fs.mkdirSync` tạo ra thư mục rác ngày nghỉ (như folder `16.08` rạng sáng Chủ Nhật).
+
+### Danh sách file chỉnh sửa
+- [bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/bot-path.helper.ts) (Tạo mới)
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+- [cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/cqg-sync.service.ts)
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts)
+
+### Tóm tắt nội dung code đã sửa
+1. **Tạo `bot-path.helper.ts`**:
+   - `resolveBotTargetDate(payload)`: Parse an toàn `targetDate`/`sessionDay` từ payload của Job. Ném ra lỗi nếu thiếu ngày ca trực, không bao giờ tự ý lấy `new Date()` thời gian thực.
+   - `resolveDailySubfolder(baseDir, dateInput)`: Tính toán chuẩn hóa chuỗi `subFolder` (`YYYY\TMM.YYYY\DD.MM`) và `fullPath` dùng chung.
+2. **Refactor `bot-job-queue.service.ts`**:
+   - Sử dụng `resolveBotTargetDate` và `resolveDailySubfolder` trong các handler `handleFileAuditMsJob`, `handleFileAuditCqgJob`, `handleDownloadCqgBackupJob`, `handleFileAuditAcmJob`.
+3. **Refactor `cqg-sync.service.ts`**:
+   - Chuyển `getDailyBackupPath(targetDate)` sang dùng `resolveDailySubfolder`.
+4. **Cập nhật `bot-engine.service.ts`**:
+   - Truyền đầy đủ `targetDate: log.shiftDate` và `sessionDay: log.shiftDate` khi khởi tạo các Job `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`.
+
+### Xác nhận Build/Kiểm thử
+- Dự án NestJS backend được biên dịch (`npm run build`) thành công 100% (Exit code 0).
+
 ---
 
 ## [2026-08-14] Bổ sung tài liệu hướng dẫn triển khai ứng dụng AML Sanction Search

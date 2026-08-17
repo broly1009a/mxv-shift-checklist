@@ -714,6 +714,7 @@ export class BotEngineService {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
                 sessionDay: log.shiftDate,
+                targetDate: log.shiftDate,
               });
               checkResult = {
                 success: false,
@@ -761,6 +762,7 @@ export class BotEngineService {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
                 sessionDay: log.shiftDate,
+                targetDate: log.shiftDate,
               });
               checkResult = {
                 success: false,
@@ -808,6 +810,7 @@ export class BotEngineService {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),
                 sessionDay: log.shiftDate,
+                targetDate: log.shiftDate,
               });
               checkResult = {
                 success: false,

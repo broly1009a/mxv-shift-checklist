@@ -23,6 +23,11 @@ import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { CcpStatisticsService } from '../ccp-statistics/ccp-statistics.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import * as XLSX from 'xlsx';
+import {
+  parseJobPayload,
+  resolveBotTargetDate,
+  resolveDailySubfolder,
+} from './helpers/bot-path.helper';
 
 // =========================================================================
 // Danh sách file MS bắt buộc phải có trong thư mục backup IT
@@ -524,10 +529,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const targets: string[] = payload.targets || [
       'NKTTHT',
       'NR',
@@ -693,10 +695,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Handle verification of M-System email history status.
    */
   private async handleVerifyEmailStatusJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const { taskId, shiftLogId, sessionDay } = payload;
 
     job.logs.push(
@@ -914,25 +913,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * 2. If any missing → login M-System → download only missing files
    */
   private async handleFileAuditMsJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
-    const targetDateStr = payload.targetDate;
-    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
 
-    const msBackupBase =
-      payload.backupPath ||
-      (await this.settingsService.getSetting(
-        'bot_backup_path_ms',
-        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-      ));
-
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(msBackupBase, subFolder);
+    const msBackupBase = payload.backupPath || (await this.getMsBackupBase());
+    const { fullPath: dailyPath } = resolveDailySubfolder(msBackupBase, targetDate);
 
     if (!fs.existsSync(dailyPath)) {
       fs.mkdirSync(dailyPath, { recursive: true });
@@ -1025,10 +1010,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     const finalScan = await this.scanMsBackupFiles(backupPath, targetDate);
     const hasMissing = finalScan.some((r) => r.status !== 'OK');
-    const currentPayload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const currentPayload = parseJobPayload(job);
     job.payload = {
       ...currentPayload,
       result: {
@@ -1056,13 +1038,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Runs the CqgSyncService autoMergeMissingFiles to scan and consolidate CQG backup files.
    */
   private async handleFileAuditCqgJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
-    const targetDate = payload.targetDate
-      ? new Date(payload.targetDate)
-      : new Date();
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
     const { fullPath } =
       await this.cqgSyncService.getDailyBackupPath(targetDate);
 
@@ -1131,13 +1108,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    *   skipMerge?: boolean — nếu true, bỏ qua bước merge sau khi tải
    */
   private async handleDownloadCqgBackupJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
-    const targetDate = payload.targetDate
-      ? new Date(payload.targetDate)
-      : new Date();
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
 
     // Xác định danh sách file cần tải (mặc định: tất cả)
     const defaultReports = {
@@ -1741,6 +1713,22 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return acmBackupBase;
   }
 
+  async getMsBackupBase(): Promise<string> {
+    return this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      process.env.DEFAULT_BACKUP_PATH_MS ||
+        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+  }
+
+  async getCqgBackupBase(): Promise<string> {
+    return this.settingsService.getSetting(
+      'bot_backup_path_cqg',
+      process.env.DEFAULT_BACKUP_PATH_CQG ||
+        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    );
+  }
+
   /**
    * Quét thư mục backup ACM xem đã có file Order.xlsx và Fill.xlsx chưa.
    */
@@ -1874,20 +1862,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job FILE_AUDIT_ACM.
    */
   private async handleFileAuditAcmJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
-    const targetDateStr = payload.targetDate || payload.sessionDay;
-    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
 
     const acmBackupBase = await this.getAcmBackupBase();
-
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(acmBackupBase, subFolder);
+    const { fullPath: dailyPath } = resolveDailySubfolder(acmBackupBase, targetDate);
 
     if (!fs.existsSync(dailyPath)) {
       fs.mkdirSync(dailyPath, { recursive: true });
@@ -1948,10 +1927,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             5 * 60 * 1000,
           );
 
-          const currentPayload =
-            job.payload instanceof Map
-              ? Object.fromEntries(job.payload)
-              : job.payload || {};
+          const currentPayload = parseJobPayload(job);
           job.payload = {
             ...currentPayload,
             captchaImage: base64Img,
@@ -2040,10 +2016,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     const finalScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
     const hasMissingFiles = finalScan.some((r) => r.status !== 'OK');
-    const currentPayload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const currentPayload = parseJobPayload(job);
     job.payload = {
       ...currentPayload,
       result: {
@@ -2070,10 +2043,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job RUN_LOT_MACRO: Gọi script Python điều phối Excel headlessly.
    */
   private async handleRunLotMacroJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
@@ -2107,20 +2077,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     try {
 
-      const backupMs =
-        payload.backupPathMs ||
-        (await this.settingsService.getSetting(
-          'bot_backup_path_ms',
-          process.env.DEFAULT_BACKUP_PATH_MS ||
-            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-        ));
-      const backupCqg =
-        payload.backupPathCqg ||
-        (await this.settingsService.getSetting(
-          'bot_backup_path_cqg',
-          process.env.DEFAULT_BACKUP_PATH_CQG ||
-            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-        ));
+      const backupMs = payload.backupPathMs || (await this.getMsBackupBase());
+      const backupCqg = payload.backupPathCqg || (await this.getCqgBackupBase());
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
       const folderPathMs = path.join(backupMs, subFolder);
@@ -2242,10 +2200,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job RUN_VALUE_MACRO: Sử dụng ValueStatisticsService để chạy tính toán native.
    */
   private async handleRunValueMacroJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
@@ -2422,10 +2377,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    * Xử lý Job RUN_VALUE_TVKD_MACRO: Sử dụng ValueStatisticsService để chạy tính toán TVKD-only.
    */
   private async handleRunValueTvkdMacroJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const targetDateStr = payload.targetDate; // Định dạng YYYY-MM-DD
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate (YYYY-MM-DD) trong payload.');
@@ -2514,10 +2466,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       fs.mkdirSync(castDownloadsDir, { recursive: true });
     }
 
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const dateStr = new Date(Date.now() + 7 * 60 * 60 * 1000)
       .toISOString()
       .split('T')[0]
@@ -2599,10 +2548,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleAutoCheckSodJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
 
     let targetDate = new Date();
     if (payload.sessionDay) {
@@ -2655,10 +2601,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleCheckKlgdJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -2884,10 +2827,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
 
   private async handleCheckPreEodJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     let targetDate: Date;
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -3005,10 +2945,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleCheckEodMmJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     let targetDate = new Date();
     if (payload.sessionDay) {
       targetDate = new Date(payload.sessionDay);
@@ -3117,9 +3054,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         socketTimeout: 15000, // 15s
       });
 
-      const rawPayload = job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+      const rawPayload = parseJobPayload(job);
 
       let shiftTitle = '';
       let taskName = '';
@@ -3265,10 +3200,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleRunMacroJob(job: BotJob) {
-    const payload =
-      job.payload instanceof Map
-        ? Object.fromEntries(job.payload)
-        : job.payload || {};
+    const payload = parseJobPayload(job);
     const targetDateStr = payload.targetDate || payload.sessionDay;
     if (!targetDateStr) {
       throw new Error('Thiếu tham số targetDate/sessionDay trong payload.');
@@ -3305,12 +3237,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const month = String(targetDate.getMonth() + 1).padStart(2, '0');
       const day = String(targetDate.getDate()).padStart(2, '0');
 
-      const backupMs =
-        payload.backupPathMs ||
-        (await this.settingsService.getSetting(
-          'bot_backup_path_ms',
-          'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-        ));
+      const backupMs = payload.backupPathMs || (await this.getMsBackupBase());
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
       const dailyPath = path.join(backupMs, subFolder);
