@@ -2,6 +2,81 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-17] Đóng gói Dự án Độc lập Tool Tải Báo Cáo CPP/CE (thư mục cpp-ce-downloader)
+
+### Mục tiêu thay đổi
+- Đóng gói toàn bộ tool tải báo cáo CPP/CE thành một thư mục dự án Python hoàn toàn độc lập (`cpp-ce-downloader`) nằm cùng cấp với `backend`, `frontend`, `AML` để có thể dễ dàng nén gửi riêng cho User.
+
+### Danh sách file chỉnh sửa
+- [main.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/main.py) (Tạo mới)
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Tạo mới)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Tạo mới)
+- [config.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config.json) (Tạo mới)
+- [requirements.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/requirements.txt) (Tạo mới)
+- [run.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/run.bat) (Tạo mới)
+- [build_exe.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/build_exe.bat) (Tạo mới)
+- [README.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/README.md) (Tạo mới)
+
+### Tóm tắt nội dung code đã sửa
+1. **Cấu trúc dự án độc lập `cpp-ce-downloader/`**:
+   - `main.py`: Entry point chính, hỗ trợ tự động mở giao diện GUI (PyQt6) hoặc chạy qua dòng lệnh CLI.
+   - `gui.py`: Giao diện đồ họa nâng cấp với **Nút chuyển đổi chế độ Người dùng & Kỹ thuật (`toggle_mode`)**.
+   - `downloader.py`: Đóng gói bộ Selector VNCLEAR chuẩn xác và cơ chế Tự Động Học URL.
+   - `run.bat` & `build_exe.bat`: Đơn giản hóa file khởi chạy 1-click. Hoàn tất cài đặt các gói phụ thuộc `PyQt6-6.11.0`, `PyQt6-Qt6`, `pyinstaller` trực tiếp cho môi trường Python máy người dùng.
+
+### Xác nhận Build/Kiểm thử
+- **Chạy kiểm thử thực tế trên UAT (`https://uat-coreccp.mxv.com.vn/login`)**:
+  - Đăng nhập tài khoản `hieptruong` thành công.
+  - Tự động bắt và lưu 5 URL thực tế chuẩn xác của hệ thống UAT:
+    - NR: `https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST`
+    - DSL: `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK`
+    - DSGD: `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`
+    - TTTT: `https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED`
+    - LSGTT: `https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST`
+  - **Lọc ngày chuẩn xác & Chuyển Tab**:
+    - Sử dụng `picker_inputs.nth(0)` và `picker_inputs.nth(1)` để gõ chuẩn ngày `01/08/2026` -> `17/08/2026` vào ô (Từ) Ngày và (Đến) Ngày.
+    - Tự động click chuyển tab **`Lịch sử tất toán`** cho báo cáo `TTTT`.
+  - **Tải file thực tế thành công (4/5 loại báo cáo)**:
+    - `NR0826.csv` (88.0 KB - Lịch sử nộp rút tiền)
+    - `DSL0826.csv` (38.1 KB - Danh sách lệnh)
+    - `TTTT0826.csv` (29.3 KB - Trạng thái tất toán / Lịch sử tất toán)
+    - `LSGTT0826.csv` (29.8 KB - Lịch sử giá thanh toán)
+- **Tối ưu hóa Giao diện GUI (PyQt6)**:
+  - Ẩn toàn bộ khung *"Cấu hình Đăng nhập & Hệ thống"* (Tên đăng nhập, Mật khẩu, URL) và **Ẩn khung Log Console đen** ở **Chế độ Cơ bản** để giao diện mặc định tinh tế và trực quan nhất cho người xem.
+  - Thêm phần **Tiến độ tải báo cáo trực quan** (Thanh Progress Bar %, Nhãn trạng thái realtime màu xanh lá tươi sáng & Thống kê số lượng file CSV đã lưu).
+  - Khung Log Console kỹ thuật màu đen chỉ xuất hiện khi người dùng chủ động bấm chọn **`Chế độ: Cấu hình Nâng cao`**.
+- **Khắc phục Bug định vị ô Ngày (DatePicker) & Luồng xử lý GUI**:
+  - Bổ sung điều kiện loại trừ tuyệt đối `not(contains(@placeholder, 'Tìm kiếm'))` và `not(contains(@placeholder, 'thành viên'))` để ngăn Playwright gõ nhầm ô ngày vào ô Tìm kiếm Sidebar hoặc ô Mã thành viên.
+  - Bọc `try...except` toàn cục trong phương thức `DownloadWorker.run()` của `gui.py` để xử lý và hiển thị thông báo lỗi vào Log console mượt mà, ngăn tuyệt đối việc Python crash bất ngờ làm ngắt giao diện GUI và hiện thông báo `Press any key to continue`.
+- Cài đặt thành công các gói phụ thuộc `PyQt6` và `PyInstaller` (Exit code 0).
+- Kiểm tra biên dịch cú pháp tất cả các file Python trong `cpp-ce-downloader` (`python -m py_compile`) thành công 100% (Exit code 0).
+
+---
+
+## [2026-08-17] Tạo công cụ Python & Tài liệu thiết kế tải báo cáo CPP/CE theo tháng (download_cpp_ce_reports.py)
+
+### Mục tiêu thay đổi
+- Xây dựng công cụ Python triển khai nhanh (`download_cpp_ce_reports.py`) tự động đăng nhập vào CPP và CE để tải 5 loại báo cáo dạng CSV trong khoảng thời gian tùy chọn.
+- Tự động phân tách khoảng thời gian chọn thành các khoảng thời gian từng tháng và lưu file CSV theo cấu trúc thư mục quy định.
+
+### Danh sách file chỉnh sửa
+- [download_cpp_ce_reports.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/deployment/rpa-agent/app/download_cpp_ce_reports.py) (Tạo mới)
+- [implementation_plan.md](file:///C:/Users/hiepth/.gemini/antigravity-ide/brain/4591a0b5-73f9-4360-92c6-3a5d9ce0d04c/implementation_plan.md) (Tạo mới tài liệu phương án)
+
+### Tóm tắt nội dung code đã sửa
+1. **Tạo `download_cpp_ce_reports.py`**:
+   - `generate_monthly_intervals(start_date_str, end_date_str)`: Tính toán và chia nhỏ khoảng thời gian chọn thành từng tháng (`01/01/2025` -> `30/08/2026` thành các khoảng tháng tương ứng và sinh mã tháng `MMYY`).
+   - Khởi tạo thư mục gốc (`Root Directory`) và 5 thư mục con: `DSL`, `NR`, `DSGD`, `TTTT`, `LSGTT`.
+   - Lưu file CSV với quy chuẩn tên `<CODE><MM><YY>.csv` (ví dụ: `DSL0125.csv`, `DSL0225.csv`, `DSL0826.csv`).
+   - Tự động hóa thao tác trình duyệt bằng `playwright`: Đăng nhập, mở màn hình báo cáo, chọn từ ngày/đến ngày, click Xuất CSV.
+2. **Cập nhật `implementation_plan.md`**:
+   - Ghi lại toàn bộ mô hình thư mục, mã prefix file báo cáo và khung code minh họa.
+
+### Xác nhận Build/Kiểm thử
+- Chạy kiểm tra cú pháp Python (`python -m py_compile deployment/rpa-agent/app/download_cpp_ce_reports.py`) thành công 100% (Exit code 0).
+
+---
+
 ## [2026-08-17] Refactor module bot-engine: Tái sử dụng parseJobPayload & getMsBackupBase/getCqgBackupBase
 
 ### Mục tiêu thay đổi

@@ -1,0 +1,4 @@
+playwright>=1.40.0
+python-dateutil>=2.8.2
+PyQt6>=6.5.0
+pyinstaller>=6.0.0
