@@ -1,0 +1,13 @@
+{
+  "name": "mock-sftp-server",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "description": "Thư mục SFTP Server tạm thời cho môi trường Test ACM (Xóa sau khi hoàn tất test)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0"
+  }
+}

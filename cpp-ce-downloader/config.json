@@ -1,39 +1,31 @@
 {
-  "system_type": "CORE_CCP",
   "system_url": "https://uat-coreccp.mxv.com.vn/login",
   "username": "hieptruong",
   "password": "Taovipko0!",
   "start_date": "01/01/2026",
   "end_date": "17/08/2026",
   "output_dir": "C:\\Users\\hiepth\\Downloads\\DSL",
-  "exchange": "",
-  "member_code": "",
-  "acct_no": "",
   "headless": false,
-<<<<<<< HEAD
-  "overwrite_existing": false,
-  "gui_mode": "tech",
+  "user_mode": false,
+  "gui_mode": "user",
   "reports": [
+    {
+      "code": "DSL",
+      "name": "Danh sách lệnh",
+      "parent_menu": "Lệnh và vị thế",
+      "sub_menu": "Tra cứu tổng hợp",
+      "child_menu": "Danh sách lệnh",
+      "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERBOOK_ALL",
+      "enabled": true
+    },
     {
       "code": "DSGD",
       "name": "Danh sách giao dịch",
       "parent_menu": "Lệnh và vị thế",
       "sub_menu": "Tra cứu tổng hợp",
       "child_menu": "Danh sách giao dịch",
-      "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
-=======
-  "user_mode": false,
-  "reports": [
-    {
-      "code": "TTTT",
-      "name": "Trạng thái tất toán",
-      "parent_menu": "Lệnh và vị thế",
-      "child_menu": "Trạng thái tất toán",
-      "tab_name": "Lịch sử tất toán",
-      "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
->>>>>>> parent of f14a26e (done)
+      "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERMATCH_ALL",
       "enabled": true
     }
-  ],
-  "gui_mode": "user"
+  ]
 }

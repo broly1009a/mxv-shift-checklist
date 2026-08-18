@@ -2,115 +2,6 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-<<<<<<< HEAD
-## [2026-08-18] Trích Xuất & Lưu Độc Lập Mã Nguồn Nguyên Bản Monolithic (Backup V1)
-
-### Mục tiêu thay đổi
-- Trích xuất toàn bộ mã nguồn monolithic gốc chưa tái cấu trúc từ Git History lưu thành một thư mục dự phòng độc lập `cpp-ce-downloader/backup_original_monolithic/` để dự phòng an toàn 100%.
-
-### Danh sách file tạo mới
-- [backup_original_monolithic/downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) (73 KB - Script tải tự động nguyên bản)
-- [backup_original_monolithic/gui_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/gui_original.py) (46 KB - Giao diện PyQt6 nguyên bản)
-
----
-
-### Mục tiêu thay đổi
-- Sửa lỗi Playwright không thể điều hướng trang báo cáo trên CoreCCP do điều kiện kiểm tra URL cũ bị sai (`startswith`), dẫn đến việc luôn chuyển sang click menu Sidebar và thất bại.
-- Cho phép mở thẳng URL báo cáo (`cached_url`) cực nhanh và ổn định 100%.
-
-### Danh sách file chỉnh sửa
-- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Chỉnh sửa)
-
-### Tóm tắt nội dung code đã sửa
-1. **`page_objects/core_ccp_page.py`**:
-   - Sửa hàm `navigate_to_report()`: Cho phép `page.goto(cached_url)` truy cập thẳng vào trang báo cáo ngay khi có `cached_url` thay vì bắt buộc URL hiện tại phải trùng tiền tố.
-   - Nâng cấp bộ định vị Menu Sidebar dự phòng (dùng `MuiListItemButton-root` và `a[contains(@href, '/')]`) nếu `goto` gặp sự cố.
-2. **Xác nhận kiểm thử & Build**:
-   - Đã kiểm thử tự động thực tế thành công: Đăng nhập CoreCCP và mở thẳng trang `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`, lọc Mã TV `711` và kết xuất file CSV chuẩn xác.
-   - Đã rebuild lại file Standalone [`dist/CPP_CE_Report_Downloader.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader.exe).
-
----
-
-### Mục tiêu thay đổi
-- Khắc phục triệt để lỗi danh sách báo cáo trên GUI bị mất (chỉ còn hiển thị 1 báo cáo hoặc bị uncheck toàn bộ) khi lưu `config.json` hoặc khi chuyển đổi giữa hệ thống CoreCCP và CoreEX.
-
-### Danh sách file chỉnh sửa
-- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Chỉnh sửa)
-- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
-- [config.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config.json) (Khôi phục)
-
-### Tóm tắt nội dung code đã sửa
-1. **`config/config_manager.py`**:
-   - Thêm cơ chế tự động kiểm tra và phục hồi (`merged_reports`) trong `load_config()`. 
-   - Đảm bảo dù `config.json` có bị lưu thiếu hoặc lỗi file thì khi app khởi chạy vẫn luôn bảo toàn đủ 5 loại báo cáo tiêu chuẩn (`NR`, `DSL`, `DSGD`, `TTTT`, `LSGTT`).
-2. **`gui.py`**:
-   - Cập nhật `on_system_type_changed()`: Khi người dùng chọn lại `CoreCCP` (`radio_ccp`), hệ thống tự động bật lại trạng thái `enabled` và re-check toàn bộ 5 báo cáo thay vì giữ nguyên trạng thái bị uncheck từ `CoreEX`.
-3. **Đóng gói lại File thực thi**:
-   - Đã rebuild lại file Standalone [`dist/CPP_CE_Report_Downloader.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader.exe).
-
----
-
-### Mục tiêu thay đổi
-- Tái cấu trúc toàn bộ dự án `cpp-ce-downloader/` từ mô hình monolithic script (`downloader.py`, `gui.py`) sang mô hình **Clean Modular Architecture & Page Object Model (POM)**.
-- Tách biệt rõ ràng giữa UI (PyQt6), Logic nghiệp vụ (Report Engine), Quản lý Config và Thao tác DOM (Page Objects).
-- Chuẩn hóa toàn bộ Selectors và Luồng xử lý để sẵn sàng 100% khi chuyển đổi tiếp sang NestJS Backend (`rpa-downloader.service.ts`).
-
-### Danh sách file chỉnh sửa & tạo mới
-- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Tạo mới)
-- [core/browser_factory.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/browser_factory.py) (Tạo mới)
-- [core/base_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/base_page.py) (Tạo mới)
-- [page_objects/base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Tạo mới)
-- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Tạo mới)
-- [page_objects/core_ex_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ex_page.py) (Tạo mới)
-- [services/date_service.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/date_service.py) (Tạo mới)
-- [services/report_engine.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/report_engine.py) (Tạo mới)
-- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
-- [main.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/main.py) (Chỉnh sửa)
-- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa - Wrapper tương thích ngược)
-
-### Tóm tắt nội dung code đã sửa
-1. **`config/config_manager.py`**: Quản lý tập trung `config.json` và lưu tự động URL đã học.
-2. **`core/browser_factory.py` & `core/base_page.py`**: Đóng gói hàm khởi tạo trình duyệt resilient (Chromium $\rightarrow$ Chrome $\rightarrow$ Edge) và các thao tác backdrop MUI, toast notification.
-3. **`page_objects/`**:
-   - `BaseReportPage`: Đóng gói thao tác DatePicker, bộ lọc cột `MEMBERCODE`, bộ lọc tài khoản `AFACCTNO`/`ACCTNO_BUY`/`ACCTNO_SELL`, di chuột hover/click xuất file CSV.
-   - `CoreCCPPage` & `CoreEXPage`: Đóng gói routing menu riêng cho từng hệ thống.
-4. **`services/report_engine.py`**: Class `ReportEngine` quản lý toàn bộ luồng nghiệp vụ tải báo cáo độc lập với PyQt6 UI.
-5. **Tương thích ngược (`downloader.py`)**: Re-export các hàm cũ để không làm gãy các script gọi `from downloader import ...`.
-
-### Xác nhận Build/Kiểm thử
-- Đã chạy kiểm thử tự động thành công script `ReportEngine` trên hệ thống CoreEX.
-- Đã đóng gói thành công file thực thi Standalone `dist/CPP_CE_Report_Downloader.exe`.
-
----
-
-## [2026-08-18] Bổ Sung Bộ Lọc Mã TKGD / Số Tiểu Khoản & Comment Bộ Lọc Sàn Giao Dịch
-
-### Mục tiêu thay đổi
-- Tạm thời comment ô bộ lọc Sàn giao dịch trên UI và logic Playwright.
-- Thêm bộ lọc `Số tiểu khoản / Mã TKGD` (`data-column-id="AFACCTNO"`, `ACCTNO_BUY`, `ACCTNO_SELL`) hỗ trợ cả hệ thống CoreEX (hiển thị cột `Số tiểu khoản` / `Số tài khoản bên mua/bán`) và CoreCCP (hiển thị cột `Mã TKGD`).
-- Tự động gán hậu tố `_TK{acct_no}` vào tên file CSV xuất ra.
-
-### Danh sách file chỉnh sửa
-- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
-- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa)
-
-### Tóm tắt nội dung code đã sửa
-1. **Giao diện PyQt6 (`gui.py`)**:
-   - Comment ô chọn Sàn giao dịch `cbo_exchange` (tạm ẩn trên UI).
-   - Thêm ô `QLineEdit` `txt_acct_no` với placeholder `"Để trống = Tất cả (vd: 001C123456)"`.
-   - Lưu cấu hình `acct_no` vào `config.json` và truyền qua `DownloadWorker`.
-2. **Tự động hóa Playwright (`downloader.py`)**:
-   - Thao tác lọc cột tài khoản: Định vị chính xác cột `AFACCTNO`, `ACCTNO_BUY`, `ACCTNO_SELL` (phủ quát cả CoreEX và CoreCCP).
-   - Tự động bật nút `Ẩn/hiện bộ lọc` trên toolbar bảng nếu ô input chưa xuất hiện trong DOM.
-   - Nhập chuỗi số tiểu khoản, nhấn `Enter` để thực thi lọc dữ liệu.
-   - Đặt tên file xuất CSV linh hoạt: `DSGD0826_TK001C.csv` (hoặc kết hợp TV: `DSGD0826_TV711_TK001C.csv`).
-
-### Xác nhận Build/Kiểm thử
-- Đã kiểm thử tự động thực tế thành công trên CoreEX `DSGD`: Tự động toggle `Ẩn/hiện bộ lọc`, cuộn và điền `001C` vào cột tài khoản, xuất file `DSGD0826_TK001C.csv` chuẩn xác.
-- Đã đóng gói thành công file thực thi Standalone `CPP_CE_Report_Downloader.exe`.
-
----
-
 ## [2026-08-18] Bổ Sung Bộ Lọc Mã Thành Viên (MRT Column Filter) Cho Tool Tải Báo Cáo
 
 ### Mục tiêu thay đổi
@@ -241,8 +132,6 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
-=======
->>>>>>> parent of f14a26e (done)
 ## [2026-08-17] Đóng gói Dự án Độc lập Tool Tải Báo Cáo CPP/CE (thư mục cpp-ce-downloader)
 
 ### Mục tiêu thay đổi
@@ -286,9 +175,14 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Ẩn toàn bộ khung *"Cấu hình Đăng nhập & Hệ thống"* (Tên đăng nhập, Mật khẩu, URL) và **Ẩn khung Log Console đen** ở **Chế độ Cơ bản** để giao diện mặc định tinh tế và trực quan nhất cho người xem.
   - Thêm phần **Tiến độ tải báo cáo trực quan** (Thanh Progress Bar %, Nhãn trạng thái realtime màu xanh lá tươi sáng & Thống kê số lượng file CSV đã lưu).
   - Khung Log Console kỹ thuật màu đen chỉ xuất hiện khi người dùng chủ động bấm chọn **`Chế độ: Cấu hình Nâng cao`**.
-- **Khắc phục Bug định vị ô Ngày (DatePicker) & Luồng xử lý GUI**:
-  - Bổ sung điều kiện loại trừ tuyệt đối `not(contains(@placeholder, 'Tìm kiếm'))` và `not(contains(@placeholder, 'thành viên'))` để ngăn Playwright gõ nhầm ô ngày vào ô Tìm kiếm Sidebar hoặc ô Mã thành viên.
-  - Bọc `try...except` toàn cục trong phương thức `DownloadWorker.run()` của `gui.py` để xử lý và hiển thị thông báo lỗi vào Log console mượt mà, ngăn tuyệt đối việc Python crash bất ngờ làm ngắt giao diện GUI và hiện thông báo `Press any key to continue`.
+- **Sửa Lỗi Điền Nhầm Ô Lọc Ngày Hệ Thống Khi Tải Báo Cáo DSGD (Lịch sử giao dịch) & DSL (Lịch sử lệnh)**:
+  - Phát hiện nguyên nhân: Cả hai màn hình *Lịch sử giao dịch* (DSGD) và *Lịch sử lệnh* (DSL) đều có 3 ô DatePicker theo thứ tự: `1. Ngày hệ thống`, `2. (Từ) Ngày phiên`, `3. (Đến) Ngày phiên`. Hàm cũ lấy nhầm ô index 0 (`Ngày hệ thống`) và index 1 (`Từ ngày phiên`), để trống ô `Đến ngày phiên` dẫn tới VNCLEAR lọc theo Ngày hệ thống và xuất ra file CSV rỗng 0 byte.
+  - Cập nhật hàm `set_mui_date_range_and_search` trong `downloader.py`:
+    1. Nhận diện chính xác ô `Ngày hệ thống` và **tự động XÓA TRẮNG** ô này trên cả DSL và DSGD.
+    2. Nhắm mục tiêu chính xác qua Label và Index vào 2 ô **`(Từ) Ngày phiên`** và **`(Đến) Ngày phiên`**.
+  - Kiểm thử thực tế tự động:
+    - **DSGD**: Tải về thành công file `DSGD0826.csv` với dung lượng **305,492 bytes (~305 KB)** đầy đủ dữ liệu giao dịch!
+    - **DSL**: Tải về thành công file `DSL0826.csv` với dung lượng **204,104 bytes (~204 KB)** đầy đủ dữ liệu lịch sử lệnh!
 - Cài đặt thành công các gói phụ thuộc `PyQt6` và `PyInstaller` (Exit code 0).
 - Kiểm tra biên dịch cú pháp tất cả các file Python trong `cpp-ce-downloader` (`python -m py_compile`) thành công 100% (Exit code 0).
 
