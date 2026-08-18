@@ -2,6 +2,60 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-18] Sửa Triệt Để Lỗi Crash Ứng Dụng & Xử Lý Chờ Nạp Dữ Liệu Bảng Lớn Trên CoreEX
+
+### Mục tiêu thay đổi
+- Sửa lỗi crash mất ứng dụng ngay khi bấm nút "Bắt đầu tải báo cáo" do import nhầm tên module `downloader` trong `gui.py` và `gui_original.py`.
+- Thêm cơ chế `sys.excepthook` bắt ngoại lệ toàn cục cho PyQt6 để luôn hiển thị thông báo lỗi trực quan (`QMessageBox`), tuyệt đối không bị tắt ứng dụng đột ngột.
+- Khắc phục lỗi bị bôi xanh màn hình khi tải báo cáo DSL (Lịch sử lệnh) do lượng bản ghi lớn: tự động chờ màng spinner loading (`MuiCircularProgress` / `MuiLinearProgress`) biến mất trước khi gõ bộ lọc, dùng `focus()` + `fill()` chuẩn của Playwright.
+
+### Danh sách file chỉnh sửa
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa: Sửa import & thêm `sys.excepthook`)
+- [backup_original_monolithic/gui_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/gui_original.py) (Chỉnh sửa: Sửa import sang `downloader_original` & thêm `sys.excepthook`)
+- [page_objects/base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Chỉnh sửa: Thêm chờ loading spinner & dùng `fill()`)
+- [backup_original_monolithic/downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) (Chỉnh sửa: Thêm chờ loading spinner & dùng `fill()`)
+
+### Tóm tắt nội dung code đã sửa
+1. **Sửa Lỗi Crash App**: Thay đổi dòng `from downloader import generate_monthly_intervals` trong phương thức click nút "Bắt đầu" thành import trực tiếp/đúng module, ngăn chặn ngoại lệ `ModuleNotFoundError` văng ứng dụng.
+2. **Bắt Ngoại Lệ Toàn Cục**: Đăng ký `sys.excepthook = log_uncaught_exceptions` cho PyQt6 để nếu gặp bất kỳ lỗi gì bất ngờ sẽ hiện hộp thoại thông báo chi tiết thay vì tắt app ngầm.
+3. **Đóng Gói Lại 100%**: Đã biên dịch lại thành công cả 2 file thực thi `dist/CPP_CE_Report_Downloader.exe` và `dist/CPP_CE_Report_Downloader_Original.exe`.
+
+### Mục tiêu thay đổi
+- Cập nhật đồng bộ tính năng lọc `Số tiểu khoản / Mã TKGD` (`acct_no`) và tự động thêm hậu tố `_TK{acct_no}` vào tên file CSV xuất ra cho cả bản mã nguồn Monolithic nguyên bản trong `backup_original_monolithic/`.
+- Tạm thời comment ô chọn Sàn giao dịch theo chỉ đạo.
+- Đóng gói file Standalone `.exe` cập nhật cho cả 2 bản.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backup_original_monolithic/downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) (Chỉnh sửa: Thêm bộ lọc `acct_no` cho cột `AFACCTNO`/`ACCTNO_BUY`/`ACCTNO_SELL` & hậu tố `_TK`)
+- [backup_original_monolithic/gui_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/gui_original.py) (Chỉnh sửa: Thêm ô `txt_acct_no` & comment chọn Sàn giao dịch)
+- [build_exe_original.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/build_exe_original.bat) (Cập nhật: Đóng gói --onefile ra file `dist/CPP_CE_Report_Downloader_Original.exe`)
+
+### Tóm tắt nội dung code đã sửa
+1. **Lọc Cột Tài Khoản**: Thêm logic tự động mở `Ẩn/hiện bộ lọc` trên toolbar và điền chuỗi tài khoản vào cột `Mã TKGD` (CoreCCP) / `Số tiểu khoản` / `Số tài khoản bên mua/bán` (CoreEX).
+2. **Đặt Tên File CSV**: Tự động gán hậu tố `_TK{acct_no}` khi xuất báo cáo (Ví dụ: `DSGD0826_TK001C.csv`).
+3. **Đóng Gói File EXE**: Biên dịch ứng dụng 1-file duy nhất tại [`dist/CPP_CE_Report_Downloader_Original.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader_Original.exe).
+
+---
+
+## [2026-08-18] Chuẩn Hóa Encoding & Đóng Gói Lại Bản Monolithic Nguyên Bản (Original Monolithic Build)
+
+### Mục tiêu thay đổi
+- Sửa triệt để lỗi mã hóa (mangled CP437/UTF-16 encoding) của file mã nguồn cũ `cpp-ce-downloader/backup_original_monolithic/downloader_original.py` và `gui_original.py`, khôi phục 100% tiếng Việt UTF-8 chuẩn.
+- Bổ sung cơ chế import linh hoạt trong `gui_original.py` để liên kết đúng module `downloader_original.py`.
+- Tạo kịch bản đóng gói `build_exe_original.bat` và thực thi PyInstaller đóng gói bản Monolithic nguyên bản thành ứng dụng standalone `dist/CPP_CE_Report_Downloader_Original.exe`.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backup_original_monolithic/downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) (Chỉnh sửa: Chuyển đổi mã hóa sang UTF-8 chuẩn)
+- [backup_original_monolithic/gui_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/gui_original.py) (Chỉnh sửa: UTF-8 & cập nhật import module `downloader_original`)
+- [build_exe_original.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/build_exe_original.bat) (Tạo mới: Script 1-click đóng gói PyInstaller cho bản Monolithic)
+
+### Tóm tắt nội dung code đã sửa
+1. **Khôi phục Encoding tiếng Việt**: Giải mã chuỗi kí tự bị biến dạng do xung đột CP437/UTF-16LE, lưu thành định dạng UTF-8 chuẩn cho cả `downloader_original.py` và `gui_original.py`.
+2. **Cập nhật Import `gui_original.py`**: Ưu tiên import `downloader_original` khi khởi chạy bản cũ để tránh ăn sang file `downloader.py` của bản kiến trúc mới POM.
+3. **Đóng gói PyInstaller**: Biên dịch ra file thực thi [`dist/CPP_CE_Report_Downloader_Original.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader_Original.exe).
+
+---
+
 ## [2026-08-18] Trích Xuất & Lưu Độc Lập Mã Nguồn Nguyên Bản Monolithic (Backup V1)
 
 ### Mục tiêu thay đổi

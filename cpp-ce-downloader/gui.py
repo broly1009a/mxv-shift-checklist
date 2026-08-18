@@ -426,7 +426,6 @@ class MainWindow(QMainWindow):
         # Reset các chỉ số tiến trình
         self.downloaded_count = 0
         self.completed_tasks = 0
-        from downloader import generate_monthly_intervals
         intervals = generate_monthly_intervals(start_d, end_d)
         self.total_tasks = max(len(selected_reports) * len(intervals), 1)
 
@@ -527,7 +526,17 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
+def log_uncaught_exceptions(exctype, value, tb):
+    import traceback
+    err_msg = "".join(traceback.format_exception(exctype, value, tb))
+    print(f"❌ Uncaught Exception:\n{err_msg}", file=sys.stderr)
+    try:
+        QMessageBox.critical(None, "Lỗi ứng dụng ngoài dự kiến", f"Ứng dụng gặp lỗi ngoài dự kiến:\n{value}\n\nChi tiết:\n{err_msg[:600]}")
+    except Exception:
+        pass
+
 def launch_gui():
+    sys.excepthook = log_uncaught_exceptions
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

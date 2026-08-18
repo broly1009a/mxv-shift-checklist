@@ -124,7 +124,19 @@ class BaseReportPage(BasePage):
         search_btn = self.page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible(timeout=2000):
             search_btn.click(force=True)
-            self.page.wait_for_timeout(2500)
+            self.page.wait_for_timeout(1000)
+
+        # Chờ bảng nạp xong dữ liệu (chờ loading spinner/backdrop tắt hẳn)
+        try:
+            self.page.wait_for_selector(
+                "xpath=//*[contains(@class, 'MuiCircularProgress-root') or contains(@class, 'MuiLinearProgress-root')]",
+                state="hidden",
+                timeout=20000
+            )
+        except Exception:
+            pass
+        self.page.wait_for_timeout(1000)
+        self.dismiss_modal_backdrop()
 
         # 4. Điền lọc 'Mã thành viên' (Ví dụ: 711) ở cột bộ lọc trong bảng Material React Table
         if member_code and member_code.strip():
@@ -136,7 +148,7 @@ class BaseReportPage(BasePage):
                     " | //th[contains(., 'Mã thành viên')]//input"
                 ).first
 
-                if member_inp.count() == 0:
+                if member_inp.count() == 0 or not member_inp.is_visible(timeout=500):
                     toolbar_filter_btn = self.page.locator(
                         "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
                     ).first
@@ -163,14 +175,10 @@ class BaseReportPage(BasePage):
 
                 if member_inp.count() > 0:
                     self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã thành viên', đang điền '{mb_code}'...")
-                    member_inp.click(force=True)
-                    self.page.wait_for_timeout(150)
-                    self.page.keyboard.press("Control+A")
-                    self.page.keyboard.press("Backspace")
-                    self.page.wait_for_timeout(150)
-                    self.page.keyboard.type(mb_code, delay=40)
+                    member_inp.focus()
+                    member_inp.fill(mb_code)
                     self.page.wait_for_timeout(200)
-                    self.page.keyboard.press("Enter")
+                    member_inp.press("Enter")
                     self.page.wait_for_timeout(1500)
                 else:
                     self.log("  ⚠️ Không tìm thấy ô lọc Mã thành viên trên bảng.")
@@ -187,7 +195,7 @@ class BaseReportPage(BasePage):
                     " | //th[contains(., 'Số tiểu khoản') or contains(., 'Mã TKGD') or contains(., 'Số tài khoản')]//input"
                 ).first
 
-                if acct_inp.count() == 0:
+                if acct_inp.count() == 0 or not acct_inp.is_visible(timeout=500):
                     toolbar_filter_btn = self.page.locator(
                         "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
                     ).first
@@ -214,10 +222,15 @@ class BaseReportPage(BasePage):
 
                 if acct_inp.count() > 0:
                     self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã TKGD / Số tiểu khoản', đang điền '{acc_val}'...")
-                    acct_inp.click(force=True)
-                    self.page.wait_for_timeout(150)
-                    self.page.keyboard.press("Control+A")
-                    self.page.keyboard.press("Backspace")
+                    acct_inp.focus()
+                    acct_inp.fill(acc_val)
+                    self.page.wait_for_timeout(200)
+                    acct_inp.press("Enter")
+                    self.page.wait_for_timeout(1500)
+                else:
+                    self.log("  ⚠️ Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
+            except Exception as e:
+                self.log(f"  ⚠️ Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
                     self.page.wait_for_timeout(150)
                     self.page.keyboard.type(acc_val, delay=40)
                     self.page.wait_for_timeout(200)
