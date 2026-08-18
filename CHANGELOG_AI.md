@@ -2,6 +2,7 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+<<<<<<< HEAD
 ## [2026-08-18] Trích Xuất & Lưu Độc Lập Mã Nguồn Nguyên Bản Monolithic (Backup V1)
 
 ### Mục tiêu thay đổi
@@ -240,6 +241,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+=======
+>>>>>>> parent of f14a26e (done)
 ## [2026-08-17] Đóng gói Dự án Độc lập Tool Tải Báo Cáo CPP/CE (thư mục cpp-ce-downloader)
 
 ### Mục tiêu thay đổi
@@ -283,14 +286,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Ẩn toàn bộ khung *"Cấu hình Đăng nhập & Hệ thống"* (Tên đăng nhập, Mật khẩu, URL) và **Ẩn khung Log Console đen** ở **Chế độ Cơ bản** để giao diện mặc định tinh tế và trực quan nhất cho người xem.
   - Thêm phần **Tiến độ tải báo cáo trực quan** (Thanh Progress Bar %, Nhãn trạng thái realtime màu xanh lá tươi sáng & Thống kê số lượng file CSV đã lưu).
   - Khung Log Console kỹ thuật màu đen chỉ xuất hiện khi người dùng chủ động bấm chọn **`Chế độ: Cấu hình Nâng cao`**.
-- **Sửa Lỗi Điền Nhầm Ô Lọc Ngày Hệ Thống Khi Tải Báo Cáo DSGD (Lịch sử giao dịch) & DSL (Lịch sử lệnh)**:
-  - Phát hiện nguyên nhân: Cả hai màn hình *Lịch sử giao dịch* (DSGD) và *Lịch sử lệnh* (DSL) đều có 3 ô DatePicker theo thứ tự: `1. Ngày hệ thống`, `2. (Từ) Ngày phiên`, `3. (Đến) Ngày phiên`. Hàm cũ lấy nhầm ô index 0 (`Ngày hệ thống`) và index 1 (`Từ ngày phiên`), để trống ô `Đến ngày phiên` dẫn tới VNCLEAR lọc theo Ngày hệ thống và xuất ra file CSV rỗng 0 byte.
-  - Cập nhật hàm `set_mui_date_range_and_search` trong `downloader.py`:
-    1. Nhận diện chính xác ô `Ngày hệ thống` và **tự động XÓA TRẮNG** ô này trên cả DSL và DSGD.
-    2. Nhắm mục tiêu chính xác qua Label và Index vào 2 ô **`(Từ) Ngày phiên`** và **`(Đến) Ngày phiên`**.
-  - Kiểm thử thực tế tự động:
-    - **DSGD**: Tải về thành công file `DSGD0826.csv` với dung lượng **305,492 bytes (~305 KB)** đầy đủ dữ liệu giao dịch!
-    - **DSL**: Tải về thành công file `DSL0826.csv` với dung lượng **204,104 bytes (~204 KB)** đầy đủ dữ liệu lịch sử lệnh!
+- **Khắc phục Bug định vị ô Ngày (DatePicker) & Luồng xử lý GUI**:
+  - Bổ sung điều kiện loại trừ tuyệt đối `not(contains(@placeholder, 'Tìm kiếm'))` và `not(contains(@placeholder, 'thành viên'))` để ngăn Playwright gõ nhầm ô ngày vào ô Tìm kiếm Sidebar hoặc ô Mã thành viên.
+  - Bọc `try...except` toàn cục trong phương thức `DownloadWorker.run()` của `gui.py` để xử lý và hiển thị thông báo lỗi vào Log console mượt mà, ngăn tuyệt đối việc Python crash bất ngờ làm ngắt giao diện GUI và hiện thông báo `Press any key to continue`.
 - Cài đặt thành công các gói phụ thuộc `PyQt6` và `PyInstaller` (Exit code 0).
 - Kiểm tra biên dịch cú pháp tất cả các file Python trong `cpp-ce-downloader` (`python -m py_compile`) thành công 100% (Exit code 0).
 
