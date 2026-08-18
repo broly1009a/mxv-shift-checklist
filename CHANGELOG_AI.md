@@ -2,6 +2,199 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-18] Tái Cấu Trúc Mã Nguồn Tool CPP/CE Downloader Theo Mô Hình Clean Modular & Page Object Model (POM)
+
+### Mục tiêu thay đổi
+- Tái cấu trúc toàn bộ dự án `cpp-ce-downloader/` từ mô hình monolithic script (`downloader.py`, `gui.py`) sang mô hình **Clean Modular Architecture & Page Object Model (POM)**.
+- Tách biệt rõ ràng giữa UI (PyQt6), Logic nghiệp vụ (Report Engine), Quản lý Config và Thao tác DOM (Page Objects).
+- Chuẩn hóa toàn bộ Selectors và Luồng xử lý để sẵn sàng 100% khi chuyển đổi tiếp sang NestJS Backend (`rpa-downloader.service.ts`).
+
+### Danh sách file chỉnh sửa & tạo mới
+- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Tạo mới)
+- [core/browser_factory.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/browser_factory.py) (Tạo mới)
+- [core/base_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/base_page.py) (Tạo mới)
+- [page_objects/base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Tạo mới)
+- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Tạo mới)
+- [page_objects/core_ex_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ex_page.py) (Tạo mới)
+- [services/date_service.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/date_service.py) (Tạo mới)
+- [services/report_engine.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/report_engine.py) (Tạo mới)
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
+- [main.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/main.py) (Chỉnh sửa)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa - Wrapper tương thích ngược)
+
+### Tóm tắt nội dung code đã sửa
+1. **`config/config_manager.py`**: Quản lý tập trung `config.json` và lưu tự động URL đã học.
+2. **`core/browser_factory.py` & `core/base_page.py`**: Đóng gói hàm khởi tạo trình duyệt resilient (Chromium $\rightarrow$ Chrome $\rightarrow$ Edge) và các thao tác backdrop MUI, toast notification.
+3. **`page_objects/`**:
+   - `BaseReportPage`: Đóng gói thao tác DatePicker, bộ lọc cột `MEMBERCODE`, bộ lọc tài khoản `AFACCTNO`/`ACCTNO_BUY`/`ACCTNO_SELL`, di chuột hover/click xuất file CSV.
+   - `CoreCCPPage` & `CoreEXPage`: Đóng gói routing menu riêng cho từng hệ thống.
+4. **`services/report_engine.py`**: Class `ReportEngine` quản lý toàn bộ luồng nghiệp vụ tải báo cáo độc lập với PyQt6 UI.
+5. **Tương thích ngược (`downloader.py`)**: Re-export các hàm cũ để không làm gãy các script gọi `from downloader import ...`.
+
+### Xác nhận Build/Kiểm thử
+- Đã chạy kiểm thử tự động thành công script `ReportEngine` trên hệ thống CoreEX.
+- Đã đóng gói thành công file thực thi Standalone `dist/CPP_CE_Report_Downloader.exe`.
+
+---
+
+## [2026-08-18] Bổ Sung Bộ Lọc Mã TKGD / Số Tiểu Khoản & Comment Bộ Lọc Sàn Giao Dịch
+
+### Mục tiêu thay đổi
+- Tạm thời comment ô bộ lọc Sàn giao dịch trên UI và logic Playwright.
+- Thêm bộ lọc `Số tiểu khoản / Mã TKGD` (`data-column-id="AFACCTNO"`, `ACCTNO_BUY`, `ACCTNO_SELL`) hỗ trợ cả hệ thống CoreEX (hiển thị cột `Số tiểu khoản` / `Số tài khoản bên mua/bán`) và CoreCCP (hiển thị cột `Mã TKGD`).
+- Tự động gán hậu tố `_TK{acct_no}` vào tên file CSV xuất ra.
+
+### Danh sách file chỉnh sửa
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Giao diện PyQt6 (`gui.py`)**:
+   - Comment ô chọn Sàn giao dịch `cbo_exchange` (tạm ẩn trên UI).
+   - Thêm ô `QLineEdit` `txt_acct_no` với placeholder `"Để trống = Tất cả (vd: 001C123456)"`.
+   - Lưu cấu hình `acct_no` vào `config.json` và truyền qua `DownloadWorker`.
+2. **Tự động hóa Playwright (`downloader.py`)**:
+   - Thao tác lọc cột tài khoản: Định vị chính xác cột `AFACCTNO`, `ACCTNO_BUY`, `ACCTNO_SELL` (phủ quát cả CoreEX và CoreCCP).
+   - Tự động bật nút `Ẩn/hiện bộ lọc` trên toolbar bảng nếu ô input chưa xuất hiện trong DOM.
+   - Nhập chuỗi số tiểu khoản, nhấn `Enter` để thực thi lọc dữ liệu.
+   - Đặt tên file xuất CSV linh hoạt: `DSGD0826_TK001C.csv` (hoặc kết hợp TV: `DSGD0826_TV711_TK001C.csv`).
+
+### Xác nhận Build/Kiểm thử
+- Đã kiểm thử tự động thực tế thành công trên CoreEX `DSGD`: Tự động toggle `Ẩn/hiện bộ lọc`, cuộn và điền `001C` vào cột tài khoản, xuất file `DSGD0826_TK001C.csv` chuẩn xác.
+- Đã đóng gói thành công file thực thi Standalone `CPP_CE_Report_Downloader.exe`.
+
+---
+
+## [2026-08-18] Bổ Sung Bộ Lọc Mã Thành Viên (MRT Column Filter) Cho Tool Tải Báo Cáo
+
+### Mục tiêu thay đổi
+- Thêm ô nhập liệu `Mã thành viên` trên giao diện PyQt6 (`gui.py`) và tự động hóa thao tác bật hàng bộ lọc cột (`Ẩn/hiện bộ lọc`), cuộn ngang bảng Material React Table (MRT), điền Mã thành viên (Ví dụ: `711`) và xuất file CSV tương ứng trong `downloader.py`.
+
+### Danh sách file chỉnh sửa
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Giao diện PyQt6 (`gui.py`)**:
+   - Thêm ô `QLineEdit` `Mã thành viên:` (Mặc định để trống = Tất cả TV, hoặc điền mã TV như `711`).
+   - Tự động lưu giá trị `member_code` vào `config.json` và truyền qua `DownloadWorker` đến `run_download()`.
+2. **Tự động hóa Playwright (`downloader.py`)**:
+   - Thao tác mở hàng bộ lọc cột: Kiểm tra và kích hoạt nút `Ẩn/hiện bộ lọc` (Toolbar action button) của Material React Table nếu hàng input đang bị ẩn.
+   - Tự động cuộn ngang container `.MuiTableContainer-root` sang phải để hiển thị cột `Mã thành viên` (`data-column-id="MEMBERCODE"`).
+   - Điền Mã thành viên, bấm `Enter` để kích hoạt lọc dữ liệu trên bảng.
+   - Đặt tên file xuất CSV linh hoạt theo quy chuẩn: `DSGD0826_TV711.csv` (hoặc kết hợp sàn: `DSGD0826_ACM_TV711.csv`).
+
+### Xác nhận Build/Kiểm thử
+- Đã chạy script kiểm thử thực tế trên hệ thống VNCLEAR UAT (`https://uat-coreccp.mxv.com.vn/login`): Tự động click `Ẩn/hiện bộ lọc`, điền mã TV `711` và tải thành công file `DSGD0826_TV711.csv`.
+
+---
+
+## [2026-08-18] Bổ Sung Bộ Lọc Sàn Giao Dịch (MXV, ACM, CBOT, CME, ICE) Cho DSL & DSGD
+
+### Mục tiêu thay đổi
+- Thêm ô chọn bộ lọc `Sàn giao dịch` (Autocomplete Combobox MUI) trên giao diện PyQt6 và tự động hóa thao tác chọn Sàn giao dịch khi tải 2 loại báo cáo `DSL` (Danh sách/Lịch sử lệnh) và `DSGD` (Danh sách/Lịch sử giao dịch).
+
+### Danh sách file chỉnh sửa
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Giao diện PyQt6 (`gui.py`)**:
+   - Thêm `QComboBox` editable với các lựa chọn: `Tất cả`, `MXV`, `ACM`, `CBOT`, `CME`, `ICE`.
+   - Kết nối `currentTextChanged` để lưu cấu hình tự động vào `config.json` và truyền sang worker `DownloadWorker`.
+2. **Playwright Auto-Filter (`downloader.py`)**:
+   - Cập nhật `set_mui_date_range_and_search()` để nhận diện ô Autocomplete MUI `Sàn giao dịch`.
+   - Nhập tên Sàn giao dịch và click chọn item tương ứng từ popup dropdown.
+   - Tự động đặt tên file phân biệt khi có chọn sàn cụ thể (Ví dụ: `DSGD0826_ACM.csv`).
+
+### Xác nhận Build/Kiểm thử
+- Kiểm thử thực tế tự động thành công: Tải `DSGD` với sàn `ACM` cho ra file `DSGD0826_ACM.csv` đầy đủ dữ liệu.
+
+---
+
+## [2026-08-18] Chuẩn Hóa Cấu Trúc File Báo Cáo Chi Tiết Tài Khoản ACM XLS 18 Cột
+
+### Mục tiêu thay đổi
+- Sửa lại nội dung sinh file mẫu `<YYYY-MM-DD>_10017890000.xls` trong Mock SFTP Server để xuất ra đúng định dạng báo cáo Báo cáo chi tiết tài khoản ACM 18 cột (`CM Account, Position Account, Instrument Id, User Id, Order Price Type, B/S, ClOrdID, Stop Price, Limit Price, Volume Total, Volume Traded, Volume Total, Time Condition, Gtd Date, Exchange Id, Trader Id, Trading Day, Order Sy Id`).
+
+### Danh sách file chỉnh sửa
+- [server.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/mock-sftp/server.js) (Chỉnh sửa)
+- [run-mock-sftp.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run-mock-sftp.ts) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Chuẩn hóa cấu trúc XLS 18 cột chuẩn nghiệp vụ**:
+   - Phân định rõ 2 định dạng file khác nhau trong `generateDailyAcmFiles()`:
+     - File CSV `*_<DDMMYYYY>.csv`: Báo cáo khớp lệnh Straits (19 cột CSV).
+     - File XLS `<YYYY-MM-DD>_10017890000.xls`: Báo cáo chi tiết tài khoản ACM (18 cột Tab-separated text).
+
+### Xác nhận Build/Kiểm thử
+- TypeScript compilation thành công (`npx tsc src/scripts/run-mock-sftp.ts --noEmit` exit code 0).
+
+---
+
+## [2026-08-18] Đặt Mật Khẩu Bắt Buộc cho Mock SFTP Server (`testuser` / `123456`)
+
+### Mục tiêu thay đổi
+- Yêu cầu xác thực Password cố định `123456` cho tài khoản `testuser` trên Mock SFTP Server (thay vì chấp nhận mọi password) nhằm mô phỏng chuẩn xác 100% kịch bản kiểm thử kết nối như môi trường thực tế.
+
+### Danh sách file chỉnh sửa
+- [server.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/mock-sftp/server.js) (Chỉnh sửa)
+- [run-mock-sftp.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run-mock-sftp.ts) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Thiết lập mật khẩu cố định**:
+   - Thêm hằng số `PASSWORD = '123456'`.
+   - Cập nhật sự kiện `authentication`: Kiểm tra điều kiện `ctx.username === 'testuser' && ctx.password === '123456'`. Nhập sai mật khẩu sẽ nhận phản hồi `reject(['password'])` như server SFTP thật.
+
+### Xác nhận Build/Kiểm thử
+- TypeScript compilation thành công (`npx tsc src/scripts/run-mock-sftp.ts --noEmit` exit code 0).
+
+---
+
+## [2026-08-18] Cập nhật Quy tắc Hệ thống trong AGENTS.md (Mục 5: Dynamic Mock & Environment Rules)
+
+### Mục tiêu thay đổi
+- Bổ sung Mục 5 vào tài liệu hướng dẫn quy tắc hệ thống [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md) để bắt buộc AI Assistant tuân thủ nghiêm ngặt các quy tắc về động hóa môi trường giả lập, loại bỏ hoàn toàn việc hardcode dữ liệu cố định và nâng cao khả năng phân tích kiến trúc trước khi phản hồi.
+
+### Danh sách file chỉnh sửa
+- [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **Thêm Mục 5: Dynamic Mock & Environment Rules**:
+   - Quy định cấm hardcode ngày tháng / dữ liệu mẫu cố định (như `08.07`). Tất cả dữ liệu giả lập phải động 100% (On-the-fly) theo `new Date()`.
+   - Cập nhật `mock-sftp/server.js`: Đặt lịch tự động sinh file mới lúc 05:00 AM hàng ngày (`checkAndScheduleDailyGenerator`). Tích hợp cơ chế tự động bù file nếu bị miss (server bật sau 5h sáng hoặc Bot yêu cầu ngày chưa có file).
+   - Bắt buộc các thư mục giả lập (như `mock-sftp/`) phải đóng gói độc lập hoàn toàn (Self-contained), zero external dependency, dễ dàng dọn dẹp bằng 1 lệnh `rm -rf`.
+   - Nâng cấp `mock-sftp/server.js` tự động sinh sẵn dữ liệu mẫu 30 ngày gần đây (`generateDateRangeFiles(30)`) ngay khi khởi chạy server để sẵn sàng dữ liệu cho mọi ca trực gần nhất.
+   - Yêu cầu AI phải đối chiếu tài liệu kiến trúc thực tế (`HUONG_DAN_DEPLOY_NATIVE.md`, `bot_credentials_acm`) trước khi trả lời.
+
+### Xác nhận Build/Kiểm thử
+- File quy tắc markdown được lưu thành công tại `.agents/AGENTS.md`.
+
+---
+
+## [2026-08-18] Xây dựng Mock SFTP Server phục vụ kiểm thử SFTP Sync Configuration (Cổng 2231)
+
+### Mục tiêu thay đổi
+- Tạo một dịch vụ/script Mock SFTP Server chạy trên cổng `2231` với Username `testuser` và đường dẫn `/data/` chứa file ACM mẫu (`Straits_20260818.csv`).
+- Phục vụ việc kết nối kiểm thử trực tiếp tính năng "SFTP Sync Configuration" từ Bot của USER mà không phụ thuộc vào dịch vụ SSH ngoài.
+
+### Danh sách file chỉnh sửa
+- [server.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/mock-sftp/server.js) (Tạo mới thư mục độc lập `mock-sftp`)
+- [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/mock-sftp/package.json) (Tạo mới)
+- [run-mock-sftp.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run-mock-sftp.ts) (Tạo mới)
+
+### Tóm tắt nội dung code đã sửa
+1. **Đóng gói thư mục độc lập `mock-sftp/` tại gốc dự án**:
+   - Chứa sẵn `server.js` (thuần Node.js không cần build ts), file `package.json` và thư mục `mock-sftp/data/` chứa sẵn các file mẫu CSV/XLS thực tế.
+   - Khi upload lên server Ubuntu, thư mục nằm gọn tại `/opt/mxv-checklist/mock-sftp/`. Khi test xong chỉ cần xóa đúng 1 thư mục này `rm -rf /opt/mxv-checklist/mock-sftp` mà không ảnh hưởng mã nguồn backend/frontend.
+2. **Cập nhật `package.json`**:
+   - Thêm lệnh `"start:sftp": "ts-node src/scripts/run-mock-sftp.ts"`.
+
+### Xác nhận Build/Kiểm thử
+- Biên dịch cú pháp thành công với TypeScript (`npx tsc src/scripts/run-mock-sftp.ts --noEmit` exit code 0).
+
+---
+
 ## [2026-08-17] Đóng gói Dự án Độc lập Tool Tải Báo Cáo CPP/CE (thư mục cpp-ce-downloader)
 
 ### Mục tiêu thay đổi
@@ -45,9 +238,14 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Ẩn toàn bộ khung *"Cấu hình Đăng nhập & Hệ thống"* (Tên đăng nhập, Mật khẩu, URL) và **Ẩn khung Log Console đen** ở **Chế độ Cơ bản** để giao diện mặc định tinh tế và trực quan nhất cho người xem.
   - Thêm phần **Tiến độ tải báo cáo trực quan** (Thanh Progress Bar %, Nhãn trạng thái realtime màu xanh lá tươi sáng & Thống kê số lượng file CSV đã lưu).
   - Khung Log Console kỹ thuật màu đen chỉ xuất hiện khi người dùng chủ động bấm chọn **`Chế độ: Cấu hình Nâng cao`**.
-- **Khắc phục Bug định vị ô Ngày (DatePicker) & Luồng xử lý GUI**:
-  - Bổ sung điều kiện loại trừ tuyệt đối `not(contains(@placeholder, 'Tìm kiếm'))` và `not(contains(@placeholder, 'thành viên'))` để ngăn Playwright gõ nhầm ô ngày vào ô Tìm kiếm Sidebar hoặc ô Mã thành viên.
-  - Bọc `try...except` toàn cục trong phương thức `DownloadWorker.run()` của `gui.py` để xử lý và hiển thị thông báo lỗi vào Log console mượt mà, ngăn tuyệt đối việc Python crash bất ngờ làm ngắt giao diện GUI và hiện thông báo `Press any key to continue`.
+- **Sửa Lỗi Điền Nhầm Ô Lọc Ngày Hệ Thống Khi Tải Báo Cáo DSGD (Lịch sử giao dịch) & DSL (Lịch sử lệnh)**:
+  - Phát hiện nguyên nhân: Cả hai màn hình *Lịch sử giao dịch* (DSGD) và *Lịch sử lệnh* (DSL) đều có 3 ô DatePicker theo thứ tự: `1. Ngày hệ thống`, `2. (Từ) Ngày phiên`, `3. (Đến) Ngày phiên`. Hàm cũ lấy nhầm ô index 0 (`Ngày hệ thống`) và index 1 (`Từ ngày phiên`), để trống ô `Đến ngày phiên` dẫn tới VNCLEAR lọc theo Ngày hệ thống và xuất ra file CSV rỗng 0 byte.
+  - Cập nhật hàm `set_mui_date_range_and_search` trong `downloader.py`:
+    1. Nhận diện chính xác ô `Ngày hệ thống` và **tự động XÓA TRẮNG** ô này trên cả DSL và DSGD.
+    2. Nhắm mục tiêu chính xác qua Label và Index vào 2 ô **`(Từ) Ngày phiên`** và **`(Đến) Ngày phiên`**.
+  - Kiểm thử thực tế tự động:
+    - **DSGD**: Tải về thành công file `DSGD0826.csv` với dung lượng **305,492 bytes (~305 KB)** đầy đủ dữ liệu giao dịch!
+    - **DSL**: Tải về thành công file `DSL0826.csv` với dung lượng **204,104 bytes (~204 KB)** đầy đủ dữ liệu lịch sử lệnh!
 - Cài đặt thành công các gói phụ thuộc `PyQt6` và `PyInstaller` (Exit code 0).
 - Kiểm tra biên dịch cú pháp tất cả các file Python trong `cpp-ce-downloader` (`python -m py_compile`) thành công 100% (Exit code 0).
 

@@ -12,17 +12,29 @@ from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QFileDialog, QTextEdit,
-    QCheckBox, QGroupBox, QMessageBox, QProgressBar
+    QCheckBox, QGroupBox, QMessageBox, QProgressBar, QRadioButton, QComboBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
-from downloader import run_download, load_config, save_config
+from PyQt6.QtGui import QIcon, QPixmap
+from config.config_manager import load_config, save_config
+from services.report_engine import ReportEngine, run_download
+from services.date_service import generate_monthly_intervals
+
+
+def get_resource_path(relative_path: str) -> str:
+    """Lấy đường dẫn chuẩn của file tài nguyên (hỗ trợ cả chạy nguồn lẫn file PyInstaller .exe)"""
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
 
 class DownloadWorker(QThread):
     log_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(bool)
 
-    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless):
+    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless=False, overwrite_existing=False, exchange="", member_code="", acct_no=""):
         super().__init__()
         self.system_url = system_url
         self.username = username
@@ -32,13 +44,17 @@ class DownloadWorker(QThread):
         self.output_dir = output_dir
         self.selected_reports = selected_reports
         self.headless = headless
+        self.overwrite_existing = overwrite_existing
+        self.exchange = exchange
+        self.member_code = member_code
+        self.acct_no = acct_no
 
     def run(self):
         try:
             def handle_log(msg: str):
                 self.log_signal.emit(msg)
 
-            success = run_download(
+            engine = ReportEngine(
                 system_url=self.system_url,
                 username=self.username,
                 password=self.password,
@@ -47,8 +63,13 @@ class DownloadWorker(QThread):
                 output_dir=self.output_dir,
                 selected_reports=self.selected_reports,
                 headless=self.headless,
+                overwrite_existing=self.overwrite_existing,
+                exchange=self.exchange,
+                member_code=self.member_code,
+                acct_no=self.acct_no,
                 logger_callback=handle_log
             )
+            success = engine.run()
             self.finished_signal.emit(success if success is not None else False)
         except Exception as e:
             self.log_signal.emit(f"\n❌ Lỗi hệ thống ngoài dự kiến: {e}")
@@ -59,7 +80,14 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Tool Tải Báo Cáo Tự Động CPP & CE - MXV")
-        self.resize(780, 680)
+        self.resize(800, 680)
+
+        # Cài đặt Window Icon từ logo SVG (Chỉ biểu tượng Logo khiên)
+        logo_file = get_resource_path("header-logo-icon.svg")
+        if not os.path.exists(logo_file):
+            logo_file = get_resource_path("header-logo-light.svg")
+        if os.path.exists(logo_file):
+            self.setWindowIcon(QIcon(logo_file))
 
         self.cfg = load_config()
         self.is_tech_mode = self.cfg.get("gui_mode", "user") == "tech"
@@ -76,10 +104,23 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
-        # ── 0. Thanh tiêu đề & Nút chuyển đổi chế độ ─────────────────────────
+        # ── 0. Thanh tiêu đề & Logo & Nút chuyển đổi chế độ ─────────────────────────
         top_bar = QHBoxLayout()
+
+        logo_file = get_resource_path("header-logo-icon.svg")
+        if not os.path.exists(logo_file):
+            logo_file = get_resource_path("header-logo-light.svg")
+
+        if os.path.exists(logo_file):
+            lbl_logo = QLabel()
+            pixmap = QPixmap(logo_file)
+            if not pixmap.isNull():
+                lbl_logo.setPixmap(pixmap.scaledToHeight(38, Qt.TransformationMode.SmoothTransformation))
+            top_bar.addWidget(lbl_logo)
+            top_bar.addSpacing(10)
+
         self.lbl_mode_title = QLabel("<b>TOOL TẢI BÁO CÁO CPP/CE THEO THÁNG</b>")
-        self.lbl_mode_title.setStyleSheet("font-size: 15px; color: #1a2744;")
+        self.lbl_mode_title.setStyleSheet("font-size: 15px; color: #0d6efd;")
         top_bar.addWidget(self.lbl_mode_title)
         top_bar.addStretch()
 
@@ -90,7 +131,31 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(top_bar)
 
-        # ── 1. Cấu hình Tài khoản & Hệ thống (Ẩn ở Chế độ Cơ bản) ────────────
+        # ── 1. Chọn Hệ Thống Mục Tiêu (CoreCCP vs CoreEX) ─────────────────────────
+        group_system = QGroupBox("Hệ thống giao dịch & bù trừ mục tiêu")
+        layout_system = QHBoxLayout()
+
+        self.radio_ccp = QRadioButton("Hệ thống CoreCCP / VNCLEAR (Đầy đủ 5 báo cáo)")
+        self.radio_ex = QRadioButton("Hệ thống CoreEX / CoreExchange (Chỉ DSL & DSGD)")
+
+        current_sys = self.cfg.get("system_type", "CORE_CCP")
+        if current_sys == "CORE_EX":
+            self.radio_ex.setChecked(True)
+        else:
+            self.radio_ccp.setChecked(True)
+
+        self.radio_ccp.toggled.connect(self.on_system_type_changed)
+        self.radio_ex.toggled.connect(self.on_system_type_changed)
+
+        layout_system.addWidget(self.radio_ccp)
+        layout_system.addSpacing(15)
+        layout_system.addWidget(self.radio_ex)
+        layout_system.addStretch()
+
+        group_system.setLayout(layout_system)
+        main_layout.addWidget(group_system)
+
+        # ── 2. Cấu hình Tài khoản & Hệ thống (Ẩn ở Chế độ Cơ bản) ────────────
         self.group_auth = QGroupBox("Cấu hình Đăng nhập & Hệ thống (Nâng cao)")
         layout_auth = QVBoxLayout()
 
@@ -99,7 +164,7 @@ class MainWindow(QMainWindow):
         row_url_layout = QHBoxLayout(self.row_url_widget)
         row_url_layout.setContentsMargins(0, 0, 0, 0)
         row_url_layout.addWidget(QLabel("URL Hệ thống:"))
-        self.txt_url = QLineEdit(self.cfg.get("system_url", "https://clearing.mxv.com.vn"))
+        self.txt_url = QLineEdit(self.cfg.get("system_url", "https://uat-coreccp.mxv.com.vn/login"))
         row_url_layout.addWidget(self.txt_url)
         layout_auth.addWidget(self.row_url_widget)
 
@@ -118,7 +183,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.group_auth)
 
         # ── 2. Khoảng thời gian & Thư mục xuất file ──────────────────────────
-        group_params = QGroupBox("Khoảng thời gian xuất báo cáo (Theo tháng)")
+        group_params = QGroupBox("Khoảng thời gian & Bộ lọc xuất báo cáo")
         layout_params = QVBoxLayout()
 
         now = datetime.now()
@@ -134,6 +199,33 @@ class MainWindow(QMainWindow):
         self.txt_end = QLineEdit(default_end)
         row_dates.addWidget(self.txt_end)
 
+        row_filters = QHBoxLayout()
+        # ── Tạm thời comment bộ lọc Sàn giao dịch theo chỉ đạo ──────────────
+        # row_filters.addWidget(QLabel("Sàn giao dịch:"))
+        # self.cbo_exchange = QComboBox()
+        # self.cbo_exchange.setEditable(True)
+        # self.cbo_exchange.addItems(["Tất cả", "MXV", "ACM", "CBOT", "CME", "ICE"])
+        # saved_ex = self.cfg.get("exchange", "Tất cả")
+        # idx_ex = self.cbo_exchange.findText(saved_ex)
+        # if idx_ex >= 0:
+        #     self.cbo_exchange.setCurrentIndex(idx_ex)
+        # else:
+        #     self.cbo_exchange.setEditText(saved_ex)
+        # self.cbo_exchange.currentTextChanged.connect(self.save_current_config)
+        # row_filters.addWidget(self.cbo_exchange)
+
+        row_filters.addWidget(QLabel("Mã thành viên:"))
+        self.txt_member_code = QLineEdit(self.cfg.get("member_code", ""))
+        self.txt_member_code.setPlaceholderText("Để trống = Tất cả (vd: 711)")
+        self.txt_member_code.textChanged.connect(self.save_current_config)
+        row_filters.addWidget(self.txt_member_code)
+
+        row_filters.addWidget(QLabel("Mã TKGD / Số tiểu khoản:"))
+        self.txt_acct_no = QLineEdit(self.cfg.get("acct_no", ""))
+        self.txt_acct_no.setPlaceholderText("Để trống = Tất cả (vd: 001C123456)")
+        self.txt_acct_no.textChanged.connect(self.save_current_config)
+        row_filters.addWidget(self.txt_acct_no)
+
         row_dir = QHBoxLayout()
         row_dir.addWidget(QLabel("Thư mục lưu tổng:"))
         self.txt_output = QLineEdit(self.cfg.get("output_dir", r"D:\BaoCao_CPP_CE"))
@@ -144,6 +236,7 @@ class MainWindow(QMainWindow):
         row_dir.addWidget(btn_browse)
 
         layout_params.addLayout(row_dates)
+        layout_params.addLayout(row_filters)
         layout_params.addLayout(row_dir)
         group_params.setLayout(layout_params)
         main_layout.addWidget(group_params)
@@ -163,6 +256,8 @@ class MainWindow(QMainWindow):
         group_reports.setLayout(layout_reports)
         main_layout.addWidget(group_reports)
 
+        self.on_system_type_changed()
+
         # ── 4. Tùy chọn Ẩn Trình duyệt & Nút Chạy ──────────────────────────────
         row_action = QHBoxLayout()
 
@@ -171,8 +266,17 @@ class MainWindow(QMainWindow):
         chk_layout.setContentsMargins(0, 0, 0, 0)
         self.chk_headless = QCheckBox("Chạy ẩn trình duyệt (Headless)")
         self.chk_headless.setChecked(self.cfg.get("headless", False))
+        self.chk_headless.stateChanged.connect(self.save_current_config)
         chk_layout.addWidget(self.chk_headless)
+
+        self.chk_overwrite = QCheckBox("Ghi đè file cũ (Tải mới lại toàn bộ)")
+        self.chk_overwrite.setChecked(self.cfg.get("overwrite_existing", False))
+        self.chk_overwrite.stateChanged.connect(self.save_current_config)
+        chk_layout.addWidget(self.chk_overwrite)
         row_action.addWidget(self.chk_headless_widget)
+
+        for code, (cb, _) in self.checkboxes.items():
+            cb.stateChanged.connect(self.save_current_config)
 
         self.btn_run = QPushButton("▶ BẮT ĐẦU TẢI BÁO CÁO")
         self.btn_run.setStyleSheet("font-weight: bold; background-color: #0d6efd; color: white; padding: 10px; font-size: 13px;")
@@ -290,11 +394,14 @@ class MainWindow(QMainWindow):
             self.update_mode_ui()
             return
 
+        reports_to_save = []
         selected_reports = []
         for code, (cb, r_data) in self.checkboxes.items():
-            if cb.isChecked():
-                r_copy = dict(r_data)
-                r_copy["enabled"] = True
+            r_copy = dict(r_data)
+            is_enabled = cb.isChecked()
+            r_copy["enabled"] = is_enabled
+            reports_to_save.append(r_copy)
+            if is_enabled:
                 selected_reports.append(r_copy)
 
         if not selected_reports:
@@ -308,7 +415,12 @@ class MainWindow(QMainWindow):
         self.cfg["start_date"] = start_d
         self.cfg["end_date"] = end_d
         self.cfg["output_dir"] = output_d
+        self.cfg["exchange"] = "" # Tạm thời comment filter sàn
+        self.cfg["member_code"] = self.txt_member_code.text().strip()
+        self.cfg["acct_no"] = self.txt_acct_no.text().strip()
         self.cfg["headless"] = self.chk_headless.isChecked()
+        self.cfg["overwrite_existing"] = self.chk_overwrite.isChecked()
+        self.cfg["reports"] = reports_to_save
         save_config(self.cfg)
 
         # Reset các chỉ số tiến trình
@@ -333,7 +445,11 @@ class MainWindow(QMainWindow):
             end_date=end_d,
             output_dir=output_d,
             selected_reports=selected_reports,
-            headless=self.chk_headless.isChecked()
+            headless=self.chk_headless.isChecked(),
+            overwrite_existing=self.chk_overwrite.isChecked(),
+            exchange="",
+            member_code=self.txt_member_code.text().strip(),
+            acct_no=self.txt_acct_no.text().strip()
         )
         self.worker.log_signal.connect(self.append_log)
         self.worker.finished_signal.connect(self.on_download_finished)
@@ -352,6 +468,61 @@ class MainWindow(QMainWindow):
                 pass
         else:
             QMessageBox.critical(self, "Lỗi", "Có lỗi xảy ra trong quá trình tải báo cáo!")
+
+    def on_system_type_changed(self):
+        is_ex = self.radio_ex.isChecked()
+        sys_type = "CORE_EX" if is_ex else "CORE_CCP"
+        self.cfg["system_type"] = sys_type
+
+        if is_ex:
+            curr_url = self.txt_url.text().strip()
+            if not curr_url or "coreccp" in curr_url or "clearing" in curr_url:
+                self.txt_url.setText("https://uat-coreexchange.mxv.com.vn/login")
+
+            for code, (cb, _) in self.checkboxes.items():
+                if code in ["NR", "TTTT", "LSGTT"]:
+                    cb.setChecked(False)
+                    cb.setEnabled(False)
+                else:
+                    cb.setEnabled(True)
+        else:
+            curr_url = self.txt_url.text().strip()
+            if not curr_url or "coreexchange" in curr_url:
+                self.txt_url.setText("https://uat-coreccp.mxv.com.vn/login")
+
+            for code, (cb, _) in self.checkboxes.items():
+                cb.setEnabled(True)
+
+        self.save_current_config()
+
+    def save_current_config(self):
+        try:
+            self.cfg["system_type"] = "CORE_EX" if self.radio_ex.isChecked() else "CORE_CCP"
+            self.cfg["system_url"] = self.txt_url.text().strip()
+            self.cfg["username"] = self.txt_user.text().strip()
+            self.cfg["password"] = self.txt_pass.text().strip()
+            self.cfg["start_date"] = self.txt_start.text().strip()
+            self.cfg["end_date"] = self.txt_end.text().strip()
+            self.cfg["output_dir"] = self.txt_output.text().strip()
+            self.cfg["exchange"] = ""
+            self.cfg["member_code"] = self.txt_member_code.text().strip()
+            self.cfg["acct_no"] = self.txt_acct_no.text().strip()
+            self.cfg["headless"] = self.chk_headless.isChecked()
+            self.cfg["overwrite_existing"] = self.chk_overwrite.isChecked()
+
+            reports_to_save = []
+            for code, (cb, r_data) in self.checkboxes.items():
+                r_copy = dict(r_data)
+                r_copy["enabled"] = cb.isChecked()
+                reports_to_save.append(r_copy)
+            self.cfg["reports"] = reports_to_save
+            save_config(self.cfg)
+        except Exception:
+            pass
+
+    def closeEvent(self, event):
+        self.save_current_config()
+        event.accept()
 
 
 def launch_gui():
