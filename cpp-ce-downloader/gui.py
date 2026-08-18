@@ -485,6 +485,7 @@ class MainWindow(QMainWindow):
                     cb.setEnabled(False)
                 else:
                     cb.setEnabled(True)
+                    cb.setChecked(True)
         else:
             curr_url = self.txt_url.text().strip()
             if not curr_url or "coreexchange" in curr_url:
@@ -492,6 +493,7 @@ class MainWindow(QMainWindow):
 
             for code, (cb, _) in self.checkboxes.items():
                 cb.setEnabled(True)
+                cb.setChecked(True)
 
         self.save_current_config()
 

@@ -36,34 +36,39 @@ class BaseReportPage(BasePage):
             self.page.keyboard.press("Tab")
 
         # 2. Định vị chính xác 2 ô '(Từ) Ngày phiên' và '(Đến) Ngày phiên' (hoặc Từ ngày / Đến ngày)
-        from_by_label = self.page.locator(
-            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input[not(@tabindex='-1')]"
-            " | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input[not(@tabindex='-1')]"
-        ).first
-        to_by_label = self.page.locator(
-            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input[not(@tabindex='-1')]"
-            " | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input[not(@tabindex='-1')]"
-        ).first
+        picker_inputs = self.page.locator(
+            "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input"
+            " | //input[contains(@class, 'MuiPickersInputBase-input')]"
+        )
 
+        count = picker_inputs.count()
         from_inp = None
         to_inp = None
 
-        if from_by_label.count() > 0:
+        from_by_label = self.page.locator(
+            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input"
+            " | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input"
+        ).first
+        to_by_label = self.page.locator(
+            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input"
+            " | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input"
+        ).first
+
+        if from_by_label.is_visible(timeout=800):
             from_inp = from_by_label
-        if to_by_label.count() > 0:
+        if to_by_label.is_visible(timeout=800):
             to_inp = to_by_label
 
-        if not from_inp or not to_inp:
-            picker_inputs = self.page.locator(
-                "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input[not(@tabindex='-1')]"
-                " | //input[contains(@class, 'MuiPickersInputBase-input') and not(@tabindex='-1')]"
-            )
-            count = picker_inputs.count()
-            if count >= 2:
-                if not from_inp:
-                    from_inp = picker_inputs.nth(0)
-                if not to_inp:
-                    to_inp = picker_inputs.nth(1)
+        if count >= 3:
+            if not from_inp:
+                from_inp = picker_inputs.nth(1)
+            if not to_inp:
+                to_inp = picker_inputs.nth(2)
+        elif count == 2:
+            if not from_inp:
+                from_inp = picker_inputs.nth(0)
+            if not to_inp:
+                to_inp = picker_inputs.nth(1)
 
         if from_inp and to_inp:
             self.log(f"  [Filter] Điền (Từ) Ngày phiên {start_date} và (Đến) Ngày phiên {end_date}...")

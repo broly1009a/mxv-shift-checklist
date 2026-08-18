@@ -14,77 +14,101 @@ def get_config_path() -> str:
     return os.path.join(base_dir, CONFIG_FILE_NAME)
 
 
+DEFAULT_REPORTS = [
+    {
+        "code": "NR",
+        "name": "Lịch sử nộp rút tiền",
+        "parent_menu": "Nộp rút tiền",
+        "child_menu": "Lịch sử Nộp/ Rút tiền",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
+        "enabled": True
+    },
+    {
+        "code": "DSL",
+        "name": "Danh sách lệnh",
+        "parent_menu": "Lệnh và vị thế",
+        "sub_menu": "Tra cứu tổng hợp",
+        "child_menu": "Danh sách lệnh",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK",
+        "enabled": True
+    },
+    {
+        "code": "DSGD",
+        "name": "Danh sách giao dịch",
+        "parent_menu": "Lệnh và vị thế",
+        "sub_menu": "Tra cứu tổng hợp",
+        "child_menu": "Danh sách giao dịch",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
+        "enabled": True
+    },
+    {
+        "code": "TTTT",
+        "name": "Trạng thái tất toán",
+        "parent_menu": "Lệnh và vị thế",
+        "child_menu": "Trạng thái tất toán",
+        "tab_name": "Lịch sử tất toán",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
+        "enabled": True
+    },
+    {
+        "code": "LSGTT",
+        "name": "Lịch sử giá thanh toán",
+        "parent_menu": "Quản lý sản phẩm",
+        "child_menu": "Quản lý lịch sử giá thanh toán",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
+        "enabled": True
+    }
+]
+
+
 def load_config() -> dict:
-    """Đọc cấu hình từ config.json, nếu chưa có thì tạo file cấu hình mặc định."""
+    """Đọc cấu hình từ config.json, tự động bảo toàn đủ 5 loại báo cáo tiêu chuẩn."""
     config_path = get_config_path()
+    cfg = None
     if os.path.exists(config_path):
         try:
             with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                cfg = json.load(f)
         except Exception:
-            pass
+            cfg = None
 
-    default_config = {
-        "system_type": "CORE_CCP",
-        "system_url": "https://uat-coreccp.mxv.com.vn/login",
-        "username": "",
-        "password": "",
-        "start_date": "01/01/2025",
-        "end_date": "30/08/2026",
-        "output_dir": r"D:\BaoCao_CPP_CE",
-        "exchange": "",
-        "member_code": "",
-        "acct_no": "",
-        "headless": False,
-        "overwrite_existing": False,
-        "reports": [
-            {
-                "code": "NR",
-                "name": "Lịch sử nộp rút tiền",
-                "parent_menu": "Nộp rút tiền",
-                "child_menu": "Lịch sử Nộp/ Rút tiền",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
-                "enabled": True
-            },
-            {
-                "code": "DSL",
-                "name": "Danh sách lệnh",
-                "parent_menu": "Lệnh và vị thế",
-                "sub_menu": "Tra cứu tổng hợp",
-                "child_menu": "Danh sách lệnh",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK",
-                "enabled": True
-            },
-            {
-                "code": "DSGD",
-                "name": "Danh sách giao dịch",
-                "parent_menu": "Lệnh và vị thế",
-                "sub_menu": "Tra cứu tổng hợp",
-                "child_menu": "Danh sách giao dịch",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
-                "enabled": True
-            },
-            {
-                "code": "TTTT",
-                "name": "Trạng thái tất toán",
-                "parent_menu": "Lệnh và vị thế",
-                "child_menu": "Trạng thái tất toán",
-                "tab_name": "Lịch sử tất toán",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
-                "enabled": True
-            },
-            {
-                "code": "LSGTT",
-                "name": "Lịch sử giá thanh toán",
-                "parent_menu": "Quản lý sản phẩm",
-                "child_menu": "Quản lý lịch sử giá thanh toán",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
-                "enabled": True
-            }
-        ]
-    }
-    save_config(default_config)
-    return default_config
+    if not cfg:
+        cfg = {
+            "system_type": "CORE_CCP",
+            "system_url": "https://uat-coreccp.mxv.com.vn/login",
+            "username": "",
+            "password": "",
+            "start_date": "01/01/2025",
+            "end_date": "30/08/2026",
+            "output_dir": r"D:\BaoCao_CPP_CE",
+            "exchange": "",
+            "member_code": "",
+            "acct_no": "",
+            "headless": False,
+            "overwrite_existing": False,
+            "reports": DEFAULT_REPORTS
+        }
+    else:
+        # Tự động kiểm tra và phục hồi các báo cáo bị thiếu trong config.json
+        existing_reports = cfg.get("reports", [])
+        existing_codes = {r["code"]: r for r in existing_reports if isinstance(r, dict) and "code" in r}
+
+        merged_reports = []
+        for default_r in DEFAULT_REPORTS:
+            code = default_r["code"]
+            if code in existing_codes:
+                saved_r = existing_codes[code]
+                # Merge thông tin mặc định nếu thiếu
+                merged_item = dict(default_r)
+                merged_item.update(saved_r)
+                merged_reports.append(merged_item)
+            else:
+                merged_reports.append(dict(default_r))
+
+        cfg["reports"] = merged_reports
+
+    save_config(cfg)
+    return cfg
 
 
 def save_config(cfg: dict):
