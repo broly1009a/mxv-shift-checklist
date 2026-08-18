@@ -2,7 +2,52 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-08-18] Tái Cấu Trúc Mã Nguồn Tool CPP/CE Downloader Theo Mô Hình Clean Modular & Page Object Model (POM)
+## [2026-08-18] Trích Xuất & Lưu Độc Lập Mã Nguồn Nguyên Bản Monolithic (Backup V1)
+
+### Mục tiêu thay đổi
+- Trích xuất toàn bộ mã nguồn monolithic gốc chưa tái cấu trúc từ Git History lưu thành một thư mục dự phòng độc lập `cpp-ce-downloader/backup_original_monolithic/` để dự phòng an toàn 100%.
+
+### Danh sách file tạo mới
+- [backup_original_monolithic/downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) (73 KB - Script tải tự động nguyên bản)
+- [backup_original_monolithic/gui_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/backup_original_monolithic/gui_original.py) (46 KB - Giao diện PyQt6 nguyên bản)
+
+---
+
+### Mục tiêu thay đổi
+- Sửa lỗi Playwright không thể điều hướng trang báo cáo trên CoreCCP do điều kiện kiểm tra URL cũ bị sai (`startswith`), dẫn đến việc luôn chuyển sang click menu Sidebar và thất bại.
+- Cho phép mở thẳng URL báo cáo (`cached_url`) cực nhanh và ổn định 100%.
+
+### Danh sách file chỉnh sửa
+- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Chỉnh sửa)
+
+### Tóm tắt nội dung code đã sửa
+1. **`page_objects/core_ccp_page.py`**:
+   - Sửa hàm `navigate_to_report()`: Cho phép `page.goto(cached_url)` truy cập thẳng vào trang báo cáo ngay khi có `cached_url` thay vì bắt buộc URL hiện tại phải trùng tiền tố.
+   - Nâng cấp bộ định vị Menu Sidebar dự phòng (dùng `MuiListItemButton-root` và `a[contains(@href, '/')]`) nếu `goto` gặp sự cố.
+2. **Xác nhận kiểm thử & Build**:
+   - Đã kiểm thử tự động thực tế thành công: Đăng nhập CoreCCP và mở thẳng trang `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`, lọc Mã TV `711` và kết xuất file CSV chuẩn xác.
+   - Đã rebuild lại file Standalone [`dist/CPP_CE_Report_Downloader.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader.exe).
+
+---
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lỗi danh sách báo cáo trên GUI bị mất (chỉ còn hiển thị 1 báo cáo hoặc bị uncheck toàn bộ) khi lưu `config.json` hoặc khi chuyển đổi giữa hệ thống CoreCCP và CoreEX.
+
+### Danh sách file chỉnh sửa
+- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Chỉnh sửa)
+- [gui.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/gui.py) (Chỉnh sửa)
+- [config.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config.json) (Khôi phục)
+
+### Tóm tắt nội dung code đã sửa
+1. **`config/config_manager.py`**:
+   - Thêm cơ chế tự động kiểm tra và phục hồi (`merged_reports`) trong `load_config()`. 
+   - Đảm bảo dù `config.json` có bị lưu thiếu hoặc lỗi file thì khi app khởi chạy vẫn luôn bảo toàn đủ 5 loại báo cáo tiêu chuẩn (`NR`, `DSL`, `DSGD`, `TTTT`, `LSGTT`).
+2. **`gui.py`**:
+   - Cập nhật `on_system_type_changed()`: Khi người dùng chọn lại `CoreCCP` (`radio_ccp`), hệ thống tự động bật lại trạng thái `enabled` và re-check toàn bộ 5 báo cáo thay vì giữ nguyên trạng thái bị uncheck từ `CoreEX`.
+3. **Đóng gói lại File thực thi**:
+   - Đã rebuild lại file Standalone [`dist/CPP_CE_Report_Downloader.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader.exe).
+
+---
 
 ### Mục tiêu thay đổi
 - Tái cấu trúc toàn bộ dự án `cpp-ce-downloader/` từ mô hình monolithic script (`downloader.py`, `gui.py`) sang mô hình **Clean Modular Architecture & Page Object Model (POM)**.
