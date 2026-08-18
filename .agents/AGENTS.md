@@ -70,3 +70,19 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
    - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
 
+---
+
+## 5. Dynamic Mock & Environment Rules (Quy tắc Giả lập & Động hóa Môi trường)
+
+1. **Tuyệt đối không hardcode dữ liệu / ngày tháng mẫu cố định**:
+   - Khi tạo script mock, server giả lập hoặc helper test (như SFTP Mock Server, Mock Services), **tuyệt đối không hardcode ngày tháng mẫu cố định** (như `08.07` hay các ngày cũ) vào code.
+   - Tất cả dữ liệu giả lập phải **động 100% (Dynamic & On-The-Fly)**: Tự động lấy theo `new Date()` hiện tại hoặc tự động nhận diện chuỗi ngày/pattern từ request của Client để sinh dữ liệu tương ứng.
+
+2. **Đóng gói Độc lập (Self-Contained & Zero External Dependencies)**:
+   - Các thư mục/tool giả lập (như `mock-sftp/`) phải nằm trong một thư mục riêng biệt độc lập, chứa đầy đủ code và dữ liệu mẫu cần thiết. Tuyệt đối không được tham chiếu tương đối ra các thư mục ngoài (như `../../../08.07 ACM`).
+   - Phải đảm bảo khi copy duy nhất thư mục đó sang môi trường khác (như Server Ubuntu sản xuất/test), nó chạy được ngay 100% và khi xóa chỉ cần `rm -rf` thư mục đó là không để lại bất kỳ dữ liệu rác nào.
+
+3. **Phân tích kỹ lưỡng kiến trúc & tài liệu trước khi trả lời**:
+   - AI phải luôn kiểm tra đối chiếu kiến trúc thực tế (như `HUONG_DAN_DEPLOY_NATIVE.md`, `bot_credentials_acm`, NestJS Backend PM2) trước khi đưa ra hướng dẫn, tránh nhầm lẫn giữa vai trò SFTP Server và Client.
+
+

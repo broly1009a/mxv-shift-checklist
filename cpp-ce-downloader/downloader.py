@@ -8,18 +8,105 @@ import time
 import json
 import calendar
 from datetime import datetime
+from urllib.parse import urlparse
 from dateutil.relativedelta import relativedelta
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeoutError
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+def get_app_dir() -> str:
+    """Trả về thư mục lưu cấu hình thực tế (cùng thư mục chứa file .exe khi đóng gói)"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+def get_bundled_config_path() -> str:
+    """Đường dẫn file config mặc định đóng gói sẵn trong ứng dụng"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, "config.json")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+CONFIG_PATH = os.path.join(get_app_dir(), "config.json")
+
+
+DEFAULT_REPORTS = [
+    {
+        "code": "NR",
+        "name": "Lịch sử nộp rút tiền",
+        "parent_menu": "Quản lý tiền",
+        "child_menu": "Lịch sử nộp rút tiền",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
+        "enabled": True
+    },
+    {
+        "code": "DSL",
+        "name": "Lịch sử lệnh",  # Đã đổi từ 'Danh sách lệnh' -> 'Lịch sử lệnh'
+        "parent_menu": "Lệnh và vị thế",
+        "child_menu": "Lịch sử lệnh",
+        "cached_url": "",  # Tự động điều hướng theo menu 'Lịch sử lệnh'
+        "enabled": True
+        # --- LOGIC CŨ (ĐÃ ẨN ĐỂ TÁI SỬ DỤNG KHI CẦN): ---
+        # "name": "Danh sách lệnh",
+        # "child_menu": "Danh sách lệnh",
+        # "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK"
+    },
+    {
+        "code": "DSGD",
+        "name": "Lịch sử giao dịch",  # Đã đổi từ 'Danh sách giao dịch' -> 'Lịch sử giao dịch'
+        "parent_menu": "Lệnh và vị thế",
+        "child_menu": "Lịch sử giao dịch",
+        "cached_url": "",  # Tự động điều hướng theo menu 'Lịch sử giao dịch'
+        "enabled": True
+        # --- LOGIC CŨ (ĐÃ ẨN ĐỂ TÁI SỬ DỤNG KHI CẦN): ---
+        # "name": "Danh sách giao dịch",
+        # "child_menu": "Danh sách giao dịch",
+        # "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL"
+    },
+    {
+        "code": "TTTT",
+        "name": "Trạng thái tất toán",
+        "parent_menu": "Lệnh và vị thế",
+        "child_menu": "Trạng thái tất toán",
+        "tab_name": "Lịch sử tất toán",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
+        "enabled": True
+    },
+    {
+        "code": "LSGTT",
+        "name": "Lịch sử giá thanh toán",
+        "parent_menu": "Quản lý sản phẩm",
+        "child_menu": "Quản lý lịch sử giá thanh toán",
+        "cached_url": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
+        "enabled": True
+    }
+]
 
 
 def load_config() -> dict:
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    cfg = {}
+    target_path = CONFIG_PATH if os.path.exists(CONFIG_PATH) else get_bundled_config_path()
+
+    if os.path.exists(target_path):
+        try:
+            with open(target_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception:
+            cfg = {}
+
+    existing_reports = cfg.get("reports", [])
+    existing_codes = {r.get("code"): r for r in existing_reports if isinstance(r, dict)}
+
+    merged_reports = []
+    for default_r in DEFAULT_REPORTS:
+        code = default_r["code"]
+        if code in existing_codes:
+            saved_r = existing_codes[code]
+            merged_r = dict(default_r)
+            merged_r["enabled"] = saved_r.get("enabled", True)
+            merged_reports.append(merged_r)
+        else:
+            merged_reports.append(dict(default_r))
+
+    cfg["reports"] = merged_reports
+    return cfg
 
 
 def save_config(cfg: dict) -> None:
@@ -30,10 +117,12 @@ def save_config(cfg: dict) -> None:
 def generate_monthly_intervals(start_date_str: str, end_date_str: str):
     """
     Tách khoảng thời gian start_date -> end_date thành từng tháng.
-    Ví dụ: '01/01/2025' -> '30/08/2026'
+    Tự động chuẩn hóa dấu phân cách (- hoặc .) về định dạng chuẩn dd/mm/yyyy.
     """
-    start_dt = datetime.strptime(start_date_str, "%d/%m/%Y")
-    end_dt = datetime.strptime(end_date_str, "%d/%m/%Y")
+    start_date_clean = start_date_str.strip().replace("-", "/").replace(".", "/")
+    end_date_clean = end_date_str.strip().replace("-", "/").replace(".", "/")
+    start_dt = datetime.strptime(start_date_clean, "%d/%m/%Y")
+    end_dt = datetime.strptime(end_date_clean, "%d/%m/%Y")
 
     current = start_dt.replace(day=1)
     monthly_ranges = []
@@ -87,17 +176,46 @@ def ensure_sidebar_expanded(page: Page, log=print):
         pass
 
 
+from urllib.parse import urlparse
+
+
+def get_base_origin(url_str: str) -> str:
+    """Trích xuất domain gốc (base origin) từ URL đăng nhập do người dùng nhập"""
+    if not url_str:
+        return "https://clearing.mxv.com.vn"
+    if not url_str.startswith("http://") and not url_str.startswith("https://"):
+        url_str = "https://" + url_str
+    parsed = urlparse(url_str)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def resolve_report_url(cached_url: str, system_url: str) -> str:
+    """
+    Tự động ghép path báo cáo với domain hệ thống (system_url) do người dùng nhập.
+    Đảm bảo 100% không bao giờ bị nhảy nhầm sang domain hệ thống khác.
+    """
+    if not cached_url:
+        return ""
+    base_origin = get_base_origin(system_url)
+    parsed_cached = urlparse(cached_url)
+    path = parsed_cached.path
+    if not path or path == "/":
+        return ""
+    return f"{base_origin}{path}"
+
+
 def navigate_to_report_page(page: Page, report_cfg: dict, system_url: str, log=print) -> str:
     """
     Điều hướng đến màn hình báo cáo qua Cây Menu VNCLEAR và bắt URL thực tế.
     """
     dismiss_modal_backdrop(page)
     cached_url = report_cfg.get("cached_url", "") or report_cfg.get("url", "")
+    target_url = resolve_report_url(cached_url, system_url)
     
-    # 1. Thử truy cập thẳng nếu đã có URL cached
-    if cached_url and cached_url.startswith("http"):
+    # 1. Thử truy cập thẳng nếu đã có URL cached (đã ghép với domain người dùng nhập)
+    if target_url:
         try:
-            page.goto(cached_url, wait_until="networkidle", timeout=10000)
+            page.goto(target_url, wait_until="networkidle", timeout=10000)
             page.wait_for_timeout(1000)
 
             # Tab phụ nếu cần (Ví dụ tab 'Lịch sử tất toán' trong Trạng thái tất toán)
@@ -110,7 +228,7 @@ def navigate_to_report_page(page: Page, report_cfg: dict, system_url: str, log=p
                     page.wait_for_timeout(1000)
 
             if page.locator("xpath=//button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]").first.is_visible(timeout=2000):
-                log(f"  [URL Cached] Đã truy cập thẳng: {cached_url}")
+                log(f"  [URL Cached] Đã truy cập thẳng: {target_url}")
                 return page.url
         except Exception:
             log("  [URL Cached] URL cũ không phản hồi, chuyển sang click Menu...")
@@ -121,6 +239,11 @@ def navigate_to_report_page(page: Page, report_cfg: dict, system_url: str, log=p
     parent_menu = report_cfg.get("parent_menu", "")
     child_menu = report_cfg.get("child_menu", "")
     sub_menu = report_cfg.get("sub_menu", "")
+
+    # Tự động điều chỉnh Menu Cha theo Hệ thống mục tiêu (CoreEX dùng 'Quản lý sổ lệnh')
+    if "coreexchange" in system_url.lower():
+        if page.locator("xpath=//span[contains(text(), 'Quản lý sổ lệnh')]").first.is_visible(timeout=1500):
+            parent_menu = "Quản lý sổ lệnh"
 
     # Click Menu cha
     parent_xpath = f"xpath=//span[text()='{parent_menu}'] | //span[contains(text(), '{parent_menu}')]"
@@ -138,19 +261,34 @@ def navigate_to_report_page(page: Page, report_cfg: dict, system_url: str, log=p
             sub_elem.click(force=True)
             page.wait_for_timeout(800)
 
-    # Click Menu con
-    child_xpath = f"xpath=//span[text()='{child_menu}'] | //span[contains(text(), '{child_menu}')]"
-    child_elem = page.locator(child_xpath).first
+    # Click Menu con (Hỗ trợ tìm linh hoạt 'Lịch sử lệnh' / 'Danh sách lệnh', 'Lịch sử giao dịch' / 'Danh sách giao dịch')
+    child_candidates = [child_menu]
+    if child_menu in ["Lịch sử lệnh", "Danh sách lệnh"]:
+        child_candidates = ["Lịch sử lệnh", "Danh sách lệnh"]
+    elif child_menu in ["Lịch sử giao dịch", "Danh sách giao dịch"]:
+        child_candidates = ["Lịch sử giao dịch", "Danh sách giao dịch"]
 
-    if child_elem.is_visible(timeout=5000):
+    child_elem = None
+    for cand in child_candidates:
+        cand_xpath = f"xpath=//span[text()='{cand}'] | //span[contains(text(), '{cand}')]"
+        cand_elem = page.locator(cand_xpath).first
+        if cand_elem.is_visible(timeout=1500):
+            child_elem = cand_elem
+            break
+
+    if child_elem:
         child_elem.click(force=True)
         page.wait_for_timeout(2000)
     else:
         parent_elem.click(force=True)
         page.wait_for_timeout(800)
-        if child_elem.is_visible(timeout=5000):
-            child_elem.click(force=True)
-            page.wait_for_timeout(2000)
+        for cand in child_candidates:
+            cand_xpath = f"xpath=//span[text()='{cand}'] | //span[contains(text(), '{cand}')]"
+            cand_elem = page.locator(cand_xpath).first
+            if cand_elem.is_visible(timeout=1500):
+                cand_elem.click(force=True)
+                page.wait_for_timeout(2000)
+                break
 
     # Tab phụ nếu có (Ví dụ tab 'Lịch sử tất toán')
     tab_name = report_cfg.get("tab_name", "")
@@ -166,10 +304,9 @@ def navigate_to_report_page(page: Page, report_cfg: dict, system_url: str, log=p
     return learned_url
 
 
-def set_mui_date_range_and_search(page: Page, start_date: str, end_date: str, log=print):
+def set_mui_date_range_and_search(page: Page, start_date: str, end_date: str, exchange: str = "", member_code: str = "", log=print):
     """
-    Điền khoảng thời gian cho MUI DatePicker và bấm nút Tìm kiếm.
-    Nhắm chính xác 2 ô DatePicker dành riêng (MuiPickersInputBase-root / role='group'), không dính ô Mã thành viên hay Sidebar.
+    Điền khoảng thời gian cho MUI DatePicker, lọc Sàn giao dịch & Mã thành viên (nếu có) và bấm nút Tìm kiếm.
     """
     dismiss_modal_backdrop(page)
 
@@ -181,17 +318,61 @@ def set_mui_date_range_and_search(page: Page, start_date: str, end_date: str, lo
             history_tab.click(force=True)
             page.wait_for_timeout(1500)
 
-    # Định vị chính xác 2 ô DatePicker qua class MuiPickersInputBase-root hoặc role='group'
+    # 1. Nếu có ô 'Ngày hệ thống' (trên màn hình Lịch sử giao dịch DSGD), XÓA SẠCH để chỉ lọc theo Ngày phiên
+    sys_date_inp = page.locator(
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Ngày hệ thống')]]//input"
+        " | //label[contains(text(), 'Ngày hệ thống')]/following-sibling::div//input"
+    ).first
+    if sys_date_inp.is_visible(timeout=800):
+        log("  [Filter] Xóa trắng 'Ngày hệ thống' để lọc chính xác theo '(Từ) Ngày phiên -> (Đến) Ngày phiên'...")
+        sys_date_inp.click(force=True)
+        page.wait_for_timeout(150)
+        page.keyboard.press("Control+A")
+        page.keyboard.press("Backspace")
+        page.wait_for_timeout(150)
+        page.keyboard.press("Tab")
+
+    # 2. Định vị chính xác 2 ô '(Từ) Ngày phiên' và '(Đến) Ngày phiên' (hoặc Từ ngày / Đến ngày)
     picker_inputs = page.locator(
         "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input"
         " | //input[contains(@class, 'MuiPickersInputBase-input')]"
     )
 
-    if picker_inputs.count() >= 2:
-        log(f"  [Filter] Điền Từ ngày {start_date} và Đến ngày {end_date}...")
+    count = picker_inputs.count()
+    from_inp = None
+    to_inp = None
 
-        # 1. Ô Từ ngày (Index 0)
-        from_inp = picker_inputs.nth(0)
+    # Thử nhắm theo label 'Từ' và 'Đến'
+    from_by_label = page.locator(
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input"
+        " | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input"
+    ).first
+    to_by_label = page.locator(
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input"
+        " | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input"
+    ).first
+
+    if from_by_label.is_visible(timeout=800):
+        from_inp = from_by_label
+    if to_by_label.is_visible(timeout=800):
+        to_inp = to_by_label
+
+    # Fallback theo index nếu không thấy label
+    if count >= 3:
+        if not from_inp:
+            from_inp = picker_inputs.nth(1)
+        if not to_inp:
+            to_inp = picker_inputs.nth(2)
+    elif count == 2:
+        if not from_inp:
+            from_inp = picker_inputs.nth(0)
+        if not to_inp:
+            to_inp = picker_inputs.nth(1)
+
+    if from_inp and to_inp:
+        log(f"  [Filter] Điền (Từ) Ngày phiên {start_date} và (Đến) Ngày phiên {end_date}...")
+
+        # Ô (Từ) Ngày phiên
         from_inp.click(force=True)
         page.wait_for_timeout(200)
         page.keyboard.press("Control+A")
@@ -201,8 +382,7 @@ def set_mui_date_range_and_search(page: Page, start_date: str, end_date: str, lo
         page.wait_for_timeout(200)
         page.keyboard.press("Tab")
 
-        # 2. Ô Đến ngày (Index 1)
-        to_inp = picker_inputs.nth(1)
+        # Ô (Đến) Ngày phiên
         to_inp.click(force=True)
         page.wait_for_timeout(200)
         page.keyboard.press("Control+A")
@@ -212,70 +392,176 @@ def set_mui_date_range_and_search(page: Page, start_date: str, end_date: str, lo
         page.wait_for_timeout(200)
         page.keyboard.press("Tab")
 
+    # 3. Điền ô 'Sàn giao dịch' nếu người dùng yêu cầu lọc (MXV, ACM, CBOT, CME, ICE...)
+    if exchange and exchange.strip() and exchange.strip().lower() not in ["tất cả", "all", ""]:
+        ex_val = exchange.strip()
+        ex_inp = page.locator(
+            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiAutocomplete-root')][.//label[contains(text(), 'Sàn giao dịch')]]//input"
+            " | //label[contains(text(), 'Sàn giao dịch')]/following-sibling::div//input"
+        ).first
+
+        if ex_inp.is_visible(timeout=1500):
+            log(f"  [Filter] Chọn Sàn giao dịch: '{ex_val}'...")
+            ex_inp.click(force=True)
+            page.wait_for_timeout(200)
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            page.wait_for_timeout(150)
+            page.keyboard.type(ex_val, delay=40)
+            page.wait_for_timeout(350)
+
+            # Thử click option xuất hiện trong Autocomplete popup
+            option_elem = page.locator(
+                f"xpath=//*[self::li or self::div or self::span][@role='option' or contains(@class, 'MuiAutocomplete-option')][text()='{ex_val}']"
+                f" | //li[contains(text(), '{ex_val}')]"
+            ).first
+            if option_elem.is_visible(timeout=1500):
+                option_elem.click(force=True)
+            else:
+                page.keyboard.press("ArrowDown")
+                page.keyboard.press("Enter")
+            page.wait_for_timeout(300)
+
     # Click Nút Tìm kiếm
     search_btn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
     if search_btn.is_visible(timeout=2000):
         search_btn.click(force=True)
         page.wait_for_timeout(2500)
 
+    # 4. Điền lọc 'Mã thành viên' (Ví dụ: 711) ở cột bộ lọc trong bảng Material React Table
+    if member_code and member_code.strip():
+        mb_code = member_code.strip()
+        log(f"  [Filter Column] Lọc Mã thành viên: '{mb_code}'...")
+        try:
+            # A. Kiểm tra xem hàng bộ lọc cột đã được mở chưa, nếu chưa thì click nút 'Ẩn/hiện bộ lọc' ở toolbar
+            member_inp = page.locator(
+                "xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE']//input"
+                " | //th[contains(., 'Mã thành viên')]//input"
+            ).first
 
-def trigger_export_download(page: Page, log=print):
+            if member_inp.count() == 0 or not member_inp.is_visible(timeout=500):
+                toolbar_filter_btn = page.locator(
+                    "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
+                ).first
+                if toolbar_filter_btn.is_visible(timeout=1000):
+                    log("  [Filter Column] Click nút 'Ẩn/hiện bộ lọc' trên thanh công cụ bảng...")
+                    toolbar_filter_btn.click(force=True)
+                    page.wait_for_timeout(500)
+
+            # B. Cuộn ngang container bảng để đưa cột Mã thành viên vào tầm mắt
+            if member_inp.count() > 0:
+                try:
+                    member_inp.scroll_into_view_if_needed(timeout=1500)
+                except Exception:
+                    page.evaluate("""() => {
+                        const containers = document.querySelectorAll('.MuiTableContainer-root, div[class*="TableContainer"]');
+                        containers.forEach(c => c.scrollLeft = 10000);
+                    }""")
+                    page.wait_for_timeout(300)
+
+                log(f"  [Filter Column] ✓ Đã mở ô bộ lọc 'Mã thành viên', đang điền '{mb_code}'...")
+                member_inp.click(force=True)
+                page.wait_for_timeout(150)
+                page.keyboard.press("Control+A")
+                page.keyboard.press("Backspace")
+                page.wait_for_timeout(150)
+                page.keyboard.type(mb_code, delay=40)
+                page.wait_for_timeout(200)
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(1500)
+            else:
+                log(f"  ⚠️ Không tìm thấy ô lọc Mã thành viên trên bảng.")
+        except Exception as e:
+            log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
+
+
+def trigger_export_download(page: Page, headless: bool = False, log=print):
     """
-    Thao tác xuất file CSV chuẩn trên VNCLEAR:
-    1. Kiểm tra bảng xem có dữ liệu không.
-    2. Click nút 'Kết xuất' -> Click chọn 'Xuất tất cả' / 'Xuất CSV' / 'Xuất trang hiện tại' -> Tải file về.
+    Thao tác xuất file CSV chuẩn theo đúng chỉ đạo:
+    1. Khi chạy ẩn (Headless = True): Bypass ngay nếu phát hiện bảng báo 'Không có dữ liệu' để tối ưu tốc độ tối đa.
+    2. Khi mở trình duyệt (Headless = False): Không bypass sớm, thực hiện di chuột (Hover) -> Chọn 'Xuất tất cả' -> Chờ Toast 2 giây cho mắt người theo dõi.
     """
     dismiss_modal_backdrop(page)
 
-    # Kiểm tra xem bảng có báo "Không có dữ liệu" không
-    no_data_elem = page.locator("xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first
-    if no_data_elem.is_visible(timeout=1000):
-        log("  ℹ️ [Thông báo] Trang báo cáo không có dữ liệu trong khoảng ngày đã chọn.")
-        return "NO_DATA"
+    # Khi chạy ẩn trình duyệt (Headless Mode): Bypass ngay khi thấy bảng rỗng để tối ưu tốc độ vận hành ngầm
+    if headless:
+        no_data_elem = page.locator("xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first
+        if no_data_elem.is_visible(timeout=800):
+            log("  ℹ️ [Headless Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh để tối ưu tốc độ.")
+            return "NO_DATA"
 
+    # Tìm nút 'Kết xuất'
     export_btn = page.locator("xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV')]").first
     if not export_btn.is_visible(timeout=5000):
         log("  ❌ Không tìm thấy nút 'Kết xuất'")
         return None
 
-    # Click nút Kết xuất
-    export_btn.click(force=True)
-    page.wait_for_timeout(500)
-
-    # Chọn option trong menu vừa xổ
-    export_option = page.locator("xpath=//*[self::li or self::div or self::span][contains(text(), 'Xuất tất cả') or contains(text(), 'Xuất trang hiện tại') or contains(text(), 'Xuất CSV') or contains(text(), 'Xuất Excel')]").first
-
     download_obj = None
-    if export_option.is_visible(timeout=3000):
-        log("  [Export] Click chọn option kết xuất từ dropdown...")
+
+    # --- PHƯƠNG ÁN 1: Di chuột (Hover) không click vào nút Kết xuất ---
+    try:
+        export_btn.hover(force=True)
+        page.wait_for_timeout(400)
+    except Exception:
+        pass
+
+    export_all_option = page.locator("xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']").first
+
+    if export_all_option.is_visible(timeout=2000):
+        log("  [Export Mode: Hover] Di chuột (Hover) không click nút 'Kết xuất' -> Chọn option 'Xuất tất cả'...")
         try:
-            with page.expect_download(timeout=15000) as download_info:
-                export_option.click(force=True)
+            with page.expect_download(timeout=3500) as download_info:
+                export_all_option.click(force=True)
+                page.wait_for_timeout(400)
+                # Kiểm tra nhanh xem Toast 'Không có dữ liệu' có vừa nổ ra không để thoát tức thì trong 0.4s
+                toast_elem = page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
+                if toast_elem.is_visible(timeout=300):
+                    toast_text = toast_elem.text_content().strip()
+                    if "không có dữ liệu" in toast_text.lower():
+                        log(f"  ℹ️ [Toast Notification] {toast_text}")
+                        return "NO_DATA"
             download_obj = download_info.value
         except PlaywrightTimeoutError:
-            log("  ℹ️ [Thông báo] Không có dữ liệu file để tải về (Timeout chờ download).")
-            dismiss_modal_backdrop(page)
-            return "NO_DATA"
+            log("  ℹ️ [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
+            download_obj = "NO_DATA"
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi click option kết xuất: {e}")
+            log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")
+            download_obj = "NO_DATA"
     else:
-        log("  [Export] Click trực tiếp nút Kết xuất...")
+        # --- PHƯƠNG ÁN 2 (FALLBACK): Kích đúp (Double-click) 2 lần vào nút Kết xuất ---
+        log("  [Export Mode: Fallback Double-click] Kích đúp (Double-click) 2 lần vào nút 'Kết xuất'...")
         try:
-            with page.expect_download(timeout=15000) as download_info:
-                export_btn.click(force=True)
+            with page.expect_download(timeout=3500) as download_info:
+                export_btn.dblclick(force=True)
+                page.wait_for_timeout(400)
+                toast_elem = page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
+                if toast_elem.is_visible(timeout=300):
+                    toast_text = toast_elem.text_content().strip()
+                    if "không có dữ liệu" in toast_text.lower():
+                        log(f"  ℹ️ [Toast Notification] {toast_text}")
+                        return "NO_DATA"
             download_obj = download_info.value
         except PlaywrightTimeoutError:
-            log("  ℹ️ [Thông báo] Không có dữ liệu file để tải về (Timeout chờ download).")
-            dismiss_modal_backdrop(page)
-            return "NO_DATA"
+            log("  ℹ️ [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
+            download_obj = "NO_DATA"
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi click nút Kết xuất: {e}")
+            log(f"  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': {e}")
+            download_obj = "NO_DATA"
+
+    # --- BẮT VÀ GHI LOG TOAST THÔNG BÁO THÀNH CÔNG VNCLEAR ---
+    try:
+        toast_elem = page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(text(), 'dữ liệu') or contains(text(), 'thành công')]").first
+        if toast_elem.is_visible(timeout=500):
+            toast_text = toast_elem.text_content().strip()
+            log(f"  [Toast Notification] {toast_text}")
+    except Exception:
+        pass
 
     dismiss_modal_backdrop(page)
     return download_obj
 
 
-def download_single_report(page: Page, report_cfg: dict, interval: dict, output_dir: str, system_url: str, log=print):
+def download_single_report(page: Page, report_cfg: dict, interval: dict, output_dir: str, system_url: str, headless: bool = False, overwrite_existing: bool = False, exchange: str = "", member_code: str = "", log=print):
     """
     Tải 1 file báo cáo cụ thể theo từng tháng.
     """
@@ -287,12 +573,32 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
     target_folder = os.path.join(output_dir, code)
     os.makedirs(target_folder, exist_ok=True)
 
-    file_name = f"{code}{mmyy}.csv"
+    extra_suffix = ""
+    if exchange and exchange.strip() and exchange.strip().lower() not in ["tất cả", "all", ""]:
+        extra_suffix += f"_{exchange.strip().upper()}"
+    if member_code and member_code.strip():
+        extra_suffix += f"_TV{member_code.strip()}"
+
+    file_name = f"{code}{mmyy}{extra_suffix}.csv"
     dest_path = os.path.join(target_folder, file_name)
 
-    if os.path.exists(dest_path):
-        log(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại.")
-        return True
+    if not overwrite_existing and os.path.exists(dest_path):
+        size = os.path.getsize(dest_path)
+        if size > 100:
+            log(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại & hợp lệ ({size:,} bytes).")
+            return True
+        else:
+            log(f"  ⚠️ File {file_name} bị hỏng/rỗng ({size} bytes). Đang tiến hành tải lại...")
+            try:
+                os.remove(dest_path)
+            except Exception:
+                pass
+    elif overwrite_existing and os.path.exists(dest_path):
+        log(f"  🔄 [Ghi đè] Tiến hành tải mới và ghi đè file {file_name}...")
+        try:
+            os.remove(dest_path)
+        except Exception:
+            pass
 
     log(f"\n  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
@@ -300,12 +606,12 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
     learned_url = navigate_to_report_page(page, report_cfg, system_url, log)
     report_cfg["cached_url"] = learned_url
 
-    # 2. Điền Từ ngày -> Đến ngày -> Tìm kiếm
-    set_mui_date_range_and_search(page, start_date, end_date, log)
+    # 2. Điền Từ ngày -> Đến ngày -> Sàn giao dịch -> Tìm kiếm -> Lọc Mã thành viên
+    set_mui_date_range_and_search(page, start_date, end_date, exchange=exchange, member_code=member_code, log=log)
 
     # 3. Thao tác Xuất tất cả CSV và lưu file
     try:
-        download_result = trigger_export_download(page, log)
+        download_result = trigger_export_download(page, headless=headless, log=log)
         if download_result == "NO_DATA":
             log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống không có dữ liệu.")
             return True
@@ -324,6 +630,36 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         return False
 
 
+def launch_browser_resilient(p, headless: bool, log=print):
+    """
+    Khởi tạo trình duyệt thông minh hỗ trợ 100% chạy PyInstaller Standalone .EXE:
+    1. Thử Playwright Chromium chuẩn (Gán PLAYWRIGHT_BROWSERS_PATH về AppData hệ thống).
+    2. Fallback 1: Dùng Google Chrome đã cài trên Windows (channel='chrome').
+    3. Fallback 2: Dùng Microsoft Edge sẵn có trên Windows (channel='msedge' - 100% máy Windows có sẵn).
+    """
+    user_appdata_browsers = os.path.expanduser(r"~\AppData\Local\ms-playwright")
+    if os.path.exists(user_appdata_browsers) and "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = user_appdata_browsers
+
+    # 1. Thử Playwright Chromium chuẩn
+    try:
+        return p.chromium.launch(headless=headless)
+    except Exception as e1:
+        log(f"  ℹ️ Playwright Chromium không sẵn có. Đang chuyển sang Google Chrome hệ thống...")
+
+    # 2. Fallback 1: Google Chrome
+    try:
+        return p.chromium.launch(headless=headless, channel="chrome")
+    except Exception as e2:
+        log(f"  ℹ️ Google Chrome không sẵn có. Đang chuyển sang Microsoft Edge hệ thống...")
+
+    # 3. Fallback 2: Microsoft Edge (Máy Windows 10/11 luôn sẵn có 100%)
+    try:
+        return p.chromium.launch(headless=headless, channel="msedge")
+    except Exception as e3:
+        raise RuntimeError(f"Không thể khởi chạy trình duyệt (Chromium/Chrome/Edge): {e3}")
+
+
 def run_download(
     system_url: str,
     username: str,
@@ -333,6 +669,9 @@ def run_download(
     output_dir: str,
     selected_reports: list = None,
     headless: bool = False,
+    overwrite_existing: bool = False,
+    exchange: str = "",
+    member_code: str = "",
     logger_callback=None
 ):
     def log(msg: str):
@@ -399,19 +738,31 @@ def run_download(
     log("=" * 65)
 
     with sync_playwright() as p:
-        log("🌐 Đang khởi tạo trình duyệt Chrome...")
-        browser = p.chromium.launch(headless=headless)
+        log("🌐 Đang khởi tạo trình duyệt...")
+        browser = launch_browser_resilient(p, headless=headless, log=log)
         context = browser.new_context(accept_downloads=True, viewport={"width": 1366, "height": 768})
         page = context.new_page()
 
         # 1. Đăng nhập
-        log(f"🔑 Đăng nhập tài khoản '{username}'...")
+        log(f"🔑 Đăng nhập tài khoản '{username}' vào hệ thống ({system_url})...")
         try:
             page.goto(system_url, wait_until="networkidle", timeout=30000)
             page.fill("input[name='username'], input[placeholder*='tên đăng nhập'], input[type='text']", username)
             page.fill("input[name='password'], input[placeholder*='mật khẩu'], input[type='password']", password)
             page.click("button[type='submit'], button:has-text('Đăng nhập')")
             page.wait_for_load_state("networkidle", timeout=30000)
+            page.wait_for_timeout(1000)
+
+            # Kiểm tra xem có bị giữ lại ở trang đăng nhập (sai pass / tài khoản bị khóa) không
+            if "/login" in page.url.lower():
+                err_msg = page.locator("xpath=//*[contains(@class, 'MuiAlert-message') or contains(text(), 'không chính xác') or contains(text(), 'khóa') or contains(text(), 'Lỗi')]").first
+                if err_msg.is_visible(timeout=1500):
+                    log(f"❌ Đăng nhập thất bại: {err_msg.text_content().strip()}")
+                else:
+                    log("❌ Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).")
+                browser.close()
+                return False
+
             log("✓ Đăng nhập thành công!")
         except Exception as e:
             log(f"❌ Lỗi đăng nhập: {e}")
@@ -431,7 +782,7 @@ def run_download(
             log(f"\n📂 >>> BÁO CÁO: {name.upper()} ({code}) <<<")
 
             for interval in monthly_intervals:
-                download_single_report(page, report, interval, output_dir, system_url, log)
+                download_single_report(page, report, interval, output_dir, system_url, headless=headless, overwrite_existing=overwrite_existing, exchange=exchange, member_code=member_code, log=log)
                 time.sleep(0.5)
 
         # 4. Lưu lại các URL đã học vào config.json

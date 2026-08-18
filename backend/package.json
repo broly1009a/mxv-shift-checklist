@@ -40,7 +40,8 @@
     "test:email-sod": "ts-node src/test-email-sod.ts",
     "test:all-emails": "ts-node src/test-all-emails.ts",
     "test:email-filter": "ts-node src/test-email-filter.ts",
-    "test:ccp-download": "ts-node src/test-ccp-download.ts"
+    "test:ccp-download": "ts-node src/test-ccp-download.ts",
+    "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

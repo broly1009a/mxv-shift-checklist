@@ -7,16 +7,25 @@
   "output_dir": "C:\\Users\\hiepth\\Downloads\\DSL",
   "headless": false,
   "user_mode": false,
+  "gui_mode": "user",
   "reports": [
     {
-      "code": "TTTT",
-      "name": "Trạng thái tất toán",
+      "code": "DSL",
+      "name": "Danh sách lệnh",
       "parent_menu": "Lệnh và vị thế",
-      "child_menu": "Trạng thái tất toán",
-      "tab_name": "Lịch sử tất toán",
-      "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
+      "sub_menu": "Tra cứu tổng hợp",
+      "child_menu": "Danh sách lệnh",
+      "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERBOOK_ALL",
+      "enabled": true
+    },
+    {
+      "code": "DSGD",
+      "name": "Danh sách giao dịch",
+      "parent_menu": "Lệnh và vị thế",
+      "sub_menu": "Tra cứu tổng hợp",
+      "child_menu": "Danh sách giao dịch",
+      "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERMATCH_ALL",
       "enabled": true
     }
-  ],
-  "gui_mode": "user"
+  ]
 }
