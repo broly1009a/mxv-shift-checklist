@@ -10,20 +10,10 @@
   "gui_mode": "user",
   "reports": [
     {
-      "code": "DSL",
-      "name": "Danh sách lệnh",
-      "parent_menu": "Lệnh và vị thế",
-      "sub_menu": "Tra cứu tổng hợp",
-      "child_menu": "Danh sách lệnh",
-      "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERBOOK_ALL",
-      "enabled": true
-    },
-    {
       "code": "DSGD",
       "name": "Danh sách giao dịch",
-      "parent_menu": "Lệnh và vị thế",
-      "sub_menu": "Tra cứu tổng hợp",
-      "child_menu": "Danh sách giao dịch",
+      "parent_menu": "Quản lý sổ lệnh",
+      "child_menu": "Lịch sử giao dịch",
       "cached_url": "https://uat-coreexchange.mxv.com.vn/ORDERS/ORDERMATCH_ALL",
       "enabled": true
     }

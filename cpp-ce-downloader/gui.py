@@ -16,7 +16,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIcon, QPixmap
-from downloader import run_download, load_config, save_config
+from config.config_manager import load_config, save_config
+from services.report_engine import ReportEngine, run_download
+from services.date_service import generate_monthly_intervals
 
 
 def get_resource_path(relative_path: str) -> str:
@@ -32,7 +34,7 @@ class DownloadWorker(QThread):
     log_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(bool)
 
-    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless=False, overwrite_existing=False, exchange="", member_code=""):
+    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless=False, overwrite_existing=False, exchange="", member_code="", acct_no=""):
         super().__init__()
         self.system_url = system_url
         self.username = username
@@ -45,13 +47,14 @@ class DownloadWorker(QThread):
         self.overwrite_existing = overwrite_existing
         self.exchange = exchange
         self.member_code = member_code
+        self.acct_no = acct_no
 
     def run(self):
         try:
             def handle_log(msg: str):
                 self.log_signal.emit(msg)
 
-            success = run_download(
+            engine = ReportEngine(
                 system_url=self.system_url,
                 username=self.username,
                 password=self.password,
@@ -63,8 +66,10 @@ class DownloadWorker(QThread):
                 overwrite_existing=self.overwrite_existing,
                 exchange=self.exchange,
                 member_code=self.member_code,
+                acct_no=self.acct_no,
                 logger_callback=handle_log
             )
+            success = engine.run()
             self.finished_signal.emit(success if success is not None else False)
         except Exception as e:
             self.log_signal.emit(f"\n❌ Lỗi hệ thống ngoài dự kiến: {e}")
@@ -195,24 +200,31 @@ class MainWindow(QMainWindow):
         row_dates.addWidget(self.txt_end)
 
         row_filters = QHBoxLayout()
-        row_filters.addWidget(QLabel("Sàn giao dịch:"))
-        self.cbo_exchange = QComboBox()
-        self.cbo_exchange.setEditable(True)
-        self.cbo_exchange.addItems(["Tất cả", "MXV", "ACM", "CBOT", "CME", "ICE"])
-        saved_ex = self.cfg.get("exchange", "Tất cả")
-        idx_ex = self.cbo_exchange.findText(saved_ex)
-        if idx_ex >= 0:
-            self.cbo_exchange.setCurrentIndex(idx_ex)
-        else:
-            self.cbo_exchange.setEditText(saved_ex)
-        self.cbo_exchange.currentTextChanged.connect(self.save_current_config)
-        row_filters.addWidget(self.cbo_exchange)
+        # ── Tạm thời comment bộ lọc Sàn giao dịch theo chỉ đạo ──────────────
+        # row_filters.addWidget(QLabel("Sàn giao dịch:"))
+        # self.cbo_exchange = QComboBox()
+        # self.cbo_exchange.setEditable(True)
+        # self.cbo_exchange.addItems(["Tất cả", "MXV", "ACM", "CBOT", "CME", "ICE"])
+        # saved_ex = self.cfg.get("exchange", "Tất cả")
+        # idx_ex = self.cbo_exchange.findText(saved_ex)
+        # if idx_ex >= 0:
+        #     self.cbo_exchange.setCurrentIndex(idx_ex)
+        # else:
+        #     self.cbo_exchange.setEditText(saved_ex)
+        # self.cbo_exchange.currentTextChanged.connect(self.save_current_config)
+        # row_filters.addWidget(self.cbo_exchange)
 
         row_filters.addWidget(QLabel("Mã thành viên:"))
         self.txt_member_code = QLineEdit(self.cfg.get("member_code", ""))
         self.txt_member_code.setPlaceholderText("Để trống = Tất cả (vd: 711)")
         self.txt_member_code.textChanged.connect(self.save_current_config)
         row_filters.addWidget(self.txt_member_code)
+
+        row_filters.addWidget(QLabel("Mã TKGD / Số tiểu khoản:"))
+        self.txt_acct_no = QLineEdit(self.cfg.get("acct_no", ""))
+        self.txt_acct_no.setPlaceholderText("Để trống = Tất cả (vd: 001C123456)")
+        self.txt_acct_no.textChanged.connect(self.save_current_config)
+        row_filters.addWidget(self.txt_acct_no)
 
         row_dir = QHBoxLayout()
         row_dir.addWidget(QLabel("Thư mục lưu tổng:"))
@@ -403,8 +415,9 @@ class MainWindow(QMainWindow):
         self.cfg["start_date"] = start_d
         self.cfg["end_date"] = end_d
         self.cfg["output_dir"] = output_d
-        self.cfg["exchange"] = self.cbo_exchange.currentText().strip()
+        self.cfg["exchange"] = "" # Tạm thời comment filter sàn
         self.cfg["member_code"] = self.txt_member_code.text().strip()
+        self.cfg["acct_no"] = self.txt_acct_no.text().strip()
         self.cfg["headless"] = self.chk_headless.isChecked()
         self.cfg["overwrite_existing"] = self.chk_overwrite.isChecked()
         self.cfg["reports"] = reports_to_save
@@ -434,8 +447,9 @@ class MainWindow(QMainWindow):
             selected_reports=selected_reports,
             headless=self.chk_headless.isChecked(),
             overwrite_existing=self.chk_overwrite.isChecked(),
-            exchange=self.cbo_exchange.currentText().strip(),
-            member_code=self.txt_member_code.text().strip()
+            exchange="",
+            member_code=self.txt_member_code.text().strip(),
+            acct_no=self.txt_acct_no.text().strip()
         )
         self.worker.log_signal.connect(self.append_log)
         self.worker.finished_signal.connect(self.on_download_finished)
@@ -490,8 +504,9 @@ class MainWindow(QMainWindow):
             self.cfg["start_date"] = self.txt_start.text().strip()
             self.cfg["end_date"] = self.txt_end.text().strip()
             self.cfg["output_dir"] = self.txt_output.text().strip()
-            self.cfg["exchange"] = self.cbo_exchange.currentText().strip()
+            self.cfg["exchange"] = ""
             self.cfg["member_code"] = self.txt_member_code.text().strip()
+            self.cfg["acct_no"] = self.txt_acct_no.text().strip()
             self.cfg["headless"] = self.chk_headless.isChecked()
             self.cfg["overwrite_existing"] = self.chk_overwrite.isChecked()
 

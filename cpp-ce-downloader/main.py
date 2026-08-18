@@ -19,7 +19,8 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-from downloader import run_download, load_config
+from config.config_manager import load_config
+from services.report_engine import run_download
 
 
 def main():
