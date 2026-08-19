@@ -59,16 +59,16 @@ def run_live_test():
         },
         {
             "code": "DSL",
-            "name": "Danh sách lệnh",
+            "name": "Lịch sử lệnh",
             "parent_menu": "Lệnh và vị thế",
-            "child_menu": "Danh sách lệnh",
+            "child_menu": "Lịch sử lệnh",
             "enabled": True
         },
         {
             "code": "DSGD",
-            "name": "Danh sách giao dịch",
+            "name": "Lịch sử giao dịch",
             "parent_menu": "Lệnh và vị thế",
-            "child_menu": "Danh sách giao dịch",
+            "child_menu": "Lịch sử giao dịch",
             "enabled": True
         },
         {
@@ -76,6 +76,7 @@ def run_live_test():
             "name": "Trạng thái tất toán",
             "parent_menu": "Lệnh và vị thế",
             "child_menu": "Trạng thái tất toán",
+            "tab_name": "Lịch sử tất toán",
             "enabled": True
         },
         {

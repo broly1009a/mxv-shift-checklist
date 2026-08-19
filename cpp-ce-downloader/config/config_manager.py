@@ -3,6 +3,7 @@ config_manager.py — Quản lý cấu hình tập trung cho Tool CPP/CE Downloa
 """
 
 import os
+import sys
 import json
 
 CONFIG_FILE_NAME = "config.json"
@@ -10,7 +11,12 @@ CONFIG_FILE_NAME = "config.json"
 
 def get_config_path() -> str:
     """Trả về đường dẫn tuyệt đối của file config.json."""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if getattr(sys, 'frozen', False):
+        # Chạy dưới dạng PyInstaller EXE: Lưu config.json ngay bên cạnh file .exe
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # Chạy mã nguồn Python
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_dir, CONFIG_FILE_NAME)
 
 
@@ -18,27 +24,25 @@ DEFAULT_REPORTS = [
     {
         "code": "NR",
         "name": "Lịch sử nộp rút tiền",
-        "parent_menu": "Nộp rút tiền",
-        "child_menu": "Lịch sử Nộp/ Rút tiền",
+        "parent_menu": "Quản lý tiền",
+        "child_menu": "Lịch sử nộp rút tiền",
         "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
         "enabled": True
     },
     {
         "code": "DSL",
-        "name": "Danh sách lệnh",
+        "name": "Lịch sử lệnh",
         "parent_menu": "Lệnh và vị thế",
-        "sub_menu": "Tra cứu tổng hợp",
-        "child_menu": "Danh sách lệnh",
-        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK",
+        "child_menu": "Lịch sử lệnh",
+        "cached_url": "",
         "enabled": True
     },
     {
         "code": "DSGD",
-        "name": "Danh sách giao dịch",
+        "name": "Lịch sử giao dịch",
         "parent_menu": "Lệnh và vị thế",
-        "sub_menu": "Tra cứu tổng hợp",
-        "child_menu": "Danh sách giao dịch",
-        "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
+        "child_menu": "Lịch sử giao dịch",
+        "cached_url": "",
         "enabled": True
     },
     {

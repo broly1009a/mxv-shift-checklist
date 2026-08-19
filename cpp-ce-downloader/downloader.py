@@ -15,6 +15,51 @@ from services.date_service import generate_monthly_intervals
 from core.browser_factory import launch_browser_resilient
 from services.report_engine import ReportEngine, run_download
 
+def ensure_sidebar_expanded(page, log=print):
+    from core.base_page import BasePage
+    bp = BasePage(page, log)
+    bp.ensure_sidebar_expanded()
+
+def navigate_to_report_page(page, report_cfg, system_url, log=print) -> str:
+    from services.report_engine import ReportEngine
+    engine = ReportEngine(system_url, "", "", "", "", "", logger_callback=log)
+    page_obj = engine.get_page_object(page)
+    return page_obj.navigate_to_report(report_cfg, system_url)
+
+def set_date_range_and_search(page, start_date, end_date, exchange="", member_code="", acct_no="", log=print):
+    if callable(exchange):
+        log = exchange
+        exchange = ""
+    elif callable(member_code):
+        log = member_code
+        member_code = ""
+    elif callable(acct_no):
+        log = acct_no
+        acct_no = ""
+
+    from services.report_engine import ReportEngine
+    engine = ReportEngine(page.url, "", "", "", "", "", logger_callback=log)
+    page_obj = engine.get_page_object(page)
+    page_obj.set_date_range_and_search(start_date, end_date, exchange=exchange, member_code=member_code, acct_no=acct_no)
+
+def set_mui_date_range_and_search(page, start_date, end_date, exchange="", member_code="", acct_no="", log=print):
+    if callable(exchange):
+        log = exchange
+        exchange = ""
+    elif callable(member_code):
+        log = member_code
+        member_code = ""
+    elif callable(acct_no):
+        log = acct_no
+        acct_no = ""
+    set_date_range_and_search(page, start_date, end_date, exchange=exchange, member_code=member_code, acct_no=acct_no, log=log)
+
+def trigger_export_download(page, headless=False, log=print):
+    from services.report_engine import ReportEngine
+    engine = ReportEngine(page.url, "", "", "", "", "", headless=headless, logger_callback=log)
+    page_obj = engine.get_page_object(page)
+    return page_obj.trigger_export_download(headless)
+
 __all__ = [
     "load_config",
     "save_config",
@@ -23,4 +68,9 @@ __all__ = [
     "launch_browser_resilient",
     "ReportEngine",
     "run_download",
+    "ensure_sidebar_expanded",
+    "navigate_to_report_page",
+    "set_date_range_and_search",
+    "set_mui_date_range_and_search",
+    "trigger_export_download",
 ]

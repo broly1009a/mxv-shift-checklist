@@ -2,7 +2,45 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-08-19] Fix Triệt Để Lỗi IndentationError Tại Dòng 232 Trong base_report_page.py
+## [2026-08-19] Đồng Bộ Hóa Cấu Hóa & Tương Thích Ngược modularized Python Downloader
+
+### Mục tiêu thay đổi
+- Đồng bộ cấu hình mặc định (DEFAULT_REPORTS) trong `config_manager.py` và `report_engine.py` với phiên bản mới nhất đang hoạt động của file gốc `downloader_original.py` (sử dụng tên menu `Lịch sử lệnh`, `Lịch sử giao dịch`, `Quản lý tiền`).
+- Khắc phục lỗi format ngày tháng (`generate_monthly_intervals` trong `date_service.py` thiếu bước chuẩn hóa dấu phân cách `-` và `.`).
+- Đồng bộ lại logic ẩn/hiện Sidebar và XPath điều hướng menu chính xác trong `core/base_page.py` và `page_objects/core_ccp_page.py` để hỗ trợ linh hoạt cả môi trường UAT và Production mà không bị timeout.
+- Khôi phục tính năng phát hiện nhanh Toast báo trống dữ liệu (để bypass nhanh trong 0.3s) và kích đúp fallback khi bấm kết xuất trong `base_report_page.py`.
+- Khôi phục tính tương thích ngược cho file wrapper `downloader.py` để hỗ trợ đầy đủ các hàm export ở cấp độ module, bao gồm cơ chế lọc thông minh khi callback `log` bị truyền sai vị trí tham số.
+
+### Danh sách file chỉnh sửa
+- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Chỉnh sửa: Cập nhật DEFAULT_REPORTS)
+- [services/date_service.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/date_service.py) (Chỉnh sửa: Chuẩn hóa dấu phân cách ngày)
+- [services/report_engine.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/report_engine.py) (Chỉnh sửa: Đồng bộ default_reports)
+- [core/base_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/base_page.py) (Chỉnh sửa: Tối ưu hóa kiểm tra và toggle sidebar)
+- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Chỉnh sửa: Cập nhật XPath chính xác và danh sách menu cha/con candidates)
+- [page_objects/base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Chỉnh sửa: Tối ưu hóa xuất file, check toast bypass nhanh, và double-click fallback)
+- [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa: Thêm các hàm export tương thích ngược với cơ chế lọc thông minh)
+- [test_live_download.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/test_live_download.py) (Chỉnh sửa: Cập nhật lại menu UAT chuẩn cho báo cáo NR)
+
+### Tóm tắt nội dung code đã sửa
+1. **Lọc Dấu Ngăn Ngày Tháng**: Thêm thay thế dấu `-` và `.` sang `/` trong `generate_monthly_intervals`.
+2. **Khôi Phục Bypass Nhanh & Fallback Click**: base_report_page.py khi phát hiện Toast báo trống dữ liệu sẽ trả về ngay `"NO_DATA"` để bypass nhanh chóng, tránh bị kẹt 15s chờ tải file không tồn tại. Thêm double-click kích hoạt xuất file nếu click thường không hiện popover.
+3. **Tối ưu hóa thời gian chờ nạp bảng**: Sửa đổi `wait_for_table_loading_complete` trong `base_report_page.py`. Duy trì bước ngủ 800ms ở đầu (để React kịp render/clear bảng cũ và trigger spinner), đồng thời tăng tần suất kiểm tra trạng thái ổn định lên mỗi 300ms thay vì 1000ms. Điều này giúp phát hiện bảng tải xong cực kỳ nhạy bén (giảm thời gian chờ chết xuống dưới 1.1s) mà không bao giờ bị nhận diện nhầm dữ liệu cũ.
+4. **Đồng Bộ Giao Diện & XPath**: Sửa XPaths Menu và tự động thử danh sách candidates cho các menu cha/con khác nhau giữa UAT và Production.
+5. **Tương Thích Ngược**: Bổ sung wrapper module-level và xử lý tham số động khi người dùng gọi hàm theo kiểu cũ.
+6. **Kiểm Thử Thực Tế Thành Công**: Chạy kịch bản `test_live_download.py` vượt qua 100% cả 5 báo cáo thành công trên hệ thống UAT CoreCCP.
+
+## [2026-08-19] Tự Động Tạo/Lưu File config.json Bên Cạnh File CPP_CE_Report_Downloader.exe
+
+### Mục tiêu thay đổi
+- Sửa hàm `get_config_path()` trong [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py).
+- Nhận diện môi trường PyInstaller qua `getattr(sys, 'frozen', False)`. Khi ứng dụng chạy dưới dạng file `.exe`, file `config.json` sẽ được tự động khởi tạo và lưu trữ ngay cùng thư mục chứa file `CPP_CE_Report_Downloader.exe` (ví dụ `dist/config.json`).
+
+### Danh sách file chỉnh sửa
+- [config/config_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/config_manager.py) (Chỉnh sửa: Thêm kiểm tra `sys.frozen` để xác định đường dẫn lưu `config.json` chuẩn xác)
+
+### Tóm tắt nội dung code đã sửa
+1. **Chuẩn hóa đường dẫn Config**: Khi chạy file `.exe`, đường dẫn lưu `config.json` sẽ chuyển từ thư mục tạm `sys._MEIPASS` sang `os.path.dirname(sys.executable)`.
+2. **Đồng nhất trải nghiệm**: Giúp file `config.json` được tạo và duy trì bền vững giống như bản nguyên bản `CPP_CE_Report_Downloader_Original.exe`.
 
 ### Mục tiêu thay đổi
 - Sửa lỗi `IndentationError: unexpected indent` tại dòng 232 trong file `page_objects/base_report_page.py` do khối code thử lại bị trùng lập ở cuối phương thức `apply_filters`.

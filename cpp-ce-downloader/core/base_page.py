@@ -22,12 +22,22 @@ class BasePage:
 
     def ensure_sidebar_expanded(self):
         """Kiểm tra và mở rộng Sidebar menu nếu đang ở dạng thu gọn."""
+        self.dismiss_modal_backdrop()
         try:
-            collapse_icon = self.page.locator("xpath=//svg[@data-testid='ChevronRightIcon'] | //button[contains(@aria-label, 'open drawer') or contains(@aria-label, 'Mở rộng')]").first
-            if collapse_icon.is_visible(timeout=1500):
+            # Nếu đã hiển thị Trang chủ hoặc ô Tìm kiếm, nghĩa là sidebar đã mở rộng
+            sidebar_text = self.page.locator("xpath=//span[text()='Trang chủ'] | //input[contains(@placeholder, 'Tìm kiếm')]").first
+            if sidebar_text.is_visible(timeout=1000):
+                return
+
+            # Nút toggle theo class đặc thù VNCLEAR hoặc theo icon Chevron
+            toggle_btn = self.page.locator(
+                "xpath=//div[contains(@class, 'mui-1rihtzt')] | //div[contains(@class, 'mui-12t1bub')]"
+                " | //svg[@data-testid='ChevronRightIcon'] | //button[contains(@aria-label, 'open drawer') or contains(@aria-label, 'Mở rộng')]"
+            ).first
+            if toggle_btn.is_visible(timeout=1500):
                 self.log("  [Sidebar] Click mở rộng Sidebar menu...")
-                collapse_icon.click(force=True)
-                self.page.wait_for_timeout(500)
+                toggle_btn.click(force=True)
+                self.page.wait_for_timeout(1000)
         except Exception:
             pass
 

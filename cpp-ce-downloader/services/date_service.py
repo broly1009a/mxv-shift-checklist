@@ -14,8 +14,10 @@ def generate_monthly_intervals(start_date_str: str, end_date_str: str) -> list:
     Ví dụ: '01/01/2025' -> '30/08/2026'
     Trả về danh sách dict: [{'start_str': '01/01/2025', 'end_str': '31/01/2025', 'mmyy': '0125'}, ...]
     """
-    start_dt = datetime.strptime(start_date_str, "%d/%m/%Y")
-    end_dt = datetime.strptime(end_date_str, "%d/%m/%Y")
+    start_date_clean = start_date_str.strip().replace("-", "/").replace(".", "/")
+    end_date_clean = end_date_str.strip().replace("-", "/").replace(".", "/")
+    start_dt = datetime.strptime(start_date_clean, "%d/%m/%Y")
+    end_dt = datetime.strptime(end_date_clean, "%d/%m/%Y")
 
     current = start_dt.replace(day=1)
     monthly_ranges = []

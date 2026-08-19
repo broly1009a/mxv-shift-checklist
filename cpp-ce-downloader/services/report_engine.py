@@ -161,27 +161,25 @@ class ReportEngine:
             {
                 "code": "NR",
                 "name": "Lịch sử nộp rút tiền",
-                "parent_menu": "Nộp rút tiền",
-                "child_menu": "Lịch sử Nộp/ Rút tiền",
+                "parent_menu": "Quản lý tiền",
+                "child_menu": "Lịch sử nộp rút tiền",
                 "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
                 "enabled": True
             },
             {
                 "code": "DSL",
-                "name": "Danh sách lệnh",
+                "name": "Lịch sử lệnh",
                 "parent_menu": "Lệnh và vị thế",
-                "sub_menu": "Tra cứu tổng hợp",
-                "child_menu": "Danh sách lệnh",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK",
+                "child_menu": "Lịch sử lệnh",
+                "cached_url": "",
                 "enabled": True
             },
             {
                 "code": "DSGD",
-                "name": "Danh sách giao dịch",
+                "name": "Lịch sử giao dịch",
                 "parent_menu": "Lệnh và vị thế",
-                "sub_menu": "Tra cứu tổng hợp",
-                "child_menu": "Danh sách giao dịch",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
+                "child_menu": "Lịch sử giao dịch",
+                "cached_url": "",
                 "enabled": True
             },
             {

@@ -36,48 +36,69 @@ class CoreCCPPage(BaseReportPage):
 
         self.ensure_sidebar_expanded()
 
-        parent = report_cfg.get("parent_menu", "")
-        sub = report_cfg.get("sub_menu", "")
+        parent_menu = report_cfg.get("parent_menu", "")
+        sub_menu = report_cfg.get("sub_menu", "")
         child_menu = report_cfg.get("child_menu", "")
 
-        try:
-            if parent:
-                p_elem = self.page.locator(
-                    f"xpath=//div[contains(@class, 'MuiListItemButton-root') or contains(@class, 'MuiButtonBase-root')][.//span[contains(text(), '{parent}')] or .//div[contains(text(), '{parent}')]]"
-                    f" | //*[self::div or self::button or self::span][contains(text(), '{parent}')]"
-                ).first
-                if p_elem.is_visible(timeout=2000):
-                    p_elem.click(force=True)
-                    self.page.wait_for_timeout(400)
+        parent_candidates = [parent_menu]
+        if parent_menu in ["Quản lý tiền", "Nộp rút tiền"]:
+            parent_candidates = ["Quản lý tiền", "Nộp rút tiền"]
 
-            if sub:
-                s_elem = self.page.locator(
-                    f"xpath=//div[contains(@class, 'MuiListItemButton-root') or contains(@class, 'MuiButtonBase-root')][.//span[contains(text(), '{sub}')] or .//div[contains(text(), '{sub}')]]"
-                    f" | //*[self::div or self::button or self::span][contains(text(), '{sub}')]"
-                ).first
-                if s_elem.is_visible(timeout=2000):
-                    s_elem.click(force=True)
-                    self.page.wait_for_timeout(400)
+        try:
+            parent_elem = None
+            for p_cand in parent_candidates:
+                if not p_cand:
+                    continue
+                parent_xpath = f"xpath=//span[text()='{p_cand}'] | //span[contains(text(), '{p_cand}')]"
+                elem = self.page.locator(parent_xpath).first
+                if elem.is_visible(timeout=1500):
+                    parent_elem = elem
+                    break
+
+            if parent_elem:
+                parent_elem.click(force=True)
+                self.page.wait_for_timeout(800)
+
+            if sub_menu:
+                sub_xpath = f"xpath=//span[text()='{sub_menu}'] | //span[contains(text(), '{sub_menu}')]"
+                sub_elem = self.page.locator(sub_xpath).first
+                if sub_elem.is_visible(timeout=3000):
+                    sub_elem.click(force=True)
+                    self.page.wait_for_timeout(800)
 
             child_candidates = [child_menu]
-            if child_menu in ["Lịch sử lệnh", "Danh sách lệnh"]:
-                child_candidates = ["Danh sách lệnh", "Lịch sử lệnh"]
+            if child_menu in ["Lịch sử nộp rút tiền", "Lịch sử Nộp/ Rút tiền"]:
+                child_candidates = ["Lịch sử nộp rút tiền", "Lịch sử Nộp/ Rút tiền"]
+            elif child_menu in ["Lịch sử lệnh", "Danh sách lệnh"]:
+                child_candidates = ["Lịch sử lệnh", "Danh sách lệnh"]
             elif child_menu in ["Lịch sử giao dịch", "Danh sách giao dịch"]:
-                child_candidates = ["Danh sách giao dịch", "Lịch sử giao dịch"]
+                child_candidates = ["Lịch sử giao dịch", "Danh sách giao dịch"]
 
+            child_elem = None
             for cand in child_candidates:
                 if not cand:
                     continue
-                c_elem = self.page.locator(
-                    f"xpath=//a[contains(@href, '/')]//span[contains(text(), '{cand}')]"
-                    f" | //div[contains(@class, 'MuiListItemButton-root')][.//span[contains(text(), '{cand}')]]"
-                    f" | //*[self::div or self::button or self::a or self::span][contains(text(), '{cand}')]"
-                ).first
-                if c_elem.is_visible(timeout=2000):
-                    c_elem.click(force=True)
-                    self.page.wait_for_load_state("networkidle", timeout=15000)
-                    self.page.wait_for_timeout(1000)
+                cand_xpath = f"xpath=//span[text()='{cand}'] | //span[contains(text(), '{cand}')]"
+                cand_elem = self.page.locator(cand_xpath).first
+                if cand_elem.is_visible(timeout=1500):
+                    child_elem = cand_elem
                     break
+
+            if child_elem:
+                child_elem.click(force=True)
+                self.page.wait_for_timeout(2000)
+            elif parent_elem:
+                parent_elem.click(force=True)
+                self.page.wait_for_timeout(800)
+                for cand in child_candidates:
+                    if not cand:
+                        continue
+                    cand_xpath = f"xpath=//span[text()='{cand}'] | //span[contains(text(), '{cand}')]"
+                    cand_elem = self.page.locator(cand_xpath).first
+                    if cand_elem.is_visible(timeout=1500):
+                        cand_elem.click(force=True)
+                        self.page.wait_for_timeout(2000)
+                        break
         except Exception as ex:
             self.log(f"  ⚠️ Lỗi click menu: {ex}")
 

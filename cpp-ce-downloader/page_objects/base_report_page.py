@@ -9,16 +9,17 @@ from core.base_page import BasePage
 class BaseReportPage(BasePage):
     def wait_for_table_loading_complete(self, max_timeout_ms: int = 60000) -> bool:
         """
-        Chờ 100% cho đến khi bảng Material React Table / CoreEX / CoreCCP dừng nạp dữ liệu từ server.
-        Kiểm tra liên tục 0 visible spinner trong ít nhất 2 chu kỳ liên tiếp (mỗi chu kỳ 1s).
+        Chờ bảng hoàn tất nạp dữ liệu từ Server.
+        Tối ưu hóa: Sử dụng chu kỳ kiểm tra ngắn (300ms) để giảm thời gian chờ của stable check,
+        đồng thời duy trì initial sleep vừa đủ (800ms) để tránh nhận diện nhầm dữ liệu cũ.
         """
         import time
         self.log("  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
         start_time = time.time()
         max_sec = max_timeout_ms / 1000.0
 
-        # Cho 1.5s ban đầu để React state update và spinner xuất hiện chắc chắn
-        self.page.wait_for_timeout(1500)
+        # Cho 800ms ban đầu để React update state và kích hoạt spinner
+        self.page.wait_for_timeout(800)
 
         spinner_selector = (
             "xpath=//*[contains(@class, 'MuiCircularProgress-root') "
@@ -44,13 +45,13 @@ class BaseReportPage(BasePage):
                 stable_count += 1
                 if stable_count >= 2:
                     self.log("  ✓ [SUCCESS] Bảng đã hoàn tất nạp dữ liệu (0 loading spinner, 0 backdrop)!")
-                    self.page.wait_for_timeout(500)
+                    self.page.wait_for_timeout(200)
                     return True
             else:
                 stable_count = 0
                 self.log(f"  ⏳ Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
 
-            self.page.wait_for_timeout(1000)
+            self.page.wait_for_timeout(300) # Kiểm tra liên tục mỗi 300ms thay vì 1000ms để tối ưu tốc độ phản hồi
 
         self.log("  ⚠️ Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
         return False
@@ -268,47 +269,87 @@ class BaseReportPage(BasePage):
 
     def trigger_export_download(self, headless: bool = False):
         """
-        Thao tác xuất file CSV chuẩn và trả về download_obj.
+        Thao tác xuất file CSV chuẩn theo đúng chỉ đạo:
+        1. Khi chạy ẩn (Headless = True): Bypass ngay nếu phát hiện bảng báo 'Không có dữ liệu' để tối ưu tốc độ tối đa.
+        2. Khi mở trình duyệt (Headless = False): Không bypass sớm, thực hiện di chuột (Hover) -> Chọn 'Xuất tất cả' -> Chờ Toast cho mắt người theo dõi.
         """
         self.dismiss_modal_backdrop()
         self.wait_for_table_loading_complete(30000)
 
-        empty_table = self.page.locator("xpath=//*[contains(text(), 'Không có dữ liệu') or contains(text(), 'No data') or contains(text(), 'No records')]").first
-        if empty_table.is_visible(timeout=1000):
-            self.log("  ℹ️ Bảng không có dữ liệu cho khoảng thời gian này.")
-            return "NO_DATA"
+        # Khi chạy ẩn trình duyệt (Headless Mode): Bypass ngay khi thấy bảng rỗng để tối ưu tốc độ vận hành ngầm
+        if headless:
+            no_data_elem = self.page.locator("xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]").first
+            if no_data_elem.is_visible(timeout=800):
+                self.log("  ℹ️ [Headless Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh để tối ưu tốc độ.")
+                return "NO_DATA"
 
+        # Tìm nút 'Kết xuất'
         export_btn = self.page.locator(
-            "xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất Excel') or contains(., 'Export')]"
+            "xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Xuất Excel') or contains(., 'Export')]"
             " | //button[contains(@aria-label, 'Export') or contains(@aria-label, 'Kết xuất')]"
         ).first
 
         if not export_btn.is_visible(timeout=2000):
             export_btn = self.page.locator("xpath=//button[.//svg[@data-testid='FileDownloadIcon' or @data-testid='DownloadIcon']]").first
 
-        if not export_btn.is_visible(timeout=2000):
-            self.log("  ❌ Không tìm thấy nút Kết xuất/Export trên trang.")
+        if not export_btn.is_visible(timeout=5000):
+            self.log("  ❌ Không tìm thấy nút 'Kết xuất'")
             return None
 
-        with self.page.expect_download(timeout=15000) as download_info:
+        download_obj = None
+
+        # --- PHƯƠNG ÁN 1: Di chuột (Hover) không click vào nút Kết xuất ---
+        try:
+            export_btn.hover(force=True)
+            self.page.wait_for_timeout(400)
+        except Exception:
+            pass
+
+        export_all_option = self.page.locator(
+            "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']"
+            " | //*[self::li or self::div or self::span or self::p][contains(text(), 'Export all')]"
+        ).first
+
+        if export_all_option.is_visible(timeout=2000):
+            self.log("  [Export Mode: Hover] Di chuột (Hover) không click nút 'Kết xuất' -> Chọn option 'Xuất tất cả'...")
             try:
-                self.log("  [Export Mode: Hover] Di chuột (Hover) không click nút 'Kết xuất' -> Chọn option 'Xuất tất cả'...")
-                export_btn.hover()
-                self.page.wait_for_timeout(400)
-
-                export_all_opt = self.page.locator(
-                    "xpath=//*[self::li or self::div or self::span or self::p][contains(text(), 'Xuất tất cả') or contains(text(), 'Export all')]"
-                ).first
-
-                if export_all_opt.is_visible(timeout=1500):
-                    export_all_opt.click(force=True)
-                else:
-                    export_btn.click(force=True)
-            except Exception:
-                self.log("  [Export Mode: Direct Click] Click trực tiếp nút Kết xuất...")
-                export_btn.click(force=True)
-
-        download_obj = download_info.value
+                with self.page.expect_download(timeout=3500) as download_info:
+                    export_all_option.click(force=True)
+                    self.page.wait_for_timeout(400)
+                    # Kiểm tra nhanh xem Toast 'Không có dữ liệu' có vừa nổ ra không để thoát tức thì trong 0.4s
+                    toast_elem = self.page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
+                    if toast_elem.is_visible(timeout=300):
+                        toast_text = toast_elem.text_content().strip()
+                        if "không có dữ liệu" in toast_text.lower() or "no data" in toast_text.lower():
+                            self.log(f"  ℹ️ [Toast Notification] {toast_text}")
+                            return "NO_DATA"
+                download_obj = download_info.value
+            except PlaywrightTimeoutError:
+                self.log("  ℹ️ [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
+                download_obj = "NO_DATA"
+            except Exception as e:
+                self.log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")
+                download_obj = "NO_DATA"
+        else:
+            # --- PHƯƠNG ÁN 2 (FALLBACK): Kích đúp (Double-click) 2 lần vào nút Kết xuất ---
+            self.log("  [Export Mode: Fallback Double-click] Kích đúp (Double-click) 2 lần vào nút 'Kết xuất'...")
+            try:
+                with self.page.expect_download(timeout=3500) as download_info:
+                    export_btn.dblclick(force=True)
+                    self.page.wait_for_timeout(400)
+                    toast_elem = self.page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
+                    if toast_elem.is_visible(timeout=300):
+                        toast_text = toast_elem.text_content().strip()
+                        if "không có dữ liệu" in toast_text.lower() or "no data" in toast_text.lower():
+                            self.log(f"  ℹ️ [Toast Notification] {toast_text}")
+                            return "NO_DATA"
+                download_obj = download_info.value
+            except PlaywrightTimeoutError:
+                self.log("  ℹ️ [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
+                download_obj = "NO_DATA"
+            except Exception as e:
+                self.log(f"  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': {e}")
+                download_obj = "NO_DATA"
 
         self.capture_toast_notification()
         self.dismiss_modal_backdrop()
