@@ -559,11 +559,17 @@ export class ValueStatisticsService {
     const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
     const year = targetDate.getFullYear();
 
-    const newsletterDir = path.join(
-      targetRoot,
-      'Thong ke gia tri giao dich',
-      'Gửi team bản tin',
-    );
+    const baseDir = path.join(targetRoot, 'Thong ke gia tri giao dich');
+    const newsletterDir =
+      [
+        path.join(baseDir, 'Gửi team bản tin'),
+        path.join(baseDir, 'Gui team ban tin'),
+      ].find((p) => fs.existsSync(p)) ||
+      (fs.existsSync(baseDir)
+        ? fs.readdirSync(baseDir).map((d) => path.join(baseDir, d)).find((p) => p.toLowerCase().includes('ban tin'))
+        : null) ||
+      path.join(baseDir, 'Gửi team bản tin');
+
     if (!fs.existsSync(newsletterDir)) {
       this.logger.warn(
         `Thư mục "Gửi team bản tin" không tồn tại: ${newsletterDir}. Bỏ qua xuất file bản tin.`,
@@ -574,7 +580,7 @@ export class ValueStatisticsService {
     // Find any existing daily file in newsletter directory as a template
     const files = fs.readdirSync(newsletterDir);
     const templateFileName = files.find(
-      (f) => f.startsWith('Giá trị giao dịch phiên') && f.endsWith('.xlsx'),
+      (f) => f.includes('gia tri giao dich phien') || f.includes('Giá trị giao dịch phiên'),
     );
 
     if (!templateFileName) {
@@ -585,10 +591,11 @@ export class ValueStatisticsService {
     }
 
     const templatePath = path.join(newsletterDir, templateFileName);
-    const targetPath = path.join(
-      newsletterDir,
-      `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`,
-    );
+    const hasAccent = templateFileName.includes('Giá trị') || templateFileName.includes('phiên');
+    const targetFileName = hasAccent
+      ? `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`
+      : `Gia tri giao dich phien ${dayStr}.${monthStr}.${year}.xlsx`;
+    const targetPath = path.join(newsletterDir, targetFileName);
 
     this.logger.log(
       `Generating newsletter report at: ${targetPath} using template: ${templatePath}`,
