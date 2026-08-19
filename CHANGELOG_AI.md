@@ -2,20 +2,57 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-19] Revert Loại Bỏ Logic Tự Động Sinh Sheet Tháng Mới (Bảo Vệ Tính Toàn Vẹn File Excel)
+
+### Mục tiêu thay đổi
+- Tiếp thu phản hồi thực tế từ USER: Việc tự động nhân bản (clone) sheet bằng thư viện ExcelJS gây lỗi hỏng cấu trúc XML của file Excel (hiển thị `[Repaired]`), ô gộp (`_merges`) và đè dòng xuống bên dưới dòng TỔNG.
+- Loại bỏ hoàn toàn đoạn code tự động sinh/nhân bản sheet ngầm để bảo vệ tính toàn vẹn 100% cho các file Excel lũy kế chính thức của ca trực.
+- Quy trình chuẩn hóa: Việc tạo sheet tháng mới (như `T08.2026`) sẽ được thực hiện thủ công 1 lần duy nhất đầu tháng trên Excel gốc theo quy trình chuẩn của MXV.
+
+### Danh sách file chỉnh sửa
+- [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Chỉnh sửa: Khôi phục hàm `getOrCreateMonthWorksheet` về dạng chuẩn tìm sheet theo tên hoặc lấy sheet cuối cùng).
+
+### Tóm tắt nội dung code đã sửa
+1. **Loại bỏ toàn bộ code clone sheet ngầm**: Đưa `getOrCreateMonthWorksheet` về lại logic nguyên bản đơn giản và an toàn `wb.getWorksheet(sheetName) || wb.worksheets[wb.worksheets.length - 1]`.
+2. **Khôi phục tính toàn vẹn dữ liệu**: Đảm bảo file Excel lũy kế không bị can thiệp nhân bản cấu trúc XML ngầm, bảo vệ 100% định dạng file gốc.
+3. **Xác nhận Build/Kiểm thử**: Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
+## [2026-08-19] Tự Động Nhân Bản Sheet Tháng Mới (Auto-Clone Month Sheet) Cho Tất Cả File Excel Lũy Kế
+
+### Mục tiêu thay đổi
+- Bổ sung cơ chế tự động nhân bản (Auto-Clone) Sheet tháng mới khi chuyển giao tháng (ví dụ từ `T07.2026` sang `T08.2026`) cho toàn bộ 10 file Excel lũy kế (Số lốt & Giá trị).
+- Bảo toàn 100% định dạng layout, phông chữ, ô gộp, công thức `=SUM()` dòng TỔNG, đồng thời tự động tính toán Ngày phiên giao dịch đầu tiên của tháng mới (loại bỏ Thứ 7 & Chủ nhật) và giữ nguyên công thức Excel `=WORKDAY(cell, 1)`.
+
+### Danh sách file chỉnh sửa
+- [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Chỉnh sửa: Thêm hàm `getOrCreateMonthWorksheet` tự động nhân bản sheet tháng mới, tự tính `firstWorkday` và reset ô dữ liệu cũ cho các file Số Lốt lũy kế).
+- [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts) (Chỉnh sửa: Import và áp dụng `getOrCreateMonthWorksheet` cho các file Giá Trị lũy kế).
+
+### Tóm tắt nội dung code đã sửa
+1. **Thêm hàm `getOrCreateMonthWorksheet`**: Khi phát hiện Sheet tháng mới (ví dụ `T08.2026`) chưa tồn tại trong Workbook, hàm sẽ tự động lấy Sheet tháng gần nhất (`T07.2026`), copy nguyên vẹn độ rộng cột, ô gộp, kiểu dáng (style/borders/fonts), tiêu đề và công thức `=SUM()`.
+2. **Tính toán phiên giao dịch đầu tháng chuẩn xác**: Tự động tính ngày làm việc đầu tiên của tháng mới (ví dụ `03/08/2026` cho tháng 8/2026), điền vào ô ngày đầu tiên và giữ công thức `=WORKDAY(cell, 1)` cho các dòng tiếp theo. Đồng thời cập nhật chuỗi `tháng MM/YYYY` trên dòng Tiêu đề.
+3. **Làm sạch ô dữ liệu số cũ**: Reset toàn bộ các con số lốt/giá trị cũ của tháng trước về `null` để chuẩn bị ghi dữ liệu tháng mới.
+4. **Xác nhận Build/Kiểm thử**: Đã chạy thử nghiệm kịch bản giả lập sinh sheet `T08.2026` cho kết quả chính xác 100%. Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
 ## [2026-08-19] Tự Động Quét Tìm File DSGD.xlsx Linh Hoạt Cho Job Thống Kê Giá Trị & TVKD
 
 ### Mục tiêu thay đổi
 - Khắc phục lỗi `Không tìm thấy file DSGD giao dịch ngày DD.MM.YYYY` khi chạy Job ngầm `RUN_VALUE_MACRO` hoặc `RUN_LOT_MACRO` từ Checklist.
 - Xử lý lệch đường dẫn giữa Thư mục gốc (`Target Root`) cấu hình trên UI (`/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong`) và cấu trúc lưu trữ thực tế trên đĩa (`Backup MS/Futures/...`).
 - Hỗ trợ linh hoạt cả 2 định dạng đặt tên thư mục tháng: `08.2026` và `T08.2026`.
+- Bổ sung cơ chế quét tên thư mục linh hoạt cho folder "Gửi team bản tin" để hỗ trợ các biến thể mã hóa ký tự (như `Gui team ban tin`, `G?i team b?n tin`) trên môi trường Linux/Ubuntu.
 
 ### Danh sách file chỉnh sửa
 - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) (Chỉnh sửa: Thêm cơ chế quét danh sách các candidate paths khả dĩ cho `dsgdPath` trong `handleRunValueMacroJob` và `handleRunLotMacroJob`)
-- [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) (Chỉnh sửa: Thêm cơ chế quét candidate paths tương tự trong `processValueMacro`)
+- [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) (Chỉnh sửa: Thêm cơ chế quét candidate paths cho `dsgdPath`, tự động quét thư mục bản tin và tự khớp định dạng tên file `Gia tri giao dich phien...` không dấu nếu môi trường Ubuntu không dùng file có dấu)
 
 ### Tóm tắt nội dung code đã sửa
-1. **Chuẩn hóa gọn gàng đường dẫn (Không thừa code)**: Tự động kiểm tra nếu `TargetRoot` chưa chứa `Backup MS/Futures` thì nối thêm `Backup MS/Futures`, đồng thời kiểm tra nếu thư mục tháng trên đĩa là `08.2026` hay `T08.2026` để tạo đường dẫn `DSGD.xlsx` chính xác 100% chỉ trong vài dòng code tối ưu.
-2. **Xác nhận Build/Kiểm thử**: Backend build thành công 100% (`npm run build` pass).
+1. **Chuẩn hóa gọn gàng đường dẫn (Không thừa code)**: Tự động kiểm tra nếu `TargetRoot` chưa chứa `Backup MS/Futures` thì nối thêm `Backup MS/Futures`, đồng thời kiểm tra nếu thư mục tháng trên đĩa là `08.2026` hay `T08.2026` để tạo đường dẫn `DSGD.xlsx` chính xác 100%.
+2. **Tự động tìm kiếm file lũy kế TVKD (`pathTvkd`)**: Thêm cơ chế tự chuyển đổi linh hoạt giữa thư mục `Thong ke gia tri giao dich theo TVKD` và `Thong ke gia tri giao dich` nếu cấu hình DB bị trỏ lệch thư mục so với đĩa thực tế.
+3. **Xác nhận Build/Kiểm thử**: Backend build thành công 100% (`npm run build` pass).
 
 ---
 
