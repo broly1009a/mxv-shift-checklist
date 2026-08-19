@@ -580,22 +580,21 @@ export class ValueStatisticsService {
     // Find any existing daily file in newsletter directory as a template
     const files = fs.readdirSync(newsletterDir);
     const templateFileName = files.find(
-      (f) => f.includes('gia tri giao dich phien') || f.includes('Giá trị giao dịch phiên'),
+      (f) => f.endsWith('.xlsx') && !f.startsWith('~$'),
     );
 
     if (!templateFileName) {
       this.logger.warn(
-        `Không tìm thấy file mẫu nào có dạng 'Giá trị giao dịch phiên' trong thư mục ${newsletterDir}. Bỏ qua.`,
+        `Không tìm thấy file mẫu .xlsx nào trong thư mục ${newsletterDir}. Bỏ qua xuất file bản tin.`,
       );
       return;
     }
 
     const templatePath = path.join(newsletterDir, templateFileName);
-    const hasAccent = templateFileName.includes('Giá trị') || templateFileName.includes('phiên');
-    const targetFileName = hasAccent
-      ? `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`
-      : `Gia tri giao dich phien ${dayStr}.${monthStr}.${year}.xlsx`;
-    const targetPath = path.join(newsletterDir, targetFileName);
+    const targetPath = path.join(
+      newsletterDir,
+      `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`,
+    );
 
     this.logger.log(
       `Generating newsletter report at: ${targetPath} using template: ${templatePath}`,
