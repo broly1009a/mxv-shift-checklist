@@ -2147,6 +2147,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         }
       };
 
+      const updateCumulativeStr = await this.settingsService.getSetting(
+        'bot_lot_macro_update_cumulative',
+        'true',
+      );
+      const updateCumulative =
+        payload?.updateCumulative === true ||
+        payload?.updateCumulative === 'true' ||
+        updateCumulativeStr === 'true';
+
       const processParams = {
         ngayGD: targetDateStr,
         truDates: parseDateArray(payload.truDates),
@@ -2154,9 +2163,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         zftDates: parseDateArray(payload.zftDates),
         filterLmeKyHan,
         deadline: payload.deadline ? parseFloat(payload.deadline) : undefined,
-        updateCumulative:
-          payload.updateCumulative === true ||
-          payload.updateCumulative === 'true',
+        updateCumulative,
         pathDsgdCumulative,
         pathNormal,
         pathAcm,

@@ -2,6 +2,38 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-19] Khắc Phục Triệt Để Lỗi Bot Báo Thành Công Nhưng Không Mở/Ghi Vào File Lũy Kế Số Lốt
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lý do tại sao Job `RUN_LOT_MACRO` (Thống kê số lốt giao dịch) báo thành công nhưng không hề mở hay ghi dữ liệu vào các file lũy kế trong thư mục `Thong ke so lot giao dich`.
+- Nguyên nhân cốt lõi: Trong phương thức `handleRunLotMacroJob` của [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts), biến `updateCumulative` chỉ kiểm tra `payload.updateCumulative === true` mà không đọc cấu hình mặc định `bot_lot_macro_update_cumulative` từ DB (mặc định `'true'`). Khi ca trực bấm chạy tự động, `payload.updateCumulative` là `undefined`, làm cho biến `updateCumulative` luôn bị tính thành `FALSE`, khiến hàm `processLotMacro` bỏ qua toàn bộ bước gọi `updateAllCumulativeFiles` ngầm.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) (Chỉnh sửa: Thêm đọc cấu hình `bot_lot_macro_update_cumulative` từ `settingsService` mặc định `'true'` cho `handleRunLotMacroJob`).
+
+### Tóm tắt nội dung code đã sửa
+1. **Sửa cờ `updateCumulative` mặc định**: Đọc giá trị từ `settingsService.getSetting('bot_lot_macro_update_cumulative', 'true')`. Khi ca trực chạy Job tự động, cờ `updateCumulative` sẽ nhận giá trị `true`, đảm bảo Bot luôn mở và cập nhật đủ cả 6 file Excel lũy kế số lốt.
+2. **Xác nhận Build/Kiểm thử**: Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
+## [2026-08-19] Khắc Phục Triệt Để Lỗi Không Nhận Diện Ngày Trong Ô Công Thức WORKDAY Khi Ghi File Excel Lũy Kế
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lý do tại sao chạy Job báo thành công nhưng người dùng mở file Excel lên không thấy dữ liệu được ghi vào các dòng ngày mẫu sẵn có.
+- Nguyên nhân cốt lõi: Các dòng ngày trong file Excel mẫu sử dụng công thức Excel `=WORKDAY(cell, 1)`. Thư viện `exceljs` khi đọc file không tự chạy lại công thức Excel, làm giá trị trả về dạng `{ formula: 'WORKDAY...' }` hoặc bị lệch múi giờ giữa UTC ISO string (`2026-07-16T00:00:00Z`) và Local Timezone (`2026-07-15T17:00:00Z`), khiến hàm `isSameDate` trả về `false` cho tất cả các dòng ngày mẫu và đẩy dữ liệu chèn dòng mới xuống bên dưới dòng `TỔNG`.
+
+### Danh sách file chỉnh sửa
+- [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Chỉnh sửa: Chuẩn hóa `isSameDate` so sánh chuỗi ngày `YYYY-MM-DD` độc lập múi giờ; đồng thời thêm cơ chế tính `WORKDAY` tự động cho ô công thức khi quét dòng trong `findOrCreateTargetRow`).
+- [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts) (Chỉnh sửa: Thêm cơ chế tính `WORKDAY` tương tự cho `findOrCreateValueTargetRow`).
+
+### Tóm tắt nội dung code đã sửa
+1. **Chuẩn hóa so sánh ngày độc lập múi giờ trong `isSameDate`**: So sánh theo định dạng chuỗi `YYYY-MM-DD` cho cả UTC và Local time, giải quyết triệt để lỗi lệch 1 ngày do múi giờ GMT+7.
+2. **Tính toán ngày `WORKDAY` tự động khi quét dòng**: Khi phát hiện ô ngày là công thức `=WORKDAY(...)`, Bot tự động tính ngày làm việc tiếp theo dựa trên ngày của dòng liền trước. Nhờ đó, Bot tìm thấy chính xác vị trí hàng ngày mẫu (ví dụ hàng 17 cho ngày `16/07/2026` hay hàng 18 cho `18/08/2026`) và ghi dữ liệu trực tiếp vào đúng bảng mẫu, không bị chèn thêm dòng rác hay đè xuống dưới dòng `TỔNG`.
+3. **Xác nhận Build/Kiểm thử**: Đã chạy thử nghiệm script giải mã ô công thức trả về chính xác hàng 17 cho ngày `16/07/2026`. Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
 ## [2026-08-19] Revert Loại Bỏ Logic Tự Động Sinh Sheet Tháng Mới (Bảo Vệ Tính Toàn Vẹn File Excel)
 
 ### Mục tiêu thay đổi
@@ -47,7 +79,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ### Danh sách file chỉnh sửa
 - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) (Chỉnh sửa: Thêm cơ chế quét danh sách các candidate paths khả dĩ cho `dsgdPath` trong `handleRunValueMacroJob` và `handleRunLotMacroJob`)
-- [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) (Chỉnh sửa: Thêm cơ chế quét candidate paths cho `dsgdPath`, tự động quét thư mục bản tin và tự khớp định dạng tên file `Gia tri giao dich phien...` không dấu nếu môi trường Ubuntu không dùng file có dấu)
+- [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) (Chỉnh sửa: Tuân thủ tuyệt đối Quy tắc 1 trong AGENTS.md, loại bỏ hoàn toàn đoạn fallback tự tạo file mẫu giả định. Bot bắt buộc phải nhân bản 100% từ file mẫu Excel chính thức của MXV trong thư mục `Gửi team bản tin`).
 
 ### Tóm tắt nội dung code đã sửa
 1. **Chuẩn hóa gọn gàng đường dẫn (Không thừa code)**: Tự động kiểm tra nếu `TargetRoot` chưa chứa `Backup MS/Futures` thì nối thêm `Backup MS/Futures`, đồng thời kiểm tra nếu thư mục tháng trên đĩa là `08.2026` hay `T08.2026` để tạo đường dẫn `DSGD.xlsx` chính xác 100%.

@@ -38,7 +38,7 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
     const epoch = new Date(1899, 11, 30);
     d = new Date(epoch.getTime() + cellVal * 86400000);
   } else if (typeof cellVal === 'object' && cellVal !== null) {
-    if ('result' in cellVal) {
+    if ('result' in cellVal && cellVal.result !== undefined && cellVal.result !== null) {
       return isSameDate(cellVal.result, targetDate);
     }
   } else {
@@ -49,7 +49,7 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
       const month = parseInt(match[2], 10) - 1;
       let year = parseInt(match[3], 10);
       if (year < 100) year += 2000;
-      d = new Date(Date.UTC(year, month, day));
+      d = new Date(year, month, day);
     } else {
       const parsed = new Date(str);
       if (!isNaN(parsed.getTime())) {
@@ -60,31 +60,42 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
 
   if (!d || isNaN(d.getTime())) return false;
 
-  const targetY = targetDate.getUTCFullYear();
-  const targetM = targetDate.getUTCMonth();
-  const targetD = targetDate.getUTCDate();
+  const formatYMD = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const formatUtcYMD = (date: Date) =>
+    `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 
-  const utcMatch =
-    d.getUTCFullYear() === targetY &&
-    d.getUTCMonth() === targetM &&
-    d.getUTCDate() === targetD;
-  const localMatch =
-    d.getFullYear() === targetY &&
-    d.getMonth() === targetM &&
-    d.getDate() === targetD;
+  const tLocal = formatYMD(targetDate);
+  const tUtc = formatUtcYMD(targetDate);
+  const dLocal = formatYMD(d);
+  const dUtc = formatUtcYMD(d);
 
-  return utcMatch || localMatch;
+  return (
+    dLocal === tLocal ||
+    dUtc === tUtc ||
+    dLocal === tUtc ||
+    dUtc === tLocal
+  );
 }
 
 /**
  * Helper to find or create target row index by scanning until "Tổng" or matching date
  */
+function getNextWorkday(d: Date): Date {
+  const next = new Date(d);
+  do {
+    next.setDate(next.getDate() + 1);
+  } while (next.getDay() === 0 || next.getDay() === 6);
+  return next;
+}
+
 export function findOrCreateTargetRow(
   ws: ExcelJS.Worksheet,
   ngayGD: Date,
 ): number {
   let targetRowIndex = -1;
   let tongRowIndex = -1;
+  let currentCalculatedDate: Date | null = null;
 
   for (let r = 5; r <= ws.rowCount; r++) {
     const sttVal = ws.getCell(r, 1).value;
@@ -104,7 +115,20 @@ export function findOrCreateTargetRow(
       break;
     }
 
-    if (isSameDate(dateCellVal, ngayGD)) {
+    let rowDateVal: any = dateCellVal;
+    if (dateCellVal instanceof Date) {
+      currentCalculatedDate = new Date(dateCellVal);
+    } else if (typeof dateCellVal === 'object' && dateCellVal !== null && (dateCellVal as any).result) {
+      const res = (dateCellVal as any).result;
+      if (res instanceof Date || !isNaN(new Date(res).getTime())) {
+        currentCalculatedDate = new Date(res);
+      }
+    } else if (currentCalculatedDate) {
+      currentCalculatedDate = getNextWorkday(currentCalculatedDate);
+      rowDateVal = currentCalculatedDate;
+    }
+
+    if (isSameDate(rowDateVal, ngayGD)) {
       targetRowIndex = r;
       break;
     }

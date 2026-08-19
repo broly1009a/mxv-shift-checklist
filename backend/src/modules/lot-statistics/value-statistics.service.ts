@@ -560,19 +560,30 @@ export class ValueStatisticsService {
     const year = targetDate.getFullYear();
 
     const baseDir = path.join(targetRoot, 'Thong ke gia tri giao dich');
-    const newsletterDir =
-      [
-        path.join(baseDir, 'Gửi team bản tin'),
-        path.join(baseDir, 'Gui team ban tin'),
-      ].find((p) => fs.existsSync(p)) ||
-      (fs.existsSync(baseDir)
-        ? fs.readdirSync(baseDir).map((d) => path.join(baseDir, d)).find((p) => p.toLowerCase().includes('ban tin'))
-        : null) ||
-      path.join(baseDir, 'Gửi team bản tin');
+    const candidates = [
+      path.join(targetRoot, 'Gửi team bản tin'),
+      path.join(targetRoot, 'Gui team ban tin'),
+      path.join(baseDir, 'Gửi team bản tin'),
+      path.join(baseDir, 'Gui team ban tin'),
+    ];
+    let newsletterDir = candidates.find((p) => fs.existsSync(p));
 
-    if (!fs.existsSync(newsletterDir)) {
+    if (!newsletterDir) {
+      const searchDirs = [targetRoot, baseDir].filter((d) => fs.existsSync(d));
+      for (const sDir of searchDirs) {
+        const found = fs
+          .readdirSync(sDir)
+          .find((d) => d.toLowerCase().includes('ban tin'));
+        if (found) {
+          newsletterDir = path.join(sDir, found);
+          break;
+        }
+      }
+    }
+
+    if (!newsletterDir || !fs.existsSync(newsletterDir)) {
       this.logger.warn(
-        `Thư mục "Gửi team bản tin" không tồn tại: ${newsletterDir}. Bỏ qua xuất file bản tin.`,
+        `Thư mục "Gửi team bản tin" không tồn tại trong ${targetRoot}. Bỏ qua xuất file bản tin.`,
       );
       return;
     }
@@ -602,7 +613,7 @@ export class ValueStatisticsService {
 
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(templatePath);
-    const ws = wb.worksheets[0]; // First sheet
+    const ws = wb.worksheets[0];
 
     // Process rows 6 to 72 (Normal commodities)
     for (let r = 6; r <= 72; r++) {

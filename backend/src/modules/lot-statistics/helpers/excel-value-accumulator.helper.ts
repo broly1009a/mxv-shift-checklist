@@ -139,12 +139,21 @@ export interface ValueAccumulatorPaths {
  * Value statistics specific target row finder.
  * Assumes Date is in Column A (1) and there is no STT column.
  */
+function getNextWorkday(d: Date): Date {
+  const next = new Date(d);
+  do {
+    next.setDate(next.getDate() + 1);
+  } while (next.getDay() === 0 || next.getDay() === 6);
+  return next;
+}
+
 export function findOrCreateValueTargetRow(
   ws: ExcelJS.Worksheet,
   ngayGD: Date,
 ): number {
   let targetRowIndex = -1;
   let tongRowIndex = -1;
+  let currentCalculatedDate: Date | null = null;
 
   for (let r = 6; r <= ws.rowCount; r++) {
     const dateCellVal = ws.getCell(r, 1).value;
@@ -159,7 +168,20 @@ export function findOrCreateValueTargetRow(
       break;
     }
 
-    if (isSameDate(dateCellVal, ngayGD)) {
+    let rowDateVal: any = dateCellVal;
+    if (dateCellVal instanceof Date) {
+      currentCalculatedDate = new Date(dateCellVal);
+    } else if (typeof dateCellVal === 'object' && dateCellVal !== null && (dateCellVal as any).result) {
+      const res = (dateCellVal as any).result;
+      if (res instanceof Date || !isNaN(new Date(res).getTime())) {
+        currentCalculatedDate = new Date(res);
+      }
+    } else if (currentCalculatedDate) {
+      currentCalculatedDate = getNextWorkday(currentCalculatedDate);
+      rowDateVal = currentCalculatedDate;
+    }
+
+    if (isSameDate(rowDateVal, ngayGD)) {
       targetRowIndex = r;
       break;
     }
