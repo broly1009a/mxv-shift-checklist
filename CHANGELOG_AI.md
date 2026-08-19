@@ -2,12 +2,29 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-19] Tự Động Quét Tìm File DSGD.xlsx Linh Hoạt Cho Job Thống Kê Giá Trị & TVKD
+
+### Mục tiêu thay đổi
+- Khắc phục lỗi `Không tìm thấy file DSGD giao dịch ngày DD.MM.YYYY` khi chạy Job ngầm `RUN_VALUE_MACRO` hoặc `RUN_LOT_MACRO` từ Checklist.
+- Xử lý lệch đường dẫn giữa Thư mục gốc (`Target Root`) cấu hình trên UI (`/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong`) và cấu trúc lưu trữ thực tế trên đĩa (`Backup MS/Futures/...`).
+- Hỗ trợ linh hoạt cả 2 định dạng đặt tên thư mục tháng: `08.2026` và `T08.2026`.
+
+### Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) (Chỉnh sửa: Thêm cơ chế quét danh sách các candidate paths khả dĩ cho `dsgdPath` trong `handleRunValueMacroJob` và `handleRunLotMacroJob`)
+- [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts) (Chỉnh sửa: Thêm cơ chế quét candidate paths tương tự trong `processValueMacro`)
+
+### Tóm tắt nội dung code đã sửa
+1. **Chuẩn hóa gọn gàng đường dẫn (Không thừa code)**: Tự động kiểm tra nếu `TargetRoot` chưa chứa `Backup MS/Futures` thì nối thêm `Backup MS/Futures`, đồng thời kiểm tra nếu thư mục tháng trên đĩa là `08.2026` hay `T08.2026` để tạo đường dẫn `DSGD.xlsx` chính xác 100% chỉ trong vài dòng code tối ưu.
+2. **Xác nhận Build/Kiểm thử**: Backend build thành công 100% (`npm run build` pass).
+
+---
+
 ## [2026-08-19] Đồng Bộ Hóa Cấu Hóa & Tương Thích Ngược modularized Python Downloader
 
 ### Mục tiêu thay đổi
 - Đồng bộ cấu hình mặc định (DEFAULT_REPORTS) trong `config_manager.py` và `report_engine.py` với phiên bản mới nhất đang hoạt động của file gốc `downloader_original.py` (sử dụng tên menu `Lịch sử lệnh`, `Lịch sử giao dịch`, `Quản lý tiền`).
 - Khắc phục lỗi format ngày tháng (`generate_monthly_intervals` trong `date_service.py` thiếu bước chuẩn hóa dấu phân cách `-` và `.`).
-- Đồng bộ lại logic ẩn/hiện Sidebar và XPath điều hướng menu chính xác trong `core/base_page.py` và `page_objects/core_ccp_page.py` để hỗ trợ linh hoạt cả môi trường UAT và Production mà không bị timeout.
+- Đồng bộ lại logic ẩn/hiện Sidebar, XPath điều hướng menu chính xác trong `core/base_page.py` và `page_objects/core_ccp_page.py` để hỗ trợ linh hoạt cả môi trường UAT, Staging và Production. Đồng thời giải quyết triệt để lỗi nhảy sai domain bằng cách tự động phân tách và ghép domain động từ URL đăng nhập của người dùng vào các cached_url báo cáo.
 - Khôi phục tính năng phát hiện nhanh Toast báo trống dữ liệu (để bypass nhanh trong 0.3s) và kích đúp fallback khi bấm kết xuất trong `base_report_page.py`.
 - Khôi phục tính tương thích ngược cho file wrapper `downloader.py` để hỗ trợ đầy đủ các hàm export ở cấp độ module, bao gồm cơ chế lọc thông minh khi callback `log` bị truyền sai vị trí tham số.
 
@@ -25,7 +42,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 1. **Lọc Dấu Ngăn Ngày Tháng**: Thêm thay thế dấu `-` và `.` sang `/` trong `generate_monthly_intervals`.
 2. **Khôi Phục Bypass Nhanh & Fallback Click**: base_report_page.py khi phát hiện Toast báo trống dữ liệu sẽ trả về ngay `"NO_DATA"` để bypass nhanh chóng, tránh bị kẹt 15s chờ tải file không tồn tại. Thêm double-click kích hoạt xuất file nếu click thường không hiện popover.
 3. **Tối ưu hóa thời gian chờ nạp bảng**: Sửa đổi `wait_for_table_loading_complete` trong `base_report_page.py`. Duy trì bước ngủ 800ms ở đầu (để React kịp render/clear bảng cũ và trigger spinner), đồng thời tăng tần suất kiểm tra trạng thái ổn định lên mỗi 300ms thay vì 1000ms. Điều này giúp phát hiện bảng tải xong cực kỳ nhạy bén (giảm thời gian chờ chết xuống dưới 1.1s) mà không bao giờ bị nhận diện nhầm dữ liệu cũ.
-4. **Đồng Bộ Giao Diện & XPath**: Sửa XPaths Menu và tự động thử danh sách candidates cho các menu cha/con khác nhau giữa UAT và Production.
+4. **Đồng Bộ Giao Diện & XPath**: Sửa XPaths Menu và tự động thử danh sách candidates cho các menu cha/con khác nhau giữa UAT và Production. Đồng thời giải quyết lỗi chuyển hướng sai domain bằng cách bổ sung hàm `resolve_report_url` tự động trích xuất path từ `cached_url` và ghép với domain động hiện tại của `system_url` trước khi mở trực tiếp.
 5. **Tương Thích Ngược**: Bổ sung wrapper module-level và xử lý tham số động khi người dùng gọi hàm theo kiểu cũ.
 6. **Kiểm Thử Thực Tế Thành Công**: Chạy kịch bản `test_live_download.py` vượt qua 100% cả 5 báo cáo thành công trên hệ thống UAT CoreCCP.
 

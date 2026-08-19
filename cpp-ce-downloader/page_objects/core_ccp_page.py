@@ -12,23 +12,44 @@ except ImportError:
 
 
 class CoreCCPPage(BaseReportPage):
+    def get_base_origin(self, url_str: str) -> str:
+        from urllib.parse import urlparse
+        if not url_str:
+            return "https://clearing.mxv.com.vn"
+        if not url_str.startswith("http://") and not url_str.startswith("https://"):
+            url_str = "https://" + url_str
+        parsed = urlparse(url_str)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    def resolve_report_url(self, cached_url: str, system_url: str) -> str:
+        from urllib.parse import urlparse
+        if not cached_url:
+            return ""
+        base_origin = self.get_base_origin(system_url)
+        parsed_cached = urlparse(cached_url)
+        path = parsed_cached.path
+        if not path or path == "/":
+            return ""
+        return f"{base_origin}{path}"
+
     def navigate_to_report(self, report_cfg: dict, system_url: str) -> str:
         """
-        Điều hướng đến trang báo cáo CoreCCP:
-        1. Thử URL cached trong report_cfg bằng page.goto(cached_url).
-        2. Nếu không có cached_url hoặc goto bị lỗi, mở sidebar và click menu.
+        Điều riêng hệ thống CoreCCP:
+        1. Thử URL cached trong report_cfg (ghép với domain hệ thống của người dùng).
+        2. Nếu không thành công, mở sidebar và click menu.
         """
         cached_url = report_cfg.get("cached_url", "")
-        if cached_url:
+        target_url = self.resolve_report_url(cached_url, system_url)
+        if target_url:
             try:
-                self.log(f"  [Direct Nav] Mở thẳng trang báo cáo: {cached_url}")
-                self.page.goto(cached_url, wait_until="networkidle", timeout=15000)
+                self.log(f"  [Direct Nav] Mở thẳng trang báo cáo: {target_url}")
+                self.page.goto(target_url, wait_until="networkidle", timeout=15000)
                 self.page.wait_for_timeout(1000)
                 self.dismiss_modal_backdrop()
                 
                 # Kiểm tra xem các ô điều khiển báo cáo có thực sự xuất hiện không
                 if self.page.locator("xpath=//button[contains(., 'Tìm kiếm')] | //button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]").first.is_visible(timeout=3000):
-                    return cached_url
+                    return target_url
                 else:
                     self.log("  ⚠️ Mở URL trực tiếp chưa tải xong bảng báo cáo, chuyển sang click Menu...")
             except Exception as e:

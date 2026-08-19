@@ -195,14 +195,19 @@ export class ValueStatisticsService {
     );
 
     // 3. Locate and read daily DSGD.xlsx
+    const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
+      ? path.join(targetRoot, 'Backup MS', 'Futures')
+      : targetRoot;
+    const monthFolder = fs.existsSync(path.join(msFuturesRoot, String(year), `${monthStr}.${year}`))
+      ? `${monthStr}.${year}`
+      : `T${monthStr}.${year}`;
+
     const dsgdPath =
       payload?.dsgdPath ||
       path.join(
-        targetRoot,
-        'Backup MS',
-        'Futures',
+        msFuturesRoot,
         String(year),
-        `T${monthStr}.${year}`,
+        monthFolder,
         `${dayStr}.${monthStr}`,
         'DSGD.xlsx',
       );

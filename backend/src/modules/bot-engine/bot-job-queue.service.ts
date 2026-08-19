@@ -2245,14 +2245,20 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
       
-      // Ghi chú: targetRoot đã trỏ tới thư mục ...\ Backup MS\Futures
-      // KHÔNG append thêm 'Backup MS', 'Futures' để tránh duplicate path.
+      // Tự động chuẩn hóa đường dẫn thư mục chứa file DSGD.xlsx (hỗ trợ cả Target Root gốc & Target Root Futures, tháng 08.2026 / T08.2026)
+      const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
+        ? path.join(targetRoot, 'Backup MS', 'Futures')
+        : targetRoot;
+      const monthFolder = fs.existsSync(path.join(msFuturesRoot, String(year), `${monthStr}.${year}`))
+        ? `${monthStr}.${year}`
+        : `T${monthStr}.${year}`;
+
       const dsgdPath =
         payload.dsgdPath ||
         path.join(
-          targetRoot,
+          msFuturesRoot,
           String(year),
-          `T${monthStr}.${year}`,
+          monthFolder,
           `${dayStr}.${monthStr}`,
           'DSGD.xlsx',
         );
@@ -2418,12 +2424,19 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
       
+      const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
+        ? path.join(targetRoot, 'Backup MS', 'Futures')
+        : targetRoot;
+      const monthFolder = fs.existsSync(path.join(msFuturesRoot, String(year), `${monthStr}.${year}`))
+        ? `${monthStr}.${year}`
+        : `T${monthStr}.${year}`;
+
       const dsgdPath =
         payload.dsgdPath ||
         path.join(
-          targetRoot,
+          msFuturesRoot,
           String(year),
-          `T${monthStr}.${year}`,
+          monthFolder,
           `${dayStr}.${monthStr}`,
           'DSGD.xlsx',
         );
