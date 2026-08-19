@@ -2,7 +2,13 @@
 core_ccp_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreCCP (uat-coreccp.mxv.com.vn).
 """
 
-from page_objects.base_report_page import BaseReportPage
+try:
+    from page_objects.base_report_page import BaseReportPage
+except ImportError:
+    try:
+        from .base_report_page import BaseReportPage
+    except ImportError:
+        from base_report_page import BaseReportPage
 
 
 class CoreCCPPage(BaseReportPage):

@@ -3,7 +3,13 @@ core_ex_page.py — Page Object định vị và điều hướng riêng cho h�
 """
 
 from urllib.parse import urlparse
-from page_objects.base_report_page import BaseReportPage
+try:
+    from page_objects.base_report_page import BaseReportPage
+except ImportError:
+    try:
+        from .base_report_page import BaseReportPage
+    except ImportError:
+        from base_report_page import BaseReportPage
 
 
 class CoreEXPage(BaseReportPage):

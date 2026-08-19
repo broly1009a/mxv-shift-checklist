@@ -17,6 +17,14 @@ pyinstaller -y --noconsole --onefile --icon=app_icon.ico --name "CPP_CE_Report_D
   --add-data "header-logo-light.svg;." ^
   --add-data "header-logo-icon.svg;." ^
   --add-data "app_icon.ico;." ^
+  --add-data "config;config" ^
+  --add-data "core;core" ^
+  --add-data "page_objects;page_objects" ^
+  --add-data "services;services" ^
+  --collect-all config ^
+  --collect-all core ^
+  --collect-all page_objects ^
+  --collect-all services ^
   --exclude-module PyQt6.QtWebEngine ^
   --exclude-module PyQt6.QtWebEngineCore ^
   --exclude-module PyQt6.QtWebEngineWidgets ^

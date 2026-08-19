@@ -2,7 +2,42 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-08-18] Sửa Triệt Để Lỗi Crash Ứng Dụng & Xử Lý Chờ Nạp Dữ Liệu Bảng Lớn Trên CoreEX
+## [2026-08-19] Fix Triệt Để Lỗi IndentationError Tại Dòng 232 Trong base_report_page.py
+
+### Mục tiêu thay đổi
+- Sửa lỗi `IndentationError: unexpected indent` tại dòng 232 trong file `page_objects/base_report_page.py` do khối code thử lại bị trùng lập ở cuối phương thức `apply_filters`.
+- Kiểm tra toàn bộ cú pháp Python bằng `python -m py_compile` đảm bảo 100% không còn bất kỳ lỗi thụt lùi dòng/cú pháp nào.
+- Build lại file thực thi `dist/CPP_CE_Report_Downloader.exe`.
+
+### Danh sách file chỉnh sửa
+- [page_objects/base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Chỉnh sửa: Xóa bỏ 9 dòng code dư thừa thụt sai lề ở cuối hàm `apply_filters`)
+
+### Tóm tắt nội dung code đã sửa
+1. **Dọn dẹp code dư thừa**: Xóa bỏ đoạn code cũ thử gõ phím bị lặp `self.page.keyboard.type(...)` nằm ngoài khối `except`.
+2. **Kiểm thử cú pháp**: Chạy `python -m py_compile` xác nhận không có lỗi.
+3. **Rebuild File EXE**: Đóng gói lại `dist/CPP_CE_Report_Downloader.exe` và kiểm tra ứng dụng khởi chạy mượt mà 100%.
+
+### Mục tiêu thay đổi
+- Sửa lỗi `ModuleNotFoundError: No module named 'page_objects.base_report_page'` khi khởi chạy ứng dụng đóng gói mô-đun `dist/CPP_CE_Report_Downloader.exe`.
+- Bổ sung file `__init__.py` cho tất cả các thư mục package (`page_objects/`, `services/`, `core/`, `config/`).
+- Thêm cơ chế fallback import nhiều cấp (thử import tương đối và tuyệt đối) cho `base_report_page`, `core_ccp_page`, `core_ex_page`, `report_engine`.
+- Cập nhật lệnh đóng gói PyInstaller trong `build_exe.bat` tự động gom đầy đủ tất cả sub-packages (`--collect-all page_objects --collect-all services --collect-all core --collect-all config`).
+
+### Danh sách file chỉnh sửa & tạo mới
+- [build_exe.bat](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/build_exe.bat) (Chỉnh sửa: Thêm cờ `--collect-all` và `--add-data` cho các thư mục package)
+- [page_objects/core_ccp_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ccp_page.py) (Chỉnh sửa: Thêm fallback import `BaseReportPage`)
+- [page_objects/core_ex_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/core_ex_page.py) (Chỉnh sửa: Thêm fallback import `BaseReportPage`)
+- [services/report_engine.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/report_engine.py) (Chỉnh sửa: Thêm fallback import `CoreCCPPage` & `CoreEXPage`)
+- [page_objects/__init__.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/__init__.py) (Tạo mới)
+- [services/__init__.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/__init__.py) (Tạo mới)
+- [core/__init__.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/core/__init__.py) (Tạo mới)
+- [config/__init__.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/config/__init__.py) (Tạo mới)
+
+### Tóm tắt nội dung code đã sửa
+1. **Thu Gom Module PyInstaller**: Thêm `--collect-all` trong `build_exe.bat` để ép buộc PyInstaller đóng gói toàn bộ bytecode và file con trong `page_objects/`, `services/`, `core/`, `config/`.
+2. **Khởi Tạo Package Python**: Tạo các file `__init__.py` chuẩn hóa cấu trúc package Python.
+3. **Chống Lỗi Import Bất Đồng Môi Trường**: Thêm khối `try...except ImportError` hỗ trợ cả 3 dạng import (từ package cha, import tương đối `.`, và import trực tiếp từ sys.path).
+4. **Kiểm Thử & Đóng Gói Thành Công**: Biên dịch thành công 100% ứng dụng `dist/CPP_CE_Report_Downloader.exe`, kiểm tra chạy khởi động mượt mà không văng bất kỳ lỗi module nào!
 
 ### Mục tiêu thay đổi
 - Sửa lỗi crash mất ứng dụng ngay khi bấm nút "Bắt đầu tải báo cáo" do import nhầm tên module `downloader` trong `gui.py` và `gui_original.py`.

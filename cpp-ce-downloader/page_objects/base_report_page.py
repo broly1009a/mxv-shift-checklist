@@ -7,6 +7,54 @@ from core.base_page import BasePage
 
 
 class BaseReportPage(BasePage):
+    def wait_for_table_loading_complete(self, max_timeout_ms: int = 60000) -> bool:
+        """
+        Chờ 100% cho đến khi bảng Material React Table / CoreEX / CoreCCP dừng nạp dữ liệu từ server.
+        Kiểm tra liên tục 0 visible spinner trong ít nhất 2 chu kỳ liên tiếp (mỗi chu kỳ 1s).
+        """
+        import time
+        self.log("  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
+        start_time = time.time()
+        max_sec = max_timeout_ms / 1000.0
+
+        # Cho 1.5s ban đầu để React state update và spinner xuất hiện chắc chắn
+        self.page.wait_for_timeout(1500)
+
+        spinner_selector = (
+            "xpath=//*[contains(@class, 'MuiCircularProgress-root') "
+            "or contains(@class, 'MuiLinearProgress-root') "
+            "or contains(@class, 'MuiBackdrop-root') "
+            "or @role='progressbar' "
+            "or contains(@id, 'mrt-progress') "
+            "or contains(@class, 'MuiSkeleton-root')]"
+        )
+
+        stable_count = 0
+        while time.time() - start_time < max_sec:
+            spinners = self.page.locator(spinner_selector).all()
+            visible_spinners = []
+            for s in spinners:
+                try:
+                    if s.is_visible():
+                        visible_spinners.append(s)
+                except Exception:
+                    pass
+
+            if len(visible_spinners) == 0:
+                stable_count += 1
+                if stable_count >= 2:
+                    self.log("  ✓ [SUCCESS] Bảng đã hoàn tất nạp dữ liệu (0 loading spinner, 0 backdrop)!")
+                    self.page.wait_for_timeout(500)
+                    return True
+            else:
+                stable_count = 0
+                self.log(f"  ⏳ Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
+
+            self.page.wait_for_timeout(1000)
+
+        self.log("  ⚠️ Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
+        return False
+
     def set_date_range_and_search(self, start_date: str, end_date: str, exchange: str = "", member_code: str = "", acct_no: str = ""):
         """
         Điền khoảng thời gian cho MUI DatePicker, lọc Mã thành viên & Mã TKGD / Số tiểu khoản (nếu có) và bấm nút Tìm kiếm.
@@ -124,31 +172,19 @@ class BaseReportPage(BasePage):
         search_btn = self.page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible(timeout=2000):
             search_btn.click(force=True)
-            self.page.wait_for_timeout(1000)
-
-        # Chờ bảng nạp xong dữ liệu (chờ loading spinner/backdrop tắt hẳn)
-        try:
-            self.page.wait_for_selector(
-                "xpath=//*[contains(@class, 'MuiCircularProgress-root') or contains(@class, 'MuiLinearProgress-root')]",
-                state="hidden",
-                timeout=20000
-            )
-        except Exception:
-            pass
-        self.page.wait_for_timeout(1000)
-        self.dismiss_modal_backdrop()
+            self.log("  ⏳ Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
+            self.wait_for_table_loading_complete(60000)
+            self.dismiss_modal_backdrop()
 
         # 4. Điền lọc 'Mã thành viên' (Ví dụ: 711) ở cột bộ lọc trong bảng Material React Table
         if member_code and member_code.strip():
             mb_code = member_code.strip()
+            self.wait_for_table_loading_complete(30000)
             self.log(f"  [Filter Column] Lọc Mã thành viên: '{mb_code}'...")
             try:
-                member_inp = self.page.locator(
-                    "xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE']//input"
-                    " | //th[contains(., 'Mã thành viên')]//input"
-                ).first
-
-                if member_inp.count() == 0 or not member_inp.is_visible(timeout=500):
+                # Kiểm tra xem hàng bộ lọc đã hiển thị ô input nào chưa
+                header_inputs = self.page.locator("xpath=//thead//th//input")
+                if header_inputs.count() == 0:
                     toolbar_filter_btn = self.page.locator(
                         "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
                     ).first
@@ -177,25 +213,23 @@ class BaseReportPage(BasePage):
                     self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã thành viên', đang điền '{mb_code}'...")
                     member_inp.focus()
                     member_inp.fill(mb_code)
-                    self.page.wait_for_timeout(200)
+                    self.page.wait_for_timeout(300)
                     member_inp.press("Enter")
-                    self.page.wait_for_timeout(1500)
+                    self.wait_for_table_loading_complete(30000)
                 else:
                     self.log("  ⚠️ Không tìm thấy ô lọc Mã thành viên trên bảng.")
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
 
-        # 5. Điền lọc 'Mã TKGD / Số tiểu khoản' (Ví dụ: 001C123456) ở cột bộ lọc trong bảng
+        # 5. Điền lọc 'Mã TKGD / Số tiểu khoản' (Ví dụ: 001C123456 hoặc 001C123456-M) ở cột bộ lọc trong bảng
         if acct_no and acct_no.strip():
             acc_val = acct_no.strip()
+            self.wait_for_table_loading_complete(30000)
             self.log(f"  [Filter Column] Lọc Mã TKGD / Số tiểu khoản: '{acc_val}'...")
             try:
-                acct_inp = self.page.locator(
-                    "xpath=//th[@data-column-id='AFACCTNO' or @data-column-id='ACCTNO_BUY' or @data-column-id='ACCTNO_SELL']//input"
-                    " | //th[contains(., 'Số tiểu khoản') or contains(., 'Mã TKGD') or contains(., 'Số tài khoản')]//input"
-                ).first
-
-                if acct_inp.count() == 0 or not acct_inp.is_visible(timeout=500):
+                # Kiểm tra xem hàng bộ lọc đã hiển thị ô input nào chưa
+                header_inputs = self.page.locator("xpath=//thead//th//input")
+                if header_inputs.count() == 0:
                     toolbar_filter_btn = self.page.locator(
                         "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
                     ).first
@@ -224,18 +258,9 @@ class BaseReportPage(BasePage):
                     self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã TKGD / Số tiểu khoản', đang điền '{acc_val}'...")
                     acct_inp.focus()
                     acct_inp.fill(acc_val)
-                    self.page.wait_for_timeout(200)
+                    self.page.wait_for_timeout(300)
                     acct_inp.press("Enter")
-                    self.page.wait_for_timeout(1500)
-                else:
-                    self.log("  ⚠️ Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
-            except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
-                    self.page.wait_for_timeout(150)
-                    self.page.keyboard.type(acc_val, delay=40)
-                    self.page.wait_for_timeout(200)
-                    self.page.keyboard.press("Enter")
-                    self.page.wait_for_timeout(1500)
+                    self.wait_for_table_loading_complete(30000)
                 else:
                     self.log("  ⚠️ Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
             except Exception as e:
@@ -246,6 +271,7 @@ class BaseReportPage(BasePage):
         Thao tác xuất file CSV chuẩn và trả về download_obj.
         """
         self.dismiss_modal_backdrop()
+        self.wait_for_table_loading_complete(30000)
 
         empty_table = self.page.locator("xpath=//*[contains(text(), 'Không có dữ liệu') or contains(text(), 'No data') or contains(text(), 'No records')]").first
         if empty_table.is_visible(timeout=1000):

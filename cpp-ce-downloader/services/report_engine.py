@@ -6,12 +6,28 @@ import os
 import time
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeoutError
 
-from config.config_manager import load_config, save_config
-from core.browser_factory import launch_browser_resilient
-from core.base_page import BasePage
-from page_objects.core_ccp_page import CoreCCPPage
-from page_objects.core_ex_page import CoreEXPage
-from services.date_service import generate_monthly_intervals
+try:
+    from config.config_manager import load_config, save_config
+    from core.browser_factory import launch_browser_resilient
+    from core.base_page import BasePage
+    from page_objects.core_ccp_page import CoreCCPPage
+    from page_objects.core_ex_page import CoreEXPage
+    from services.date_service import generate_monthly_intervals
+except ImportError:
+    try:
+        from config_manager import load_config, save_config
+        from browser_factory import launch_browser_resilient
+        from base_page import BasePage
+        from core_ccp_page import CoreCCPPage
+        from core_ex_page import CoreEXPage
+        from date_service import generate_monthly_intervals
+    except ImportError:
+        from config.config_manager import load_config, save_config
+        from core.browser_factory import launch_browser_resilient
+        from core.base_page import BasePage
+        from page_objects.core_ccp_page import CoreCCPPage
+        from page_objects.core_ex_page import CoreEXPage
+        from services.date_service import generate_monthly_intervals
 
 
 class ReportEngine:

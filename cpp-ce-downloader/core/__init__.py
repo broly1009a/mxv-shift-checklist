@@ -1,3 +1,1 @@
-"""
-Package core chứa Playwright browser factory và base page wrapper.
-"""
+# Package initialization for core

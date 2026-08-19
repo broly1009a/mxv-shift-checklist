@@ -1,3 +1,1 @@
-"""
-Package config cho Tool CPP/CE Downloader
-"""
+# Package initialization for config
