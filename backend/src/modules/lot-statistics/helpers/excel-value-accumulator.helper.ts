@@ -291,7 +291,9 @@ async function updateValueTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    ws = wb.worksheets[wb.worksheets.length - 1];
+    throw new Error(
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+    );
   }
 
   const targetRowIndex = findOrCreateValueTargetRow(ws, ngayGD);
@@ -359,7 +361,9 @@ export async function updateValueTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    ws = wb.worksheets[wb.worksheets.length - 1];
+    throw new Error(
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+    );
   }
 
   // Find date row index using Column B (2)

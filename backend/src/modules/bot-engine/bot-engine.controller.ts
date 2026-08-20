@@ -235,6 +235,11 @@ export class BotEngineController {
     );
     const usdExchangeRate = parseFloat(usdExchangeRateStr) || 25220;
 
+    const botAutoRecoveryEnabled = (await this.settingsService.getSetting(
+      'bot_auto_recovery_enabled',
+      'true',
+    )) !== 'false';
+
     // Load M365 configs
     const m365ClientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
     const m365TenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
@@ -264,6 +269,7 @@ export class BotEngineController {
       schedulerConfig,
       sessionStartTime,
       usdExchangeRate,
+      botAutoRecoveryEnabled,
     };
   }
 
@@ -284,6 +290,7 @@ export class BotEngineController {
       schedulerConfig,
       sessionStartTime,
       usdExchangeRate,
+      botAutoRecoveryEnabled,
     } = body;
     const targetCcp = ccp || cpp;
 
@@ -305,6 +312,13 @@ export class BotEngineController {
       await this.settingsService.setSetting(
         'usd_exchange_rate',
         usdExchangeRate.toString(),
+      );
+    }
+
+    if (botAutoRecoveryEnabled !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_auto_recovery_enabled',
+        botAutoRecoveryEnabled ? 'true' : 'false',
       );
     }
 

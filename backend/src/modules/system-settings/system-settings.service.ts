@@ -1,14 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SystemSetting } from '../../schemas/system-setting.schema';
 
 @Injectable()
-export class SystemSettingsService {
+export class SystemSettingsService implements OnModuleInit {
   constructor(
     @InjectModel(SystemSetting.name)
     private readonly systemSettingModel: Model<SystemSetting>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      const val = await this.getSetting('bot_auto_recovery_enabled', 'true');
+      process.env.BOT_AUTO_RECOVERY_ENABLED = val;
+      console.log(`[BOOT] Auto-Recovery settings: ${process.env.BOT_AUTO_RECOVERY_ENABLED}`);
+    } catch (err: any) {
+      console.error('Failed to load bot_auto_recovery_enabled setting during boot:', err?.message);
+    }
+  }
 
   async getSetting(key: string, defaultValue: string = ''): Promise<string> {
     const setting = await this.systemSettingModel.findOne({ key }).exec();
@@ -26,6 +36,11 @@ export class SystemSettingsService {
     } else {
       setting = new this.systemSettingModel({ key, value });
       saved = await setting.save();
+    }
+
+    if (key === 'bot_auto_recovery_enabled') {
+      process.env.BOT_AUTO_RECOVERY_ENABLED = value;
+      console.log(`[SYSTEM SETTINGS] Reactively updated BOT_AUTO_RECOVERY_ENABLED = ${value}`);
     }
 
     if (oldValue !== value) {

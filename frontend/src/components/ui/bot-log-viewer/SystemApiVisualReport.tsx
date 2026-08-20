@@ -71,22 +71,23 @@ export const SystemApiVisualReport: React.FC<SystemApiVisualReportProps> = ({ js
   const cleanText = (rawText || '').trim();
   const summaryText = summarizeLogText(cleanText);
 
-  const hasError = cleanText && (
-    cleanText.toLowerCase().includes('chưa nhận') ||
-    cleanText.toLowerCase().includes('lỗi') ||
-    cleanText.toLowerCase().includes('thất bại') ||
-    cleanText.toLowerCase().includes('không tìm thấy') ||
-    cleanText.toLowerCase().includes('error') ||
-    cleanText.toLowerCase().includes('failed') ||
-    cleanText.toLowerCase().includes('fail')
-  );
+  const hasError =
+    cleanText &&
+    (cleanText.toLowerCase().includes('chưa nhận') ||
+      cleanText.toLowerCase().includes('lỗi') ||
+      cleanText.toLowerCase().includes('thất bại') ||
+      cleanText.toLowerCase().includes('không tìm thấy') ||
+      cleanText.toLowerCase().includes('error') ||
+      cleanText.toLowerCase().includes('failed') ||
+      cleanText.toLowerCase().includes('fail'));
 
-  const isSuccessInfo = cleanText && (
-    cleanText.toLowerCase().includes('thành công') ||
-    cleanText.toLowerCase().includes('không có hợp đồng') ||
-    cleanText.toLowerCase().includes('khớp hoàn toàn') ||
-    cleanText.toLowerCase().includes('không phát hiện')
-  );
+  const isSuccessInfo =
+    !hasError &&
+    cleanText &&
+    (cleanText.toLowerCase().includes('thành công') ||
+      cleanText.toLowerCase().includes('không có hợp đồng') ||
+      cleanText.toLowerCase().includes('khớp hoàn toàn') ||
+      cleanText.toLowerCase().includes('không phát hiện'));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

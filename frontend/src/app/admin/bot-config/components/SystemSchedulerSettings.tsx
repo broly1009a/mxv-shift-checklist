@@ -27,6 +27,7 @@ export default function SystemSchedulerSettings({
   // System parameters states
   const [sessionStartTime, setSessionStartTime] = useState('05:00');
   const [usdExchangeRate, setUsdExchangeRate] = useState(25220);
+  const [botAutoRecoveryEnabled, setBotAutoRecoveryEnabled] = useState(true);
 
   // Scheduler state
   const [schedulerConfig, setSchedulerConfig] = useState<any[]>([]);
@@ -50,6 +51,9 @@ export default function SystemSchedulerSettings({
         }
         if (data.usdExchangeRate) {
           setUsdExchangeRate(data.usdExchangeRate);
+        }
+        if (data.botAutoRecoveryEnabled !== undefined) {
+          setBotAutoRecoveryEnabled(data.botAutoRecoveryEnabled);
         }
         if (data.schedulerConfig) {
           setSchedulerConfig(data.schedulerConfig);
@@ -79,6 +83,7 @@ export default function SystemSchedulerSettings({
         ...fullConfigData,
         sessionStartTime,
         usdExchangeRate,
+        botAutoRecoveryEnabled,
         schedulerConfig,
       };
 
@@ -180,6 +185,22 @@ export default function SystemSchedulerSettings({
                 Tỷ giá quy đổi dùng cho tính toán chênh lệch số dư tài khoản CQG (Balance Reconciliation).
               </p>
             </div>
+          </div>
+
+          {/* Option: Auto-Recovery */}
+          <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <input
+                type="checkbox"
+                checked={botAutoRecoveryEnabled}
+                onChange={(e) => setBotAutoRecoveryEnabled(e.target.checked)}
+                style={{ accentColor: '#10b981', width: '16px', height: '16px' }}
+              />
+              Tự động khôi phục/đồng bộ file mẫu từ DATA_ROOT (Auto-Recovery)
+            </label>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
+              (Nếu tắt, Bot sẽ không tự copy đè file từ nguồn sang đích khi file bị xóa hoặc 0 bytes)
+            </p>
           </div>
         </div>
 

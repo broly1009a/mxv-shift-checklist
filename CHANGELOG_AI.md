@@ -2,6 +2,90 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-20] Khắc Phục Lỗi Hiển Thị Trùng Lặp Khung Cảnh Báo (Duplicate Alert Card) Trên Modal FE
+
+### Mục tiêu thay đổi
+- Khắc phục lỗi Modal xem báo cáo trực quan ở Frontend hiển thị đồng thời cả 2 khung: Khung Đỏ (Phát Hiện Sự Cố) và Khung Xanh (Thông Tin Vận Hành) chứa cùng một nội dung log tóm tắt.
+- Nguyên nhân cốt lõi: Trong [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx), biến `isSuccessInfo` được kiểm tra độc lập mà không loại trừ `hasError`. Khi chuỗi log vừa chứa từ khóa "thành công" (ở bước nạp file) vừa chứa từ khóa "Lỗi", cả 2 cờ `hasError` và `isSuccessInfo` đều bằng `true`, dẫn tới việc React render cả 2 thẻ UI cùng lúc.
+
+### Danh sách file chỉnh sửa
+- [SystemApiVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/SystemApiVisualReport.tsx) (Chỉnh sửa: Thêm `!hasError` cho điều kiện `isSuccessInfo`, đảm bảo 2 khung cảnh báo loại trừ lẫn nhau 100%).
+
+### Tóm tắt nội dung code đã sửa
+1. **Loại trừ hiển thị trùng lặp**: Khi job có lỗi (`hasError = true`), FE chỉ hiển thị 1 Khung Đỏ duy nhất cảnh báo sự cố.
+2. **Xác nhận Build/Kiểm thử**: Frontend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
+## [2026-08-20] Khắc Phục Lỗi Ghi Nhầm Vào Sheet Tháng Cũ Khi Chưa Có Sheet Tháng Mới (Missing Month Sheet Validation)
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lỗi Bot tự động ghi dữ liệu của tháng mới (ví dụ `18/08/2026`) vào Sheet tháng cũ (`T07.2026`) gây chèn dòng `insertRow` vào dưới hàng `TỔNG` làm vỡ công thức ExcelJS (`Shared Formula master must exist above and or left of clone for cell E29`).
+- Nguyên nhân cốt lõi: Khi file Excel chưa được tạo sẵn Sheet tháng mới (`T08.2026`), code cũ bị fallback ghi nhầm vào Sheet cuối cùng của tháng cũ (`wb.worksheets[wb.worksheets.length - 1]`).
+
+### Danh sách file chỉnh sửa
+- [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Chỉnh sửa: Loại bỏ fallback `worksheets[length - 1]`, thay bằng báo lỗi rõ ràng yêu cầu người dùng nhân bản Sheet tháng mới khi thiếu Sheet `T08.2026`).
+- [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts) (Chỉnh sửa: Bổ sung báo lỗi rõ ràng tương tự cho các file lũy kế giá trị).
+
+### Tóm tắt nội dung code đã sửa
+1. **Chặn ghi nhầm tháng cũ**: Khi chạy dữ liệu tháng 8 nhưng file Excel chưa có Sheet `T08.2026`, Bot sẽ dừng lại và báo lỗi rõ ràng, bảo vệ 100% tính toàn vẹn của Sheet tháng 7.
+2. **Xác nhận Build/Kiểm thử**: Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
+## [2026-08-20] Bổ Sung Cấu Hình Tắt/Bật Tự Động Khôi Phục File Mẫu (Auto-Recovery) Trên Web Admin (Đã Refactor Tối Ưu)
+
+### Mục tiêu thay đổi
+- Hỗ trợ người dùng kiểm soát cơ chế tự động khôi phục và đồng bộ file mẫu từ `DATA_ROOT` về thư mục đích. Khi tắt, người dùng có thể xóa hoặc sửa file trên ổ đĩa mạng `M:\` mà không sợ bị Bot ghi đè khôi phục lại.
+- Tránh các lỗi kẹt khóa file (file lock) hay xung đột CIFS lease do tiến trình ngầm của Bot luôn chạy quét và khôi phục tự động.
+- **Cải tiến tránh rác code:** Thay thế việc sử dụng bộ nhớ cache in-memory trung gian bằng đối tượng toàn cục `process.env.BOT_AUTO_RECOVERY_ENABLED` của Node.js. Giúp đồng bộ hóa cấu hình sạch sẽ, không cần import chéo các file helper giữa các thư mục khác nhau.
+
+### Danh sách file chỉnh sửa
+- [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts) (Chỉnh sửa: Kiểm tra cấu hình tắt khôi phục bằng `process.env.BOT_AUTO_RECOVERY_ENABLED === 'false'` trong `ensureBaseFileExists` và `ensureBaseDirectoryExists`).
+- [system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/system-settings/system-settings.service.ts) (Chỉnh sửa: Nạp cấu hình `bot_auto_recovery_enabled` từ DB gán trực tiếp vào `process.env.BOT_AUTO_RECOVERY_ENABLED` khi boot, cập nhật động khi chỉnh sửa).
+- [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) (Chỉnh sửa: Hỗ trợ truyền/nhận biến `botAutoRecoveryEnabled` trong endpoint `GET /config` và `POST /config`).
+- [SystemSchedulerSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx) (Chỉnh sửa: Thêm ô checkbox tùy chọn "Tự động khôi phục/đồng bộ file mẫu từ DATA_ROOT (Auto-Recovery)" và tích hợp lưu/tải dữ liệu qua API).
+
+### Tóm tắt nội dung code đã sửa
+1. **Quản lý cấu hình qua `process.env`**: Sử dụng `process.env.BOT_AUTO_RECOVERY_ENABLED` giúp luồng code đồng bộ, loại bỏ hoàn toàn mã thừa và tránh rác code.
+2. **Không import chéo**: Loại bỏ import helper `fileGuardConfig` bên trong `system-settings.service.ts`, tăng tính độc lập của module.
+3. **Cập nhật in-memory tức thì**: Cập nhật phản hồi ngay khi thay đổi cấu hình trên UI mà không cần reboot.
+4. **Xác nhận Build/Kiểm thử**: Cả Backend và Frontend đều được build thành công 100% không lỗi.
+
+---
+
+## [2026-08-20] Khắc Phục Lỗi CIFS Mount Race Condition "ENOENT: no such file or directory, copyfile"
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lỗi `ENOENT: no such file or directory, copyfile source -> target` xảy ra khi Bot cố gắng ghi đè file rỗng 0 bytes trên ổ đĩa mạng SMB/CIFS (`/mnt/qlgd-it/`).
+- Nguyên nhân cốt lõi: Việc gọi `fs.unlinkSync(filePath)` để xóa file 0 bytes ngay trước khi gọi `fs.copyFileSync(source, filePath)` gây ra xung đột CIFS cache handle trên ổ đĩa mạng Linux mount SMB. Ổ đĩa mạng phản hồi `ENOENT` vì thao tác `unlink` chưa nhả handle kịp thời.
+
+### Danh sách file chỉnh sửa
+- [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts) (Chỉnh sửa: Loại bỏ `fs.unlinkSync` trung gian, cho phép `fs.copyFileSync` thực hiện ghi đè trực tiếp (overwrite) lên file 0 bytes mà không xóa file entry, giúp tương thích 100% với CIFS/Samba mount).
+
+### Tóm tắt nội dung code đã sửa
+1. **Loại bỏ Unlink gây xung đột CIFS**: Đảm bảo quá trình auto-sync khôi phục file 0 bytes từ `DATA_ROOT` thực hiện ghi đè trực tiếp an toàn.
+2. **Xác nhận Build/Kiểm thử**: Backend compile sạch sẽ (`npm run build` thành công).
+
+---
+
+## [2026-08-19] Khắc Phục Triệt Để Lỗi "End of data reached (data length = 0). Corrupted zip ?" Khi Đọc File Excel Lũy Kế
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lỗi `End of data reached (data length = 0, asked index = 4). Corrupted zip ?` khi chạy Job Thống kê Số Lốt.
+- Nguyên nhân cốt lõi: 1 trong các file Excel lũy kế trên đĩa (như `DSGD T08.2026.xlsx`) tồn tại dưới dạng file rỗng 0 bytes (do khởi tạo dở dang hoặc gián đoạn ghi đĩa). Thư viện `exceljs`/`JSZip` khi gọi `.readFile()` vào file 0 bytes sẽ lập tức báo lỗi hỏng file nén ZIP.
+
+### Danh sách file chỉnh sửa
+- [file-guard.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/common/file-guard.helper.ts) (Chỉnh sửa: Nâng cấp `ensureBaseFileExists` tự động phát hiện file 0 bytes bị hỏng, xóa bỏ file hỏng và khôi phục lại file chuẩn từ nguồn `DATA_ROOT`).
+- [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Chỉnh sửa: Thêm kiểm tra `fs.statSync(filePath).size > 0` trong `appendRawDsgd` trước khi cho `exceljs` đọc file).
+
+### Tóm tắt nội dung code đã sửa
+1. **Xóa tự động file 0 bytes hỏng**: `ensureBaseFileExists` tự động nhận diện nếu file trên đĩa tồn tại nhưng kích thước bằng 0 bytes, tự động xóa file hỏng và kéo file gốc chuẩn từ `DATA_ROOT` về thay thế.
+2. **Ngăn crash đọc ZIP rỗng**: Đảm bảo `exceljs` chỉ đọc các file có dung lượng hợp lệ (> 0 bytes).
+3. **Xác nhận Build/Kiểm thử**: Backend build thành công (`npm run build` pass với Exit code 0).
+
+---
+
 ## [2026-08-19] Khắc Phục Triệt Để Lỗi Bot Báo Thành Công Nhưng Không Mở/Ghi Vào File Lũy Kế Số Lốt
 
 ### Mục tiêu thay đổi

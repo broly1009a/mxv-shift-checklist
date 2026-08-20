@@ -32,8 +32,25 @@ export function assertSafeWritePath(
  */
 export function ensureBaseFileExists(filePath: string): boolean {
   if (fs.existsSync(filePath)) {
-    return true;
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.size > 0) {
+        return true;
+      }
+    } catch {
+      // Ignore stat errors
+    }
   }
+
+  // Check recovery policy BEFORE attempting any recovery action or logging
+  if (process.env.BOT_AUTO_RECOVERY_ENABLED === 'false') {
+    console.log(`[file-guard] Auto-Recovery is disabled. Skipping recovery of file: "${filePath}"`);
+    return false;
+  }
+
+  console.warn(
+    `[WARN] File "${filePath}" bị thiếu hoặc rỗng (0 bytes). Tiến hành ghi đè khôi phục từ DATA_ROOT.`,
+  );
 
   const dataRoot = process.env.DATA_ROOT;
   const targetRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT;
@@ -74,7 +91,16 @@ export function ensureBaseDirectoryExists(dirPath: string): boolean {
     return true;
   }
 
+  // Check recovery policy BEFORE attempting any recovery action
+  if (process.env.BOT_AUTO_RECOVERY_ENABLED === 'false') {
+    console.log(`[file-guard] Auto-Recovery is disabled. Skipping recovery of directory: "${dirPath}"`);
+    return false;
+  }
+
+  console.warn(`[WARN] Thư mục "${dirPath}" bị thiếu. Tiến hành khôi phục từ DATA_ROOT.`);
+
   const dataRoot = process.env.DATA_ROOT;
+
   const targetRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT;
 
   if (dataRoot && targetRoot) {

@@ -265,7 +265,10 @@ export async function appendRawDsgd(
   const rowsToKeep: any[][] = [];
   const headerValues = dailyWs.getRow(1).values as any[];
 
-  if (fs.existsSync(targetFilePath)) {
+  const isExistingNonEmpty =
+    fs.existsSync(targetFilePath) && fs.statSync(targetFilePath).size > 0;
+
+  if (isExistingNonEmpty) {
     await targetWb.xlsx.readFile(targetFilePath);
     const existingWs =
       targetWb.getWorksheet('sheet1') ||
@@ -343,7 +346,9 @@ async function updateTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    ws = wb.worksheets[wb.worksheets.length - 1];
+    throw new Error(
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+    );
   }
 
   const targetRowIndex = findOrCreateTargetRow(ws, ngayGD);
@@ -415,7 +420,9 @@ async function updateAcmTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    ws = wb.worksheets[wb.worksheets.length - 1];
+    throw new Error(
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+    );
   }
 
   const targetRowIndex = findOrCreateTargetRow(ws, ngayGD);
@@ -487,7 +494,9 @@ async function updateNormalTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), result.ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    ws = wb.worksheets[wb.worksheets.length - 1];
+    throw new Error(
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+    );
   }
 
   const targetRowIndex = findOrCreateTargetRow(ws, result.ngayGD);
