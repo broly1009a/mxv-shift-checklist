@@ -45,6 +45,7 @@ class ReportEngine:
         exchange: str = "",
         member_code: str = "",
         acct_no: str = "",
+        download_timeout: int = 30000,
         logger_callback=None
     ):
         self.system_url = system_url
@@ -59,6 +60,7 @@ class ReportEngine:
         self.exchange = exchange
         self.member_code = member_code
         self.acct_no = acct_no
+        self.download_timeout = download_timeout
         self.logger_callback = logger_callback
 
     def log(self, msg: str):
@@ -79,7 +81,7 @@ class ReportEngine:
 
     def download_single_report(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict) -> bool:
         """
-        Tải 1 file báo cáo cụ thể theo từng tháng.
+        Tải 1 file báo cáo cụ thể theo từng tháng với cơ chế Retry & kiểm tra đĩa thực tế.
         """
         code = report_cfg["code"]
         mmyy = interval["mmyy"]
@@ -133,25 +135,37 @@ class ReportEngine:
             acct_no=self.acct_no
         )
 
-        # 3. Kích hoạt kết xuất và lưu file
-        try:
-            download_result = page_obj.trigger_export_download(headless=self.headless)
-            if download_result == "NO_DATA":
-                self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống không có dữ liệu.")
-                return True
-            elif download_result:
-                download_result.save_as(dest_path)
-                self.log(f"  [🎉 Thành công] Đã lưu file: {dest_path}")
-                return True
-            else:
-                self.log(f"  ❌ Không thể kích hoạt tải file {file_name}")
-                return False
-        except PlaywrightTimeoutError:
-            self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do không có dữ liệu để xuất.")
-            return True
-        except Exception as e:
-            self.log(f"  ❌ Lỗi kết xuất file {file_name}: {e}")
-            return False
+        # 3. Kích hoạt kết xuất và lưu file với cơ chế Retry
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            if attempt > 1:
+                self.log(f"  🔄 [Thử lại lần {attempt}/{max_attempts}] Kích hoạt lại nút xuất file {file_name}...")
+                time.sleep(1.0)
+
+            try:
+                download_result = page_obj.trigger_export_download(
+                    headless=self.headless,
+                    timeout_ms=self.download_timeout
+                )
+
+                if download_result == "NO_DATA":
+                    self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
+                    return True
+                elif download_result:
+                    download_result.save_as(dest_path)
+                    if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
+                        size_bytes = os.path.getsize(dest_path)
+                        self.log(f"  [🎉 Thành công] Đã lưu & xác minh file trên đĩa: {dest_path} ({size_bytes:,} bytes)")
+                        return True
+                    else:
+                        self.log(f"  ⚠️ File {file_name} sau khi lưu bị rỗng (0 bytes).")
+                else:
+                    self.log(f"  ⚠️ Lần {attempt}: Không thể tải file {file_name} (API service timeout / latency).")
+            except Exception as e:
+                self.log(f"  ⚠️ Lỗi kết xuất file {file_name} (Lần {attempt}): {e}")
+
+        self.log(f"  ❌ Thử {max_attempts} lần thất bại, không thể tải file {file_name}.")
+        return False
 
     def run(self) -> bool:
         """Thực thi toàn bộ tiến trình tải báo cáo."""

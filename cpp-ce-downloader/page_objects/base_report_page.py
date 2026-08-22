@@ -267,21 +267,26 @@ class BaseReportPage(BasePage):
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
 
-    def trigger_export_download(self, headless: bool = False):
+    def trigger_export_download(self, headless: bool = False, timeout_ms: int = 30000):
         """
-        Thao tác xuất file CSV chuẩn theo đúng chỉ đạo:
-        1. Khi chạy ẩn (Headless = True): Bypass ngay nếu phát hiện bảng báo 'Không có dữ liệu' để tối ưu tốc độ tối đa.
-        2. Khi mở trình duyệt (Headless = False): Không bypass sớm, thực hiện di chuột (Hover) -> Chọn 'Xuất tất cả' -> Chờ Toast cho mắt người theo dõi.
+        Thao tác xuất file CSV chuẩn:
+        1. Kiểm tra nhanh nếu bảng báo 'Không có dữ liệu' (fast-skip).
+        2. Di chuột (Hover) -> Chọn 'Xuất tất cả' (hoặc Double Click nút Kết xuất).
+        3. Kiểm tra Toast:
+           - Nếu Toast báo 'Không có dữ liệu' -> trả về 'NO_DATA'.
+           - Nếu Toast báo thành công / đang xử lý -> kiên nhẫn chờ event download từ browser trong timeout_ms (mặc định 30s).
+        4. Phân biệt Timeout thực sự do API latency với trường hợp Không có dữ liệu.
         """
         self.dismiss_modal_backdrop()
         self.wait_for_table_loading_complete(30000)
 
-        # Khi chạy ẩn trình duyệt (Headless Mode): Bypass ngay khi thấy bảng rỗng để tối ưu tốc độ vận hành ngầm
-        if headless:
-            no_data_elem = self.page.locator("xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]").first
-            if no_data_elem.is_visible(timeout=800):
-                self.log("  ℹ️ [Headless Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh để tối ưu tốc độ.")
-                return "NO_DATA"
+        # Fast-Skip khi phát hiện bảng báo không có dữ liệu
+        no_data_elem = self.page.locator(
+            "xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
+        ).first
+        if no_data_elem.is_visible(timeout=800):
+            self.log("  ℹ️ [Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh.")
+            return "NO_DATA"
 
         # Tìm nút 'Kết xuất'
         export_btn = self.page.locator(
@@ -298,6 +303,21 @@ class BaseReportPage(BasePage):
 
         download_obj = None
 
+        def check_no_data_toast():
+            """Helper kiểm tra nhanh Toast thông báo không có dữ liệu."""
+            try:
+                toast_elem = self.page.locator(
+                    "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không') or contains(text(), 'thành công') or contains(text(), 'Thành công')]"
+                ).first
+                if toast_elem.is_visible(timeout=400):
+                    toast_text = toast_elem.text_content().strip()
+                    self.log(f"  [Toast Notification] {toast_text}")
+                    if "không có dữ liệu" in toast_text.lower() or "no data" in toast_text.lower():
+                        return "NO_DATA"
+            except Exception:
+                pass
+            return None
+
         # --- PHƯƠNG ÁN 1: Di chuột (Hover) không click vào nút Kết xuất ---
         try:
             export_btn.hover(force=True)
@@ -311,45 +331,43 @@ class BaseReportPage(BasePage):
         ).first
 
         if export_all_option.is_visible(timeout=2000):
-            self.log("  [Export Mode: Hover] Di chuột (Hover) không click nút 'Kết xuất' -> Chọn option 'Xuất tất cả'...")
+            self.log(f"  [Export Mode: Hover] Chọn 'Xuất tất cả' (Chờ download tối đa {timeout_ms/1000:.0f}s cho API)...")
             try:
-                with self.page.expect_download(timeout=3500) as download_info:
+                with self.page.expect_download(timeout=timeout_ms) as download_info:
                     export_all_option.click(force=True)
-                    self.page.wait_for_timeout(400)
-                    # Kiểm tra nhanh xem Toast 'Không có dữ liệu' có vừa nổ ra không để thoát tức thì trong 0.4s
-                    toast_elem = self.page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
-                    if toast_elem.is_visible(timeout=300):
-                        toast_text = toast_elem.text_content().strip()
-                        if "không có dữ liệu" in toast_text.lower() or "no data" in toast_text.lower():
-                            self.log(f"  ℹ️ [Toast Notification] {toast_text}")
-                            return "NO_DATA"
+                    self.page.wait_for_timeout(300)
+                    toast_res = check_no_data_toast()
+                    if toast_res == "NO_DATA":
+                        return "NO_DATA"
                 download_obj = download_info.value
             except PlaywrightTimeoutError:
-                self.log("  ℹ️ [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
-                download_obj = "NO_DATA"
+                # Kiểm tra lại xem có Toast không có dữ liệu nổ muộn không
+                if check_no_data_toast() == "NO_DATA":
+                    return "NO_DATA"
+                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] API/Server phản hồi quá chậm, chưa kích hoạt luồng tải file trong {timeout_ms/1000:.0f}s.")
+                download_obj = None
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")
-                download_obj = "NO_DATA"
+                download_obj = None
         else:
             # --- PHƯƠNG ÁN 2 (FALLBACK): Kích đúp (Double-click) 2 lần vào nút Kết xuất ---
-            self.log("  [Export Mode: Fallback Double-click] Kích đúp (Double-click) 2 lần vào nút 'Kết xuất'...")
+            self.log(f"  [Export Mode: Fallback Double-click] Kích đúp nút 'Kết xuất' (Chờ download tối đa {timeout_ms/1000:.0f}s)...")
             try:
-                with self.page.expect_download(timeout=3500) as download_info:
+                with self.page.expect_download(timeout=timeout_ms) as download_info:
                     export_btn.dblclick(force=True)
-                    self.page.wait_for_timeout(400)
-                    toast_elem = self.page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không')]").first
-                    if toast_elem.is_visible(timeout=300):
-                        toast_text = toast_elem.text_content().strip()
-                        if "không có dữ liệu" in toast_text.lower() or "no data" in toast_text.lower():
-                            self.log(f"  ℹ️ [Toast Notification] {toast_text}")
-                            return "NO_DATA"
+                    self.page.wait_for_timeout(300)
+                    toast_res = check_no_data_toast()
+                    if toast_res == "NO_DATA":
+                        return "NO_DATA"
                 download_obj = download_info.value
             except PlaywrightTimeoutError:
-                self.log("  ℹ️ [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
-                download_obj = "NO_DATA"
+                if check_no_data_toast() == "NO_DATA":
+                    return "NO_DATA"
+                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] Quá thời gian chờ tải file khi kích đúp.")
+                download_obj = None
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': {e}")
-                download_obj = "NO_DATA"
+                download_obj = None
 
         self.capture_toast_notification()
         self.dismiss_modal_backdrop()
