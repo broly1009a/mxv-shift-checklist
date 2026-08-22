@@ -12,7 +12,7 @@ try:
     from core.base_page import BasePage
     from page_objects.core_ccp_page import CoreCCPPage
     from page_objects.core_ex_page import CoreEXPage
-    from services.date_service import generate_monthly_intervals
+    from services.date_service import generate_monthly_intervals, split_interval, merge_csv_files
 except ImportError:
     try:
         from config_manager import load_config, save_config
@@ -20,14 +20,14 @@ except ImportError:
         from base_page import BasePage
         from core_ccp_page import CoreCCPPage
         from core_ex_page import CoreEXPage
-        from date_service import generate_monthly_intervals
+        from date_service import generate_monthly_intervals, split_interval, merge_csv_files
     except ImportError:
         from config.config_manager import load_config, save_config
         from core.browser_factory import launch_browser_resilient
         from core.base_page import BasePage
         from page_objects.core_ccp_page import CoreCCPPage
         from page_objects.core_ex_page import CoreEXPage
-        from services.date_service import generate_monthly_intervals
+        from services.date_service import generate_monthly_intervals, split_interval, merge_csv_files
 
 
 class ReportEngine:
@@ -46,6 +46,7 @@ class ReportEngine:
         member_code: str = "",
         acct_no: str = "",
         download_timeout: int = 45000,
+        auto_split_on_timeout: bool = True,
         logger_callback=None
     ):
         self.system_url = system_url
@@ -61,6 +62,7 @@ class ReportEngine:
         self.member_code = member_code
         self.acct_no = acct_no
         self.download_timeout = download_timeout
+        self.auto_split_on_timeout = auto_split_on_timeout
         self.logger_callback = logger_callback
 
     def log(self, msg: str):
@@ -78,6 +80,96 @@ class ReportEngine:
             return CoreEXPage(page, log=self.log)
         else:
             return CoreCCPPage(page, log=self.log)
+
+    def download_single_report_internal(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict, dest_path: str) -> bool:
+        """Helper tải 1 khoảng ngày cụ thể lưu trực tiếp vào dest_path."""
+        start_date = interval["start_str"]
+        end_date = interval["end_str"]
+
+        page_obj.navigate_to_report(report_cfg, self.system_url)
+        page_obj.set_date_range_and_search(
+            start_date,
+            end_date,
+            exchange=self.exchange,
+            member_code=self.member_code,
+            acct_no=self.acct_no
+        )
+
+        try:
+            download_result = page_obj.trigger_export_download(
+                headless=self.headless,
+                timeout_ms=self.download_timeout
+            )
+
+            if download_result == "NO_DATA":
+                self.log(f"  ℹ️ Khoảng {start_date} -> {end_date} không có dữ liệu.")
+                return True
+            elif download_result:
+                download_result.save_as(dest_path)
+                return os.path.exists(dest_path) and os.path.getsize(dest_path) > 0
+        except Exception as e:
+            self.log(f"  ⚠️ Lỗi tải khoảng {start_date} -> {end_date}: {e}")
+            return False
+
+        return False
+
+    def download_with_adaptive_split(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict, depth: int = 1) -> bool:
+        """
+        Safety Net: Tự động chia đôi khoảng ngày bị Timeout đệ quy và hợp nhất file CSV.
+        """
+        start_date = interval["start_str"]
+        end_date = interval["end_str"]
+
+        parts = split_interval(start_date, end_date)
+        if not parts:
+            self.log(f"  ❌ [Safety Net] Khoảng ngày {start_date} -> {end_date} đã là 1 ngày đơn lẻ nhưng vẫn bị Timeout Server.")
+            return False
+
+        part1, part2 = parts
+        self.log(f"\n  🔥 [Safety Net Level {depth}] Tách khoảng ngày {start_date} -> {end_date} thành 2 nửa:")
+        self.log(f"     └─ Nửa 1: {part1['start_str']} -> {part1['end_str']}")
+        self.log(f"     └─ Nửa 2: {part2['start_str']} -> {part2['end_str']}")
+
+        code = report_cfg["code"]
+        target_folder = os.path.join(self.output_dir, code)
+        os.makedirs(target_folder, exist_ok=True)
+
+        extra_suffix = ""
+        if self.exchange and self.exchange.strip() and self.exchange.strip().lower() not in ["tất cả", "all", ""]:
+            extra_suffix += f"_{self.exchange.strip().upper()}"
+        if self.member_code and self.member_code.strip():
+            extra_suffix += f"_TV{self.member_code.strip()}"
+        if self.acct_no and self.acct_no.strip():
+            extra_suffix += f"_TK{self.acct_no.strip()}"
+
+        sub_files = []
+        for idx, sub_interval in enumerate([part1, part2], start=1):
+            s_tag = sub_interval["start_str"].replace("/", "")
+            e_tag = sub_interval["end_str"].replace("/", "")
+            sub_file_name = f"temp_{code}_{s_tag}_{e_tag}{extra_suffix}.csv"
+            sub_dest_path = os.path.join(target_folder, sub_file_name)
+
+            self.log(f"\n  [⏳ Safety Net Step {depth}.{idx}] Tải khoảng nhỏ: {sub_interval['start_str']} -> {sub_interval['end_str']}...")
+            res = self.download_single_report_internal(page, page_obj, report_cfg, sub_interval, sub_dest_path)
+
+            if not res and depth < 4:
+                res = self.download_with_adaptive_split(page, page_obj, report_cfg, sub_interval, depth=depth + 1)
+                sub_dest_path = os.path.join(target_folder, f"{code}{sub_interval['mmyy']}{extra_suffix}.csv")
+
+            if os.path.exists(sub_dest_path) and os.path.getsize(sub_dest_path) > 0:
+                sub_files.append(sub_dest_path)
+
+        if sub_files:
+            final_file_name = f"{code}{interval['mmyy']}{extra_suffix}.csv"
+            final_dest_path = os.path.join(target_folder, final_file_name)
+            self.log(f"\n  🧩 [Safety Net Merge] Đang tự động hợp nhất {len(sub_files)} file nhỏ vào: {final_dest_path}...")
+            ok = merge_csv_files(sub_files, final_dest_path)
+            if ok:
+                size_bytes = os.path.getsize(final_dest_path)
+                self.log(f"  [🎉 Thành công Safety Net] Đã hợp nhất file tổng thành công: {final_dest_path} ({size_bytes:,} bytes)")
+                return True
+
+        return False
 
     def download_single_report(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict) -> bool:
         """
@@ -163,6 +255,11 @@ class ReportEngine:
                     self.log(f"  ⚠️ Lần {attempt}: Không thể tải file {file_name} (API service timeout / latency).")
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi kết xuất file {file_name} (Lần {attempt}): {e}")
+
+        # NẾU TẤT CẢ CÁC LẦN TẢI THƯỜNG BỊ TIMEOUT -> KÍCH HOẠT LƯỚI CỨU SINH ADAPTIVE SPLIT
+        if self.auto_split_on_timeout:
+            self.log(f"\n  🔄 [Safety Net] Tải nguyên khoảng {start_date} -> {end_date} bị Timeout Server -> Kích hoạt tự động chia nhỏ khoảng ngày...")
+            return self.download_with_adaptive_split(page, page_obj, report_cfg, interval)
 
         self.log(f"  ❌ Thử {max_attempts} lần thất bại, không thể tải file {file_name}.")
         return False

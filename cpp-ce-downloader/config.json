@@ -10,7 +10,7 @@
   "member_code": "",
   "acct_no": "-M",
   "headless": false,
-  "overwrite_existing": false,
+  "overwrite_existing": true,
   "gui_mode": "tech",
   "reports": [
     {

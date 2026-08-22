@@ -34,7 +34,7 @@ class DownloadWorker(QThread):
     log_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(bool)
 
-    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless=False, overwrite_existing=False, exchange="", member_code="", acct_no=""):
+    def __init__(self, system_url, username, password, start_date, end_date, output_dir, selected_reports, headless=False, overwrite_existing=False, exchange="", member_code="", acct_no="", auto_split_on_timeout=True):
         super().__init__()
         self.system_url = system_url
         self.username = username
@@ -48,6 +48,7 @@ class DownloadWorker(QThread):
         self.exchange = exchange
         self.member_code = member_code
         self.acct_no = acct_no
+        self.auto_split_on_timeout = auto_split_on_timeout
 
     def run(self):
         try:
@@ -67,6 +68,7 @@ class DownloadWorker(QThread):
                 exchange=self.exchange,
                 member_code=self.member_code,
                 acct_no=self.acct_no,
+                auto_split_on_timeout=self.auto_split_on_timeout,
                 logger_callback=handle_log
             )
             success = engine.run()
@@ -448,7 +450,8 @@ class MainWindow(QMainWindow):
             overwrite_existing=self.chk_overwrite.isChecked(),
             exchange="",
             member_code=self.txt_member_code.text().strip(),
-            acct_no=self.txt_acct_no.text().strip()
+            acct_no=self.txt_acct_no.text().strip(),
+            auto_split_on_timeout=True
         )
         self.worker.log_signal.connect(self.append_log)
         self.worker.finished_signal.connect(self.on_download_finished)

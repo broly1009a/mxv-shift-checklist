@@ -90,6 +90,7 @@ def load_config() -> dict:
             "acct_no": "",
             "headless": False,
             "overwrite_existing": False,
+            "auto_split_on_timeout": True,
             "reports": DEFAULT_REPORTS
         }
     else:
