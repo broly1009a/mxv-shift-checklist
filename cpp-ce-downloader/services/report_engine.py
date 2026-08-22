@@ -4,6 +4,7 @@ report_engine.py — Core Business Engine quản lý toàn bộ tiến trình đ
 
 import os
 import time
+from datetime import datetime
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeoutError
 
 try:
@@ -45,7 +46,7 @@ class ReportEngine:
         exchange: str = "",
         member_code: str = "",
         acct_no: str = "",
-        download_timeout: int = 45000,
+        download_timeout: int = 120000,
         auto_split_on_timeout: bool = True,
         logger_callback=None
     ):
@@ -113,23 +114,12 @@ class ReportEngine:
 
         return False
 
-    def download_with_adaptive_split(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict, depth: int = 1) -> bool:
+    def download_with_adaptive_split(self, page: Page, page_obj: BasePage, report_cfg: dict, interval: dict, depth: int = 1, final_dest_path: str = None) -> bool:
         """
         Safety Net: Tự động chia đôi khoảng ngày bị Timeout đệ quy và hợp nhất file CSV.
         """
         start_date = interval["start_str"]
         end_date = interval["end_str"]
-
-        parts = split_interval(start_date, end_date)
-        if not parts:
-            self.log(f"  ❌ [Safety Net] Khoảng ngày {start_date} -> {end_date} đã là 1 ngày đơn lẻ nhưng vẫn bị Timeout Server.")
-            return False
-
-        part1, part2 = parts
-        self.log(f"\n  🔥 [Safety Net Level {depth}] Tách khoảng ngày {start_date} -> {end_date} thành 2 nửa:")
-        self.log(f"     └─ Nửa 1: {part1['start_str']} -> {part1['end_str']}")
-        self.log(f"     └─ Nửa 2: {part2['start_str']} -> {part2['end_str']}")
-
         code = report_cfg["code"]
         target_folder = os.path.join(self.output_dir, code)
         os.makedirs(target_folder, exist_ok=True)
@@ -142,6 +132,52 @@ class ReportEngine:
         if self.acct_no and self.acct_no.strip():
             extra_suffix += f"_TK{self.acct_no.strip()}"
 
+        parts = split_interval(start_date, end_date)
+        if not parts:
+            # Đây là 1 ngày đơn lẻ (Single Day)! Tiến hành vòng lặp thử lại kiên trì với Smart Backoff Delay
+            sub_file_name = f"temp_{code}_{start_date.replace('/', '')}_{end_date.replace('/', '')}{extra_suffix}.csv"
+            sub_dest_path = os.path.join(target_folder, sub_file_name)
+
+            self.log(f"\n  🔥 [Single Day Persistent Retry] Khoảng ngày {start_date} là 1 ngày đơn lẻ. Kích hoạt thử lại kiên trì với Smart Backoff Delay...")
+            max_day_retries = 5
+            for attempt in range(1, max_day_retries + 1):
+                backoff_sec = min(15 * attempt, 45)
+                if attempt > 1:
+                    self.log(f"  ⏳ [Thử lại Ngày {start_date} - Lần {attempt}/{max_day_retries}] Tạm nghỉ {backoff_sec}s để Server SQL giải phóng RAM/CPU...")
+                    time.sleep(backoff_sec)
+
+                res = self.download_single_report_internal(page, page_obj, report_cfg, interval, sub_dest_path)
+                if res and os.path.exists(sub_dest_path) and os.path.getsize(sub_dest_path) > 0:
+                    self.log(f"  [🎉 Thành công Ngày {start_date}] Đã lưu file ngày thành công!")
+                    return True
+                elif res:
+                    # Ngày không có dữ liệu
+                    return True
+
+            # Ghi vết ngày bị thiếu ra file MISSING_DATES.txt
+            missing_log_path = os.path.join(target_folder, "MISSING_DATES.txt")
+            try:
+                with open(missing_log_path, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Báo cáo {code} | Ngày {start_date}: Thử {max_day_retries} lần bị Server 504 Timeout.\n")
+                self.log(f"  ⚠️ [Ghi vết Ngày Thiếu] Đã ghi nhận ngày {start_date} vào file log: {missing_log_path}")
+            except Exception:
+                pass
+            return False
+
+        part1, part2 = parts
+        self.log(f"\n  🔥 [Safety Net Level {depth}] Tách khoảng ngày {start_date} -> {end_date} thành 2 nửa:")
+        self.log(f"     └─ Nửa 1: {part1['start_str']} -> {part1['end_str']}")
+        self.log(f"     └─ Nửa 2: {part2['start_str']} -> {part2['end_str']}")
+
+        s_tag_parent = start_date.replace("/", "")
+        e_tag_parent = end_date.replace("/", "")
+
+        if final_dest_path is None:
+            if depth == 1:
+                final_dest_path = os.path.join(target_folder, f"{code}{interval['mmyy']}{extra_suffix}.csv")
+            else:
+                final_dest_path = os.path.join(target_folder, f"temp_merged_{code}_{s_tag_parent}_{e_tag_parent}{extra_suffix}.csv")
+
         sub_files = []
         for idx, sub_interval in enumerate([part1, part2], start=1):
             s_tag = sub_interval["start_str"].replace("/", "")
@@ -153,20 +189,19 @@ class ReportEngine:
             res = self.download_single_report_internal(page, page_obj, report_cfg, sub_interval, sub_dest_path)
 
             if not res and depth < 4:
-                res = self.download_with_adaptive_split(page, page_obj, report_cfg, sub_interval, depth=depth + 1)
-                sub_dest_path = os.path.join(target_folder, f"{code}{sub_interval['mmyy']}{extra_suffix}.csv")
+                temp_sub_merged = os.path.join(target_folder, f"temp_merged_{code}_{s_tag}_{e_tag}{extra_suffix}.csv")
+                res = self.download_with_adaptive_split(page, page_obj, report_cfg, sub_interval, depth=depth + 1, final_dest_path=temp_sub_merged)
+                sub_dest_path = temp_sub_merged
 
             if os.path.exists(sub_dest_path) and os.path.getsize(sub_dest_path) > 0:
                 sub_files.append(sub_dest_path)
 
         if sub_files:
-            final_file_name = f"{code}{interval['mmyy']}{extra_suffix}.csv"
-            final_dest_path = os.path.join(target_folder, final_file_name)
-            self.log(f"\n  🧩 [Safety Net Merge] Đang tự động hợp nhất {len(sub_files)} file nhỏ vào: {final_dest_path}...")
+            self.log(f"\n  🧩 [Safety Net Merge Level {depth}] Đang hợp nhất {len(sub_files)} file nhỏ vào: {final_dest_path}...")
             ok = merge_csv_files(sub_files, final_dest_path)
             if ok:
                 size_bytes = os.path.getsize(final_dest_path)
-                self.log(f"  [🎉 Thành công Safety Net] Đã hợp nhất file tổng thành công: {final_dest_path} ({size_bytes:,} bytes)")
+                self.log(f"  [🎉 Thành công Safety Net Level {depth}] Đã hợp nhất file thành công: {final_dest_path} ({size_bytes:,} bytes)")
                 return True
 
         return False
@@ -227,17 +262,18 @@ class ReportEngine:
             acct_no=self.acct_no
         )
 
-        # 3. Kích hoạt kết xuất và lưu file với cơ chế Retry
+        # 3. Kích hoạt kết xuất và lưu file với cơ chế Retry & Tăng dần thời gian chờ (Progressive Timeout)
         max_attempts = 2
         for attempt in range(1, max_attempts + 1):
+            current_timeout = self.download_timeout * attempt  # Lần 1: 120s, Lần 2: 240s
             if attempt > 1:
-                self.log(f"  🔄 [Thử lại lần {attempt}/{max_attempts}] Kích hoạt lại nút xuất file {file_name}...")
-                time.sleep(1.0)
+                self.log(f"  🔄 [Thử lại lần {attempt}/{max_attempts}] Kích hoạt lại nút xuất file {file_name} (Tăng thời gian chờ lên {current_timeout // 1000}s)...")
+                time.sleep(2.0)
 
             try:
                 download_result = page_obj.trigger_export_download(
                     headless=self.headless,
-                    timeout_ms=self.download_timeout
+                    timeout_ms=current_timeout
                 )
 
                 if download_result == "NO_DATA":
@@ -252,17 +288,40 @@ class ReportEngine:
                     else:
                         self.log(f"  ⚠️ File {file_name} sau khi lưu bị rỗng (0 bytes).")
                 else:
-                    self.log(f"  ⚠️ Lần {attempt}: Không thể tải file {file_name} (API service timeout / latency).")
+                    self.log(f"  ⚠️ Lần {attempt}: Chưa hoàn tất tạo file {file_name} trong {current_timeout // 1000}s.")
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi kết xuất file {file_name} (Lần {attempt}): {e}")
 
-        # NẾU TẤT CẢ CÁC LẦN TẢI THƯỜNG BỊ TIMEOUT -> KÍCH HOẠT LƯỚI CỨU SINH ADAPTIVE SPLIT
+        # NẾU TẤT CẢ CÁC LẦN TẢI THƯỜNG BỊ TIMEOUT
         if self.auto_split_on_timeout:
-            self.log(f"\n  🔄 [Safety Net] Tải nguyên khoảng {start_date} -> {end_date} bị Timeout Server -> Kích hoạt tự động chia nhỏ khoảng ngày...")
+            self.log(f"\n  🔄 [Safety Net] Tải nguyên khoảng {start_date} -> {end_date} bị Timeout -> Kích hoạt tự động chia nhỏ khoảng ngày...")
             return self.download_with_adaptive_split(page, page_obj, report_cfg, interval)
+        else:
+            self.log(f"\n  🔄 [Persistent Monthly Retry] Tắt chia nhỏ: Kích hoạt thử lại kiên trì nguyên tháng {mmyy} với thời gian chờ gia tăng...")
+            max_monthly_retries = 5
+            for m_attempt in range(2, max_monthly_retries + 1):
+                m_timeout = min(self.download_timeout * m_attempt, 600000)  # Nâng dần lên 300s, 480s, 600s (10 phút)
+                self.log(f"  ⏳ [Thử lại Tháng {mmyy} - Lần {m_attempt}/{max_monthly_retries}] Tạm nghỉ 15s, tăng thời gian chờ lên {m_timeout // 1000}s...")
+                time.sleep(15)
+                try:
+                    download_result = page_obj.trigger_export_download(
+                        headless=self.headless,
+                        timeout_ms=m_timeout
+                    )
+                    if download_result == "NO_DATA":
+                        self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
+                        return True
+                    elif download_result:
+                        download_result.save_as(dest_path)
+                        if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
+                            size_bytes = os.path.getsize(dest_path)
+                            self.log(f"  [🎉 Thành công Nguyên Tháng] Đã lưu file nguyên tháng thành công: {dest_path} ({size_bytes:,} bytes)")
+                            return True
+                except Exception as e:
+                    self.log(f"  ⚠️ Lần thử {m_attempt} nguyên tháng thất bại: {e}")
 
-        self.log(f"  ❌ Thử {max_attempts} lần thất bại, không thể tải file {file_name}.")
-        return False
+            self.log(f"  ❌ Thử {max_monthly_retries} lần nguyên tháng thất bại cho file {file_name}.")
+            return False
 
     def run(self) -> bool:
         """Thực thi toàn bộ tiến trình tải báo cáo."""

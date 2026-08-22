@@ -321,15 +321,15 @@ class BaseReportPage(BasePage):
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi lọc Số tiểu khoản / Mã TKGD '{acc_val}': {e}")
 
-    def trigger_export_download(self, headless: bool = False, timeout_ms: int = 30000):
+    def trigger_export_download(self, headless: bool = False, timeout_ms: int = 120000):
         """
         Thao tác xuất file CSV chuẩn:
         1. Kiểm tra nhanh nếu bảng báo 'Không có dữ liệu' (fast-skip).
         2. Di chuột (Hover) -> Chọn 'Xuất tất cả' (hoặc Double Click nút Kết xuất).
         3. Kiểm tra Toast:
            - Nếu Toast báo 'Không có dữ liệu' -> trả về 'NO_DATA'.
-           - Nếu Toast báo thành công / đang xử lý -> kiên nhẫn chờ event download từ browser trong timeout_ms (mặc định 30s).
-        4. Phân biệt Timeout thực sự do API latency với trường hợp Không có dữ liệu.
+           - Nếu Toast báo thành công / đang xử lý -> kiên nhẫn chờ hệ thống tạo & tải file CSV trong timeout_ms (mặc định 120s).
+        4. Phân biệt Timeout tạo file CSV với trường hợp Không có dữ liệu.
         """
         self.dismiss_modal_backdrop()
         self.wait_for_table_loading_complete(30000)
@@ -385,7 +385,7 @@ class BaseReportPage(BasePage):
         ).first
 
         if export_all_option.is_visible(timeout=2000):
-            self.log(f"  [Export Mode: Hover] Chọn 'Xuất tất cả' (Chờ download tối đa {timeout_ms/1000:.0f}s cho API)...")
+            self.log(f"  [Xuất Báo Cáo] Chọn 'Xuất tất cả' (Đang tạo file CSV, chờ tối đa {timeout_ms/1000:.0f}s)...")
             try:
                 with self.page.expect_download(timeout=timeout_ms) as download_info:
                     export_all_option.click(force=True)
@@ -398,7 +398,7 @@ class BaseReportPage(BasePage):
                 # Kiểm tra lại xem có Toast không có dữ liệu nổ muộn không
                 if check_no_data_toast() == "NO_DATA":
                     return "NO_DATA"
-                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] API/Server phản hồi quá chậm, chưa kích hoạt luồng tải file trong {timeout_ms/1000:.0f}s.")
+                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] Hệ thống tạo file CSV quá lâu, chưa hoàn tất trong {timeout_ms/1000:.0f}s.")
                 download_obj = None
             except Exception as e:
                 self.log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")

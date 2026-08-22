@@ -275,6 +275,12 @@ class MainWindow(QMainWindow):
         self.chk_overwrite.setChecked(self.cfg.get("overwrite_existing", False))
         self.chk_overwrite.stateChanged.connect(self.save_current_config)
         chk_layout.addWidget(self.chk_overwrite)
+
+        self.chk_auto_split = QCheckBox("Tự động chia nhỏ ngày (Adaptive Split)")
+        self.chk_auto_split.setChecked(self.cfg.get("auto_split_on_timeout", True))
+        self.chk_auto_split.setToolTip("Tự động đệ quy chia nhỏ khoảng ngày và hợp nhất file CSV khi bị Timeout dữ liệu lớn")
+        self.chk_auto_split.stateChanged.connect(self.save_current_config)
+        chk_layout.addWidget(self.chk_auto_split)
         row_action.addWidget(self.chk_headless_widget)
 
         for code, (cb, _) in self.checkboxes.items():
@@ -451,7 +457,7 @@ class MainWindow(QMainWindow):
             exchange="",
             member_code=self.txt_member_code.text().strip(),
             acct_no=self.txt_acct_no.text().strip(),
-            auto_split_on_timeout=True
+            auto_split_on_timeout=self.chk_auto_split.isChecked()
         )
         self.worker.log_signal.connect(self.append_log)
         self.worker.finished_signal.connect(self.on_download_finished)
@@ -516,6 +522,7 @@ class MainWindow(QMainWindow):
             self.cfg["acct_no"] = self.txt_acct_no.text().strip()
             self.cfg["headless"] = self.chk_headless.isChecked()
             self.cfg["overwrite_existing"] = self.chk_overwrite.isChecked()
+            self.cfg["auto_split_on_timeout"] = self.chk_auto_split.isChecked()
 
             reports_to_save = []
             for code, (cb, r_data) in self.checkboxes.items():
