@@ -54,7 +54,7 @@ def set_mui_date_range_and_search(page, start_date, end_date, exchange="", membe
         acct_no = ""
     set_date_range_and_search(page, start_date, end_date, exchange=exchange, member_code=member_code, acct_no=acct_no, log=log)
 
-def trigger_export_download(page, headless=False, timeout_ms=30000, log=print):
+def trigger_export_download(page, headless=False, timeout_ms=45000, log=print):
     from services.report_engine import ReportEngine
     engine = ReportEngine(page.url, "", "", "", "", "", headless=headless, download_timeout=timeout_ms, logger_callback=log)
     page_obj = engine.get_page_object(page)

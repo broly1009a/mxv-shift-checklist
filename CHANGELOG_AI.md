@@ -9,16 +9,18 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - Nguyên nhân cốt lõi: Nút kết xuất (`trigger_export_download`) trong [base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) cài đặt thời gian chờ `expect_download(timeout=3500)` quá ngắn (chỉ 3.5 giây) và tự động gán `NO_DATA` khi bị `PlaywrightTimeoutError`, khiến `ReportEngine` hiểu nhầm là không có dữ liệu và nhảy qua file tiếp theo.
 
 ### Danh sách file chỉnh sửa
-- [base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Chỉnh sửa: Thêm tham số `timeout_ms=30000`, bắt Toast thông minh để fast-skip nếu "không có dữ liệu", và phân biệt timeout API delay với `NO_DATA`).
+- [base_report_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/page_objects/base_report_page.py) (Chỉnh sửa: Thêm tham số `timeout_ms=30000`, bắt Toast thông minh để fast-skip nếu "không có dữ liệu", phân biệt timeout API delay với `NO_DATA`; đồng thời nâng cấp logic lọc chính xác ô **Mã TKGD** trên CPP và **Số tiểu khoản** trên CE, loại bỏ hoàn toàn việc nhầm sang **Số tài khoản**).
 - [report_engine.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/services/report_engine.py) (Chỉnh sửa: Thêm tham số `download_timeout`, bổ sung vòng lặp retry 2 lần khi xuất file bị timeout/lỗi API, và xác minh kích thước file thực tế `os.path.getsize > 0` trên đĩa).
 - [downloader.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/downloader.py) (Chỉnh sửa: Cập nhật hàm wrapper `trigger_export_download` truyền nhận tham số `timeout_ms=30000`).
 
 ### Tóm tắt nội dung code đã sửa
 1. **Chuẩn hóa Timeout 30 giây**: Đổi từ 3.5s mặc định lên 30s cho luồng tải file từ API backend.
 2. **Fast-Skip thông minh**: Tự động phát hiện Toast *"không có dữ liệu"* hoặc bảng rỗng để thoát tức thì trong < 0.4s mà không phải chờ 30s.
-3. **Phân biệt API Timeout với NO_DATA**: Trả về `None` khi API bị timeout để kích hoạt vòng lặp Retry 2 lần thay vì ghi nhận giả lập thành công làm mất file.
-4. **Xác minh đĩa thực tế**: Đảm bảo file được ghi xuống đĩa có kích thước > 0 bytes mới kết luận tải thành công.
-5. **Xác nhận Build/Kiểm thử**: Biên dịch Python thành công 100% (`python -m py_compile`), Backend & Frontend build thành công.
+3. **Bypass lọc cột khi bảng trống**: Ngay sau khi bấm *Tìm kiếm*, nếu `<tbody>` trả về *"Không có dữ liệu"*, bot sẽ bỏ qua toàn bộ bước điền lọc cột (`Mã thành viên`, `Số tiểu khoản`/`Mã TKGD`) để tối ưu tốc độ tối đa.
+4. **Phân biệt API Timeout với NO_DATA**: Trả về `None` khi API bị timeout để kích hoạt vòng lặp Retry 2 lần thay vì ghi nhận giả lập thành công làm mất file.
+5. **Chuẩn hóa bộ lọc Tài khoản CPP vs CE**: Ưu tiên điền trực tiếp ô *Mã TKGD / Số tiểu khoản* trên thanh công cụ phía trên (Top Form Filter) trước khi Tìm kiếm. Nếu đã lọc thành công ở form phía trên, bot sẽ **tự động bỏ qua lọc cột trùng lặp trong bảng** để tiết kiệm thời gian; trường hợp form phía trên không có ô lọc, bot mới dùng bộ lọc cột trong bảng header (chính xác cột *Số tiểu khoản* / *Mã TKGD*, tuyệt đối không bắt nhầm *Số tài khoản*).
+6. **Xác minh đĩa thực tế**: Đảm bảo file được ghi xuống đĩa có kích thước > 0 bytes mới kết luận tải thành công.
+7. **Xác nhận Build/Kiểm thử**: Biên dịch Python thành công 100% (`python -m py_compile`), Backend & Frontend build thành công.
 
 ---
 

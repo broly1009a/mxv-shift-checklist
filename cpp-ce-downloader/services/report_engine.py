@@ -45,7 +45,7 @@ class ReportEngine:
         exchange: str = "",
         member_code: str = "",
         acct_no: str = "",
-        download_timeout: int = 30000,
+        download_timeout: int = 45000,
         logger_callback=None
     ):
         self.system_url = system_url

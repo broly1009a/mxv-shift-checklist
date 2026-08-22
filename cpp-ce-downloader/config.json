@@ -1,14 +1,14 @@
 {
-  "system_type": "CORE_CCP",
-  "system_url": "https://uat-coreccp.mxv.com.vn/login",
+  "system_type": "CORE_EX",
+  "system_url": "https://uat-coreexchange.mxv.com.vn/login",
   "username": "hieptruong",
   "password": "Taovipko0!",
-  "start_date": "01/01/2026",
+  "start_date": "01/07/2026",
   "end_date": "17/08/2026",
   "output_dir": "C:\\Users\\hiepth\\Downloads\\DSL",
   "exchange": "",
   "member_code": "",
-  "acct_no": "",
+  "acct_no": "-M",
   "headless": false,
   "overwrite_existing": false,
   "gui_mode": "tech",
@@ -19,7 +19,7 @@
       "parent_menu": "Quản lý tiền",
       "child_menu": "Lịch sử nộp rút tiền",
       "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
-      "enabled": true
+      "enabled": false
     },
     {
       "code": "DSL",
@@ -35,7 +35,7 @@
       "parent_menu": "Lệnh và vị thế",
       "child_menu": "Danh sách giao dịch",
       "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
-      "enabled": true,
+      "enabled": false,
       "sub_menu": "Tra cứu tổng hợp"
     },
     {
@@ -45,7 +45,7 @@
       "child_menu": "Trạng thái tất toán",
       "tab_name": "Lịch sử tất toán",
       "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
-      "enabled": true
+      "enabled": false
     },
     {
       "code": "LSGTT",
@@ -53,7 +53,7 @@
       "parent_menu": "Quản lý sản phẩm",
       "child_menu": "Quản lý lịch sử giá thanh toán",
       "cached_url": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
-      "enabled": true
+      "enabled": false
     }
   ]
 }

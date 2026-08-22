@@ -456,17 +456,20 @@ class MainWindow(QMainWindow):
 
     def on_download_finished(self, success: bool):
         self.btn_run.setEnabled(True)
-        if success:
-            output_dir = self.txt_output.text().strip()
-            self.lbl_status.setText("<b>🎉 TẢI HOÀN TẤT TẤT CẢ BÁO CÁO!</b>")
-            QMessageBox.information(self, "Thông báo", f"Tải hoàn tất tất cả báo cáo!\nCác file CSV đã được lưu tại thư mục:\n{output_dir}")
-            try:
-                if os.path.exists(output_dir):
-                    os.startfile(output_dir)
-            except Exception:
-                pass
-        else:
-            QMessageBox.critical(self, "Lỗi", "Có lỗi xảy ra trong quá trình tải báo cáo!")
+        try:
+            if success:
+                output_dir = self.txt_output.text().strip()
+                self.lbl_status.setText("<b>🎉 TẢI HOÀN TẤT TẤT CẢ BÁO CÁO!</b>")
+                QMessageBox.information(self, "Thông báo", f"Tải hoàn tất tất cả báo cáo!\nCác file CSV đã được lưu tại thư mục:\n{output_dir}")
+                try:
+                    if os.path.exists(output_dir):
+                        os.startfile(output_dir)
+                except Exception:
+                    pass
+            else:
+                QMessageBox.critical(self, "Lỗi", "Có lỗi xảy ra trong quá trình tải báo cáo!")
+        except (KeyboardInterrupt, Exception):
+            pass
 
     def on_system_type_changed(self):
         is_ex = self.radio_ex.isChecked()
@@ -527,6 +530,8 @@ class MainWindow(QMainWindow):
 
 
 def log_uncaught_exceptions(exctype, value, tb):
+    if issubclass(exctype, (KeyboardInterrupt, SystemExit)):
+        return
     import traceback
     err_msg = "".join(traceback.format_exception(exctype, value, tb))
     print(f"❌ Uncaught Exception:\n{err_msg}", file=sys.stderr)

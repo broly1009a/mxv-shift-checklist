@@ -169,6 +169,50 @@ class BaseReportPage(BasePage):
                     self.page.keyboard.press("Enter")
                 self.page.wait_for_timeout(300)
 
+        # 3.4. Nếu có tham số Mã thành viên, ưu tiên điền ô lọc ở thanh công cụ phía trên (Top Form Filter) nếu xuất hiện
+        top_form_member_filtered = False
+        if member_code and member_code.strip():
+            mb_code = member_code.strip()
+            top_mb_inp = self.page.locator(
+                "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiTextField-root')][.//label[contains(text(), 'Mã thành viên') or contains(text(), 'Thành viên')]]//input"
+                " | //label[contains(text(), 'Mã thành viên') or contains(text(), 'Thành viên')]/following-sibling::div//input"
+                " | //input[@placeholder='Mã thành viên' or @placeholder='Thành viên']"
+            ).first
+
+            if top_mb_inp.is_visible(timeout=800):
+                self.log(f"  [Filter Form] Điền thanh công cụ trên: 'Mã thành viên' = '{mb_code}'...")
+                top_mb_inp.click(force=True)
+                self.page.wait_for_timeout(150)
+                self.page.keyboard.press("Control+A")
+                self.page.keyboard.press("Backspace")
+                self.page.wait_for_timeout(150)
+                self.page.keyboard.type(mb_code, delay=30)
+                self.page.wait_for_timeout(200)
+                self.page.keyboard.press("Tab")
+                top_form_member_filtered = True
+
+        # 3.5. Nếu có tham số Mã TKGD / Số tiểu khoản, ưu tiên điền ô lọc ở thanh công cụ phía trên (Top Form Filter) nếu xuất hiện
+        top_form_acct_filtered = False
+        if acct_no and acct_no.strip():
+            acc_val = acct_no.strip()
+            top_acct_inp = self.page.locator(
+                "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiTextField-root')][.//label[contains(text(), 'Số tiểu khoản') or contains(text(), 'Mã TKGD')]]//input"
+                " | //label[contains(text(), 'Số tiểu khoản') or contains(text(), 'Mã TKGD')]/following-sibling::div//input"
+                " | //input[@placeholder='Số tiểu khoản' or @placeholder='Mã TKGD']"
+            ).first
+
+            if top_acct_inp.is_visible(timeout=800):
+                self.log(f"  [Filter Form] Điền thanh công cụ trên: 'Mã TKGD / Số tiểu khoản' = '{acc_val}'...")
+                top_acct_inp.click(force=True)
+                self.page.wait_for_timeout(150)
+                self.page.keyboard.press("Control+A")
+                self.page.keyboard.press("Backspace")
+                self.page.wait_for_timeout(150)
+                self.page.keyboard.type(acc_val, delay=30)
+                self.page.wait_for_timeout(200)
+                self.page.keyboard.press("Tab")
+                top_form_acct_filtered = True
+
         # Click Nút Tìm kiếm
         search_btn = self.page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible(timeout=2000):
@@ -177,30 +221,35 @@ class BaseReportPage(BasePage):
             self.wait_for_table_loading_complete(60000)
             self.dismiss_modal_backdrop()
 
-        # 4. Điền lọc 'Mã thành viên' (Ví dụ: 711) ở cột bộ lọc trong bảng Material React Table
-        if member_code and member_code.strip():
+        # Kiểm tra nhanh: Nếu bảng vừa nạp xong đã báo 'Không có dữ liệu' (tbody chứa 'Không có dữ liệu'), bypass ngay không cần filter cột tiếp
+        no_data_in_table = self.page.locator(
+            "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
+        ).first
+        if no_data_in_table.is_visible(timeout=600):
+            self.log("  ℹ️ [Search Result] Bảng đã trả về 'Không có dữ liệu' -> Bỏ qua bước lọc cột và chuyển sang xử lý kết xuất.")
+            return
+
+        # 4. Điền lọc 'Mã thành viên' ở cột bộ lọc trong bảng Material React Table (nếu ô top form chưa có và bảng thực sự có cột này)
+        if member_code and member_code.strip() and not top_form_member_filtered:
             mb_code = member_code.strip()
-            self.wait_for_table_loading_complete(30000)
-            self.log(f"  [Filter Column] Lọc Mã thành viên: '{mb_code}'...")
-            try:
-                # Kiểm tra xem hàng bộ lọc đã hiển thị ô input nào chưa
-                header_inputs = self.page.locator("xpath=//thead//th//input")
-                if header_inputs.count() == 0:
-                    toolbar_filter_btn = self.page.locator(
-                        "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
-                    ).first
-                    if toolbar_filter_btn.is_visible(timeout=1000):
-                        self.log("  [Filter Column] Click nút 'Ẩn/hiện bộ lọc' trên thanh công cụ bảng...")
-                        toolbar_filter_btn.click(force=True)
-                        self.page.wait_for_timeout(800)
+            th_member = self.page.locator("xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE'] | //th[contains(., 'Mã thành viên')]").first
+            if th_member.count() == 0:
+                self.log("  ℹ️ Giao diện/Bảng không có cột 'Mã thành viên' -> Tự động bỏ qua lọc Mã thành viên.")
+            else:
+                self.wait_for_table_loading_complete(30000)
+                self.log(f"  [Filter Column] Lọc Mã thành viên: '{mb_code}'...")
+                try:
+                    # Kiểm tra xem hàng bộ lọc đã hiển thị ô input nào chưa
+                    header_inputs = self.page.locator("xpath=//thead//th//input")
+                    if header_inputs.count() == 0:
+                        toolbar_filter_btn = self.page.locator(
+                            "xpath=//button[contains(@aria-label, 'Ẩn/hiện bộ lọc') or contains(@aria-label, 'bộ lọc') or contains(@aria-label, 'Filter')]"
+                        ).first
+                        if toolbar_filter_btn.is_visible(timeout=1000):
+                            self.log("  [Filter Column] Click nút 'Ẩn/hiện bộ lọc' trên thanh công cụ bảng...")
+                            toolbar_filter_btn.click(force=True)
+                            self.page.wait_for_timeout(800)
 
-                member_inp = self.page.locator(
-                    "xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE']//input"
-                    " | //th[contains(., 'Mã thành viên')]//input"
-                ).first
-
-                th_member = self.page.locator("xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE'] | //th[contains(., 'Mã thành viên')]").first
-                if th_member.count() > 0:
                     try:
                         th_member.scroll_into_view_if_needed(timeout=1000)
                     except Exception:
@@ -210,20 +259,23 @@ class BaseReportPage(BasePage):
                         }""")
                         self.page.wait_for_timeout(300)
 
-                if member_inp.count() > 0:
-                    self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã thành viên', đang điền '{mb_code}'...")
-                    member_inp.focus()
-                    member_inp.fill(mb_code)
-                    self.page.wait_for_timeout(300)
-                    member_inp.press("Enter")
-                    self.wait_for_table_loading_complete(30000)
-                else:
-                    self.log("  ⚠️ Không tìm thấy ô lọc Mã thành viên trên bảng.")
-            except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
+                    member_inp = self.page.locator(
+                        "xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE']//input"
+                        " | //th[contains(., 'Mã thành viên')]//input"
+                    ).first
 
-        # 5. Điền lọc 'Mã TKGD / Số tiểu khoản' (Ví dụ: 001C123456 hoặc 001C123456-M) ở cột bộ lọc trong bảng
-        if acct_no and acct_no.strip():
+                    if member_inp.count() > 0:
+                        self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã thành viên', đang điền '{mb_code}'...")
+                        member_inp.focus()
+                        member_inp.fill(mb_code)
+                        self.page.wait_for_timeout(300)
+                        member_inp.press("Enter")
+                        self.wait_for_table_loading_complete(30000)
+                except Exception as e:
+                    self.log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
+
+        # 5. Điền lọc 'Mã TKGD / Số tiểu khoản' ở cột bộ lọc trong bảng Material React Table (nếu ô thanh công cụ phía trên chưa có)
+        if acct_no and acct_no.strip() and not top_form_acct_filtered:
             acc_val = acct_no.strip()
             self.wait_for_table_loading_complete(30000)
             self.log(f"  [Filter Column] Lọc Mã TKGD / Số tiểu khoản: '{acc_val}'...")
@@ -239,14 +291,16 @@ class BaseReportPage(BasePage):
                         toolbar_filter_btn.click(force=True)
                         self.page.wait_for_timeout(800)
 
+                # ƯU TIÊN CHÍNH XÁC: Cột 'Số tiểu khoản' (CE) hoặc 'Mã TKGD' (CPP), TUYỆT ĐỐI KHÔNG bắt nhầm 'Số tài khoản'
                 acct_inp = self.page.locator(
-                    "xpath=//th[@data-column-id='AFACCTNO' or @data-column-id='ACCTNO_BUY' or @data-column-id='ACCTNO_SELL']//input"
-                    " | //th[contains(., 'Số tiểu khoản') or contains(., 'Mã TKGD') or contains(., 'Số tài khoản')]//input"
+                    "xpath=//th[contains(., 'Số tiểu khoản')]//input"
+                    " | //th[contains(., 'Mã TKGD')]//input"
+                    " | //th[@data-column-id='AFACCTNO' or @data-column-id='ACCTNO_BUY' or @data-column-id='ACCTNO_SELL']//input"
                 ).first
 
                 th_acct = self.page.locator(
-                    "xpath=//th[@data-column-id='AFACCTNO' or @data-column-id='ACCTNO_BUY' or @data-column-id='ACCTNO_SELL']"
-                    " | //th[contains(., 'Số tiểu khoản') or contains(., 'Mã TKGD') or contains(., 'Số tài khoản')]"
+                    "xpath=//th[contains(., 'Số tiểu khoản')] | //th[contains(., 'Mã TKGD')]"
+                    " | //th[@data-column-id='AFACCTNO' or @data-column-id='ACCTNO_BUY' or @data-column-id='ACCTNO_SELL']"
                 ).first
 
                 if th_acct.count() > 0:
@@ -256,16 +310,16 @@ class BaseReportPage(BasePage):
                         pass
 
                 if acct_inp.count() > 0:
-                    self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc 'Mã TKGD / Số tiểu khoản', đang điền '{acc_val}'...")
+                    self.log(f"  [Filter Column] ✓ Đã tìm thấy ô bộ lọc cột 'Số tiểu khoản / Mã TKGD', đang điền '{acc_val}'...")
                     acct_inp.focus()
                     acct_inp.fill(acc_val)
                     self.page.wait_for_timeout(300)
                     acct_inp.press("Enter")
                     self.wait_for_table_loading_complete(30000)
                 else:
-                    self.log("  ⚠️ Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
+                    self.log("  ⚠️ Không tìm thấy ô lọc Số tiểu khoản / Mã TKGD trên bảng.")
             except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
+                self.log(f"  ⚠️ Lỗi khi lọc Số tiểu khoản / Mã TKGD '{acc_val}': {e}")
 
     def trigger_export_download(self, headless: bool = False, timeout_ms: int = 30000):
         """
