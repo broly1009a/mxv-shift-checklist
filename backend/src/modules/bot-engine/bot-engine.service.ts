@@ -64,6 +64,8 @@ export class BotEngineService {
       // 1. Fetch active shift logs
       const activeLogs = await this.shiftLogModel
         .find({ status: 'PENDING' })
+        .populate('shiftSlotId')
+        .populate('templateId')
         .exec();
 
       if (activeLogs.length === 0) {
@@ -125,7 +127,9 @@ export class BotEngineService {
       }
 
       for (const log of activeLogs) {
+        const isOvernight = this.isOvernightShift(log);
         for (const task of log.details) {
+          const nowVN = new Date(Date.now() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
           // Check only bot-driven tasks that are not yet resolved (PASSED, SKIPPED)
           const needsCheck =
             task.isBotCheckSnapshot &&
@@ -152,16 +156,14 @@ export class BotEngineService {
             }
           }
 
-          // 3. Enforce Trigger Time
-          const nowVN = new Date(Date.now() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
+          // 3. Enforce Trigger Time (with overnight next-day awareness)
           if (task.status === 'PENDING' && task.botTriggerTimeSnapshot) {
-            const [trigH, trigM] = task.botTriggerTimeSnapshot
-              .split(':')
-              .map(Number);
-            const currH = nowVN.getUTCHours();
-            const currM = nowVN.getUTCMinutes();
-
-            if (currH < trigH || (currH === trigH && currM < trigM)) {
+            const targetTriggerDate = this.getTargetTriggerDateTime(
+              log.shiftDate,
+              task.botTriggerTimeSnapshot,
+              isOvernight,
+            );
+            if (Date.now() < targetTriggerDate.getTime()) {
               // Not yet time to run
               continue;
             }
@@ -1370,21 +1372,24 @@ export class BotEngineService {
             ): boolean => {
               if (!sla) return false;
               if (sla.includes(':')) {
-                const [slaH, slaM] = sla.split(':').map(Number);
-                const currH = nowVN.getUTCHours();
-                const currM = nowVN.getUTCMinutes();
-                return currH > slaH || (currH === slaH && currM >= slaM);
+                const targetSlaDate = this.getTargetTriggerDateTime(
+                  log.shiftDate,
+                  sla,
+                  isOvernight,
+                );
+                return Date.now() >= targetSlaDate.getTime();
               } else {
                 // Relative SLA (minutes from trigger time)
                 const trig = trigger || '00:00';
-                const [trigH, trigM] = trig.split(':').map(Number);
-                const triggerDate = new Date(nowVN);
-                triggerDate.setUTCHours(trigH, trigM, 0, 0);
-
+                const targetTriggerDate = this.getTargetTriggerDateTime(
+                  log.shiftDate,
+                  trig,
+                  isOvernight,
+                );
                 const durationMinutes = parseInt(sla, 10) || 15;
                 const overdueTime =
-                  triggerDate.getTime() + durationMinutes * 60 * 1000;
-                return nowVN.getTime() >= overdueTime;
+                  targetTriggerDate.getTime() + durationMinutes * 60 * 1000;
+                return Date.now() >= overdueTime;
               }
             };
 
@@ -1674,5 +1679,56 @@ export class BotEngineService {
     }
 
     return false;
+  }
+
+  /**
+   * Helper to check if a shift log is an overnight shift.
+   */
+  public isOvernightShift(log: any): boolean {
+    const slot = log?.shiftSlotId as any;
+    if (slot && typeof slot.isOvernight === 'boolean') {
+      return slot.isOvernight;
+    }
+    if (slot?.startTime && slot?.endTime && slot.startTime > slot.endTime) {
+      return true;
+    }
+    const template = log?.templateId as any;
+    if (
+      template?.shiftSlotId &&
+      typeof template.shiftSlotId.isOvernight === 'boolean'
+    ) {
+      return template.shiftSlotId.isOvernight;
+    }
+    const title = (template?.title || '').toLowerCase();
+    if (
+      title.includes('ca 3') ||
+      title.includes('đêm') ||
+      title.includes('night')
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Calculates the exact target Date timestamp for a given time string (HH:mm) in GMT+7.
+   * For overnight shifts (isOvernight = true), times in the morning (< 12:00, e.g. 05:05)
+   * are correctly shifted to the next calendar day (shiftDate + 1 day).
+   */
+  public getTargetTriggerDateTime(
+    shiftDateStr: string,
+    timeStr: string,
+    isOvernight: boolean = false,
+  ): Date {
+    const [sY, sM, sD] = shiftDateStr.split('-').map(Number);
+    const [trigH, trigM] = (timeStr || '00:00').split(':').map(Number);
+
+    // If overnight shift and time is before noon (< 12:00, e.g. 05:00, 05:05), target is the next calendar day
+    const dayOffset = isOvernight && trigH < 12 ? 1 : 0;
+
+    // Construct Date in Vietnam timezone (GMT+7, offset = -7 hours in UTC)
+    return new Date(
+      Date.UTC(sY, sM - 1, sD + dayOffset, trigH - 7, trigM, 0, 0),
+    );
   }
 }
