@@ -84,7 +84,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly ccpStatisticsService: CcpStatisticsService,
     private readonly marginCheckerService: MarginCheckerService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
@@ -648,7 +648,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         (await this.settingsService.getSetting(
           'bot_backup_path_ms',
           process.env.DEFAULT_BACKUP_PATH_MS ||
-            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
         ));
 
       if (backupMsBase) {
@@ -993,7 +993,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await job.save();
 
         // Tránh lỗi 429 Too Many Requests từ phía server bằng cách giãn cách giữa các lần tải 5 giây
-        await page.waitForTimeout(5000).catch(() => {});
+        await page.waitForTimeout(5000).catch(() => { });
       }
 
       if (failedFiles.length > 0) {
@@ -1717,7 +1717,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return this.settingsService.getSetting(
       'bot_backup_path_ms',
       process.env.DEFAULT_BACKUP_PATH_MS ||
-        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
   }
 
@@ -1725,7 +1725,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return this.settingsService.getSetting(
       'bot_backup_path_cqg',
       process.env.DEFAULT_BACKUP_PATH_CQG ||
-        'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
   }
 
@@ -2251,7 +2251,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'bot_lot_macro_target_root',
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
-      
+
       // Tự động chuẩn hóa đường dẫn thư mục chứa file DSGD.xlsx (hỗ trợ cả Target Root gốc & Target Root Futures, tháng 08.2026 / T08.2026)
       const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
         ? path.join(targetRoot, 'Backup MS', 'Futures')
@@ -2323,18 +2323,18 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
         ? path.join(
-            process.cwd(),
-            'marco',
-            'Thong ke gia tri giao dich có ACM',
-            'Macro thong ke gia tri giao dich có ACM.xlsm',
-          )
+          process.cwd(),
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        )
         : path.join(
-            process.cwd(),
-            '..',
-            'marco',
-            'Thong ke gia tri giao dich có ACM',
-            'Macro thong ke gia tri giao dich có ACM.xlsm',
-          );
+          process.cwd(),
+          '..',
+          'marco',
+          'Thong ke gia tri giao dich có ACM',
+          'Macro thong ke gia tri giao dich có ACM.xlsm',
+        );
       const macroPath =
         payload.macroPath ||
         (await this.settingsService.getSetting(
@@ -2430,7 +2430,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           'bot_lot_macro_target_root',
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
-      
+
       const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
         ? path.join(targetRoot, 'Backup MS', 'Futures')
         : targetRoot;
@@ -2518,7 +2518,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         (await this.settingsService.getSetting(
           'bot_backup_path_cqg',
           process.env.DEFAULT_BACKUP_PATH_CQG ||
-            'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+          'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
         ));
 
       if (baseBackupPath) {
@@ -2698,7 +2698,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         errors.push(`MS: ${err.message}`);
         log(`MS ❌ Lỗi tải file MS: ${err.message}`);
       } finally {
-        await browser.close().catch(() => {});
+        await browser.close().catch(() => { });
       }
     };
 
@@ -2745,7 +2745,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         errors.push(`ACM: ${err.message}`);
         log(`ACM ❌ Lỗi tải file ACM: ${err.message}`);
       } finally {
-        await browser.close().catch(() => {});
+        await browser.close().catch(() => { });
       }
     };
 
@@ -3097,10 +3097,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       const payloadStr = JSON.stringify(rawPayload, null, 2);
       const lastLogs = job.logs.slice(-20).join('\n');
-      
+
       let displayPayload = payloadStr;
       const mailAttachments: any[] = [];
-      
+
       if (payloadStr.length > 3000) {
         displayPayload = payloadStr.substring(0, 3000) + '\n\n... [NỘI DUNG PAYLOAD QUÁ DÀI - ĐÃ ĐƯỢC RÚT GỌN ĐỂ TRÁNH QUÁ TẢI EMAIL. CHI TIẾT ĐẦY ĐỦ XEM TRONG FILE ĐÍNH KÈM]';
         mailAttachments.push({
@@ -3113,7 +3113,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const mismatchedTrades = rawPayload?.result?.mismatchedTrades || [];
       if (Array.isArray(mismatchedTrades) && mismatchedTrades.length > 0) {
         const targetDateStr = rawPayload.sessionDay || rawPayload.targetDate || new Date().toISOString().split('T')[0];
-        
+
         const convertMismatchedTradesToCsv = (trades: any[]): string => {
           const headers = ['Nguồn', 'Mã lệnh', 'Mã TKGD', 'Mã HD', 'Giá khớp', 'KL giao dịch', 'Ngày giờ', 'Lý do lệch'];
           const rows = trades.map(t => [

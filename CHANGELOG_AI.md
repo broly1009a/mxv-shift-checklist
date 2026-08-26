@@ -2,6 +2,25 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-26] Nâng Cấp Logic Nhận Diện Giờ Kích Hoạt & SLA Cho Ca Vắt Đêm (isOvernight / Cross-Midnight) Trong Bot Engine
+
+### Mục tiêu thay đổi
+- Xử lý triệt để xung đột thời gian kích hoạt của Ca trực đêm (Ca 3 / `isOvernight: true`): Khi hệ thống sinh đồng loạt 3 ca trực lúc `00:01` sáng ngày $D$, các tác vụ Đóng ca rạng sáng (ví dụ `ops_close_01_s1` lúc `05:05` sáng) bị kích hoạt nhầm vào `05:05` sáng ngày $D$ (khi cả phiên giao dịch chưa bắt đầu) thay vì `05:05` sáng ngày hôm sau ($D+1$).
+- Nguyên nhân cốt lõi: Trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts), việc kiểm tra `botTriggerTimeSnapshot` và `slaDeadlineSnapshot` chỉ so sánh giờ phút hiện tại (`currH`, `currM`) với mốc giờ cấu hình mà chưa xác định ngày kích hoạt mục tiêu (`targetTriggerDate`) cho các ca vắt đêm.
+
+### Danh sách file chỉnh sửa
+- [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) (Chỉnh sửa: Populate `shiftSlotId` & `templateId` khi truy vấn `activeLogs`; bổ sung 2 phương thức helper `isOvernightShift` và `getTargetTriggerDateTime`; nâng cấp logic kiểm tra giờ kích hoạt và kiểm tra quá hạn SLA `checkTimeOverdue` tính chuẩn xác mốc ngày hôm sau $D+1$ cho mốc giờ $< 12:00$).
+- [test-overnight-trigger.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/tests/test-overnight-trigger.ts) (Tạo mới: Bộ kịch bản kiểm thử tự động 14 test cases bao phủ toàn bộ các trường hợp Ca ngày, Ca đêm trước 24h, Ca đêm sau 24h, và nhận diện slot overnight).
+
+### Tóm tắt nội dung code đã sửa
+1. **Helper `isOvernightShift(log)`**: Tự động nhận diện ca vắt đêm từ `slot.isOvernight`, `startTime > endTime`, hoặc template metadata (`Ca 3` / `Đêm`).
+2. **Helper `getTargetTriggerDateTime(shiftDate, timeStr, isOvernight)`**: Tính toán mốc UTC timestamp chính xác theo múi giờ Việt Nam (GMT+7). Đối với ca vắt đêm (`isOvernight = true`) có mốc giờ sáng sớm ($< 12:00$, ví dụ `05:00`, `05:05`, `05:30`), tự động chuyển ngày kích hoạt sang **`shiftDate + 1 ngày`** ($D+1$).
+3. **Bảo vệ tuyệt đối chống kích hoạt sớm**: Lúc `05:05` sáng ngày $D$ hoặc `01:23` sáng ngày $D+1$, Bot tự động bỏ qua không kích hoạt sớm khi chưa đến giờ chốt ca.
+4. **Kích hoạt chuẩn xác lúc chốt ca đêm**: Đúng `05:05` sáng ngày $D+1$, Bot tự động kích hoạt và quét đúng file backup chốt phiên của ngày $D$ (`targetDate = shiftDate`).
+5. **Đồng bộ SLA Overdue**: Cập nhật `checkTimeOverdue` sử dụng `getTargetTriggerDateTime` để không đánh dấu quá hạn sớm cho Ca vắt đêm.
+6. **Xác nhận Build/Kiểm thử**: Toàn bộ 14/14 Unit Tests pass 100%, Backend build `nest build` thành công 100%.
+
+
 ## [2026-08-22] Nâng Cấp Logic Core Tải File & Xử Lý Độ Trễ API Service Trong CPP/CE Downloader
 
 ### Mục tiêu thay đổi
@@ -23,8 +42,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 6. **Thuật toán Chia Đội Tự Thích Nghi (Adaptive Date-Splitting & Auto-Merge)**: Đóng vai trò Lưới cứu sinh (Safety Net) 100% không xâm lấn. Khi tải nguyên khoảng tháng bị Server 504 Timeout (do dữ liệu siêu khủng >2 triệu bản ghi), bot tự động đệ quy chia đôi khoảng ngày thành các khoảng nhỏ, tải từng đoạn và tự động hợp nhất (concat) dữ liệu các file CSV tạm thành 1 file tổng hoàn chỉnh duy nhất.
 7. **Sửa lỗi đè tên file trong hợp nhất đệ quy (Recursive File Overwrite Fix)**: Phân định rõ tên file tạm `temp_merged_{code}_{start}_{end}.csv` độc lập cho từng cấp đệ quy (`depth > 1`), chỉ cho phép ghi đè lên file tháng chính (`DSL0726_TK-M.csv`) ở duy nhất Cấp ngoài cùng (`depth == 1`), loại bỏ hoàn toàn hiện tượng đè file lớn 70MB thành 5KB.
 8. **Tích hợp Giải pháp Tải Dữ liệu Siêu Lớn (Large Dataset Solution)**: Bổ sung Persistent Single-Day Retry với khoảng nghỉ Smart Backoff Delay (15s-45s) để Server SQL kịp giải phóng RAM/CPU; bổ sung cơ chế ghi vết ngày lỗi vào `MISSING_DATES.txt` minh bạch 100%; và triển khai Persistent Monthly Retry Loop cho chế độ TẮT chia nhỏ để thử lại kiên trì nguyên tháng trong nhiều lượt.
-9. **Xác minh đĩa thực tế**: Đảm bảo file được ghi xuống đĩa có kích thước > 0 bytes mới kết luận tải thành công.
-10. **Xác nhận Build/Kiểm thử**: Biên dịch Python thành công 100% (`python -m py_compile`), Backend & Frontend build thành công.
+9. **Gia tăng thời gian chờ xuất file gia tăng dần (Progressive Timeout Scaling)**: 120s ở lần 1, 240s ở lần 2, 360s-600s ở các lần retry nguyên tháng tiếp theo giúp Chrome FE có đủ thời gian nén file Blob 94.1 MB - 250 MB mượt mà.
+10. **Tích hợp Checkbox UI GUI**: Thêm checkbox `Tự động chia nhỏ ngày (Adaptive Split)` trên giao diện GUI và tự lưu trạng thái vào `config.json`.
+11. **Đóng gói File App EXE duy nhất**: Sử dụng PyInstaller đóng gói toàn bộ ứng dụng thành 1 file duy nhất `dist/CPP_CE_Report_Downloader.exe` (76.3 MB) có đính kèm Icon Logo thương hiệu chính thức.
+12. **Xác nhận Build/Kiểm thử**: Biên dịch Python thành công 100% (`python -m py_compile`), PyInstaller build file EXE thành công 100%.
 
 ---
 
