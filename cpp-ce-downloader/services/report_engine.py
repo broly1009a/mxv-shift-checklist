@@ -203,6 +203,9 @@ class ReportEngine:
                 size_bytes = os.path.getsize(final_dest_path)
                 self.log(f"  [🎉 Thành công Safety Net Level {depth}] Đã hợp nhất file thành công: {final_dest_path} ({size_bytes:,} bytes)")
                 return True
+        else:
+            self.log(f"  ℹ️ Khoảng ngày {start_date} -> {end_date} không có dữ liệu báo cáo.")
+            return True
 
         return False
 
