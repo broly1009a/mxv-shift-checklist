@@ -157,6 +157,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       const result = await this.lotStatisticsService.processLotStatistics(
         files,
         processParams,
+        job.logs,
       );
       log(`✅ Chạy tính toán thống kê số lot thành công.`);
       log(

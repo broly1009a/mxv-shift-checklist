@@ -20,7 +20,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 ### Tóm tắt nội dung code đã sửa
 1. **Zero Human Intervention**: Khi đến ngày đầu tháng mới, Bot tự sinh Sheet mới âm thầm và tiếp tục ghi dữ liệu bình thường, loại bỏ hoàn toàn thông báo lỗi "vui lòng tạo/copy Sheet thủ công".
 2. **Bảo tồn 100% Công thức**: `openpyxl.copy_worksheet` sao chép trực tiếp cấu trúc XML, bảo toàn tuyệt đối các công thức phức tạp của Excel.
-3. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
+3. **Mô hình Dual-Tier Logging**:
+   - **Tầng 1 (Database `job.logs`)**: Ghi tóm tắt trạng thái tiến trình và thời gian thực thi (ms) để hiển thị Realtime trên Web UI và Modal ca trực.
+   - **Tầng 2 (Server Console & PM2 Logs)**: Ghi log chi tiết kỹ thuật (stdout/stderr) qua `NestJS Logger` phục vụ bảo trì hệ thống trên Ubuntu.
+4. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
 
 
 ## [2026-08-27] Tái Cấu Trúc Kiến Trúc Bot Engine (Strategy Handler Pattern) & Phân Tách Reconciliation Parsers

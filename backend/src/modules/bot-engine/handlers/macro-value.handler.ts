@@ -189,6 +189,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
           pathTvkd,
           macroPath,
         },
+        job.logs,
       );
       log(`✅ Chạy tính toán thống kê giá trị thành công.`);
       log(

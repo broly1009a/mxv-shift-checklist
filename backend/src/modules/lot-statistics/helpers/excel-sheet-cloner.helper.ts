@@ -7,14 +7,17 @@ const logger = new Logger('ExcelSheetCloner');
 
 /**
  * Tự động kiểm tra và sinh âm thầm Sheet tháng mới bằng Python openpyxl trên Ubuntu Linux / Windows
- * nếu Sheet tháng chưa tồn tại trong file Excel.
+ * Hỗ trợ mô hình Dual-Tier Logging (DB job.logs cho Web UI + NestJS Logger/PM2 cho Server Ops).
  */
 export function ensureMonthSheetExists(
   excelFilePath: string,
   targetSheetName: string,
+  jobLogs?: string[],
 ): boolean {
   if (!fs.existsSync(excelFilePath)) {
-    logger.warn(`File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`);
+    const msg = `[Auto-Clone] ⚠️ File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`;
+    logger.warn(msg);
+    jobLogs?.push(msg);
     return false;
   }
 
@@ -26,16 +29,20 @@ export function ensureMonthSheetExists(
   );
 
   if (!fs.existsSync(scriptPath)) {
-    logger.warn(`Không tìm thấy script python: ${scriptPath}`);
+    const msg = `[Auto-Clone] ⚠️ Không tìm thấy script python: ${scriptPath}`;
+    logger.warn(msg);
+    jobLogs?.push(msg);
     return false;
   }
 
   // Tự động nhận diện lệnh python trên Ubuntu (python3) hoặc Windows (python)
   const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+  const fileName = path.basename(excelFilePath);
+  const startTime = Date.now();
 
-  logger.log(
-    `[Auto-Clone] Đang kiểm tra / tự động sinh Sheet '${targetSheetName}' cho file: ${path.basename(excelFilePath)}...`,
-  );
+  const startMsg = `[Auto-Clone] ℹ️ Đang kiểm tra / tự động sinh Sheet '${targetSheetName}' cho: ${fileName}...`;
+  logger.log(startMsg);
+  jobLogs?.push(startMsg);
 
   try {
     const result = spawnSync(
@@ -48,19 +55,23 @@ export function ensureMonthSheetExists(
       },
     );
 
+    const durationMs = Date.now() - startTime;
+
     if (result.status === 0) {
-      logger.log(
-        `[Auto-Clone] ✅ Hoàn tất đảm bảo Sheet '${targetSheetName}' trong ${path.basename(excelFilePath)}`,
-      );
+      const successMsg = `[Auto-Clone] ✅ Tự động sinh Sheet '${targetSheetName}' trong ${fileName} thành công (${durationMs}ms).`;
+      logger.log(successMsg);
+      jobLogs?.push(successMsg);
       return true;
     } else {
-      logger.error(
-        `[Auto-Clone] ❌ Lỗi khi chạy python script: ${result.stderr || result.stdout}`,
-      );
+      const errMsg = `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${result.stderr || result.stdout}`;
+      logger.error(errMsg);
+      jobLogs?.push(errMsg);
       return false;
     }
   } catch (err: any) {
-    logger.error(`[Auto-Clone] ❌ Ngoại lệ khi kích hoạt Python cloner: ${err.message}`);
+    const excMsg = `[Auto-Clone] ❌ Ngoại lệ khi kích hoạt Python cloner cho ${fileName}: ${err.message}`;
+    logger.error(excMsg);
+    jobLogs?.push(excMsg);
     return false;
   }
 }

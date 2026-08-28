@@ -79,10 +79,15 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
             new_str = re.sub(r'th[aá]ng\s+\d{1,2}/\d{4}', f'tháng {target_month:02d}/{target_year}', old_str, flags=re.IGNORECASE)
             new_sheet.cell(row=1, column=1).value = new_str
 
-        # 6. Cập nhật mốc ngày đầu tháng (Ngày 1) cho công thức =WORKDAY(...)
-        # - Trường hợp File Thống kê Số Lot: Ngày đầu tháng nằm ở ô B5
-        # - Trường hợp File Thống kê Giá trị: Ngày đầu tháng nằm ở ô A6
+        # 6. Cập nhật mốc ngày làm việc đầu tiên của tháng cho công thức =WORKDAY(...)
+        # - Nếu ngày 01 rơi vào Thứ 7 (weekday 5) -> Ngày giao dịch đầu tiên là Thứ 2 ngày 03
+        # - Nếu ngày 01 rơi vào Chủ Nhật (weekday 6) -> Ngày giao dịch đầu tiên là Thứ 2 ngày 02
+        # - Nếu ngày 01 rơi vào Thứ 2..Thứ 6 -> Giữ nguyên ngày 01
         first_date_val = datetime(target_year, target_month, 1)
+        if first_date_val.weekday() == 5:  # Thứ 7
+            first_date_val = datetime(target_year, target_month, 3)
+        elif first_date_val.weekday() == 6:  # Chủ Nhật
+            first_date_val = datetime(target_year, target_month, 2)
 
         cell_b5 = new_sheet.cell(row=5, column=2).value
         cell_a6 = new_sheet.cell(row=6, column=1).value

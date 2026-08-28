@@ -333,6 +333,7 @@ async function updateTvkdTrackerFile(
   classifiedRows: any[],
   ngayGD: Date,
   categoryName: 'LME' | 'Options' | 'Spread',
+  jobLogs?: string[],
 ) {
   ensureBaseFileExists(filePath);
 
@@ -347,7 +348,7 @@ async function updateTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    const cloned = ensureMonthSheetExists(filePath, sheetName, jobLogs);
     if (cloned) {
       await wb.xlsx.readFile(filePath);
       ws = wb.getWorksheet(sheetName);
@@ -414,6 +415,7 @@ async function updateAcmTrackerFile(
   ttttAcm: any[],
   ttmAcm: any[],
   ngayGD: Date,
+  jobLogs?: string[],
 ) {
   ensureBaseFileExists(filePath);
 
@@ -428,7 +430,7 @@ async function updateAcmTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    const cloned = ensureMonthSheetExists(filePath, sheetName, jobLogs);
     if (cloned) {
       await wb.xlsx.readFile(filePath);
       ws = wb.getWorksheet(sheetName);
@@ -495,6 +497,7 @@ async function updateNormalTrackerFile(
   result: LotSummaryResult,
   classified: DsgdClassified,
   lmeExpiredLot: number,
+  jobLogs?: string[],
 ) {
   ensureBaseFileExists(filePath);
 
@@ -509,7 +512,7 @@ async function updateNormalTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), result.ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    const cloned = ensureMonthSheetExists(filePath, sheetName, jobLogs);
     if (cloned) {
       await wb.xlsx.readFile(filePath);
       ws = wb.getWorksheet(sheetName);
@@ -687,6 +690,7 @@ export async function updateAllCumulativeFiles(
   ttmAcmRows: any[],
   lmeExpiredLot: number,
   paths: AccumulatorPaths,
+  jobLogs?: string[],
 ) {
   // 1. Append raw DSGD
   if (paths.pathDsgdCumulative) {
@@ -704,6 +708,7 @@ export async function updateAllCumulativeFiles(
       classifiedDsgd.dsgdLme,
       result.ngayGD,
       'LME',
+      jobLogs,
     );
   }
 
@@ -714,6 +719,7 @@ export async function updateAllCumulativeFiles(
       classifiedDsgd.dsgdOptions,
       result.ngayGD,
       'Options',
+      jobLogs,
     );
   }
 
@@ -724,6 +730,7 @@ export async function updateAllCumulativeFiles(
       classifiedDsgd.dsgdSpread,
       result.ngayGD,
       'Spread',
+      jobLogs,
     );
   }
 
@@ -735,6 +742,7 @@ export async function updateAllCumulativeFiles(
       ttttAcmRows,
       ttmAcmRows,
       result.ngayGD,
+      jobLogs,
     );
   }
 
@@ -745,6 +753,7 @@ export async function updateAllCumulativeFiles(
       result,
       classifiedDsgd,
       lmeExpiredLot,
+      jobLogs,
     );
   }
 }

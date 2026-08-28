@@ -94,6 +94,7 @@ export class ValueStatisticsService {
   async processValueStatistics(
     targetDate: Date,
     payload?: any,
+    jobLogs?: string[],
   ): Promise<ValueStatisticsResult> {
     const year = targetDate.getFullYear();
     const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -361,11 +362,12 @@ export class ValueStatisticsService {
     if (updateCumulative) {
       this.logger.log(`Updating cumulative value tracker files...`);
       await updateAllValueCumulativeFiles(
-        paths,
-        targetDate,
         normalGtgdMap,
         spreadGtgdMap,
+        targetDate,
+        paths,
         tvkdGtgdMap,
+        jobLogs,
       );
       this.logger.log(
         `Successfully completed all cumulative updates for target date: ${dayStr}.${monthStr}.${year}`,

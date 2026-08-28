@@ -254,6 +254,7 @@ async function updateValueTrackerFile(
   commodities: string[],
   valueMap: Map<string, number>,
   fileType: string,
+  jobLogs?: string[],
 ) {
   ensureBaseFileExists(filePath);
 
@@ -292,7 +293,7 @@ async function updateValueTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    const cloned = ensureMonthSheetExists(filePath, sheetName, jobLogs);
     if (cloned) {
       await wb.xlsx.readFile(filePath);
       ws = wb.getWorksheet(sheetName);
@@ -333,6 +334,7 @@ export async function updateValueTvkdTrackerFile(
   filePath: string,
   ngayGD: Date,
   tvkdValues: Map<string, number>,
+  jobLogs?: string[],
 ) {
   ensureBaseFileExists(filePath);
 
@@ -369,7 +371,7 @@ export async function updateValueTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
-    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    const cloned = ensureMonthSheetExists(filePath, sheetName, jobLogs);
     if (cloned) {
       await wb.xlsx.readFile(filePath);
       ws = wb.getWorksheet(sheetName);
@@ -493,11 +495,12 @@ export async function updateValueTvkdTrackerFile(
  * Orchestrator to update all cumulative value tracker files including TVKD
  */
 export async function updateAllValueCumulativeFiles(
-  paths: ValueAccumulatorPaths,
-  ngayGD: Date,
   normalGtgdMap: Map<string, number>,
   spreadGtgdMap: Map<string, number>,
+  ngayGD: Date,
+  paths: ValueAccumulatorPaths,
   tvkdValues?: Map<string, number>,
+  jobLogs?: string[],
 ) {
   // 1. Normal Value Tracker
   ensureDirExists(paths.pathNormal);
@@ -507,6 +510,7 @@ export async function updateAllValueCumulativeFiles(
     NORMAL_COMMODITIES,
     normalGtgdMap,
     'Normal',
+    jobLogs,
   );
 
   // 2. Spread Value Tracker
@@ -517,6 +521,7 @@ export async function updateAllValueCumulativeFiles(
     SPREAD_COMMODITIES,
     spreadGtgdMap,
     'Spread',
+    jobLogs,
   );
 
   // 3. LME Value Tracker
@@ -527,6 +532,7 @@ export async function updateAllValueCumulativeFiles(
     LME_COMMODITIES,
     normalGtgdMap,
     'LME',
+    jobLogs,
   );
 
   // 4. Options Value Tracker
@@ -537,6 +543,7 @@ export async function updateAllValueCumulativeFiles(
     OPTIONS_COMMODITIES,
     normalGtgdMap,
     'Options',
+    jobLogs,
   );
 
   // 5. ACM Value Tracker
@@ -547,6 +554,7 @@ export async function updateAllValueCumulativeFiles(
     ACM_COMMODITIES,
     normalGtgdMap,
     'ACM',
+    jobLogs,
   );
 
   // 6. TVKD Value Tracker (New)
@@ -556,6 +564,7 @@ export async function updateAllValueCumulativeFiles(
       paths.pathTvkd,
       ngayGD,
       tvkdValues,
+      jobLogs,
     );
   }
 }

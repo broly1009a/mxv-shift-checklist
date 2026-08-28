@@ -320,6 +320,7 @@ export class LotStatisticsService {
   async processLotStatistics(
     files: LotInputFiles,
     params: ProcessLotDto,
+    jobLogs?: string[],
   ): Promise<LotSummaryResult> {
     const ngayGD = new Date(params.ngayGD);
     this.logger.log(`Bắt đầu xử lý lot statistics ngày ${params.ngayGD}`);
@@ -536,6 +537,7 @@ export class LotStatisticsService {
         ttmAcm,
         lmeExpiredLot,
         paths,
+        jobLogs,
       );
       this.logger.log('Cập nhật dữ liệu lũy kế năm thành công.');
     }
