@@ -377,7 +377,7 @@ export class ValueStatisticsService {
     }
 
     // 6. Generate newsletter report files (Gửi team bản tin)
-    await this.generateNewsletterFile(targetRoot, targetDate, normalGtgdMap);
+    await this.generateNewsletterFile(targetRoot, targetDate, normalGtgdMap, jobLogs);
 
     return {
       ngayGD: targetDate,
@@ -549,102 +549,125 @@ export class ValueStatisticsService {
   }
 
   /**
-   * Generates the daily newsletter file "Giá trị giao dịch phiên dd.mm.yyyy.xlsx"
-   * by copying an existing newsletter template and updating its values.
+   * Xuất báo cáo nhanh "Giá trị giao dịch phiên DD.MM.YYYY.xlsx" gửi Team Bản Tin / Marketing MXV.
+   * 
+   * Cơ chế hoạt động:
+   * 1. Tìm thư mục lưu trữ bản tin: "Gửi team bản tin" hoặc "Gui team ban tin".
+   * 2. Đọc file mẫu .xlsx thực tế của MXV trong thư mục để làm template (bảo toàn cấu trúc nhóm ngành, công thức và font chữ).
+   * 3. Điền giá trị giao dịch tính toán vào Cột D (Dòng 6-75) theo mã sản phẩm ở Cột C.
+   * 4. Xuất file kết quả độc lập cho từng ngày phiên giao dịch.
    */
   private async generateNewsletterFile(
     targetRoot: string,
     targetDate: Date,
     normalGtgdMap: Map<string, number>,
+    jobLogs?: string[],
   ) {
     const dayStr = String(targetDate.getDate()).padStart(2, '0');
     const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
     const year = targetDate.getFullYear();
 
     const baseDir = path.join(targetRoot, 'Thong ke gia tri giao dich');
+    
+    // 1. Kiểm tra các đường dẫn thư mục bản tin khả dụng
     const candidates = [
-      path.join(targetRoot, 'Gửi team bản tin'),
-      path.join(targetRoot, 'Gui team ban tin'),
       path.join(baseDir, 'Gửi team bản tin'),
       path.join(baseDir, 'Gui team ban tin'),
+      path.join(targetRoot, 'Gửi team bản tin'),
+      path.join(targetRoot, 'Gui team ban tin'),
     ];
-    let newsletterDir = candidates.find((p) => fs.existsSync(p));
 
+    // Ưu tiên chọn thư mục nào ĐANG CÓ CHỨA FILE MẪU .xlsx của MXV
+    let newsletterDir = candidates.find((p) => {
+      if (!fs.existsSync(p)) return false;
+      try {
+        const files = fs.readdirSync(p);
+        return files.some((f) => f.endsWith('.xlsx') && !f.startsWith('~$'));
+      } catch {
+        return false;
+      }
+    });
+
+    // Nếu các thư mục đều trống, lấy thư mục đầu tiên tồn tại
     if (!newsletterDir) {
-      const searchDirs = [targetRoot, baseDir].filter((d) => fs.existsSync(d));
-      for (const sDir of searchDirs) {
-        const found = fs
-          .readdirSync(sDir)
-          .find((d) => d.toLowerCase().includes('ban tin'));
-        if (found) {
-          newsletterDir = path.join(sDir, found);
-          break;
-        }
+      newsletterDir = candidates.find((p) => fs.existsSync(p));
+    }
+
+    // Nếu chưa có thư mục nào trên đĩa, tự động tạo mới thư mục có dấu
+    if (!newsletterDir) {
+      const parentForNewDir = fs.existsSync(baseDir) ? baseDir : targetRoot;
+      newsletterDir = path.join(parentForNewDir, 'Gửi team bản tin');
+      try {
+        fs.mkdirSync(newsletterDir, { recursive: true });
+        this.logger.log(`Tự động tạo thư mục bản tin: ${newsletterDir}`);
+      } catch (e: any) {
+        this.logger.warn(`Không thể tạo thư mục ${newsletterDir}: ${e.message}`);
       }
     }
 
     if (!newsletterDir || !fs.existsSync(newsletterDir)) {
-      this.logger.warn(
-        `Thư mục "Gửi team bản tin" không tồn tại trong ${targetRoot}. Bỏ qua xuất file bản tin.`,
-      );
+      const msg = `[Bản Tin] ⚠️ Không thể truy cập thư mục bản tin tại ${targetRoot}. Bỏ qua xuất file bản tin.`;
+      this.logger.warn(msg);
+      jobLogs?.push(msg);
       return;
     }
 
-    // Find any existing daily file in newsletter directory as a template
-    const files = fs.readdirSync(newsletterDir);
-    const templateFileName = files.find(
-      (f) => f.endsWith('.xlsx') && !f.startsWith('~$'),
-    );
-
-    if (!templateFileName) {
-      this.logger.warn(
-        `Không tìm thấy file mẫu .xlsx nào trong thư mục ${newsletterDir}. Bỏ qua xuất file bản tin.`,
+    // 2. Tìm File Mẫu (Template) chính thức của MXV trong thư mục Bản Tin
+    let masterTemplatePath: string | undefined;
+    try {
+      const files = fs.readdirSync(newsletterDir);
+      const existing = files.find(
+        (f) => f.endsWith('.xlsx') && !f.startsWith('~$'),
       );
+      if (existing) {
+        masterTemplatePath = path.join(newsletterDir, existing);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Lỗi khi đọc thư mục ${newsletterDir}: ${err.message}`);
+    }
+
+    if (!masterTemplatePath || !fs.existsSync(masterTemplatePath)) {
+      const msg = `[Bản Tin] ⚠️ Không tìm thấy file mẫu .xlsx nào trong thư mục "${newsletterDir}". Vui lòng đặt 1 file mẫu chính thức của MXV vào thư mục này để Bot tự động nhân bản báo cáo hàng ngày.`;
+      this.logger.warn(msg);
+      jobLogs?.push(msg);
       return;
     }
 
-    const templatePath = path.join(newsletterDir, templateFileName);
-    const targetPath = path.join(
-      newsletterDir,
-      `Giá trị giao dịch phiên ${dayStr}.${monthStr}.${year}.xlsx`,
-    );
+    const targetFileName = `Gia tri giao dich phien ${dayStr}.${monthStr}.${year}.xlsx`;
+    const targetPath = path.join(newsletterDir, targetFileName);
 
     this.logger.log(
-      `Generating newsletter report at: ${targetPath} using template: ${templatePath}`,
+      `Đang xuất báo cáo bản tin tại: ${targetPath} (sử dụng file mẫu MXV: ${masterTemplatePath})`,
     );
 
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(templatePath);
+    await wb.xlsx.readFile(masterTemplatePath);
     const ws = wb.worksheets[0];
 
-    // Process rows 6 to 72 (Normal commodities)
-    for (let r = 6; r <= 72; r++) {
-      const code = ws.getCell(r, 3).value; // Column C (Mã sp)
-      if (code && typeof code === 'string') {
-        const val = normalGtgdMap.get(code.trim()) || 0;
-        ws.getCell(r, 4).value = val; // Column D (Giá trị giao dịch)
+    // Cập nhật giá trị giao dịch vào Cột D (từ dòng 6 đến dòng 75 theo mã sản phẩm ở Cột C)
+    for (let r = 6; r <= 75; r++) {
+      const codeVal = ws.getCell(r, 3).value;
+      if (codeVal) {
+        const code = String(codeVal).trim();
+        const val = normalGtgdMap.get(code) || 0;
+        ws.getCell(r, 4).value = val;
+        ws.getCell(r, 4).numFmt = '#,##0';
       }
     }
 
-    // Process rows 73 to 75 (ACM commodities)
-    for (let r = 73; r <= 75; r++) {
-      const code = ws.getCell(r, 3).value; // Column C (Mã sp)
-      if (code && typeof code === 'string') {
-        const val = normalGtgdMap.get(code.trim()) || 0;
-        ws.getCell(r, 4).value = val; // Column D (Giá trị giao dịch)
-      }
-    }
-
-    // Force total row to be recalculatable formula
+    // Đảm bảo công thức Tổng Cột D và Bảng Nhóm ngành Cột J nguyên vẹn
     ws.getCell(76, 4).value = { formula: 'SUM(D6:D75)' };
+    ws.getCell(76, 4).numFmt = '#,##0';
 
     if (targetRoot) {
       assertSafeWritePath(targetPath, targetRoot);
     }
     await wb.xlsx.writeFile(targetPath);
-    this.logger.log(`Successfully generated newsletter report: ${targetPath}`);
+    const successMsg = `[Bản Tin] ✅ Đã xuất thành công báo cáo bản tin: ${targetFileName}`;
+    this.logger.log(successMsg);
+    jobLogs?.push(successMsg);
 
-    // Optionally also generate GTGD_yyyymmdd.xlsx if the directory can be found/created
+    // 3. Lưu bản sao tại MarketValue/YYYY/GTGD_YYYYMMDD.xlsx
     const marketValueDir = path.join(targetRoot, 'MarketValue', String(year));
     try {
       if (targetRoot) {
@@ -658,30 +681,10 @@ export class ValueStatisticsService {
       if (targetRoot) {
         assertSafeWritePath(targetPath2, targetRoot);
       }
-
-      const wb2 = new ExcelJS.Workbook();
-      await wb2.xlsx.readFile(templatePath);
-      const ws2 = wb2.worksheets[0];
-
-      for (let r = 6; r <= 72; r++) {
-        const code = ws2.getCell(r, 3).value;
-        if (code && typeof code === 'string') {
-          ws2.getCell(r, 4).value = normalGtgdMap.get(code.trim()) || 0;
-        }
-      }
-      for (let r = 73; r <= 75; r++) {
-        const code = ws2.getCell(r, 3).value;
-        if (code && typeof code === 'string') {
-          ws2.getCell(r, 4).value = normalGtgdMap.get(code.trim()) || 0;
-        }
-      }
-      ws2.getCell(76, 4).value = { formula: 'SUM(D6:D75)' };
-      await wb2.xlsx.writeFile(targetPath2);
-      this.logger.log(
-        `Successfully generated MarketValue report: ${targetPath2}`,
-      );
+      await wb.xlsx.writeFile(targetPath2);
+      this.logger.log(`[MarketValue] ✅ Đã lưu bản sao MarketValue: GTGD_${year}${monthStr}${dayStr}.xlsx`);
     } catch (e: any) {
-      this.logger.warn(`Could not generate MarketValue report: ${e.message}`);
+      this.logger.warn(`Không thể lưu bản sao MarketValue: ${e.message}`);
     }
   }
 }

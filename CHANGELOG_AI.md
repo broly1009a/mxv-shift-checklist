@@ -23,7 +23,11 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 3. **Mô hình Dual-Tier Logging**:
    - **Tầng 1 (Database `job.logs`)**: Ghi tóm tắt trạng thái tiến trình và thời gian thực thi (ms) để hiển thị Realtime trên Web UI và Modal ca trực.
    - **Tầng 2 (Server Console & PM2 Logs)**: Ghi log chi tiết kỹ thuật (stdout/stderr) qua `NestJS Logger` phục vụ bảo trì hệ thống trên Ubuntu.
-4. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
+4. **Chuẩn Hóa Xuất Bản Tin Hàng Ngày (`generateNewsletterFile`)**:
+   - Loại bỏ hoàn toàn cơ chế nhúng template giả định; Bot nạp trực tiếp file mẫu `.xlsx` chính thức của MXV trong thư mục `Gửi team bản tin` / `Gui team ban tin`.
+   - Bổ sung tài liệu ghi chú (comment) chi tiết về kiến trúc CIFS Mount giữa Ubuntu và Windows, cơ chế Smart Directory Resolver và bảo toàn công thức 100%.
+   - Chuẩn hóa tên file đầu ra (`Gia tri giao dich phien DD.MM.YYYY.xlsx`) tương thích 100% trên cả Ubuntu và Windows.
+5. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
 
 
 ## [2026-08-27] Tái Cấu Trúc Kiến Trúc Bot Engine (Strategy Handler Pattern) & Phân Tách Reconciliation Parsers
