@@ -2,6 +2,68 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-28] Tích Hợp Cơ Chế Tự Động Sinh Sheet Tháng Mới Âm Thầm Bằng Python openpyxl Trên Ubuntu & Windows
+
+### Mục tiêu thay đổi
+- Giải quyết triệt để vấn đề không thể tự động nhân bản (clone) Sheet tháng mới cho các file Excel Thống kê Số lot & Giá trị giao dịch khi sang tháng mới (trước đây Node.js `exceljs` bị lỗi vỡ công thức chia sẻ *Shared Formula master missing*).
+- Cho phép hệ thống tự động phát hiện khi file Excel thiếu Sheet tháng mới (ví dụ `T08.2026`), kích hoạt tiến trình Python chạy ngầm `excel_sheet_cloner.py` để nhân bản Sheet tháng trước nguyên vẹn 100% (công thức, mergeCells, styles), xóa trắng dữ liệu ngày cũ và lưu file trong 0.1 giây mà không cần con người can thiệp thủ công.
+
+### Danh sách file chỉnh sửa & tạo mới
+- **Python Headless Script (Tạo mới)**:
+  - [excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py) (Script Python sử dụng `openpyxl.copy_worksheet()` để nhân bản Sheet, dọn dẹp ô dữ liệu số và giữ nguyên công thức dòng/cột tổng, tương thích hoàn toàn mã hóa UTF-8 trên Ubuntu và Windows).
+- **TypeScript Helper Bridge (Tạo mới)**:
+  - [excel-sheet-cloner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-sheet-cloner.helper.ts) (Hàm helper `ensureMonthSheetExists` tự động gọi Python CLI qua `spawnSync`).
+- **Tích hợp vào Accumulators (Chỉnh sửa)**:
+  - [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts) (Gọi `ensureMonthSheetExists` tại các vị trí ghi file Normal, ACM, LME/Options/Spread).
+  - [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts) (Gọi `ensureMonthSheetExists` tại các vị trí ghi file Giá trị và TVKD).
+
+### Tóm tắt nội dung code đã sửa
+1. **Zero Human Intervention**: Khi đến ngày đầu tháng mới, Bot tự sinh Sheet mới âm thầm và tiếp tục ghi dữ liệu bình thường, loại bỏ hoàn toàn thông báo lỗi "vui lòng tạo/copy Sheet thủ công".
+2. **Bảo tồn 100% Công thức**: `openpyxl.copy_worksheet` sao chép trực tiếp cấu trúc XML, bảo toàn tuyệt đối các công thức phức tạp của Excel.
+3. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
+
+
+## [2026-08-27] Tái Cấu Trúc Kiến Trúc Bot Engine (Strategy Handler Pattern) & Phân Tách Reconciliation Parsers
+
+### Mục tiêu thay đổi
+- Thực hiện kế hoạch tái cấu trúc (refactoring) cô lập toàn bộ module `bot-engine` và tách các bộ phân tích cú pháp (parsers) của module `reconciliation` nhằm giảm kích thước file phình to (>15.000 dòng code), tăng tính module hóa, dễ bảo trì và sẵn sàng cho việc tích hợp hệ thống Core EX / Core CCP trong tương lai.
+- Giữ nguyên vẹn 18 module nghiệp vụ độc lập khác của Backend (Auth, Shifts, Notifications, Incidents, Margin Checker, v.v.).
+
+### Danh sách file chỉnh sửa & tạo mới
+- **Core Interfaces & Registry (Tạo mới)**:
+  - [job-handler.interface.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/core/job-handler.interface.ts) (Định nghĩa `IBotJobHandler` và `IJobExecutionContext`).
+  - [job-handler.registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/core/job-handler.registry.ts) (Quản lý đăng ký và phân phối Handler động theo `jobType`).
+- **Bot Engine Handlers (Tạo mới)**:
+  - [macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts) (Xử lý `RUN_LOT_MACRO`).
+  - [macro-value.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/macro-value.handler.ts) (Xử lý `RUN_VALUE_MACRO` & `RUN_VALUE_TVKD_MACRO`).
+  - [ccp-stats.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/ccp-stats.handler.ts) (Xử lý `RUN_MACRO` CCP Pilot Bạc Thỏi).
+  - [rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts) (Xử lý `RPA_DOWNLOAD_REPORTS`).
+  - [cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/cast-download.handler.ts) (Xử lý `DOWNLOAD_CAST`).
+  - [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts) (Xử lý `AUTO_CHECK_SOD`, `CHECK_KLGD`, `CHECK_PRE_EOD`, `CHECK_EOD_MM`).
+  - [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/file-audit.handler.ts) (Xử lý `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `FILE_AUDIT_ACM`, `DOWNLOAD_CQG_BACKUP`).
+  - [verify-email.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/verify-email.handler.ts) (Xử lý `VERIFY_EMAIL_STATUS`).
+- **Bot Engine Services & Controllers (Chỉnh sửa / Tách mới)**:
+  - [bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/bot-path.helper.ts) (Thêm helper resolve đường dẫn backup MS, CQG, ACM).
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) (Rút gọn từ 3.431 dòng xuống 648 dòng; chuyển đổi cơ chế chạy job sang Strategy Handler Registry).
+  - [bot-agent.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-agent.controller.ts) (Tách `AgentController` thành controller riêng biệt cho Agent API).
+  - [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts) (Loại bỏ khối `AgentController` lồng nhau, import từ `bot-agent.controller`).
+  - [bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.module.ts) (Đăng ký providers và exports cho toàn bộ Handlers, Registry và Controller mới).
+- **Reconciliation Parsers (Tách mới)**:
+  - [cqg-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts) (Parser chuyên biệt cho `FR`, `PS`, `OP`, `Od`, `Accounts_Balances`).
+  - [ms-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/parsers/ms-excel.parser.ts) (Parser chuyên biệt cho `DSGD`, `TTM`, `TTTT`).
+  - [straits-csv.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/parsers/straits-csv.parser.ts) (Parser chuyên biệt cho file Straits CSV của cổng Nano ACM).
+  - [index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/parsers/index.ts) (Barrel exports cho các Parsers).
+
+### Tóm tắt nội dung code đã sửa
+1. **Strategy Handler Pattern**: Tách toàn bộ 8 nhóm tác vụ của `bot-job-queue.service.ts` thành các lớp Handler chuyên trách (`IBotJobHandler`). Mỗi handler tự đăng ký vào `BotJobHandlerRegistry` khi module khởi tạo.
+2. **Loại bỏ khối switch-case khổng lồ**: `bot-job-queue.service.ts` chỉ còn đảm nhận vai trò quản lý hàng đợi, worker loop, retry logic, timeout cleanup và cảnh báo thất bại vận hành.
+3. **Phân tách Controller**: Đưa `AgentController` (xác thực bằng API Key và Session Token cho máy trạm RPA) ra file `bot-agent.controller.ts` riêng biệt, giúp `bot-engine.controller.ts` chỉ tập trung vào các API có JwtAuthGuard.
+4. **Phân tách Bộ phân tích cú pháp Đối chiếu (Reconciliation Parsers)**: Tách các hàm parse file Excel và CSV của CQG, M-System, Straits thành các module parser độc lập trong `backend/src/modules/reconciliation/parsers/`.
+5. **Xác nhận Build/Kiểm thử**:
+   - Backend: `nest build` thành công 100% (Exit code 0).
+   - Frontend: `next build` thành công 100% (Exit code 0).
+   - Không can thiệp hoặc sửa đổi dữ liệu thực tế trong Database.
+
 ## [2026-08-26] Nâng Cấp Logic Nhận Diện Giờ Kích Hoạt & SLA Cho Ca Vắt Đêm (isOvernight / Cross-Midnight) Trong Bot Engine
 
 ### Mục tiêu thay đổi

@@ -77,3 +77,34 @@ export function resolveDailySubfolder(
 
   return { subFolder, fullPath };
 }
+
+export async function getMsBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  return settingsService.getSetting(
+    'bot_backup_path_ms',
+    process.env.DEFAULT_BACKUP_PATH_MS ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+  );
+}
+
+export async function getCqgBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  return settingsService.getSetting(
+    'bot_backup_path_cqg',
+    process.env.DEFAULT_BACKUP_PATH_CQG ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+  );
+}
+
+export async function getAcmBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  let acmBackupBase = await settingsService.getSetting(
+    'bot_backup_path_acm',
+    process.env.DEFAULT_BACKUP_PATH_ACM ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\ACM',
+  );
+  if (acmBackupBase.endsWith('\\ACM') || acmBackupBase.endsWith('/ACM')) {
+    // Already ends with ACM
+  } else {
+    acmBackupBase = path.join(acmBackupBase, 'ACM');
+  }
+  return acmBackupBase;
+}
+

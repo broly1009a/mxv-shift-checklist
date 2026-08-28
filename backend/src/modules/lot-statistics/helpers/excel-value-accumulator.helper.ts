@@ -8,6 +8,7 @@ import {
 } from './excel-accumulator.helper';
 
 import { ensureBaseFileExists } from '../../../common/file-guard.helper';
+import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 
 // ─── Commodity Code Mappings matching Sheet1 ranges ─────────────────────────
 
@@ -291,8 +292,15 @@ async function updateValueTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
+    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    if (cloned) {
+      await wb.xlsx.readFile(filePath);
+      ws = wb.getWorksheet(sheetName);
+    }
+  }
+  if (!ws) {
     throw new Error(
-      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Không thể tự động tạo Sheet bằng Python openpyxl.`,
     );
   }
 
@@ -361,8 +369,15 @@ export async function updateValueTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
+    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    if (cloned) {
+      await wb.xlsx.readFile(filePath);
+      ws = wb.getWorksheet(sheetName);
+    }
+  }
+  if (!ws) {
     throw new Error(
-      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Không thể tự động tạo Sheet bằng Python openpyxl.`,
     );
   }
 

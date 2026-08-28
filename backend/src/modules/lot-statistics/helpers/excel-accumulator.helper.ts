@@ -16,6 +16,7 @@ import {
   assertSafeWritePath,
   ensureBaseFileExists,
 } from '../../../common/file-guard.helper';
+import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 export interface AccumulatorPaths {
   pathDsgdCumulative: string; // DSGD T[MM].[YYYY].xlsx
   pathNormal: string; // Thong ke so lot giao dich 2026 2.xlsx
@@ -346,8 +347,15 @@ async function updateTvkdTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
+    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    if (cloned) {
+      await wb.xlsx.readFile(filePath);
+      ws = wb.getWorksheet(sheetName);
+    }
+  }
+  if (!ws) {
     throw new Error(
-      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Không thể tự động tạo Sheet bằng Python openpyxl.`,
     );
   }
 
@@ -420,8 +428,15 @@ async function updateAcmTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
+    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    if (cloned) {
+      await wb.xlsx.readFile(filePath);
+      ws = wb.getWorksheet(sheetName);
+    }
+  }
+  if (!ws) {
     throw new Error(
-      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Không thể tự động tạo Sheet bằng Python openpyxl.`,
     );
   }
 
@@ -494,8 +509,15 @@ async function updateNormalTrackerFile(
   const sheetName = getSheetName(path.basename(filePath), result.ngayGD);
   let ws = wb.getWorksheet(sheetName);
   if (!ws) {
+    const cloned = ensureMonthSheetExists(filePath, sheetName);
+    if (cloned) {
+      await wb.xlsx.readFile(filePath);
+      ws = wb.getWorksheet(sheetName);
+    }
+  }
+  if (!ws) {
     throw new Error(
-      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Vui lòng tạo/copy Sheet "${sheetName}" trong tệp Excel trước khi chạy dữ liệu tháng này.`,
+      `File "${path.basename(filePath)}" chưa có Sheet "${sheetName}". Không thể tự động tạo Sheet bằng Python openpyxl.`,
     );
   }
 
