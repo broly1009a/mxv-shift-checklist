@@ -2,6 +2,29 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-08-28] Triển Khai Cơ Chế Atomic Safe Save & Cell/Metadata Sanitizer Chống Lỗi Truncate 0 Bytes và Invalid Time Value
+
+### Mục tiêu thay đổi
+- Giải quyết triệt để vấn đề file Excel trên ổ đĩa mạng CIFS (`/mnt/qlgd-it/`) bị biến thành 0 KB khi luồng ghi ExcelJS/openpyxl bị ngắt giữa chừng.
+- Loại bỏ hoàn toàn lỗi `RangeError: Invalid time value` bằng cách bổ sung cơ chế khử các ô `Invalid Date` và làm sạch Metadata properties (`created`, `modified`, `lastPrinted`) trước khi ExcelJS thực hiện serialize sang định dạng OpenXML (.xlsx).
+- Xử lý tương thích 100% giữa Python `openpyxl` và Node.js `exceljs` bằng cách dọn dẹp các quan hệ `comments` / `vmlDrawing` bị lỗi thời trong file nén ZIP.
+
+### Danh sách file chỉnh sửa & tạo mới
+- **Safe Writer Helper (Tạo mới)**:
+  - [excel-safe-writer.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-safe-writer.helper.ts): Hàm `safeWriteExcel` thực thi cơ chế Atomic Write: lưu vào `/tmp/` cục bộ $\rightarrow$ Kiểm tra kích thước file hợp lệ ($>1.000$ bytes) $\rightarrow$ Copy an toàn vào ổ mạng CIFS $\rightarrow$ Tự động dọn dẹp file tạm. Hàm `sanitizeWorkbook` tự động chuyển các ô Date không hợp lệ (`isNaN`) về `null` và chữa lành các trường metadata properties (`created`, `modified`, `lastPrinted`).
+- **Python Cloner (Cập nhật)**:
+  - [excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py): Áp dụng lưu qua `tempfile` và `shutil.copyfile` tương tự, chống hiện tượng `wb.save` trực tiếp làm truncate file về 0 bytes trên mount CIFS; bổ sung bước hậu xử lý `zipfile` loại bỏ quan hệ comment bị vỡ của ExcelJS.
+- **Tích hợp vào Accumulators & Services**:
+  - [excel-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-parser.helper.ts): Bọc kiểm tra `!isNaN(val.getTime())` trong hàm `toStr` và `toDate`.
+  - [excel-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-accumulator.helper.ts): Thay thế toàn bộ `wb.xlsx.writeFile` bằng `safeWriteExcel`.
+  - [excel-value-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-value-accumulator.helper.ts): Thay thế toàn bộ `wb.xlsx.writeFile` bằng `safeWriteExcel`.
+  - [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/value-statistics.service.ts): Sử dụng `safeWriteExcel` khi xuất bản tin.
+
+### Xác nhận Build & Vận Hành Thực Tế
+- Backend `nest build` thành công 100% (Exit code 0).
+- Chạy bộ kiểm thử giả lập trên 11 file thực tế đạt 100% PASS.
+- **Xác nhận từ USER**: Bot đã chạy thực tế trên Server Ubuntu thành công trơn tru, tự động sinh Sheet mới và ghi nhận đầy đủ số liệu cho cả 2 tác vụ Thống kê Số Lot và Thống kê Giá trị Giao dịch mà không có bất kỳ lỗi 0 bytes hay `Invalid time value` nào.
+
 ## [2026-08-28] Tích Hợp Cơ Chế Tự Động Sinh Sheet Tháng Mới Âm Thầm Bằng Python openpyxl Trên Ubuntu & Windows
 
 ### Mục tiêu thay đổi
@@ -20,14 +43,16 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 ### Tóm tắt nội dung code đã sửa
 1. **Zero Human Intervention**: Khi đến ngày đầu tháng mới, Bot tự sinh Sheet mới âm thầm và tiếp tục ghi dữ liệu bình thường, loại bỏ hoàn toàn thông báo lỗi "vui lòng tạo/copy Sheet thủ công".
 2. **Bảo tồn 100% Công thức**: `openpyxl.copy_worksheet` sao chép trực tiếp cấu trúc XML, bảo toàn tuyệt đối các công thức phức tạp của Excel.
-3. **Mô hình Dual-Tier Logging**:
+3. **Chuẩn Hóa Đóng Gói Asset & Đường Dẫn (`nest-cli.json` & `excel-sheet-cloner.helper.ts`)**:
+   - Cấu hình chuẩn `assets: [{ include: "modules/lot-statistics/scripts/**/*", outDir: "dist" }]` trong `nest-cli.json`.
+   - Rút gọn đường dẫn trong `excel-sheet-cloner.helper.ts` về đúng 1 dòng tương đối duy nhất: `path.resolve(__dirname, '../scripts/excel_sheet_cloner.py')`, loại bỏ hoàn toàn các mảng fallback tạm bợ.
+4. **Mô hình Dual-Tier Logging**:
    - **Tầng 1 (Database `job.logs`)**: Ghi tóm tắt trạng thái tiến trình và thời gian thực thi (ms) để hiển thị Realtime trên Web UI và Modal ca trực.
    - **Tầng 2 (Server Console & PM2 Logs)**: Ghi log chi tiết kỹ thuật (stdout/stderr) qua `NestJS Logger` phục vụ bảo trì hệ thống trên Ubuntu.
-4. **Chuẩn Hóa Xuất Bản Tin Hàng Ngày (`generateNewsletterFile`)**:
-   - Loại bỏ hoàn toàn cơ chế nhúng template giả định; Bot nạp trực tiếp file mẫu `.xlsx` chính thức của MXV trong thư mục `Gửi team bản tin` / `Gui team ban tin`.
-   - Bổ sung tài liệu ghi chú (comment) chi tiết về kiến trúc CIFS Mount giữa Ubuntu và Windows, cơ chế Smart Directory Resolver và bảo toàn công thức 100%.
+5. **Chuẩn Hóa Xuất Bản Tin Hàng Ngày (`generateNewsletterFile`)**:
+   - Nạp trực tiếp file mẫu `.xlsx` chính thức của MXV trong thư mục `Gửi team bản tin` / `Gui team ban tin`.
    - Chuẩn hóa tên file đầu ra (`Gia tri giao dich phien DD.MM.YYYY.xlsx`) tương thích 100% trên cả Ubuntu và Windows.
-5. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
+6. **Xác nhận Build/Kiểm thử**: Backend `nest build` thành công 100% (Exit code 0); 2 bộ test `test-refactor-integrity.ts` (9/9) và `test-handlers-simulation.ts` (21/21) đều PASS 100%.
 
 
 ## [2026-08-27] Tái Cấu Trúc Kiến Trúc Bot Engine (Strategy Handler Pattern) & Phân Tách Reconciliation Parsers
