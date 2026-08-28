@@ -21,7 +21,8 @@ export function ensureMonthSheetExists(
     return false;
   }
 
-  const scriptPath = path.join(
+  // Cấu trúc thư mục song song 1:1 chuẩn giữa helpers/ và scripts/
+  const scriptPath = path.resolve(
     __dirname,
     '..',
     'scripts',

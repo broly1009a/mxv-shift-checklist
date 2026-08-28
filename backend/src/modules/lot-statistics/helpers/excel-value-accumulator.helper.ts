@@ -6,6 +6,7 @@ import {
   getSheetName,
   ensureDirExists,
 } from './excel-accumulator.helper';
+import { safeWriteExcel } from './excel-safe-writer.helper';
 
 import { ensureBaseFileExists } from '../../../common/file-guard.helper';
 import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
@@ -140,12 +141,13 @@ export interface ValueAccumulatorPaths {
  * Value statistics specific target row finder.
  * Assumes Date is in Column A (1) and there is no STT column.
  */
-function getNextWorkday(d: Date): Date {
+function getNextWorkday(d: Date): Date | null {
+  if (!d || isNaN(d.getTime())) return null;
   const next = new Date(d);
   do {
     next.setDate(next.getDate() + 1);
   } while (next.getDay() === 0 || next.getDay() === 6);
-  return next;
+  return isNaN(next.getTime()) ? null : next;
 }
 
 export function findOrCreateValueTargetRow(
@@ -171,15 +173,31 @@ export function findOrCreateValueTargetRow(
 
     let rowDateVal: any = dateCellVal;
     if (dateCellVal instanceof Date) {
-      currentCalculatedDate = new Date(dateCellVal);
-    } else if (typeof dateCellVal === 'object' && dateCellVal !== null && (dateCellVal as any).result) {
+      if (!isNaN(dateCellVal.getTime())) {
+        currentCalculatedDate = new Date(dateCellVal);
+      }
+    } else if (
+      typeof dateCellVal === 'object' &&
+      dateCellVal !== null &&
+      (dateCellVal as any).result
+    ) {
       const res = (dateCellVal as any).result;
-      if (res instanceof Date || !isNaN(new Date(res).getTime())) {
+      if (res instanceof Date && !isNaN(res.getTime())) {
         currentCalculatedDate = new Date(res);
+      } else if (typeof res === 'number') {
+        const epoch = new Date(1899, 11, 30);
+        const parsed = new Date(epoch.getTime() + res * 86400000);
+        if (!isNaN(parsed.getTime())) currentCalculatedDate = parsed;
+      } else if (typeof res === 'string') {
+        const parsed = new Date(res);
+        if (!isNaN(parsed.getTime())) currentCalculatedDate = parsed;
       }
     } else if (currentCalculatedDate) {
-      currentCalculatedDate = getNextWorkday(currentCalculatedDate);
-      rowDateVal = currentCalculatedDate;
+      const next = getNextWorkday(currentCalculatedDate);
+      if (next) {
+        currentCalculatedDate = next;
+        rowDateVal = currentCalculatedDate;
+      }
     }
 
     if (isSameDate(rowDateVal, ngayGD)) {
@@ -324,7 +342,7 @@ async function updateValueTrackerFile(
     fixSharedFormulas(sheet);
   }
 
-  await wb.xlsx.writeFile(filePath);
+  await safeWriteExcel(wb, filePath);
 }
 
 /**
@@ -488,7 +506,7 @@ export async function updateValueTvkdTrackerFile(
     fixSharedFormulas(sheet);
   }
 
-  await wb.xlsx.writeFile(filePath);
+  await safeWriteExcel(wb, filePath);
 }
 
 /**

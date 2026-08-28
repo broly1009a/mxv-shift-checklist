@@ -122,7 +122,9 @@ export function toStr(
   val: string | number | boolean | Date | null | undefined,
 ): string {
   if (val === null || val === undefined) return '';
-  if (val instanceof Date) return val.toISOString();
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? '' : val.toISOString();
+  }
   return String(val).trim();
 }
 
@@ -146,7 +148,8 @@ export function parseDateDMY(val: string): Date | null {
   const ms = match[7]
     ? parseInt(match[7].substring(0, 3).padEnd(3, '0'), 10)
     : 0;
-  return new Date(year, month, day, hour, min, sec, ms);
+  const d = new Date(year, month, day, hour, min, sec, ms);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
@@ -156,15 +159,18 @@ export function toDate(
   val: string | number | boolean | Date | null | undefined,
 ): Date | null {
   if (!val) return null;
-  if (val instanceof Date) return val;
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : val;
+  }
   if (typeof val === 'number') {
     // Excel date serial: 1 = Jan 1, 1900
     const epoch = new Date(1899, 11, 30);
-    return new Date(epoch.getTime() + val * 86400000);
+    const d = new Date(epoch.getTime() + val * 86400000);
+    return isNaN(d.getTime()) ? null : d;
   }
   const strVal = String(val);
   const dmy = parseDateDMY(strVal);
-  if (dmy) return dmy;
+  if (dmy && !isNaN(dmy.getTime())) return dmy;
 
   const d = new Date(strVal);
   return isNaN(d.getTime()) ? null : d;

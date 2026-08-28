@@ -72,6 +72,17 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         new_sheet = wb.copy_worksheet(source_sheet)
         new_sheet.title = target_sheet_name
 
+        # Dọn dẹp cell comments của sheet mới để tránh lỗi broken relationship 'comments' khi ExcelJS đọc lại
+        try:
+            for row in new_sheet.iter_rows():
+                for cell in row:
+                    if cell.comment:
+                        cell.comment = None
+            if hasattr(new_sheet, '_comments'):
+                new_sheet._comments = []
+        except Exception:
+            pass
+
         # 5. Cập nhật tiêu đề hiển thị tháng mới trong ô A1 (nếu có chuỗi tháng cũ)
         cell_a1 = new_sheet.cell(row=1, column=1)
         if cell_a1.value and isinstance(cell_a1.value, str):
@@ -128,11 +139,71 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
                         if not val_str.startswith('='):
                             cell.value = None
 
-        # 8. Lưu lại file hoàn chỉnh
-        print(f"[INFO] Dang luu file...")
-        wb.save(excel_path)
-        print(f"[SUCCESS] Da tu dong sinh Sheet moi '{target_sheet_name}' thanh cong 100%!")
-        return True
+        # 8. Lưu lại file hoàn chỉnh an toàn (Atomic Safe Save qua local temp file)
+        print(f"[INFO] Dang luu file an toan qua atomic temp...")
+        import tempfile
+        import shutil
+        import zipfile
+
+        temp_dir = tempfile.gettempdir()
+        temp_file = os.path.join(
+            temp_dir, f"clone_{os.getpid()}_{os.path.basename(excel_path)}"
+        )
+        wb.save(temp_file)
+
+        # 9. Chuẩn hóa zip archive để ExcelJS đọc 100% không bao giờ lỗi 'comments' relationship
+        temp_fixed = temp_file + ".fixed.zip"
+        try:
+            with zipfile.ZipFile(temp_file, 'r') as zin, zipfile.ZipFile(temp_fixed, 'w', compression=zipfile.ZIP_DEFLATED) as zout:
+                for item in zin.infolist():
+                    # Bỏ qua các file comments và vml drawing riêng lẻ
+                    if 'comments' in item.filename.lower() or 'vmldrawing' in item.filename.lower() or 'commentsdrawing' in item.filename.lower():
+                        continue
+
+                    content = zin.read(item.filename)
+                    # Nếu là sheet rels, xóa các node liên kết comments / vmlDrawing
+                    if item.filename.startswith('xl/worksheets/_rels/sheet') and item.filename.endswith('.xml.rels'):
+                        try:
+                            text = content.decode('utf-8')
+                            text = re.sub(r'<Relationship[^>]*Type="[^"]*(?:comments|vmlDrawing)"[^>]*/>', '', text)
+                            zout.writestr(item, text.encode('utf-8'))
+                            continue
+                        except Exception:
+                            pass
+                    # Nếu là sheet xml, xóa thẻ legacyDrawing
+                    elif item.filename.startswith('xl/worksheets/sheet') and item.filename.endswith('.xml'):
+                        try:
+                            text = content.decode('utf-8')
+                            text = re.sub(r'<legacyDrawing[^>]*/>', '', text)
+                            zout.writestr(item, text.encode('utf-8'))
+                            continue
+                        except Exception:
+                            pass
+
+                    zout.writestr(item, content)
+
+            if os.path.exists(temp_fixed) and os.path.getsize(temp_fixed) > 1000:
+                shutil.copyfile(temp_fixed, temp_file)
+                try:
+                    os.remove(temp_fixed)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[WARN] Khong the postprocess comments relationship: {e}", file=sys.stderr)
+
+        # Kiểm tra tính toàn vẹn của file trước khi ghi đè vào ổ đĩa mạng CIFS
+        if os.path.exists(temp_file) and os.path.getsize(temp_file) > 1000:
+            shutil.copyfile(temp_file, excel_path)
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass
+            print(
+                f"[SUCCESS] Da tu dong sinh Sheet moi '{target_sheet_name}' thanh cong 100%!"
+            )
+            return True
+        else:
+            raise Exception("File temp sinh ra bi rong hoac loi kich thuoc.")
 
     except Exception as e:
         print(f"[ERROR] Loi khi nhan ban Sheet: {str(e)}", file=sys.stderr)

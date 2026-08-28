@@ -17,6 +17,7 @@ import {
   ensureBaseFileExists,
 } from '../../../common/file-guard.helper';
 import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
+import { safeWriteExcel } from './excel-safe-writer.helper';
 export interface AccumulatorPaths {
   pathDsgdCumulative: string; // DSGD T[MM].[YYYY].xlsx
   pathNormal: string; // Thong ke so lot giao dich 2026 2.xlsx
@@ -30,17 +31,26 @@ export interface AccumulatorPaths {
  * Robust date comparison matcher
  */
 export function isSameDate(cellVal: any, targetDate: Date): boolean {
-  if (cellVal === null || cellVal === undefined) return false;
+  if (cellVal === null || cellVal === undefined || !targetDate) return false;
+  const targetDateObj =
+    targetDate instanceof Date ? targetDate : new Date(targetDate);
+  if (isNaN(targetDateObj.getTime())) return false;
+
   let d: Date | null = null;
 
   if (cellVal instanceof Date) {
-    d = cellVal;
+    if (!isNaN(cellVal.getTime())) d = cellVal;
   } else if (typeof cellVal === 'number') {
     const epoch = new Date(1899, 11, 30);
-    d = new Date(epoch.getTime() + cellVal * 86400000);
+    const parsed = new Date(epoch.getTime() + cellVal * 86400000);
+    if (!isNaN(parsed.getTime())) d = parsed;
   } else if (typeof cellVal === 'object' && cellVal !== null) {
-    if ('result' in cellVal && cellVal.result !== undefined && cellVal.result !== null) {
-      return isSameDate(cellVal.result, targetDate);
+    if (
+      'result' in cellVal &&
+      cellVal.result !== undefined &&
+      cellVal.result !== null
+    ) {
+      return isSameDate(cellVal.result, targetDateObj);
     }
   } else {
     const str = String(cellVal).trim();
@@ -50,7 +60,8 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
       const month = parseInt(match[2], 10) - 1;
       let year = parseInt(match[3], 10);
       if (year < 100) year += 2000;
-      d = new Date(year, month, day);
+      const parsed = new Date(year, month, day);
+      if (!isNaN(parsed.getTime())) d = parsed;
     } else {
       const parsed = new Date(str);
       if (!isNaN(parsed.getTime())) {
@@ -66,28 +77,29 @@ export function isSameDate(cellVal: any, targetDate: Date): boolean {
   const formatUtcYMD = (date: Date) =>
     `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 
-  const tLocal = formatYMD(targetDate);
-  const tUtc = formatUtcYMD(targetDate);
+  const tLocal = formatYMD(targetDateObj);
+  const tUtc = formatUtcYMD(targetDateObj);
   const dLocal = formatYMD(d);
   const dUtc = formatUtcYMD(d);
 
   return (
     dLocal === tLocal ||
-    dUtc === tUtc ||
     dLocal === tUtc ||
-    dUtc === tLocal
+    dUtc === tLocal ||
+    dUtc === tUtc
   );
 }
 
 /**
  * Helper to find or create target row index by scanning until "Tổng" or matching date
  */
-function getNextWorkday(d: Date): Date {
+function getNextWorkday(d: Date): Date | null {
+  if (!d || isNaN(d.getTime())) return null;
   const next = new Date(d);
   do {
     next.setDate(next.getDate() + 1);
   } while (next.getDay() === 0 || next.getDay() === 6);
-  return next;
+  return isNaN(next.getTime()) ? null : next;
 }
 
 export function findOrCreateTargetRow(
@@ -118,15 +130,31 @@ export function findOrCreateTargetRow(
 
     let rowDateVal: any = dateCellVal;
     if (dateCellVal instanceof Date) {
-      currentCalculatedDate = new Date(dateCellVal);
-    } else if (typeof dateCellVal === 'object' && dateCellVal !== null && (dateCellVal as any).result) {
+      if (!isNaN(dateCellVal.getTime())) {
+        currentCalculatedDate = new Date(dateCellVal);
+      }
+    } else if (
+      typeof dateCellVal === 'object' &&
+      dateCellVal !== null &&
+      (dateCellVal as any).result
+    ) {
       const res = (dateCellVal as any).result;
-      if (res instanceof Date || !isNaN(new Date(res).getTime())) {
+      if (res instanceof Date && !isNaN(res.getTime())) {
         currentCalculatedDate = new Date(res);
+      } else if (typeof res === 'number') {
+        const epoch = new Date(1899, 11, 30);
+        const parsed = new Date(epoch.getTime() + res * 86400000);
+        if (!isNaN(parsed.getTime())) currentCalculatedDate = parsed;
+      } else if (typeof res === 'string') {
+        const parsed = new Date(res);
+        if (!isNaN(parsed.getTime())) currentCalculatedDate = parsed;
       }
     } else if (currentCalculatedDate) {
-      currentCalculatedDate = getNextWorkday(currentCalculatedDate);
-      rowDateVal = currentCalculatedDate;
+      const next = getNextWorkday(currentCalculatedDate);
+      if (next) {
+        currentCalculatedDate = next;
+        rowDateVal = currentCalculatedDate;
+      }
     }
 
     if (isSameDate(rowDateVal, ngayGD)) {
@@ -322,7 +350,7 @@ export async function appendRawDsgd(
     currentGenRow++;
   }
 
-  await targetWb.xlsx.writeFile(targetFilePath);
+  await safeWriteExcel(targetWb, targetFilePath);
 }
 
 /**
@@ -403,7 +431,7 @@ async function updateTvkdTrackerFile(
     ws.getCell(targetRowIndex, col).value = sumLot;
   }
 
-  await wb.xlsx.writeFile(filePath);
+  await safeWriteExcel(wb, filePath);
 }
 
 /**
@@ -486,7 +514,7 @@ async function updateAcmTrackerFile(
     ws.getCell(targetRowIndex, col).value = sumLot;
   }
 
-  await wb.xlsx.writeFile(filePath);
+  await safeWriteExcel(wb, filePath);
 }
 
 /**
@@ -676,7 +704,7 @@ async function updateNormalTrackerFile(
   // 1. Futures Lot (Only compare and highlight MS Futures Lot vs CQG Futures Lot)
   compareAndHighlight(3, 17, s.dsgdProduct || 0, s.frProduct || 0);
 
-  await wb.xlsx.writeFile(filePath);
+  await safeWriteExcel(wb, filePath);
 }
 
 /**

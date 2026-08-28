@@ -18,6 +18,7 @@ import {
   assertSafeWritePath,
   ensureBaseFileExists,
 } from '../../common/file-guard.helper';
+import { safeWriteExcel } from './helpers/excel-safe-writer.helper';
 
 export function getMaHHFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4'] ?? '');
@@ -662,7 +663,7 @@ export class ValueStatisticsService {
     if (targetRoot) {
       assertSafeWritePath(targetPath, targetRoot);
     }
-    await wb.xlsx.writeFile(targetPath);
+    await safeWriteExcel(wb, targetPath);
     const successMsg = `[Bản Tin] ✅ Đã xuất thành công báo cáo bản tin: ${targetFileName}`;
     this.logger.log(successMsg);
     jobLogs?.push(successMsg);
@@ -681,7 +682,7 @@ export class ValueStatisticsService {
       if (targetRoot) {
         assertSafeWritePath(targetPath2, targetRoot);
       }
-      await wb.xlsx.writeFile(targetPath2);
+      await safeWriteExcel(wb, targetPath2);
       this.logger.log(`[MarketValue] ✅ Đã lưu bản sao MarketValue: GTGD_${year}${monthStr}${dayStr}.xlsx`);
     } catch (e: any) {
       this.logger.warn(`Không thể lưu bản sao MarketValue: ${e.message}`);
