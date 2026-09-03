@@ -26,6 +26,7 @@ import { MarginCheckerModule } from './modules/margin-checker/margin-checker.mod
 import { CcpStatisticsModule } from './modules/ccp-statistics/ccp-statistics.module';
 import { TradingReportModule } from './modules/trading-report/trading-report.module';
 import { LotStatisticsModule } from './modules/lot-statistics/lot-statistics.module';
+import { TkgdAutomationModule } from './modules/tkgd-automation/tkgd-automation.module';
 
 @Module({
   imports: [
@@ -53,7 +54,9 @@ import { LotStatisticsModule } from './modules/lot-statistics/lot-statistics.mod
     CcpStatisticsModule,
     TradingReportModule,
     LotStatisticsModule,
+    TkgdAutomationModule,
   ],
+
   controllers: [AppController],
   providers: [
     AppService,

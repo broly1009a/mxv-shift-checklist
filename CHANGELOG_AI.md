@@ -2,6 +2,233 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-03] Chuẩn Hóa 4 Phân Hệ Tài Khoản (Futures, ACM, LME, Spread), Chống Duplicate Thông Minh & Giao Diện Dashboard
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa toàn bộ hệ thống xử lý hồ sơ mở TKGD theo đúng 4 phân hệ tài khoản thực tế của Sở Giao dịch Hàng hóa Việt Nam (MXV):
+  1. **FUTURES**: Không có hậu tố (Ví dụ: `003C2333888`).
+  2. **ACM (Nano)**: Hậu tố `-A` (Ví dụ: `003C2333888-A`, `001C0008386-A`).
+  3. **LME (Kim loại)**: Hậu tố `-L` (Ví dụ: `003C2333888-L`).
+  4. **SPREAD (Chênh lệch)**: Hậu tố `-S` (Ví dụ: `003C2333888-S`).
+- Định danh độc lập từng tiểu khoản bằng mã đầy đủ (`maTKGD`) để một khách hàng có thể mở nhiều tiểu khoản mà không bị ghi đè hoặc nhầm lẫn.
+- Tích hợp cơ chế **Smart Skip** trong bot cào M-System: Tự động bỏ qua các tài khoản đã KHỚP 100% để tránh chạy lặp lại và duplicate (hỗ trợ cờ `--force` để ép cào lại khi cần).
+- Khắc phục triệt để lỗi "bên thừa bên thiếu lộn xộn trong file Excel":
+  1. Thay thế hàm `spliceRows` cũ bằng thuật toán xóa ngược từ dưới lên (`for r = count; r >= 2; r--`) để dọn sạch 100% dòng dữ liệu mẫu cũ từ file template gốc `.xlsm`.
+  2. Bổ sung `writtenCccdSet`, `writtenHopDongSet`, `writtenPhulucSet` để đảm bảo:
+     - Sheet `Cancuoc`: Mỗi khách hàng chỉ có duy nhất 1 dòng (không bị nhân đôi khi khách hàng mở thêm tiểu khoản).
+     - Sheet `HopDong`: Chỉ ghi hồ sơ có Hợp đồng mở TK (Futures).
+     - Sheet `Phuluc`: Chỉ ghi hồ sơ mở tiểu khoản (ACM, LME, Spread).
+     - Sheet `NoiDungMail`: Thêm tiêu đề cột D1 "Kết quả", hiển thị đúng 3 dòng tương ứng với các mã tài khoản.
+
+- Nâng cấp giao diện Web Dashboard (`/admin/tkgd-dashboard`): Bổ sung các tab lọc và hiển thị Badge màu sắc cho cả 4 phân hệ (`Futures`, `ACM`, `LME`, `Spread`) kèm cột số lượng bản ghi Snapshot lịch sử.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [test_tkgd_end_to_end.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_end_to_end.ts) (Script kiểm thử toàn trình End-to-End đối soát 4 phân hệ sàn, kiểm tra snapshot và xuất Excel).
+- [clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts) (Bổ sung `maTKGD`, `maTKGDBase`, `accountType`, mở rộng `noiDungMail`).
+- [tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts) (Nhận diện regex cả 4 loại tài khoản, bổ sung `detectAccountType`, `extractBaseAccountCode`, `classifyAttachmentType`).
+- [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts) (Deduplicate trước khi xuất Excel, đối soát theo `targetAccountCode`).
+- [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) (Hỗ trợ lọc theo `accountType` trong `getRecords`).
+- [test_tkgd_module2_ms_scrape.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module2_ms_scrape.ts) (Cập nhật Smart Skip, cờ `--force`, chụp snapshot và hiển thị loại sàn).
+- [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx) (Thêm các nút lọc phân hệ, badge màu sắc và cột Snapshot).
+
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) chạy thành công 100% (exit code 0).
+- **Frontend**: `npm run build` (Next.js 16 Turbopack) chạy thành công 100% (exit code 0, 24 static pages generated).
+
+---
+
+## [2026-09-03] Bổ Sung Cơ Chế Tự Động Chụp Snapshot Bản Ghi Cũ Trước Khi Ghi Đè (Audit Trail & History)
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Mỗi khi hệ thống cập nhật hoặc ghi đè thông tin M-System / Đối soát vào một bản ghi, hệ thống phải tự động lưu lại Snapshot toàn bộ dữ liệu trước đó để phục vụ tra soát lịch sử (Audit Trail).
+- Bổ sung schema `RecordSnapshotSubDoc` và mảng `snapshots: RecordSnapshotSubDoc[]` vào `CleanAccountRecordSchema` trong file `clean-account-record.schema.ts`.
+- Tích hợp logic tự động chụp Snapshot trong `test_tkgd_module2_ms_scrape.ts` và `run_tkgd_pipeline.ts`: Lưu lại `{ snapshotAt, action: 'PRE_MS_UPDATE', previousData: { ms, ketLuan } }` trước khi cập nhật dữ liệu mới từ M-System.
+
+### Danh sách file chỉnh sửa
+- [clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts) (Thêm `RecordSnapshotSubDoc` và trường `snapshots`).
+- [test_tkgd_module2_ms_scrape.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module2_ms_scrape.ts) (Thêm logic chụp snapshot trước khi lưu).
+- [run_tkgd_pipeline.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run_tkgd_pipeline.ts) (Thêm logic chụp snapshot trước khi lưu).
+
+### Xác nhận Build
+- **Backend**: `npm run build` (`nest build`) chạy thành công 100% (exit code 0).
+
+---
+
+## [2026-09-03] Sửa Lỗi Gán Cứng Mã TKGD Khi Cào M-System - Đảm Bảo Lấy Đúng Mã Từ Email Để Cào URL
+
+
+### Mục tiêu thay đổi
+- Khắc phục vấn đề do USER phản hồi: Khi chạy test Module 2 có truyền cờ `--code 001C0008386-A`, vòng lặp đã gán mã `001C0008386-A` cho tất cả các bản ghi trong DB (dẫn tới hồ sơ của Ngô Đức Hải và Nguyễn Anh Khoa bị gán sai sang Đỗ Thị Chi Lê).
+- Sửa lại logic chuẩn: Mỗi hồ sơ phải **lấy chính xác mã TKGD bóc tách từ email của hồ sơ đó** (`record.noiDungMail.maTKGD_Futures`), rồi đưa vào URL chi tiết M-System (`https://msadmin.mxv.com.vn/#/clientManagement/investorManagement/{code}`) để cào và đối soát tương ứng.
+- Nếu truyền cờ `--code X`: Chỉ cào và cập nhật duy nhất bản ghi có mã tương ứng `X`.
+
+### Danh sách file chỉnh sửa
+- [test_tkgd_module2_ms_scrape.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module2_ms_scrape.ts) (Lấy đúng `code = record.noiDungMail?.maTKGD_Futures` của từng record khi cào M-System).
+
+---
+
+## [2026-09-03] Triển Khai Trang Cấu Hình Riêng (TTBT), Dashboard Đối Soát TKGD & Backend Module TkgdAutomation
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Xây dựng hệ thống hoàn chỉnh phục vụ bộ phận **Thanh toán bù trừ (TTBT)** tự cấu hình tài khoản M-System cá nhân, hộp thư Outlook `clearing.acc@mxv.vn` và đường dẫn lưu trữ mạng.
+- Tạo Collection Mongoose mới `tkgd_user_configs` (mã hóa mật khẩu và mã PIN bằng chuẩn **AES-256-CBC**).
+- Tạo Module NestJS `TkgdAutomationModule` gồm Controller & Service cung cấp các API cấu hình, test kết nối M-System trực tiếp, lấy danh sách hồ sơ đối soát và kích hoạt chạy đối soát chéo.
+- Xây dựng 2 trang Giao diện Web UI hiện đại trên Next.js:
+  1. `/admin/tkgd-config`: Trang Cấu hình riêng biệt All-in-One cho phòng TTBT (quản lý User/Pass/PIN M-System, Outlook, ổ đĩa mạng `M:\`).
+  2. `/admin/tkgd-dashboard`: Trang Dashboard Giám sát & Đối soát trực quan (bảng dữ liệu, nút bấm 1-Click "Chạy Đối Soát", bộ lọc Khớp/Lệch).
+- Bổ sung 2 mục menu điều hướng vào `Sidebar.tsx`.
+
+### Danh sách file tạo mới & chỉnh sửa
+- [HUONG_DAN_TACH_STANDALONE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/HUONG_DAN_TACH_STANDALONE.md) (Tài liệu chi tiết hướng dẫn đóng gói và tách dự án độc lập cho phòng TTBT).
+- [tkgd-user-config.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/tkgd-user-config.schema.ts) (Schema collection `tkgd_user_configs`).
+- [tkgd-automation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.module.ts) (NestJS Module).
+- [tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts) (NestJS Controller).
+- [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) (NestJS Service).
+- [app.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/app.module.ts) (Đăng ký `TkgdAutomationModule`).
+- [frontend/src/app/admin/tkgd-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-config/page.tsx) (Giao diện Cấu hình All-in-One TTBT).
+- [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx) (Giao diện Dashboard Giám sát & Đối soát).
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx) (Thêm menu Đối soát mở TKGD và Cấu hình TKGD).
+- [frontend/src/context/AuthContext.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/context/AuthContext.tsx) (Bổ sung trường `email?: string` vào User interface).
+
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) chạy thành công 100% (exit code 0).
+- **Frontend**: `npm run build` (Next.js 16 Turbopack) chạy thành công 100% (exit code 0, biên dịch và sinh thành công cả 2 route `/admin/tkgd-config` và `/admin/tkgd-dashboard`).
+
+---
+
+## [2026-09-03] Tích Hợp Đồng Bộ Đường Dẫn /mnt/qlgd-it (Linux) Và Ổ M:\ (Windows) Cho File Excel Đối Soát TKGD
+
+
+### Mục tiêu thay đổi
+- Thực hiện định hướng kiến trúc của USER: Tận dụng cơ chế đồng bộ mạng của hệ sinh thái MXV Shift Checklist.
+- Tự động nhận diện môi trường chạy (OS Auto-Detect):
+  - **Trên Server Linux (Production/PM2)**: Tự động lưu file Excel đối soát vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD`.
+  - **Trên máy trạm Windows của Ca trực**: Nhận diện ổ đĩa mạng mount `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD` (hoặc `M:\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD`).
+  - **Khi test độc lập**: Fallback an toàn vào thư mục project `POC/TKGD-Automation/output/`.
+- Tự động tìm nạp file template `Auto Data mail.xlsm` từ ổ mạng hoặc từ thư mục template gốc.
+
+### Danh sách file chỉnh sửa
+- [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts) (Thêm các hàm `getTkgdOutputDirectory()` và `findTkgdTemplatePath()`, chuẩn hóa tên file theo ngày `Auto_Data_mail_YYYYMMDD.xlsx`).
+
+---
+
+## [2026-09-03] Xây Dựng Script Kiểm Tra Token Outlook & Quét Email Microsoft 365 Graph API
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Kiểm tra token Microsoft 365 Outlook lưu trong Database (`SystemSetting`) có đọc và lấy được danh sách email trực tiếp từ hộp thư thật hay không.
+- Tạo script độc lập [`test_outlook_fetch_tkgd_mails.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_outlook_fetch_tkgd_mails.ts) để đọc `m365_refresh_token` từ MongoDB Atlas, đổi lấy `access_token` từ Microsoft Identity Platform, và gọi Microsoft Graph API lấy danh sách email gần nhất kèm file đính kèm liên quan đến mở TKGD.
+
+### Danh sách file tạo mới
+- [test_outlook_fetch_tkgd_mails.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_outlook_fetch_tkgd_mails.ts) (Script kiểm tra kết nối Graph API và quét thư).
+
+---
+
+## [2026-09-03] Hoàn Thành Module 3: Đối Soát Chéo & Xuất File Excel Chuẩn Template Auto Data mail.xlsm & Xây Dựng Pipeline Runner
+
+
+### Mục tiêu thay đổi
+- Hoàn thành toàn bộ quy trình tự động hóa Giai đoạn 1 theo chỉ đạo của USER:
+  1. **Module 3 (Đối soát chéo & Xuất Excel)**: Đọc template gốc [`Auto Data mail.xlsm`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/inputs/excel-templates/Auto%20Data%20mail.xlsm), thực hiện so khớp chéo (Reconciliation) giữa khối Mail và khối M-System (`Tên tài khoản` vs `Họ và tên`, `Mã TKGD` vs `Mã M-System`), điền dữ liệu vào đúng cấu trúc cột của cả 5 sheet (`NoiDungMail`, `Cancuoc`, `HopDong`, `Phuluc`, `MS`), và tự động tô màu trực quan: **Khớp (Xanh lá)** / **Lệch (Đỏ/Cam)**. File được xuất vào `POC/TKGD-Automation/output/`.
+  2. **Pipeline Runner (`run_tkgd_pipeline.ts`)**: Kịch bản chạy liên hoàn từ A -> Z (Đọc mail -> Lưu Mongo -> Cào MS -> Đối soát chéo & Xuất Excel) với cờ tùy chọn `--headed` để quan sát toàn bộ quy trình.
+- Cập nhật tài liệu theo dõi tiến độ [MODULE_EXECUTION_TRACKER.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/MODULE_EXECUTION_TRACKER.md).
+
+### Danh sách file tạo mới & chỉnh sửa
+- [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts) (Helper đối soát chéo, format date, normalize tiếng Việt và xuất file Excel template).
+- [test_tkgd_module3_export_excel.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module3_export_excel.ts) (Script kiểm thử độc lập Module 3).
+- [run_tkgd_pipeline.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run_tkgd_pipeline.ts) (Master pipeline runner chạy liên hoàn 3 module).
+- [MODULE_EXECUTION_TRACKER.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/MODULE_EXECUTION_TRACKER.md) (Cập nhật bảng tiến độ và lệnh chạy test chi tiết cho USER).
+
+---
+
+## [2026-09-03] Hoàn Thiện Selector M-System DOM, Thêm Chế Độ Giao Diện Trình Duyệt & Khắc Phục Kẹt Router SPA Dashboard
+
+
+### Mục tiêu thay đổi
+- Cập nhật chính xác 100% selector DOM của trang chi tiết M-System theo đúng đoạn mã HTML thực tế mà USER vừa copy từ trình duyệt.
+- Thêm tùy chọn chạy kiểm thử mở giao diện trình duyệt trực quan (`--headed` / `--ui` kèm `slowMo: 400ms`) để USER nhìn thấy trực tiếp cửa sổ trình duyệt Edge/Chrome thực hiện đăng nhập và cào dữ liệu.
+- Khắc phục lỗi kẹt ở trang `/#/dashboard`: Trong ứng dụng SPA dùng Hash Router, việc gọi `page.goto` với cùng domain không kích hoạt sự kiện `load` của trình duyệt. Đã nâng cấp hàm `scrapeInvestorDetailFromMSystem` sử dụng `window.location.href = detailUrl` kết hợp click mở menu `QL khách hàng` trên sidebar để điều hướng mượt mà 100% vào trang chi tiết tài khoản.
+- Bổ sung quy tắc vào [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md): Đối với các file test script, AI chuẩn bị code và hướng dẫn lệnh chi tiết để **USER tự chạy**, không tự ý kích hoạt chạy ngầm.
+
+### Danh sách file chỉnh sửa
+- [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md) (Quy tắc mới: Mục 1.4 "USER Tự Chạy File Test Script").
+- [msystem-scraper.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/msystem-scraper.helper.ts) (Cập nhật selector DOM chính xác theo HTML của USER: `input[placeholder="Họ và tên"]`, `input[placeholder="Số CMT/ Hộ chiếu"]`, `input[placeholder="Nơi cấp"]`, `textarea[placeholder="Địa chỉ"]`, datepicker ngày sinh & ngày cấp; Nâng cấp cơ chế điều hướng Hash Router cho SPA).
+- [test_tkgd_module2_ms_scrape.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module2_ms_scrape.ts) (Thêm cờ `--headed` / `--ui`, cập nhật click bàn phím ảo PIN theo selector chuẩn `div.pincode xpath=.//div[text()='${digit}']`, thêm slowMo và độ trễ giữ màn hình để người dùng quan sát).
+
+---
+
+## [2026-09-03] Hoàn Thành Kiểm Thử Thực Tế Module 1: Đọc Mail & Lưu MongoDB (Raw + Clean NoiDungMail)
+
+
+### Mục tiêu thay đổi
+- Thực hiện nguyên tắc "Làm đến đâu clear đến đấy": Hoàn thành và chạy kiểm thử độc lập Module 1.
+- Lưu nguyên vẹn 100% email vào `raw_account_mails` và bóc tách dữ liệu chuẩn vào `clean_account_records` (khối `noiDungMail` tương ứng sheet `NoiDungMail` của file `Auto Data mail.xlsm`).
+- Cập nhật tài liệu theo dõi tiến độ [MODULE_EXECUTION_TRACKER.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/MODULE_EXECUTION_TRACKER.md).
+
+### Danh sách file tạo mới
+- [raw-account-mail.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/raw-account-mail.schema.ts) (Schema lưu trữ raw email và attachments).
+- [clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts) (Schema lưu trữ dữ liệu sạch 5 sheet của `Auto Data mail.xlsm`).
+- [tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts) (Helper bóc tách body mail và phân loại attachments).
+- [test_tkgd_module1_mail_mongo.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_module1_mail_mongo.ts) (Script chạy kiểm thử độc lập Module 1).
+
+### Kết quả kiểm thử (Verification)
+- Chạy lệnh `cmd.exe /c "npx ts-node src/scripts/test_tkgd_module1_mail_mongo.ts"`.
+- Kết quả: Kết nối thành công MongoDB Atlas, nạp 2 mail mẫu thực tế, lưu thành công cả Raw và Clean records, query ngược lại từ DB in ra bảng kiểm chứng chính xác 100%. Trạng thái: **PASS**.
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Thiết kế kiến trúc lưu trữ dữ liệu vào MongoDB gồm 2 phần:
+  1. **Raw Collection (`raw_account_mails`)**: Lưu nguyên vẹn 100% email gốc từ Outlook (MessageID, Subject, Sender, Body Text, HTML, Attachments metadata, Timestamps) phục vụ truy vết pháp lý và audit log.
+  2. **Clean Data Collection (`clean_account_records`)**: Bóc tách và chuẩn hóa dữ liệu map chính xác 1-1 với cấu trúc **5 Sheet** của file template [`Auto Data mail.xlsm`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/inputs/excel-templates/Auto%20Data%20mail.xlsm) (`NoiDungMail`, `Cancuoc`, `HopDong`, `Phuluc`, `MS`).
+- Thiết kế đảm bảo tính mở rộng cao: Giai đoạn 1 lưu ngay `NoiDungMail` và `MS`, Giai đoạn 2 tự động cập nhật thêm `Cancuoc`, `HopDong`, `Phuluc` mà không làm thay đổi cấu trúc database.
+
+### Danh sách file tạo mới
+- [THIET_KE_MONGODB_RAW_VA_CLEAN_DATA.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/docs/THIET_KE_MONGODB_RAW_VA_CLEAN_DATA.md) (Tài liệu đặc tả Mongoose Schema, Class Diagram và bảng ánh xạ 1-1 giữa cột Excel và trường MongoDB).
+
+### Xác nhận
+- Tài liệu hoàn thành, sẵn sàng tạo các file schema thực tế trong `backend/src/schemas/`.
+
+
+### Mục tiêu thay đổi
+- Thực hiện định hướng của USER: Tập trung hoàn thiện ngay Giai đoạn 1 bằng cách tận dụng 100% mã nguồn có sẵn trên Backend NestJS (`EmailWatcherService` bóc tách mail Outlook + `RpaDownloaderService` Playwright đăng nhập MS & cào màn hình chi tiết tài khoản theo URL `/#/clientManagement/investorManagement/{code}`).
+- Tạm hoãn bóc tách PDF và ảnh CCCD sang Giai đoạn 2 để đưa giải pháp vào chạy đối soát thực tế sớm nhất.
+- Thiết kế đặc tả trường dữ liệu, selector Playwright tương ứng với ảnh chụp thực tế màn hình M-System và cấu trúc file Excel đầu ra có highlight màu.
+
+### Danh sách file tạo mới
+- [THIET_KE_GIAI_DOAN_1_NODEJS_MAIL_MSYSTEM.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/docs/THIET_KE_GIAI_DOAN_1_NODEJS_MAIL_MSYSTEM.md) (Tài liệu thiết kế chi tiết luồng nghiệp vụ, mapping selector Playwright, mã mẫu TypeScript và cấu trúc template Excel đối soát).
+
+### Xác nhận
+- Tài liệu hoàn thành, sẵn sàng phục vụ triển khai code thực tế trên Backend NestJS.
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tích hợp Gemini API Free với cơ chế tự động truy vấn danh sách model public hiện hành từ Google Gemini API (`https://generativelanguage.googleapis.com/v1beta/models`).
+- Xếp hạng ưu tiên theo năng lực model (Pro > Flash > Flash-Lite / 8B; 2.5 > 2.0 > 1.5).
+- Triển khai chiến lược **Sticky Model**: Luôn dùng model cao nhất hiện tại nếu không hết token; chỉ khi gặp mã lỗi 429 (`RESOURCE_EXHAUSTED` / Quota Exceeded) thì mới tự động xoay sang model ưu tiên kế tiếp trong danh sách (và xoay API key dự phòng nếu có).
+
+### Danh sách file tạo mới & cập nhật
+- [gemini_model_manager.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/src/gemini_model_manager.py) (Module quản lý model public, xếp hạng ưu tiên, xoay vòng model & API key khi 429, dùng built-in `urllib` zero dependencies).
+- [cccd_ocr.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/src/cccd_ocr.py) (Tích hợp Gemini AI Vision làm Lớp 2 thông minh, kết hợp Lớp 1 QR Code 0 tokens và Lớp 3 MRZ offline).
+
+### Xác nhận
+- Script `gemini_model_manager.py` chạy độc lập thành công trên môi trường Windows / Python 3.14.5.
+
+
+### Mục tiêu thay đổi
+- Tiếp nhận yêu cầu nghiệp vụ xử lý bão mail yêu cầu mở TKGD (Futures, ACM) từ các TVKD (như TVKD 003 Gia Cát Lợi).
+- Xây dựng kiến trúc giải pháp toàn diện: Tự động quét Outlook $\rightarrow$ Tải và phân loại file $\rightarrow$ Trích xuất Body Mail $\rightarrow$ OCR CCCD 3 lớp (Text OCR + QR Code + Dòng máy đọc MRZ chuẩn Bộ Công An) $\rightarrow$ Đọc PDF Hợp đồng & Phụ lục PL01 $\rightarrow$ RPA Crawl chi tiết M-System $\rightarrow$ Đối chiếu chéo 3 chiều $\rightarrow$ Xuất báo cáo Excel theo Template chuẩn có highlight màu và hyperlink mở file.
+
+### Danh sách file tạo mới
+- [DE_XUAT_GIAI_PHAP_TU_DONG_HOA_MO_TKGD_OUTLOOK_OCR_MS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/docs/DE_XUAT_GIAI_PHAP_TU_DONG_HOA_MO_TKGD_OUTLOOK_OCR_MS.md) (Tài liệu đặc tả giải pháp, phân tích luồng dữ liệu, bảng ma trận so khớp và lộ trình triển khai).
+
+### Xác nhận
+- Tài liệu đã hoàn thành, sẵn sàng phục vụ nghiên cứu và chuẩn bị triển khai PoC xử lý bão mail.
+
+
 ## [2026-08-28] Triển Khai Cơ Chế Atomic Safe Save & Cell/Metadata Sanitizer Chống Lỗi Truncate 0 Bytes và Invalid Time Value
 
 ### Mục tiêu thay đổi
