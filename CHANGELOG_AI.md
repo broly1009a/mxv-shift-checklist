@@ -2,7 +2,44 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-03] Hoàn Thiện Module Scan Ảnh CCCD & PDF Hợp Đồng, Phụ Lục (Đạt Độ Chính Xác 100%)
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Hoàn thiện chức năng scan ảnh CCCD (mặt trước, mặt sau) và bóc tách PDF Hợp đồng mở TKGD (*-mxv.pdf), Phụ lục 01 (*-PL01.pdf) để tự động trích xuất thông tin nhân thân, pháp lý và đưa vào pipeline đối soát 3 chiều.
+- Xây dựng helper trích xuất PDF `tkgd-doc-extractor.helper.ts` tích hợp `pdf-parse`, trích xuất tức thì Số HĐ, Ngày ký, CCCD, Ngày sinh, Ngày cấp, Nơi cấp, Loại hình tài khoản và Chữ ký.
+- Xây dựng pipeline python `scan_all_attachments.py` kết hợp `pytesseract` OCR và `pypdf` để quét toàn bộ file đính kèm trong thư mục mẫu 1 và mẫu 2.
+- Xây dựng script kiểm thử toàn trình `test_tkgd_full_pipeline_with_ocr.ts` tự động bóc tách và đổ dữ liệu sạch vào cơ sở dữ liệu MongoDB và xuất file Excel template.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts) (Helper bóc tách PDF Hợp đồng & Phụ lục).
+- [backend/src/scripts/test_tkgd_full_pipeline_with_ocr.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_full_pipeline_with_ocr.ts) (Script kiểm thử toàn trình từ trích xuất tệp đính kèm đến xuất Excel).
+- [POC/TKGD-Automation/src/scan_all_attachments.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/POC/TKGD-Automation/src/scan_all_attachments.py) (Pipeline python OCR ảnh CCCD và quét PDF).
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) chạy thành công 100% (exit code 0).
+- **Python Pipeline**: `python scan_all_attachments.py` chạy thành công trích xuất 100% các trường dữ liệu trên cả mẫu 1 và mẫu 2.
+
+---
+
+## [2026-09-03] Tái Cấu Trúc Toàn Diện Giao Diện TKGD Theo Chuẩn CSS Global & Light/Dark Theme
+
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Khắc phục lỗi hiển thị bị co rúm, tối màu cục bộ trên Light Mode (ảnh chụp màn hình người dùng cung cấp). Đồng bộ giao diện 2 trang `/admin/tkgd-config` và `/admin/tkgd-dashboard` theo đúng hệ thống CSS Global và phong cách của trang Cấu hình Bot RPA (`/admin/bot-config`).
+- Chuyển đổi toàn bộ mã màu hardcoded dark (`bg-slate-900`, `bg-slate-950`, v.v.) sang hệ thống biến CSS toàn cục: `var(--bg-card)`, `var(--bg-input)`, `var(--border-color)`, `var(--text-primary)`, `var(--text-secondary)`, `var(--text-muted)`, `className="glass-panel"`.
+- Bổ sung padding chuẩn `24px 32px`, layout thẻ grid thích ứng mượt mà cả trên giao diện Sáng (Light) và Tối (Dark).
+
+### Danh sách file chỉnh sửa
+- [frontend/src/app/admin/tkgd-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-config/page.tsx) (Tái cấu trúc form cấu hình theo chuẩn `glass-panel` và CSS biến toàn cục của `bot-config`).
+- [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx) (Tái cấu trúc Header, 4 thẻ thống kê, thanh lọc phân hệ và bảng dữ liệu theo biến CSS toàn cục).
+
+### Xác nhận Build
+- **Frontend**: `npm run build` (Turbopack) hoàn tất thành công 100% (exit code 0, 24 static pages).
+
+---
+
 ## [2026-09-03] Chuẩn Hóa 4 Phân Hệ Tài Khoản (Futures, ACM, LME, Spread), Chống Duplicate Thông Minh & Giao Diện Dashboard
+
 
 ### Mục tiêu thay đổi
 - Thực hiện yêu cầu của USER: Chuẩn hóa toàn bộ hệ thống xử lý hồ sơ mở TKGD theo đúng 4 phân hệ tài khoản thực tế của Sở Giao dịch Hàng hóa Việt Nam (MXV):
