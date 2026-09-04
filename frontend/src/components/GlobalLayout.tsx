@@ -28,8 +28,9 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
   };
 
   const isPublicPage = pathname === '/login' || pathname === '/' || pathname === '/test-shadcn';
+  const isStandalonePage = pathname?.startsWith('/admin/tkgd-dashboard') || pathname?.startsWith('/admin/tkgd-config');
 
-  if (isPublicPage) {
+  if (isPublicPage || isStandalonePage) {
     return <>{children}</>;
   }
 

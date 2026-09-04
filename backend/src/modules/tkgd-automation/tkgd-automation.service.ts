@@ -4,15 +4,16 @@ import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailDocument } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordDocument } from '../../schemas/clean-account-record.schema';
-import { SystemSetting } from '../../schemas/system-setting.schema';
 import { encrypt, decrypt } from '../bot-engine/utils/crypto';
 import { chromium } from 'playwright-core';
 import * as fs from 'fs';
+import * as path from 'path';
 import { scrapeInvestorDetailFromMSystem } from '../bot-engine/helpers/msystem-scraper.helper';
 import { reconcileAndExportToExcel, ReconcileSummary } from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
 
 function findBrowserExecutable(): string {
   const possiblePaths = [
+    path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -21,7 +22,7 @@ function findBrowserExecutable(): string {
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) return p;
   }
-  return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  return 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 }
 
 @Injectable()
@@ -32,7 +33,6 @@ export class TkgdAutomationService {
     @InjectModel(TkgdUserConfig.name) private userConfigModel: Model<TkgdUserConfigDocument>,
     @InjectModel(RawAccountMail.name) private rawMailModel: Model<RawAccountMailDocument>,
     @InjectModel(CleanAccountRecord.name) private cleanRecordModel: Model<CleanAccountRecordDocument>,
-    @InjectModel(SystemSetting.name) private systemSettingModel: Model<SystemSetting>,
   ) {}
 
 
@@ -88,6 +88,11 @@ export class TkgdAutomationService {
       outlook: {
         targetMailbox: config.outlook?.targetMailbox || 'clearing.acc@mxv.vn',
         hasRefreshToken: !!config.outlook?.refreshToken,
+        authorizedEmail: config.outlook?.authorizedEmail || '',
+        tokenRenewedAt: config.outlook?.tokenRenewedAt || '',
+        clientId: config.outlook?.clientId || '',
+        tenantId: config.outlook?.tenantId || '',
+        hasClientSecret: !!config.outlook?.clientSecret,
       },
       storage: {
         windowsPath: config.storage?.windowsPath || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD',
@@ -140,8 +145,17 @@ export class TkgdAutomationService {
     if (dto.outlook?.targetMailbox !== undefined) {
       config.outlook.targetMailbox = dto.outlook.targetMailbox;
     }
-    if (dto.outlook?.refreshToken) {
+    if (dto.outlook?.refreshToken !== undefined) {
       config.outlook.refreshToken = dto.outlook.refreshToken;
+    }
+    if (dto.outlook?.clientId !== undefined) {
+      config.outlook.clientId = dto.outlook.clientId;
+    }
+    if (dto.outlook?.tenantId !== undefined) {
+      config.outlook.tenantId = dto.outlook.tenantId;
+    }
+    if (dto.outlook?.clientSecret) {
+      config.outlook.clientSecret = dto.outlook.clientSecret;
     }
 
     // Cập nhật Storage
@@ -183,7 +197,55 @@ export class TkgdAutomationService {
 
     await config.save();
     this.logger.log(`Đã lưu cấu hình TKGD cho user: ${userEmail}`);
-    return { success: true, message: 'Đã lưu cấu hình thành công!' };
+    return await this.getUserConfig(userEmail);
+  }
+
+  /**
+   * Lưu Token Outlook độc lập sau khi Microsoft OAuth callback thành công
+   */
+  async saveOutlookAuthorizedToken(
+    userEmail: string,
+    tokenData: { refreshToken: string; authorizedEmail?: string },
+  ) {
+    let config = await this.userConfigModel.findOne({ userEmail });
+    if (!config) {
+      config = new this.userConfigModel({
+        userEmail,
+        fullName: userEmail.split('@')[0],
+        department: 'Thanh toán bù trừ',
+      });
+    }
+    if (!config.outlook) (config as any).outlook = {};
+    config.outlook.refreshToken = tokenData.refreshToken;
+    if (tokenData.authorizedEmail) {
+      config.outlook.authorizedEmail = tokenData.authorizedEmail;
+    }
+    config.outlook.tokenRenewedAt = new Date().toISOString();
+    await config.save();
+    this.logger.log(`[TKGD-OUTLOOK] Đã lưu Refresh Token Outlook độc lập cho ${userEmail}`);
+    return config;
+  }
+
+  /**
+   * Lấy clientSecret của user
+   */
+  async getRawClientSecret(userEmail: string): Promise<string> {
+    const config = await this.userConfigModel.findOne({ userEmail });
+    return config?.outlook?.clientSecret || '';
+  }
+
+  /**
+   * Hủy kết nối / Đăng xuất tài khoản Outlook độc lập của TKGD
+   */
+  async disconnectOutlook(userEmail: string) {
+    const config = await this.userConfigModel.findOne({ userEmail });
+    if (config && config.outlook) {
+      config.outlook.refreshToken = '';
+      config.outlook.authorizedEmail = '';
+      config.outlook.tokenRenewedAt = '';
+      await config.save();
+    }
+    return { success: true, message: 'Đã hủy kết nối tài khoản Outlook độc lập thành công' };
   }
 
   /**
@@ -235,18 +297,22 @@ export class TkgdAutomationService {
       const isPinVisible = await pinModal.isVisible({ timeout: 4000 }).catch(() => false);
 
       if (isPinVisible && pin) {
+        this.logger.log(`Nhập mã PIN ảo M-System (${String(pin).length} số)...`);
         for (const digit of String(pin)) {
-          const digitEl = page.locator(`div.pincode >> xpath=.//div[text()='${digit}']`).first();
-          if (await digitEl.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await digitEl.click();
-            await page.waitForTimeout(250);
+          const btn = page.locator('.pincode .keyboard .button').filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) }).first();
+          if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await btn.click();
+            await page.waitForTimeout(300);
+          } else {
+            const fallbackEl = page.locator(`div.pincode >> xpath=.//div[text()='${digit}']`).first();
+            if (await fallbackEl.isVisible({ timeout: 1000 }).catch(() => false)) {
+              await fallbackEl.click();
+              await page.waitForTimeout(300);
+            }
           }
         }
-        const confirmBtn = page.locator('.ant-modal button:has-text("Xác nhận")').first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmBtn.click();
-          await page.waitForTimeout(2000);
-        }
+        // Sau khi nhập đủ mã PIN, M-System tự động xác thực và chuyển trang (không có nút Xác nhận)
+        await page.waitForTimeout(3000);
       }
 
       const currentUrl = page.url();
@@ -275,39 +341,236 @@ export class TkgdAutomationService {
   }
 
   /**
-   * Lấy danh sách hồ sơ đối soát từ clean_account_records
+   * Lấy danh sách hồ sơ đối soát từ clean_account_records (có hỗ trợ phân trang, lọc ngày, tìm kiếm)
    */
-  async getRecords(limit: number = 20, skip: number = 0, filter?: string) {
-    const query: any = {};
-    if (filter === 'KHOP') {
-      query['ketLuan.trangThai'] = 'KHOP';
-    } else if (filter === 'LECH') {
-      query['ketLuan.trangThai'] = { $ne: 'KHOP' };
-    } else if (['FUTURES', 'ACM', 'LME', 'SPREAD'].includes(filter || '')) {
-      query['accountType'] = filter;
+  /**
+   * Lấy danh sách hồ sơ đối soát từ clean_account_records
+   * NGHIỆP VỤ MXV CHUẨN: Gom nhóm 1 Khách hàng = 1 Dòng duy nhất theo Mã gốc (Base Code không đuôi).
+   * Các tiểu khoản (-A cho ACM, -L cho LME, -S cho Spread) được gộp vào hồ sơ nhà đầu tư.
+   */
+  async getRecords(
+    options:
+      | {
+          limit?: number;
+          skip?: number;
+          page?: number;
+          filter?: string;
+          batchDate?: string;
+          search?: string;
+        }
+      | number = 20,
+    skipArg: number = 0,
+    filterArg?: string
+  ) {
+    let limit = 20;
+    let skip = 0;
+    let page = 1;
+    let filter: string | undefined = undefined;
+    let batchDate: string | undefined = undefined;
+    let search: string | undefined = undefined;
+
+    if (typeof options === 'object') {
+      limit = options.limit || 20;
+      page = options.page || (options.skip ? Math.floor(options.skip / limit) + 1 : 1);
+      skip = options.skip !== undefined ? options.skip : (page - 1) * limit;
+      filter = options.filter;
+      batchDate = options.batchDate;
+      search = options.search;
+    } else {
+      limit = options;
+      skip = skipArg;
+      filter = filterArg;
+      page = Math.floor(skip / limit) + 1;
     }
 
+    const query: any = {};
+    if (batchDate) {
+      query['batchDate'] = batchDate;
+    }
 
-    const [items, total] = await Promise.all([
-      this.cleanRecordModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      this.cleanRecordModel.countDocuments(query),
-    ]);
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { maTKGD: regex },
+        { maTKGDBase: regex },
+        { 'noiDungMail.tenTaiKhoan': regex },
+        { 'noiDungMail.maTKGD_Futures': regex },
+        { 'noiDungMail.maTKGD_ACM': regex },
+        { 'ms.hoVaTen': regex },
+        { 'ms.tenTKGD': regex },
+        { 'ms.soCMND_HoChieu': regex },
+      ];
+    }
 
-    return { items, total };
+    const rawRecords = await this.cleanRecordModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Helper trích xuất mã gốc chuẩn (Base Code)
+    const extractBaseCode = (record: any): string => {
+      if (record.maTKGDBase && record.maTKGDBase.trim()) return record.maTKGDBase.trim();
+      if (record.noiDungMail?.maTKGD_Futures && record.noiDungMail.maTKGD_Futures.trim()) {
+        return record.noiDungMail.maTKGD_Futures.trim();
+      }
+      if (record.maTKGD && record.maTKGD.trim()) {
+        return record.maTKGD.trim().split('-')[0];
+      }
+      if (record.ms?.maTKGD && record.ms.maTKGD.trim()) {
+        return record.ms.maTKGD.trim().split('-')[0];
+      }
+      return '';
+    };
+
+    // Gom nhóm theo nhà đầu tư (1 Khách hàng = 1 Dòng duy nhất)
+    const groupedMap = new Map<string, any>();
+
+    for (const r of rawRecords) {
+      const baseCode = extractBaseCode(r);
+      const groupKey = baseCode || r._id.toString();
+
+      if (!groupedMap.has(groupKey)) {
+        const primaryDoc: any = {
+          ...r,
+          maTKGD: baseCode || r.maTKGD,
+          maTKGDBase: baseCode,
+          accountTypes: [r.accountType || (r.maTKGD?.includes('-A') ? 'ACM' : 'FUTURES')],
+          subAccounts: [] as any[],
+        };
+
+        if (r.maTKGD?.includes('-')) {
+          primaryDoc.subAccounts.push({
+            code: r.maTKGD,
+            type: r.accountType || (r.maTKGD.endsWith('-A') ? 'ACM' : 'SUB'),
+            status: r.ketLuan?.trangThai || 'CHUA_XU_LY',
+          });
+        }
+        if (r.noiDungMail?.hasACMRequest && !primaryDoc.accountTypes.includes('ACM')) {
+          primaryDoc.accountTypes.push('ACM');
+        }
+
+        groupedMap.set(groupKey, primaryDoc);
+      } else {
+        const existing = groupedMap.get(groupKey);
+        const rType = r.accountType || (r.maTKGD?.includes('-A') ? 'ACM' : 'FUTURES');
+        if (!existing.accountTypes.includes(rType)) {
+          existing.accountTypes.push(rType);
+        }
+        if (r.noiDungMail?.hasACMRequest && !existing.accountTypes.includes('ACM')) {
+          existing.accountTypes.push('ACM');
+        }
+
+        if (r.maTKGD?.includes('-')) {
+          if (!existing.subAccounts.some((s: any) => s.code === r.maTKGD)) {
+            existing.subAccounts.push({
+              code: r.maTKGD,
+              type: rType,
+              status: r.ketLuan?.trangThai || 'CHUA_XU_LY',
+            });
+          }
+        }
+
+        // Hợp nhất hồ sơ: ưu tiên hồ sơ hoàn thiện nhất
+        if (!existing.hopDong?.soCanCuoc && r.hopDong?.soCanCuoc) {
+          existing.hopDong = r.hopDong;
+        }
+        if (!existing.phuLuc?.soCanCuoc && r.phuLuc?.soCanCuoc) {
+          existing.phuLuc = r.phuLuc;
+        }
+        if (!existing.canCuoc?.soCanCuoc && r.canCuoc?.soCanCuoc) {
+          existing.canCuoc = r.canCuoc;
+        }
+        if ((!existing.ms?.hoVaTen || existing.ms?.maTKGD?.includes('001C')) && r.ms?.hoVaTen && !r.ms?.maTKGD?.includes('001C')) {
+          existing.ms = r.ms;
+        }
+
+        if (r.ketLuan?.trangThai === 'KHOP' && existing.ketLuan?.trangThai !== 'LECH') {
+          existing.ketLuan = r.ketLuan;
+        }
+      }
+    }
+
+    let groupedList = Array.from(groupedMap.values());
+
+    // Áp dụng bộ lọc
+    if (filter === 'KHOP') {
+      groupedList = groupedList.filter((g) => g.ketLuan?.trangThai === 'KHOP');
+    } else if (filter === 'LECH') {
+      groupedList = groupedList.filter(
+        (g) => g.ketLuan?.trangThai && g.ketLuan?.trangThai !== 'KHOP' && g.ketLuan?.trangThai !== 'CHUA_XU_LY',
+      );
+    } else if (['FUTURES', 'ACM', 'LME', 'SPREAD'].includes(filter || '')) {
+      groupedList = groupedList.filter((g) => g.accountTypes?.includes(filter));
+    }
+
+    const total = groupedList.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const items = groupedList.slice(skip, skip + limit);
+
+    return { items, total, page, pageSize: limit, totalPages };
   }
 
   /**
-   * Kích hoạt chạy đối soát chéo và xuất file Excel
+   * Kích hoạt chạy đối soát chéo, cập nhật trạng thái vào MongoDB và xuất file Excel
    */
   async runReconciliation(userEmail: string) {
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
-    const records = await this.cleanRecordModel.find().sort({ createdAt: -1 }).limit(50);
+    const records = await this.cleanRecordModel.find().sort({ createdAt: -1 }).limit(100);
 
     const summary: ReconcileSummary = await reconcileAndExportToExcel(records, {
       outputPath: config?.storage?.windowsPath
         ? `${config.storage.windowsPath}\\Auto_Data_mail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`
         : undefined,
     });
+
+    // Cập nhật trạng thái đối soát trực tiếp vào MongoDB cho từng bản ghi
+    const now = new Date();
+    for (const record of records) {
+      const ms: any = record.ms || {};
+      const mail: any = record.noiDungMail || {};
+      const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
+      const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
+      const mailName = (mail.tenTaiKhoan || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const msName = (ms.hoVaTen || ms.tenTKGD || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      let isMatched = true;
+      const errors: string[] = [];
+
+      if (!ms.isFoundOnMS) {
+        isMatched = false;
+        errors.push('Tài khoản chưa được tạo trên M-System');
+      } else {
+        const msCode = (ms.maTKGD || '').trim();
+        const isSubAccount = targetAccountCode.includes('-A');
+        if (isSubAccount) {
+          if (targetAccountCode && msCode && targetAccountCode.toUpperCase() !== msCode.toUpperCase()) {
+            isMatched = false;
+            errors.push(`Lệch mã ACM (Yêu cầu: ${targetAccountCode} != MS: ${msCode})`);
+          }
+        } else {
+          if (baseCode && msCode && !msCode.startsWith(baseCode)) {
+            isMatched = false;
+            errors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
+          }
+        }
+
+        if (mailName && msName && mailName !== msName) {
+          isMatched = false;
+          errors.push(`Lệch họ tên (Mail: ${mail.tenTaiKhoan} != MS: ${ms.hoVaTen})`);
+        }
+      }
+
+      await this.cleanRecordModel.updateOne(
+        { _id: record._id },
+        {
+          $set: {
+            'ketLuan.trangThai': isMatched ? 'KHOP' : 'LECH',
+            'ketLuan.danhSachLoi': errors,
+            'ketLuan.reconciledAt': now,
+          },
+        }
+      );
+    }
 
     return {
       success: true,

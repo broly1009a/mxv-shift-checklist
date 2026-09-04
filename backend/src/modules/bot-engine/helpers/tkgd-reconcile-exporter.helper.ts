@@ -86,6 +86,32 @@ export function getTkgdOutputDirectory(): string {
 }
 
 /**
+ * Lấy thư mục lưu trữ hồ sơ đính kèm (mặc định HoSo_DinhKem trên ổ M:\ hoặc customPath)
+ */
+export function getTkgdAttachmentDirectory(customPath?: string, dateStr?: string, accountCode?: string): string {
+  let baseDir = '';
+  if (customPath && customPath.trim()) {
+    baseDir = customPath.trim();
+  } else {
+    const rootDir = getTkgdOutputDirectory();
+    baseDir = path.join(rootDir, 'HoSo_DinhKem');
+  }
+
+  const d = dateStr || new Date().toISOString().slice(0, 10);
+  let target = path.join(baseDir, d);
+  if (accountCode && accountCode.trim()) {
+    target = path.join(target, accountCode.trim());
+  }
+
+  if (!fs.existsSync(target)) {
+    try {
+      fs.mkdirSync(target, { recursive: true });
+    } catch {}
+  }
+  return target;
+}
+
+/**
  * Hàm tự động tìm file template Auto Data mail.xlsm
  */
 export function findTkgdTemplatePath(): string {
@@ -219,6 +245,7 @@ export async function reconcileAndExportToExcel(
   const writtenCccdSet = new Set<string>();
   const writtenHopDongSet = new Set<string>();
   const writtenPhulucSet = new Set<string>();
+  const writtenMsSet = new Set<string>(); // Lọc theo mã gốc không đuôi (baseCode) cho Sheet MS
 
   for (const record of cleanRecords) {
     const mail = record.noiDungMail || {};
@@ -291,13 +318,13 @@ export async function reconcileAndExportToExcel(
     }
 
     // 3. Ghi vào Sheet "MS"
-    // Col 1: STT | Col 2: Mã TKGD | Col 3: Tên TKGD | Col 4: Họ và tên | Col 5: Số CMT/ Hộ chiếu
-    // Col 6: Ngày sinh | Col 7: Ngày cấp | Col 8: Nơi cấp | Col 9: Ngày ký HĐ | Col 10: Loại hình tài khoản
-    // Col 11: Chữ ký | Col 12: Kết quả
-    if (sheetMS && ms.isFoundOnMS) {
+    // NGHIỆP VỤ MXV: Hồ sơ nhà đầu tư trên M-System quản lý theo mã cơ sở không đuôi (baseCode).
+    // Các tiểu khoản (-A, -L, -S) ăn theo hồ sơ gốc nên chỉ cần check và ghi 1 dòng cho mỗi khách hàng.
+    if (sheetMS && ms.isFoundOnMS && baseCode && !writtenMsSet.has(baseCode)) {
+      writtenMsSet.add(baseCode);
       const row = sheetMS.addRow([
         sttMs++,
-        ms.maTKGD || targetAccountCode,
+        baseCode,
         ms.tenTKGD || mail.tenTaiKhoan || '',
         ms.hoVaTen || mail.tenTaiKhoan || '',
         ms.soCMND_HoChieu || cccd.soCanCuoc || '',
@@ -323,6 +350,39 @@ export async function reconcileAndExportToExcel(
         }
       });
     }
+
+    /* =========================================================================
+     * [CODE CŨ DỰ PHÒNG BACKUP]: Ghi tất cả bản ghi (kể cả tiểu khoản -A) vào sheet MS
+     * =========================================================================
+     * if (sheetMS && ms.isFoundOnMS) {
+     *   const row = sheetMS.addRow([
+     *     sttMs++,
+     *     ms.maTKGD || targetAccountCode,
+     *     ms.tenTKGD || mail.tenTaiKhoan || '',
+     *     ms.hoVaTen || mail.tenTaiKhoan || '',
+     *     ms.soCMND_HoChieu || cccd.soCanCuoc || '',
+     *     formatDate(ms.ngaySinh || cccd.ngaySinh),
+     *     formatDate(ms.ngayCap || cccd.ngayCap),
+     *     ms.noiCap || cccd.noiCap || '',
+     *     formatDate(ms.ngayThamGia),
+     *     ms.loaiHinhTaiKhoan || 'Cá nhân',
+     *     ms.chuKy || 'Đã ký',
+     *     'So sánh với thông tin với căn cước khớp',
+     *   ]);
+     *   row.eachCell((cell, colNumber) => {
+     *     cell.border = borderThin;
+     *     if ([1, 2, 5, 6, 7, 9, 10, 11].includes(colNumber)) {
+     *       cell.alignment = { horizontal: 'center', vertical: 'middle' };
+     *     } else {
+     *       cell.alignment = { vertical: 'middle' };
+     *     }
+     *     if (colNumber === 12) {
+     *       cell.fill = styleKhop.fill;
+     *       cell.font = styleKhop.font;
+     *     }
+     *   });
+     * }
+     * ========================================================================= */
 
     // 4. Ghi vào Sheet "Cancuoc" (nếu có dữ liệu CCCD từ Giai đoạn 2 hoặc mock)
     const cccdKey = (cccd.soCanCuoc || ms.soCMND_HoChieu || baseCode || mail.tenTaiKhoan || '').trim();

@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": "src",
     "strict": false,
     "strictNullChecks": false,
     "noImplicitAny": false,

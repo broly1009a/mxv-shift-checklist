@@ -2,6 +2,251 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-04] Khắc Phục Lỗi "Kiểm Tra Đăng Nhập MS Thất Bại" (M-System Authentication & Virtual Keypad)
+
+### Mục tiêu thay đổi
+- Khắc phục lỗi khi người dùng bấm **"Kiểm Tra Đăng Nhập MS"** trong Tab Cài Đặt (`TkgdConfigPanel.tsx`) bị báo đỏ **"✕ Thất bại"**.
+- Nguyên nhân cốt lõi:
+  1. **Đường dẫn Chrome Local**: Trên máy Windows, Google Chrome cài đặt theo User tại `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`. Hàm `findBrowserExecutable()` trước đó chỉ tìm trong `Program Files` và `Program Files (x86)`. Đồng thời module `path` chưa được import ở đầu service gây lỗi runtime.
+  2. **Bộ chọn bàn phím ảo PIN của M-System**: Sau khi nhập Username/Password, trang M-System (`https://msadmin.mxv.com.vn/#/login`) hiển thị popup bàn phím số ảo `div.pincode .keyboard`. Bộ chọn cũ `div.pincode >> xpath=.//div[text()='${digit}']` không click trúng các nút `div.button` của bàn phím ảo.
+  3. **Không tồn tại nút "Xác nhận"**: M-System tự động xác thực và điều hướng ngay khi nhập đủ 6 số PIN; code cũ bị kẹt chờ nút "Xác nhận" dẫn tới timeout và báo lỗi thất bại.
+
+### Danh sách file chỉnh sửa
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+  - Bổ sung `import * as path from 'path'`.
+  - Bổ sung đường dẫn Chrome trong `LOCALAPPDATA` vào `findBrowserExecutable()`.
+  - Cập nhật bộ chọn bàn phím ảo PIN sang `.pincode .keyboard .button` lọc theo chữ số chuẩn xác.
+  - Bỏ bước chờ nút "Xác nhận" không tồn tại, cho phép M-System tự động submit sau khi nhập đủ 6 chữ số.
+- [backend/src/scripts/run_tkgd_pipeline.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/run_tkgd_pipeline.ts):
+  - Đồng bộ cập nhật bộ chọn bàn phím ảo PIN tương tự.
+
+### Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` thành công 100% không lỗi.
+- **Kiểm thử API Thực tế**: Gửi request `POST /api/v1/tkgd/test-ms` với tài khoản đã lưu `mxvsupport`: Kết quả phản hồi thành công trong 9 giây: `{"success": true, "message": "Đăng nhập M-System thành công với tài khoản \"mxvsupport\"!"}`.
+
+---
+
+## [2026-09-04] Khôi Phục Đầy Đủ Tùy Chọn Xử Lý Excel & Tải File Ảnh CCCD/Hồ Sơ Vào Tab Cài Đặt (TkgdConfigPanel)
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Đưa đầy đủ các phần cấu hình quan trọng đã có ở trang riêng trước đây vào Tab **"Cài Đặt & Cấu Hình Bot"** (`TkgdConfigPanel.tsx`) trong trang Dashboard:
+  1. **Tùy chọn xử lý kết quả Excel**: Tự động tô màu kết quả đối soát (Xanh lá / Cam / Đỏ).
+  2. **Quản lý tải & lưu trữ hồ sơ**: Ô nhập đường dẫn thư mục lưu trữ (`attachmentSavePath`), tùy chọn tải file từ mail và trích xuất ảnh CCCD/chữ ký từ M-System.
+  3. **Động cơ bóc tách dữ liệu**: Bóc tách PDF Hợp đồng & Phụ lục 01, nhận diện OCR ảnh CCCD.
+  4. **Quy tắc đối chiếu chéo**: Đối chiếu 3 chiều (Mail vs M-System vs Form) và bắt buộc kiểm tra chữ ký mẫu.
+
+### Danh sách file chỉnh sửa
+- [frontend/src/components/tkgd/TkgdConfigPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx):
+  - Card 4: Bổ sung khối **"Tự động tô màu kết quả đối soát trong file Excel"** kèm switch toggle và mô tả trực quan.
+  - Card 5: Tái thiết kế đầy đủ 3 khối:
+    + **Khối A (Quản lý tải về & Thư mục lưu trữ)**: Tự động tải tệp từ mail, tự động trích xuất & lưu ảnh CCCD/chữ ký M-System về máy, và ô nhập đường dẫn thư mục tùy chọn (`attachmentSavePath`).
+    + **Khối B (Động cơ bóc tách)**: Bóc tách PDF hợp đồng/PL01 và OCR nhận diện ảnh CCCD.
+    + **Khối C (Quy tắc đối chiếu chéo)**: Đối chiếu 3 chiều và bắt buộc chữ ký mẫu.
+
+### Xác nhận Build & Kiểm thử
+- **Frontend**: `npm run build` (`next build` Turbopack) thành công 100% (24/24 static pages, Exit code `0`).
+
+
+
+## [2026-09-04] Chuẩn Hóa Nghiệp Vụ Đối Soát Mở TKGD: Gom Nhóm 1 Khách Hàng = 1 Dòng Theo Mã Gốc & Khắc Phục Lệch Mã Tiểu Khoản
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa logic đối soát và hiển thị mở TKGD trên `http://localhost:3000/admin/tkgd-dashboard` đúng 100% theo nghiệp vụ MXV.
+- Khắc phục tình trạng 1 khách hàng bị tách thành nhiều dòng riêng lẻ (dòng gốc `003C2333888` và dòng tiểu khoản `003C2333888-A` treo trạng thái "CHỜ ĐỐI SOÁT").
+- Khắc phục triệt để lỗi so sánh cứng chuỗi ký tự trong Visual Diff Modal (lấy mã Futures so sánh trực tiếp với mã ACM `003C2333888` $\neq$ `003C2333888-A` $\rightarrow$ báo đỏ ❌ "Lệch mã TKGD" dù toàn bộ thông tin định danh khớp 100%).
+
+### Danh sách file chỉnh sửa
+1. [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+   - Nâng cấp `getRecords`: Tự động trích xuất mã cơ sở (Base Code) và gom nhóm các bản ghi theo từng nhà đầu tư duy nhất. Hợp nhất `accountTypes` (`['FUTURES', 'ACM']`), `subAccounts`, dữ liệu hợp đồng gốc, phụ lục PL01 và hồ sơ M-System hoàn chỉnh.
+   - Nâng cấp `runReconciliation`: Đối soát thông minh theo từng phân hệ (mã gốc và tiểu khoản ACM), đồng thời lưu vết cập nhật trực tiếp trạng thái `ketLuan.trangThai` ('KHOP' / 'LECH'), `danhSachLoi` và `reconciledAt` vào MongoDB Atlas cho từng bản ghi.
+2. [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+   - Mở rộng interface `CleanRecord` hỗ trợ `accountTypes?: string[]` và `subAccounts?: Array<{ code: string; type: string; status: string }>`.
+   - Bổ sung helper `renderModuleBadges`: Hiển thị đồng thời tất cả các phân hệ mà nhà đầu tư đã đăng ký trên cùng 1 dòng (ví dụ `[FUTURES]` và `[ACM (-A)]`).
+   - Cập nhật cột **Mã TKGD**: Hiển thị mã gốc không đuôi của nhà đầu tư.
+   - Nâng cấp **Visual Diff Inspector Modal**:
+     - Tiêu đề modal hiển thị mã gốc kèm các badge phân hệ tương ứng.
+     - Trong bảng so sánh trường: Phân định rõ ràng dòng `Mã TKGD (Futures)`, dòng `Tiểu khoản ACM (-A)` và `Phụ lục PL01 (ACM)`, đối soát đúng cấp độ mã, loại bỏ hoàn toàn báo đỏ giả lập ❌ do khác biệt hậu tố `-A`.
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) thành công 100% (Exit code `0`).
+- **Frontend**: `npm run build` (`next build` Turbopack) thành công 100% (24/24 static pages, Exit code `0`).
+- **Endpoint Test**: `curl.exe -s "http://localhost:5000/api/v1/tkgd/records"` $\rightarrow$ Danh sách trả về đúng **2 hồ sơ nhà đầu tư** chuẩn xác:
+  + `003C2333888` (Ngô Đức Hải) $\rightarrow$ `accountTypes: ["ACM", "FUTURES"]`, `ketLuan.trangThai: "KHOP"`.
+  + `003C0656625` (Nguyễn Anh Khoa) $\rightarrow$ `accountTypes: ["FUTURES"]`, `ketLuan.trangThai: "KHOP"`.
+- Backend daemon đã được khởi động lại thành công với bản build mới.
+
+
+
+## [2026-09-04] Triển Khai Cơ Chế Đăng Nhập & Token Outlook Độc Lập 100% Cho Phân Hệ TKGD
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tách rời hoàn toàn tài khoản và Token Outlook của Tool Đối Soát Mở TKGD (`tkgd-dashboard`), không chung đụng hay phụ thuộc vào tài khoản bot của checklist ca trực (`bot-config` / `SystemSettings.m365_refresh_token`).
+- Cung cấp luồng đăng nhập OAuth2 Microsoft độc lập trực tiếp từ Card 3 (Hộp Thư Outlook Nhận Mail) trên trang `http://localhost:3000/admin/tkgd-dashboard` (Tab Cài Đặt).
+- Cho phép phòng ban TTBT/QLGD quản lý hòm thư riêng (VD: `clearing.acc@mxv.vn`), hiển thị trạng thái kết nối trực quan, hỗ trợ cấp lại token hoặc ngắt kết nối linh hoạt, đồng thời hỗ trợ cấu hình Azure App Registration riêng biệt nếu có.
+
+### Danh sách file chỉnh sửa
+1. [backend/src/schemas/tkgd-user-config.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/tkgd-user-config.schema.ts):
+   - Mở rộng `OutlookConfigSubDoc` thêm các trường: `authorizedEmail` (email tài khoản Microsoft thực tế đã cấp quyền) và `tokenRenewedAt` (thời điểm cấp quyền).
+2. [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+   - Cập nhật `getUserConfig` trả về đầy đủ các thông tin trạng thái Token độc lập.
+   - Thêm phương thức `saveOutlookAuthorizedToken`: Lưu độc lập `refreshToken`, `authorizedEmail`, `tokenRenewedAt` vào collection `tkgd_user_configs`.
+   - Thêm phương thức `disconnectOutlook`: Xóa sạch token độc lập khi người dùng muốn ngắt kết nối/đổi tài khoản.
+   - Thêm phương thức `getRawClientSecret`: Phục vụ trao đổi mã OAuth với Azure.
+3. [backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts):
+   - Bổ sung `@Get('auth/microsoft')`: Sinh URL đăng nhập Microsoft với signed state CSRF `tkgd:${userEmail}:${timestamp}:${hash}` và chuyển hướng sang Microsoft Online.
+   - Bổ sung `@Post('auth/microsoft/disconnect')`: Xử lý ngắt kết nối tài khoản Outlook độc lập.
+4. [backend/src/modules/auth/auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.service.ts):
+   - Nâng cấp `exchangeMicrosoftCodeForBot` hỗ trợ tham số `customConfig` tùy biến (`clientId`, `tenantId`, `clientSecret`).
+5. [backend/src/modules/auth/auth.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.module.ts) & [backend/src/modules/auth/auth.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.controller.ts):
+   - Inject `TkgdAutomationService` vào `AuthController`.
+   - Xử lý nhánh callback `state.startsWith('tkgd:')`: Xác thực chữ ký CSRF, đổi mã lấy Refresh Token, truy vấn `/me` lấy email và lưu trực tiếp vào `tkgd_user_configs`. Sau đó điều hướng về `${frontendUrl}/admin/tkgd-dashboard?tab=config&outlook_auth=success`.
+6. [frontend/src/components/tkgd/TkgdConfigPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx):
+   - Thiết kế lại toàn bộ **Card 3: Tài Khoản Outlook Nhận Mail (Độc Lập)**:
+     - Badge trạng thái kết nối: `🟢 Đã kết nối` kèm tên tài khoản và ngày giờ cấp quyền; hoặc `🟡 Chưa cấp quyền`.
+     - Nút hành động nổi bật: **"Đăng Nhập & Cấp Quyền Hòm Thư Outlook"** (Microsoft OAuth2).
+     - Nút **"Đổi / Cấp lại tài khoản"** và **"Ngắt kết nối"**.
+     - Khối mở rộng **"Cấu hình Azure App ID riêng (Tùy chọn nâng cao)"**: Cho phép tùy chỉnh Client ID, Tenant ID, Client Secret nếu có Azure App riêng.
+     - Lắng nghe URL callback để tự động hiển thị Toast thông báo thành công/thất bại.
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) thành công 100% (Exit code `0`).
+- **Frontend**: `npm run build` (`next build` Turbopack) thành công 100% (24/24 static pages, Exit code `0`).
+- **Endpoint Test**: `curl.exe -s -I "http://localhost:5000/api/v1/tkgd/auth/microsoft?userEmail=hieptruong@mxv.vn"` $\rightarrow$ Trả về **HTTP 302 Found** chuyển hướng sang `login.microsoftonline.com` với `state=tkgd:...`.
+
+
+## [2026-09-04] Khắc Phục Lỗi "Cannot POST /api/v1/tkgd/run" & Chuẩn Hóa Cấu Trúc Build Backend
+
+### Mục tiêu thay đổi
+- Khắc phục triệt để lỗi HTTP 404 `Cannot POST /api/v1/tkgd/run` (và `Cannot GET /api/v1/tkgd/records`) khi người dùng bấm nút "Chạy Đối Soát" trên trang `http://localhost:3000/admin/tkgd-dashboard`.
+- Điều tra và giải quyết tận gốc nguyên nhân NestJS không nạp `TkgdAutomationModule` khi khởi chạy.
+
+### Nguyên nhân gốc rễ (Root Cause)
+1. Trong thư mục gốc `backend/` có tồn tại file `scratch_test_helper.ts` (tạo từ ngày 17/08/2026).
+2. Trong file cấu hình `tsconfig.build.json` trước đây chưa khai báo thuộc tính `"rootDir": "src"`.
+3. Do có file `.ts` nằm ngoài thư mục `src/`, trình biên dịch TypeScript (`tsc`) tự động suy diễn root directory là thư mục cha `backend/` thay vì `backend/src/`. Dẫn đến việc các file biên dịch mới bị đẩy vào thư mục lồng `dist/src/...` thay vì nằm ngay dưới `dist/...`.
+4. Trong khi đó, file `dist/main.js` và `dist/app.module.js` ở cấp ngoài cùng của `dist/` bị đóng băng từ ngày 27/07/2026 (do `deleteOutDir: false` trong `nest-cli.json`). Khi NestJS khởi động từ `dist/main.js`, nó nạp `app.module.js` cũ vốn không hề có `TkgdAutomationModule`, dẫn tới 404 cho toàn bộ route `/api/v1/tkgd/*`.
+
+### Danh sách file chỉnh sửa & xử lý
+- [backend/scratch_test_helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/scratch_test_helper.ts):
+  - Di chuyển vào [backend/src/scripts/scratch_test_helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/scratch_test_helper.ts) và cập nhật đường dẫn import helper `../modules/bot-engine/helpers/bot-path.helper`.
+- [backend/tsconfig.build.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/tsconfig.build.json):
+  - Bổ sung `"rootDir": "src"` cố định vào `compilerOptions`, đảm bảo toàn bộ output biên dịch của `src/` luôn được ánh xạ trực tiếp sang gốc `dist/`.
+- Thực hiện xóa sạch `dist/` cũ và build mới hoàn toàn bằng lệnh `npm run build`.
+
+### Xác nhận Build & Kiểm thử
+- **Xác nhận File Build**: `dist/app.module.js` đã nạp chuẩn xác `tkgd_automation_module_1.TkgdAutomationModule` (dòng 38 & 70).
+- **Kiểm thử API Records**: `GET http://localhost:5000/api/v1/tkgd/records` $\rightarrow$ Trả về **HTTP 200** kèm danh sách 5 hồ sơ đầy đủ dữ liệu.
+- **Kiểm thử API Run Reconcile**: `POST http://localhost:5000/api/v1/tkgd/run` $\rightarrow$ Trả về **HTTP 201** thành công:
+  ```json
+  {
+    "success": true,
+    "summary": {
+      "totalRecords": 5,
+      "khopCount": 3,
+      "lechCount": 1,
+      "outputFilePath": "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\Auto_Data_mail_20260904.xlsx"
+    }
+  }
+  ```
+- **Xác nhận Ghi File Thực Tế**: File Excel tại đường dẫn mạng `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\Auto_Data_mail_20260904.xlsx` đã được cập nhật kết quả đối soát thành công.
+
+
+## [2026-09-04] Tối Giản Giao Diện TKGD Thành Standalone Workspace Toàn Màn Hình & Tích Hợp All-in-One
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tối giản tối đa giao diện cho chuyên viên phòng Thanh toán bù trừ (TTBT) / Quản lý giao dịch (QLGD). Vì người dùng phân hệ TKGD không sử dụng checklist vận hành ca trực mà chỉ sử dụng chung hệ thống để đối soát mở TKGD, ta loại bỏ hoàn toàn Sidebar và Header chung của Checklist khi truy cập màn hình này.
+- Mở rộng 100% diện tích màn hình (Full-Width / Standalone Tool): Bảng đối soát không còn bị ép bởi sidebar, hiển thị rộng rãi, thoáng đãng.
+- Hỗ trợ Auto-Auth mặc định: Cho phép mở trực tiếp link `http://localhost:3000/admin/tkgd-dashboard` mà không bị văng/redirect về trang `/login`. Tự động gán người dùng tác nghiệp mặc định `Trương Hoàng Hiệp (TTBT)` và gọi API thông suốt.
+- Tích hợp All-in-One (Gộp Cấu Hình vào Dashboard): Bổ sung Tab Switcher trên đầu trang cho phép chuyển đổi tức thì giữa:
+  - 📊 **Đối Soát Hồ Sơ**: Bảng dữ liệu toàn màn hình, bộ lọc đa tiêu chí, phân trang, nút mắt so sánh 2 bên (Visual Diff).
+  - ⚙️ **Cài Đặt & Cấu Hình Bot**: Toàn bộ 5 khối cấu hình M-System, Outlook, Ổ M:\, OCR & PDF trích xuất từ component `TkgdConfigPanel`.
+- Tích hợp nút chuyển đổi giao diện Sáng / Tối (Light / Dark Theme) độc lập ngay trên thanh tiêu đề của trang.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [frontend/src/components/GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/GlobalLayout.tsx):
+  - Bổ sung `isStandalonePage` nhận diện `/admin/tkgd-dashboard` và `/admin/tkgd-config` để render thẳng `<>{children}</>` mà không chèn Sidebar hay Header chung của Checklist.
+- [frontend/src/components/tkgd/TkgdConfigPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx):
+  - Tạo mới component cấu hình độc lập chứa đầy đủ 5 card cài đặt M-System, Outlook, thư mục ổ M:\ và bóc tách PDF/OCR, hỗ trợ Auto-Auth fallback.
+- [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+  - Thay thế Header chung bằng thanh điều hướng Standalone cao cấp có Logo MXV, huy hiệu chuyên viên TTBT, nút Theme Sáng/Tối.
+  - Tích hợp `mainTab` (`RECONCILE` vs `CONFIG`) chuyển đổi mượt mà giữa Bảng đối soát và Cấu hình bot.
+  - Bỏ bọc `ProtectedRoute` và bỏ chặn token để mở link trực tiếp hoạt động ngay.
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) thành công 100% (Exit code `0`).
+- **Frontend**: `npm run build` (`next build` Turbopack) thành công 100% (24/24 static pages, Exit code `0`).
+
+---
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Nâng cấp màn hình Giám sát & Đối soát TKGD (`/admin/tkgd-dashboard`) với tính năng lọc, phân trang và nút Con Mắt (`Eye`) để so sánh trực quan giữa Outlook và M-System.
+- Bổ sung cơ chế Bật/Tắt ẩn hiện (Collapsible UI): Cho phép thu gọn/mở rộng 4 thẻ KPI thống kê và chuyển đổi chế độ xem Gọn (Compact) vs Đầy đủ (Detailed) để màn hình không bị rối mắt.
+- Xây dựng Modal So Sánh Trực Quan 2 Chiều (Visual Diff Inspector): So sánh song song từng trường dữ liệu giữa Email Outlook (kèm file PDF/CCCD) và M-System (kèm OCR), tự động highlight xanh lá (Khớp) và đỏ (Lệch).
+- Nâng cấp API Backend `/api/v1/tkgd/records` hỗ trợ phân trang chuẩn (`page`, `pageSize`), lọc theo ngày đợt (`batchDate`) và tìm kiếm đa trường thời gian thực.
+
+### Danh sách file chỉnh sửa
+- [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+  - Tích hợp nút `Ẩn/Hiện thống kê`, nút chuyển đổi `Gọn/Đầy đủ`.
+  - Bổ sung thanh lọc ngày đợt `batchDate`, thanh phân trang (chọn `10`, `25`, `50` dòng/trang, điều hướng Prev/Next/First/Last).
+  - Cột thao tác mới: Icon Con Mắt (`Eye`) mở Modal So Sánh Trực Quan 2 Chiều; Icon Mũi Tên (`ChevronDown`) mở rộng tóm tắt lỗi inline.
+  - Modal So Sánh Trực Quan: 3 tab (So sánh trường dữ liệu, Hồ sơ & Ảnh CCCD, Lịch sử kiểm toán), hỗ trợ đóng bằng phím `ESC`.
+- [backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts):
+  - Nhận thêm query parameters: `page`, `limit`, `batchDate`, `search`.
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+  - Nâng cấp phương thức `getRecords` hỗ trợ phân trang `{ items, total, page, pageSize, totalPages }`, query lọc theo ngày và tìm kiếm regex.
+
+### Xác nhận Build & Kiểm thử
+- **Backend**: `npm run build` (`nest build`) thành công 100% (Exit code `0`).
+- **Frontend**: `npm run build` (`next build` Turbopack) thành công 100% (24/24 static pages, Exit code `0`).
+
+---
+
+## [2026-09-04] Tối Ưu Hóa Sheet MS: Gom Nhóm Theo Mã Cơ Sở (Duy Trì 2 Bản Ghi Chuẩn) & Backup Code Cũ
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa nghiệp vụ cho Sheet `MS` trong file Excel đối soát. Do trên M-System, các tiểu khoản (`-A`, `-L`, `-S`) dùng chung và kế thừa 100% hồ sơ nhà đầu tư gốc (`baseCode`), nên Sheet `MS` chỉ cần ghi 1 dòng cho mỗi khách hàng (tương ứng đúng 2 bản ghi cho 2 khách hàng thực tế).
+- Thêm tập hợp lọc `writtenMsSet` deduplicate theo `baseCode` (mã không đuôi) để đảm bảo không ghi lặp lại dòng `-A` vào Sheet `MS`.
+- Giữ nguyên khối code cũ dưới dạng comment rõ ràng để tiện backup/khôi phục khi cần.
+
+### Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts):
+  - Khai báo `writtenMsSet = new Set<string>()`.
+  - Cập nhật logic ghi Sheet `MS` kiểm tra `baseCode && !writtenMsSet.has(baseCode)`.
+  - Đóng khối comment code cũ `/* [CODE CŨ DỰ PHÒNG BACKUP] ... */`.
+
+### Xác nhận Build & Kiểm thử
+- **Kiểm thử thực tế**: Chạy `test_tkgd_full_pipeline_with_ocr.ts` và kiểm tra file Excel `Auto_Data_mail_20260904.xlsx`:
+  - `NoiDungMail`: 4 dòng (1 header + 3 data).
+  - `Cancuoc`: 3 dòng (1 header + 2 data).
+  - `HopDong`: 3 dòng (1 header + 2 data).
+  - `Phuluc`: 2 dòng (1 header + 1 data).
+  - `MS`: **3 dòng** (1 header + **đúng 2 bản ghi**: `003C2333888` và `003C0656625`).
+
+---
+
+## [2026-09-04] Triển Khai Giao Diện & Logic Cấu Hình Xử Lý Hồ Sơ, Bóc Tách Tệp Đính Kèm & Lưu Ổ M:\
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Bổ sung toàn diện khối cấu hình **"5. Cấu Hình Xử Lý Hồ Sơ, Bóc Tách Tệp Đính Kèm & Đối Chiếu 3 Chiều"** trên trang quản trị `/admin/tkgd-config`.
+- Thiết lập thư mục lưu trữ hồ sơ đính kèm chuẩn tại: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\{YYYY-MM-DD}\{TKGD}\` (nằm ngay cạnh file Excel đối soát).
+- Hỗ trợ bật/tắt linh hoạt 6 tùy chọn nghiệp vụ: Tải file từ mail, Lưu ảnh từ MS, Tùy chỉnh đường dẫn lưu, Bóc tách PDF, Nhận diện OCR CCCD, Đối chiếu chéo 3 chiều, và Kiểm tra Chữ ký mẫu trên M-System.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backend/src/schemas/tkgd-user-config.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/tkgd-user-config.schema.ts):
+  - Khai báo schema subdocument `DocumentProcessingConfigSubDoc` và gắn vào `TkgdUserConfig`.
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+  - Cập nhật hàm `getUserConfig` và `saveUserConfig` để lưu và nạp cấu hình `documentProcessing`.
+- [backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts):
+  - Thêm helper `getTkgdAttachmentDirectory` tự động điều hướng và tạo cây thư mục `HoSo_DinhKem` trên ổ đĩa mạng `M:\` hoặc đường dẫn tùy chỉnh.
+- [frontend/src/app/admin/tkgd-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-config/page.tsx):
+  - Tích hợp CARD 5 thiết kế theo chuẩn CSS Global `glass-panel` với 3 nhóm chức năng rõ ràng: Quản lý tải về, Động cơ bóc tách PDF/OCR, và Quy tắc đối chiếu chéo.
+
+### Xác nhận Build & Kiểm thử
+- **Frontend**: `npm run build` (Next.js 16 Turbopack) chạy thành công 100% (exit code 0, 24 static pages).
+- **Backend**: Types và service xử lý payload đồng bộ, an toàn 100%.
+
+---
+
 ## [2026-09-04] Bổ Sung Tính Năng Bóc Tách Ảnh CCCD (Mặt Trước, Mặt Sau) & Chữ Ký Từ M-System
 
 ### Mục tiêu thay đổi

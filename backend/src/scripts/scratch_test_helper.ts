@@ -2,7 +2,7 @@ import {
   parseJobPayload,
   resolveBotTargetDate,
   resolveDailySubfolder,
-} from './src/modules/bot-engine/helpers/bot-path.helper';
+} from '../modules/bot-engine/helpers/bot-path.helper';
 
 console.log('====================================================');
 console.log('🧪 BẮT ĐẦU KIỂM THỬ TÍNH ĐÚNG ĐẮN CỦA BOT PATH HELPER');

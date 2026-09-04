@@ -19,6 +19,11 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Check,
+  FileText,
+  Scan,
+  Layers,
+  FolderDown,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function TkgdConfigPage() {
@@ -56,6 +61,15 @@ export default function TkgdConfigPage() {
   // Preferences
   const [autoHighlightExcel, setAutoHighlightExcel] = useState(true);
 
+  // Document Processing & OCR States
+  const [autoDownloadMailAttachments, setAutoDownloadMailAttachments] = useState(true);
+  const [autoSaveMSystemImages, setAutoSaveMSystemImages] = useState(true);
+  const [attachmentSavePath, setAttachmentSavePath] = useState('');
+  const [autoExtractPdf, setAutoExtractPdf] = useState(true);
+  const [enableOcrCccd, setEnableOcrCccd] = useState(true);
+  const [enableTripleCheckCccd, setEnableTripleCheckCccd] = useState(true);
+  const [checkSignatureRequired, setCheckSignatureRequired] = useState(true);
+
   // Test status
   const [testingMs, setTestingMs] = useState(false);
   const [msTestResult, setMsTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -86,6 +100,16 @@ export default function TkgdConfigPage() {
           if (data.storage?.linuxPath) setLinuxPath(data.storage.linuxPath);
           if (data.preferences?.autoHighlightExcel !== undefined) {
             setAutoHighlightExcel(data.preferences.autoHighlightExcel);
+          }
+          if (data.documentProcessing) {
+            const dp = data.documentProcessing;
+            if (dp.autoDownloadMailAttachments !== undefined) setAutoDownloadMailAttachments(dp.autoDownloadMailAttachments);
+            if (dp.autoSaveMSystemImages !== undefined) setAutoSaveMSystemImages(dp.autoSaveMSystemImages);
+            if (dp.attachmentSavePath !== undefined) setAttachmentSavePath(dp.attachmentSavePath);
+            if (dp.autoExtractPdf !== undefined) setAutoExtractPdf(dp.autoExtractPdf);
+            if (dp.enableOcrCccd !== undefined) setEnableOcrCccd(dp.enableOcrCccd);
+            if (dp.enableTripleCheckCccd !== undefined) setEnableTripleCheckCccd(dp.enableTripleCheckCccd);
+            if (dp.checkSignatureRequired !== undefined) setCheckSignatureRequired(dp.checkSignatureRequired);
           }
         }
       } catch (err: any) {
@@ -120,6 +144,15 @@ export default function TkgdConfigPage() {
         },
         preferences: {
           autoHighlightExcel,
+        },
+        documentProcessing: {
+          autoDownloadMailAttachments,
+          autoSaveMSystemImages,
+          attachmentSavePath: attachmentSavePath.trim(),
+          autoExtractPdf,
+          enableOcrCccd,
+          enableTripleCheckCccd,
+          checkSignatureRequired,
         },
       };
 
@@ -708,6 +741,414 @@ export default function TkgdConfigPage() {
                     />
                   </div>
                 </label>
+              </div>
+            </div>
+
+            {/* CARD 5: CẤU HÌNH XỬ LÝ HỒ SƠ, BÓC TÁCH & ĐỐI CHIẾU 3 CHIỀU */}
+            <div
+              className="glass-panel"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '24px',
+                gridColumn: '1 / -1',
+                boxShadow: 'var(--shadow-sm)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+              }}
+            >
+              {/* Header Card 5 */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid var(--border-color)',
+                  paddingBottom: '14px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0ea5e9', fontWeight: 700, fontSize: '0.95rem' }}>
+                  <Layers size={20} />
+                  <span>5. Cấu Hình Xử Lý Hồ Sơ, Bóc Tách Tệp Đính Kèm & Đối Chiếu 3 Chiều</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    padding: '3px 10px',
+                    borderRadius: '20px',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    color: '#0ea5e9',
+                    border: '1px solid rgba(14, 165, 233, 0.25)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Tự động hóa toàn diện
+                </span>
+              </div>
+
+              {/* Nhóm A: Quản Lý Tải Về & Lưu Trữ Hồ Sơ */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
+                  <FolderDown size={17} style={{ color: '#0ea5e9' }} />
+                  <span>A. Quản Lý Tải Về & Lưu Trữ Hồ Sơ (Ổ M:\ hoặc Thư Mục Riêng)</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Toggle 1: Tải file từ mail */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Tự động tải tệp đính kèm & ảnh từ Mail Outlook về máy
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Tải toàn bộ file scan Hợp đồng (*-mxv.pdf), Phụ lục 01 (*-PL01.pdf) và ảnh CCCD 2 mặt từ thư vào thư mục lưu trữ.
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoDownloadMailAttachments}
+                        onChange={(e) => setAutoDownloadMailAttachments(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: autoDownloadMailAttachments ? '#0ea5e9' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: autoDownloadMailAttachments ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Toggle 2: Lưu ảnh từ M-System */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Tự động trích xuất & lưu ảnh CCCD / Chữ ký từ M-System về máy
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Tải ảnh CCCD mặt trước, mặt sau và ảnh chữ ký mẫu đang lưu trên M-System về cùng thư mục hồ sơ để kiểm tra đối chiếu.
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoSaveMSystemImages}
+                        onChange={(e) => setAutoSaveMSystemImages(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: autoSaveMSystemImages ? '#0ea5e9' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: autoSaveMSystemImages ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Custom save path */}
+                  <div style={{ marginTop: '4px' }}>
+                    <label style={labelStyle}>Đường dẫn thư mục lưu trữ hồ sơ (Tùy chọn):</label>
+                    <input
+                      type="text"
+                      value={attachmentSavePath}
+                      onChange={(e) => setAttachmentSavePath(e.target.value)}
+                      placeholder="Để trống = Tự động gom vào thư mục HoSo_DinhKem trên ổ M:\ theo ngày và mã TKGD (Khuyến nghị)"
+                      style={inputStyle}
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                      Ví dụ: <code>M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\</code>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm B: Động Cơ Bóc Tách Dữ Liệu */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
+                  <Scan size={17} style={{ color: '#8b5cf6' }} />
+                  <span>B. Động Cơ Bóc Tách Dữ Liệu (PDF & OCR Nhận Diện CCCD)</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                  {/* Toggle 3: Bóc tách PDF */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Tự động đọc & bóc tách PDF Hợp đồng & Phụ lục PL01
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Bóc tách siêu tốc (~0.04s) lấy Số HĐ, Ngày ký, CCCD, Ngày sinh, Nơi cấp từ PDF scan.
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoExtractPdf}
+                        onChange={(e) => setAutoExtractPdf(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: autoExtractPdf ? '#8b5cf6' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: autoExtractPdf ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Toggle 4: Quét OCR ảnh CCCD */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Tự động nhận diện OCR ảnh CCCD (Mặt trước / Mặt sau)
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Trích xuất số CMND/CCCD, họ tên, ngày cấp từ ảnh. Có thể tắt khi ảnh quá mờ hoặc CPU bận.
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={enableOcrCccd}
+                        onChange={(e) => setEnableOcrCccd(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: enableOcrCccd ? '#8b5cf6' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: enableOcrCccd ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm C: Quy Tắc Đối Chiếu Chéo */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
+                  <ShieldCheck size={17} style={{ color: '#10b981' }} />
+                  <span>C. Quy Tắc Đối Chiếu Chéo (Triple Cross-Validation)</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                  {/* Toggle 5: Đối chiếu 3 chiều */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Bật đối chiếu chéo 3 chiều CCCD
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        So khớp đa chiều: Ảnh CCCD Mail vs Ảnh CCCD M-System vs Form text M-System (phát hiện upload nhầm ảnh).
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={enableTripleCheckCccd}
+                        onChange={(e) => setEnableTripleCheckCccd(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: enableTripleCheckCccd ? '#10b981' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: enableTripleCheckCccd ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Toggle 6: Kiểm tra chữ ký */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ paddingRight: '16px' }}>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
+                        Cảnh báo nếu chưa có ảnh Chữ ký mẫu trên M-System
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Đánh dấu cảnh báo trên file Excel đối soát nếu tài khoản trên M-System chưa được tải ảnh chữ ký mẫu.
+                      </p>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={checkSignatureRequired}
+                        onChange={(e) => setCheckSignatureRequired(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '22px',
+                          backgroundColor: checkSignatureRequired ? '#10b981' : 'var(--border-color)',
+                          borderRadius: '22px',
+                          position: 'relative',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '3px',
+                            left: checkSignatureRequired ? '24px' : '3px',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </form>

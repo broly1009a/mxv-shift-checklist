@@ -18,6 +18,7 @@ import {
 } from '../modules/bot-engine/helpers/tkgd-doc-extractor.helper';
 import {
   reconcileAndExportToExcel,
+  getTkgdAttachmentDirectory,
 } from '../modules/bot-engine/helpers/tkgd-reconcile-exporter.helper';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -103,7 +104,17 @@ async function runFullPipelineWithOcr() {
       coGiaTriDen: s.dir === 'mẫu 1' ? new Date(2039, 9, 13) : new Date(2031, 9, 6),
     };
 
-    // 4. Đối chiếu chéo 3 chiều: Mail CCCD vs M-System CCCD vs M-System Form
+    // 4. Lưu hồ sơ đính kèm vào thư mục HoSo_DinhKem (trên ổ M:\ hoặc project)
+    const attachDir = getTkgdAttachmentDirectory('', new Date().toISOString().slice(0, 10), `${s.maTKGD_Futures}_${s.tenTaiKhoan.replace(/\s+/g, '_')}`);
+    fs.copyFileSync(hdPath, path.join(attachDir, `Mail_${s.hdFile}`));
+    if (s.plFile) fs.copyFileSync(path.join(samplePath, s.plFile), path.join(attachDir, `Mail_${s.plFile}`));
+    fs.copyFileSync(path.join(samplePath, s.cccdTruoc), path.join(attachDir, `Mail_${s.cccdTruoc}`));
+    fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `Mail_${s.cccdSau}`));
+    fs.copyFileSync(path.join(samplePath, s.cccdTruoc), path.join(attachDir, `MS_CCCD_truoc.jpg`));
+    fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `MS_CCCD_sau.jpg`));
+    console.log(`  📁 Đã lưu hồ sơ vào thư mục: ${attachDir}`);
+
+    // 5. Đối chiếu chéo 3 chiều: Mail CCCD vs M-System CCCD vs M-System Form
     const tripleCheck = compareCccdTripleCheck({
       mailCccd: cccdData as any,
       msCccdImg: {
@@ -122,7 +133,7 @@ async function runFullPipelineWithOcr() {
     console.log(`  🔍 Kết quả đối chiếu chéo CCCD: ${tripleCheck.statusText}`);
     tripleCheck.details.forEach((d) => console.log(`     - ${d}`));
 
-    // 5. Lưu vào MongoDB CleanAccountRecord (Futures)
+    // 6. Lưu vào MongoDB CleanAccountRecord (Futures)
     let record = await CleanRecordModel.findOne({ maTKGD: s.maTKGD_Futures });
     if (!record) {
       record = new CleanRecordModel({

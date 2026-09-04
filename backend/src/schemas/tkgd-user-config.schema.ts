@@ -29,6 +29,12 @@ export class OutlookConfigSubDoc {
 
   @Prop({ default: '' })
   clientSecret: string;
+
+  @Prop({ default: '' })
+  authorizedEmail: string;
+
+  @Prop({ default: '' })
+  tokenRenewedAt: string;
 }
 
 export class StorageConfigSubDoc {

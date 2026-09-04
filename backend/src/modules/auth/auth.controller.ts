@@ -11,6 +11,8 @@ import {
   Res,
   Query,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import * as express from 'express';
 import * as crypto from 'crypto';
@@ -18,14 +20,16 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { TkgdAutomationService } from '../tkgd-automation/tkgd-automation.service';
 
 function getCookie(req: express.Request, name: string): string | null {
   const cookieHeader = req.headers.cookie;
   if (!cookieHeader) return null;
   const cookies = cookieHeader.split(';').map((c) => c.trim());
   for (const cookie of cookies) {
-    const [key, ...valParts] = cookie.split('=');
-    if (key === name) return valParts.join('=');
+    if (cookie.startsWith(`${name}=`)) {
+      return decodeURIComponent(cookie.substring(name.length + 1));
+    }
   }
   return null;
 }
@@ -38,6 +42,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
     private readonly settingsService: SystemSettingsService,
+    @Inject(forwardRef(() => TkgdAutomationService))
+    private readonly tkgdService: TkgdAutomationService,
   ) {}
 
   @Get('microsoft')
@@ -125,6 +131,81 @@ export class AuthController {
     @Res() res: express.Response,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    // 0. Check if it is TKGD Outlook authorization (completely independent from checklist)
+    if (state && state.startsWith('tkgd:')) {
+      if (!code) {
+        return res.redirect(
+          `${frontendUrl}/admin/tkgd-dashboard?tab=config&outlook_auth=failed&error=${encodeURIComponent('Không nhận được mã xác thực từ Microsoft')}`,
+        );
+      }
+
+      try {
+        const parts = state.split(':');
+        if (parts.length !== 4) {
+          throw new Error('Mã trạng thái TKGD không hợp lệ');
+        }
+
+        const [_, encodedUserEmail, timestamp, hash] = parts;
+        const userEmail = decodeURIComponent(encodedUserEmail);
+        const secret = process.env.JWT_SECRET || 'trading_mxv_secret_key_2026';
+        const expectedHash = crypto.createHmac('sha256', secret).update(`tkgd:${userEmail}:${timestamp}`).digest('hex');
+
+        if (hash !== expectedHash) {
+          throw new Error('Chữ ký xác thực TKGD không khớp (CSRF mismatch)');
+        }
+
+        const age = Date.now() - parseInt(timestamp, 10);
+        if (isNaN(age) || age > 600000) {
+          throw new Error('Yêu cầu cấp quyền đã hết hạn');
+        }
+
+        const userConfig = await this.tkgdService.getUserConfig(userEmail);
+        const clientId = userConfig.outlook?.clientId || undefined;
+        const tenantId = userConfig.outlook?.tenantId || undefined;
+        const rawSecret = userConfig.outlook?.hasClientSecret
+          ? await this.tkgdService.getRawClientSecret(userEmail)
+          : undefined;
+
+        const tokenData = await this.authService.exchangeMicrosoftCodeForBot(code, {
+          clientId,
+          tenantId,
+          clientSecret: rawSecret,
+        });
+
+        if (tokenData.refresh_token) {
+          let authorizedEmail = '';
+          try {
+            const meRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+              headers: { Authorization: `Bearer ${tokenData.access_token}` },
+            });
+            if (meRes.ok) {
+              const profile = await meRes.json();
+              authorizedEmail = profile.mail || profile.userPrincipalName || '';
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          await this.tkgdService.saveOutlookAuthorizedToken(userEmail, {
+            refreshToken: tokenData.refresh_token,
+            authorizedEmail: authorizedEmail || userConfig.outlook?.targetMailbox || userEmail,
+          });
+          this.logger.log(`[TKGD-OUTLOOK] Đã cấp quyền và lưu Refresh Token độc lập cho ${userEmail} (${authorizedEmail})`);
+        } else {
+          throw new Error('Không nhận được Refresh Token từ Microsoft (hãy kiểm tra quyền offline_access)');
+        }
+
+        return res.redirect(
+          `${frontendUrl}/admin/tkgd-dashboard?tab=config&outlook_auth=success`,
+        );
+      } catch (error: any) {
+        const errorMsg = error.message || 'Cấp quyền tài khoản Outlook độc lập thất bại';
+        return res.redirect(
+          `${frontendUrl}/admin/tkgd-dashboard?tab=config&outlook_auth=failed&error=${encodeURIComponent(errorMsg)}`,
+        );
+      }
+    }
 
     // 1. Check if it is Bot authorization first (uses signed state to avoid cookie-sharing port issues)
     if (state && state.startsWith('bot:')) {

@@ -161,18 +161,19 @@ async function runFullPipeline() {
         console.log(`  🔢 Nhập mã PIN tự động...`);
         const pinStr = String(credentials.pin || '');
         for (const digit of pinStr) {
-          const digitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
-          const digitEl = page.locator(digitSelector).first();
-          if (await digitEl.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await digitEl.click();
+          const btn = page.locator('.pincode .keyboard .button').filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) }).first();
+          if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await btn.click();
             await page.waitForTimeout(300);
+          } else {
+            const fallbackEl = page.locator(`div.pincode >> xpath=.//div[text()='${digit}']`).first();
+            if (await fallbackEl.isVisible({ timeout: 1000 }).catch(() => false)) {
+              await fallbackEl.click();
+              await page.waitForTimeout(300);
+            }
           }
         }
-        const confirmBtn = page.locator('.ant-modal button:has-text("Xác nhận")').first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmBtn.click();
-          await page.waitForTimeout(2000);
-        }
+        await page.waitForTimeout(3000);
       }
 
       console.log('  ✅ Đăng nhập M-System thành công!');

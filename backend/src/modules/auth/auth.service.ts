@@ -402,15 +402,21 @@ export class AuthService {
     };
   }
 
-  async exchangeMicrosoftCodeForBot(code: string) {
+  async exchangeMicrosoftCodeForBot(
+    code: string,
+    customConfig?: { tenantId?: string; clientId?: string; clientSecret?: string },
+  ) {
     const tenantId =
+      customConfig?.tenantId ||
       (await this.settingsService.getSetting('m365_tenant_id', '')) ||
       process.env.MICROSOFT_TENANT_ID ||
       'common';
     const clientId =
+      customConfig?.clientId ||
       (await this.settingsService.getSetting('m365_client_id', '')) ||
       process.env.MICROSOFT_CLIENT_ID;
     const clientSecret =
+      customConfig?.clientSecret ||
       (await this.settingsService.getSetting('m365_client_secret', '')) ||
       process.env.MICROSOFT_CLIENT_SECRET;
     const redirectUri = process.env.MICROSOFT_CALLBACK_URL;
