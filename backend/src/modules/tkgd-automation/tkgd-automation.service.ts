@@ -610,11 +610,13 @@ export class TkgdAutomationService {
     }> = [];
 
     // 1. Thử gọi Microsoft Graph API nếu đã kết nối Outlook
+    this.logger.log(`[TKGD-MAIL] userEmail: ${userEmail}, hasRefreshToken: ${!!config?.outlook?.refreshToken}`);
     if (config?.outlook?.refreshToken) {
       try {
         const tenantId = config.outlook.tenantId || process.env.MICROSOFT_TENANT_ID || 'common';
         const clientId = config.outlook.clientId || process.env.MICROSOFT_CLIENT_ID || '';
         const clientSecret = config.outlook.clientSecret || (await this.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';
+        this.logger.log(`[TKGD-MAIL] tenantId: ${tenantId}, clientId: ${clientId}, hasClientSecret: ${!!clientSecret}`);
 
         const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
           method: 'POST',
@@ -627,6 +629,7 @@ export class TkgdAutomationService {
           }),
         });
 
+        this.logger.log(`[TKGD-MAIL] tokenRes status: ${tokenRes.status}`);
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();
           const accessToken = tokenData.access_token;
@@ -634,25 +637,62 @@ export class TkgdAutomationService {
             await this.userConfigModel.updateOne({ userEmail }, { 'outlook.refreshToken': tokenData.refresh_token });
           }
 
-          const graphUrl = `https://graph.microsoft.com/v1.0/me/messages?$filter=contains(subject,'Yêu cầu mở TKGD')&$top=50&$orderby=receivedDateTime desc`;
-          const messagesRes = await fetch(graphUrl, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
+          const targetMailbox = config.outlook?.targetMailbox?.trim();
+          // Microsoft Graph API không cho phép kết hợp $filter=contains(...) cùng lúc với $orderby=receivedDateTime (lỗi InefficientFilter 400).
+          // Ta dùng $search hoặc lấy 100 mail mới nhất rồi lọc chuẩn xác trong Node.js:
+          const endpointsToTry: string[] = [];
+          if (targetMailbox && targetMailbox !== userEmail) {
+            endpointsToTry.push(
+              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
+              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=100&$orderby=receivedDateTime desc`
+            );
+          }
+          endpointsToTry.push(
+            `https://graph.microsoft.com/v1.0/me/messages?$search="Yêu cầu mở TKGD"&$top=50`,
+            `https://graph.microsoft.com/v1.0/me/messages?$top=100&$orderby=receivedDateTime desc`
+          );
 
-          if (messagesRes.ok) {
-            const msgs = await messagesRes.json();
-            for (const msg of msgs.value || []) {
-              emailList.push({
-                messageId: msg.id,
-                subject: msg.subject || '',
-                senderEmail: msg.sender?.emailAddress?.address || '',
-                senderName: msg.sender?.emailAddress?.name || '',
-                receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
-                bodyRawText: msg.body?.content?.replace(/<[^>]*>/g, ' ') || msg.bodyPreview || '',
-                attachments: [],
-              });
+          let fetchedMessages: any[] = [];
+          for (const graphUrl of endpointsToTry) {
+            this.logger.log(`[TKGD-MAIL] Trying Graph endpoint: ${graphUrl}`);
+            const messagesRes = await fetch(graphUrl, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            this.logger.log(`[TKGD-MAIL] messagesRes status: ${messagesRes.status}`);
+            if (messagesRes.ok) {
+              const msgs = await messagesRes.json();
+              if (msgs.value && msgs.value.length > 0) {
+                // Lọc mail có chứa 'Yêu cầu mở TKGD' hoặc 'TKGD' hoặc 'Mở tài khoản'
+                const matched = msgs.value.filter((m: any) => {
+                  const s = (m.subject || '').toLowerCase();
+                  return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+                });
+                if (matched.length > 0) {
+                  fetchedMessages = matched;
+                  this.logger.log(`[TKGD-MAIL] Tìm thấy ${matched.length} email phù hợp từ Graph API!`);
+                  break;
+                }
+              }
+            } else {
+              const errBody = await messagesRes.text();
+              this.logger.warn(`[TKGD-MAIL] Graph endpoint ${graphUrl} failed: ${errBody}`);
             }
           }
+
+          for (const msg of fetchedMessages) {
+            emailList.push({
+              messageId: msg.id,
+              subject: msg.subject || '',
+              senderEmail: msg.sender?.emailAddress?.address || '',
+              senderName: msg.sender?.emailAddress?.name || '',
+              receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
+              bodyRawText: msg.body?.content?.replace(/<[^>]*>/g, ' ') || msg.bodyPreview || '',
+              attachments: [],
+            });
+          }
+        } else {
+          const errText = await tokenRes.text();
+          this.logger.warn(`[TKGD-MAIL] Refresh token failed: ${errText}`);
         }
       } catch (err: any) {
         this.logger.warn(`Lỗi khi gọi Microsoft Graph API: ${err.message}. Chuyển sang nạp mẫu.`);
