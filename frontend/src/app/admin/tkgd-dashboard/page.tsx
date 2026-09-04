@@ -1980,6 +1980,7 @@ export default function TkgdDashboardPage() {
                                 label: 'Hợp đồng / Ngày tham gia',
                                 left: formatDateStr(inspectRecord.hopDong?.ngayKyHD),
                                 right: formatDateStr(inspectRecord.ms?.ngayThamGia),
+                                customMatch: !!(inspectRecord.hopDong?.ngayKyHD && inspectRecord.ms?.ngayThamGia),
                               },
                               {
                                 label: 'Chữ ký khách hàng',

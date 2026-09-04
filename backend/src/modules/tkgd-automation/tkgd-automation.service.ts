@@ -547,11 +547,13 @@ export class TkgdAutomationService {
         errors.push('Tài khoản chưa được tạo trên M-System');
       } else {
         const msCode = (ms.maTKGD || '').trim();
-        const isSubAccount = targetAccountCode.includes('-A');
+        const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
         if (isSubAccount) {
-          if (targetAccountCode && msCode && targetAccountCode.toUpperCase() !== msCode.toUpperCase()) {
+          // Với tiểu khoản (-A, -L, -S), M-System lưu theo mã NĐT cơ sở (baseCode)
+          const msBaseCode = msCode.split('-')[0].toUpperCase();
+          if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
             isMatched = false;
-            errors.push(`Lệch mã ACM (Yêu cầu: ${targetAccountCode} != MS: ${msCode})`);
+            errors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
           }
         } else {
           if (baseCode && msCode && !msCode.startsWith(baseCode)) {
@@ -563,6 +565,13 @@ export class TkgdAutomationService {
         if (mailName && msName && mailName !== msName) {
           isMatched = false;
           errors.push(`Lệch họ tên (Mail: ${mail.tenTaiKhoan} != MS: ${ms.hoVaTen})`);
+        }
+
+        const mailCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || '').trim();
+        const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
+        if (mailCccd && msCccd && mailCccd !== msCccd) {
+          isMatched = false;
+          errors.push(`Lệch số CCCD (HĐ: ${mailCccd} != MS: ${msCccd})`);
         }
       }
 

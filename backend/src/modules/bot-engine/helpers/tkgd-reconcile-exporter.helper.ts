@@ -268,9 +268,18 @@ export async function reconcileAndExportToExcel(
       isMatched = false;
       errors.push('Tài khoản chưa được tạo trên M-System');
     } else {
-      if (targetAccountCode && msCode && targetAccountCode.toUpperCase() !== msCode.toUpperCase()) {
-        isMatched = false;
-        errors.push(`Lệch mã TKGD (Yêu cầu: ${targetAccountCode} != MS: ${msCode})`);
+      const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
+      if (isSubAccount) {
+        const msBaseCode = msCode.split('-')[0].toUpperCase();
+        if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
+          isMatched = false;
+          errors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
+        }
+      } else {
+        if (targetAccountCode && msCode && targetAccountCode.toUpperCase() !== msCode.toUpperCase()) {
+          isMatched = false;
+          errors.push(`Lệch mã TKGD (Yêu cầu: ${targetAccountCode} != MS: ${msCode})`);
+        }
       }
       if (mailName && msName && mailName !== msName) {
         isMatched = false;

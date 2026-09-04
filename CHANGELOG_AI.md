@@ -2,6 +2,33 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-04] Khắc Phục Lỗi Xung Đột Trạng Thái Đối Soát: Lệch Mã Tiểu Khoản ACM & Cột "Hợp Đồng / Ngày Tham Gia" Báo Đỏ Sai Lệch Giả
+
+### Mục tiêu thay đổi
+- Giải quyết hiện tượng USER phản ánh:
+  1. **Trong Cửa Sổ So Sánh Chi Tiết (Visual Diff Modal)**: Cả 2 hồ sơ (`003C2333888` và `003C0656625`) đều bị hiển thị dòng đỏ ❌ ở hàng `"Hợp đồng / Ngày tham gia"`.
+     - *Nguyên nhân*: Modal so sánh cứng chuỗi `formatDate(hopDong.ngayKyHD) === formatDate(ms.ngayThamGia)`. Trong nghiệp vụ thực tế, **Ngày ký hợp đồng** (trên bản cứng/PDF) và **Ngày tham gia/duyệt trên M-System** là hai sự kiện diễn ra ở hai thời điểm khác nhau (không bao giờ bằng nhau). Việc so sánh bằng dẫn tới tất cả các bản ghi trong hệ thống đều bị đỏ giả ❌.
+  2. **Ở Bảng Tổng Quan Bên Ngoài**: Hồ sơ `003C2333888` bị báo `LỆCH DỮ LIỆU`, trong khi hồ sơ `003C0656625` báo `KHỚP 100%`.
+     - *Nguyên nhân*: Tại Backend (`tkgd-automation.service.ts` và `tkgd-reconcile-exporter.helper.ts`), hàm `runReconciliation` lấy mã tiểu khoản `targetAccountCode` (`003C2333888-A`) đi so sánh trực tiếp với `ms.maTKGD` (`003C2333888`). Trên M-System, mã nhà đầu tư luôn là mã gốc `003C...` (không chứa đuôi `-A`), dẫn tới bị báo lỗi `"Lệch mã ACM (Yêu cầu: 003C2333888-A != MS: 003C2333888)"`.
+
+### Danh sách file chỉnh sửa
+1. [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+   - Chuẩn hóa so sánh mã tiểu khoản (`-A`, `-L`, `-S`): Kiểm tra mã cơ sở `baseCode` với `msBaseCode` trên M-System thay vì so khớp nguyên chuỗi có đuôi `-A`.
+   - Bổ sung kiểm tra số CCCD giữa Mail/HĐ và MS.
+2. [backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts):
+   - Đồng bộ sửa điều kiện khớp mã cơ sở cho tiểu khoản khi xuất file Excel.
+3. [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+   - Đặt `customMatch: !!(inspectRecord.hopDong?.ngayKyHD && inspectRecord.ms?.ngayThamGia)` cho hàng `"Hợp đồng / Ngày tham gia"` để tránh báo sai lệch đỏ giả ❌ khi cả 2 ngày đều tồn tại hợp lệ.
+
+### Xác nhận Build & Kiểm thử
+- **Frontend**: `npx tsc --noEmit` thành công 100% (Exit code 0).
+- **Backend**: `npm run build` thành công 100% (Exit code 0).
+- **Kiểm thử Thực tế**: Chạy lại đối soát qua API `POST /api/v1/tkgd/run`:
+  - `khopCount`: 3/3 bản ghi (`003C2333888` và `003C0656625` đều chuyển sang **`KHỚP 100%`**).
+  - `lechCount`: 0 bản ghi.
+
+---
+
 ## [2026-09-04] Triển Khai Hoàn Chỉnh Hệ Thống Điều Khiển TKGD Automation 2 Sprint & Cụm Nút Thao Tác Trực Quan
 
 ### Mục tiêu thay đổi
