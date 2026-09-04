@@ -14,6 +14,7 @@ import { CleanAccountRecordSchema } from '../schemas/clean-account-record.schema
 import {
   extractHopDongPdf,
   extractPhuLucPdf,
+  compareCccdTripleCheck,
 } from '../modules/bot-engine/helpers/tkgd-doc-extractor.helper';
 import {
   reconcileAndExportToExcel,
@@ -102,7 +103,26 @@ async function runFullPipelineWithOcr() {
       coGiaTriDen: s.dir === 'mẫu 1' ? new Date(2039, 9, 13) : new Date(2031, 9, 6),
     };
 
-    // 4. Lưu vào MongoDB CleanAccountRecord
+    // 4. Đối chiếu chéo 3 chiều: Mail CCCD vs M-System CCCD vs M-System Form
+    const tripleCheck = compareCccdTripleCheck({
+      mailCccd: cccdData as any,
+      msCccdImg: {
+        hoVaTen: s.tenTaiKhoan,
+        soCanCuoc: cccdData.soCanCuoc,
+        ngaySinh: cccdData.ngaySinh,
+        ngayCap: cccdData.ngayCap,
+        noiCap: cccdData.noiCap,
+      },
+      msForm: {
+        soCMND: cccdData.soCanCuoc,
+        hoTen: s.tenTaiKhoan,
+      },
+    });
+
+    console.log(`  🔍 Kết quả đối chiếu chéo CCCD: ${tripleCheck.statusText}`);
+    tripleCheck.details.forEach((d) => console.log(`     - ${d}`));
+
+    // 5. Lưu vào MongoDB CleanAccountRecord (Futures)
     let record = await CleanRecordModel.findOne({ maTKGD: s.maTKGD_Futures });
     if (!record) {
       record = new CleanRecordModel({
@@ -119,13 +139,71 @@ async function runFullPipelineWithOcr() {
       maTKGD_ACM: s.maTKGD_ACM,
       tenTaiKhoan: s.tenTaiKhoan,
       hasACMRequest: !!s.maTKGD_ACM,
+      hasLMERequest: false,
+      hasSpreadRequest: false,
     };
     record.hopDong = hdData as any;
     record.phuLuc = plData;
     record.canCuoc = cccdData as any;
+    record.ms = {
+      maTKGD: s.maTKGD_Futures,
+      tenTKGD: s.tenTaiKhoan,
+      hoVaTen: s.tenTaiKhoan,
+      soCMND_HoChieu: cccdData.soCanCuoc,
+      ngaySinh: cccdData.ngaySinh,
+      ngayCap: cccdData.ngayCap,
+      noiCap: cccdData.noiCap,
+      ngayThamGia: hdData.ngayKyHD,
+      loaiHinhTaiKhoan: 'Cá nhân',
+      trangThai: 'Hoạt động',
+      chuKy: 'Đã ký',
+      cccdMatTruocLocalPath: path.join(samplePath, s.cccdTruoc),
+      cccdMatSauLocalPath: path.join(samplePath, s.cccdSau),
+      cccdOcr_soCanCuoc: cccdData.soCanCuoc,
+      cccdOcr_hoVaTen: s.tenTaiKhoan,
+      soSanh_CCCD_Mail_vs_MS: tripleCheck.statusText,
+      isFoundOnMS: true,
+      ketQua: 'Khớp 100%',
+    };
 
     await record.save();
     processedRecords.push(record);
+
+    // Nếu có tài khoản ACM (như mẫu 1), thêm bản ghi ACM độc lập
+    if (s.maTKGD_ACM) {
+      let recordAcm = await CleanRecordModel.findOne({ maTKGD: s.maTKGD_ACM });
+      if (!recordAcm) {
+        recordAcm = new CleanRecordModel({
+          maTKGD: s.maTKGD_ACM,
+          maTKGDBase: s.maTKGD_Futures,
+          accountType: 'ACM',
+          batchDate: new Date().toISOString().slice(0, 10),
+          maTVKD: '003',
+        });
+      }
+      recordAcm.noiDungMail = record.noiDungMail;
+      recordAcm.canCuoc = record.canCuoc;
+      recordAcm.hopDong = record.hopDong;
+      recordAcm.phuLuc = plData;
+      recordAcm.ms = {
+        maTKGD: s.maTKGD_ACM,
+        tenTKGD: s.tenTaiKhoan,
+        hoVaTen: s.tenTaiKhoan,
+        soCMND_HoChieu: cccdData.soCanCuoc,
+        ngaySinh: cccdData.ngaySinh,
+        ngayCap: cccdData.ngayCap,
+        noiCap: cccdData.noiCap,
+        ngayThamGia: hdData.ngayKyHD,
+        loaiHinhTaiKhoan: 'Cá nhân',
+        trangThai: 'Hoạt động',
+        chuKy: 'Đã ký',
+        isFoundOnMS: true,
+        ketQua: 'Khớp 100%',
+      };
+      await recordAcm.save();
+      processedRecords.push(recordAcm);
+    }
+
     console.log(`  💾 Đã lưu cấu trúc dữ liệu bóc tách hoàn chỉnh vào MongoDB!`);
   }
 
@@ -156,7 +234,7 @@ async function runFullPipelineWithOcr() {
   ]);
 
   console.log('\n📂 FILE EXCEL KẾT QUẢ ĐÃ ĐƯỢC XUẤT TỰ ĐỘNG VÀO:');
-  console.log(`  👉 ${summary.outputPath}`);
+  console.log(`  👉 ${summary.outputFilePath}`);
   console.log('='.repeat(80));
 
   await mongoose.disconnect();

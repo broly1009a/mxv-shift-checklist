@@ -172,6 +172,33 @@ export class MSSubDoc {
   chuKy?: string;
 
   @Prop()
+  cccdMatTruocLocalPath?: string;
+
+  @Prop()
+  cccdMatSauLocalPath?: string;
+
+  @Prop()
+  chuKyLocalPath?: string;
+
+  @Prop()
+  cccdOcr_soCanCuoc?: string;
+
+  @Prop()
+  cccdOcr_hoVaTen?: string;
+
+  @Prop()
+  cccdOcr_ngaySinh?: Date;
+
+  @Prop()
+  cccdOcr_ngayCap?: Date;
+
+  @Prop()
+  cccdOcr_noiCap?: string;
+
+  @Prop()
+  soSanh_CCCD_Mail_vs_MS?: string;
+
+  @Prop()
   ketQua?: string;
 
   @Prop({ default: false })

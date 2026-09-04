@@ -64,6 +64,27 @@ export function parseDateString(dateStr?: string): Date | undefined {
 }
 
 /**
+ * Đọc nội dung văn bản từ file PDF, tương thích cả pdf-parse v1 (function) và v2 (class PDFParse)
+ */
+export async function readPdfText(filePath: string): Promise<string> {
+  const dataBuffer = fs.readFileSync(filePath);
+  const pdfModule = require('pdf-parse');
+  if (typeof pdfModule === 'function') {
+    const data = await pdfModule(dataBuffer);
+    return data.text || '';
+  } else if (pdfModule.PDFParse) {
+    const parser = new pdfModule.PDFParse({ data: dataBuffer });
+    const res = await parser.getText();
+    await parser.destroy();
+    return res.text || '';
+  } else if (pdfModule.default) {
+    const data = await pdfModule.default(dataBuffer);
+    return data.text || '';
+  }
+  return '';
+}
+
+/**
  * Trích xuất dữ liệu từ file PDF Hợp đồng (*-mxv.pdf)
  */
 export async function extractHopDongPdf(filePath: string): Promise<ExtractedHopDong> {
@@ -75,10 +96,7 @@ export async function extractHopDongPdf(filePath: string): Promise<ExtractedHopD
   if (!fs.existsSync(filePath)) return result;
 
   try {
-    const pdfParse = require('pdf-parse');
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
-    const text = data.text || '';
+    const text = await readPdfText(filePath);
 
     // 1. Số hợp đồng: "Số: GCL3692/HCM2026..."
     const soHdMatch = text.match(/Số:\s*([A-Z0-9_\-\/]+)/i);
@@ -144,10 +162,7 @@ export async function extractPhuLucPdf(filePath: string): Promise<ExtractedPhuLu
   if (!fs.existsSync(filePath)) return result;
 
   try {
-    const pdfParse = require('pdf-parse');
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
-    const text = data.text || '';
+    const text = await readPdfText(filePath);
 
     // 1. Số hợp đồng gốc: "số GCL3692/HCM2026"
     const soHdMatch = text.match(/Hợp đồng mở tài khoản số\s*([A-Z0-9_\-\/]+)/i);
@@ -188,3 +203,81 @@ export async function extractPhuLucPdf(filePath: string): Promise<ExtractedPhuLu
 
   return result;
 }
+
+export interface TripleCheckCccdResult {
+  isMatch: boolean;
+  statusText: string;
+  soCanCuocMail?: string;
+  soCanCuocMsImg?: string;
+  soCanCuocMsForm?: string;
+  details: string[];
+}
+
+/**
+ * Đối chiếu chéo 3 chiều:
+ * 1. Ảnh CCCD trên Mail Outlook
+ * 2. Ảnh CCCD upload trên M-System
+ * 3. Form dữ liệu nhập tay trên M-System
+ */
+export function compareCccdTripleCheck(params: {
+  mailCccd?: ExtractedCanCuoc;
+  msCccdImg?: ExtractedCanCuoc;
+  msForm?: { soCMND?: string; hoTen?: string };
+}): TripleCheckCccdResult {
+  const { mailCccd, msCccdImg, msForm } = params;
+  const details: string[] = [];
+  let isMatch = true;
+
+  const mailNum = mailCccd?.soCanCuoc?.trim();
+  const msImgNum = msCccdImg?.soCanCuoc?.trim();
+  const msFormNum = msForm?.soCMND?.trim();
+
+  // 1. So sánh Ảnh Mail vs Ảnh M-System
+  if (mailNum && msImgNum) {
+    if (mailNum === msImgNum) {
+      details.push(`Ảnh Mail & Ảnh MS khớp số CCCD: ${mailNum}`);
+    } else {
+      isMatch = false;
+      details.push(`LỆCH: Ảnh Mail (${mailNum}) khác Ảnh MS (${msImgNum})`);
+    }
+  } else if (!msImgNum) {
+    details.push(`M-System chưa có dữ liệu ảnh CCCD để OCR`);
+  }
+
+  // 2. So sánh Ảnh M-System vs Form Nhập Tay M-System
+  if (msImgNum && msFormNum) {
+    if (msImgNum === msFormNum) {
+      details.push(`Ảnh MS khớp với Form text MS: ${msFormNum}`);
+    } else {
+      isMatch = false;
+      details.push(`LỆCH: Form MS gõ (${msFormNum}) khác Ảnh MS (${msImgNum})`);
+    }
+  }
+
+  // 3. So sánh Ảnh Mail vs Form M-System
+  if (mailNum && msFormNum) {
+    if (mailNum === msFormNum) {
+      details.push(`Ảnh Mail khớp Form MS: ${mailNum}`);
+    } else {
+      isMatch = false;
+      details.push(`LỆCH: Ảnh Mail (${mailNum}) khác Form MS (${msFormNum})`);
+    }
+  }
+
+  let statusText = 'Khớp 100%';
+  if (!isMatch) {
+    statusText = 'Cảnh báo: Lệch thông tin CCCD';
+  } else if (!msImgNum) {
+    statusText = 'Khớp Form vs Mail (Chờ OCR ảnh MS)';
+  }
+
+  return {
+    isMatch,
+    statusText,
+    soCanCuocMail: mailNum,
+    soCanCuocMsImg: msImgNum,
+    soCanCuocMsForm: msFormNum,
+    details,
+  };
+}
+

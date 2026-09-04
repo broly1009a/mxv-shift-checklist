@@ -18,6 +18,12 @@ export interface MSystemInvestorScrapedData {
   diaChi?: string;
   trangThai?: string;
   chuKy?: string;
+  cccdMatTruocUrl?: string;
+  cccdMatSauUrl?: string;
+  chuKyUrl?: string;
+  cccdMatTruocLocalPath?: string;
+  cccdMatSauLocalPath?: string;
+  chuKyLocalPath?: string;
   isFoundOnMS: boolean;
 }
 
@@ -35,10 +41,97 @@ function parseDateDDMMYYYY(dateStr: string | null | undefined): Date | undefined
 }
 
 
+async function extractAndSaveImage(
+  page: Page,
+  containerLabel: string,
+  outFilePath?: string,
+): Promise<{ url?: string; localPath?: string; exists: boolean }> {
+  try {
+    const locators = [
+      page.locator(`.form-group:has-text("${containerLabel}") img`).first(),
+      page.locator(`div:has-text("${containerLabel}") >> img.ant-image-img`).first(),
+      page.locator(`div:has-text("${containerLabel}") >> img`).first(),
+    ];
+
+    let targetImg = null;
+    for (const loc of locators) {
+      if ((await loc.count().catch(() => 0)) > 0) {
+        targetImg = loc;
+        break;
+      }
+    }
+
+    if (!targetImg) {
+      return { exists: false };
+    }
+
+    const src = (await targetImg.getAttribute('src').catch(() => '')) || '';
+    let localPath: string | undefined = undefined;
+
+    if (outFilePath) {
+      const fs = await import('fs');
+      const path = await import('path');
+      const dir = path.dirname(outFilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      if (src.startsWith('data:image/')) {
+        const base64Data = src.split(',')[1];
+        if (base64Data) {
+          fs.writeFileSync(outFilePath, Buffer.from(base64Data, 'base64'));
+          localPath = outFilePath;
+        }
+      } else if (src.startsWith('http') || src.startsWith('/')) {
+        // Tải qua evaluate để kế thừa session cookies/tokens từ browser context
+        const base64Data = await page.evaluate(async (imgSrc) => {
+          try {
+            const resp = await fetch(imgSrc);
+            const blob = await resp.blob();
+            return new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+          } catch {
+            return null;
+          }
+        }, src).catch(() => null);
+
+        if (base64Data && base64Data.includes(',')) {
+          fs.writeFileSync(outFilePath, Buffer.from(base64Data.split(',')[1], 'base64'));
+          localPath = outFilePath;
+        } else {
+          // Fallback: Chụp ảnh trực tiếp element
+          await targetImg.screenshot({ path: outFilePath }).catch(() => {});
+          if (fs.existsSync(outFilePath)) {
+            localPath = outFilePath;
+          }
+        }
+      } else {
+        // Fallback: Chụp ảnh trực tiếp element
+        await targetImg.screenshot({ path: outFilePath }).catch(() => {});
+        if (fs.existsSync(outFilePath)) {
+          localPath = outFilePath;
+        }
+      }
+    }
+
+    return {
+      exists: true,
+      url: src.length > 200 ? src.slice(0, 60) + '...[base64]' : src,
+      localPath,
+    };
+  } catch (err: any) {
+    return { exists: false };
+  }
+}
+
 export async function scrapeInvestorDetailFromMSystem(
   page: Page,
   investorCode: string,
   baseUrl: string = 'https://msadmin.mxv.com.vn',
+  saveImagesDir?: string,
 ): Promise<MSystemInvestorScrapedData> {
   const detailUrl = `${baseUrl}/#/clientManagement/investorManagement/${investorCode}`;
   console.log(`\n  🌐 Điều hướng đến: ${detailUrl}`);
@@ -201,12 +294,27 @@ export async function scrapeInvestorDetailFromMSystem(
       .getAttribute('value')
       .catch(() => '');
 
-    // Kiểm tra có ảnh chữ ký không
-    const hasSignature = await page
-      .locator('div.form-group:has-text("Chữ ký") img')
-      .count()
-      .then((c) => c > 0)
-      .catch(() => false);
+    // 4. Trích xuất ảnh CMT/CCCD mặt trước, mặt sau và Chữ ký
+    console.log(`  📸 Đang kiểm tra & bóc tách ảnh CCCD / Chữ ký trên M-System...`);
+    const path = await import('path');
+
+    const frontPath = saveImagesDir
+      ? path.join(saveImagesDir, `${investorCode}_MS_CCCD_truoc.jpg`)
+      : undefined;
+    const backPath = saveImagesDir
+      ? path.join(saveImagesDir, `${investorCode}_MS_CCCD_sau.jpg`)
+      : undefined;
+    const signPath = saveImagesDir
+      ? path.join(saveImagesDir, `${investorCode}_MS_ChuKy.png`)
+      : undefined;
+
+    const [frontImg, backImg, signImg] = await Promise.all([
+      extractAndSaveImage(page, 'mặt trước', frontPath),
+      extractAndSaveImage(page, 'mặt sau', backPath),
+      extractAndSaveImage(page, 'Chữ ký', signPath),
+    ]);
+
+    const hasSignature = signImg.exists;
 
     if (hoVaTen || soCMND || tenTKGD) {
       result.isFoundOnMS = true;
@@ -222,6 +330,14 @@ export async function scrapeInvestorDetailFromMSystem(
       result.diaChi = diaChi.trim() || undefined;
       result.chuKy = hasSignature ? 'Đã ký' : 'Chưa ký';
 
+      // Lưu kết quả ảnh
+      result.cccdMatTruocUrl = frontImg.url;
+      result.cccdMatSauUrl = backImg.url;
+      result.chuKyUrl = signImg.url;
+      result.cccdMatTruocLocalPath = frontImg.localPath;
+      result.cccdMatSauLocalPath = backImg.localPath;
+      result.chuKyLocalPath = signImg.localPath;
+
       console.log(`  ✅ Đã cào thành công từ M-System:`);
       console.log(`     - Tên TKGD:  ${result.tenTKGD}`);
       console.log(`     - Họ và tên: ${result.hoVaTen}`);
@@ -231,6 +347,9 @@ export async function scrapeInvestorDetailFromMSystem(
       console.log(`     - Nơi cấp:   ${result.noiCap || '---'}`);
       console.log(`     - Địa chỉ:   ${result.diaChi || '---'}`);
       console.log(`     - Trạng thái:${result.trangThai || '---'}`);
+      console.log(`     - CCCD Trước:${frontImg.exists ? (frontImg.localPath ? ` Đã lưu (${frontImg.localPath})` : ' Có ảnh') : ' Không có'}`);
+      console.log(`     - CCCD Sau:  ${backImg.exists ? (backImg.localPath ? ` Đã lưu (${backImg.localPath})` : ' Có ảnh') : ' Không có'}`);
+      console.log(`     - Chữ ký:    ${signImg.exists ? (signImg.localPath ? ` Đã lưu (${signImg.localPath})` : ' Có ảnh') : ' Không có'}`);
     } else {
       console.log(`  ⚠️ Không đọc được các trường dữ liệu của ${investorCode}.`);
     }

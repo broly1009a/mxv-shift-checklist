@@ -50,6 +50,29 @@ export class PreferencesSubDoc {
   saveToAtlas: boolean;
 }
 
+export class DocumentProcessingConfigSubDoc {
+  @Prop({ default: true })
+  autoDownloadMailAttachments: boolean; // Tự động tải tệp đính kèm & ảnh từ Mail về thư mục
+
+  @Prop({ default: true })
+  autoSaveMSystemImages: boolean; // Tự động bóc tách & lưu ảnh CCCD, Chữ ký từ M-System
+
+  @Prop({ default: '' })
+  attachmentSavePath: string; // Thư mục lưu riêng nếu muốn, để trống = lưu theo M:\.../HoSo_DinhKem
+
+  @Prop({ default: true })
+  autoExtractPdf: boolean; // Tự động đọc nội dung PDF Hợp đồng & Phụ lục PL01
+
+  @Prop({ default: true })
+  enableOcrCccd: boolean; // Tự động quét OCR nhận diện ảnh CCCD
+
+  @Prop({ default: true })
+  enableTripleCheckCccd: boolean; // Bật đối chiếu chéo 3 chiều (Ảnh Mail vs Ảnh MS vs Form MS)
+
+  @Prop({ default: true })
+  checkSignatureRequired: boolean; // Cảnh báo nếu chưa có chữ ký mẫu trên M-System
+}
+
 @Schema({ timestamps: true, collection: 'tkgd_user_configs' })
 export class TkgdUserConfig {
   @Prop({ required: true, unique: true, index: true })
@@ -72,6 +95,9 @@ export class TkgdUserConfig {
 
   @Prop({ type: PreferencesSubDoc, default: () => ({}) })
   preferences: PreferencesSubDoc;
+
+  @Prop({ type: DocumentProcessingConfigSubDoc, default: () => ({}) })
+  documentProcessing: DocumentProcessingConfigSubDoc;
 
   @Prop({ default: true })
   isActive: boolean;

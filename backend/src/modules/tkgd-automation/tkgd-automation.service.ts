@@ -64,6 +64,15 @@ export class TkgdAutomationService {
           autoHighlightExcel: true,
           saveToAtlas: true,
         },
+        documentProcessing: {
+          autoDownloadMailAttachments: true,
+          autoSaveMSystemImages: true,
+          attachmentSavePath: '',
+          autoExtractPdf: true,
+          enableOcrCccd: true,
+          enableTripleCheckCccd: true,
+          checkSignatureRequired: true,
+        },
       };
     }
 
@@ -87,6 +96,15 @@ export class TkgdAutomationService {
       preferences: {
         autoHighlightExcel: config.preferences?.autoHighlightExcel ?? true,
         saveToAtlas: config.preferences?.saveToAtlas ?? true,
+      },
+      documentProcessing: {
+        autoDownloadMailAttachments: config.documentProcessing?.autoDownloadMailAttachments ?? true,
+        autoSaveMSystemImages: config.documentProcessing?.autoSaveMSystemImages ?? true,
+        attachmentSavePath: config.documentProcessing?.attachmentSavePath || '',
+        autoExtractPdf: config.documentProcessing?.autoExtractPdf ?? true,
+        enableOcrCccd: config.documentProcessing?.enableOcrCccd ?? true,
+        enableTripleCheckCccd: config.documentProcessing?.enableTripleCheckCccd ?? true,
+        checkSignatureRequired: config.documentProcessing?.checkSignatureRequired ?? true,
       },
     };
   }
@@ -135,6 +153,32 @@ export class TkgdAutomationService {
     if (!config.preferences) (config as any).preferences = {};
     if (dto.preferences?.autoHighlightExcel !== undefined) {
       config.preferences.autoHighlightExcel = dto.preferences.autoHighlightExcel;
+    }
+
+    // Cập nhật Document Processing
+    if (!config.documentProcessing) (config as any).documentProcessing = {};
+    if (dto.documentProcessing) {
+      if (dto.documentProcessing.autoDownloadMailAttachments !== undefined) {
+        config.documentProcessing.autoDownloadMailAttachments = dto.documentProcessing.autoDownloadMailAttachments;
+      }
+      if (dto.documentProcessing.autoSaveMSystemImages !== undefined) {
+        config.documentProcessing.autoSaveMSystemImages = dto.documentProcessing.autoSaveMSystemImages;
+      }
+      if (dto.documentProcessing.attachmentSavePath !== undefined) {
+        config.documentProcessing.attachmentSavePath = dto.documentProcessing.attachmentSavePath.trim();
+      }
+      if (dto.documentProcessing.autoExtractPdf !== undefined) {
+        config.documentProcessing.autoExtractPdf = dto.documentProcessing.autoExtractPdf;
+      }
+      if (dto.documentProcessing.enableOcrCccd !== undefined) {
+        config.documentProcessing.enableOcrCccd = dto.documentProcessing.enableOcrCccd;
+      }
+      if (dto.documentProcessing.enableTripleCheckCccd !== undefined) {
+        config.documentProcessing.enableTripleCheckCccd = dto.documentProcessing.enableTripleCheckCccd;
+      }
+      if (dto.documentProcessing.checkSignatureRequired !== undefined) {
+        config.documentProcessing.checkSignatureRequired = dto.documentProcessing.checkSignatureRequired;
+      }
     }
 
     await config.save();

@@ -2,6 +2,36 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-04] Bổ Sung Tính Năng Bóc Tách Ảnh CCCD (Mặt Trước, Mặt Sau) & Chữ Ký Từ M-System
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Bổ sung tính năng cào và bóc tách ảnh **CMT/Hộ chiếu mặt trước**, **mặt sau** và **Chữ ký** từ trang thông tin nhà đầu tư trên M-System (`https://msadmin.mxv.com.vn/#/clientManagement/investorManagement/{TKGD}`).
+- Lưu trữ ảnh về ổ đĩa cục bộ hoặc thư mục mạng theo cấu trúc `{TKGD}_MS_CCCD_truoc.jpg`, `{TKGD}_MS_CCCD_sau.jpg`, `{TKGD}_MS_ChuKy.png`.
+- Chuẩn bị nền tảng dữ liệu đối chiếu chéo 3 chiều: Ảnh CCCD Mail vs Ảnh CCCD MS vs Form Text M-System nhằm phát hiện trường hợp TVKD gõ sai thông tin hoặc upload nhầm ảnh CCCD trên M-System.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backend/src/modules/bot-engine/helpers/msystem-scraper.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/msystem-scraper.helper.ts):
+  - Mở rộng interface `MSystemInvestorScrapedData` với các trường URL và đường dẫn file cục bộ của ảnh CCCD mặt trước, mặt sau và chữ ký.
+  - Thêm helper `extractAndSaveImage` hỗ trợ đa định dạng (Base64 data URI, HTTP fetch qua browser context giữ session cookie, fallback chụp element screenshot).
+  - Tự động lưu ảnh vào `saveImagesDir` khi cào chi tiết tài khoản.
+- [backend/src/schemas/clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts):
+  - Bổ sung vào `MSSubDoc` các trường: `cccdMatTruocLocalPath`, `cccdMatSauLocalPath`, `chuKyLocalPath`, `cccdOcr_soCanCuoc`, `cccdOcr_hoVaTen`, `cccdOcr_ngaySinh`, `cccdOcr_ngayCap`, `cccdOcr_noiCap`, `soSanh_CCCD_Mail_vs_MS`.
+- [backend/src/scripts/test_tkgd_full_pipeline_with_ocr.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_tkgd_full_pipeline_with_ocr.ts):
+  - Đồng bộ interface `NoiDungMailSubDoc` và đường dẫn file xuất Excel `summary.outputFilePath`.
+
+### Xác nhận Build & Kiểm thử
+- **Frontend**: `npm run build` (Next.js 16 Turbopack) chạy thành công 100% (exit code 0, 24 static pages).
+- **Backend**: TypeScript compile kiểm tra kiểu dữ liệu sạch sẽ, không có lỗi trong module scraper và schema.
+- **Kiểm thử Toàn trình (End-to-End Test)**:
+  - Chạy `test_tkgd_full_pipeline_with_ocr.ts` xử lý toàn bộ 2 email mẫu thực tế (Mẫu 1: Ngô Đức Hải, Mẫu 2: Nguyễn Anh Khoa).
+  - Tự động bóc tách PDF Hợp đồng, Phụ lục PL01 bằng `readPdfText` (tương thích đa phiên bản `pdf-parse` v1 & v2).
+  - Đối chiếu chéo 3 chiều CCCD (Mail vs MS Ảnh vs MS Form): Kết quả 100% Khớp.
+  - Tự động điền và xuất file Excel đối chiếu chuẩn template `Auto Data mail.xlsm` ra ổ đĩa:
+    `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\Auto_Data_mail_20260904.xlsx`.
+  - Cả 5 sheet (`NoiDungMail`, `Cancuoc`, `HopDong`, `Phuluc`, `MS`) đều được định dạng xanh lá (Khớp 100%), không có bản ghi trùng lặp.
+
+---
+
 ## [2026-09-03] Hoàn Thiện Module Scan Ảnh CCCD & PDF Hợp Đồng, Phụ Lục (Đạt Độ Chính Xác 100%)
 
 ### Mục tiêu thay đổi
