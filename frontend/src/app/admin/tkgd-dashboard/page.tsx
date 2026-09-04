@@ -33,10 +33,15 @@ import {
   ShieldCheck,
   ExternalLink,
   SlidersHorizontal,
-  Info,
   Settings,
   Sun,
   Moon,
+  Mail,
+  Globe,
+  Zap,
+  Download,
+  RotateCcw,
+  Info,
 } from 'lucide-react';
 
 interface CleanRecord {
@@ -225,7 +230,169 @@ export default function TkgdDashboardPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [inspectRecord]);
 
-  // Kích hoạt chạy đối soát
+  // Chế độ Sprint: 'FAST' (Sprint 1: Chỉ Text) vs 'FULL' (Sprint 1+2: Kèm Tệp & Ảnh)
+  const [sprintMode, setSprintMode] = useState<'FAST' | 'FULL'>('FAST');
+  const [tkgdStats, setTkgdStats] = useState<{
+    pendingMsCount: number;
+    matchedCount: number;
+    mismatchedCount: number;
+    totalCount: number;
+  }>({ pendingMsCount: 0, matchedCount: 0, mismatchedCount: 0, totalCount: 0 });
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingStage, setProcessingStage] = useState<string>('');
+  const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);
+
+  // Tải thống kê số hồ sơ chờ cào MS phục vụ Dynamic Badge
+  const fetchStats = useCallback(async () => {
+    try {
+      const url = `${API_BASE_URL}/api/v1/tkgd/stats${batchDate ? `?batchDate=${batchDate}` : ''}`;
+      const res = await fetch(url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTkgdStats(data);
+      }
+    } catch {}
+  }, [token, user?.email, batchDate]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Nút 1: Quét Mail Outlook
+  const handleSyncMail = async () => {
+    setIsProcessing(true);
+    setProcessingStage('Đang đọc email Outlook yêu cầu mở TKGD mới...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/sync-mail`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+        body: JSON.stringify({ batchDate }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || `Đã nạp thành công ${data.count} email!`);
+        await Promise.all([fetchRecords(), fetchStats()]);
+      } else {
+        toast.error(data.message || 'Quét mail thất bại');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi khi quét mail: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStage('');
+    }
+  };
+
+  // Nút 2: Cào M-System (Hỗ trợ cào 1 hồ sơ hoặc cào toàn bộ danh sách chờ) + Tự động đối soát
+  const handleSyncMSystem = async (investorCode?: string) => {
+    setIsProcessing(true);
+    if (investorCode) setSyncingRowCode(investorCode);
+    setProcessingStage(
+      investorCode
+        ? `Đang cào dữ liệu M-System cho tài khoản ${investorCode}...`
+        : `Đang đăng nhập M-System và cào danh sách hồ sơ...`
+    );
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/sync-msystem`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+        body: JSON.stringify({
+          investorCode,
+          downloadImages: sprintMode === 'FULL',
+          batchDate,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Đã cào M-System thành công!');
+        await Promise.all([fetchRecords(), fetchStats()]);
+      } else {
+        toast.error(data.message || 'Cào M-System thất bại');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi khi cào M-System: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStage('');
+      setSyncingRowCode(null);
+    }
+  };
+
+  // Nút 3: Chạy Tổng Hợp Toàn Bộ (All-in-One: Quét Mail -> Cào MS -> Tự động Đối Soát -> Xuất Excel)
+  const handleRunPipelineAll = async () => {
+    setIsProcessing(true);
+    setProcessingStage('Đang khởi chạy chu trình Tổng Hợp Toàn Bộ (A-Z)...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/run-pipeline-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+        body: JSON.stringify({
+          downloadImages: sprintMode === 'FULL',
+          batchDate,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || `Hoàn tất toàn bộ chu trình!`);
+        await Promise.all([fetchRecords(), fetchStats()]);
+      } else {
+        toast.error(data.message || 'Chạy toàn bộ thất bại');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi chu trình toàn bộ: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStage('');
+    }
+  };
+
+  // Tiện ích: Tải file Excel đối soát mới nhất về máy
+  const handleDownloadExcel = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/download-excel`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+      });
+      if (!res.ok) {
+        // Nếu chưa có file sẵn, trigger chạy đối soát để sinh file
+        await handleRunReconcile();
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Auto_Data_mail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Đã tải file Excel kết quả đối soát thành công!');
+    } catch (err: any) {
+      toast.error('Lỗi khi tải file Excel: ' + err.message);
+    }
+  };
+
+  // Kích hoạt chạy đối soát (Legacy / Utility)
   const handleRunReconcile = async () => {
     setRunning(true);
     try {
@@ -239,7 +406,7 @@ export default function TkgdDashboardPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success(`Đối soát thành công! Khớp: ${data.summary?.khopCount || 0}, Lệch: ${data.summary?.lechCount || 0}`);
-        await fetchRecords();
+        await Promise.all([fetchRecords(), fetchStats()]);
       } else {
         toast.error(data.message || 'Chạy đối soát thất bại');
       }
@@ -532,53 +699,213 @@ export default function TkgdDashboardPage() {
               <RefreshCw size={14} className={loading ? 'animate-spin text-blue-500' : ''} />
             </button>
 
-            {/* If on Reconcile Tab, show collapse KPI & Run Bot */}
+            {/* If on Reconcile Tab, show Sprint Switcher, 3 Action Buttons, Excel Export & collapse KPI */}
             {mainTab === 'RECONCILE' && (
               <>
+                {/* 1. SPRINT MODE TOGGLE (Nhanh vs Đầy Đủ) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '3px',
+                    gap: '2px',
+                  }}
+                  title="Chế độ chạy: Nhanh (Chỉ bóc text) hoặc Đầy Đủ (Kèm tải PDF & Ảnh CCCD)"
+                >
+                  <button
+                    onClick={() => setSprintMode('FAST')}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: sprintMode === 'FAST' ? '#3b82f6' : 'transparent',
+                      color: sprintMode === 'FAST' ? '#ffffff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    ⚡ Nhanh (Text)
+                  </button>
+                  <button
+                    onClick={() => setSprintMode('FULL')}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: sprintMode === 'FULL' ? '#8b5cf6' : 'transparent',
+                      color: sprintMode === 'FULL' ? '#ffffff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    🗂️ Đầy Đủ (Tệp/Ảnh)
+                  </button>
+                </div>
+
+                {/* 2. CỤM 2 NÚT THÀNH PHẦN (Step 1 & Step 2) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {/* Nút 1: Quét Mail */}
+                  <button
+                    onClick={handleSyncMail}
+                    disabled={isProcessing}
+                    title="Nạp và bóc tách email yêu cầu mở TKGD mới từ Outlook"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.76rem',
+                      cursor: isProcessing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    className="hover:border-blue-400 hover:text-blue-500"
+                  >
+                    <Mail size={14} color="#3b82f6" />
+                    <span>1. Quét Mail</span>
+                  </button>
+
+                  {/* Nút 2: Cào M-System (Kèm Badge số lượng chờ) */}
+                  <button
+                    onClick={() => handleSyncMSystem()}
+                    disabled={isProcessing}
+                    title="Cào dữ liệu chi tiết M-System cho các hồ sơ chưa có và tự động đối soát"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.76rem',
+                      cursor: isProcessing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    className="hover:border-purple-400 hover:text-purple-500"
+                  >
+                    <Globe size={14} color="#8b5cf6" />
+                    <span>2. Cào MS</span>
+                    {tkgdStats.pendingMsCount > 0 ? (
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          backgroundColor: '#f59e0b',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {tkgdStats.pendingMsCount}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          padding: '1px 5px',
+                          borderRadius: '10px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          fontWeight: 800,
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* 3. HERO BUTTON: CHẠY TỔNG HỢP TOÀN BỘ (All-in-One Pipeline) */}
+                <button
+                  onClick={handleRunPipelineAll}
+                  disabled={isProcessing}
+                  title="Chạy toàn bộ quy trình: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    border: 'none',
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  className="hover:scale-105 active:scale-95"
+                >
+                  {isProcessing ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Zap size={14} fill="#fef08a" color="#fef08a" />
+                  )}
+                  <span>{isProcessing ? 'Đang chạy...' : '3. Chạy Toàn Bộ'}</span>
+                </button>
+
+                {/* 4. TIỆN ÍCH: XUẤT EXCEL */}
+                <button
+                  onClick={handleDownloadExcel}
+                  disabled={isProcessing}
+                  title="Tải file Excel kết quả đối soát mới nhất về máy"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '7px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  className="hover:bg-emerald-500 hover:text-white"
+                >
+                  <Download size={13} />
+                  <span>Xuất Excel</span>
+                </button>
+
+                {/* 5. ẨN / HIỆN KPI */}
                 <button
                   onClick={toggleStats}
                   title={showStats ? 'Thu gọn các thẻ thống kê' : 'Mở rộng các thẻ thống kê'}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    padding: '8px 12px',
+                    gap: '4px',
+                    padding: '7px 10px',
                     borderRadius: '10px',
                     backgroundColor: 'var(--bg-card)',
                     border: '1px solid var(--border-color)',
                     color: 'var(--text-secondary)',
-                    fontSize: '0.75rem',
+                    fontSize: '0.74rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                   }}
                   className="hover:text-blue-500 hover:border-blue-400"
                 >
-                  {showStats ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  <span>{showStats ? 'Ẩn KPI' : 'Hiện KPI'}</span>
-                </button>
-
-                <button
-                  onClick={handleRunReconcile}
-                  disabled={running}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 18px',
-                    borderRadius: '10px',
-                    backgroundColor: '#10b981',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    border: 'none',
-                    cursor: running ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-                  <span>{running ? 'Đang chạy...' : 'Chạy Đối Soát'}</span>
+                  {showStats ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  <span>{showStats ? 'Ẩn KPI' : 'KPI'}</span>
                 </button>
               </>
             )}
@@ -592,6 +919,69 @@ export default function TkgdDashboardPage() {
           <TkgdConfigPanel />
         ) : (
           <>
+            {/* =========================================================================
+             * LIVE PROGRESS BANNER: Hiển thị trạng thái tiến trình khi đang chạy
+             * ========================================================================= */}
+            {isProcessing && (
+              <div
+                className="animate-pulse"
+                style={{
+                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: '14px',
+                  padding: '14px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#3b82f6',
+                    }}
+                  >
+                    <Loader2 size={20} className="animate-spin" />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                        Hệ Thống Đang Xử Lý
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '2px 8px',
+                          borderRadius: '20px',
+                          backgroundColor: sprintMode === 'FAST' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(139, 92, 246, 0.15)',
+                          color: sprintMode === 'FAST' ? '#3b82f6' : '#8b5cf6',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {sprintMode === 'FAST' ? '⚡ Sprint 1: Nhanh (Text)' : '🗂️ Sprint 2: Đầy Đủ (Ảnh & PDF)'}
+                      </span>
+                    </div>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {processingStage || 'Đang thực thi tác vụ trong nền, vui lòng đợi trong giây lát...'}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Tự động cập nhật bảng khi hoàn tất
+                  </span>
+                </div>
+              </div>
+            )}
 
         {/* =========================================================================
          * 2. STATS CARDS: Có thể thu gọn/ẩn đi để tránh rối mắt
@@ -1088,7 +1478,7 @@ export default function TkgdDashboardPage() {
                             )}
                           </td>
 
-                          {/* Cột Thao Tác: Con mắt & Mũi tên mở rộng */}
+                          {/* Cột Thao Tác: Con mắt, Cào lại & Mũi tên mở rộng */}
                           <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               {/* NÚT CON MẮT: Mở Modal So Sánh Trực Quan */}
@@ -1114,6 +1504,32 @@ export default function TkgdDashboardPage() {
                                 className="hover:scale-110 hover:bg-blue-500 hover:text-white"
                               >
                                 <Eye size={15} />
+                              </button>
+
+                              {/* NÚT CÀO LẠI MS: Cào riêng lẻ hồ sơ này */}
+                              <button
+                                onClick={() => handleSyncMSystem(targetCode)}
+                                disabled={isProcessing}
+                                title={`Cào lại dữ liệu M-System cho tài khoản ${targetCode}`}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                  color: '#8b5cf6',
+                                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                                  cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                className="hover:scale-110 hover:bg-purple-500 hover:text-white"
+                              >
+                                <RotateCcw
+                                  size={14}
+                                  className={syncingRowCode === targetCode ? 'animate-spin' : ''}
+                                />
                               </button>
 
                               {/* NÚT MŨI TÊN: Mở rộng dòng xem tóm tắt lỗi inline */}

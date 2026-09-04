@@ -126,4 +126,63 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     return await this.tkgdService.runReconciliation(email);
   }
+
+  /**
+   * Nút 1: Nạp & bóc tách email Outlook
+   */
+  @Post('sync-mail')
+  async syncMail(@Req() req: any, @Body() body: any) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.syncMailOpeningAccounts(email, body?.batchDate);
+  }
+
+  /**
+   * Nút 2: Cào M-System (Hỗ trợ cào 1 hồ sơ hoặc cào toàn bộ danh sách chờ) + Tự động đối soát
+   */
+  @Post('sync-msystem')
+  async syncMSystem(@Req() req: any, @Body() body: any) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.syncMSystemAccounts(email, {
+      investorCode: body?.investorCode,
+      downloadImages: body?.downloadImages,
+      batchDate: body?.batchDate,
+    });
+  }
+
+  /**
+   * Nút 3: Chạy tổng hợp toàn bộ (All-in-One: Quét Mail -> Cào MS -> Đối soát -> Xuất Excel)
+   */
+  @Post('run-pipeline-all')
+  async runPipelineAll(@Req() req: any, @Body() body: any) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.runPipelineAll(email, {
+      downloadImages: body?.downloadImages,
+      batchDate: body?.batchDate,
+    });
+  }
+
+  /**
+   * Lấy số lượng thống kê phục vụ Dynamic Badge (số hồ sơ chờ cào MS, số khớp, lệch)
+   */
+  @Get('stats')
+  async getStats(@Req() req: any, @Query('batchDate') batchDate?: string) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.getTkgdStats(email, batchDate);
+  }
+
+  /**
+   * Tải file Excel đối soát mới nhất về máy
+   */
+  @Get('download-excel')
+  async downloadExcel(@Req() req: any, @Res() res: any) {
+    const email = this.getUserEmail(req);
+    const filePath = await this.tkgdService.getLatestExcelFilePath(email);
+    if (!filePath) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chưa có file Excel đối soát nào được tạo.',
+      });
+    }
+    return res.download(filePath);
+  }
 }

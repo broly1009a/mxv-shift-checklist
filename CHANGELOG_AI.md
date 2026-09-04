@@ -2,6 +2,42 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-04] Triển Khai Hoàn Chỉnh Hệ Thống Điều Khiển TKGD Automation 2 Sprint & Cụm Nút Thao Tác Trực Quan
+
+### Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Loại bỏ nút "Chạy Đối Soát" gây hiểu nhầm (vì chạy đối soát bản chất chỉ mất 0.05s so sánh trong bộ nhớ, phải tự động chạy ngầm ngay sau khi cào MS thay vì bắt người dùng bấm thủ công).
+  2. Triển khai phân tách 2 Sprint rõ ràng:
+     - **Sprint 1 (Fast-Track / Nhanh)**: Bóc tách text từ Outlook Mail & M-System, đối soát chéo và xuất file Excel kết quả (2-3s/hồ sơ).
+     - **Sprint 2 (Deep-Inspection / Đầy Đủ)**: Tải tệp đính kèm (PDF Hợp đồng, PL01) từ Mail và cào/lưu ảnh CCCD mặt trước/sau + chữ ký mẫu từ M-System vào thư mục chia sẻ `M:\Tailieuchung\...`, điền đầy đủ 5 sheet Excel và tạo đường dẫn/hyperlink tệp (không nhúng trực tiếp làm phình dung lượng Excel).
+  3. Xây dựng Cụm điều khiển 3 nút trực quan đạt điểm 10/10 UX:
+     - `[ ⚡ Nhanh (Text) | 🗂️ Đầy Đủ (Tệp/Ảnh) ]`: Chuyển đổi linh hoạt Sprint 1 hoặc Sprint 2.
+     - `[ ✉ 1. Quét Mail ]`: Nạp email mới từ Outlook.
+     - `[ 🌐 2. Cào MS ]`: Cào dữ liệu M-System cho các tài khoản chưa có kèm Badge đếm động số lượng chờ cào (`pendingMsCount`), tự động đối soát ngay khi hoàn thành.
+     - `[ ⚡ 3. Chạy Toàn Bộ ]`: Hero Action gradient xanh lá chạy trọn gói chu trình khép kín A-Z.
+     - `[ 📥 Xuất Excel ]`: Tải file kết quả Excel mới nhất về máy bất cứ lúc nào.
+     - `[ 🔄 Cào lại ]`: Nút thao tác trực tiếp trên từng dòng bảng dữ liệu để cào lại 1 tài khoản đơn lẻ mà không cần chạy lại cả lô.
+     - **Live Progress Banner**: Khung thông báo tiến trình động hiển thị trạng thái và giai đoạn đang xử lý khi bot làm việc.
+
+### Danh sách file chỉnh sửa
+1. [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+   - Thêm switch toggle `sprintMode` (`FAST` vs `FULL`).
+   - Tích hợp 3 nút điều khiển chu trình + nút Xuất Excel + nút Thu gọn KPI.
+   - Bổ sung `Live Progress Banner` hiển thị spinner và mô tả giai đoạn xử lý `processingStage`.
+   - Bổ sung nút `[ 🔄 Cào lại ]` (`RotateCcw`) trên từng dòng tài khoản gọi `handleSyncMSystem(targetCode)`.
+   - Bổ sung `Info` icon import giải quyết triệt để lỗi typecheck.
+2. [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+   - Bổ sung các service methods: `syncMailOpeningAccounts`, `syncMSystemAccounts` (hỗ trợ cào đơn lẻ theo `investorCode`, tự động kích hoạt `runReconciliation` ngay sau khi cào), `runPipelineAll`, `getTkgdStats`, `getLatestExcelFilePath`.
+3. [backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts):
+   - Bổ sung các route API: `POST /api/v1/tkgd/sync-mail`, `POST /api/v1/tkgd/sync-msystem`, `POST /api/v1/tkgd/run-pipeline-all`, `GET /api/v1/tkgd/stats`, `GET /api/v1/tkgd/download-excel`.
+
+### Xác nhận Build & Kiểm thử
+- **Frontend Build**: `cmd.exe /c "npx tsc --noEmit"` thành công 100% không lỗi (Exit code 0).
+- **Backend Build**: `cmd.exe /c "npm run build"` (`nest build`) thành công 100% không lỗi (Exit code 0).
+- **Backend Runtime**: Đã khởi động lại background task daemon `task-2467` phục vụ các API `/api/v1/tkgd/...` mượt mà.
+
+---
+
 ## [2026-09-04] Khắc Phục Lỗi "Kiểm Tra Đăng Nhập MS Thất Bại" (M-System Authentication & Virtual Keypad)
 
 ### Mục tiêu thay đổi

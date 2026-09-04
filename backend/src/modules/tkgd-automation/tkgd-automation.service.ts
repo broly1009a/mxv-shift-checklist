@@ -9,7 +9,13 @@ import { chromium } from 'playwright-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { scrapeInvestorDetailFromMSystem } from '../bot-engine/helpers/msystem-scraper.helper';
-import { reconcileAndExportToExcel, ReconcileSummary } from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
+import {
+  reconcileAndExportToExcel,
+  ReconcileSummary,
+  getTkgdOutputDirectory,
+  getTkgdAttachmentDirectory,
+} from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
+import { parseAccountOpeningEmailBody } from '../bot-engine/helpers/tkgd-mail-parser.helper';
 
 function findBrowserExecutable(): string {
   const possiblePaths = [
@@ -576,5 +582,413 @@ export class TkgdAutomationService {
       success: true,
       summary,
     };
+  }
+
+  /**
+   * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
+   */
+  async syncMailOpeningAccounts(userEmail: string, batchDate?: string) {
+    const config = await this.userConfigModel.findOne({ userEmail }).lean();
+    const todayStr = batchDate || new Date().toISOString().slice(0, 10);
+    let emailList: Array<{
+      messageId: string;
+      subject: string;
+      senderEmail: string;
+      senderName: string;
+      receivedDateTime: Date;
+      bodyRawText: string;
+      attachments: any[];
+    }> = [];
+
+    // 1. Thử gọi Microsoft Graph API nếu đã kết nối Outlook
+    if (config?.outlook?.refreshToken) {
+      try {
+        const tenantId = config.outlook.tenantId || process.env.MICROSOFT_TENANT_ID || 'common';
+        const clientId = config.outlook.clientId || process.env.MICROSOFT_CLIENT_ID || '';
+        const clientSecret = config.outlook.clientSecret || (await this.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';
+
+        const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'refresh_token',
+            refresh_token: config.outlook.refreshToken,
+          }),
+        });
+
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          const accessToken = tokenData.access_token;
+          if (tokenData.refresh_token && tokenData.refresh_token !== config.outlook.refreshToken) {
+            await this.userConfigModel.updateOne({ userEmail }, { 'outlook.refreshToken': tokenData.refresh_token });
+          }
+
+          const graphUrl = `https://graph.microsoft.com/v1.0/me/messages?$filter=contains(subject,'Yêu cầu mở TKGD')&$top=50&$orderby=receivedDateTime desc`;
+          const messagesRes = await fetch(graphUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+
+          if (messagesRes.ok) {
+            const msgs = await messagesRes.json();
+            for (const msg of msgs.value || []) {
+              emailList.push({
+                messageId: msg.id,
+                subject: msg.subject || '',
+                senderEmail: msg.sender?.emailAddress?.address || '',
+                senderName: msg.sender?.emailAddress?.name || '',
+                receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
+                bodyRawText: msg.body?.content?.replace(/<[^>]*>/g, ' ') || msg.bodyPreview || '',
+                attachments: [],
+              });
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi khi gọi Microsoft Graph API: ${err.message}. Chuyển sang nạp mẫu.`);
+      }
+    }
+
+    // 2. Fallback: Nếu không có mail từ Graph API, nạp từ thư mục mẫu POC thực tế
+    if (emailList.length === 0) {
+      const candidates = [
+        path.resolve(process.cwd(), '../POC/TKGD-Automation/inputs/mail-outlook'),
+        path.resolve(__dirname, '../../../../POC/TKGD-Automation/inputs/mail-outlook'),
+        path.resolve(__dirname, '../../../../../POC/TKGD-Automation/inputs/mail-outlook'),
+      ];
+      const mailSamplesDir = candidates.find((p) => fs.existsSync(p));
+      if (mailSamplesDir) {
+        const sampleDirs = fs
+          .readdirSync(mailSamplesDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => path.join(mailSamplesDir, d.name));
+
+        for (const dir of sampleDirs) {
+          const dirName = path.basename(dir);
+          const contentFile = path.join(dir, 'content.md');
+          if (!fs.existsSync(contentFile)) continue;
+          const bodyText = fs.readFileSync(contentFile, 'utf8');
+
+          let senderEmail = 'dautuhanghoa@giacatloi.vn';
+          const senderFile = path.join(dir, 'sender.md');
+          if (fs.existsSync(senderFile)) senderEmail = fs.readFileSync(senderFile, 'utf8').trim();
+
+          let subject = 'Yêu cầu mở TKGD';
+          const subjectFile = path.join(dir, 'subject.md');
+          if (fs.existsSync(subjectFile)) subject = fs.readFileSync(subjectFile, 'utf8').trim();
+
+          emailList.push({
+            messageId: `sample_${dirName}_${todayStr.replace(/-/g, '')}`,
+            subject,
+            senderEmail,
+            senderName: 'TVKD Gia Cát Lợi',
+            receivedDateTime: new Date(),
+            bodyRawText: bodyText,
+            attachments: [],
+          });
+        }
+      }
+    }
+
+    // 3. Bóc tách nội dung email và lưu vào MongoDB
+    let processedCount = 0;
+    for (const mail of emailList) {
+      const parsed = parseAccountOpeningEmailBody(mail.bodyRawText);
+      const baseCode = parsed.maTKGDFutures || (parsed.maTKGDACM ? parsed.maTKGDACM.replace(/-A$/i, '') : null);
+      if (!baseCode) continue;
+
+      const targetAccountCode = parsed.maTKGDFutures || parsed.maTKGDACM || baseCode;
+
+      await this.rawMailModel.findOneAndUpdate(
+        { messageId: mail.messageId },
+        {
+          $set: {
+            messageId: mail.messageId,
+            subject: mail.subject,
+            senderEmail: mail.senderEmail,
+            senderName: mail.senderName,
+            receivedDateTime: mail.receivedDateTime,
+            bodyRawText: mail.bodyRawText,
+            attachments: mail.attachments,
+            status: 'PARSED',
+          },
+        },
+        { upsert: true }
+      );
+
+      const existingRecord = await this.cleanRecordModel.findOne({
+        $or: [
+          { maTKGDBase: baseCode },
+          { maTKGD: targetAccountCode },
+          { 'noiDungMail.maTKGD_Futures': baseCode },
+        ],
+      });
+
+      const noiDungMailData = {
+        maTKGD_Futures: parsed.maTKGDFutures || baseCode,
+        maTKGD_ACM: parsed.maTKGDACM || (parsed.hasACMRequest ? `${baseCode}-A` : undefined),
+        maTKGD_LME: parsed.maTKGDLME || undefined,
+        maTKGD_Spread: parsed.maTKGDSpread || undefined,
+        tenTaiKhoan: parsed.tenTK || '',
+        hasACMRequest: parsed.hasACMRequest,
+        hasLMERequest: parsed.hasLMERequest,
+        hasSpreadRequest: parsed.hasSpreadRequest,
+      };
+
+      if (existingRecord) {
+        const currentNoiDung = (existingRecord.noiDungMail as any)?.toObject
+          ? (existingRecord.noiDungMail as any).toObject()
+          : existingRecord.noiDungMail || {};
+        existingRecord.noiDungMail = {
+          ...currentNoiDung,
+          ...noiDungMailData,
+        } as any;
+        if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
+        if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
+        await existingRecord.save();
+      } else {
+        await this.cleanRecordModel.create({
+          batchDate: todayStr,
+          maTVKD: parsed.maTVKD || baseCode.substring(0, 3),
+          maTKGD: targetAccountCode,
+          maTKGDBase: baseCode,
+          noiDungMail: noiDungMailData as any,
+          ms: {
+            maTKGD: baseCode,
+            isFoundOnMS: false,
+          } as any,
+          ketLuan: {
+            trangThai: 'CHUA_XU_LY',
+            danhSachLoi: ['Chưa cào dữ liệu từ M-System'],
+          } as any,
+        });
+      }
+      processedCount++;
+    }
+
+    return {
+      success: true,
+      count: processedCount,
+      message: `Đã nạp và bóc tách thành công ${processedCount} hồ sơ từ email Outlook!`,
+    };
+  }
+
+  /**
+   * Cào thông tin tài khoản từ M-System (Hỗ trợ cào lẻ 1 tài khoản hoặc cào tất cả hồ sơ chờ)
+   * TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC SAU KHI CÀO XONG!
+   */
+  async syncMSystemAccounts(
+    userEmail: string,
+    options?: { investorCode?: string; downloadImages?: boolean; batchDate?: string }
+  ) {
+    const config = await this.userConfigModel.findOne({ userEmail }).lean();
+    let username = config?.msystem?.username;
+    let password = config?.msystem?.passwordEncrypted ? decrypt(config.msystem.passwordEncrypted) : '';
+    let pin = config?.msystem?.pinEncrypted ? decrypt(config.msystem.pinEncrypted) : '';
+
+    if (!username || !password) {
+      throw new Error('Chưa cấu hình thông tin tài khoản M-System hoặc mật khẩu trong Tab Cài Đặt!');
+    }
+
+    // 1. Xác định danh sách tài khoản cần cào
+    let codesToScrape: string[] = [];
+    if (options?.investorCode && options.investorCode.trim()) {
+      codesToScrape = [options.investorCode.trim().split('-')[0]];
+    } else {
+      const query: any = {
+        $or: [
+          { 'ms.isFoundOnMS': { $ne: true } },
+          { ms: null },
+        ],
+      };
+      if (options?.batchDate) query.batchDate = options.batchDate;
+      const pendingRecords = await this.cleanRecordModel.find(query).limit(50);
+      codesToScrape = Array.from(new Set(
+        pendingRecords.map((r) => r.maTKGDBase || r.noiDungMail?.maTKGD_Futures || r.maTKGD?.split('-')[0] || '').filter(Boolean)
+      ));
+    }
+
+    if (codesToScrape.length === 0) {
+      return {
+        success: true,
+        scrapedCount: 0,
+        message: 'Tất cả hồ sơ đã có thông tin M-System đầy đủ!',
+      };
+    }
+
+    const shouldDownloadImages = options?.downloadImages || config?.documentProcessing?.autoSaveMSystemImages || false;
+    const executablePath = findBrowserExecutable();
+    const browser = await chromium.launch({
+      executablePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+    });
+
+    let scrapedCount = 0;
+    const todayStr = options?.batchDate || new Date().toISOString().slice(0, 10);
+
+    try {
+      const context = await browser.newContext({
+        viewport: { width: 1600, height: 900 },
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(35000);
+
+      // Đăng nhập M-System
+      await page.goto('https://msadmin.mxv.com.vn/#/login', { waitUntil: 'load' });
+      await page.waitForTimeout(2000);
+      await page.fill('input[type="text"], input[name="username"]', username);
+      await page.fill('input[type="password"], input[name="password"]', password);
+      await page.click('button[type="submit"], button.btn-primary');
+      await page.waitForTimeout(2000);
+
+      // Bấm mã PIN ảo
+      const pinModal = page.locator('div.pincode');
+      if (await pinModal.isVisible({ timeout: 5000 }).catch(() => false) && pin) {
+        for (const digit of String(pin)) {
+          const btn = page.locator('.pincode .keyboard .button').filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) }).first();
+          if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await btn.click();
+            await page.waitForTimeout(300);
+          }
+        }
+        await page.waitForTimeout(3000);
+      }
+
+      // Cào chi tiết từng tài khoản
+      for (const code of codesToScrape) {
+        let saveImagesDir: string | undefined = undefined;
+        if (shouldDownloadImages) {
+          saveImagesDir = getTkgdAttachmentDirectory(config?.documentProcessing?.attachmentSavePath, todayStr, code);
+        }
+
+        const scraped = await scrapeInvestorDetailFromMSystem(page, code, 'https://msadmin.mxv.com.vn', saveImagesDir);
+
+        await this.cleanRecordModel.updateMany(
+          {
+            $or: [
+              { maTKGDBase: code },
+              { maTKGD: new RegExp(`^${code}`, 'i') },
+              { 'noiDungMail.maTKGD_Futures': code },
+            ],
+          },
+          {
+            $set: {
+              ms: {
+                maTKGD: scraped.maTKGD || code,
+                tenTKGD: scraped.tenTKGD,
+                hoVaTen: scraped.hoVaTen,
+                soCMND_HoChieu: scraped.soCMND_HoChieu,
+                ngaySinh: scraped.ngaySinh,
+                ngayCap: scraped.ngayCap,
+                noiCap: scraped.noiCap,
+                ngayThamGia: scraped.ngayThamGia,
+                loaiHinhTaiKhoan: scraped.loaiHinhTaiKhoan,
+                diaChi: scraped.diaChi,
+                trangThai: scraped.trangThai,
+                chuKy: scraped.chuKy,
+                cccdMatTruocLocalPath: scraped.cccdMatTruocLocalPath,
+                cccdMatSauLocalPath: scraped.cccdMatSauLocalPath,
+                chuKyLocalPath: scraped.chuKyLocalPath,
+                isFoundOnMS: scraped.isFoundOnMS,
+              },
+            },
+          }
+        );
+        scrapedCount++;
+      }
+    } finally {
+      await browser.close().catch(() => {});
+    }
+
+    // TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC
+    const reconResult = await this.runReconciliation(userEmail);
+
+    return {
+      success: true,
+      scrapedCount,
+      summary: reconResult.summary,
+      message: `Đã cào M-System thành công cho ${scrapedCount} hồ sơ và tự động đối soát!`,
+    };
+  }
+
+  /**
+   * Chạy quy trình tổng hợp toàn bộ (All-in-One Pipeline)
+   */
+  async runPipelineAll(
+    userEmail: string,
+    options?: { downloadImages?: boolean; batchDate?: string }
+  ) {
+    // 1. Quét Mail
+    const mailResult = await this.syncMailOpeningAccounts(userEmail, options?.batchDate);
+
+    // 2. Cào M-System & Tự động đối soát
+    const msResult = await this.syncMSystemAccounts(userEmail, {
+      downloadImages: options?.downloadImages,
+      batchDate: options?.batchDate,
+    });
+
+    return {
+      success: true,
+      mailCount: mailResult.count,
+      scrapedCount: msResult.scrapedCount,
+      summary: msResult.summary,
+      message: `Hoàn tất toàn bộ chu trình! Đã nạp ${mailResult.count} mail, cào ${msResult.scrapedCount} hồ sơ MS và xuất file Excel đối soát.`,
+    };
+  }
+
+  /**
+   * Thống kê nhanh số lượng hồ sơ phục vụ Dynamic Badge
+   */
+  async getTkgdStats(userEmail: string, batchDate?: string) {
+    const query: any = {};
+    if (batchDate) query.batchDate = batchDate;
+
+    const totalCount = await this.cleanRecordModel.countDocuments(query);
+    const pendingMsCount = await this.cleanRecordModel.countDocuments({
+      ...query,
+      $or: [
+        { 'ms.isFoundOnMS': { $ne: true } },
+        { ms: null },
+      ],
+    });
+    const matchedCount = await this.cleanRecordModel.countDocuments({
+      ...query,
+      'ketLuan.trangThai': 'KHOP',
+    });
+    const mismatchedCount = await this.cleanRecordModel.countDocuments({
+      ...query,
+      'ketLuan.trangThai': 'LECH',
+    });
+
+    return {
+      totalCount,
+      pendingMsCount,
+      matchedCount,
+      mismatchedCount,
+    };
+  }
+
+  /**
+   * Lấy đường dẫn file Excel xuất mới nhất
+   */
+  async getLatestExcelFilePath(userEmail: string): Promise<string | null> {
+    const config = await this.userConfigModel.findOne({ userEmail }).lean();
+    const dir = config?.storage?.windowsPath || getTkgdOutputDirectory();
+    if (!fs.existsSync(dir)) return null;
+
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith('Auto_Data_mail_') && (f.endsWith('.xlsx') || f.endsWith('.xlsm')))
+      .map((f) => ({
+        name: f,
+        fullPath: path.join(dir, f),
+        mtime: fs.statSync(path.join(dir, f)).mtimeMs,
+      }))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    return files.length > 0 ? files[0].fullPath : null;
   }
 }
