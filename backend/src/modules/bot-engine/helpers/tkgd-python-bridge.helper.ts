@@ -27,6 +27,7 @@ export interface PythonExtractorResult {
     gioiTinh?: string;
     rawGioiTinh?: string;
     diaChi?: string;
+    noiCap?: string;
     hasSignature?: boolean;
     hasStamp?: boolean;
     totalPages?: number;
@@ -45,8 +46,11 @@ export interface PythonExtractorResult {
     soCCCD?: string;
     hoTen?: string;
     ngaySinh?: string;
+    rawNgaySinh?: string;
     gioiTinh?: string;
     ngayCap?: string;
+    rawNgayCap?: string;
+    noiCap?: string;
     diaChi?: string;
     source?: string;
     canhBaoChatLuong?: string[];

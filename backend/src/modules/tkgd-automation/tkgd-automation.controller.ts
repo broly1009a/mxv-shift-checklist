@@ -4,11 +4,14 @@ import {
   Post,
   Body,
   Query,
+  Param,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { TkgdAutomationService } from './tkgd-automation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -184,5 +187,60 @@ export class TkgdAutomationController {
       });
     }
     return res.download(filePath);
+  }
+
+  /**
+   * Lấy bản đồ phân loại toàn bộ tệp đính kèm (CCCD, HĐ, Chữ ký từ Mail & MS) cho 1 tài khoản
+   */
+  @Get('files/manifest/:accountCode')
+  async getAccountFilesManifest(
+    @Req() req: any,
+    @Param('accountCode') accountCode: string,
+    @Query('batchDate') batchDate?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.getAccountFilesManifest(email, accountCode, batchDate);
+  }
+
+  /**
+   * Stream truyền tải ảnh CCCD, chữ ký và tệp PDF trực tiếp đến trình duyệt
+   */
+  @Get('files/stream')
+  async streamFile(
+    @Req() req: any,
+    @Res() res: any,
+    @Query('accountCode') accountCode?: string,
+    @Query('batchDate') batchDate?: string,
+    @Query('fileName') fileName?: string,
+    @Query('filePath') filePath?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    const resolvedPath = await this.tkgdService.resolveAttachmentFilePath(email, {
+      accountCode,
+      batchDate,
+      fileName,
+      filePath,
+    });
+
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tệp hồ sơ yêu cầu.',
+      });
+    }
+
+    const ext = path.extname(resolvedPath).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (['.jpg', '.jpeg'].includes(ext)) contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.pdf') contentType = 'application/pdf';
+    else if (ext === '.webp') contentType = 'image/webp';
+
+    const safeBaseName = encodeURIComponent(path.basename(resolvedPath));
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${safeBaseName}"`);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+
+    return res.sendFile(path.resolve(resolvedPath));
   }
 }

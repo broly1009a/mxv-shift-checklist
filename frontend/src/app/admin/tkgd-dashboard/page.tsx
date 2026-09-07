@@ -41,8 +41,14 @@ import {
   Zap,
   Download,
   RotateCcw,
+  RotateCw,
+  Maximize2,
   Info,
+  HelpCircle,
+  Folder,
 } from 'lucide-react';
+import { useTutorial } from '@/context/TutorialContext';
+import { tkgdTutorialSteps } from '@/tutorials/tkgdTutorial';
 
 interface CleanRecord {
   _id: string;
@@ -109,8 +115,11 @@ interface CleanRecord {
     hoVaTen?: string;
     soCMND_HoChieu?: string;
     ngaySinh?: string;
+    rawNgaySinh?: string;
     ngayCap?: string;
+    rawNgayCap?: string;
     noiCap?: string;
+    gioiTinh?: string;
     ngayThamGia?: string;
     loaiHinhTaiKhoan?: string;
     trangThai?: string;
@@ -137,7 +146,9 @@ interface CleanRecord {
 
 export default function TkgdDashboardPage() {
   const { user, token, theme, changeTheme } = useAuth();
+  const { startTutorial, resetTutorial, isActive: isTutorialActive } = useTutorial();
   const [mainTab, setMainTab] = useState<'RECONCILE' | 'CONFIG'>('RECONCILE');
+  const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
 
   // Dữ liệu & trạng thái tải
   const [records, setRecords] = useState<CleanRecord[]>([]);
@@ -149,7 +160,7 @@ export default function TkgdDashboardPage() {
   // Bộ lọc & Phân trang
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [filter, setFilter] = useState<'ALL' | 'KHOP' | 'LECH' | 'FUTURES' | 'ACM' | 'LME' | 'SPREAD'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'KHOP' | 'CAN_KIEM_TRA' | 'KHOP_TEXT' | 'LECH' | 'FUTURES' | 'ACM' | 'LME' | 'SPREAD'>('ALL');
   const [batchDate, setBatchDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -161,6 +172,24 @@ export default function TkgdDashboardPage() {
   // Modal So sánh trực quan (Visual Diff Inspector)
   const [inspectRecord, setInspectRecord] = useState<CleanRecord | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<'DIFF' | 'ATTACHMENTS' | 'AUDIT'>('DIFF');
+
+  // Quản lý tệp hồ sơ đính kèm & ảnh đối chiếu (Manifest)
+  const [accountManifest, setAccountManifest] = useState<any>(null);
+  const [loadingManifest, setLoadingManifest] = useState<boolean>(false);
+
+  // Modal xem phóng to ảnh (Lightbox Viewer)
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    source: 'MAIL' | 'MS';
+    rotation: number;
+  } | null>(null);
+
+  // Modal xem trước file PDF Hợp đồng / Phụ lục (PDF Viewer)
+  const [previewPdf, setPreviewPdf] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   // Khôi phục tùy chọn từ LocalStorage khi mount
   useEffect(() => {
@@ -226,16 +255,61 @@ export default function TkgdDashboardPage() {
     fetchRecords();
   }, [fetchRecords]);
 
-  // Đóng modal bằng phím ESC
+  // Tải tệp đính kèm và ảnh đối chiếu khi mở Modal xem chi tiết
+  useEffect(() => {
+    if (!inspectRecord) {
+      setAccountManifest(null);
+      return;
+    }
+    const code =
+      inspectRecord.maTKGDBase ||
+      (inspectRecord.maTKGD ? inspectRecord.maTKGD.split('-')[0] : '') ||
+      inspectRecord.noiDungMail?.maTKGD_Futures;
+    if (!code) return;
+
+    let isMounted = true;
+    setLoadingManifest(true);
+    const manifestUrl = `${API_BASE_URL}/api/v1/tkgd/files/manifest/${encodeURIComponent(code)}${inspectRecord.batchDate ? `?batchDate=${encodeURIComponent(inspectRecord.batchDate)}` : ''
+      }`;
+
+    fetch(manifestUrl, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'x-user-email': user?.email || 'hieptruong@mxv.vn',
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data && data.success) {
+          setAccountManifest(data);
+        }
+      })
+      .catch(() => { })
+      .finally(() => {
+        if (isMounted) setLoadingManifest(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [inspectRecord, token, user?.email]);
+
+  // Đóng modal bằng phím ESC (ưu tiên đóng modal ảnh/PDF con trước)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && inspectRecord) {
-        setInspectRecord(null);
+      if (e.key === 'Escape') {
+        if (previewImage) {
+          setPreviewImage(null);
+        } else if (previewPdf) {
+          setPreviewPdf(null);
+        } else if (inspectRecord) {
+          setInspectRecord(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inspectRecord]);
+  }, [inspectRecord, previewImage, previewPdf]);
 
   // Chế độ Sprint: 'FAST' (Sprint 1: Chỉ Text) vs 'FULL' (Sprint 1+2: Kèm Tệp & Ảnh)
   const [sprintMode, setSprintMode] = useState<'FAST' | 'FULL'>('FAST');
@@ -380,8 +454,28 @@ export default function TkgdDashboardPage() {
         },
       });
       if (!res.ok) {
-        // Nếu chưa có file sẵn, trigger chạy đối soát để sinh file
+        toast('Chưa có file sẵn trên máy chủ, đang tự động chạy đối soát để tạo file...', { icon: 'ℹ️' });
         await handleRunReconcile();
+        // Sau khi chạy xong, tự động tải lại file
+        const retryRes = await fetch(`${API_BASE_URL}/api/v1/tkgd/download-excel`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'x-user-email': user?.email || 'hieptruong@mxv.vn',
+          },
+        });
+        if (!retryRes.ok) {
+          throw new Error('Không tìm thấy file Excel sau khi chạy đối soát.');
+        }
+        const retryBlob = await retryRes.blob();
+        const retryUrl = window.URL.createObjectURL(retryBlob);
+        const a = document.createElement('a');
+        a.href = retryUrl;
+        a.download = `Auto_Data_mail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(retryUrl);
+        document.body.removeChild(a);
+        toast.success('Đã tạo và tải file Excel kết quả đối soát thành công!');
         return;
       }
       const blob = await res.blob();
@@ -427,20 +521,57 @@ export default function TkgdDashboardPage() {
   // Thống kê nhanh từ tập dữ liệu hiện tại
   const khopCount = records.filter((r) => r.ketLuan?.trangThai === 'KHOP').length;
   const khopTextCount = records.filter((r) => r.ketLuan?.trangThai === 'KHOP_TEXT').length;
+  const canKiemTraCount = records.filter((r) => r.ketLuan?.trangThai === 'CAN_KIEM_TRA').length;
   const lechCount = records.filter(
-    (r) => r.ketLuan?.trangThai && r.ketLuan?.trangThai !== 'KHOP' && r.ketLuan?.trangThai !== 'KHOP_TEXT' && r.ketLuan?.trangThai !== 'CHUA_XU_LY'
+    (r) => r.ketLuan?.trangThai && r.ketLuan?.trangThai !== 'KHOP' && r.ketLuan?.trangThai !== 'KHOP_TEXT' && r.ketLuan?.trangThai !== 'CAN_KIEM_TRA' && r.ketLuan?.trangThai !== 'CHUA_XU_LY'
   ).length;
-  const chuaXuLyCount = records.length - khopCount - khopTextCount - lechCount;
+  const chuaXuLyCount = records.length - khopCount - khopTextCount - canKiemTraCount - lechCount;
 
-  // Helper định dạng ngày
-  const formatDateStr = (val?: string) => {
+  // Helper định dạng ngày chuẩn DD/MM/YYYY (đảm bảo pad 2 chữ số cho ngày và tháng)
+  const formatDateStr = (val?: any) => {
     if (!val) return '-';
+    const str = String(val).trim();
+    if (!str || str === '-' || str === 'undefined' || str === 'null') return '-';
+
+    // 1. Dạng chuỗi thuần ngày DD/MM/YYYY hoặc D/M/YYYY hoặc DD-MM-YYYY hoặc D-M-YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, '0');
+      const month = dmyMatch[2].padStart(2, '0');
+      const year = dmyMatch[3];
+      return `${day}/${month}/${year}`;
+    }
+
+    // 2. Chuỗi có chứa time hoặc ISO (T hoặc Z): Bắt buộc dùng new Date() theo múi giờ client (+7 GMT)
+    // Tránh việc regex cắt chuỗi UTC (VD: 2024-08-04T17:00:00.000Z bị cắt thành 04/08/2024 thay vì 05/08/2024)
+    if (str.includes('T') || str.includes('Z')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+    }
+
+    // 3. Dạng thuần ngày YYYY-MM-DD hoặc YYYY/MM/DD (không có thành phần giờ T)
+    const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (ymdMatch) {
+      const year = ymdMatch[1];
+      const month = ymdMatch[2].padStart(2, '0');
+      const day = ymdMatch[3].padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    }
+
     try {
-      const d = new Date(val);
-      if (isNaN(d.getTime())) return val;
-      return d.toLocaleDateString('vi-VN');
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
     } catch {
-      return val;
+      return str;
     }
   };
 
@@ -496,11 +627,22 @@ export default function TkgdDashboardPage() {
     );
   };
 
-  // Helper làm sạch tên khách hàng từ email, loại bỏ câu từ cam kết thừa
+  // Helper làm sạch tên khách hàng từ email, loại bỏ câu từ cam kết thừa và nhiều dòng
   const cleanMailName = (name?: string) => {
     if (!name) return '-';
-    let s = name.trim().replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
-    return s.replace(/[;,.\-]+$/, '').trim() || '-';
+    let s = name.split(/[\r\n]/)[0].trim();
+    s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
+    return s.replace(/[;,.\-:]+$/, '').trim() || '-';
+  };
+
+  // Helper nhận diện Căn cước cũ (CMND 9 số hoặc CCCD không chip) theo quy định của Sở & TTTT
+  const checkIsOldIdCard = (r?: CleanRecord | null) => {
+    if (!r) return false;
+    const num = (r.ms?.soCMND_HoChieu || r.canCuoc?.soCanCuoc || r.hopDong?.soCanCuoc || '').replace(/\D/g, '');
+    if (num && num.length === 9) return true;
+    if (r.ketLuan?.danhSachLoi?.some((err) => err.toLowerCase().includes('căn cước cũ'))) return true;
+    if (r.canCuoc?.canhBaoChatLuong?.some((w) => w.toLowerCase().includes('căn cước cũ'))) return true;
+    return false;
   };
 
   return (
@@ -520,6 +662,7 @@ export default function TkgdDashboardPage() {
          * 1. TOP STANDALONE HEADER: Logo MXV, Tên hệ thống, Tab Switcher, Theme & User
          * ========================================================================= */}
         <div
+          id="tutorial-tkgd-header"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -714,138 +857,42 @@ export default function TkgdDashboardPage() {
               <RefreshCw size={14} className={loading ? 'animate-spin text-blue-500' : ''} />
             </button>
 
-            {/* If on Reconcile Tab, show Sprint Switcher, 3 Action Buttons, Excel Export & collapse KPI */}
+            {/* Nút Hướng Dẫn Sử Dụng (Tutorial Tour - Zero Raw Emojis) */}
+            <button
+              onClick={() => {
+                setShowStats(true);
+                localStorage.setItem('tkgd_show_stats', 'true');
+                resetTutorial('tkgd');
+                startTutorial('tkgd', tkgdTutorialSteps);
+              }}
+              title="Xem hướng dẫn sử dụng phân hệ TKGD"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                color: '#3b82f6',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              className="hover:bg-blue-500 hover:text-white"
+            >
+              <HelpCircle size={15} />
+              <span>Hướng Dẫn</span>
+            </button>
+
+            {/* If on Reconcile Tab, show Primary 2 buttons + Advanced Actions Dropdown */}
             {mainTab === 'RECONCILE' && (
               <>
-                {/* 1. SPRINT MODE TOGGLE (Nhanh vs Đầy Đủ) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: 'var(--bg-input)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    padding: '3px',
-                    gap: '2px',
-                  }}
-                  title="Chế độ chạy: Nhanh (Chỉ bóc text) hoặc Đầy Đủ (Kèm tải PDF & Ảnh CCCD)"
-                >
-                  <button
-                    onClick={() => setSprintMode('FAST')}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      backgroundColor: sprintMode === 'FAST' ? '#3b82f6' : 'transparent',
-                      color: sprintMode === 'FAST' ? '#ffffff' : 'var(--text-secondary)',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    Nhanh (Text)
-                  </button>
-                  <button
-                    onClick={() => setSprintMode('FULL')}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      backgroundColor: sprintMode === 'FULL' ? '#8b5cf6' : 'transparent',
-                      color: sprintMode === 'FULL' ? '#ffffff' : 'var(--text-secondary)',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    Đầy Đủ (Tệp/Ảnh)
-                  </button>
-                </div>
-
-                {/* 2. CỤM 2 NÚT THÀNH PHẦN (Step 1 & Step 2) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Nút 1: Quét Mail */}
-                  <button
-                    onClick={handleSyncMail}
-                    disabled={isProcessing}
-                    title="Nạp và bóc tách email yêu cầu mở TKGD mới từ Outlook"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '7px 12px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.76rem',
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                    className="hover:border-blue-400 hover:text-blue-500"
-                  >
-                    <Mail size={14} color="#3b82f6" />
-                    <span>1. Quét Mail</span>
-                  </button>
-
-                  {/* Nút 2: Cào M-System (Kèm Badge số lượng chờ) */}
-                  <button
-                    onClick={() => handleSyncMSystem()}
-                    disabled={isProcessing}
-                    title="Cào dữ liệu chi tiết M-System cho các hồ sơ chưa có và tự động đối soát"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '7px 12px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.76rem',
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                    className="hover:border-purple-400 hover:text-purple-500"
-                  >
-                    <Globe size={14} color="#8b5cf6" />
-                    <span>2. Cào MS</span>
-                    {tkgdStats.pendingMsCount > 0 ? (
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          padding: '1px 6px',
-                          borderRadius: '10px',
-                          backgroundColor: '#f59e0b',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                        }}
-                      >
-                        {tkgdStats.pendingMsCount}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          padding: '1px 5px',
-                          borderRadius: '10px',
-                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10b981',
-                          fontWeight: 800,
-                        }}
-                      >
-                        ✓
-                      </span>
-                    )}
-                  </button>
-                </div>
-
-                {/* 3. HERO BUTTON: CHẠY TỔNG HỢP TOÀN BỘ (All-in-One Pipeline) */}
+                {/* 1. HERO BUTTON: CHẠY TỰ ĐỘNG (All-in-One Pipeline) */}
                 <button
+                  id="tutorial-tkgd-auto-btn"
                   onClick={handleRunPipelineAll}
                   disabled={isProcessing}
                   title="Chạy toàn bộ quy trình: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
@@ -871,22 +918,23 @@ export default function TkgdDashboardPage() {
                   ) : (
                     <Zap size={14} fill="#fef08a" color="#fef08a" />
                   )}
-                  <span>{isProcessing ? 'Đang chạy...' : '3. Chạy Toàn Bộ'}</span>
+                  <span>{isProcessing ? 'Đang chạy...' : 'Chạy Tự Động (All-in-One)'}</span>
                 </button>
 
-                {/* 4. TIỆN ÍCH: XUẤT EXCEL */}
+                {/* 2. TIỆN ÍCH: TẢI FILE EXCEL (Zero Raw Emojis) */}
                 <button
+                  id="tutorial-tkgd-export-btn"
                   onClick={handleDownloadExcel}
                   disabled={isProcessing}
                   title="Tải file Excel kết quả đối soát mới nhất về máy"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    padding: '7px 12px',
+                    gap: '6px',
+                    padding: '7px 14px',
                     borderRadius: '10px',
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
                     color: '#10b981',
                     fontWeight: 700,
                     fontSize: '0.76rem',
@@ -895,33 +943,241 @@ export default function TkgdDashboardPage() {
                   }}
                   className="hover:bg-emerald-500 hover:text-white"
                 >
-                  <Download size={13} />
-                  <span>Xuất Excel</span>
+                  <Download size={14} />
+                  <span>Tải File Excel</span>
                 </button>
 
-                {/* 5. ẨN / HIỆN KPI */}
-                <button
-                  onClick={toggleStats}
-                  title={showStats ? 'Thu gọn các thẻ thống kê' : 'Mở rộng các thẻ thống kê'}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '7px 10px',
-                    borderRadius: '10px',
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  className="hover:text-blue-500 hover:border-blue-400"
-                >
-                  {showStats ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                  <span>{showStats ? 'Ẩn KPI' : 'KPI'}</span>
-                </button>
+                {/* 3. THAO TÁC NÂNG CAO (Dropdown / Menu Popover) */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    id="tutorial-tkgd-advanced-btn"
+                    onClick={() => setShowAdvancedActions((prev) => !prev)}
+                    title="Mở các thao tác bổ trợ: Quét mail riêng, Cào MS riêng, Đổi chế độ Nhanh/Đầy đủ"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '10px',
+                      backgroundColor: showAdvancedActions ? 'var(--bg-input)' : 'var(--bg-card)',
+                      border: showAdvancedActions ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+                      color: showAdvancedActions ? '#3b82f6' : 'var(--text-secondary)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    className="hover:text-blue-500 hover:border-blue-400"
+                  >
+                    <SlidersHorizontal size={13} />
+                    <span>Nâng Cao</span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transform: showAdvancedActions ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </button>
+
+                  {/* Dropdown Menu Nội Dung Nâng Cao */}
+                  {showAdvancedActions && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: 0,
+                        zIndex: 50,
+                        minWidth: '280px',
+                        backgroundColor: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '14px',
+                        padding: '12px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                      }}
+                      className="animate-fade-in"
+                    >
+                      {/* Section 1: Chế độ chạy */}
+                      <div>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.04em' }}>
+                          Chế Độ Bóc Tách
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '3px',
+                            gap: '3px',
+                          }}
+                        >
+                          <button
+                            onClick={() => setSprintMode('FAST')}
+                            style={{
+                              flex: 1,
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: sprintMode === 'FAST' ? '#3b82f6' : 'transparent',
+                              color: sprintMode === 'FAST' ? '#ffffff' : 'var(--text-secondary)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            Nhanh (Text)
+                          </button>
+                          <button
+                            onClick={() => setSprintMode('FULL')}
+                            style={{
+                              flex: 1,
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: sprintMode === 'FULL' ? '#8b5cf6' : 'transparent',
+                              color: sprintMode === 'FULL' ? '#ffffff' : 'var(--text-secondary)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            Đầy Đủ (Tệp/Ảnh)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
+
+                      {/* Section 2: Chạy Thủ Công Từng Bước */}
+                      <div>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.04em' }}>
+                          Chạy Thủ Công Từng Bước
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {/* Nút 1: Quét Mail */}
+                          <button
+                            onClick={() => {
+                              setShowAdvancedActions(false);
+                              handleSyncMail();
+                            }}
+                            disabled={isProcessing}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '7px 10px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-primary)',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              cursor: isProcessing ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.15s ease',
+                              textAlign: 'left',
+                            }}
+                            className="hover:border-blue-400 hover:text-blue-500"
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Mail size={13} color="#3b82f6" />
+                              <span>1. Quét Mail Riêng</span>
+                            </span>
+                          </button>
+
+                          {/* Nút 2: Cào M-System */}
+                          <button
+                            onClick={() => {
+                              setShowAdvancedActions(false);
+                              handleSyncMSystem();
+                            }}
+                            disabled={isProcessing}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '7px 10px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-primary)',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              cursor: isProcessing ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.15s ease',
+                              textAlign: 'left',
+                            }}
+                            className="hover:border-purple-400 hover:text-purple-500"
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Globe size={13} color="#8b5cf6" />
+                              <span>2. Cào M-System Riêng</span>
+                            </span>
+                            {tkgdStats.pendingMsCount > 0 ? (
+                              <span
+                                style={{
+                                  fontSize: '0.66rem',
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                  backgroundColor: '#f59e0b',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {tkgdStats.pendingMsCount}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '0.66rem',
+                                  padding: '1px 5px',
+                                  borderRadius: '10px',
+                                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                  color: '#10b981',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
+
+                      {/* Section 3: Tùy biến hiển thị KPI */}
+                      <button
+                        onClick={toggleStats}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'left',
+                        }}
+                        className="hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <span>{showStats ? 'Thu gọn thẻ Thống kê (KPI)' : 'Hiện thẻ Thống kê (KPI)'}</span>
+                        {showStats ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -1001,8 +1257,9 @@ export default function TkgdDashboardPage() {
             {/* =========================================================================
          * 2. STATS CARDS: Có thể thu gọn/ẩn đi để tránh rối mắt
          * ========================================================================= */}
-            {showStats && (
+            {(showStats || isTutorialActive) && (
               <div
+                id="tutorial-tkgd-stats-cards"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -1063,7 +1320,30 @@ export default function TkgdDashboardPage() {
                   </span>
                 </div>
 
-                {/* Card 3: Lệch */}
+                {/* Card 3: Cần Kiểm Tra Lại */}
+                <div
+                  className="glass-panel"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '14px',
+                    padding: '16px 20px',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase' }}>
+                      Cần Kiểm Tra Lại
+                    </span>
+                    <AlertTriangle size={17} color="#f59e0b" />
+                  </div>
+                  <p style={{ fontSize: '1.7rem', fontWeight: 800, color: '#f59e0b', margin: '6px 0 2px 0' }}>
+                    {canKiemTraCount}
+                  </p>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Case đặc biệt / HĐ khuyết trường</span>
+                </div>
+
+                {/* Card 4: Lệch */}
                 <div
                   className="glass-panel"
                   style={{
@@ -1130,11 +1410,12 @@ export default function TkgdDashboardPage() {
               }}
             >
               {/* Cụm Tabs Lọc Trạng thái & Phân hệ */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+              <div id="tutorial-tkgd-tabs" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
                 {[
                   { id: 'ALL', label: `Tất Cả (${total})` },
                   { id: 'KHOP', label: `Khớp 100% (${khopCount})`, color: '#10b981' },
-                  ...(khopTextCount > 0 ? [{ id: 'KHOP_TEXT', label: `Khớp Text (${khopTextCount})`, color: '#f59e0b' }] : []),
+                  { id: 'CAN_KIEM_TRA', label: `Cần Ktra (${canKiemTraCount})`, color: '#f59e0b' },
+                  ...(khopTextCount > 0 ? [{ id: 'KHOP_TEXT', label: `Khớp Text (${khopTextCount})`, color: '#3b82f6' }] : []),
                   { id: 'LECH', label: `Sai Lệch (${lechCount})`, color: '#ef4444' },
                 ].map((t) => {
                   const active = filter === t.id;
@@ -1317,6 +1598,7 @@ export default function TkgdDashboardPage() {
          * 4. BẢNG DỮ LIỆU: Tích hợp Cột Thao tác (Mắt) & Phân trang
          * ========================================================================= */}
             <div
+              id="tutorial-tkgd-table"
               className="glass-panel"
               style={{
                 backgroundColor: 'var(--bg-card)',
@@ -1348,7 +1630,7 @@ export default function TkgdDashboardPage() {
                       {!isCompactView && <th style={{ padding: '12px 14px' }}>Trạng Thái MS</th>}
                       {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center' }}>Snapshot</th>}
                       <th style={{ padding: '12px 14px', textAlign: 'center' }}>Kết Luận</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}>So Sánh</th>
+                      <th id="tutorial-tkgd-inspect-col" style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}>So Sánh</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1369,7 +1651,8 @@ export default function TkgdDashboardPage() {
                       records.map((r, index) => {
                         const isKhop = r.ketLuan?.trangThai === 'KHOP';
                         const isKhopText = r.ketLuan?.trangThai === 'KHOP_TEXT';
-                        const isLech = r.ketLuan?.trangThai && r.ketLuan?.trangThai !== 'KHOP' && r.ketLuan?.trangThai !== 'KHOP_TEXT' && r.ketLuan?.trangThai !== 'CHUA_XU_LY';
+                        const isCanKiemTra = r.ketLuan?.trangThai === 'CAN_KIEM_TRA';
+                        const isLech = r.ketLuan?.trangThai && r.ketLuan?.trangThai !== 'KHOP' && r.ketLuan?.trangThai !== 'KHOP_TEXT' && r.ketLuan?.trangThai !== 'CAN_KIEM_TRA' && r.ketLuan?.trangThai !== 'CHUA_XU_LY';
                         // NGHIỆP VỤ MXV: Mã hiển thị là Mã cơ sở (Base Code không đuôi)
                         const targetCode = r.maTKGDBase || (r.maTKGD ? r.maTKGD.split('-')[0] : '') || r.noiDungMail?.maTKGD_Futures || '-';
                         const isExpanded = expandedRowId === r._id;
@@ -1400,7 +1683,25 @@ export default function TkgdDashboardPage() {
                                 {r.ms?.hoVaTen || <em>Chưa cào MS</em>}
                               </td>
                               <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                                {r.ms?.soCMND_HoChieu || r.canCuoc?.soCanCuoc || r.hopDong?.soCanCuoc || '-'}
+                                <div>{r.ms?.soCMND_HoChieu || r.canCuoc?.soCanCuoc || r.hopDong?.soCanCuoc || '-'}</div>
+                                {checkIsOldIdCard(r) && (
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      marginTop: '3px',
+                                      fontSize: '0.62rem',
+                                      fontWeight: 700,
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                      color: '#d97706',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    ⚠️ Căn cước cũ, ktra lại
+                                  </span>
+                                )}
                               </td>
                               {!isCompactView && (
                                 <td style={{ padding: '12px 14px' }}>
@@ -1465,6 +1766,44 @@ export default function TkgdDashboardPage() {
                                   >
                                     <Check size={12} strokeWidth={3} /> KHỚP 100%
                                   </span>
+                                ) : isCanKiemTra ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '2px 8px',
+                                        borderRadius: '20px',
+                                        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                        color: '#d97706',
+                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                        fontWeight: 700,
+                                        fontSize: '0.7rem',
+                                      }}
+                                      title={r.ketLuan?.danhSachLoi?.join('\n') || 'Trường hợp đặc biệt cần chuyên viên kiểm tra lại'}
+                                    >
+                                      <AlertTriangle size={12} strokeWidth={2.5} /> CẦN KIỂM TRA LẠI
+                                    </span>
+                                    {r.ketLuan?.danhSachLoi && r.ketLuan.danhSachLoi.length > 0 && (
+                                      <span
+                                        style={{
+                                          fontSize: '0.66rem',
+                                          color: '#d97706',
+                                          fontWeight: 600,
+                                          maxWidth: '200px',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          textAlign: 'center',
+                                        }}
+                                        title={r.ketLuan.danhSachLoi.join('\n')}
+                                      >
+                                        {r.ketLuan.danhSachLoi[0]}
+                                        {r.ketLuan.danhSachLoi.length > 1 ? ` (+${r.ketLuan.danhSachLoi.length - 1})` : ''}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : isKhopText ? (
                                   <span
                                     style={{
@@ -1546,6 +1885,8 @@ export default function TkgdDashboardPage() {
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   {/* NÚT CON MẮT: Mở Modal So Sánh Trực Quan */}
                                   <button
+                                    id={index === 0 ? 'tutorial-tkgd-inspect-btn' : undefined}
+                                    data-tutorial="inspect-btn"
                                     onClick={() => {
                                       setInspectRecord(r);
                                       setActiveModalTab('DIFF');
@@ -1626,12 +1967,12 @@ export default function TkgdDashboardPage() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <Info size={14} color="#3b82f6" />
                                       <strong style={{ color: 'var(--text-primary)' }}>Tóm tắt tình trạng đối soát:</strong>
-                                      <span style={{ color: isKhop ? '#10b981' : isLech ? '#ef4444' : '#f59e0b', fontWeight: 700 }}>
-                                        {isKhop ? 'Khớp hoàn toàn 100%' : isLech ? 'Phát hiện sai lệch' : 'Chưa có kết luận'}
+                                      <span style={{ color: isKhop ? '#10b981' : isCanKiemTra ? '#d97706' : isLech ? '#ef4444' : '#f59e0b', fontWeight: 700 }}>
+                                        {isKhop ? 'Khớp hoàn toàn 100%' : isCanKiemTra ? 'Cần kiểm tra lại (Trường hợp đặc biệt)' : isLech ? 'Phát hiện sai lệch' : 'Chưa có kết luận'}
                                       </span>
                                     </div>
                                     {r.ketLuan?.danhSachLoi && r.ketLuan.danhSachLoi.length > 0 ? (
-                                      <ul style={{ margin: 0, paddingLeft: '24px', color: '#ef4444' }}>
+                                      <ul style={{ margin: 0, paddingLeft: '24px', color: isCanKiemTra ? '#d97706' : '#ef4444' }}>
                                         {r.ketLuan.danhSachLoi.map((err, errIdx) => (
                                           <li key={errIdx}>{err}</li>
                                         ))}
@@ -2016,7 +2357,7 @@ export default function TkgdDashboardPage() {
                                     : []),
                                   {
                                     label: 'Họ và tên',
-                                    left: cleanMailName(inspectRecord.noiDungMail?.tenTaiKhoan || inspectRecord.hopDong?.hoVaTen),
+                                    left: cleanMailName(inspectRecord.hopDong?.hoVaTen || inspectRecord.canCuoc?.hoVaTen || inspectRecord.noiDungMail?.tenTaiKhoan),
                                     right: inspectRecord.ms?.hoVaTen || inspectRecord.ms?.tenTKGD || '-',
                                   },
                                   {
@@ -2027,47 +2368,31 @@ export default function TkgdDashboardPage() {
                                   {
                                     label: 'Ngày sinh',
                                     left: inspectRecord.hopDong?.rawNgaySinh
-                                      ? `${inspectRecord.hopDong.rawNgaySinh}${inspectRecord.hopDong.rawNgaySinh.includes('-') ? ' (HĐ)' : ''}`
+                                      ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
                                       : formatDateStr(inspectRecord.hopDong?.ngaySinh || inspectRecord.canCuoc?.ngaySinh),
-                                    right: formatDateStr(inspectRecord.ms?.ngaySinh) || formatDateStr(inspectRecord.canCuoc?.ngaySinh) || '-',
+                                    right: inspectRecord.ms?.rawNgaySinh
+                                      ? formatDateStr(inspectRecord.ms.rawNgaySinh)
+                                      : (formatDateStr(inspectRecord.ms?.ngaySinh) || formatDateStr(inspectRecord.canCuoc?.ngaySinh) || '-'),
                                   },
                                   {
                                     label: 'Ngày cấp',
                                     left: inspectRecord.hopDong?.rawNgayCap
-                                      ? `${inspectRecord.hopDong.rawNgayCap}${inspectRecord.hopDong.rawNgayCap.includes('-') ? ' (HĐ)' : ''}`
+                                      ? formatDateStr(inspectRecord.hopDong.rawNgayCap)
                                       : formatDateStr(inspectRecord.hopDong?.ngayCap || inspectRecord.canCuoc?.ngayCap),
-                                    right: formatDateStr(inspectRecord.ms?.ngayCap) || formatDateStr(inspectRecord.canCuoc?.ngayCap) || '-',
+                                    right: inspectRecord.ms?.rawNgayCap
+                                      ? formatDateStr(inspectRecord.ms.rawNgayCap)
+                                      : (formatDateStr(inspectRecord.ms?.ngayCap) || formatDateStr(inspectRecord.canCuoc?.ngayCap) || '-'),
                                   },
                                   {
                                     label: 'Giới tính',
-                                    left: inspectRecord.hopDong?.rawGioiTinh || inspectRecord.hopDong?.gioiTinh || '-',
-                                    right: inspectRecord.canCuoc?.gioiTinh || '-',
+                                    left: inspectRecord.hopDong?.rawGioiTinh || inspectRecord.hopDong?.gioiTinh || inspectRecord.canCuoc?.gioiTinh || '-',
+                                    right: inspectRecord.ms?.gioiTinh || inspectRecord.canCuoc?.gioiTinh || '-',
                                   },
                                   {
                                     label: 'Nơi cấp',
                                     left: inspectRecord.hopDong?.noiCap || inspectRecord.canCuoc?.noiCap || '-',
-                                    right: inspectRecord.ms?.noiCap || '-',
+                                    right: inspectRecord.ms?.noiCap || inspectRecord.canCuoc?.noiCap || '-',
                                   },
-                                  ...(inspectRecord.hopDong?.dinhDangLoi && inspectRecord.hopDong.dinhDangLoi.length > 0
-                                    ? [
-                                        {
-                                          label: 'Cảnh báo định dạng HĐ',
-                                          left: inspectRecord.hopDong.dinhDangLoi.join('; '),
-                                          right: 'Yêu cầu quy chuẩn DD/MM/YYYY & Nam/Nữ',
-                                          customMatch: false,
-                                        },
-                                      ]
-                                    : []),
-                                  ...(inspectRecord.canCuoc?.canhBaoChatLuong && inspectRecord.canCuoc.canhBaoChatLuong.length > 0
-                                    ? [
-                                        {
-                                          label: 'Chất lượng ảnh CCCD',
-                                          left: inspectRecord.canCuoc.canhBaoChatLuong.join('; '),
-                                          right: 'Yêu cầu đủ 4 góc, không cắt lẹm viền',
-                                          customMatch: false,
-                                        },
-                                      ]
-                                    : []),
                                   {
                                     label: 'Ngày ký HĐ / Ngày duyệt MS',
                                     left: formatDateStr(inspectRecord.hopDong?.ngayKyHD),
@@ -2084,6 +2409,24 @@ export default function TkgdDashboardPage() {
                               })().map((item: any, rowIdx: number) => {
                                 // Chuẩn hóa so khớp (loại bỏ khoảng trắng, dấu)
                                 const normalizeStr = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+                                // Chuẩn hóa so khớp ngày tháng, giới tính và text thông thường
+                                const normalizeForCompare = (val: string, label: string) => {
+                                  if (!val || val === '-') return '';
+                                  const s = val.trim();
+                                  if (label.toLowerCase().includes('ngày')) {
+                                    const clean = s.replace(/\s*\(HĐ\)/i, '').trim();
+                                    return formatDateStr(clean);
+                                  }
+                                  if (label.toLowerCase().includes('giới tính')) {
+                                    const clean = s.toLowerCase();
+                                    if (['nữ', 'nu', 'female', 'f'].includes(clean)) return 'nu';
+                                    if (['nam', 'male', 'm'].includes(clean)) return 'nam';
+                                    return clean;
+                                  }
+                                  return normalizeStr(s);
+                                };
+
                                 const isMatch =
                                   item.isInfoNotice
                                     ? true
@@ -2091,7 +2434,7 @@ export default function TkgdDashboardPage() {
                                       ? item.customMatch
                                       : item.left !== '-' &&
                                       item.right !== '-' &&
-                                      normalizeStr(item.left) === normalizeStr(item.right);
+                                      normalizeForCompare(item.left, item.label) === normalizeForCompare(item.right, item.label);
 
                                 const isMissingAttachment = !item.isInfoNotice && !isMatch && (item.left === '-' || item.right === '-');
 
@@ -2187,100 +2530,1019 @@ export default function TkgdDashboardPage() {
                             </tbody>
                           </table>
                         </div>
+
+                        {inspectRecord.ketLuan?.trangThai === 'CAN_KIEM_TRA' && (
+                          <div
+                            style={{
+                              padding: '14px 18px',
+                              borderRadius: '12px',
+                              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <AlertTriangle size={18} color="#d97706" />
+                              <strong style={{ color: '#d97706', fontSize: '0.85rem' }}>
+                                CẦN KIỂM TRA LẠI (TRƯỜNG HỢP BẤT THƯỜNG / CASE ĐẶC BIỆT)
+                              </strong>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                              Hồ sơ này có các đặc điểm kỹ thuật hoặc định dạng đặc thù, cần chuyên viên ca trực đối chiếu mắt để xác nhận:
+                            </p>
+                            {inspectRecord.ketLuan?.danhSachLoi && inspectRecord.ketLuan.danhSachLoi.length > 0 && (
+                              <ul style={{ margin: 0, paddingLeft: '22px', color: '#d97706', fontSize: '0.75rem', fontWeight: 600 }}>
+                                {inspectRecord.ketLuan.danhSachLoi.map((err, eIdx) => (
+                                  <li key={eIdx}>{err}</li>
+                                ))}
+                              </ul>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                              <button
+                                onClick={() => setActiveModalTab('ATTACHMENTS')}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#d97706',
+                                  color: '#fff',
+                                  border: 'none',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <ImageIcon size={13} /> Chuyển sang Tab Hồ Sơ & Ảnh CCCD để kiểm tra &rarr;
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* =================================================================
-                 * TAB 2: HỒ SƠ & ẢNH CCCD (ATTACHMENTS & IMAGES)
+                 * TAB 2: HỒ SƠ & ẢNH CCCD (SIDE-BY-SIDE VISUAL COMPARISON)
                  * ================================================================= */}
                     {activeModalTab === 'ATTACHMENTS' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                        {/* Thẻ 1: CCCD Mặt Trước */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {/* Đường dẫn thư mục lưu trữ thực tế */}
                         <div
                           style={{
-                            borderRadius: '12px',
-                            border: '1px solid var(--border-color)',
-                            padding: '14px',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
                             backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            fontSize: '0.75rem',
                           }}
                         >
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <ImageIcon size={14} color="#3b82f6" />
-                            Ảnh CCCD Mặt Trước
-                          </h4>
-                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                            Đường dẫn: <code>{inspectRecord.ms?.cccdMatTruocLocalPath || 'Đã lưu trong thư mục HoSo_DinhKem'}</code>
-                          </p>
-                          <div
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Folder size={14} color="#3b82f6" />
+                            <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Thư mục lưu trữ:</span>
+                            <code style={{ color: '#3b82f6', fontSize: '0.72rem' }}>
+                              {accountManifest?.directory || inspectRecord.ms?.cccdMatTruocLocalPath || 'HoSo_DinhKem'}
+                            </code>
+                          </div>
+                          <span
                             style={{
-                              height: '140px',
-                              borderRadius: '8px',
-                              backgroundColor: 'rgba(0,0,0,0.1)',
-                              border: '1px dashed var(--border-color)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--text-muted)',
-                              fontSize: '0.75rem',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              color: '#3b82f6',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
                             }}
                           >
-                            [ Ảnh CCCD mặt trước đã đối soát OCR 100% ]
-                          </div>
+                            {accountManifest?.totalFiles !== undefined ? `${accountManifest.totalFiles} tệp hồ sơ` : 'Đang quét tệp...'}
+                          </span>
                         </div>
 
-                        {/* Thẻ 2: CCCD Mặt Sau */}
-                        <div
-                          style={{
-                            borderRadius: '12px',
-                            border: '1px solid var(--border-color)',
-                            padding: '14px',
-                            backgroundColor: 'var(--bg-input)',
-                          }}
-                        >
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <ImageIcon size={14} color="#3b82f6" />
-                            Ảnh CCCD Mặt Sau
-                          </h4>
-                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                            Đường dẫn: <code>{inspectRecord.ms?.cccdMatSauLocalPath || 'Đã lưu trong thư mục HoSo_DinhKem'}</code>
-                          </p>
-                          <div
-                            style={{
-                              height: '140px',
-                              borderRadius: '8px',
-                              backgroundColor: 'rgba(0,0,0,0.1)',
-                              border: '1px dashed var(--border-color)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--text-muted)',
-                              fontSize: '0.75rem',
-                            }}
-                          >
-                            [ Ảnh CCCD mặt sau đã đối soát OCR 100% ]
+                        {loadingManifest ? (
+                          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <Loader2 className="animate-spin" size={28} style={{ margin: '0 auto 10px auto', color: '#3b82f6' }} />
+                            <p style={{ margin: 0, fontSize: '0.85rem' }}>Đang nạp hồ sơ đính kèm và kết nối stream ảnh...</p>
                           </div>
-                        </div>
+                        ) : (
+                          <>
+                            {/* KHỐI 1: SO SÁNH CCCD MẶT TRƯỚC */}
+                            <div
+                              style={{
+                                borderRadius: '14px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {/* Header Khối 1 */}
+                              <div
+                                style={{
+                                  padding: '12px 18px',
+                                  backgroundColor: 'var(--bg-input)',
+                                  borderBottom: '1px solid var(--border-color)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '8px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                      color: '#3b82f6',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    1
+                                  </span>
+                                  <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700 }}>
+                                    Ảnh CCCD Mặt Trước (Đối chiếu 2 nguồn)
+                                  </h4>
+                                </div>
 
-                        {/* Thẻ 3: PDF Hợp Đồng Mở TK */}
-                        <div
-                          style={{
-                            borderRadius: '12px',
-                            border: '1px solid var(--border-color)',
-                            padding: '14px',
-                            backgroundColor: 'var(--bg-input)',
-                          }}
-                        >
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FileText size={14} color="#10b981" />
-                            Hợp Đồng Mở Tài Khoản (PDF)
-                          </h4>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span>Số HĐ: <strong>{inspectRecord.hopDong?.soHopDong || 'HĐ-MXV'}</strong></span>
-                            <span>Ngày ký: <strong>{formatDateStr(inspectRecord.hopDong?.ngayKyHD)}</strong></span>
-                            <span>Loại hình: <strong>{inspectRecord.hopDong?.loaiHinhTaiKhoan || 'Cá nhân'}</strong></span>
-                            <span>Chữ ký: <strong style={{ color: '#10b981' }}>{inspectRecord.hopDong?.chuKy || 'Đã ký'}</strong></span>
-                          </div>
-                        </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem' }}>
+                                  {accountManifest?.ocrSummary?.soCanCuocMail ? (
+                                    <span
+                                      style={{
+                                        padding: '3px 10px',
+                                        borderRadius: '12px',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                        color: '#10b981',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                      }}
+                                    >
+                                      <Check size={12} strokeWidth={3} />
+                                      Số CCCD: {accountManifest.ocrSummary.soCanCuocMail}
+                                    </span>
+                                  ) : null}
+                                  {accountManifest?.ocrSummary?.canhBaoChatLuong?.length > 0 ? (
+                                    <span
+                                      style={{
+                                        padding: '3px 10px',
+                                        borderRadius: '12px',
+                                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                                        color: '#f59e0b',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      ⚠ {accountManifest.ocrSummary.canhBaoChatLuong.join('; ')}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        padding: '3px 10px',
+                                        borderRadius: '12px',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                        color: '#3b82f6',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      ✓ Đủ 4 góc viền
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Body: Split View 2 Cột */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', padding: '16px' }}>
+                                {/* Cột Trái: Mail */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      <Mail size={13} /> 📧 Tệp Đính Kèm Mail (Khách gửi)
+                                    </span>
+                                    {accountManifest?.files?.mailCccdFront && (
+                                      <button
+                                        onClick={() =>
+                                          setPreviewImage({
+                                            url: `${API_BASE_URL}${accountManifest.files.mailCccdFront.url}`,
+                                            title: 'CCCD Mặt Trước (Mail đính kèm)',
+                                            source: 'MAIL',
+                                            rotation: 0,
+                                          })
+                                        }
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#3b82f6',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={12} /> Phóng to
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {accountManifest?.files?.mailCccdFront ? (
+                                    <div
+                                      onClick={() =>
+                                        setPreviewImage({
+                                          url: `${API_BASE_URL}${accountManifest.files.mailCccdFront.url}`,
+                                          title: 'CCCD Mặt Trước (Mail đính kèm)',
+                                          source: 'MAIL',
+                                          rotation: 0,
+                                        })
+                                      }
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        backgroundColor: '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-in',
+                                        position: 'relative',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                      }}
+                                    >
+                                      <img
+                                        src={`${API_BASE_URL}${accountManifest.files.mailCccdFront.url}`}
+                                        alt="CCCD Mặt Trước (Mail)"
+                                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                      />
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '6px',
+                                          right: '6px',
+                                          backgroundColor: 'rgba(0,0,0,0.65)',
+                                          color: '#fff',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.65rem',
+                                        }}
+                                      >
+                                        {accountManifest.files.mailCccdFront.fileName}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                        textAlign: 'center',
+                                        padding: '12px',
+                                      }}
+                                    >
+                                      Chưa có ảnh CCCD mặt trước từ email
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Cột Phải: M-System */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      <Globe size={13} /> 🖥️ Tải Từ M-System (TVKD up)
+                                    </span>
+                                    {accountManifest?.files?.msCccdFront && (
+                                      <button
+                                        onClick={() =>
+                                          setPreviewImage({
+                                            url: `${API_BASE_URL}${accountManifest.files.msCccdFront.url}`,
+                                            title: 'CCCD Mặt Trước (M-System)',
+                                            source: 'MS',
+                                            rotation: 0,
+                                          })
+                                        }
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#10b981',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={12} /> Phóng to
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {accountManifest?.files?.msCccdFront ? (
+                                    <div
+                                      onClick={() =>
+                                        setPreviewImage({
+                                          url: `${API_BASE_URL}${accountManifest.files.msCccdFront.url}`,
+                                          title: 'CCCD Mặt Trước (M-System)',
+                                          source: 'MS',
+                                          rotation: 0,
+                                        })
+                                      }
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        backgroundColor: '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-in',
+                                        position: 'relative',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                      }}
+                                    >
+                                      <img
+                                        src={`${API_BASE_URL}${accountManifest.files.msCccdFront.url}`}
+                                        alt="CCCD Mặt Trước (MS)"
+                                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                      />
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '6px',
+                                          right: '6px',
+                                          backgroundColor: 'rgba(0,0,0,0.65)',
+                                          color: '#fff',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.65rem',
+                                        }}
+                                      >
+                                        {accountManifest.files.msCccdFront.fileName}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                        textAlign: 'center',
+                                        padding: '12px',
+                                      }}
+                                    >
+                                      Chưa cào được ảnh CCCD mặt trước từ M-System
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* KHỐI 2: SO SÁNH CCCD MẶT SAU */}
+                            <div
+                              style={{
+                                borderRadius: '14px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {/* Header Khối 2 */}
+                              <div
+                                style={{
+                                  padding: '12px 18px',
+                                  backgroundColor: 'var(--bg-input)',
+                                  borderBottom: '1px solid var(--border-color)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '8px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                      color: '#3b82f6',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    2
+                                  </span>
+                                  <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700 }}>
+                                    Ảnh CCCD Mặt Sau (Đối chiếu 2 nguồn)
+                                  </h4>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem' }}>
+                                  <span
+                                    style={{
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                      color: '#10b981',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    ✓ Nhận diện MRZ & Ngày cấp
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Body: Split View 2 Cột */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', padding: '16px' }}>
+                                {/* Cột Trái: Mail */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      <Mail size={13} /> 📧 Tệp Đính Kèm Mail (Khách gửi)
+                                    </span>
+                                    {accountManifest?.files?.mailCccdBack && (
+                                      <button
+                                        onClick={() =>
+                                          setPreviewImage({
+                                            url: `${API_BASE_URL}${accountManifest.files.mailCccdBack.url}`,
+                                            title: 'CCCD Mặt Sau (Mail đính kèm)',
+                                            source: 'MAIL',
+                                            rotation: 0,
+                                          })
+                                        }
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#3b82f6',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={12} /> Phóng to
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {accountManifest?.files?.mailCccdBack ? (
+                                    <div
+                                      onClick={() =>
+                                        setPreviewImage({
+                                          url: `${API_BASE_URL}${accountManifest.files.mailCccdBack.url}`,
+                                          title: 'CCCD Mặt Sau (Mail đính kèm)',
+                                          source: 'MAIL',
+                                          rotation: 0,
+                                        })
+                                      }
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        backgroundColor: '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-in',
+                                        position: 'relative',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                      }}
+                                    >
+                                      <img
+                                        src={`${API_BASE_URL}${accountManifest.files.mailCccdBack.url}`}
+                                        alt="CCCD Mặt Sau (Mail)"
+                                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                      />
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '6px',
+                                          right: '6px',
+                                          backgroundColor: 'rgba(0,0,0,0.65)',
+                                          color: '#fff',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.65rem',
+                                        }}
+                                      >
+                                        {accountManifest.files.mailCccdBack.fileName}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                        textAlign: 'center',
+                                        padding: '12px',
+                                      }}
+                                    >
+                                      Chưa có ảnh CCCD mặt sau từ email
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Cột Phải: M-System */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      <Globe size={13} /> 🖥️ Tải Từ M-System (TVKD up)
+                                    </span>
+                                    {accountManifest?.files?.msCccdBack && (
+                                      <button
+                                        onClick={() =>
+                                          setPreviewImage({
+                                            url: `${API_BASE_URL}${accountManifest.files.msCccdBack.url}`,
+                                            title: 'CCCD Mặt Sau (M-System)',
+                                            source: 'MS',
+                                            rotation: 0,
+                                          })
+                                        }
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#10b981',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={12} /> Phóng to
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {accountManifest?.files?.msCccdBack ? (
+                                    <div
+                                      onClick={() =>
+                                        setPreviewImage({
+                                          url: `${API_BASE_URL}${accountManifest.files.msCccdBack.url}`,
+                                          title: 'CCCD Mặt Sau (M-System)',
+                                          source: 'MS',
+                                          rotation: 0,
+                                        })
+                                      }
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        backgroundColor: '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-in',
+                                        position: 'relative',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                      }}
+                                    >
+                                      <img
+                                        src={`${API_BASE_URL}${accountManifest.files.msCccdBack.url}`}
+                                        alt="CCCD Mặt Sau (MS)"
+                                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                      />
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '6px',
+                                          right: '6px',
+                                          backgroundColor: 'rgba(0,0,0,0.65)',
+                                          color: '#fff',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.65rem',
+                                        }}
+                                      >
+                                        {accountManifest.files.msCccdBack.fileName}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        height: '180px',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                        textAlign: 'center',
+                                        padding: '12px',
+                                      }}
+                                    >
+                                      Chưa cào được ảnh CCCD mặt sau từ M-System
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* KHỐI 3: CHỮ KÝ MẪU & HỒ SƠ PHÁP LÝ (PDF) */}
+                            <div
+                              style={{
+                                borderRadius: '14px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {/* Header Khối 3 */}
+                              <div
+                                style={{
+                                  padding: '12px 18px',
+                                  backgroundColor: 'var(--bg-input)',
+                                  borderBottom: '1px solid var(--border-color)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '8px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                      color: '#10b981',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    3
+                                  </span>
+                                  <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700 }}>
+                                    Chữ Ký Mẫu & Hồ Sơ Pháp Lý (PDF Hợp Đồng / Phụ Lục)
+                                  </h4>
+                                </div>
+
+                                <span
+                                  style={{
+                                    padding: '3px 10px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                    color: '#10b981',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Chữ ký: {inspectRecord.hopDong?.chuKy || inspectRecord.ms?.chuKy || 'Đã ký'}
+                                </span>
+                              </div>
+
+                              {/* Body Khối 3 */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', padding: '16px' }}>
+                                {/* Cột Trái: Chữ Ký Mẫu M-System */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      ✍️ Chữ Ký Mẫu (M-System)
+                                    </span>
+                                    {accountManifest?.files?.msSignature && (
+                                      <button
+                                        onClick={() =>
+                                          setPreviewImage({
+                                            url: `${API_BASE_URL}${accountManifest.files.msSignature.url}`,
+                                            title: 'Chữ Ký Mẫu (M-System)',
+                                            source: 'MS',
+                                            rotation: 0,
+                                          })
+                                        }
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#10b981',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={12} /> Phóng to
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {accountManifest?.files?.msSignature ? (
+                                    <div
+                                      onClick={() =>
+                                        setPreviewImage({
+                                          url: `${API_BASE_URL}${accountManifest.files.msSignature.url}`,
+                                          title: 'Chữ Ký Mẫu (M-System)',
+                                          source: 'MS',
+                                          rotation: 0,
+                                        })
+                                      }
+                                      style={{
+                                        height: '140px',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#ffffff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-in',
+                                        position: 'relative',
+                                        border: '1px solid var(--border-color)',
+                                        padding: '10px',
+                                      }}
+                                    >
+                                      <img
+                                        src={`${API_BASE_URL}${accountManifest.files.msSignature.url}`}
+                                        alt="Chữ Ký M-System"
+                                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                      />
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '6px',
+                                          right: '6px',
+                                          backgroundColor: 'rgba(0,0,0,0.6)',
+                                          color: '#fff',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.65rem',
+                                        }}
+                                      >
+                                        {accountManifest.files.msSignature.fileName}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        height: '140px',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                      }}
+                                    >
+                                      Chưa có chữ ký mẫu từ M-System
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Cột Phải: Hợp Đồng PDF & Phụ Lục PL01 */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                    backgroundColor: 'var(--bg-input)',
+                                    borderRadius: '10px',
+                                    padding: '12px',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <FileText size={13} color="#ef4444" /> Hồ Sơ Pháp Lý (Văn Bản Ký)
+                                  </span>
+
+                                  {/* Thẻ Hợp đồng */}
+                                  <div
+                                    style={{
+                                      padding: '10px 12px',
+                                      borderRadius: '8px',
+                                      backgroundColor: 'var(--bg-card)',
+                                      border: '1px solid var(--border-color)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      gap: '8px',
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                                        Hợp Đồng Mở TKGD
+                                      </div>
+                                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                        Số: {inspectRecord.hopDong?.soHopDong || 'HĐ-MXV'} | Ký: {formatDateStr(inspectRecord.hopDong?.ngayKyHD) || 'Theo đợt'}
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      {accountManifest?.files?.mailContractPdf ? (
+                                        <>
+                                          <button
+                                            onClick={() =>
+                                              setPreviewPdf({
+                                                url: `${API_BASE_URL}${accountManifest.files.mailContractPdf.url}`,
+                                                title: `Hợp Đồng Mở TKGD (${inspectRecord.maTKGDBase || inspectRecord.maTKGD})`,
+                                              })
+                                            }
+                                            style={{
+                                              padding: '5px 10px',
+                                              borderRadius: '6px',
+                                              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                              color: '#3b82f6',
+                                              border: '1px solid rgba(59, 130, 246, 0.25)',
+                                              fontSize: '0.72rem',
+                                              fontWeight: 600,
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                            }}
+                                          >
+                                            <Eye size={12} /> Xem trực tiếp
+                                          </button>
+                                          <a
+                                            href={`${API_BASE_URL}${accountManifest.files.mailContractPdf.url}`}
+                                            download
+                                            title="Tải file PDF"
+                                            style={{
+                                              padding: '5px 8px',
+                                              borderRadius: '6px',
+                                              backgroundColor: 'var(--bg-input)',
+                                              color: 'var(--text-secondary)',
+                                              border: '1px solid var(--border-color)',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              textDecoration: 'none',
+                                            }}
+                                          >
+                                            <Download size={12} />
+                                          </a>
+                                        </>
+                                      ) : (
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Chưa có PDF</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Thẻ Phụ lục PL01 (ACM) */}
+                                  {(accountManifest?.files?.mailPl01Pdf || inspectRecord.accountTypes?.includes('ACM') || inspectRecord.noiDungMail?.hasACMRequest) && (
+                                    <div
+                                      style={{
+                                        padding: '10px 12px',
+                                        borderRadius: '8px',
+                                        backgroundColor: 'var(--bg-card)',
+                                        border: '1px solid var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '8px',
+                                      }}
+                                    >
+                                      <div>
+                                        <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                                          Phụ Lục PL01 (Tiểu khoản ACM)
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                          Tiểu khoản: {inspectRecord.maTKGDBase ? `${inspectRecord.maTKGDBase}-A` : '-'}
+                                        </div>
+                                      </div>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {accountManifest?.files?.mailPl01Pdf ? (
+                                          <>
+                                            <button
+                                              onClick={() =>
+                                                setPreviewPdf({
+                                                  url: `${API_BASE_URL}${accountManifest.files.mailPl01Pdf.url}`,
+                                                  title: `Phụ Lục PL01 ACM (${inspectRecord.maTKGDBase || inspectRecord.maTKGD}-A)`,
+                                                })
+                                              }
+                                              style={{
+                                                padding: '5px 10px',
+                                                borderRadius: '6px',
+                                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                                color: '#10b981',
+                                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                              }}
+                                            >
+                                              <Eye size={12} /> Xem PL01
+                                            </button>
+                                            <a
+                                              href={`${API_BASE_URL}${accountManifest.files.mailPl01Pdf.url}`}
+                                              download
+                                              title="Tải file PL01"
+                                              style={{
+                                                padding: '5px 8px',
+                                                borderRadius: '6px',
+                                                backgroundColor: 'var(--bg-input)',
+                                                color: 'var(--text-secondary)',
+                                                border: '1px solid var(--border-color)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                textDecoration: 'none',
+                                              }}
+                                            >
+                                              <Download size={12} />
+                                            </a>
+                                          </>
+                                        ) : (
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Chưa có PL01</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -2302,7 +3564,7 @@ export default function TkgdDashboardPage() {
                             <span style={{ color: 'var(--text-muted)' }}>{formatDateStr(inspectRecord.ketLuan?.reconciledAt || new Date().toISOString())}</span>
                           </div>
                           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                            Trạng thái kết luận: <strong style={{ color: inspectRecord.ketLuan?.trangThai === 'KHOP' ? '#10b981' : '#ef4444' }}>{inspectRecord.ketLuan?.trangThai || 'CHUA_XU_LY'}</strong>
+                            Trạng thái kết luận: <strong style={{ color: inspectRecord.ketLuan?.trangThai === 'KHOP' ? '#10b981' : inspectRecord.ketLuan?.trangThai === 'CAN_KIEM_TRA' ? '#d97706' : '#ef4444' }}>{inspectRecord.ketLuan?.trangThai || 'CHUA_XU_LY'}</strong>
                           </p>
                         </div>
 
@@ -2359,6 +3621,212 @@ export default function TkgdDashboardPage() {
                     >
                       Đóng
                     </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================
+             * LIGHTBOX MODAL: PHÓNG TO & XOAY ẢNH CCCD / CHỮ KÝ
+             * ================================================================= */}
+            {previewImage && (
+              <div
+                onClick={() => setPreviewImage(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 9999,
+                  backgroundColor: 'rgba(0, 0, 0, 0.88)',
+                  backdropFilter: 'blur(8px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px',
+                }}
+              >
+                {/* Control Bar */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '30px',
+                    padding: '8px 20px',
+                    color: '#fff',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{previewImage.title}</span>
+                  <button
+                    onClick={() => setPreviewImage((prev) => (prev ? { ...prev, rotation: (prev.rotation + 90) % 360 } : null))}
+                    style={{
+                      background: 'rgba(255,255,255,0.12)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                    }}
+                    title="Xoay ảnh 90 độ"
+                  >
+                    <RotateCw size={14} /> Xoay 90°
+                  </button>
+                  <button
+                    onClick={() => setPreviewImage(null)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.25)',
+                      border: 'none',
+                      color: '#ef4444',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    title="Đóng (ESC)"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Image Container */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    maxWidth: '90vw',
+                    maxHeight: '80vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.25s ease',
+                    transform: `rotate(${previewImage.rotation}deg)`,
+                  }}
+                >
+                  <img
+                    src={previewImage.url}
+                    alt={previewImage.title}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '80vh',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================
+             * PDF PREVIEW MODAL: XEM TRỰC TIẾP HỢP ĐỒNG / PHỤ LỤC PDF
+             * ================================================================= */}
+            {previewPdf && (
+              <div
+                onClick={() => setPreviewPdf(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 9999,
+                  backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                  backdropFilter: 'blur(6px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px',
+                }}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '92vw',
+                    height: '92vh',
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '16px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                  }}
+                >
+                  {/* Header */}
+                  <div
+                    style={{
+                      padding: '14px 20px',
+                      backgroundColor: 'var(--bg-input)',
+                      borderBottom: '1px solid var(--border-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={18} color="#ef4444" />
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+                        {previewPdf.title}
+                      </h3>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <a
+                        href={previewPdf.url}
+                        download
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3b82f6',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Download size={14} /> Tải file gốc
+                      </a>
+                      <button
+                        onClick={() => setPreviewPdf(null)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          background: 'transparent',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Body: Embedded iframe */}
+                  <div style={{ flex: 1, backgroundColor: '#525659' }}>
+                    <iframe
+                      src={`${previewPdf.url}#toolbar=1`}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 'none' }}
+                      title={previewPdf.title}
+                    />
                   </div>
                 </div>
               </div>

@@ -37,6 +37,22 @@ const filesToUpload = [
     local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-dashboard/page.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx',
   },
+  {
+    local: path.join(repoRoot, 'frontend/src/tutorials/tkgdTutorial.ts'),
+    remote: '/opt/mxv-checklist/frontend/src/tutorials/tkgdTutorial.ts',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/context/TutorialContext.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/components/GlobalLayout.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/GlobalLayout.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
+  },
 ];
 
 const conn = new Client();
@@ -45,7 +61,7 @@ conn.on('ready', () => {
   console.log('Connected to Ubuntu 10.0.0.26');
 
   // 1. Tạo thư mục từ xa
-  conn.exec('mkdir -p /opt/mxv-checklist/backend/src/scripts/python /opt/mxv-checklist/backend/src/modules/bot-engine/helpers', (err, stream) => {
+  conn.exec('mkdir -p /opt/mxv-checklist/backend/src/scripts/python /opt/mxv-checklist/backend/src/modules/bot-engine/helpers /opt/mxv-checklist/frontend/src/tutorials', (err, stream) => {
     stream.on('data', d => console.log(d.toString()));
     stream.on('close', () => {
       console.log('Remote directories ready.');

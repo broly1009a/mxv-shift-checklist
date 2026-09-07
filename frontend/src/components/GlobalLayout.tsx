@@ -30,8 +30,17 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
   const isPublicPage = pathname === '/login' || pathname === '/' || pathname === '/test-shadcn';
   const isStandalonePage = pathname?.startsWith('/admin/tkgd-dashboard') || pathname?.startsWith('/admin/tkgd-config');
 
-  if (isPublicPage || isStandalonePage) {
+  if (isPublicPage) {
     return <>{children}</>;
+  }
+
+  if (isStandalonePage) {
+    return (
+      <TutorialProvider>
+        {children}
+        <TutorialOverlay />
+      </TutorialProvider>
+    );
   }
 
   if (loading) {

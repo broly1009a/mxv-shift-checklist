@@ -17,7 +17,7 @@ export interface TutorialStep {
   padding?: number;
 }
 
-export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings';
+export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings' | 'tkgd';
 
 interface TutorialContextValue {
   isActive: boolean;
@@ -51,7 +51,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   // Load done keys from localStorage on mount
   useEffect(() => {
-    const keys: string[] = ['dashboard', 'checklist', 'settings'];
+    const keys: string[] = ['dashboard', 'checklist', 'settings', 'tkgd'];
     const done = new Set<string>();
     keys.forEach(k => {
       if (localStorage.getItem(`${LS_PREFIX}${k}_done`) === 'true') {
@@ -126,8 +126,20 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const fallbackContext: TutorialContextValue = {
+  isActive: false,
+  currentStep: 0,
+  steps: [],
+  pageKey: null,
+  startTutorial: () => {},
+  nextStep: () => {},
+  prevStep: () => {},
+  closeTutorial: () => {},
+  isDone: () => false,
+  resetTutorial: () => {},
+};
+
 export function useTutorial() {
   const ctx = useContext(TutorialContext);
-  if (!ctx) throw new Error('useTutorial must be used within TutorialProvider');
-  return ctx;
+  return ctx || fallbackContext;
 }

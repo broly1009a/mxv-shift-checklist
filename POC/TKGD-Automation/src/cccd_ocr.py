@@ -184,22 +184,26 @@ def decode_mrz_from_image(image_path: str) -> Optional[CCCDData]:
         h, w = img.shape[:2]
         mrz_region = img[int(h * 0.6):, :]  # Lấy 40% dưới
         
-        # Preprocess: grayscale, threshold
+        # Thử nhiều phương pháp tiền xử lý ảnh để vượt qua hoa văn bảo an của thẻ Căn cước mới 2024
+        # 1. Otsu thresholding
         gray = cv2.cvtColor(mrz_region, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # OCR với config cho MRZ (chỉ ký tự A-Z, 0-9, <)
+        # 2. Adaptive thresholding (khử hoa văn chìm)
+        thresh2 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10)
+        
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
-        mrz_text = pytesseract.image_to_string(thresh, config=custom_config)
         
-        # Parse MRZ lines
-        lines = [l.strip() for l in mrz_text.split('\n') if len(l.strip()) >= 20]
+        for thresh_img in [thresh1, thresh2]:
+            mrz_text = pytesseract.image_to_string(thresh_img, config=custom_config)
+            lines = [l.strip() for l in mrz_text.split('\n') if len(l.strip()) >= 15]
+            if len(lines) >= 2:
+                parsed = parse_mrz_lines(lines)
+                if parsed and parsed.mrz_success:
+                    return parsed
         
-        if len(lines) < 2:
-            print(f"    ⚠️ MRZ: Không tìm thấy đủ dòng MRZ trong {Path(image_path).name}")
-            return None
-        
-        return parse_mrz_lines(lines)
+        print(f"    ⚠️ MRZ: Không nhận dạng được MRZ trong {Path(image_path).name}")
+        return None
         
     except ImportError:
         print("    ⚠️ pytesseract/cv2 chưa cài. Chạy: pip install pytesseract opencv-python")
@@ -210,12 +214,12 @@ def decode_mrz_from_image(image_path: str) -> Optional[CCCDData]:
 
 
 def parse_mrz_lines(lines: list) -> Optional[CCCDData]:
-    """Parse các dòng MRZ đã OCR thành CCCDData."""
+    """Parse các dòng MRZ đã OCR thành CCCDData hỗ trợ thẻ Căn Cước 2024 & CCCD 2021."""
     try:
         data = CCCDData()
         
-        # Tìm dòng bắt đầu bằng IDVNM (dòng 1)
-        line1 = next((l for l in lines if l.startswith('IDVNM') or l.startswith('ID')), None)
+        # Tìm dòng 1: Thẻ cũ IDVNM, thẻ mới có thể bị OCR thành LDVNM, TDVNM hoặc ID...
+        line1 = next((l for l in lines if re.match(r'^[IDLT]DVNM|^ID', l)), None)
         line2 = None
         line3 = None
         
@@ -227,26 +231,64 @@ def parse_mrz_lines(lines: list) -> Optional[CCCDData]:
                 break
         
         if not line2:
-            # Heuristic: dòng có chữ F hoặc M ở giữa là line 2
-            line2 = next((l for l in lines if re.search(r'\d{6}[FM]\d{6}', l)), None)
+            # Heuristic: dòng có chữ F hoặc M ở giữa kèm các cụm ngày tháng
+            line2 = next((l for l in lines if re.search(r'\d{6}[0-9]?[FM]', l)), None)
         
-        # Parse Line 1: Số CCCD/Hộ chiếu (pos 5-14 cho TD1)
+        # Parse Line 1: Số CCCD 12 số
         if line1:
-            doc_num_match = re.search(r'IDVNM(\d{9,12})', line1)
-            if doc_num_match:
-                data.soCCCD = doc_num_match.group(1)
+            m1 = re.search(r'[IDLT]DVNM([0-9<]{9,15})', line1)
+            if m1:
+                raw_num = m1.group(1).replace('<', '')
+                if len(raw_num) == 12:
+                    data.soCCCD = raw_num
+                elif len(raw_num) >= 9:
+                    data.soCCCD = raw_num[:12] if len(raw_num) >= 12 else raw_num
+            else:
+                m12 = re.search(r'(\d{12})', line1)
+                if m12:
+                    data.soCCCD = m12.group(1)
         
         # Parse Line 2: Ngày sinh, giới tính
+        dob_match = None
         if line2:
-            dob_match = re.search(r'^(\d{6})(\d)([MF])(\d{6})', line2)
+            dob_match = re.search(r'(\d{6})\d?([MF])', line2)
             if dob_match:
                 dob_raw = dob_match.group(1)  # YYMMDD
-                sex_char = dob_match.group(3)
+                sex_char = dob_match.group(2)
+                data.gioiTinh = 'Nữ' if sex_char == 'F' else 'Nam'
                 yy = int(dob_raw[0:2])
                 year = 1900 + yy if yy > 30 else 2000 + yy
                 data.ngaySinh = f"{dob_raw[4:6]}/{dob_raw[2:4]}/{year}"
-                data.gioiTinh = 'Nữ' if sex_char == 'F' else 'Nam'
         
+        # Suy luận toán học chuẩn từ 12 số CCCD Bộ Công An:
+        # Cấu trúc: [3 số tỉnh][1 số thế kỷ/giới tính][2 số năm sinh][6 số ngẫu nhiên]
+        # Thế kỷ 20 (1900-1999): 0 Nam, 1 Nữ
+        # Thế kỷ 21 (2000-2099): 2 Nam, 3 Nữ
+        # Thế kỷ 22 (2100-2199): 4 Nam, 5 Nữ
+        if data.soCCCD and len(data.soCCCD) == 12:
+            century_gender = data.soCCCD[3]
+            birth_year_short = data.soCCCD[4:6]
+            
+            if not data.gioiTinh:
+                if century_gender in ('0', '2', '4', '6', '8'):
+                    data.gioiTinh = 'Nam'
+                elif century_gender in ('1', '3', '5', '7', '9'):
+                    data.gioiTinh = 'Nữ'
+            
+            century_base = 1900
+            if century_gender in ('2', '3'):
+                century_base = 2000
+            elif century_gender in ('4', '5'):
+                century_base = 2100
+            full_year = century_base + int(birth_year_short)
+            
+            if dob_match:
+                dob_raw = dob_match.group(1)
+                data.ngaySinh = f"{dob_raw[4:6]}/{dob_raw[2:4]}/{full_year}"
+            elif not data.ngaySinh:
+                # Nếu không đọc được ngày tháng, giữ năm sinh
+                data.ngaySinh = f"01/01/{full_year}"
+
         # Parse Line 3: Họ tên không dấu
         if line3:
             name_clean = line3.replace('<', ' ').strip()
@@ -260,7 +302,10 @@ def parse_mrz_lines(lines: list) -> Optional[CCCDData]:
         
         if data.soCCCD:
             data.mrz_success = True
-            print(f"    ✅ MRZ: {data.soCCCD} | {data.hoTenKhongDau} | {data.ngaySinh}")
+            # Mặc định nơi cấp của thẻ Căn cước mới theo Luật 2023
+            if not data.noiCap:
+                data.noiCap = "BỘ CÔNG AN"
+            print(f"    ✅ MRZ: {data.soCCCD} | {data.hoTenKhongDau} | {data.ngaySinh} | {data.gioiTinh} | {data.noiCap}")
             return data
         
         return None
@@ -363,48 +408,34 @@ def ocr_cccd_text(image_path: str) -> Optional[CCCDData]:
 
 def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: str = None) -> CCCDData:
     """
-    Trích xuất thông tin CCCD kết hợp:
-    1. QR Code từ mặt trước (nhanh, chính xác 100%, 0 tokens)
-    2. Gemini Multimodal Vision API (tự động lấy model cao nhất, xoay vòng khi chạm quota 429)
-    3. MRZ mặt sau & Local OCR (offline fallback)
+    Trích xuất thông tin CCCD kết hợp đa tầng:
+    1. QR Code từ cả mặt trước và mặt sau (thẻ Căn cước mới 2024 dời QR ra mặt sau) (0 tokens)
+    2. MRZ mặt sau & Local OCR đa tầng với giải mã cấu trúc toán học CCCD 12 số (0 tokens)
+    3. Gemini Multimodal Vision API (tự động xoay model khi cần fallback các trường khó)
     """
     result = CCCDData()
     
     print(f"\n  📷 Đang xử lý CCCD:")
     
-    # Lớp 1: QR Code (mặt trước)
+    # Lớp 1A: QR Code mặt trước
     if truoc_path:
         qr_data = decode_qr_code(truoc_path)
-        if qr_data and qr_data.qr_success:
+        if qr_data and qr_data.qr_success and qr_data.soCCCD:
             result = qr_data
             if result.soCCCD and result.hoTen and result.ngaySinh:
-                print(f"     ✅ Giải mã thành công từ QR Code (0 tokens).")
+                print(f"     ✅ Giải mã thành công từ QR Code mặt trước (0 tokens).")
                 return result
     
-    # Lớp 2: Gemini AI Vision (Xoay model tự động)
-    try:
-        from gemini_model_manager import GeminiModelManager
-        g_manager = GeminiModelManager(api_keys=gemini_key)
-        if g_manager.api_keys or os.getenv("GEMINI_API_KEY"):
-            print(f"     🤖 Gọi Gemini AI Vision (Model hiện tại: {g_manager.current_model_name})...")
-            ai_data = g_manager.extract_cccd(truoc_path, sau_path)
-            if ai_data and ai_data.get("soCCCD"):
-                result.soCCCD = ai_data.get("soCCCD")
-                result.soCMNDCu = ai_data.get("soCMNDCu")
-                result.hoTen = ai_data.get("hoTen")
-                result.hoTenKhongDau = ai_data.get("hoTenKhongDau")
-                result.ngaySinh = ai_data.get("ngaySinh")
-                result.gioiTinh = ai_data.get("gioiTinh")
-                result.diaChi = ai_data.get("diaChi")
-                result.ngayCap = ai_data.get("ngayCap")
-                result.noiCap = ai_data.get("noiCap")
-                result.ocr_success = True
-                print(f"     ✅ Gemini AI trích xuất thành công: {result.soCCCD} | {result.hoTen} | {result.ngaySinh}")
+    # Lớp 1B: QR Code mặt sau (Đặc thù thẻ Căn Cước Luật 2023 áp dụng từ 01/07/2024)
+    if sau_path:
+        qr_data_sau = decode_qr_code(sau_path)
+        if qr_data_sau and qr_data_sau.qr_success and qr_data_sau.soCCCD:
+            result = qr_data_sau
+            if result.soCCCD and result.hoTen and result.ngaySinh:
+                print(f"     ✅ Giải mã thành công từ QR Code mặt sau (Thẻ Căn Cước mới 2024) (0 tokens).")
                 return result
-    except Exception as e:
-        print(f"     ⚠️ Gemini AI fallback: {e}")
 
-    # Lớp 3: MRZ (mặt sau) — offline fallback
+    # Lớp 2: MRZ (mặt sau) — offline fallback nhanh
     if sau_path:
         mrz_data = decode_mrz_from_image(sau_path)
         if mrz_data and mrz_data.mrz_success:
@@ -416,10 +447,12 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
                 result.gioiTinh = mrz_data.gioiTinh
             if not result.hoTenKhongDau:
                 result.hoTenKhongDau = mrz_data.hoTenKhongDau
+            if not result.noiCap:
+                result.noiCap = mrz_data.noiCap or "BỘ CÔNG AN"
             result.mrz_success = True
     
-    # Lớp 4: OCR text thuần (mặt trước) — fallback cuối cùng
-    if not result.soCCCD and truoc_path:
+    # Lớp 3: OCR text thuần (mặt trước)
+    if (not result.soCCCD or not result.hoTen) and truoc_path:
         ocr_data = ocr_cccd_text(truoc_path)
         if ocr_data:
             if not result.soCCCD:
@@ -437,7 +470,58 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
             if not result.diaChi:
                 result.diaChi = ocr_data.diaChi
             result.ocr_success = True
-    
+
+    # Bổ khuyết toán học từ cấu trúc số CCCD 12 số nếu còn thiếu Giới tính / Năm sinh
+    if result.soCCCD and len(result.soCCCD) == 12:
+        century_gender = result.soCCCD[3]
+        birth_year_short = result.soCCCD[4:6]
+        if not result.gioiTinh:
+            if century_gender in ('0', '2', '4', '6', '8'):
+                result.gioiTinh = 'Nam'
+            elif century_gender in ('1', '3', '5', '7', '9'):
+                result.gioiTinh = 'Nữ'
+        if not result.noiCap:
+            result.noiCap = "BỘ CÔNG AN"
+
+    # Lớp 4: Nếu còn thiếu trường cốt lõi (CCCD / Ngày sinh / Giới tính), tự động fallback gọi Gemini AI Vision
+    needs_ai = not result.soCCCD or not result.ngaySinh or not result.gioiTinh
+    if needs_ai:
+        try:
+            from gemini_model_manager import GeminiModelManager
+            g_manager = GeminiModelManager(api_keys=gemini_key)
+            if g_manager.api_keys or os.getenv("GEMINI_API_KEY"):
+                print(f"     🤖 Offline OCR chưa đủ trường, gọi Gemini AI Vision ({g_manager.current_model_name})...")
+                ai_data = g_manager.extract_cccd(truoc_path, sau_path)
+                if ai_data and ai_data.get("soCCCD"):
+                    result.soCCCD = ai_data.get("soCCCD") or result.soCCCD
+                    result.soCMNDCu = ai_data.get("soCMNDCu") or result.soCMNDCu
+                    result.hoTen = ai_data.get("hoTen") or result.hoTen
+                    result.hoTenKhongDau = ai_data.get("hoTenKhongDau") or result.hoTenKhongDau
+                    result.ngaySinh = ai_data.get("ngaySinh") or result.ngaySinh
+                    result.gioiTinh = ai_data.get("gioiTinh") or result.gioiTinh
+                    result.diaChi = ai_data.get("diaChi") or result.diaChi
+                    result.ngayCap = ai_data.get("ngayCap") or result.ngayCap
+                    result.noiCap = ai_data.get("noiCap") or result.noiCap or "BỘ CÔNG AN"
+                    result.ocr_success = True
+                    print(f"     ✅ Gemini AI trích xuất hoàn thiện: {result.soCCCD} | {result.hoTen} | {result.ngaySinh} | {result.gioiTinh}")
+                    return result
+        except Exception as e:
+            print(f"     ⚠️ Gemini AI fallback: {e}")
+
+    # Kiểm tra Rule Căn cước cũ (Quy định bắt buộc CCCD có chip của Sở)
+    if result.soCCCD:
+        clean_digits = re.sub(r'\D', '', result.soCCCD)
+        if len(clean_digits) == 9:
+            print("     ⚠️ CĂN CƯỚC CŨ, KTRA LẠI: CMND 9 số cũ đã hết hiệu lực, Sở yêu cầu CCCD có chip.")
+        elif len(clean_digits) == 12 and not result.qr_success and not result.mrz_success:
+            if result.ngayCap:
+                try:
+                    parts = result.ngayCap.split('/')
+                    if len(parts) == 3 and int(parts[2]) < 2021:
+                        print("     ⚠️ CĂN CƯỚC CŨ, KTRA LẠI: Nghi vấn CCCD mã vạch cũ cấp trước 2021 không có chip.")
+                except Exception:
+                    pass
+
     print(f"     Kết quả: CCCD={result.soCCCD} | Confidence={result.confidence}")
     
     if result.needsManualCheck:

@@ -162,24 +162,37 @@ export default function TutorialOverlay() {
     setTransitioning(true);
     setVisible(false);
 
-    const timer = setTimeout(() => {
-      // Scroll element into view
+    const tryScrollAndPosition = () => {
       try {
         const el = document.querySelector(step.target);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
       } catch {}
+      updatePositions();
+    };
 
-      // Give scroll time to settle
-      setTimeout(() => {
-        updatePositions();
-        setVisible(true);
-        setTransitioning(false);
-      }, 350);
-    }, 100);
+    // First attempt after brief pause
+    const timer1 = setTimeout(() => {
+      tryScrollAndPosition();
+      setVisible(true);
+      setTransitioning(false);
+    }, 150);
 
-    return () => clearTimeout(timer);
+    // Followup attempts in case data was fetching or DOM was expanding
+    const timer2 = setTimeout(() => {
+      updatePositions();
+    }, 400);
+
+    const timer3 = setTimeout(() => {
+      updatePositions();
+    }, 800);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
   }, [isActive, currentStep, step, updatePositions]);
 
   // Recalculate on resize
@@ -215,9 +228,9 @@ export default function TutorialOverlay() {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes tutorial-pulse-ring {
-          0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6); }
-          70% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); }
+          70% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
         .tutorial-spotlight-ring {
           animation: tutorial-pulse-ring 2s infinite;
@@ -229,13 +242,15 @@ export default function TutorialOverlay() {
           animation: tutorial-fade-in 0.25s ease forwards;
         }
         .tutorial-btn-next:hover {
-          background: #4f46e5 !important;
-          transform: translateX(2px);
+          filter: brightness(1.08);
+          transform: translateY(-1px);
         }
         .tutorial-btn-prev:hover {
-          background: rgba(255,255,255,0.12) !important;
+          background: #e2e8f0 !important;
+          color: #0f172a !important;
         }
         .tutorial-btn-skip:hover {
+          background: #fee2e2 !important;
           color: #ef4444 !important;
         }
       `}</style>
@@ -277,13 +292,13 @@ export default function TutorialOverlay() {
               )}
             </mask>
           </defs>
-          {/* Dark overlay using mask */}
+          {/* Lightened backdrop overlay using mask */}
           <rect
             width="100%"
             height="100%"
-            fill="rgba(0, 0, 0, 0.75)"
+            fill="rgba(15, 23, 42, 0.48)"
             mask="url(#tutorial-spotlight-mask)"
-            style={{ backdropFilter: 'blur(2px)' }}
+            style={{ backdropFilter: 'blur(3px)' }}
           />
         </svg>
 
@@ -298,7 +313,8 @@ export default function TutorialOverlay() {
               width: spotlight.width,
               height: spotlight.height,
               borderRadius: '10px',
-              border: '2px solid rgba(99, 102, 241, 0.8)',
+              border: '2px solid #2563eb',
+              boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.25), 0 0 20px rgba(37, 99, 235, 0.3)',
               pointerEvents: 'none',
               transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
               zIndex: 9999,
@@ -307,7 +323,7 @@ export default function TutorialOverlay() {
         )}
       </div>
 
-      {/* === Tooltip Card === */}
+      {/* === Tooltip Card: Bright, Clean & Modern Design === */}
       {visible && tooltipPos && step && (
         <div
           className="tutorial-tooltip"
@@ -322,32 +338,32 @@ export default function TutorialOverlay() {
         >
           <div
             style={{
-              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
-              border: '1px solid rgba(99, 102, 241, 0.35)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(20px)',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '18px',
+              padding: '22px',
+              boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.2), 0 8px 16px -6px rgba(15, 23, 42, 0.08)',
             }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{
                   width: '28px', height: '28px',
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                   borderRadius: '8px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
                 }}>
                   <BookOpen size={14} color="white" />
                 </div>
                 <span style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  color: '#a5b4fc',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: '#2563eb',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.06em',
                 }}>
                   Hướng dẫn sử dụng
                 </span>
@@ -356,28 +372,30 @@ export default function TutorialOverlay() {
                 className="tutorial-btn-skip"
                 onClick={() => closeTutorial(false)}
                 style={{
-                  background: 'none',
+                  background: '#f1f5f9',
                   border: 'none',
+                  borderRadius: '6px',
                   cursor: 'pointer',
-                  color: 'rgba(148, 163, 184, 0.7)',
-                  padding: '2px',
+                  color: '#64748b',
+                  padding: '4px',
                   display: 'flex',
                   alignItems: 'center',
-                  transition: 'color 0.2s ease',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
                 }}
                 title="Đóng hướng dẫn"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
             {/* Step Title */}
             <h4 style={{
-              margin: '0 0 8px 0',
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: '#f1f5f9',
-              lineHeight: '1.3',
+              margin: '0 0 10px 0',
+              fontSize: '1.05rem',
+              fontWeight: 800,
+              color: '#0f172a',
+              lineHeight: '1.35',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -387,13 +405,13 @@ export default function TutorialOverlay() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: '22px',
-                  height: '22px',
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  borderRadius: '6px',
+                  width: '26px',
+                  height: '26px',
+                  background: 'rgba(37, 99, 235, 0.1)',
+                  borderRadius: '7px',
                   flexShrink: 0,
                 }}>
-                  {React.createElement(step.icon, { size: 13, color: '#a5b4fc', strokeWidth: 2 })}
+                  {React.createElement(step.icon, { size: 14, color: '#2563eb', strokeWidth: 2.2 })}
                 </span>
               )}
               {step.title}
@@ -402,61 +420,62 @@ export default function TutorialOverlay() {
             {/* Description */}
             <p style={{
               margin: '0 0 16px 0',
-              fontSize: '0.85rem',
-              color: '#94a3b8',
-              lineHeight: '1.6',
+              fontSize: '0.86rem',
+              color: '#475569',
+              lineHeight: '1.65',
+              fontWeight: 450,
             }}>
               {step.description}
             </p>
 
             {/* Progress bar */}
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '18px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '6px',
               }}>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
                   Bước {currentStep + 1} / {total}
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#6366f1', fontWeight: 700 }}>
+                <span style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: 800 }}>
                   {Math.round(progress)}%
                 </span>
               </div>
               <div style={{
-                height: '3px',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '2px',
+                height: '4px',
+                background: '#e2e8f0',
+                borderRadius: '3px',
                 overflow: 'hidden',
               }}>
                 <div style={{
                   width: `${progress}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
-                  borderRadius: '2px',
+                  background: 'linear-gradient(90deg, #3b82f6, #06b6d4)',
+                  borderRadius: '3px',
                   transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 }} />
               </div>
               {/* Step dots */}
               <div style={{
                 display: 'flex',
-                gap: '4px',
-                marginTop: '8px',
+                gap: '5px',
+                marginTop: '10px',
                 flexWrap: 'wrap',
               }}>
                 {steps.map((_, i) => (
                   <div
                     key={i}
                     style={{
-                      width: i === currentStep ? '16px' : '6px',
+                      width: i === currentStep ? '18px' : '6px',
                       height: '6px',
                       borderRadius: '3px',
                       background: i < currentStep
-                        ? 'rgba(99,102,241,0.5)'
+                        ? 'rgba(37, 99, 235, 0.45)'
                         : i === currentStep
-                          ? '#6366f1'
-                          : 'rgba(255,255,255,0.1)',
+                          ? '#2563eb'
+                          : '#cbd5e1',
                       transition: 'all 0.3s ease',
                     }}
                   />
@@ -474,11 +493,11 @@ export default function TutorialOverlay() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '8px 14px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px',
-                    color: '#94a3b8',
+                    padding: '9px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '9px',
+                    color: '#475569',
                     fontSize: '0.82rem',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -498,20 +517,20 @@ export default function TutorialOverlay() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  padding: '9px 16px',
+                  padding: '9px 18px',
                   background: isLast
                     ? 'linear-gradient(135deg, #10b981, #059669)'
-                    : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '9px',
                   color: 'white',
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   boxShadow: isLast
-                    ? '0 4px 12px rgba(16,185,129,0.3)'
-                    : '0 4px 12px rgba(99,102,241,0.3)',
+                    ? '0 4px 14px rgba(16, 185, 129, 0.35)'
+                    : '0 4px 14px rgba(37, 99, 235, 0.35)',
                 }}
               >
                 {isLast ? (
@@ -526,15 +545,15 @@ export default function TutorialOverlay() {
                   className="tutorial-btn-skip"
                   onClick={() => closeTutorial(true)}
                   style={{
-                    padding: '8px 12px',
-                    background: 'none',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '8px',
+                    padding: '9px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '9px',
                     color: '#64748b',
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'color 0.2s ease',
+                    transition: 'all 0.2s ease',
                     whiteSpace: 'nowrap',
                   }}
                 >

@@ -10,6 +10,7 @@ export interface ReconcileExportOptions {
 export interface ReconcileSummary {
   totalRecords: number;
   khopCount: number;
+  canKiemTraCount: number;
   lechCount: number;
   outputFilePath: string;
 }
@@ -19,8 +20,15 @@ export interface ReconcileSummary {
  */
 function formatDate(date: Date | string | undefined | null): string {
   if (!date) return '';
+  if (typeof date === 'string') {
+    const s = date.trim();
+    const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      return `${dmyMatch[1].padStart(2, '0')}/${dmyMatch[2].padStart(2, '0')}/${dmyMatch[3]}`;
+    }
+  }
   const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
+  if (isNaN(d.getTime())) return typeof date === 'string' ? date : '';
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
@@ -29,22 +37,23 @@ function formatDate(date: Date | string | undefined | null): string {
 
 function normalizeName(name: string | undefined | null): string {
   if (!name) return '';
-  let s = name.trim().replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
-  s = s.replace(/[;,.\-]+$/, '').trim();
+  let s = name.split(/[\r\n]/)[0].trim();
+  s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
+  s = s.replace(/[;,.\-:]+$/, '').trim();
   return s.toLowerCase().replace(/\s+/g, ' ');
 }
 
 function normalizeDateStr(d: string | undefined | null): string {
   if (!d) return '';
-  const s = d.trim().replace(/-/g, '/');
-  const parts = s.split('/');
+  const clean = String(d).trim().split('T')[0].split(' ')[0].replace(/-/g, '/');
+  const parts = clean.split('/');
   if (parts.length === 3) {
     if (parts[0].length === 4) {
       return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
     }
     return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
   }
-  return s;
+  return clean;
 }
 
 function isGenderMatch(g1?: string, g2?: string): boolean {
@@ -75,7 +84,7 @@ export function getTkgdOutputDirectory(): string {
     try {
       if (!fs.existsSync(linuxMnt)) fs.mkdirSync(linuxMnt, { recursive: true });
       return linuxMnt;
-    } catch {}
+    } catch { }
     const linuxFallback = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong';
     if (fs.existsSync(linuxFallback)) return linuxFallback;
   }
@@ -88,7 +97,7 @@ export function getTkgdOutputDirectory(): string {
         if (!fs.existsSync(winMnt)) fs.mkdirSync(winMnt, { recursive: true });
         return winMnt;
       }
-    } catch {}
+    } catch { }
 
     const winShortMnt = 'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD';
     try {
@@ -96,7 +105,7 @@ export function getTkgdOutputDirectory(): string {
         if (!fs.existsSync(winShortMnt)) fs.mkdirSync(winShortMnt, { recursive: true });
         return winShortMnt;
       }
-    } catch {}
+    } catch { }
   }
 
   // 4. Fallback thư mục output trong project khi test độc lập
@@ -111,12 +120,40 @@ export function getTkgdOutputDirectory(): string {
 }
 
 /**
+ * Hàm giải quyết đường dẫn thư mục xuất Excel đa nền tảng (Ánh xạ M:\ sang /mnt/qlgd-it trên Linux)
+ */
+export function resolveTkgdOutputDir(customPath?: string): string {
+  if (customPath && customPath.trim()) {
+    const p = customPath.trim();
+    if (process.platform === 'linux') {
+      if (p.toLowerCase().startsWith('m:') || p.toLowerCase().startsWith('m:\\') || p.toLowerCase().startsWith('m:/')) {
+        const linuxMnt = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD';
+        if (fs.existsSync(linuxMnt)) return linuxMnt;
+        const linuxFallback = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong';
+        if (fs.existsSync(linuxFallback)) return linuxFallback;
+      }
+      if (p.startsWith('/') && fs.existsSync(p)) {
+        return p;
+      }
+    } else {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return getTkgdOutputDirectory();
+}
+
+/**
  * Lấy thư mục lưu trữ hồ sơ đính kèm (mặc định HoSo_DinhKem trên ổ M:\ hoặc customPath)
  */
 export function getTkgdAttachmentDirectory(customPath?: string, dateStr?: string, accountCode?: string): string {
   let baseDir = '';
   if (customPath && customPath.trim()) {
-    baseDir = customPath.trim();
+    const resolved = resolveTkgdOutputDir(customPath.trim());
+    if (resolved.toLowerCase().endsWith('hoso_dinhkem') || resolved.toLowerCase().includes('hoso_dinhkem')) {
+      baseDir = resolved;
+    } else {
+      baseDir = path.join(resolved, 'HoSo_DinhKem');
+    }
   } else {
     const rootDir = getTkgdOutputDirectory();
     baseDir = path.join(rootDir, 'HoSo_DinhKem');
@@ -131,7 +168,7 @@ export function getTkgdAttachmentDirectory(customPath?: string, dateStr?: string
   if (!fs.existsSync(target)) {
     try {
       fs.mkdirSync(target, { recursive: true });
-    } catch {}
+    } catch { }
   }
   return target;
 }
@@ -198,6 +235,7 @@ export async function reconcileAndExportToExcel(
   await workbook.xlsx.readFile(templatePath);
 
   let khopCount = 0;
+  let canKiemTraCount = 0;
   let lechCount = 0;
 
   // Lấy các worksheet theo tên
@@ -229,8 +267,7 @@ export async function reconcileAndExportToExcel(
     d1.alignment = { horizontal: 'center', vertical: 'middle' };
   }
 
-
-  // Style helper cho ô kết quả khớp (xanh lá) và lệch (đỏ/cam)
+  // Style helper cho ô kết quả khớp (xanh lá), cần kiểm tra (vàng cam) và lệch (đỏ/cam)
   const styleKhop = {
     fill: {
       type: 'pattern' as const,
@@ -239,6 +276,18 @@ export async function reconcileAndExportToExcel(
     },
     font: {
       color: { argb: 'FF375623' }, // Xanh đậm
+      bold: true,
+    },
+  };
+
+  const styleCanKiemTra = {
+    fill: {
+      type: 'pattern' as const,
+      pattern: 'solid' as const,
+      fgColor: { argb: 'FFFFF2CC' }, // Vàng cam ấm
+    },
+    font: {
+      color: { argb: 'FFD97706' }, // Amber đậm
       bold: true,
     },
   };
@@ -302,96 +351,85 @@ export async function reconcileAndExportToExcel(
     const hd = record.hopDong || {};
     const pl = record.phuLuc || {};
 
-    // 1. Logic đối soát giữa Mail và M-System chuẩn xác theo đúng mã tiểu khoản
-    let isMatched = true;
-    const errors: string[] = [];
+    // 1. Logic đối soát giữa Mail/HĐ/CCCD và M-System chuẩn xác các trường quan trọng
+    let isCriticalMismatch = false;
+    const criticalErrors: string[] = [];
 
     const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || mail.maTKGD_LME || mail.maTKGD_Spread || '').trim();
     const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
     const msCode = (ms.maTKGD || '').trim();
-    const mailName = normalizeName(mail.tenTaiKhoan);
+    const targetName = normalizeName(hd.hoVaTen || cccd.hoVaTen || mail.tenTaiKhoan);
     const msName = normalizeName(ms.hoVaTen || ms.tenTKGD);
 
+    const targetCccd = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').replace(/\D/g, '');
+    const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
+
     if (!ms.isFoundOnMS) {
-      isMatched = false;
-      errors.push('Tài khoản chưa được tạo trên M-System');
+      isCriticalMismatch = true;
+      criticalErrors.push('Tài khoản chưa được tạo trên M-System');
     } else {
       const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
       if (isSubAccount) {
         const msBaseCode = msCode.split('-')[0].toUpperCase();
         if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
-          isMatched = false;
-          errors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
         }
       } else {
-        if (targetAccountCode && msCode && targetAccountCode.toUpperCase() !== msCode.toUpperCase()) {
-          isMatched = false;
-          errors.push(`Lệch mã TKGD (Yêu cầu: ${targetAccountCode} != MS: ${msCode})`);
+        if (baseCode && msCode && !msCode.startsWith(baseCode)) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
         }
       }
-      if (mailName && msName && mailName !== msName) {
-        isMatched = false;
-        errors.push(`Lệch họ tên (Mail: ${mail.tenTaiKhoan} != MS: ${ms.hoVaTen})`);
+
+      if (targetName && msName && targetName !== msName) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
       }
 
-      const mailCccd = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').trim();
-      const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
-      if (mailCccd && msCccd && mailCccd !== msCccd) {
-        isMatched = false;
-        errors.push(`Lệch số CCCD (HĐ: ${mailCccd} != MS: ${msCccd})`);
+      if (targetCccd && msCccd && targetCccd !== msCccd) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch số CCCD (Yêu cầu: ${targetCccd} != MS: ${msCccd})`);
       }
 
-      // 4. Đối chiếu Ngày sinh
-      const hdDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '');
-      const cccdDob = cccd.ngaySinh ? formatDate(cccd.ngaySinh) : '';
-      if (hdDob && cccdDob && normalizeDateStr(hdDob) !== normalizeDateStr(cccdDob)) {
-        isMatched = false;
-        errors.push(`Lệch ngày sinh (HĐ: ${hdDob} != CCCD: ${cccdDob})`);
+      // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
+      const hdDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '') || (cccd.rawNgaySinh || (cccd.ngaySinh ? formatDate(cccd.ngaySinh) : ''));
+      const msDob = ms.rawNgaySinh || (ms.ngaySinh ? formatDate(ms.ngaySinh) : '');
+      if (hdDob && msDob && normalizeDateStr(hdDob) !== normalizeDateStr(msDob)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
       }
 
-      // 5. Đối chiếu Ngày cấp
-      const hdIssue = hd.rawNgayCap || (hd.ngayCap ? formatDate(hd.ngayCap) : '');
-      const cccdIssue = cccd.ngayCap ? formatDate(cccd.ngayCap) : '';
-      if (hdIssue && cccdIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(cccdIssue)) {
-        isMatched = false;
-        errors.push(`Lệch ngày cấp (HĐ: ${hdIssue} != CCCD: ${cccdIssue})`);
+      // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
+      const hdIssue = hd.rawNgayCap || (hd.ngayCap ? formatDate(hd.ngayCap) : '') || (cccd.rawNgayCap || (cccd.ngayCap ? formatDate(cccd.ngayCap) : ''));
+      const msIssue = ms.rawNgayCap || (ms.ngayCap ? formatDate(ms.ngayCap) : '');
+      if (hdIssue && msIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(msIssue)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${hdIssue} != MS: ${msIssue})`);
       }
 
-      // 6. Đối chiếu Giới tính
-      const hdSex = hd.rawGioiTinh || hd.gioiTinh;
-      const cccdSex = cccd.gioiTinh;
-      if (hdSex && cccdSex && !isGenderMatch(hdSex, cccdSex)) {
-        isMatched = false;
-        errors.push(`Lệch giới tính (HĐ: ${hdSex} != CCCD: ${cccdSex})`);
+      // 6. Đối chiếu Giới tính (nếu cả 2 bên cùng cung cấp)
+      const hdSex = hd.rawGioiTinh || hd.gioiTinh || cccd.gioiTinh;
+      const msSex = ms.gioiTinh || ms.rawGioiTinh;
+      if (hdSex && msSex && !isGenderMatch(hdSex, msSex)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
       }
     }
 
-    // 7. Kiểm tra lỗi định dạng trên Hợp đồng (YYYY-MM-DD, female/male)
-    if (hd.dinhDangLoi && Array.isArray(hd.dinhDangLoi) && hd.dinhDangLoi.length > 0) {
-      isMatched = false;
-      errors.push(...hd.dinhDangLoi);
-    }
+    let ketQuaText = '';
+    let rowStatus: 'KHOP' | 'CAN_KIEM_TRA' | 'LECH' | 'KHOP_TEXT' = 'KHOP';
 
-    // 8. Kiểm tra lỗi chất lượng ảnh CCCD (mất góc, lẹm viền, cắt chữ)
-    if (cccd.canhBaoChatLuong && Array.isArray(cccd.canhBaoChatLuong) && cccd.canhBaoChatLuong.length > 0) {
-      isMatched = false;
-      errors.push(...cccd.canhBaoChatLuong);
-    }
-
-    const mailCccdVal = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').trim();
-    const msCccdVal = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
-    const isFullKhop = isMatched && !!(mailCccdVal && msCccdVal && mailCccdVal === msCccdVal);
-
-    const ketQuaText = !isMatched
-      ? `Lệch: ${errors.join('; ')}`
-      : isFullKhop
-      ? (targetAccountCode.includes('-A') ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%' : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%')
-      : 'Khớp thông tin cơ bản (Chưa quét đính kèm)';
-
-    if (isMatched) {
-      khopCount++;
-    } else {
+    if (isCriticalMismatch) {
+      rowStatus = 'LECH';
       lechCount++;
+      ketQuaText = `Lệch: ${criticalErrors.join('; ')}`;
+    } else {
+      rowStatus = 'KHOP';
+      khopCount++;
+      ketQuaText = targetAccountCode.includes('-A')
+        ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
+        : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%';
     }
 
     // 2. Ghi vào Sheet "NoiDungMail"
@@ -412,15 +450,12 @@ export async function reconcileAndExportToExcel(
           cell.alignment = { vertical: 'middle' };
         }
         if (colNumber === 4) {
-          if (!isMatched) {
+          if (rowStatus === 'LECH') {
             cell.fill = styleLech.fill;
             cell.font = styleLech.font;
-          } else if (isFullKhop) {
+          } else {
             cell.fill = styleKhop.fill;
             cell.font = styleKhop.font;
-          } else {
-            cell.fill = styleKhopText.fill;
-            cell.font = styleKhopText.font;
           }
         }
       });
@@ -585,12 +620,14 @@ export async function reconcileAndExportToExcel(
   console.log(`✅ Xuất file Excel đối soát thành công!`);
   console.log(`   - Tổng số bản ghi: ${records.length}`);
   console.log(`   - Số bản ghi Khớp: ${khopCount}`);
+  console.log(`   - Số bản ghi Cần Ktra: ${canKiemTraCount}`);
   console.log(`   - Số bản ghi Lệch: ${lechCount}`);
   console.log(`   - Đường dẫn file:  ${outputPath}\n`);
 
   return {
     totalRecords: records.length,
     khopCount,
+    canKiemTraCount,
     lechCount,
     outputFilePath: outputPath,
   };

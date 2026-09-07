@@ -49,10 +49,16 @@ export class CanCuocSubDoc {
   ngaySinh?: Date; // Ngày sinh: 1979-10-13
 
   @Prop()
+  rawNgaySinh?: string;
+
+  @Prop()
   coGiaTriDen?: Date; // Có giá trị đến: 2039-10-13
 
   @Prop()
   ngayCap?: Date; // Ngày cấp: 2022-08-27
+
+  @Prop()
+  rawNgayCap?: string;
 
   @Prop()
   noiCap?: string; // Cục Cảnh sát quản lý hành chính về trật tự xã hội
@@ -68,6 +74,9 @@ export class CanCuocSubDoc {
 
   @Prop()
   ocrConfidence?: string;
+
+  @Prop()
+  source?: string; // 'QR' | 'MRZ' | 'OCR'
 }
 export const CanCuocSubDocSchema = SchemaFactory.createForClass(CanCuocSubDoc);
 
@@ -172,7 +181,13 @@ export class MSSubDoc {
   ngaySinh?: Date;
 
   @Prop()
+  rawNgaySinh?: string;
+
+  @Prop()
   ngayCap?: Date;
+
+  @Prop()
+  rawNgayCap?: string;
 
   @Prop()
   noiCap?: string;
@@ -234,7 +249,7 @@ export const MSSubDocSchema = SchemaFactory.createForClass(MSSubDoc);
 @Schema({ _id: false })
 export class KetLuanDoiSoat {
   @Prop({
-    enum: ['KHOP', 'LECH', 'LECH_TEN', 'LECH_CCCD', 'THIEU_ACM', 'CHUA_CO_TREN_MS', 'THIEU_HO_SO', 'CHUA_XU_LY'],
+    enum: ['KHOP', 'CAN_KIEM_TRA', 'KHOP_TEXT', 'LECH', 'LECH_TEN', 'LECH_CCCD', 'THIEU_ACM', 'CHUA_CO_TREN_MS', 'THIEU_HO_SO', 'CHUA_XU_LY'],
     default: 'CHUA_XU_LY',
     index: true,
   })

@@ -11,8 +11,11 @@ export interface MSystemInvestorScrapedData {
   hoVaTen?: string;
   soCMND_HoChieu?: string;
   ngaySinh?: Date;
+  rawNgaySinh?: string;
   ngayCap?: Date;
+  rawNgayCap?: string;
   noiCap?: string;
+  gioiTinh?: string;
   ngayThamGia?: Date;
   loaiHinhTaiKhoan?: string;
   diaChi?: string;
@@ -34,7 +37,8 @@ function parseDateDDMMYYYY(dateStr: string | null | undefined): Date | undefined
     const d = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10) - 1;
     const y = parseInt(parts[2], 10);
-    const dateObj = new Date(y, m, d);
+    // Sử dụng Date.UTC để đảm bảo mốc thời gian lưu trong MongoDB luôn là UTC 00:00:00 của đúng ngày đó (không bị lùi 1 ngày do múi giờ)
+    const dateObj = new Date(Date.UTC(y, m, d, 0, 0, 0));
     if (!isNaN(dateObj.getTime())) return dateObj;
   }
   return undefined;
@@ -322,8 +326,20 @@ export async function scrapeInvestorDetailFromMSystem(
       result.hoVaTen = hoVaTen.trim();
       result.soCMND_HoChieu = soCMND.trim();
       result.ngaySinh = parseDateDDMMYYYY(ngaySinhStr);
+      result.rawNgaySinh = ngaySinhStr ? ngaySinhStr.trim() : undefined;
       result.ngayCap = parseDateDDMMYYYY(ngayCapStr);
+      result.rawNgayCap = ngayCapStr ? ngayCapStr.trim() : undefined;
       result.noiCap = noiCap.trim() || undefined;
+
+      // Giới tính: Suy luận toán học chuẩn từ số CCCD 12 số
+      if (result.soCMND_HoChieu && result.soCMND_HoChieu.length === 12) {
+        const centuryGender = result.soCMND_HoChieu.charAt(3);
+        if (['0', '2', '4', '6', '8'].includes(centuryGender)) {
+          result.gioiTinh = 'Nam';
+        } else if (['1', '3', '5', '7', '9'].includes(centuryGender)) {
+          result.gioiTinh = 'Nữ';
+        }
+      }
       result.ngayThamGia = parseDateDDMMYYYY(ngayThamGiaStr);
       result.loaiHinhTaiKhoan = loaiHinh.trim() || 'Cá nhân';
       result.trangThai = trangThai.trim() || 'Hoạt động';

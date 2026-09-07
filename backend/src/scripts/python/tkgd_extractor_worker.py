@@ -39,6 +39,7 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         'rawNgayCap': None,
         'gioiTinh': None,
         'rawGioiTinh': None,
+        'noiCap': None,
         'diaChi': None,
         'hasSignature': False,
         'hasStamp': False,
@@ -124,10 +125,26 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         else:
             res['ngaySinh'] = raw_dob
 
-    # 6. Ngày cấp
+    # 6. Ngày cấp & Nơi cấp
+    # Bóc tách nơi cấp (BỘ CÔNG AN, CỤC CẢNH SÁT..., hoặc sau Tại: của dòng Ngày cấp)
+    m_tai = re.search(r'Tại[\s:]+(BỘ CÔNG AN|CỤC CẢNH SÁT[^\n\r]+|CÔNG AN[^\n\r]+)', text, re.IGNORECASE)
+    if not m_tai:
+        m_tai = re.search(r'Ngày cấp[^\n\r]*\n\s*Tại[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+    if not m_tai:
+        m_tai = re.search(r'(?:Nơi cấp)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+    if m_tai:
+        res['noiCap'] = m_tai.group(1).strip()
+
     m_issue = re.search(r'Ngày cấp[\s:]+([^\n\r]+)', text, re.IGNORECASE)
     if m_issue:
-        raw_cap = m_issue.group(1).strip()
+        raw_cap_line = m_issue.group(1).strip()
+        if 'tại' in raw_cap_line.lower():
+            p_parts = re.split(r'\s+tại[\s:]+', raw_cap_line, flags=re.IGNORECASE)
+            raw_cap = p_parts[0].strip()
+            if len(p_parts) > 1 and not res.get('noiCap'):
+                res['noiCap'] = p_parts[1].strip()
+        else:
+            raw_cap = raw_cap_line
         res['rawNgayCap'] = raw_cap
         m_iso = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$', raw_cap)
         m_vn = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', raw_cap)
@@ -355,13 +372,22 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
         # Config MRZ
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
         text = pytesseract.image_to_string(gray, config=custom_config)
-        lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 18]
+        lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 10]
 
         for l in lines:
-            if 'IDVNM' in l or re.search(r'\d{6}[FM]\d{6}', l):
+            if re.search(r'[IDLT]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
                 parsed = parse_mrz_lines(lines)
-                if parsed and parsed.get('soCCCD'):
+                if parsed and (parsed.get('soCCCD') or parsed.get('ngaySinh')):
                     parsed['source'] = 'MRZ'
+                    # Kiểm tra Nơi cấp từ mặt sau
+                    try:
+                        full_txt = pytesseract.image_to_string(rot, lang='vie+eng')
+                        if 'BỘ CÔNG AN' in full_txt.upper() or 'BO CONG AN' in full_txt.upper():
+                            parsed['noiCap'] = 'BỘ CÔNG AN'
+                        elif 'CỤC CẢNH SÁT' in full_txt.upper():
+                            parsed['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
+                    except Exception:
+                        pass
                     return parsed
 
     return None
@@ -372,34 +398,50 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
         'soCCCD': None,
         'ngaySinh': None,
         'gioiTinh': None,
+        'noiCap': None,
         'hoTenKhongDau': None
     }
-    line1 = next((l for l in lines if 'IDVNM' in l or l.startswith('ID')), None)
-    line2 = next((l for l in lines if re.search(r'\d{6}[0-9]?[FM]\d{6}', l)), None)
+    line1 = next((l for l in lines if re.search(r'[IDLT]DVNM', l) or l.startswith('ID') or l.startswith('LD') or l.startswith('TD') or ('VNM' in l and re.search(r'\d{12}', l))), None)
+    line2 = next((l for l in lines if re.search(r'\d{4,6}[0-9]?[FM]', l)), None)
 
     if line1:
-        # Trong CCCD VN: IDVNM + 9 số CMND/mã + check + 12 SỐ CCCD + << + check
-        # VD: IDVNM1800039605080180003960<<9 -> Số CCCD là 080180003960
-        m_all12 = re.findall(r'(\d{12})', line1)
-        if m_all12:
-            res['soCCCD'] = m_all12[-1]
+        # Trong CCCD Việt Nam, số CCCD 12 số luôn nằm ngay trước dấu << ở cuối dòng 1
+        m_end = re.search(r'(\d{12})<{1,2}', line1)
+        if m_end:
+            res['soCCCD'] = m_end.group(1)
         else:
-            m = re.search(r'IDVNM(\d{9,12})', line1)
-            if m:
-                res['soCCCD'] = m.group(1)
+            m_cands = re.findall(r'(0\d{11})', line1)
+            if m_cands:
+                res['soCCCD'] = m_cands[0]
+            else:
+                m_all12 = re.findall(r'(\d{12})', line1)
+                if m_all12:
+                    res['soCCCD'] = m_all12[-1]
+                else:
+                    m = re.search(r'[IDLT]DVNM(\d{9,12})', line1)
+                    if m:
+                        res['soCCCD'] = m.group(1)
 
     if line2:
-        m = re.search(r'(\d{6})[0-9]?([FM])(\d{6})', line2)
+        m = re.search(r'(?:(\d{2}))?(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[0-9ó<]?([FM])', line2)
         if m:
-            dob_raw = m.group(1)
-            sex_char = m.group(2)
-            yy = int(dob_raw[0:2])
-            year = 1900 + yy if yy > 30 else 2000 + yy
-            res['ngaySinh'] = f"{dob_raw[4:6]}/{dob_raw[2:4]}/{year}"
+            yy_str, mm_str, dd_str, sex_char = m.groups()
             res['gioiTinh'] = 'Nữ' if sex_char == 'F' else 'Nam'
+            mm = int(mm_str)
+            dd = int(dd_str)
+            if yy_str:
+                yy = int(yy_str)
+                year = 1900 + yy if yy > 30 else 2000 + yy
+            else:
+                year = 2000
+                if res.get('soCCCD') and len(res['soCCCD']) == 12:
+                    c_digit = res['soCCCD'][3]
+                    yy = int(res['soCCCD'][4:6])
+                    year = 1900 + yy if c_digit in ['0', '1'] else 2000 + yy
+            res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{year}"
 
-    # Tìm dòng tên: chứa <<, không có IDVNM, không phải dòng ngày tháng sinh
-    name_lines = [l for l in lines if '<<' in l and 'IDVNM' not in l and not re.search(r'\d{6}[FM]', l)]
+    # Tìm dòng tên: chứa <<, không có VNM, không phải dòng ngày tháng sinh
+    name_lines = [l for l in lines if '<<' in l and 'VNM' not in l and not re.search(r'\d{4,6}[FM]', l)]
     if name_lines:
         clean_name = re.sub(r'[^A-Z<]', '', name_lines[0])
         parts = [p.replace('<', ' ').strip() for p in clean_name.split('<<') if p.strip()]
@@ -444,9 +486,24 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
             elif angle == 180: rot = cv2.rotate(im, cv2.ROTATE_180)
             elif angle == 270: rot = cv2.rotate(im, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
+            # 1. OCR trên ảnh gốc
             t = pytesseract.image_to_string(rot, lang='vie+eng')
             if len(t.strip()) > len(best_text.strip()):
                 best_text = t
+
+            # 2. Tiền xử lý Otsu Thresholding đặc thù cho Thẻ Căn Cước 2024
+            try:
+                gray = cv2.cvtColor(rot, cv2.COLOR_BGR2GRAY)
+                _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                t_thresh = pytesseract.image_to_string(thresh, lang='vie+eng')
+                if len(t_thresh.strip()) > len(best_text.strip()):
+                    best_text = t_thresh
+                # Gộp thêm nếu phát hiện chứa text Căn Cước
+                if any(k in t_thresh for k in ['CĂN CƯỚC', 'CAN CUOC', '072', '079', '080']):
+                    best_text += '\n' + t_thresh
+            except Exception:
+                pass
+
         return best_text
 
     # Front OCR
@@ -456,25 +513,38 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
 
     combined = front_txt + '\n' + back_txt
 
-    # Số CCCD
-    m_cccd = re.search(r'(?:Số|No\.?|sé/no|séno)[\s:]*(\d{12})', combined, re.IGNORECASE)
+    # Số CCCD (ưu tiên chuỗi 12 số bắt đầu bằng 0)
+    m_cccd = re.search(r'(?:Số định danh cá nhân|Personal identification number|Số|No\.?|sé/no|séno)[\s:/]*(\d{12})', combined, re.IGNORECASE)
     if not m_cccd:
-        m_cccd = re.search(r'(\d{12})', combined)
-    if m_cccd:
+        m_cands = re.findall(r'(0\d{11})', combined)
+        if m_cands:
+            data['soCCCD'] = m_cands[0]
+        else:
+            m_cccd = re.search(r'(\d{12})', combined)
+            if m_cccd:
+                data['soCCCD'] = m_cccd.group(1).strip()
+    else:
         data['soCCCD'] = m_cccd.group(1).strip()
 
     # Họ tên
-    m_name = re.search(r'(?:Họ và tên|Full name)[\s:/¬\-]+([A-ZÀ-Ỹ\s]{4,35})', combined)
+    m_name = re.search(r'(?:Họ, chữ đệm và tên khai sinh|Full name|Họ và tên)[\s:/¬\-\n\r]+([A-ZÀ-Ỹ\s]{4,35})', combined, re.IGNORECASE)
     if m_name:
-        data['hoTen'] = m_name.group(1).strip()
+        name_cand = m_name.group(1).strip()
+        if not any(k in name_cand.lower() for k in ['full name', 'quốc tịch', 'nationality']):
+            data['hoTen'] = name_cand
 
     # Ngày sinh
-    m_dob = re.search(r'(?:Ngày sinh|Date of birth)[\s:/]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})', combined, re.IGNORECASE)
+    m_dob = re.search(r'(?:Ngày, tháng, năm sinh|Date of birth|Ngày sinh)[\s:/]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})', combined, re.IGNORECASE)
+    if not m_dob:
+        m_dob = re.search(r'(?:Date of birth|năm sinh)[\s\S]{1,30}?(\d{1,2}[/-]\d{1,2}[/-]\d{4})', combined, re.IGNORECASE)
     if m_dob:
         raw = m_dob.group(1).replace('-', '/')
         p = raw.split('/')
         if len(p) == 3:
-            data['ngaySinh'] = f"{int(p[0]):02d}/{int(p[1]):02d}/{p[2]}"
+            day_val = int(p[0])
+            month_val = int(p[1])
+            if 1 <= day_val <= 31 and 1 <= month_val <= 12:
+                data['ngaySinh'] = f"{day_val:02d}/{month_val:02d}/{p[2]}"
 
     # Giới tính
     m_sex = re.search(r'(?:Giới tính|Sex)[\s:/]+(Nam|Nữ|Nu)', combined, re.IGNORECASE)
@@ -482,13 +552,19 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
         s = m_sex.group(1).strip().capitalize()
         data['gioiTinh'] = 'Nữ' if s in ['Nữ', 'Nu'] else 'Nam'
 
-    # Ngày cấp trên mặt sau
-    m_cap = re.search(r'(?:Ngày[,\s]+tháng[,\s]+năm|Date[,\s]+month[,\s]+year)[\s:/]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})', back_txt, re.IGNORECASE)
+    # Ngày cấp trên mặt sau / mặt trước
+    m_cap = re.search(r'(?:Ngày[,\s]+tháng[,\s]+năm|Date[,\s]+month[,\s]+year|Ngày cấp)[\s:/]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})', combined, re.IGNORECASE)
     if m_cap:
         raw = m_cap.group(1).replace('-', '/')
         p = raw.split('/')
         if len(p) == 3:
             data['ngayCap'] = f"{int(p[0]):02d}/{int(p[1]):02d}/{p[2]}"
+
+    # Nơi cấp
+    if 'BỘ CÔNG AN' in combined.upper() or 'BO CONG AN' in combined.upper():
+        data['noiCap'] = 'BỘ CÔNG AN'
+    elif 'CỤC CẢNH SÁT' in combined.upper():
+        data['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
 
     return data
 
@@ -559,12 +635,103 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
 
 
 # ─────────────────────────────────────────────────────────────
-# 4. HÀM CHÍNH TỔNG HỢP (PIPELINE)
+# 4. TẦNG FALLBACK AI VISION (GEMINI VISION) KHI OFFLINE THIẾU TRƯỜNG
+# ─────────────────────────────────────────────────────────────
+
+def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[str], api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Gọi Gemini AI Vision (gemini-2.0-flash / gemini-1.5-flash) bóc tách ảnh CCCD/Căn cước khi offline bị thiếu trường."""
+    key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+    if not key:
+        return None
+
+    import base64
+    import urllib.request
+    import json
+
+    parts = []
+    # Đọc ảnh front
+    if front_path and os.path.exists(front_path):
+        try:
+            with open(front_path, 'rb') as f:
+                b64_front = base64.b64encode(f.read()).decode('utf-8')
+            mime = 'image/jpeg' if front_path.lower().endswith(('.jpg', '.jpeg')) else 'image/png'
+            parts.append({
+                'inline_data': {
+                    'mime_type': mime,
+                    'data': b64_front
+                }
+            })
+        except Exception:
+            pass
+
+    # Đọc ảnh back
+    if back_path and os.path.exists(back_path):
+        try:
+            with open(back_path, 'rb') as f:
+                b64_back = base64.b64encode(f.read()).decode('utf-8')
+            mime = 'image/jpeg' if back_path.lower().endswith(('.jpg', '.jpeg')) else 'image/png'
+            parts.append({
+                'inline_data': {
+                    'mime_type': mime,
+                    'data': b64_back
+                }
+            })
+        except Exception:
+            pass
+
+    if not parts:
+        return None
+
+    prompt_text = (
+        "Bạn là chuyên gia eKYC đọc CCCD / Thẻ Căn Cước Việt Nam. "
+        "Hãy đọc thông tin từ ảnh mặt trước và mặt sau và trả về DUY NHẤT một JSON object hợp lệ (không kèm markdown format) với các trường:\n"
+        "{\n"
+        '  "soCCCD": "12 chữ số",\n'
+        '  "hoTen": "Họ và tên đầy đủ viết hoa",\n'
+        '  "ngaySinh": "DD/MM/YYYY",\n'
+        '  "gioiTinh": "Nam hoặc Nữ",\n'
+        '  "ngayCap": "DD/MM/YYYY",\n'
+        '  "noiCap": "BỘ CÔNG AN hoặc CỤC CẢNH SÁT QUẢN LÝ HÀNH CHÍNH VỀ TRẬT TỰ XÃ HỘI",\n'
+        '  "diaChi": "Địa chỉ thường trú hoặc nơi cư trú"\n'
+        "}"
+    )
+    parts.append({'text': prompt_text})
+
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash']
+    for model_name in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+        req_body = {
+            "contents": [{"parts": parts}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "response_mime_type": "application/json"
+            }
+        }
+        try:
+            req_data = json.dumps(req_body).encode('utf-8')
+            req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(req, timeout=12) as response:
+                if response.status == 200:
+                    resp_json = json.loads(response.read().decode('utf-8'))
+                    text_content = resp_json['candidates'][0]['content']['parts'][0]['text'].strip()
+                    clean_text = re.sub(r'^```json\s*|\s*```$', '', text_content, flags=re.MULTILINE).strip()
+                    parsed = json.loads(clean_text)
+                    if parsed and parsed.get('soCCCD'):
+                        return parsed
+        except Exception:
+            continue
+
+    return None
+
+
+# ─────────────────────────────────────────────────────────────
+# 5. HÀM CHÍNH TỔNG HỢP (PIPELINE)
 # ─────────────────────────────────────────────────────────────
 
 def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                            front: Optional[str], back: Optional[str],
-                           code: str = '') -> Dict[str, Any]:
+                           code: str = '',
+                           gemini_key: Optional[str] = None) -> Dict[str, Any]:
     result = {
         'accountCode': code,
         'hopDong': {},
@@ -588,13 +755,16 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         'ngaySinh': None,
         'gioiTinh': None,
         'ngayCap': None,
+        'noiCap': None,
         'diaChi': None,
         'source': 'NONE',
         'canhBaoChatLuong': []
     }
 
-    # Thử QR mặt trước
+    # Thử QR mặt trước, nếu không có thử QR mặt sau (Thẻ Căn Cước mẫu 2024 đặt QR ở mặt sau)
     qr_data = try_decode_qr(front) if front else None
+    if not qr_data and back:
+        qr_data = try_decode_qr(back)
     if qr_data:
         cccd_data.update(qr_data)
         cccd_data['source'] = 'QR'
@@ -609,22 +779,79 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                 cccd_data['ngaySinh'] = mrz_data['ngaySinh']
             if not cccd_data['gioiTinh'] and mrz_data.get('gioiTinh'):
                 cccd_data['gioiTinh'] = mrz_data['gioiTinh']
+            if not cccd_data['noiCap'] and mrz_data.get('noiCap'):
+                cccd_data['noiCap'] = mrz_data['noiCap']
             if not cccd_data['hoTen'] and mrz_data.get('hoTenKhongDau'):
                 cccd_data['hoTen'] = mrz_data['hoTenKhongDau']
             if cccd_data['source'] == 'NONE':
                 cccd_data['source'] = 'MRZ'
 
-    # Thử OCR bổ trợ (nhất là ngày cấp mặt sau)
+    # Thử OCR bổ trợ (nhất là ngày cấp mặt sau & Otsu mặt trước)
     ocr_data = extract_cccd_ocr_details(front, back)
-    for k in ['soCCCD', 'hoTen', 'ngaySinh', 'gioiTinh', 'ngayCap']:
+    for k in ['soCCCD', 'hoTen', 'ngaySinh', 'gioiTinh', 'ngayCap', 'noiCap', 'diaChi']:
         if not cccd_data.get(k) and ocr_data.get(k):
             cccd_data[k] = ocr_data[k]
             if cccd_data['source'] == 'NONE':
                 cccd_data['source'] = 'OCR'
 
+    # Thử Tầng Fallback AI Vision (Gemini Vision) nếu offline vẫn thiếu thông tin cốt lõi
+    if not (cccd_data.get('soCCCD') and cccd_data.get('ngaySinh') and cccd_data.get('gioiTinh')):
+        try:
+            ai_data = call_gemini_vision_fallback(front, back, gemini_key)
+            if ai_data:
+                for k in ['soCCCD', 'hoTen', 'ngaySinh', 'gioiTinh', 'ngayCap', 'noiCap', 'diaChi']:
+                    if not cccd_data.get(k) and ai_data.get(k):
+                        cccd_data[k] = ai_data[k]
+                cccd_data['source'] = 'AI_VISION'
+        except Exception:
+            pass
+
+    # Bổ sung Nơi cấp thông minh nếu chưa có
+    if not cccd_data.get('noiCap'):
+        if result['hopDong'].get('noiCap'):
+            cccd_data['noiCap'] = result['hopDong']['noiCap']
+        else:
+            cap_str = cccd_data.get('ngayCap') or result['hopDong'].get('ngayCap')
+            if cap_str:
+                try:
+                    parts = cap_str.split('/')
+                    if len(parts) == 3:
+                        yr = int(parts[2])
+                        if yr >= 2024:
+                            cccd_data['noiCap'] = 'BỘ CÔNG AN'
+                        elif yr >= 2021:
+                            cccd_data['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
+                except Exception:
+                    pass
+
+    # Bảo toàn chuỗi raw ngày tháng
+    if cccd_data.get('ngaySinh') and not cccd_data.get('rawNgaySinh'):
+        cccd_data['rawNgaySinh'] = cccd_data['ngaySinh']
+    if cccd_data.get('ngayCap') and not cccd_data.get('rawNgayCap'):
+        cccd_data['rawNgayCap'] = cccd_data['ngayCap']
+
     # 4. Kiểm tra chất lượng ảnh và mất góc
     quality_warnings = inspect_image_clipping_and_quality(front, back, code)
     cccd_data['canhBaoChatLuong'] = quality_warnings
+
+    # 5. Kiểm tra Rule Căn cước cũ (Quy định bắt buộc CCCD gắn chip của Sở)
+    id_num = (cccd_data.get('soCCCD') or result['hopDong'].get('soCCCD') or '').strip()
+    if id_num:
+        clean_digits = re.sub(r'\D', '', id_num)
+        if len(clean_digits) == 9:
+            cccd_data['canhBaoChatLuong'].append('Căn cước cũ, ktra lại (CMND 9 số đã hết hiệu lực, Sở yêu cầu CCCD có chip)')
+            result['warnings'].append('Căn cước cũ, ktra lại')
+        elif len(clean_digits) == 12 and back and os.path.exists(back) and cccd_data.get('source') not in ['MRZ', 'QR']:
+            cap_str = cccd_data.get('ngayCap') or result['hopDong'].get('ngayCap')
+            if cap_str:
+                try:
+                    parts = cap_str.split('/')
+                    if len(parts) == 3 and int(parts[2]) < 2021:
+                        cccd_data['canhBaoChatLuong'].append('Căn cước cũ, ktra lại (Nghi vấn CCCD mã vạch cũ không gắn chip)')
+                        result['warnings'].append('Căn cước cũ, ktra lại')
+                except Exception:
+                    pass
+
     result['canCuoc'] = cccd_data
 
     return result
@@ -637,10 +864,12 @@ def main():
     parser.add_argument('--phuluc', type=str, default=None, help='Đường dẫn file Phụ lục 01 PDF')
     parser.add_argument('--front', type=str, default=None, help='Đường dẫn ảnh CCCD mặt trước')
     parser.add_argument('--back', type=str, default=None, help='Đường dẫn ảnh CCCD mặt sau')
+    parser.add_argument('--gemini-key', type=str, default=None, help='Khóa API Gemini Vision')
     parser.add_argument('--json-input', type=str, default=None, help='Chuỗi JSON cấu hình đầu vào')
 
     args = parser.parse_args()
 
+    gemini_key = args.gemini_key
     if args.json_input:
         try:
             cfg = json.loads(args.json_input)
@@ -649,6 +878,8 @@ def main():
             phuluc = cfg.get('phuluc')
             front = cfg.get('front')
             back = cfg.get('back')
+            if not gemini_key:
+                gemini_key = cfg.get('gemini_key')
         except Exception as e:
             print(json.dumps({'error': f'Lỗi parse JSON: {str(e)}'}, ensure_ascii=False))
             sys.exit(1)
@@ -659,7 +890,7 @@ def main():
         front = args.front
         back = args.back
 
-    res = process_account_files(hopdong, phuluc, front, back, code)
+    res = process_account_files(hopdong, phuluc, front, back, code, gemini_key=gemini_key)
     print(json.dumps(res, ensure_ascii=False, indent=2))
 
 
