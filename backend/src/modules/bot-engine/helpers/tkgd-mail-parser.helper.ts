@@ -190,4 +190,197 @@ export function parseAccountOpeningEmailBody(bodyContent: string): ParsedEmailIn
 
 export const parseTkgdEmailBody = parseAccountOpeningEmailBody;
 
+export interface ParsedAccountGroup extends ParsedEmailInfo {
+  maTKGDBase: string;
+  tenTaiKhoan: string;
+}
+
+function cleanPersonName(name?: string): string {
+  if (!name) return '';
+  let s = name.split(/[\r\n]/)[0].trim();
+  s = s.replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi|Bản scan|HĐ|CCCD|CMND)[\s\S]*$/i, '').trim();
+  s = s.replace(/^[ -:]+/, '').replace(/[;,.\-:]+$/, '').trim();
+  return s;
+}
+
+/**
+ * Bóc tách Email Đa Hình: Tự động nhận diện Email Đơn lẻ (1 khách) hoặc Email Gom (nhiều khách)
+ */
+export function parseAccountOpeningEmailMulti(bodyContent: string): ParsedAccountGroup[] {
+  let text = bodyContent || '';
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    text = htmlToPlainText(text);
+  }
+
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const groupsMap = new Map<string, ParsedAccountGroup>();
+
+  // Regex nhận diện mã TKGD: 3 số + 1 chữ cái + 7 số (có thể có hậu tố -A, -L, -S)
+  const codeRegex = /\b([0-9]{3}[A-Z][0-9]{7}(?:-[ALS])?)\b/i;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(codeRegex);
+    if (!match) continue;
+
+    const rawCode = match[1].toUpperCase().trim();
+    const baseCode = extractBaseAccountCode(rawCode);
+    const maTVKD = baseCode.substring(0, 3);
+    const accType = detectAccountType(rawCode);
+
+    // 1. Trích xuất tên đi kèm trên cùng dòng (phần nằm sau mã TKGD - Form TVKD 036, v.v.)
+    const afterCode = line.substring(match.index! + match[0].length);
+    let candidateName = cleanPersonName(afterCode);
+
+    // 2. Nếu trên cùng dòng không có tên (Form TVKD 003: Mã TK 1 dòng, tên ở dòng kế tiếp "Tên tài khoản: ...")
+    if (!candidateName) {
+      for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
+        const nextLine = lines[j];
+        if (codeRegex.test(nextLine)) break; // gặp mã tài khoản khác thì dừng
+
+        const mName = nextLine.match(/(?:Tên\s*(?:tài\s*khoản|khách\s*hàng|KH)?|Họ\s*(?:và|&)?\s*tên)\s*[:\-]\s*([^\r\n]+)/i);
+        if (mName) {
+          candidateName = cleanPersonName(mName[1]);
+          break;
+        }
+      }
+    }
+
+    let existing = groupsMap.get(baseCode);
+    if (!existing) {
+      existing = {
+        maTKGDFutures: accType === 'FUTURES' ? rawCode : baseCode,
+        maTKGDACM: accType === 'ACM' ? rawCode : null,
+        maTKGDLME: accType === 'LME' ? rawCode : null,
+        maTKGDSpread: accType === 'SPREAD' ? rawCode : null,
+        maTKGDBase: baseCode,
+        maTVKD,
+        tenTaiKhoan: candidateName || '',
+        tenTK: candidateName || '',
+        hasACMRequest: accType === 'ACM',
+        hasLMERequest: accType === 'LME',
+        hasSpreadRequest: accType === 'SPREAD',
+        hasPL01Mention: accType === 'ACM',
+        allAccountCodes: [{ code: rawCode, baseCode, type: accType }],
+      };
+      groupsMap.set(baseCode, existing);
+    } else {
+      if (accType === 'FUTURES') existing.maTKGDFutures = rawCode;
+      if (accType === 'ACM') {
+        existing.maTKGDACM = rawCode;
+        existing.hasACMRequest = true;
+        existing.hasPL01Mention = true;
+      }
+      if (accType === 'LME') {
+        existing.maTKGDLME = rawCode;
+        existing.hasLMERequest = true;
+      }
+      if (accType === 'SPREAD') {
+        existing.maTKGDSpread = rawCode;
+        existing.hasSpreadRequest = true;
+      }
+      if (!existing.tenTaiKhoan && candidateName) {
+        existing.tenTaiKhoan = candidateName;
+        existing.tenTK = candidateName;
+      }
+      if (!existing.allAccountCodes.some((c) => c.code === rawCode)) {
+        existing.allAccountCodes.push({ code: rawCode, baseCode, type: accType });
+      }
+    }
+  }
+
+  // Bổ sung: Nếu email chỉ có 1 khách hàng mà chưa tìm thấy tên qua quét dòng, kết hợp bộ phân tích đơn lẻ cũ
+  if (groupsMap.size === 1) {
+    const single = parseAccountOpeningEmailBody(bodyContent);
+    const firstGroup = Array.from(groupsMap.values())[0];
+    if (!firstGroup.tenTaiKhoan && single.tenTK) {
+      firstGroup.tenTaiKhoan = single.tenTK;
+      firstGroup.tenTK = single.tenTK;
+    }
+  }
+
+  // Nếu phát hiện được từ 1 nhóm trở lên theo từng dòng
+  if (groupsMap.size > 0) {
+    return Array.from(groupsMap.values());
+  }
+
+  // Fallback: Nếu không khớp theo từng dòng, chạy bộ phân tích đơn lẻ cũ
+  const single = parseAccountOpeningEmailBody(bodyContent);
+  const baseCode = single.maTKGDFutures || (single.maTKGDACM ? single.maTKGDACM.replace(/-A$/i, '') : '') || '';
+  if (!baseCode) return [];
+
+  return [
+    {
+      ...single,
+      maTKGDBase: baseCode,
+      tenTaiKhoan: single.tenTK || '',
+    },
+  ];
+}
+
+/**
+ * Phân phối tệp đính kèm thông minh cho từng khách hàng trong email gom
+ * Hỗ trợ tự động gom cụm các ảnh CCCD (dù có tên chung chung như mt.png, ms.png, tải xuống...) đi liền sau file PDF của khách hàng
+ */
+export function dispatchAttachmentsForAccount(
+  group: ParsedAccountGroup,
+  allAttachments: any[],
+): any[] {
+  if (!allAttachments || allAttachments.length === 0) return [];
+
+  const baseCode = group.maTKGDBase.toUpperCase();
+  const normName = normalizeVietnameseName(group.tenTaiKhoan);
+
+  // Helper kiểm tra file có tên chứa thông tin nhận diện của khách hàng này không
+  const isMatchAccount = (attName: string) => {
+    const fn = (attName || '').toUpperCase();
+    const fnNorm = normalizeVietnameseName(attName || '');
+    if (fn.includes(baseCode)) return true;
+    if (normName && normName.length > 5 && fnNorm.includes(normName)) return true;
+    return false;
+  };
+
+  // Helper kiểm tra file có phải ảnh hay không
+  const isImageFile = (attName: string) => {
+    const fn = (attName || '').toLowerCase();
+    return fn.endsWith('.jpg') || fn.endsWith('.jpeg') || fn.endsWith('.png') || fn.endsWith('.webp');
+  };
+
+  // 1. Lọc các tệp thuộc về khách hàng này theo tên tệp (Mã TK hoặc Họ tên không dấu)
+  const matched = allAttachments.filter((att) => isMatchAccount(att.name));
+
+  // Kiểm tra xem trong danh sách matched đã có ảnh CCCD chưa
+  const hasImages = matched.some((att) => isImageFile(att.name));
+
+  // 2. Thuật toán Gom cụm tuần tự (Sequential Clustering):
+  // Nếu đã match được file PDF nhưng CHƯA có ảnh (do ảnh CCCD mang tên ngẫu nhiên: mt.png, ms.png, tải xuống...)
+  if (matched.length > 0 && !hasImages) {
+    for (let i = 0; i < allAttachments.length; i++) {
+      const att = allAttachments[i];
+      if (isMatchAccount(att.name) && (att.name || '').toLowerCase().endsWith('.pdf')) {
+        // Gom tất cả các ảnh nằm ngay sau file PDF này cho đến khi gặp file PDF của khách hàng tiếp theo
+        for (let j = i + 1; j < allAttachments.length; j++) {
+          const nextAtt = allAttachments[j];
+          const nextName = (nextAtt.name || '').toLowerCase();
+          if (nextName.endsWith('.pdf')) break; // Đã sang file PDF của khách tiếp theo -> dừng gom
+          if (isImageFile(nextAtt.name)) {
+            if (!matched.some((m) => m.name === nextAtt.name && m.size === nextAtt.size)) {
+              matched.push(nextAtt);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Nếu đã tìm thấy tệp riêng cho khách này (bao gồm cả ảnh được gom cụm) -> trả về
+  if (matched.length > 0) {
+    return matched;
+  }
+
+  // Nếu email chỉ có 1 khách hàng duy nhất -> gán toàn bộ tệp đính kèm
+  return allAttachments;
+}
+
+
 

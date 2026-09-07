@@ -156,6 +156,47 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
   try {
     const text = await readPdfText(input);
 
+    // 0. ANCHOR CHECK (Form 2 khối - TVKD 036 / Hitech Finance): Dòng chỉ chứa đúng 12 chữ số CCCD
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    for (let idx = 0; idx < lines.length; idx++) {
+      const l = lines[idx];
+      if (/^\d{12}$/.test(l)) {
+        result.soCanCuoc = l;
+        // Dòng kế tiếp có thể là ngày cấp DD/MM/YYYY
+        if (idx + 1 < lines.length && /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(lines[idx + 1])) {
+          const parsedCap = parseDateDetails(lines[idx + 1]);
+          result.ngayCap = parsedCap.date;
+          result.rawNgayCap = parsedCap.raw;
+        }
+        // Dò nơi cấp ở các dòng sau
+        for (let k = idx + 2; k < Math.min(lines.length, idx + 8); k++) {
+          if (/(CỤC CẢNH SÁT|BỘ CÔNG AN|CÔNG AN)/i.test(lines[k])) {
+            result.noiCap = lines[k];
+            break;
+          }
+        }
+        // Dò giới tính, ngày sinh, họ tên ở các dòng phía trước số CCCD
+        // Cấu trúc TVKD 036: [Họ tên] -> [Ngày sinh] -> [Giới tính: Nam/Nữ] -> [Quốc tịch] -> [Số CCCD]
+        for (let j = Math.max(0, idx - 6); j < idx; j++) {
+          const prev = lines[j];
+          if (prev === 'Nam' || prev === 'Nữ') {
+            result.gioiTinh = prev;
+            result.rawGioiTinh = prev;
+            if (j > 0 && /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(lines[j - 1])) {
+              const parsedDob = parseDateDetails(lines[j - 1]);
+              result.ngaySinh = parsedDob.date;
+              result.rawNgaySinh = parsedDob.raw;
+              if (j > 1 && /^[A-ZÀ-Ỹ\s]{3,40}$/u.test(lines[j - 2])) {
+                result.hoVaTen = lines[j - 2].trim().toUpperCase();
+              }
+            }
+            break;
+          }
+        }
+        break;
+      }
+    }
+
     // 1. Số hợp đồng: "Số: GCL3692/HCM2026...", "Hợp đồng số: ..."
     const soHdMatch = text.match(/(?:Số|Hợp\s*đồng\s*(?:mở\s*tài\s*khoản\s*)?số)[\s:\.\-]+([A-Z0-9_\-\/]+)/i);
     if (soHdMatch) {
@@ -179,77 +220,92 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
       }
     }
 
-    // 3. Số CCCD / CMND / Hộ chiếu:
-    const cccdMatch =
-      text.match(/(?:Số\s*)?(?:CCCD|CMND|CMT|ĐDCN|Định\s*danh(?:\s*cá\s*nhân)?|Hộ\s*chiếu)[\/\s\w\-–—]*[:\s]+([0-9]{9,12})\b/i) ||
-      text.match(/(?:CCCD|CMND|CMT|ĐDCN)[\s\S]{0,35}?[:\s]\s*([0-9]{9,12})\b/i);
-    if (cccdMatch) {
-      result.soCanCuoc = cccdMatch[1].trim();
-    } else {
-      const fallback12 = text.match(/(?<!\d)(0\d{11})(?!\d)/);
-      if (fallback12) {
-        result.soCanCuoc = fallback12[1].trim();
+    // 3. Số CCCD / CMND / Hộ chiếu (nếu chưa có từ Anchor):
+    if (!result.soCanCuoc) {
+      const cccdMatch =
+        text.match(/(?:Số\s*)?(?:CCCD|CMND|CMT|ĐDCN|Định\s*danh(?:\s*cá\s*nhân)?|Hộ\s*chiếu)[\/\s\w\-–—]*[:\s]+([0-9]{9,12})\b/i) ||
+        text.match(/(?:CCCD|CMND|CMT|ĐDCN)[\s\S]{0,35}?[:\s]\s*([0-9]{9,12})\b/i);
+      if (cccdMatch) {
+        result.soCanCuoc = cccdMatch[1].trim();
+      } else {
+        const fallback12 = text.match(/(?<!\d)(0\d{11})(?!\d)/);
+        if (fallback12) {
+          result.soCanCuoc = fallback12[1].trim();
+        }
       }
     }
 
     // 4. Ngày sinh: hỗ trợ cả DD/MM/YYYY lẫn YYYY-MM-DD
-    const dobMatch = text.match(/(?:Ngày(?:\s*tháng\s*năm)?\s*sinh|Sinh\s*ngày|Năm\s*sinh|DOB)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i);
-    if (dobMatch) {
-      const parsedDob = parseDateDetails(dobMatch[1]);
-      result.ngaySinh = parsedDob.date;
-      result.rawNgaySinh = parsedDob.raw;
-      if (parsedDob.format === 'YYYY-MM-DD') {
-        result.dinhDangLoi = result.dinhDangLoi || [];
-        result.dinhDangLoi.push(`Ngày sinh trên HĐ ghi định dạng ngược YYYY-MM-DD ("${parsedDob.raw}") chưa đúng quy chuẩn DD/MM/YYYY`);
+    if (!result.ngaySinh) {
+      const dobMatch = text.match(/(?:Ngày(?:\s*tháng\s*năm)?\s*sinh|Sinh\s*ngày|Năm\s*sinh|DOB)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i);
+      if (dobMatch) {
+        const parsedDob = parseDateDetails(dobMatch[1]);
+        result.ngaySinh = parsedDob.date;
+        result.rawNgaySinh = parsedDob.raw;
+        if (parsedDob.format === 'YYYY-MM-DD') {
+          result.dinhDangLoi = result.dinhDangLoi || [];
+          result.dinhDangLoi.push(`Ngày sinh trên HĐ ghi định dạng ngược YYYY-MM-DD ("${parsedDob.raw}") chưa đúng quy chuẩn DD/MM/YYYY`);
+        }
       }
     }
 
     // 5. Ngày cấp: hỗ trợ cả DD/MM/YYYY lẫn YYYY-MM-DD
-    const ngayCapMatch = text.match(/(?:Ngày\s*cấp|Cấp\s*ngày|Date\s*of\s*issue)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i);
-    if (ngayCapMatch) {
-      const parsedCap = parseDateDetails(ngayCapMatch[1]);
-      result.ngayCap = parsedCap.date;
-      result.rawNgayCap = parsedCap.raw;
-      if (parsedCap.format === 'YYYY-MM-DD') {
-        result.dinhDangLoi = result.dinhDangLoi || [];
-        result.dinhDangLoi.push(`Ngày cấp trên HĐ ghi định dạng ngược YYYY-MM-DD ("${parsedCap.raw}") chưa đúng quy chuẩn DD/MM/YYYY`);
+    if (!result.ngayCap) {
+      const ngayCapMatch = text.match(/(?:Ngày\s*cấp|Cấp\s*ngày|Date\s*of\s*issue)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i);
+      if (ngayCapMatch) {
+        const parsedCap = parseDateDetails(ngayCapMatch[1]);
+        result.ngayCap = parsedCap.date;
+        result.rawNgayCap = parsedCap.raw;
+        if (parsedCap.format === 'YYYY-MM-DD') {
+          result.dinhDangLoi = result.dinhDangLoi || [];
+          result.dinhDangLoi.push(`Ngày cấp trên HĐ ghi định dạng ngược YYYY-MM-DD ("${parsedCap.raw}") chưa đúng quy chuẩn DD/MM/YYYY`);
+        }
       }
     }
 
     // 6. Giới tính: Nam, Nữ, female, male
-    const genderMatch = text.match(/(?:Giới\s*tính|Gender|Sex)[\s:\.\-]+(Nam|Nữ|Nu|Male|Female)/i);
-    if (genderMatch) {
-      const rawG = genderMatch[1].trim();
-      result.rawGioiTinh = rawG;
-      const lowerG = rawG.toLowerCase();
-      if (lowerG === 'female') {
-        result.gioiTinh = 'Nữ';
-        result.dinhDangLoi = result.dinhDangLoi || [];
-        result.dinhDangLoi.push(`Giới tính trên HĐ ghi bằng tiếng Anh ("female") chưa chuẩn hóa biểu mẫu tiếng Việt (Nữ)`);
-      } else if (lowerG === 'male') {
-        result.gioiTinh = 'Nam';
-        result.dinhDangLoi = result.dinhDangLoi || [];
-        result.dinhDangLoi.push(`Giới tính trên HĐ ghi bằng tiếng Anh ("male") chưa chuẩn hóa biểu mẫu tiếng Việt (Nam)`);
-      } else {
-        result.gioiTinh = rawG;
+    if (!result.gioiTinh) {
+      const genderMatch = text.match(/(?:Giới\s*tính|Gender|Sex)[\s:\.\-]+(Nam|Nữ|Nu|Male|Female)/i);
+      if (genderMatch) {
+        const rawG = genderMatch[1].trim();
+        result.rawGioiTinh = rawG;
+        const lowerG = rawG.toLowerCase();
+        if (lowerG === 'female') {
+          result.gioiTinh = 'Nữ';
+          result.dinhDangLoi = result.dinhDangLoi || [];
+          result.dinhDangLoi.push(`Giới tính trên HĐ ghi bằng tiếng Anh ("female") chưa chuẩn hóa biểu mẫu tiếng Việt (Nữ)`);
+        } else if (lowerG === 'male') {
+          result.gioiTinh = 'Nam';
+          result.dinhDangLoi = result.dinhDangLoi || [];
+          result.dinhDangLoi.push(`Giới tính trên HĐ ghi bằng tiếng Anh ("male") chưa chuẩn hóa biểu mẫu tiếng Việt (Nam)`);
+        } else {
+          result.gioiTinh = rawG;
+        }
       }
     }
 
     // 7. Nơi cấp: "Nơi cấp: Cục Cảnh sát...", "Place of issue: ..."
-    const noiCapMatch = text.match(/(?:Nơi\s*cấp|Place\s*of\s*issue)[\s:\.\-]+([^\r\n;,]+?)(?=(?:\s+ngày|\s+tại|\s+hạn|\s+quốc|\r?\n|$))/i);
-    if (noiCapMatch) {
-      result.noiCap = noiCapMatch[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
+    if (!result.noiCap) {
+      const noiCapMatch = text.match(/(?:Nơi\s*cấp|Place\s*of\s*issue)[\s:\.\-]+([^\r\n;,]+?)(?=(?:\s+ngày|\s+tại|\s+hạn|\s+quốc|\r?\n|$))/i);
+      if (noiCapMatch) {
+        result.noiCap = noiCapMatch[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
+      }
     }
 
     // 8. Họ và tên
-    const baseName = typeof input === 'string' ? path.basename(input) : (fileNameHint || '');
-    const nameMatch = baseName.match(/^([A-Z\-]+)-mxv/i);
-    if (nameMatch) {
-      result.hoVaTen = nameMatch[1].replace(/-/g, ' ').toUpperCase();
-    } else {
-      const textNameMatch = text.match(/(?:Họ\s*(?:và\s*)?tên|Tên\s*khách\s*hàng|Khách\s*hàng|Ông\/Bà)[\s:\.\-]+([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ\s]{4,40})(?:\r?\n|,|$)/iu);
-      if (textNameMatch) {
-        result.hoVaTen = textNameMatch[1].trim().toUpperCase();
+    if (!result.hoVaTen) {
+      const baseName = typeof input === 'string' ? path.basename(input) : (fileNameHint || '');
+      const nameMatch = baseName.match(/^([A-Z\-]+)-mxv/i);
+      if (nameMatch) {
+        result.hoVaTen = nameMatch[1].replace(/-/g, ' ').toUpperCase();
+      } else {
+        const textNameMatch = text.match(/(?:Họ\s*(?:và\s*)?tên|Tên\s*khách\s*hàng|Khách\s*hàng|Ông\/Bà)[\s:\.\-]+([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ\s]{4,40})(?:\r?\n|,|$)/iu);
+        if (textNameMatch) {
+          const cand = textNameMatch[1].trim().toUpperCase();
+          if (!/(CÔNG TY|GIA CÁT LỢI|HITECH|CCCD|CMND|HỘ CHIẾU|GIỚI TÍNH|NƠI CẤP|ĐỊA CHỈ|NGÀY SINH)/i.test(cand)) {
+            result.hoVaTen = cand;
+          }
+        }
       }
     }
   } catch (err) {

@@ -22,7 +22,7 @@ export const tkgdTutorialSteps: TutorialStep[] = [
   },
   {
     target: '#tutorial-tkgd-auto-btn',
-    title: 'Nút Chạy Tự Động (All-in-One)',
+    title: 'Nút Chạy Tự Động Toàn Bộ',
     icon: Zap,
     description:
       'Nút bấm mặc định hàng ngày: Chỉ cần 1 lần click, bot sẽ tự động quét email mới, cào các tài khoản chưa có trên M-System, đối chiếu dữ liệu 3 chiều và chốt kết quả.',

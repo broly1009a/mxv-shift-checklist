@@ -4,7 +4,22 @@ const fs = require('fs');
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
-const filesToUpload = [
+// Quét đệ quy tất cả file trong thư mục
+function getAllFiles(dirPath, arrayOfFiles = []) {
+  if (!fs.existsSync(dirPath)) return arrayOfFiles;
+  const files = fs.readdirSync(dirPath);
+  files.forEach((file) => {
+    const fullPath = path.join(dirPath, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      getAllFiles(fullPath, arrayOfFiles);
+    } else {
+      arrayOfFiles.push(fullPath);
+    }
+  });
+  return arrayOfFiles;
+}
+
+const baseFiles = [
   {
     local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
     remote: '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
@@ -24,6 +39,10 @@ const filesToUpload = [
   {
     local: path.join(repoRoot, 'backend/src/modules/tkgd-automation/tkgd-automation.service.ts'),
     remote: '/opt/mxv-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/modules/tkgd-automation/tkgd-automation.controller.ts'),
+    remote: '/opt/mxv-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts',
   },
   {
     local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts'),
@@ -55,14 +74,36 @@ const filesToUpload = [
   },
 ];
 
+// Thêm toàn bộ các file trong thư mục module frontend/src/features/tkgd
+const tkgdFeaturesDir = path.join(repoRoot, 'frontend/src/features/tkgd');
+const tkgdFeatureFiles = getAllFiles(tkgdFeaturesDir).map((fullPath) => {
+  const relPath = path.relative(path.join(repoRoot, 'frontend'), fullPath).replace(/\\/g, '/');
+  return {
+    local: fullPath,
+    remote: `/opt/mxv-checklist/frontend/${relPath}`,
+  };
+});
+
+const filesToUpload = [...baseFiles, ...tkgdFeatureFiles];
+
 const conn = new Client();
 
 conn.on('ready', () => {
   console.log('Connected to Ubuntu 10.0.0.26');
 
-  // 1. Tạo thư mục từ xa
-  conn.exec('mkdir -p /opt/mxv-checklist/backend/src/scripts/python /opt/mxv-checklist/backend/src/modules/bot-engine/helpers /opt/mxv-checklist/frontend/src/tutorials', (err, stream) => {
-    stream.on('data', d => console.log(d.toString()));
+  // 1. Tạo tất cả thư mục cha từ xa
+  const remoteDirs = Array.from(
+    new Set(filesToUpload.map((item) => path.dirname(item.remote).replace(/\\/g, '/')))
+  );
+
+  const mkdirCmd = `mkdir -p ${remoteDirs.join(' ')}`;
+  conn.exec(mkdirCmd, (err, stream) => {
+    if (err) {
+      console.error('Mkdir error:', err);
+      conn.end();
+      return;
+    }
+    stream.on('data', (d) => console.log(d.toString()));
     stream.on('close', () => {
       console.log('Remote directories ready.');
 
@@ -99,16 +140,17 @@ conn.on('ready', () => {
 
   function runBuildAndRestart() {
     console.log('\nBuilding Backend & Frontend on Ubuntu...');
-    const cmd = 'cd /opt/mxv-checklist/backend && npm run build && pm2 restart mxv-backend && cd /opt/mxv-checklist/frontend && npm run build && pm2 restart mxv-frontend';
+    const cmd =
+      'cd /opt/mxv-checklist/backend && npm run build && pm2 restart mxv-backend && cd /opt/mxv-checklist/frontend && npm run build && pm2 restart mxv-frontend';
     conn.exec(cmd, (err, stream) => {
       if (err) {
         console.error('Exec error:', err);
         conn.end();
         return;
       }
-      stream.on('data', d => process.stdout.write(d.toString()));
-      stream.stderr.on('data', d => process.stderr.write(d.toString()));
-      stream.on('close', code => {
+      stream.on('data', (d) => process.stdout.write(d.toString()));
+      stream.stderr.on('data', (d) => process.stderr.write(d.toString()));
+      stream.on('close', (code) => {
         console.log(`\nBuild and restart completed with exit code: ${code}`);
         conn.end();
       });

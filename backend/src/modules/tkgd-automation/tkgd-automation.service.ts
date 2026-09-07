@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
@@ -16,7 +16,12 @@ import {
   getTkgdAttachmentDirectory,
   resolveTkgdOutputDir,
 } from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
-import { parseAccountOpeningEmailBody, htmlToPlainText } from '../bot-engine/helpers/tkgd-mail-parser.helper';
+import {
+  parseAccountOpeningEmailBody,
+  parseAccountOpeningEmailMulti,
+  dispatchAttachmentsForAccount,
+  htmlToPlainText,
+} from '../bot-engine/helpers/tkgd-mail-parser.helper';
 import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -703,9 +708,8 @@ export class TkgdAutomationService {
     const totalPages = Math.ceil(total / limit) || 1;
     const items = groupedList.slice(skip, skip + limit);
 
-    for (const item of items) {
-      await this.enrichMissingCccdData(item);
-    }
+    // Không chạy enrich OCR đồng bộ trong hàm GET query để tránh làm nghẽn HTTP request (>30s gây timeout).
+    // Việc trích xuất OCR đã được thực hiện tự động trong luồng background (syncMailOpeningAccounts / runReconciliation).
 
     return { items, total, page, pageSize: limit, totalPages };
   }
@@ -796,16 +800,18 @@ export class TkgdAutomationService {
   /**
    * Kích hoạt chạy đối soát chéo, cập nhật trạng thái vào MongoDB và xuất file Excel
    */
-  async runReconciliation(userEmail: string) {
+  async runReconciliation(userEmail: string, batchDate?: string) {
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
-    const records = await this.cleanRecordModel.find().sort({ createdAt: -1 }).limit(100);
+    const query: any = {};
+    if (batchDate) query.batchDate = batchDate;
+    const records = await this.cleanRecordModel.find(query).sort({ createdAt: -1 }).limit(100);
 
     for (const record of records) {
       await this.enrichMissingCccdData(record);
     }
 
     const outDir = resolveTkgdOutputDir(config?.storage?.windowsPath);
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = (batchDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const targetFile = path.join(outDir, `Auto_Data_mail_${dateStr}.xlsx`);
 
     const summary: ReconcileSummary = await reconcileAndExportToExcel(records, {
@@ -815,6 +821,12 @@ export class TkgdAutomationService {
     // Cập nhật trạng thái đối soát trực tiếp vào MongoDB cho từng bản ghi
     const now = new Date();
     for (const record of records) {
+      // CỔNG CHẶN BẢO VỆ DUYỆT TAY: Nếu hồ sơ đã được Cán bộ duyệt bằng tay thì tuyệt đối KHÔNG ghi đè kết luận máy!
+      if (record.manualReview?.isOverridden) {
+        this.logger.log(`[RECON] Hồ sơ ${record.maTKGD || record.maTKGDBase} đã được ${record.manualReview.approvedBy || 'Cán bộ'} phê duyệt tay. Giữ nguyên trạng thái.`);
+        continue;
+      }
+
       const ms: any = record.ms || {};
       const mail: any = record.noiDungMail || {};
       const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
@@ -1199,200 +1211,7 @@ export class TkgdAutomationService {
     // 3. Bóc tách nội dung email và hồ sơ đính kèm rồi lưu vào MongoDB
     let processedCount = 0;
     for (const mail of emailList) {
-      const parsed = parseAccountOpeningEmailBody(mail.bodyRawText);
-      const baseCode = parsed.maTKGDFutures || (parsed.maTKGDACM ? parsed.maTKGDACM.replace(/-A$/i, '') : null);
-      if (!baseCode) continue;
-
-      const targetAccountCode = parsed.maTKGDFutures || parsed.maTKGDACM || baseCode;
-
-      // Trích xuất Hợp đồng, Phụ lục, CCCD từ tệp đính kèm (nếu có)
-      let hopDongData: any = undefined;
-      let phuLucData: any = undefined;
-      let cccdData: any = undefined;
-
-      if (mail.attachments && mail.attachments.length > 0) {
-        const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
-        if (!fs.existsSync(tempAccDir)) fs.mkdirSync(tempAccDir, { recursive: true });
-
-        // Xác định thư mục lưu trữ hồ sơ đính kèm chính thức trên ổ mạng (HoSo_DinhKem/YYYY-MM-DD/MãTKGD)
-        const officialAccDir = getTkgdAttachmentDirectory(
-          config?.documentProcessing?.attachmentSavePath || config?.storage?.windowsPath,
-          todayStr,
-          baseCode,
-        );
-
-        let hopDongPath: string | undefined = undefined;
-        let phuLucPath: string | undefined = undefined;
-        let cccdFrontPath: string | undefined = undefined;
-        let cccdBackPath: string | undefined = undefined;
-
-        for (const att of mail.attachments) {
-          if (isIgnoredEmailAttachment(att.name)) continue;
-          const nameLower = (att.name || '').toLowerCase();
-          let targetFilePath = att.filePath;
-
-          if (att.contentBytes) {
-            targetFilePath = path.join(tempAccDir, att.name);
-            const fileBuf = Buffer.from(att.contentBytes, 'base64');
-            fs.writeFileSync(targetFilePath, fileBuf);
-
-            // Lưu trực tiếp file đính kèm vào thư mục HoSo_DinhKem
-            if (officialAccDir) {
-              try {
-                const officialFilePath = path.join(officialAccDir, att.name);
-                fs.writeFileSync(officialFilePath, fileBuf);
-              } catch (saveErr: any) {
-                this.logger.warn(`[TKGD-MAIL] Không thể lưu file đính kèm vào HoSo_DinhKem: ${saveErr.message}`);
-              }
-            }
-          } else if (targetFilePath && fs.existsSync(targetFilePath) && officialAccDir) {
-            try {
-              const officialFilePath = path.join(officialAccDir, path.basename(targetFilePath));
-              fs.copyFileSync(targetFilePath, officialFilePath);
-            } catch { }
-          }
-
-          if (targetFilePath && fs.existsSync(targetFilePath)) {
-            if (nameLower.endsWith('.pdf')) {
-              if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
-                phuLucPath = targetFilePath;
-              } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
-                hopDongPath = targetFilePath;
-              }
-            } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png')) {
-              if (nameLower.includes('truoc') || nameLower.includes('front') || nameLower.includes('mat1')) {
-                cccdFrontPath = targetFilePath;
-              } else if (nameLower.includes('sau') || nameLower.includes('back') || nameLower.includes('mat2')) {
-                cccdBackPath = targetFilePath;
-              } else if (!cccdFrontPath) {
-                cccdFrontPath = targetFilePath;
-              } else if (!cccdBackPath) {
-                cccdBackPath = targetFilePath;
-              }
-            }
-          }
-        }
-
-        // Gọi Python Worker trích xuất chính xác 100%
-        try {
-          const pythonRes = await runPythonExtractor({
-            accountCode: baseCode,
-            hopDongPath,
-            phuLucPath,
-            cccdFrontPath,
-            cccdBackPath,
-          });
-
-          if (pythonRes) {
-            if (pythonRes.hopDong && (pythonRes.hopDong.hoTen || pythonRes.hopDong.soCCCD || pythonRes.hopDong.soHopDong || hopDongPath)) {
-              hopDongData = {
-                maTKGD: pythonRes.hopDong.maTKGD || baseCode,
-                hoVaTen: pythonRes.hopDong.hoTen || parsed.tenTK,
-                soCanCuoc: pythonRes.hopDong.soCCCD,
-                ngaySinh: parseDate(pythonRes.hopDong.ngaySinh),
-                rawNgaySinh: pythonRes.hopDong.rawNgaySinh,
-                ngayCap: parseDate(pythonRes.hopDong.ngayCap),
-                rawNgayCap: pythonRes.hopDong.rawNgayCap,
-                noiCap: pythonRes.hopDong.noiCap || 'BỘ CÔNG AN',
-                gioiTinh: pythonRes.hopDong.gioiTinh,
-                rawGioiTinh: pythonRes.hopDong.rawGioiTinh,
-                dinhDangLoi: pythonRes.hopDong.dinhDangLoi || [],
-                loaiHinhTaiKhoan: 'Cá nhân',
-                chuKy: pythonRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
-              };
-            }
-
-            if (pythonRes.phuLuc && (pythonRes.phuLuc.isPl01 || phuLucPath)) {
-              phuLucData = {
-                maTKGD: pythonRes.phuLuc.maTKGD || `${baseCode}-A`,
-                hoVaTen: pythonRes.phuLuc.tenKH || parsed.tenTK,
-                chuKy: pythonRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
-              };
-            }
-
-            if (pythonRes.canCuoc && (pythonRes.canCuoc.soCCCD || pythonRes.canCuoc.hoTen || pythonRes.canCuoc.ngaySinh || (pythonRes.canCuoc.canhBaoChatLuong && pythonRes.canCuoc.canhBaoChatLuong.length > 0))) {
-              const rawDob = pythonRes.canCuoc.rawNgaySinh || pythonRes.canCuoc.ngaySinh;
-              const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
-              const noiCapFinal = pythonRes.canCuoc.noiCap || pythonRes.hopDong?.noiCap || hopDongData?.noiCap || 'BỘ CÔNG AN';
-              cccdData = {
-                hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || parsed.tenTK,
-                soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
-                ngaySinh: parseDate(pythonRes.canCuoc.ngaySinh) || hopDongData?.ngaySinh,
-                rawNgaySinh: rawDob || hopDongData?.rawNgaySinh,
-                ngayCap: parseDate(pythonRes.canCuoc.ngayCap) || hopDongData?.ngayCap,
-                rawNgayCap: rawCap || hopDongData?.rawNgayCap,
-                gioiTinh: pythonRes.canCuoc.gioiTinh || hopDongData?.gioiTinh,
-                noiCap: noiCapFinal,
-                diaChiThuongTru: pythonRes.canCuoc.diaChi,
-                canhBaoChatLuong: pythonRes.canCuoc.canhBaoChatLuong || [],
-                ocrConfidence: pythonRes.canCuoc.source || 'OCR',
-              };
-            }
-          }
-        } catch (pyErr: any) {
-          this.logger.warn(`[PYTHON-EXTRACT] Fallback sang TS cho ${baseCode}: ${pyErr.message}`);
-        }
-
-        // Fallback TypeScript nếu Python chưa trả về hopDongData
-        if (!hopDongData && !phuLucData) {
-          for (const att of mail.attachments) {
-            const nameLower = (att.name || '').toLowerCase();
-            let fileBuffer: Buffer | null = null;
-            if (att.contentBytes) {
-              fileBuffer = Buffer.from(att.contentBytes, 'base64');
-            } else if (att.filePath && fs.existsSync(att.filePath)) {
-              fileBuffer = fs.readFileSync(att.filePath);
-            }
-
-            if (fileBuffer && nameLower.endsWith('.pdf')) {
-              if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
-                phuLucData = await extractPhuLucPdf(fileBuffer, att.name);
-                if (phuLucData) {
-                  phuLucData.maTKGD = parsed.maTKGDACM || `${baseCode}-A`;
-                  phuLucData.hoVaTen = parsed.tenTK || phuLucData.hoVaTen;
-                }
-              } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongData) {
-                hopDongData = await extractHopDongPdf(fileBuffer, att.name);
-                if (hopDongData) {
-                  hopDongData.maTKGD = parsed.maTKGDFutures || baseCode;
-                  hopDongData.hoVaTen = parsed.tenTK || hopDongData.hoVaTen;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Bù trừ chéo giữa Hợp đồng và Phụ lục nếu một bên bị thiếu
-      if (phuLucData) {
-        if (hopDongData) {
-          hopDongData.soCanCuoc = hopDongData.soCanCuoc || phuLucData.soCanCuoc;
-          hopDongData.ngayCap = hopDongData.ngayCap || phuLucData.ngayCap;
-          hopDongData.noiCap = hopDongData.noiCap || phuLucData.noiCap;
-        } else if (phuLucData.soCanCuoc) {
-          hopDongData = {
-            maTKGD: parsed.maTKGDFutures || baseCode,
-            hoVaTen: parsed.tenTK || phuLucData.hoVaTen,
-            soCanCuoc: phuLucData.soCanCuoc,
-            ngayCap: phuLucData.ngayCap,
-            noiCap: phuLucData.noiCap,
-            ngayKyHD: phuLucData.ngayKyHD,
-            loaiHinhTaiKhoan: 'Cá nhân',
-            chuKy: 'Đã ký',
-          };
-        }
-      }
-
-      if (hopDongData && !cccdData && (hopDongData.soCanCuoc || hopDongData.ngaySinh || hopDongData.ngayCap)) {
-        cccdData = {
-          hoVaTen: hopDongData.hoVaTen || parsed.tenTK,
-          soCanCuoc: hopDongData.soCanCuoc,
-          ngaySinh: hopDongData.ngaySinh,
-          ngayCap: hopDongData.ngayCap,
-          noiCap: hopDongData.noiCap,
-        };
-      }
-
+      // 1. Lưu hoặc cập nhật Raw Mail (lưu 1 lần duy nhất cho messageId)
       await this.rawMailModel.findOneAndUpdate(
         { messageId: mail.messageId },
         {
@@ -1415,60 +1234,265 @@ export class TkgdAutomationService {
         { upsert: true }
       );
 
-      const existingRecord = await this.cleanRecordModel.findOne({
-        $or: [
-          { maTKGDBase: baseCode },
-          { maTKGD: targetAccountCode },
-          { 'noiDungMail.maTKGD_Futures': baseCode },
-        ],
-      });
+      // 2. Bóc tách nội dung email (Hỗ trợ cả Email Đơn lẻ và Email Gom nhiều khách)
+      const accountGroups = parseAccountOpeningEmailMulti(mail.bodyRawText);
+      if (!accountGroups || accountGroups.length === 0) continue;
 
-      const noiDungMailData = {
-        maTKGD_Futures: parsed.maTKGDFutures || baseCode,
-        maTKGD_ACM: parsed.maTKGDACM || (parsed.hasACMRequest ? `${baseCode}-A` : undefined),
-        maTKGD_LME: parsed.maTKGDLME || undefined,
-        maTKGD_Spread: parsed.maTKGDSpread || undefined,
-        tenTaiKhoan: parsed.tenTK || '',
-        hasACMRequest: parsed.hasACMRequest,
-        hasLMERequest: parsed.hasLMERequest,
-        hasSpreadRequest: parsed.hasSpreadRequest,
-      };
+      for (const group of accountGroups) {
+        const baseCode = group.maTKGDBase;
+        if (!baseCode) continue;
 
-      if (existingRecord) {
-        const currentNoiDung = (existingRecord.noiDungMail as any)?.toObject
-          ? (existingRecord.noiDungMail as any).toObject()
-          : existingRecord.noiDungMail || {};
-        existingRecord.noiDungMail = {
-          ...currentNoiDung,
-          ...noiDungMailData,
-        } as any;
-        if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
-        if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
-        if (hopDongData) existingRecord.hopDong = hopDongData;
-        if (phuLucData) existingRecord.phuLuc = phuLucData;
-        if (cccdData) existingRecord.canCuoc = cccdData;
-        await existingRecord.save();
-      } else {
-        await this.cleanRecordModel.create({
+        const targetAccountCode = group.maTKGDFutures || group.maTKGDACM || baseCode;
+
+        // 3. Phân phối tệp đính kèm thông minh cho riêng khách hàng này
+        const targetAttachments = dispatchAttachmentsForAccount(group, mail.attachments || []);
+
+        let hopDongData: any = undefined;
+        let phuLucData: any = undefined;
+        let cccdData: any = undefined;
+
+        if (targetAttachments && targetAttachments.length > 0) {
+          const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
+          if (!fs.existsSync(tempAccDir)) fs.mkdirSync(tempAccDir, { recursive: true });
+
+          // Xác định thư mục lưu trữ hồ sơ đính kèm chính thức trên ổ mạng (HoSo_DinhKem/YYYY-MM-DD/MãTKGD)
+          const officialAccDir = getTkgdAttachmentDirectory(
+            config?.documentProcessing?.attachmentSavePath || config?.storage?.windowsPath,
+            todayStr,
+            baseCode,
+          );
+
+          let hopDongPath: string | undefined = undefined;
+          let phuLucPath: string | undefined = undefined;
+          let cccdFrontPath: string | undefined = undefined;
+          let cccdBackPath: string | undefined = undefined;
+
+          for (const att of targetAttachments) {
+            if (isIgnoredEmailAttachment(att.name)) continue;
+            const nameLower = (att.name || '').toLowerCase();
+            let targetFilePath = att.filePath;
+
+            if (att.contentBytes) {
+              targetFilePath = path.join(tempAccDir, att.name);
+              const fileBuf = Buffer.from(att.contentBytes, 'base64');
+              fs.writeFileSync(targetFilePath, fileBuf);
+
+              // Lưu trực tiếp file đính kèm vào thư mục HoSo_DinhKem
+              if (officialAccDir) {
+                try {
+                  const officialFilePath = path.join(officialAccDir, att.name);
+                  fs.writeFileSync(officialFilePath, fileBuf);
+                } catch (saveErr: any) {
+                  this.logger.warn(`[TKGD-MAIL] Không thể lưu file đính kèm vào HoSo_DinhKem: ${saveErr.message}`);
+                }
+              }
+            } else if (targetFilePath && fs.existsSync(targetFilePath) && officialAccDir) {
+              try {
+                const officialFilePath = path.join(officialAccDir, path.basename(targetFilePath));
+                fs.copyFileSync(targetFilePath, officialFilePath);
+              } catch { }
+            }
+
+            if (targetFilePath && fs.existsSync(targetFilePath)) {
+              if (nameLower.endsWith('.pdf')) {
+                if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                  phuLucPath = targetFilePath;
+                } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
+                  hopDongPath = targetFilePath;
+                }
+              } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
+                const isFront = /\b(truoc|front|mat1|mt)\b/i.test(nameLower) || nameLower.includes('mặt trước') || nameLower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('mt.');
+                const isBack = /\b(sau|back|mat2|ms)\b/i.test(nameLower) || nameLower.includes('mặt sau') || nameLower.includes('matsau') || /^ms[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('ms.');
+                if (isFront) {
+                  cccdFrontPath = targetFilePath;
+                } else if (isBack) {
+                  cccdBackPath = targetFilePath;
+                } else if (!cccdFrontPath) {
+                  cccdFrontPath = targetFilePath;
+                } else if (!cccdBackPath) {
+                  cccdBackPath = targetFilePath;
+                }
+              }
+            }
+          }
+
+          // Gọi Python Worker trích xuất chính xác 100%
+          try {
+            const pythonRes = await runPythonExtractor({
+              accountCode: baseCode,
+              hopDongPath,
+              phuLucPath,
+              cccdFrontPath,
+              cccdBackPath,
+            });
+
+            if (pythonRes) {
+              if (pythonRes.hopDong && (pythonRes.hopDong.hoTen || pythonRes.hopDong.soCCCD || pythonRes.hopDong.soHopDong || hopDongPath)) {
+                hopDongData = {
+                  maTKGD: pythonRes.hopDong.maTKGD || baseCode,
+                  hoVaTen: pythonRes.hopDong.hoTen || group.tenTaiKhoan,
+                  soCanCuoc: pythonRes.hopDong.soCCCD,
+                  ngaySinh: parseDate(pythonRes.hopDong.ngaySinh),
+                  rawNgaySinh: pythonRes.hopDong.rawNgaySinh,
+                  ngayCap: parseDate(pythonRes.hopDong.ngayCap),
+                  rawNgayCap: pythonRes.hopDong.rawNgayCap,
+                  noiCap: pythonRes.hopDong.noiCap || 'BỘ CÔNG AN',
+                  gioiTinh: pythonRes.hopDong.gioiTinh,
+                  rawGioiTinh: pythonRes.hopDong.rawGioiTinh,
+                  dinhDangLoi: pythonRes.hopDong.dinhDangLoi || [],
+                  loaiHinhTaiKhoan: 'Cá nhân',
+                  chuKy: pythonRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
+                };
+              }
+
+              if (pythonRes.phuLuc && (pythonRes.phuLuc.isPl01 || phuLucPath)) {
+                phuLucData = {
+                  maTKGD: pythonRes.phuLuc.maTKGD || `${baseCode}-A`,
+                  hoVaTen: pythonRes.phuLuc.tenKH || group.tenTaiKhoan,
+                  chuKy: pythonRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
+                };
+              }
+
+              if (pythonRes.canCuoc && (pythonRes.canCuoc.soCCCD || pythonRes.canCuoc.hoTen || pythonRes.canCuoc.ngaySinh || (pythonRes.canCuoc.canhBaoChatLuong && pythonRes.canCuoc.canhBaoChatLuong.length > 0))) {
+                const rawDob = pythonRes.canCuoc.rawNgaySinh || pythonRes.canCuoc.ngaySinh;
+                const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
+                const noiCapFinal = pythonRes.canCuoc.noiCap || pythonRes.hopDong?.noiCap || hopDongData?.noiCap || 'BỘ CÔNG AN';
+                cccdData = {
+                  hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || group.tenTaiKhoan,
+                  soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
+                  ngaySinh: parseDate(pythonRes.canCuoc.ngaySinh) || hopDongData?.ngaySinh,
+                  rawNgaySinh: rawDob || hopDongData?.rawNgaySinh,
+                  ngayCap: parseDate(pythonRes.canCuoc.ngayCap) || hopDongData?.ngayCap,
+                  rawNgayCap: rawCap || hopDongData?.rawNgayCap,
+                  gioiTinh: pythonRes.canCuoc.gioiTinh || hopDongData?.gioiTinh,
+                  noiCap: noiCapFinal,
+                  diaChiThuongTru: pythonRes.canCuoc.diaChi,
+                  canhBaoChatLuong: pythonRes.canCuoc.canhBaoChatLuong || [],
+                  ocrConfidence: pythonRes.canCuoc.source || 'OCR',
+                };
+              }
+            }
+          } catch (pyErr: any) {
+            this.logger.warn(`[PYTHON-EXTRACT] Fallback sang TS cho ${baseCode}: ${pyErr.message}`);
+          }
+
+          // Fallback TypeScript nếu Python chưa trả về hopDongData
+          if (!hopDongData && !phuLucData) {
+            for (const att of targetAttachments) {
+              const nameLower = (att.name || '').toLowerCase();
+              let fileBuffer: Buffer | null = null;
+              if (att.contentBytes) {
+                fileBuffer = Buffer.from(att.contentBytes, 'base64');
+              } else if (att.filePath && fs.existsSync(att.filePath)) {
+                fileBuffer = fs.readFileSync(att.filePath);
+              }
+
+              if (fileBuffer && nameLower.endsWith('.pdf')) {
+                if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                  phuLucData = await extractPhuLucPdf(fileBuffer, att.name);
+                  if (phuLucData) {
+                    phuLucData.maTKGD = group.maTKGDACM || `${baseCode}-A`;
+                    phuLucData.hoVaTen = group.tenTaiKhoan || phuLucData.hoVaTen;
+                  }
+                } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongData) {
+                  hopDongData = await extractHopDongPdf(fileBuffer, att.name);
+                  if (hopDongData) {
+                    hopDongData.maTKGD = group.maTKGDFutures || baseCode;
+                    hopDongData.hoVaTen = group.tenTaiKhoan || hopDongData.hoVaTen;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Bù trừ chéo giữa Hợp đồng và Phụ lục nếu một bên bị thiếu
+        if (phuLucData) {
+          if (hopDongData) {
+            hopDongData.soCanCuoc = hopDongData.soCanCuoc || phuLucData.soCanCuoc;
+            hopDongData.ngayCap = hopDongData.ngayCap || phuLucData.ngayCap;
+            hopDongData.noiCap = hopDongData.noiCap || phuLucData.noiCap;
+          } else if (phuLucData.soCanCuoc) {
+            hopDongData = {
+              maTKGD: group.maTKGDFutures || baseCode,
+              hoVaTen: group.tenTaiKhoan || phuLucData.hoVaTen,
+              soCanCuoc: phuLucData.soCanCuoc,
+              ngayCap: phuLucData.ngayCap,
+              noiCap: phuLucData.noiCap,
+              ngayKyHD: phuLucData.ngayKyHD,
+              loaiHinhTaiKhoan: 'Cá nhân',
+              chuKy: 'Đã ký',
+            };
+          }
+        }
+
+        if (hopDongData && !cccdData && (hopDongData.soCanCuoc || hopDongData.ngaySinh || hopDongData.ngayCap)) {
+          cccdData = {
+            hoVaTen: hopDongData.hoVaTen || group.tenTaiKhoan,
+            soCanCuoc: hopDongData.soCanCuoc,
+            ngaySinh: hopDongData.ngaySinh,
+            ngayCap: hopDongData.ngayCap,
+            noiCap: hopDongData.noiCap,
+          };
+        }
+
+        // ĐẶC BIỆT: Bịt kẽ hở 1 - Ràng buộc theo batchDate khi tìm kiếm bản ghi cũ
+        const existingRecord = await this.cleanRecordModel.findOne({
           batchDate: todayStr,
-          maTVKD: parsed.maTVKD || baseCode.substring(0, 3),
-          maTKGD: targetAccountCode,
-          maTKGDBase: baseCode,
-          noiDungMail: noiDungMailData as any,
-          hopDong: hopDongData,
-          phuLuc: phuLucData,
-          canCuoc: cccdData,
-          ms: {
-            maTKGD: baseCode,
-            isFoundOnMS: false,
-          } as any,
-          ketLuan: {
-            trangThai: 'CHUA_XU_LY',
-            danhSachLoi: ['Chưa cào dữ liệu từ M-System'],
-          } as any,
+          $or: [
+            { maTKGDBase: baseCode },
+            { maTKGD: targetAccountCode },
+            { 'noiDungMail.maTKGD_Futures': baseCode },
+          ],
         });
+
+        const noiDungMailData = {
+          maTKGD_Futures: group.maTKGDFutures || baseCode,
+          maTKGD_ACM: group.maTKGDACM || (group.hasACMRequest ? `${baseCode}-A` : undefined),
+          maTKGD_LME: group.hasLMERequest ? `${baseCode}-L` : undefined,
+          maTKGD_Spread: group.hasSpreadRequest ? `${baseCode}-S` : undefined,
+          tenTaiKhoan: group.tenTaiKhoan || (existingRecord?.noiDungMail as any)?.tenTaiKhoan || '',
+          hasACMRequest: group.hasACMRequest,
+          hasLMERequest: group.hasLMERequest,
+          hasSpreadRequest: group.hasSpreadRequest,
+        };
+
+        if (existingRecord) {
+          const currentNoiDung = (existingRecord.noiDungMail as any)?.toObject
+            ? (existingRecord.noiDungMail as any).toObject()
+            : existingRecord.noiDungMail || {};
+          existingRecord.noiDungMail = {
+            ...currentNoiDung,
+            ...noiDungMailData,
+          } as any;
+          if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
+          if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
+          if (hopDongData) existingRecord.hopDong = hopDongData;
+          if (phuLucData) existingRecord.phuLuc = phuLucData;
+          if (cccdData) existingRecord.canCuoc = cccdData;
+          await existingRecord.save();
+        } else {
+          await this.cleanRecordModel.create({
+            batchDate: todayStr,
+            maTVKD: group.maTVKD || baseCode.substring(0, 3),
+            maTKGD: targetAccountCode,
+            maTKGDBase: baseCode,
+            noiDungMail: noiDungMailData as any,
+            hopDong: hopDongData,
+            phuLuc: phuLucData,
+            canCuoc: cccdData,
+            ms: {
+              maTKGD: baseCode,
+              isFoundOnMS: false,
+            } as any,
+            ketLuan: {
+              trangThai: 'CHUA_XU_LY',
+              danhSachLoi: ['Chưa cào dữ liệu từ M-System'],
+            } as any,
+          });
+        }
+        processedCount++;
       }
-      processedCount++;
     }
 
     return {
@@ -2125,4 +2149,94 @@ export class TkgdAutomationService {
 
     return null;
   }
+
+  /**
+   * Cán bộ nghiệp vụ chủ động phê duyệt hồ sơ bằng tay (Manual Override)
+   */
+  async manualApproveRecord(recordId: string, userEmail: string, reason?: string) {
+    const record = await this.cleanRecordModel.findById(recordId);
+    if (!record) {
+      throw new NotFoundException(`Không tìm thấy hồ sơ ID ${recordId}`);
+    }
+
+    const previousData = {
+      ketLuan: record.ketLuan,
+      manualReview: record.manualReview,
+    };
+
+    const now = new Date();
+    record.manualReview = {
+      isOverridden: true,
+      status: 'DA_DUYET',
+      approvedBy: userEmail,
+      approvedAt: now,
+      reason: (reason || 'Cán bộ TTBT phê duyệt hồ sơ bằng tay').trim(),
+    };
+
+    record.ketLuan = {
+      trangThai: 'KHOP',
+      danhSachLoi: [],
+      reconciledAt: now,
+    };
+
+    if (!record.snapshots) record.snapshots = [];
+    record.snapshots.push({
+      snapshotAt: now,
+      action: 'MANUAL_APPROVE',
+      previousData,
+    } as any);
+
+    await record.save();
+    this.logger.log(`[MANUAL-APPROVE] ${userEmail} đã duyệt tay hồ sơ ${record.maTKGD || record.maTKGDBase}`);
+    return {
+      success: true,
+      record,
+      message: `Đã phê duyệt hồ sơ ${record.maTKGD || record.maTKGDBase} thành công!`,
+    };
+  }
+
+  /**
+   * Hủy phê duyệt bằng tay, trả về để máy tự động đối soát lại
+   */
+  async revertManualApprove(recordId: string, userEmail: string) {
+    const record = await this.cleanRecordModel.findById(recordId);
+    if (!record) {
+      throw new NotFoundException(`Không tìm thấy hồ sơ ID ${recordId}`);
+    }
+
+    const previousData = {
+      ketLuan: record.ketLuan,
+      manualReview: record.manualReview,
+    };
+
+    const now = new Date();
+    record.manualReview = {
+      isOverridden: false,
+      status: 'CHUA_XU_LY',
+      approvedBy: undefined,
+      approvedAt: undefined,
+      reason: undefined,
+    };
+
+    if (!record.snapshots) record.snapshots = [];
+    record.snapshots.push({
+      snapshotAt: now,
+      action: 'REVERT_APPROVE',
+      previousData,
+    } as any);
+
+    await record.save();
+
+    // Tự động kích hoạt đối soát lại cho mẻ của hồ sơ này
+    await this.runReconciliation(userEmail, record.batchDate);
+
+    const updated = await this.cleanRecordModel.findById(recordId);
+    this.logger.log(`[REVERT-APPROVE] ${userEmail} đã hủy duyệt tay hồ sơ ${record.maTKGD || record.maTKGDBase}`);
+    return {
+      success: true,
+      record: updated,
+      message: `Đã hủy duyệt tay, đối soát máy đã được cập nhật lại.`,
+    };
+  }
 }
+

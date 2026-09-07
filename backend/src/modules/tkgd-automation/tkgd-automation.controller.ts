@@ -243,4 +243,30 @@ export class TkgdAutomationController {
 
     return res.sendFile(path.resolve(resolvedPath));
   }
+
+  /**
+   * Cán bộ nghiệp vụ chủ động phê duyệt hồ sơ bằng tay (Manual Override)
+   */
+  @Post('records/:id/manual-approve')
+  async manualApproveRecord(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.manualApproveRecord(id, email, reason);
+  }
+
+  /**
+   * Hủy phê duyệt bằng tay, trả về để hệ thống đối soát máy lại
+   */
+  @Post('records/:id/revert-approve')
+  async revertManualApprove(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.revertManualApprove(id, email);
+  }
 }
+

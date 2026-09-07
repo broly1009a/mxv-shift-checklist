@@ -415,6 +415,35 @@ export async function reconcileAndExportToExcel(
         isCriticalMismatch = true;
         criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
       }
+
+      // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
+      const hdErrors: string[] = [
+        ...(hd.dinhDangLoi || record.hopDong?.dinhDangLoi || []),
+      ];
+      // Dynamic fallback nếu rawNgaySinh/rawNgayCap/rawGioiTinh bị sai định dạng chuẩn
+      const rawDobStr = String(hd.rawNgaySinh || record.hopDong?.rawNgaySinh || '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDobStr) && !hdErrors.some(e => e.includes('Ngày sinh'))) {
+        hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
+      }
+      const rawCapStr = String(hd.rawNgayCap || record.hopDong?.rawNgayCap || '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawCapStr) && !hdErrors.some(e => e.includes('Ngày cấp'))) {
+        hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
+      }
+      const rawSexStr = String(hd.rawGioiTinh || record.hopDong?.rawGioiTinh || '').toLowerCase();
+      if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some(e => e.includes('Giới tính'))) {
+        hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${hd.rawGioiTinh || record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
+      }
+
+      const cccdWarnings: string[] = cccd.canhBaoChatLuong || record.canCuoc?.canhBaoChatLuong || [];
+
+      for (const err of hdErrors) {
+        isCriticalMismatch = true;
+        criticalErrors.push(err);
+      }
+      for (const warn of cccdWarnings) {
+        isCriticalMismatch = true;
+        criticalErrors.push(warn);
+      }
     }
 
     let ketQuaText = '';

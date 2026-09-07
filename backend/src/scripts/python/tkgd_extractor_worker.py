@@ -77,102 +77,168 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         res['warning'] = 'PDF không có text layer (dạng scan)'
         return res
 
-    # 1. Mã TKGD
-    m_code = re.search(r'(003C\d{7})', text)
+    # ─────────────────────────────────────────────────────────
+    # A. PHƯƠNG PHÁP ANCHOR: NHẬN DIỆN KHỐI DỮ LIỆU ĐIỀN (FORM 2 KHỐI - TVKD 036 / HITECH FINANCE)
+    # ─────────────────────────────────────────────────────────
+    lines_p1 = [l.strip() for l in (full_pages[0] if full_pages else '').split('\n') if l.strip()]
+    for idx, l in enumerate(lines_p1):
+        # Mỏ neo: Dòng chỉ chứa duy nhất 12 chữ số (Số CCCD chuẩn Việt Nam)
+        if re.match(r'^\d{12}$', l):
+            cand_cccd = l
+            cand_name = None
+            cand_dob = None
+            cand_gender = None
+            cand_issue_date = None
+            cand_place = None
+
+            # Dòng ngay sau số CCCD thường là Ngày cấp
+            if idx + 1 < len(lines_p1) and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[idx + 1]):
+                cand_issue_date = lines_p1[idx + 1]
+
+            # Dò nơi cấp ở các dòng sau ngày cấp
+            for k in range(idx + 2, min(len(lines_p1), idx + 8)):
+                if re.search(r'(CỤC CẢNH SÁT|BỘ CÔNG AN|CÔNG AN)', lines_p1[k], re.I):
+                    cand_place = lines_p1[k]
+                    break
+
+            # Dò giới tính, ngày sinh, họ tên ở các dòng phía trước số CCCD
+            # Cấu trúc TVKD 036: [Họ tên] -> [Ngày sinh] -> [Giới tính: Nam/Nữ] -> [Quốc tịch] -> [Số CCCD]
+            for j in range(max(0, idx - 6), idx):
+                prev_line = lines_p1[j]
+                if prev_line in ['Nam', 'Nữ']:
+                    cand_gender = prev_line
+                    if j > 0 and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[j - 1]):
+                        cand_dob = lines_p1[j - 1]
+                        if j > 1 and re.match(r'^[A-ZÀ-Ỹ\s]{3,40}$', lines_p1[j - 2]):
+                            cand_name = lines_p1[j - 2]
+                    break
+
+            if cand_cccd and (cand_name or cand_dob or cand_issue_date):
+                res['soCCCD'] = cand_cccd
+                if cand_name: res['hoTen'] = cand_name
+                if cand_dob:
+                    res['ngaySinh'] = cand_dob
+                    res['rawNgaySinh'] = cand_dob
+                if cand_gender:
+                    res['gioiTinh'] = cand_gender
+                    res['rawGioiTinh'] = cand_gender
+                if cand_issue_date:
+                    res['ngayCap'] = cand_issue_date
+                    res['rawNgayCap'] = cand_issue_date
+                if cand_place: res['noiCap'] = cand_place
+                break
+
+    # 1. Mã TKGD (Hỗ trợ mọi TVKD: 003, 036, 012...)
+    m_code = re.search(r'\b([0-9]{3}[A-Z]\d{7})\b', text)
     if m_code:
         res['maTKGD'] = m_code.group(1).strip()
+    elif not res['maTKGD']:
+        m_fn = re.search(r'\b([0-9]{3}[A-Z]\d{7})\b', os.path.basename(pdf_path))
+        if m_fn:
+            res['maTKGD'] = m_fn.group(1).strip()
 
     # 2. Số hợp đồng
     m_hd = re.search(r'(?:Số hợp đồng|Contract No\.?|Số)[\s:]+([A-Z0-9\-/]+)', text, re.IGNORECASE)
     if m_hd:
         shd = m_hd.group(1).strip()
-        if len(shd) >= 4 and not shd.startswith('003C') and not shd.lower().startswith('tài'):
+        if len(shd) >= 4 and not re.match(r'^[0-9]{3}[A-Z]\d{7}', shd) and not shd.lower().startswith('tài'):
             res['soHopDong'] = shd
 
-    # 3. Họ tên khách hàng
-    m_name = re.search(
-        r'(?:BÊN B[\s\S]*?(?:Ông/bà|Họ [&và] tên|Tên khách hàng))[\s:]+([^\n\r]+)',
-        text, re.IGNORECASE
-    )
-    if not m_name:
-        m_name = re.search(r'(?:Họ [&và] tên|Tên khách hàng|Ông/bà)[\s:]+([A-ZÀ-Ỹ\s]{4,40})', text)
-    if m_name:
-        name_cand = m_name.group(1).strip()
-        name_cand = re.sub(r'^(Ông/bà|Khách hàng|Bên B)\s*[:\-]?\s*', '', name_cand, flags=re.IGNORECASE).strip()
-        if len(name_cand) >= 3 and not any(k in name_cand.lower() for k in ['công ty', 'gia cát lợi', 'lương tuấn vũ']):
-            res['hoTen'] = name_cand
+    # 3. Họ tên khách hàng (Nếu chưa tìm thấy qua Anchor)
+    if not res.get('hoTen'):
+        m_name = re.search(
+            r'(?:BÊN B[\s\S]*?(?:Ông/bà|Họ [&và] tên|Tên khách hàng))[\s:]+([^\n\r]+)',
+            text, re.IGNORECASE
+        )
+        if not m_name:
+            m_name = re.search(r'(?:Họ [&và] tên|Tên khách hàng|Ông/bà)[\s:]+([A-ZÀ-Ỹ\s]{4,40})', text)
+        if m_name:
+            name_cand = m_name.group(1).strip()
+            name_cand = re.sub(r'^(Ông/bà|Khách hàng|Bên B)\s*[:\-]?\s*', '', name_cand, flags=re.IGNORECASE).strip()
+            # Lọc bỏ nếu nhầm vào nhãn biểu mẫu
+            if len(name_cand) >= 3 and not any(k in name_cand.lower() for k in ['công ty', 'gia cát lợi', 'hitech', 'lương tuấn vũ', 'cccd', 'cmnd', 'hộ chiếu', 'giới tính', 'nơi cấp', 'địa chỉ', 'ngày sinh']):
+                res['hoTen'] = name_cand
 
-    # 4. Số CCCD/CMND
-    m_cccd = re.search(r'(?:CCCD[^\d:\n]*|CMND[^\d:\n]*|Số định danh[^\d:\n]*)[\s:]+(\d{9,12})', text, re.IGNORECASE)
-    if m_cccd:
-        res['soCCCD'] = m_cccd.group(1).strip()
+    # 4. Số CCCD/CMND (Nếu chưa tìm thấy qua Anchor)
+    if not res.get('soCCCD'):
+        m_cccd = re.search(r'(?:CCCD[^\d:\n]*|CMND[^\d:\n]*|Số định danh[^\d:\n]*)[\s:]+(\d{9,12})', text, re.IGNORECASE)
+        if m_cccd:
+            res['soCCCD'] = m_cccd.group(1).strip()
 
-    # 5. Ngày sinh
-    m_dob = re.search(r'Ngày sinh[\s:]+([^\n\r]+)', text, re.IGNORECASE)
-    if m_dob:
-        raw_dob = m_dob.group(1).strip()
-        res['rawNgaySinh'] = raw_dob
-        # Kiểm tra định dạng YYYY-MM-DD
-        m_iso = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$', raw_dob)
-        m_vn = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', raw_dob)
-        if m_iso:
-            yyyy, mm, dd = m_iso.group(1), int(m_iso.group(2)), int(m_iso.group(3))
-            res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{yyyy}"
-            res['dinhDangLoi'].append(f"Ngày sinh trên HĐ sai định dạng quy chuẩn ({raw_dob} thay vì DD/MM/YYYY)")
-        elif m_vn:
-            dd, mm, yyyy = int(m_vn.group(1)), int(m_vn.group(2)), m_vn.group(3)
-            res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{yyyy}"
-        else:
-            res['ngaySinh'] = raw_dob
+    # 5. Ngày sinh (Nếu chưa tìm thấy qua Anchor)
+    if not res.get('ngaySinh'):
+        m_dob = re.search(r'Ngày sinh[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        if m_dob:
+            raw_dob = m_dob.group(1).strip()
+            if not any(k in raw_dob.lower() for k in ['giới tính', 'nơi cấp', 'quốc tịch', 'địa chỉ']):
+                res['rawNgaySinh'] = raw_dob
+                m_iso = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$', raw_dob)
+                m_vn = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', raw_dob)
+                if m_iso:
+                    yyyy, mm, dd = m_iso.group(1), int(m_iso.group(2)), int(m_iso.group(3))
+                    res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{yyyy}"
+                    res['dinhDangLoi'].append(f"Ngày sinh trên HĐ sai định dạng quy chuẩn ({raw_dob} thay vì DD/MM/YYYY)")
+                elif m_vn:
+                    dd, mm, yyyy = int(m_vn.group(1)), int(m_vn.group(2)), m_vn.group(3)
+                    res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{yyyy}"
+                else:
+                    res['ngaySinh'] = raw_dob
 
-    # 6. Ngày cấp & Nơi cấp
-    # Bóc tách nơi cấp (BỘ CÔNG AN, CỤC CẢNH SÁT..., hoặc sau Tại: của dòng Ngày cấp)
-    m_tai = re.search(r'Tại[\s:]+(BỘ CÔNG AN|CỤC CẢNH SÁT[^\n\r]+|CÔNG AN[^\n\r]+)', text, re.IGNORECASE)
-    if not m_tai:
-        m_tai = re.search(r'Ngày cấp[^\n\r]*\n\s*Tại[\s:]+([^\n\r]+)', text, re.IGNORECASE)
-    if not m_tai:
-        m_tai = re.search(r'(?:Nơi cấp)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
-    if m_tai:
-        res['noiCap'] = m_tai.group(1).strip()
+    # 6. Ngày cấp & Nơi cấp (Nếu chưa tìm thấy qua Anchor)
+    if not res.get('noiCap'):
+        m_tai = re.search(r'Tại[\s:]+(BỘ CÔNG AN|CỤC CẢNH SÁT[^\n\r]+|CÔNG AN[^\n\r]+)', text, re.IGNORECASE)
+        if not m_tai:
+            m_tai = re.search(r'Ngày cấp[^\n\r]*\n\s*Tại[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        if not m_tai:
+            m_tai = re.search(r'(?:Nơi cấp)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        if m_tai:
+            cand_nc = m_tai.group(1).strip()
+            if not any(k in cand_nc.lower() for k in ['địa chỉ', 'ngày sinh', 'giới tính']):
+                res['noiCap'] = cand_nc
 
-    m_issue = re.search(r'Ngày cấp[\s:]+([^\n\r]+)', text, re.IGNORECASE)
-    if m_issue:
-        raw_cap_line = m_issue.group(1).strip()
-        if 'tại' in raw_cap_line.lower():
-            p_parts = re.split(r'\s+tại[\s:]+', raw_cap_line, flags=re.IGNORECASE)
-            raw_cap = p_parts[0].strip()
-            if len(p_parts) > 1 and not res.get('noiCap'):
-                res['noiCap'] = p_parts[1].strip()
-        else:
-            raw_cap = raw_cap_line
-        res['rawNgayCap'] = raw_cap
-        m_iso = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$', raw_cap)
-        m_vn = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', raw_cap)
-        if m_iso:
-            yyyy, mm, dd = m_iso.group(1), int(m_iso.group(2)), int(m_iso.group(3))
-            res['ngayCap'] = f"{dd:02d}/{mm:02d}/{yyyy}"
-            res['dinhDangLoi'].append(f"Ngày cấp trên HĐ sai định dạng quy chuẩn ({raw_cap} thay vì DD/MM/YYYY)")
-        elif m_vn:
-            dd, mm, yyyy = int(m_vn.group(1)), int(m_vn.group(2)), m_vn.group(3)
-            res['ngayCap'] = f"{dd:02d}/{mm:02d}/{yyyy}"
-        else:
-            res['ngayCap'] = raw_cap
+    if not res.get('ngayCap'):
+        m_issue = re.search(r'Ngày cấp[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        if m_issue:
+            raw_cap_line = m_issue.group(1).strip()
+            if not any(k in raw_cap_line.lower() for k in ['nơi cấp', 'địa chỉ', 'giới tính']):
+                if 'tại' in raw_cap_line.lower():
+                    p_parts = re.split(r'\s+tại[\s:]+', raw_cap_line, flags=re.IGNORECASE)
+                    raw_cap = p_parts[0].strip()
+                    if len(p_parts) > 1 and not res.get('noiCap'):
+                        res['noiCap'] = p_parts[1].strip()
+                else:
+                    raw_cap = raw_cap_line
+                res['rawNgayCap'] = raw_cap
+                m_iso = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$', raw_cap)
+                m_vn = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', raw_cap)
+                if m_iso:
+                    yyyy, mm, dd = m_iso.group(1), int(m_iso.group(2)), int(m_iso.group(3))
+                    res['ngayCap'] = f"{dd:02d}/{mm:02d}/{yyyy}"
+                    res['dinhDangLoi'].append(f"Ngày cấp trên HĐ sai định dạng quy chuẩn ({raw_cap} thay vì DD/MM/YYYY)")
+                elif m_vn:
+                    dd, mm, yyyy = int(m_vn.group(1)), int(m_vn.group(2)), m_vn.group(3)
+                    res['ngayCap'] = f"{dd:02d}/{mm:02d}/{yyyy}"
+                else:
+                    res['ngayCap'] = raw_cap
 
-    # 7. Giới tính
-    m_sex = re.search(r'Giới tính[\s:]+([^\n\r]+)', text, re.IGNORECASE)
-    if m_sex:
-        raw_sex = m_sex.group(1).strip().lower()
-        res['rawGioiTinh'] = m_sex.group(1).strip()
-        if raw_sex in ['female', 'nữ', 'nu', 'f']:
-            res['gioiTinh'] = 'Nữ'
-            if raw_sex in ['female', 'f']:
-                res['dinhDangLoi'].append(f"Giới tính trên HĐ dùng tiếng Anh ('{m_sex.group(1).strip()}' thay vì 'Nữ')")
-        elif raw_sex in ['male', 'nam', 'm']:
-            res['gioiTinh'] = 'Nam'
-            if raw_sex in ['male', 'm']:
-                res['dinhDangLoi'].append(f"Giới tính trên HĐ dùng tiếng Anh ('{m_sex.group(1).strip()}' thay vì 'Nam')")
-        else:
-            res['gioiTinh'] = m_sex.group(1).strip()
+    # 7. Giới tính (Nếu chưa tìm thấy qua Anchor)
+    if not res.get('gioiTinh'):
+        m_sex = re.search(r'Giới tính[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        if m_sex:
+            raw_sex_line = m_sex.group(1).strip()
+            if not any(k in raw_sex_line.lower() for k in ['quốc tịch', 'ngày sinh', 'nơi cấp']):
+                raw_sex = raw_sex_line.lower()
+                res['rawGioiTinh'] = raw_sex_line
+                if raw_sex in ['female', 'nữ', 'nu', 'f']:
+                    res['gioiTinh'] = 'Nữ'
+                    if raw_sex in ['female', 'f']:
+                        res['dinhDangLoi'].append(f"Giới tính trên HĐ dùng tiếng Anh ('{raw_sex_line}' thay vì 'Nữ')")
+                elif raw_sex in ['male', 'nam', 'm']:
+                    res['gioiTinh'] = 'Nam'
+                    if raw_sex in ['male', 'm']:
+                        res['dinhDangLoi'].append(f"Giới tính trên HĐ dùng tiếng Anh ('{raw_sex_line}' thay vì 'Nam')")
+                else:
+                    res['gioiTinh'] = raw_sex_line
 
     # 8. Địa chỉ
     m_addr = re.search(r'Địa chỉ[\s:]+([^\n\r]+)', text, re.IGNORECASE)
@@ -769,22 +835,27 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         cccd_data.update(qr_data)
         cccd_data['source'] = 'QR'
 
-    # Thử MRZ mặt sau
-    if back:
-        mrz_data = try_decode_mrz(back)
+    # Thử MRZ mặt sau (hoặc phát hiện nếu ảnh bị đảo ngược giữa front và back)
+    mrz_data = try_decode_mrz(back) if back else None
+    if not mrz_data and front:
+        mrz_data = try_decode_mrz(front)
         if mrz_data:
-            if not cccd_data['soCCCD'] and mrz_data.get('soCCCD'):
-                cccd_data['soCCCD'] = mrz_data['soCCCD']
-            if not cccd_data['ngaySinh'] and mrz_data.get('ngaySinh'):
-                cccd_data['ngaySinh'] = mrz_data['ngaySinh']
-            if not cccd_data['gioiTinh'] and mrz_data.get('gioiTinh'):
-                cccd_data['gioiTinh'] = mrz_data['gioiTinh']
-            if not cccd_data['noiCap'] and mrz_data.get('noiCap'):
-                cccd_data['noiCap'] = mrz_data['noiCap']
-            if not cccd_data['hoTen'] and mrz_data.get('hoTenKhongDau'):
-                cccd_data['hoTen'] = mrz_data['hoTenKhongDau']
-            if cccd_data['source'] == 'NONE':
-                cccd_data['source'] = 'MRZ'
+            # front thực chất chứa MRZ mặt sau -> hoán đổi vị trí ảnh
+            front, back = back, front
+
+    if mrz_data:
+        if not cccd_data['soCCCD'] and mrz_data.get('soCCCD'):
+            cccd_data['soCCCD'] = mrz_data['soCCCD']
+        if not cccd_data['ngaySinh'] and mrz_data.get('ngaySinh'):
+            cccd_data['ngaySinh'] = mrz_data['ngaySinh']
+        if not cccd_data['gioiTinh'] and mrz_data.get('gioiTinh'):
+            cccd_data['gioiTinh'] = mrz_data['gioiTinh']
+        if not cccd_data['noiCap'] and mrz_data.get('noiCap'):
+            cccd_data['noiCap'] = mrz_data['noiCap']
+        if not cccd_data['hoTen'] and mrz_data.get('hoTenKhongDau'):
+            cccd_data['hoTen'] = mrz_data['hoTenKhongDau']
+        if cccd_data['source'] == 'NONE':
+            cccd_data['source'] = 'MRZ'
 
     # Thử OCR bổ trợ (nhất là ngày cấp mặt sau & Otsu mặt trước)
     ocr_data = extract_cccd_ocr_details(front, back)

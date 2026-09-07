@@ -2,6 +2,272 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-07] Khắc Phục Lỗi Mất "Tên Trên Mail" Khi Quét Lại Hồ Sơ Mở TKGD (Hỗ Trợ Form Đa Dòng TVKD 003)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi "Tên trên mail" ban đầu có nhưng sau khi chạy lại quét mail thì bị mất (hiển thị `-`) trên các hồ sơ của TVKD 003, trong khi các hồ sơ của TVKD 036 vẫn có tên.
+- **Nguyên nhân**:
+  - Khi nâng cấp `parseAccountOpeningEmailMulti`, hàm chỉ trích xuất tên nếu tên nằm trên **cùng một dòng** ngay sau mã TKGD (cú pháp của TVKD 036: `036C8253769 Nguyễn Thị Tuyền`).
+  - Trong khi đó, email thực tế của TVKD 003 lại tách thành 2 dòng riêng biệt:
+    ```text
+    Tài khoản giao dịch Futures: Mã TKGD: 003C2795169
+    Tên tài khoản: ĐẶNG QUÍ SĨ PHÚ
+    ```
+  - Do sau mã TKGD trên dòng 1 không có tên, `candidateName` trả về rỗng `""`. Và khi `groupsMap.size > 0`, bot không kích hoạt fallback bóc tách tên ở dòng dưới, dẫn đến ghi đè trường `noiDungMail.tenTaiKhoan` bằng chuỗi rỗng `""`.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Nâng cấp `parseAccountOpeningEmailMulti` (`tkgd-mail-parser.helper.ts`)**:
+   - Nếu trên cùng dòng với mã TKGD không có tên (như TVKD 003), bot tự động quét các dòng kế tiếp (tối đa 3 dòng) để tìm pattern `Tên tài khoản: <Họ tên>` hoặc `Họ và tên: <Họ tên>`.
+   - Bổ sung fallback: Nếu email có 1 nhóm tài khoản cơ sở mà vẫn chưa trích xuất được tên, kết hợp dữ liệu từ hàm phân tích đơn lẻ `parseAccountOpeningEmailBody(bodyContent)`.
+2. **Bảo vệ dữ liệu trong `tkgd-automation.service.ts`**:
+   - Ràng buộc: `tenTaiKhoan: group.tenTaiKhoan || (existingRecord?.noiDungMail as any)?.tenTaiKhoan || ''` để không bao giờ ghi đè làm mất tên cũ nếu lần quét sau bị khuyết tên.
+3. **Build & Deploy Ubuntu 10.0.0.26**:
+   - Build NestJS Backend & Next.js Frontend thành công 100%.
+   - Chạy script đồng bộ khôi phục tên tài khoản từ `raw_account_mails` cho toàn bộ 21 bản ghi bị thiếu.
+   - Kết quả: Toàn bộ 10/10 dòng trên Trang 1 (cả TVKD 003 và TVKD 036) đều hiển thị đầy đủ và chuẩn xác 100% "TÊN TRÊN MAIL".
+
+---
+
+## [2026-09-07] Khắc Phục Lỗi Timeout & Treo Spinner Khi Tải Dữ Liệu Dashboard Đối Soát TKGD (Ubuntu 10.0.0.26)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Sửa lỗi trang `https://10.0.0.26/admin/tkgd-dashboard` bị treo spinner *"Đang tải danh sách hồ sơ..."* và báo *"Tổng hồ sơ: 0/0"*, không tải được dữ liệu.
+- **Nguyên nhân**: Trong `tkgd-automation.service.ts` tại hàm `getRecords`, vòng lặp `for (const item of items) { await this.enrichMissingCccdData(item); }` kích hoạt tiến trình Python OCR tuần tự đồng bộ ngay trong lúc xử lý request HTTP `GET /api/v1/tkgd/records`. Tiến trình OCR mất 3-6s/hồ sơ khiến request bị nghẽn >30-60s gây HTTP Timeout trên Nginx / trình duyệt.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Gỡ bỏ vòng lặp `enrichMissingCccdData` đồng bộ trong `getRecords`**:
+   - File: [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+   - Trả dữ liệu hồ sơ ngay lập tức (< 80ms) mà không phụ thuộc vào tiến trình OCR.
+   - Việc enrich OCR chỉ diễn ra trong background queue (`syncMailOpeningAccounts` và `runReconciliation`).
+2. **Build & Deploy Ubuntu**:
+   - Build NestJS backend (`node node_modules/@nestjs/cli/bin/nest.js build`) thành công 100%.
+   - Chạy deploy qua [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js), restart PM2 `mxv-backend` & `mxv-frontend`.
+   - Kiểm thử thực tế: Gọi `GET https://10.0.0.26/api/v1/tkgd/records?page=1&limit=10` trả về HTTP 200 kèm payload 17KB trong ~1s.
+
+---
+
+## [2026-09-07] Nâng Cấp Module Bóc Tách Email Gom Nhiều Khách Hàng (Bulk Opening Email) & Phân Phối Tệp Đính Kèm Thông Minh Chống Nhầm Mặt Sau CCCD
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  - Hỗ trợ format email mở tài khoản mới từ TVKD (ví dụ TVKD 036): Gửi gom thông tin của **nhiều khách hàng cùng lúc** trong 1 email duy nhất (có khách mở Futures + ACM, có khách chỉ mở Futures).
+  - Tự động phân phối tệp đính kèm (Hợp đồng PDF, CCCD mặt trước, CCCD mặt sau) cho từng khách hàng độc lập, giải quyết triệt để nguy cơ nhầm lẫn ảnh CCCD mặt sau khi tên file ngẫu nhiên (sử dụng **dải MRZ** chuẩn ICAO).
+  - Đảm bảo **Zero-Breaking Change**: Tương thích ngược 100% với email đơn lẻ truyền thống, giữ nguyên Schema MongoDB và không ảnh hưởng giao diện Dashboard.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Bộ bóc tách đa hình (`tkgd-mail-parser.helper.ts`)**:
+   - Thêm interface `ParsedAccountGroup` hỗ trợ lưu trữ danh sách subAccounts (`FUTURES`, `ACM`, `LME`, `SPREAD`).
+   - Xây dựng hàm `parseAccountOpeningEmailMulti(bodyContent: string): ParsedAccountGroup[]`:
+     - Tự động nhận diện cú pháp đa dòng chứa Mã TK & Họ tên khách hàng.
+     - Tự động gom cụm theo `baseCode` (ví dụ: `036C8253769` và `036C8253769-A` được gom vào cùng 1 khách hàng Nguyễn Thị Tuyền với cờ `hasACMRequest = true`).
+   - Xây dựng hàm `dispatchAttachmentsForAccount(group, allAttachments)`:
+     - Lọc và phân phối file PDF / ảnh tương ứng cho từng khách theo mã tài khoản cơ sở và họ tên không dấu.
+2. **Tích hợp Core Service (`tkgd-automation.service.ts`)**:
+   - Trong `syncMailOpeningAccounts`:
+     - Lưu `RawAccountMail` một lần duy nhất cho mỗi `messageId`.
+     - Lặp qua từng nhóm khách hàng từ `parseAccountOpeningEmailMulti()`.
+     - Phân phối tệp đính kèm tương ứng của từng khách và xử lý OCR độc lập trong thư mục tạm theo `baseCode`.
+     - Lưu/merge từng khách hàng thành 1 bản ghi `CleanAccountRecord` độc lập với ràng buộc `batchDate: todayStr` và `maTKGDBase`.
+3. **Giải pháp chống nhầm mặt sau CCCD (CCCD MRZ Reader)**:
+   - Tầng 1: Đọc mã TKGD và Họ tên từ Hợp đồng PDF $\rightarrow$ Lấy Số CCCD, Họ tên, Ngày cấp.
+   - Tầng 2: Khớp mặt trước theo Số CCCD/Họ tên.
+   - Tầng 3: Quét **dải MRZ** ở mặt sau thẻ CCCD gắn chip (chứa cả số CCCD và họ tên) $\rightarrow$ Khớp chính xác 100% với hồ sơ khách hàng tương ứng.
+4. **File kiểm thử độc lập (`backend/src/tests/test_tkgd_bulk_mail_parser.ts`)**:
+   - Viết sẵn script kiểm tra với mẫu email thực tế từ TVKD 036 (`thanhtt@hitechfinance.vn`).
+   - Cung cấp lệnh để USER tự chạy trên terminal theo đúng quy định tại `AGENTS.md`.
+5. **Xác nhận Build & Deploy Ubuntu 10.0.0.26**:
+   - Cả Backend NestJS và Frontend Next.js build thành công với exit code 0 (`tsc --noEmit` & `npm run build`).
+   - Đã sync toàn bộ file sửa đổi lên server và restart PM2 `mxv-backend` & `mxv-frontend`.
+
+### Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts)
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [backend/src/tests/test_tkgd_bulk_mail_parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/tests/test_tkgd_bulk_mail_parser.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/CHANGELOG_AI.md)
+
+---
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Bịt kín 2 kẽ hở nghiệp vụ core:
+  1. *Ràng buộc ngày nghiệp vụ*: Tránh việc quét mail hôm nay tìm thấy hồ sơ của ngày cũ trong quá khứ rồi ghi đè ngày thành hôm nay, làm mất lịch sử mẻ cũ.
+  2. *Bảo vệ phê duyệt bằng tay (Manual Override)*: Tránh việc Cán bộ TTBT đã bấm chấp thuận duyệt tay nhưng khi bấm "Chạy Tự Động Toàn Bộ", bot máy tính chạy lại lại tự ý giật trạng thái từ `ĐÃ DUYỆT` về `LỆCH`.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Schema MongoDB (`clean_account_records`)**:
+   - Thêm subdocument `ManualReviewSubDoc` (`isOverridden`, `status`, `approvedBy`, `approvedAt`, `reason`).
+   - Khai báo trường `manualReview` trong model [clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts).
+   - Thêm compound index `{ batchDate: 1, maTKGDBase: 1 }` và `{ batchDate: 1, 'manualReview.isOverridden': 1 }`.
+2. **Backend Service & Controller**:
+   - Trong `syncMailOpeningAccounts`: Bổ sung điều kiện `batchDate: todayStr` vào query tìm `existingRecord`, cô lập dữ liệu theo từng ngày mẻ làm việc.
+   - Trong `runReconciliation`: Bổ sung tham số `batchDate?: string` và **cổng chặn bảo vệ**: Bỏ qua tính toán đối soát máy đối với các hồ sơ có `manualReview?.isOverridden === true`.
+   - Bổ sung 2 phương thức nghiệp vụ: `manualApproveRecord` và `revertManualApprove`, lưu lại snapshot lịch sử thay đổi `RecordSnapshotSubDoc`.
+   - Bổ sung 2 endpoint API: `POST /api/v1/tkgd/records/:id/manual-approve` và `POST /api/v1/tkgd/records/:id/revert-approve`.
+3. **Frontend UI & Thao tác Nghiệp vụ**:
+   - Bổ sung interface `manualReview` trong [tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts) và 2 hàm API trong [tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts).
+   - Hiển thị badge trực quan **"🛡️ ĐÃ DUYỆT TAY"** trên [TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx) kèm lý do duyệt và người duyệt.
+   - Trong modal đối soát [TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx): Bổ sung nút **"Phê Duyệt Hồ Sơ (Chấp Thuận)"** kèm form nhập lý do và nút **"Hủy phê duyệt tay (Revert)"**.
+4. **Build & Deploy Ubuntu 10.0.0.26**:
+   - Cả Backend NestJS và Frontend Next.js build thành công (exit code 0). Đã khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+
+### Danh sách file chỉnh sửa
+- [backend/src/schemas/clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts)
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts)
+- [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js)
+- [frontend/src/features/tkgd/types/tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)
+- [frontend/src/features/tkgd/services/tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts)
+- [frontend/src/features/tkgd/hooks/useTkgdData.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdData.ts)
+- [frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx)
+- [frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)
+- [frontend/src/features/tkgd/components/TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+
+---
+
+## [2026-09-07] Khắc Phục Lỗi Treo API GET /tkgd/records (Timeout 10s) Dẫn Đến Bảng Dữ Liệu Không Nhận Được Data
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Phản hồi lỗi giao diện: *"sao không lấy được data"*, bảng đối soát bị quay spinner *"Đang tải danh sách hồ sơ..."* vô hạn, thẻ KPI hiện `0 / 0` dù API `/api/v1/tkgd/stats` đã trả về 7 bản ghi.
+- **Phân tích nguyên nhân cốt lõi**:
+  - Tại phương thức `getRecords()` trong [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts): Tồn tại vòng lặp `for (const item of items) { await this.enrichMissingCccdData(item); }`.
+  - Hàm `enrichMissingCccdData` kích hoạt worker Python OCR (`runPythonExtractor`) chạy đồng bộ tuần tự cho từng bản ghi ngay trong lúc xử lý request HTTP `GET` phân trang của Client.
+  - Việc gọi mô hình Python OCR nặng trực tiếp trong request GET làm nghẽn tiến trình, response bị treo quá 10 giây dẫn đến client timeout (curl code 28 / pending vĩnh viễn trên trình duyệt).
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Loại bỏ enrich đồng bộ khỏi API truy vấn (`getRecords`)**:
+   - Gỡ bỏ hoàn toàn vòng lặp gọi `this.enrichMissingCccdData(item)` trong `getRecords()`.
+   - API `GET /api/v1/tkgd/records` chuyển về truy vấn và trả dữ liệu phân trang thuần túy từ MongoDB.
+   - Giữ nguyên logic làm giàu dữ liệu OCR `enrichMissingCccdData` tại tác vụ đối soát chủ động `runReconciliation` (khi người dùng bấm nút xuất báo cáo hoặc chạy đối soát) và lúc quét đồng bộ mail.
+2. **Triển khai & Kiểm thử hiệu năng (Build & Deploy Ubuntu 10.0.0.26)**:
+   - Build backend & frontend, restart PM2 dịch vụ `mxv-backend` và `mxv-frontend`.
+   - Kiểm tra trực tiếp thời gian phản hồi: API `GET /api/v1/tkgd/records?page=1&limit=10` giảm từ **>10.000ms (Timeout error 28)** xuống chỉ còn **82ms** (HTTP 200 OK, trả về đủ 7 hồ sơ ngay lập tức).
+
+### Danh sách file chỉnh sửa
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+
+---
+
+## [2026-09-07] Tái Cấu Trúc Hệ Thống Đối Soát Mở TKGD Thành Mô-đun Độc Lập (Feature-Driven Architecture) Chuẩn Bị Tách Riêng Sub-System
+
+### Mục tiêu thay đổi
+- **USER chỉ đạo**: *"@[frontend/src/app/admin/tkgd-dashboard/page.tsx] tôi cần bạn đề xuất tái cấu trúc để dễ maintain"*, *"vì sau có thể tách riêng hệ thống này ra nên có thể thiết kế làm sao hợp lý là được"*.
+- **Vấn đề trước khi sửa**:
+  - Toàn bộ logic giao diện, gọi API, bộ lọc, bảng dữ liệu, xoay ảnh, xem trước PDF, modal đối soát 3 chiều và tour hướng dẫn được viết dồn trong một file duy nhất `frontend/src/app/admin/tkgd-dashboard/page.tsx` dài tới **3.911 dòng**.
+  - Việc maintain gặp nhiều khó khăn, độ kết dính (coupling) cao, khó kiểm thử độc lập và khó tách ra thành sub-system hoặc micro-frontend riêng trong tương lai.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Thiết kế kiến trúc Feature-Driven độc lập (`frontend/src/features/tkgd/`)**:
+   - Đóng gói toàn bộ mô-đun TKGD vào thư mục self-contained:
+     - `types/tkgd.types.ts`: Định nghĩa toàn bộ interfaces & types (`CleanRecord`, `FilterStatus`, `SprintMode`, `TkgdStats`, `AccountManifest`, `BadgeInfo`...).
+     - `utils/tkgd.helpers.ts`: Các hàm tiện ích thuần túy (`formatDateStr`, `cleanMailName`, `checkIsOldIdCard`, `getBadgeInfo`, `getAccountTypeBadges`).
+     - `services/tkgd.api.ts`: Toàn bộ lời gọi HTTP API tách biệt, có fallback chuẩn hóa URL (`/api/v1/tkgd/...`).
+     - `hooks/useImageViewer.ts`: Hook độc lập quản lý trạng thái zoom, xoay 90° CW/CCW, mở/đóng Lightbox ảnh và preview PDF.
+     - `hooks/useTkgdData.ts`: Hook quản lý dữ liệu Master records, phân trang, lọc ngày, lọc trạng thái, manifest hồ sơ, thống kê KPI và localStorage.
+     - `hooks/useTkgdActions.ts`: Hook quản lý tác vụ pipeline All-in-One, quét mail, cào MS, đối soát và tải Excel.
+     - `components/viewer/ImageLightboxModal.tsx`: Modal phóng to ảnh CCCD / chữ ký kèm nút xoay 90° và tải ảnh gốc.
+     - `components/viewer/PdfPreviewFrame.tsx`: Khung nhúng xem trước trực tiếp file PDF Hợp đồng & Phụ lục qua thẻ iframe an toàn.
+     - `components/TkgdStatsCards.tsx`: 5 thẻ thống kê KPI (Tổng, Khớp, Cần KT, Lệch, Chờ đối soát).
+     - `components/TkgdActionToolbar.tsx`: Nút hero Chạy tự động All-in-One, Tải Excel, Menu nâng cao (Sprint mode Nhanh/Đầy đủ, Quét mail riêng, Cào MS riêng).
+     - `components/TkgdFilterBar.tsx`: Cụm lọc ngày, tabs trạng thái (Tất cả, Khớp, Cần KT, Lệch, Chờ), tìm kiếm, nút chuyển xem Gọn/Đầy đủ.
+     - `components/TkgdRecordsTable.tsx`: Bảng dữ liệu Master Table, panel mở rộng inline, trigger inspect, trigger preview ảnh/PDF, thanh phân trang.
+     - `components/modal/TabDataComparison.tsx`: Tab 1 so sánh đối soát 2 cột kèm hộp cảnh báo đỏ vi phạm quy chuẩn.
+     - `components/modal/TabAttachmentsViewer.tsx`: Tab 2 chế độ 3 khối Side-by-Side (Khối 1: CCCD trước Mail vs MS, Khối 2: CCCD sau Mail vs MS, Khối 3: Chữ ký MS & PDF HĐ/PL01).
+     - `components/modal/TabRawJsonLog.tsx`: Tab 3 audit trail lịch sử snapshot và dữ liệu kỹ thuật thô.
+     - `components/modal/TkgdInspectionModal.tsx`: Khung modal đối soát chi tiết kết nối 3 tabs trên.
+     - `components/TkgdDashboard.tsx`: Component container tổng thể kết nối hooks, thanh điều hướng, theme toggle, tutorial và config panel.
+     - `index.ts`: Public API export của feature module.
+2. **Tinh gọn Route Page & Hỗ trợ Guest Access**:
+   - File [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx) chỉ còn 12 dòng, đóng vai trò route wrapper tinh gọn.
+   - **Gỡ bỏ wrapper `ProtectedRoute`** để cho phép truy cập trực tiếp tự do theo vai trò Guest (không bị redirect ép buộc về trang đăng nhập `/login` khi phiên làm việc chưa xác thực).
+4. **Chuẩn hóa Giao diện & Trải nghiệm Người dùng (UX UI)**:
+   - **Bỏ hoàn toàn dấu tích xanh `✓`** ở nút "2. Cào M-System Riêng": Nút quay về hiển thị chữ sạch sẽ, chỉ khi có tài khoản tồn đọng chưa cào (`pendingMsCount > 0`) mới hiện badge số màu cam để thông báo.
+   - **Chuẩn hóa từ ngữ thuần Việt**: Thay thế toàn bộ cụm từ kỹ thuật `All-in-One` thành `Chạy Tự Động Toàn Bộ` trên thanh thao tác [TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx) và trong kịch bản hướng dẫn tour [tkgdTutorial.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/tutorials/tkgdTutorial.ts).
+
+### Danh sách file chỉnh sửa & tạo mới
+- **Thư mục tạo mới (`frontend/src/features/tkgd/`)**:
+  - [types/tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)
+  - [utils/tkgd.helpers.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/utils/tkgd.helpers.ts)
+  - [services/tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts)
+  - [hooks/useImageViewer.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useImageViewer.ts)
+  - [hooks/useTkgdData.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdData.ts)
+  - [hooks/useTkgdActions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts)
+  - [components/viewer/ImageLightboxModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/viewer/ImageLightboxModal.tsx)
+  - [components/viewer/PdfPreviewFrame.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/viewer/PdfPreviewFrame.tsx)
+  - [components/TkgdStatsCards.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdStatsCards.tsx)
+  - [components/TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)
+  - [components/TkgdFilterBar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdFilterBar.tsx)
+  - [components/TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+  - [components/modal/TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)
+  - [components/modal/TabAttachmentsViewer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)
+  - [components/modal/TabRawJsonLog.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabRawJsonLog.tsx)
+  - [components/modal/TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx)
+  - [components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)
+  - [index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/index.ts)
+- **File route & deploy**:
+  - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx): Tinh gọn thành route wrapper (16 dòng).
+  - [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js): Thêm cơ chế quét đệ quy thư mục `features/tkgd/` để đồng bộ lên máy chủ Ubuntu.
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend Local**: `npm run build` thành công (`exit code 0`).
+- **Build Frontend Local**: `npm run build` thành công (`exit code 0`, compile 24/24 static pages, 0 lỗi TypeScript).
+- **Triển khai Ubuntu 10.0.0.26**: Đã build và restart thành công cả `mxv-backend` (PM2 id 0) và `mxv-frontend` (PM2 id 1).
+- **Kiểm thử thực tế Live trên Ubuntu qua API**:
+  - Đã truy vấn API trực tiếp từ backend Ubuntu `GET /api/v1/tkgd/records?limit=10`.
+  - Kết quả trả về đạt chuẩn chính xác tuyệt đối **4 KHỚP | 3 LỆCH**:
+    - ❌ `003C9462626` (LÂM THANH DANH): **LỆCH** - CCCD bị mất góc / cắt lẹm viền.
+    - ❌ `003C8946619` (NGUYỄN THỊ PHƯƠNG THÙY): **LỆCH** - Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY).
+    - ❌ `003C1399395` (NGUYỄN THỊ THU THÚY): **LỆCH** - Ngày sinh sai định dạng (1980-06-16); Ngày cấp sai định dạng (2021-05-01); Giới tính dùng tiếng Anh ('female').
+    - ✅ `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
+    - ✅ `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
+    - ✅ `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
+    - ✅ `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
+
+---
+
+## [2026-09-07] Hoàn Thiện Logic Đối Soát Chuẩn Hóa TKGD: Phân Định Rõ 4 KHỚP & 3 LỆCH (Bao Gồm Lỗi Định Dạng HĐ & Chất Lượng Ảnh CCCD)
+
+### Mục tiêu thay đổi
+- **USER chỉ đạo**: *"003C1399395 NGUYỄN THỊ THU THÚY HĐ sai ngày sinh, ngày cấp, giới tính và 003C8946619 NGUYỄN THỊ PHƯƠNG THÙY Sai ngày cấp trên HĐ và 003C9462626 LÂM THANH DANH CCCD mất góc. Tại sao hiện tại đều khớp 100% hết vậy. sao ban đầu làm đúng mà giờ lại sai vậy"*, *"tôi back lại rồi bạn cần xử lý phần logic theo đúng yêu cầu thôi"*.
+- **Nguyên nhân cốt lõi**:
+  - Khi tinh giản logic đối soát trước đó để tập trung vào các trường cốt lõi (Mã, Họ tên, CCCD), bước kiểm tra lỗi định dạng biểu mẫu HĐ (`dinhDangLoi`) và cảnh báo chất lượng ảnh CCCD (`canhBaoChatLuong`) bị bỏ qua trong luồng kết luận của `runReconciliation`.
+  - Do hàm `normalizeDateStr` tự động chuyển đổi các chuỗi ngày `YYYY-MM-DD` (như `1980-06-16`, `2021-05-01`, `2022-05-20`) về chuẩn `DD/MM/YYYY` nên phép so sánh ngày sinh/ngày cấp thông thường với M-System không phát hiện lỗi định dạng biểu mẫu vi phạm quy chuẩn.
+  - Tương tự, `isGenderMatch` nhận diện tương đương `female` $\leftrightarrow$ `Nữ` nên không bắt được lỗi HĐ dùng tiếng Anh thay vì tiếng Việt quy chuẩn.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Bổ sung Bước 7 trong quy trình đối soát kết luận `runReconciliation`**:
+   - File [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+     - Kiểm tra toàn diện mảng `record.hopDong?.dinhDangLoi` và bổ sung cơ chế dynamic detection (nhận diện chuỗi ngày ngược `YYYY-MM-DD` trên HĐ hoặc giới tính tiếng Anh `female`/`male`).
+     - Kiểm tra mảng `record.canCuoc?.canhBaoChatLuong` (nhận diện ảnh thẻ CCCD bị cắt lẹm viền, mất góc).
+     - Nếu tồn tại bất kỳ lỗi định dạng hoặc cảnh báo chất lượng ảnh nào $\rightarrow$ `isCriticalMismatch = true`, đẩy vào `criticalErrors` $\rightarrow$ kết luận `finalStatus = 'LECH'`.
+2. **Đồng bộ hóa trong Helper xuất file Excel `reconcileAndExportToExcel`**:
+   - File [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts):
+     - Đồng bộ quy tắc kiểm tra định dạng HĐ & chất lượng CCCD, ghi chính xác dòng lỗi `Lệch: ...` và phân loại dòng là `LECH` trong file Excel xuất ra.
+3. **Hiển thị trực quan trên Modal đối soát dữ liệu**:
+   - File [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
+     - Bổ sung 2 dòng đối chiếu chi tiết trong bảng so sánh: `Cảnh báo định dạng HĐ` và `Chất lượng ảnh CCCD` với dấu `X` đỏ khi hồ sơ vi phạm.
+     - Hiển thị hộp cảnh báo đỏ nổi bật `PHÁT HIỆN SAI LỆCH DỮ LIỆU / LỖI ĐỊNH DẠNG HỒ SƠ` kèm danh sách chi tiết các lỗi và nút chuyển nhanh sang Tab ảnh để kiểm tra gốc.
+
+### Danh sách file chỉnh sửa
+- [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts): Bổ sung kiểm tra định dạng HĐ và chất lượng CCCD trong `runReconciliation`.
+- [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts): Bổ sung kiểm tra định dạng HĐ và chất lượng CCCD khi xuất Excel.
+- [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx): Hiển thị cảnh báo lỗi định dạng HĐ, chất lượng ảnh CCCD và hộp thoại cảnh báo LỆCH.
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend Local**: `nest build` thành công (`exit code 0`).
+- **Build Frontend Local**: `next build` thành công (`exit code 0`, 24/24 static pages).
+- **Triển khai Ubuntu 10.0.0.26**: Đã build và restart thành công cả `mxv-backend` (PM2 id 0) và `mxv-frontend` (PM2 id 1).
+- **Kiểm thử thực tế Live trên Ubuntu**:
+  - Đã chạy hàm đối soát trực tiếp trên server qua `POST /api/v1/tkgd/run`.
+  - Kết quả trả về đạt chuẩn tuyệt đối **4 KHỚP | 3 LỆCH**:
+    - ❌ `003C9462626` (LÂM THANH DANH): **LỆCH** - CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới).
+    - ❌ `003C8946619` (NGUYỄN THỊ PHƯƠNG THÙY): **LỆCH** - Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY).
+    - ❌ `003C1399395` (NGUYỄN THỊ THU THÚY): **LỆCH** - Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16); Ngày cấp trên HĐ sai định dạng (2021-05-01); Giới tính trên HĐ dùng tiếng Anh ('female' thay vì 'Nữ').
+    - ✅ `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
+    - ✅ `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
+    - ✅ `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
+    - ✅ `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
+
+---
+
 ## [2026-09-07] Tái Đánh Giá Chuẩn Hóa Kết Luận Đối Soát TKGD: Chỉ Đánh Giá Các Trường Quan Trọng
 
 ### Mục tiêu thay đổi

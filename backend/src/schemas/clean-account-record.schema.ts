@@ -277,6 +277,26 @@ export class RecordSnapshotSubDoc {
 }
 export const RecordSnapshotSubDocSchema = SchemaFactory.createForClass(RecordSnapshotSubDoc);
 
+// ─── KHỐI PHÊ DUYỆT BẰNG TAY (MANUAL OVERRIDE / AUDIT) ─────────────
+@Schema({ _id: false })
+export class ManualReviewSubDoc {
+  @Prop({ default: false, index: true })
+  isOverridden: boolean;
+
+  @Prop({ enum: ['KHOP', 'DA_DUYET', 'TU_CHOI'], default: 'DA_DUYET' })
+  status: string;
+
+  @Prop()
+  approvedBy?: string; // Email người duyệt
+
+  @Prop()
+  approvedAt?: Date;
+
+  @Prop()
+  reason?: string; // Lý do duyệt tay
+}
+export const ManualReviewSubDocSchema = SchemaFactory.createForClass(ManualReviewSubDoc);
+
 // ─── MAIN CLEAN RECORD SCHEMA ──────────────────────────────────────────
 @Schema({ timestamps: true, collection: 'clean_account_records' })
 export class CleanAccountRecord {
@@ -317,9 +337,17 @@ export class CleanAccountRecord {
   @Prop({ type: KetLuanDoiSoatSchema, default: () => ({ trangThai: 'CHUA_XU_LY', danhSachLoi: [] }) })
   ketLuan: KetLuanDoiSoat;
 
+  @Prop({ type: ManualReviewSubDocSchema })
+  manualReview?: ManualReviewSubDoc;
+
   @Prop({ type: [RecordSnapshotSubDocSchema], default: [] })
   snapshots: RecordSnapshotSubDoc[];
 }
 
 export const CleanAccountRecordSchema = SchemaFactory.createForClass(CleanAccountRecord);
+
+// Compound Index tối ưu hóa truy vấn theo ngày và mã gốc
+CleanAccountRecordSchema.index({ batchDate: 1, maTKGDBase: 1 });
+CleanAccountRecordSchema.index({ batchDate: 1, 'manualReview.isOverridden': 1 });
+
 
