@@ -36,7 +36,7 @@ Tài liệu này ghi lại chi tiết các bước và câu lệnh chuẩn để
 
 ---
 
-## ⚡ LUỒNG 2: Đồng bộ trực tiếp trên Server Ubuntu (Không cần thông qua Windows)
+##  LUỒNG 2: Đồng bộ trực tiếp trên Server Ubuntu (Không cần thông qua Windows)
 *Áp dụng khi Server Ubuntu có kết nối internet ra ngoài để gọi tới Atlas trực tiếp (nhanh nhất, không cần tạo file).*
 
 SSH vào Server Ubuntu (`10.0.0.26`) và chạy **một lệnh duy nhất** sau để tự động dump từ Atlas và import thẳng vào database local:

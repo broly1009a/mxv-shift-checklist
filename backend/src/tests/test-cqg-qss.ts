@@ -154,7 +154,7 @@ const ALL_SYMBOLS = [
 
 function step(msg: string) {
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`⚡ BƯỚC: ${msg}`);
+  console.log(` BƯỚC: ${msg}`);
   console.log('='.repeat(60));
 }
 

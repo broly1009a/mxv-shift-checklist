@@ -5,6 +5,7 @@ import { TkgdAutomationService } from './tkgd-automation.service';
 import { TkgdUserConfig, TkgdUserConfigSchema } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailSchema } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordSchema } from '../../schemas/clean-account-record.schema';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [

@@ -872,19 +872,19 @@ async function main() {
       }
     }
 
-    await route.continue().catch(() => {});
+    await route.continue().catch(() => { });
   });
 
   try {
-    log('⚡ Mở trang đăng nhập CAST...');
+    log(' Mở trang đăng nhập CAST...');
     await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
 
-    log('⚡ Điền thông tin đăng nhập...');
+    log(' Điền thông tin đăng nhập...');
     await page.locator('#userNameInput').fill(USERNAME);
     await page.locator('#passwordInput').fill(PASSWORD);
 
-    log('⚡ Gọi doLogon() trực tiếp để đăng nhập...');
+    log(' Gọi doLogon() trực tiếp để đăng nhập...');
     await page.waitForFunction(
       () => typeof (window as any).doLogon === 'function',
     );
@@ -892,12 +892,12 @@ async function main() {
       (window as any).doLogon();
     });
 
-    log('⚡ Chờ đăng nhập và chuyển hướng...');
+    log(' Chờ đăng nhập và chuyển hướng...');
     await page.waitForURL('**/CastMain.asp', { timeout: 30000 });
     log('🎉 ĐĂNG NHẬP THÀNH CÔNG!');
 
     // Đợi thêm 5 giây để frameset và menu XML tải hoàn toàn
-    log('⚡ Đợi 5 giây để menu tải...');
+    log(' Đợi 5 giây để menu tải...');
     await page.waitForTimeout(5000);
 
     // Chụp màn hình thành công
@@ -1535,7 +1535,7 @@ async function main() {
   } catch (error: any) {
     log(`❌ Lỗi trong quá trình chạy: ${error.message}`);
     const errorPath = path.join(DEBUG_DIR, 'login-error.png');
-    await page.screenshot({ path: errorPath }).catch(() => {});
+    await page.screenshot({ path: errorPath }).catch(() => { });
     log(`📸 Đã chụp ảnh lỗi lưu tại: ${errorPath}`);
     await page.waitForTimeout(10000);
   } finally {

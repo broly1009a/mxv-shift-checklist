@@ -131,7 +131,7 @@ pm2 save
 
 2. **Vận hành qua Web Dashboard (On-Demand)**:
    - Chuyên viên TTBT mở trình duyệt tại: `http://tkgd.mxv.vn` (hoặc IP server nội bộ).
-   - Bấm nút **[⚡ Chạy Đối Soát Ngay]** bất cứ khi nào có đợt hồ sơ mới gửi sang.
+   - Bấm nút **[ Chạy Đối Soát Ngay]** bất cứ khi nào có đợt hồ sơ mới gửi sang.
 
 ---
 

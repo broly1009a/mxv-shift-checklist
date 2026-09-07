@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailDocument } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordDocument } from '../../schemas/clean-account-record.schema';
 import { encrypt, decrypt } from '../bot-engine/utils/crypto';
-import { chromium } from 'playwright-core';
+import { chromium, Page } from 'playwright-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { scrapeInvestorDetailFromMSystem } from '../bot-engine/helpers/msystem-scraper.helper';
@@ -15,9 +15,25 @@ import {
   getTkgdOutputDirectory,
   getTkgdAttachmentDirectory,
 } from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
-import { parseAccountOpeningEmailBody } from '../bot-engine/helpers/tkgd-mail-parser.helper';
+import { parseAccountOpeningEmailBody, htmlToPlainText } from '../bot-engine/helpers/tkgd-mail-parser.helper';
+import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-doc-extractor.helper';
+import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
-function findBrowserExecutable(): string {
+function findBrowserExecutable(): string | undefined {
+  if (process.platform === 'linux') {
+    const linuxPaths = [
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+    ];
+    for (const p of linuxPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+    return undefined; // Để Playwright tự động dùng chromium mặc định trên Linux
+  }
+
   const possiblePaths = [
     path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -28,7 +44,65 @@ function findBrowserExecutable(): string {
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) return p;
   }
-  return 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+  return undefined;
+}
+
+function parseDate(dStr?: string): Date | undefined {
+  if (!dStr) return undefined;
+  const s = dStr.trim().replace(/-/g, '/');
+  const p = s.split('/');
+  if (p.length === 3) {
+    let dd: number, mm: number, yyyy: number;
+    if (p[0].length === 4) {
+      yyyy = parseInt(p[0], 10);
+      mm = parseInt(p[1], 10) - 1;
+      dd = parseInt(p[2], 10);
+    } else {
+      dd = parseInt(p[0], 10);
+      mm = parseInt(p[1], 10) - 1;
+      yyyy = parseInt(p[2], 10);
+    }
+    const d = new Date(yyyy, mm, dd);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const d = new Date(dStr);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
+function formatDateStr(d?: Date | string | null): string {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function normalizeDateStr(d: string | undefined | null): string {
+  if (!d) return '';
+  const s = d.trim().replace(/-/g, '/');
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+  }
+  return s;
+}
+
+function isGenderMatch(g1?: string, g2?: string): boolean {
+  if (!g1 || !g2) return true;
+  const s1 = g1.trim().toLowerCase();
+  const s2 = g2.trim().toLowerCase();
+  const isFemale1 = ['nữ', 'nu', 'female', 'f'].includes(s1);
+  const isFemale2 = ['nữ', 'nu', 'female', 'f'].includes(s2);
+  const isMale1 = ['nam', 'male', 'm'].includes(s1);
+  const isMale2 = ['nam', 'male', 'm'].includes(s2);
+  if (isFemale1 && isFemale2) return true;
+  if (isMale1 && isMale2) return true;
+  return s1 === s2;
 }
 
 @Injectable()
@@ -39,7 +113,63 @@ export class TkgdAutomationService {
     @InjectModel(TkgdUserConfig.name) private userConfigModel: Model<TkgdUserConfigDocument>,
     @InjectModel(RawAccountMail.name) private rawMailModel: Model<RawAccountMailDocument>,
     @InjectModel(CleanAccountRecord.name) private cleanRecordModel: Model<CleanAccountRecordDocument>,
+    @Optional() private readonly settingsService?: SystemSettingsService,
   ) {}
+
+  /**
+   * Quét các thông báo lỗi Ant Design / Bootstrap trên trang đăng nhập M-System (Áp dụng từ Checklist Bot)
+   */
+  private async checkForLoginErrors(page: Page): Promise<string | null> {
+    try {
+      // 1. Ant Design notification
+      const noticeDesc = page.locator('.ant-notification-notice-description, .ant-notification-notice-message');
+      const count = await noticeDesc.count().catch(() => 0);
+      if (count > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const text = await noticeDesc.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) return `Thông báo hệ thống: ${textList.join(' | ')}`;
+      }
+
+      // 2. Ant Design message alert
+      const msgContent = page.locator('.ant-message-custom-content, .ant-message');
+      const msgCount = await msgContent.count().catch(() => 0);
+      if (msgCount > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < msgCount; i++) {
+          const text = await msgContent.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) return `Thông báo từ web: ${textList.join(' | ')}`;
+      }
+
+      // 3. Inline form explain errors
+      const formExplain = page.locator('.ant-form-item-explain-error');
+      const explainCount = await formExplain.count().catch(() => 0);
+      if (explainCount > 0) {
+        const textList: string[] = [];
+        for (let i = 0; i < explainCount; i++) {
+          const text = await formExplain.nth(i).innerText().catch(() => '');
+          if (text.trim()) textList.push(text.trim());
+        }
+        if (textList.length > 0) return `Lỗi form: ${textList.join(' | ')}`;
+      }
+
+      // 4. General alert
+      const generalAlerts = page.locator('.alert-danger, .error-message, #error-msg, .ant-alert-message');
+      const genAlertCount = await generalAlerts.count().catch(() => 0);
+      if (genAlertCount > 0) {
+        const text = await generalAlerts.first().innerText().catch(() => '');
+        if (text.trim()) return `Lỗi: ${text.trim()}`;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
 
   /**
@@ -282,13 +412,19 @@ export class TkgdAutomationService {
     this.logger.log(`Kiểm tra đăng nhập M-System cho tài khoản: ${username}`);
     const executablePath = findBrowserExecutable();
     const browser = await chromium.launch({
-      executablePath,
+      ...(executablePath ? { executablePath } : {}),
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
     });
 
     try {
       const page = await browser.newPage();
+      // Áp dụng kỹ thuật Anti-bot chuẩn từ Checklist Bot (rpa-downloader.service.ts)
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+      });
       page.setDefaultTimeout(25000);
       await page.goto('https://msadmin.mxv.com.vn/#/login', { waitUntil: 'load' });
       await page.waitForTimeout(1500);
@@ -298,9 +434,15 @@ export class TkgdAutomationService {
       await page.click('button[type="submit"], button.btn-primary');
       await page.waitForTimeout(2000);
 
-      // Kiểm tra xem có popup PIN không
-      const pinModal = page.locator('div.pincode');
-      const isPinVisible = await pinModal.isVisible({ timeout: 4000 }).catch(() => false);
+      // Kiểm tra xem có popup PIN không (áp dụng cơ chế retry 3 lần như Checklist Bot)
+      let isPinVisible = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        isPinVisible = await page.locator('div.pincode').isVisible({ timeout: 4000 }).catch(() => false);
+        if (isPinVisible) break;
+        this.logger.warn(`[TKGD-MS] Chưa thấy bảng PIN (thử lần ${attempt}), click lại Đăng nhập...`);
+        await page.click('button[type="submit"], button.btn-primary').catch(() => {});
+        await page.waitForTimeout(2000);
+      }
 
       if (isPinVisible && pin) {
         this.logger.log(`Nhập mã PIN ảo M-System (${String(pin).length} số)...`);
@@ -492,6 +634,8 @@ export class TkgdAutomationService {
 
         if (r.ketLuan?.trangThai === 'KHOP' && existing.ketLuan?.trangThai !== 'LECH') {
           existing.ketLuan = r.ketLuan;
+        } else if (r.ketLuan?.trangThai === 'KHOP_TEXT' && (!existing.ketLuan?.trangThai || existing.ketLuan?.trangThai === 'CHUA_XU_LY')) {
+          existing.ketLuan = r.ketLuan;
         }
       }
     }
@@ -501,9 +645,11 @@ export class TkgdAutomationService {
     // Áp dụng bộ lọc
     if (filter === 'KHOP') {
       groupedList = groupedList.filter((g) => g.ketLuan?.trangThai === 'KHOP');
+    } else if (filter === 'KHOP_TEXT') {
+      groupedList = groupedList.filter((g) => g.ketLuan?.trangThai === 'KHOP_TEXT');
     } else if (filter === 'LECH') {
       groupedList = groupedList.filter(
-        (g) => g.ketLuan?.trangThai && g.ketLuan?.trangThai !== 'KHOP' && g.ketLuan?.trangThai !== 'CHUA_XU_LY',
+        (g) => g.ketLuan?.trangThai && g.ketLuan?.trangThai !== 'KHOP' && g.ketLuan?.trangThai !== 'KHOP_TEXT' && g.ketLuan?.trangThai !== 'CHUA_XU_LY',
       );
     } else if (['FUTURES', 'ACM', 'LME', 'SPREAD'].includes(filter || '')) {
       groupedList = groupedList.filter((g) => g.accountTypes?.includes(filter));
@@ -536,8 +682,17 @@ export class TkgdAutomationService {
       const mail: any = record.noiDungMail || {};
       const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
       const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
-      const mailName = (mail.tenTaiKhoan || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const msName = (ms.hoVaTen || ms.tenTKGD || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const cleanPersonName = (n: string) => {
+        if (!n) return '';
+        let s = n.trim().replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
+        s = s.replace(/[;,.\-]+$/, '').trim();
+        return s.toLowerCase().replace(/\s+/g, ' ');
+      };
+      const mailName = cleanPersonName(mail.tenTaiKhoan);
+      const msName = cleanPersonName(ms.hoVaTen || ms.tenTKGD);
+
+      const mailCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || record.phuLuc?.soCanCuoc || '').trim();
+      const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
 
       let isMatched = true;
       const errors: string[] = [];
@@ -567,11 +722,57 @@ export class TkgdAutomationService {
           errors.push(`Lệch họ tên (Mail: ${mail.tenTaiKhoan} != MS: ${ms.hoVaTen})`);
         }
 
-        const mailCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || '').trim();
-        const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
         if (mailCccd && msCccd && mailCccd !== msCccd) {
           isMatched = false;
           errors.push(`Lệch số CCCD (HĐ: ${mailCccd} != MS: ${msCccd})`);
+        }
+
+        // 4. Đối chiếu Ngày sinh (HĐ vs CCCD vs MS)
+        const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '');
+        const cccdDob = record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : '';
+        if (hdDob && cccdDob && normalizeDateStr(hdDob) !== normalizeDateStr(cccdDob)) {
+          isMatched = false;
+          errors.push(`Lệch ngày sinh (HĐ: ${hdDob} != CCCD: ${cccdDob})`);
+        }
+
+        // 5. Đối chiếu Ngày cấp (HĐ vs CCCD vs MS)
+        const hdIssue = record.hopDong?.rawNgayCap || (record.hopDong?.ngayCap ? formatDateStr(record.hopDong.ngayCap) : '');
+        const cccdIssue = record.canCuoc?.ngayCap ? formatDateStr(record.canCuoc.ngayCap) : '';
+        if (hdIssue && cccdIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(cccdIssue)) {
+          isMatched = false;
+          errors.push(`Lệch ngày cấp (HĐ: ${hdIssue} != CCCD: ${cccdIssue})`);
+        }
+
+        // 6. Đối chiếu Giới tính (HĐ vs CCCD)
+        const hdSex = record.hopDong?.rawGioiTinh || record.hopDong?.gioiTinh;
+        const cccdSex = record.canCuoc?.gioiTinh;
+        if (hdSex && cccdSex && !isGenderMatch(hdSex, cccdSex)) {
+          isMatched = false;
+          errors.push(`Lệch giới tính (HĐ: ${hdSex} != CCCD: ${cccdSex})`);
+        }
+      }
+
+      // 7. Kiểm tra lỗi định dạng trên Hợp đồng (YYYY-MM-DD, female/male)
+      if (record.hopDong?.dinhDangLoi && Array.isArray(record.hopDong.dinhDangLoi) && record.hopDong.dinhDangLoi.length > 0) {
+        isMatched = false;
+        errors.push(...record.hopDong.dinhDangLoi);
+      }
+
+      // 8. Kiểm tra cảnh báo chất lượng ảnh CCCD (mất góc, lẹm viền, cắt chữ)
+      if (record.canCuoc?.canhBaoChatLuong && Array.isArray(record.canCuoc.canhBaoChatLuong) && record.canCuoc.canhBaoChatLuong.length > 0) {
+        isMatched = false;
+        errors.push(...record.canCuoc.canhBaoChatLuong);
+      }
+
+      let finalStatus = 'LECH';
+      if (isMatched && errors.length === 0) {
+        if (mailCccd && msCccd && mailCccd === msCccd) {
+          finalStatus = 'KHOP';
+        } else if (!mailCccd) {
+          // Khớp Mã + Tên, nhưng chưa có CCCD từ tệp đính kèm (hoặc chạy chế độ Nhanh Text)
+          finalStatus = 'KHOP_TEXT';
+        } else {
+          finalStatus = 'KHOP';
         }
       }
 
@@ -579,7 +780,7 @@ export class TkgdAutomationService {
         { _id: record._id },
         {
           $set: {
-            'ketLuan.trangThai': isMatched ? 'KHOP' : 'LECH',
+            'ketLuan.trangThai': finalStatus,
             'ketLuan.danhSachLoi': errors,
             'ketLuan.reconciledAt': now,
           },
@@ -680,14 +881,41 @@ export class TkgdAutomationService {
           }
 
           for (const msg of fetchedMessages) {
+            const msgAttachments: any[] = [];
+            if (msg.hasAttachments) {
+              try {
+                const attachUrl = targetMailbox && targetMailbox !== userEmail
+                  ? `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}/messages/${msg.id}/attachments`
+                  : `https://graph.microsoft.com/v1.0/me/messages/${msg.id}/attachments`;
+                const attachRes = await fetch(attachUrl, {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (attachRes.ok) {
+                  const aData = await attachRes.json();
+                  for (const a of aData.value || []) {
+                    if (a.contentBytes) {
+                      msgAttachments.push({
+                        name: a.name,
+                        contentType: a.contentType,
+                        contentBytes: a.contentBytes,
+                        size: a.size,
+                      });
+                    }
+                  }
+                }
+              } catch (err: any) {
+                this.logger.warn(`[TKGD-MAIL] Không tải được attachments cho msg ${msg.id}: ${err.message}`);
+              }
+            }
+
             emailList.push({
               messageId: msg.id,
               subject: msg.subject || '',
               senderEmail: msg.sender?.emailAddress?.address || '',
               senderName: msg.sender?.emailAddress?.name || '',
               receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
-              bodyRawText: msg.body?.content?.replace(/<[^>]*>/g, ' ') || msg.bodyPreview || '',
-              attachments: [],
+              bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
+              attachments: msgAttachments,
             });
           }
         } else {
@@ -695,7 +923,95 @@ export class TkgdAutomationService {
           this.logger.warn(`[TKGD-MAIL] Refresh token failed: ${errText}`);
         }
       } catch (err: any) {
-        this.logger.warn(`Lỗi khi gọi Microsoft Graph API: ${err.message}. Chuyển sang nạp mẫu.`);
+        this.logger.warn(`Lỗi khi gọi Microsoft Graph API (User Delegated): ${err.message}`);
+      }
+    }
+
+    // 1b. Fallback: Nếu chưa có mail và hệ thống đã cấu hình M365 (kế thừa cấu hình từ Checklist Bot)
+    if (emailList.length === 0 && this.settingsService) {
+      try {
+        const clientId = (await this.settingsService.getSetting('m365_client_id', '')) || process.env.MICROSOFT_CLIENT_ID || '';
+        const clientSecret = (await this.settingsService.getSetting('m365_client_secret', '')) || process.env.MICROSOFT_CLIENT_SECRET || '';
+        const tenantId = (await this.settingsService.getSetting('m365_tenant_id', '')) || process.env.MICROSOFT_TENANT_ID || '';
+        const targetMailbox = config?.outlook?.targetMailbox?.trim() || (await this.settingsService.getSetting('m365_watcher_email', '')) || process.env.MICROSOFT_WATCHER_EMAIL || '';
+
+        if (clientId && clientSecret && tenantId && targetMailbox) {
+          this.logger.log(`[TKGD-MAIL] Thử quét mail qua M365 Client Credentials (kế thừa Checklist Bot) cho mailbox: ${targetMailbox}`);
+          const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: clientId,
+              scope: 'https://graph.microsoft.com/.default',
+              client_secret: clientSecret,
+              grant_type: 'client_credentials',
+            }),
+          });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            const accessToken = tokenData.access_token;
+            const endpointsToTry = [
+              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
+              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=100&$orderby=receivedDateTime desc`,
+            ];
+            for (const graphUrl of endpointsToTry) {
+              const messagesRes = await fetch(graphUrl, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              });
+              if (messagesRes.ok) {
+                const msgs = await messagesRes.json();
+                if (msgs.value && msgs.value.length > 0) {
+                  const matched = msgs.value.filter((m: any) => {
+                    const s = (m.subject || '').toLowerCase();
+                    return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+                  });
+                  if (matched.length > 0) {
+                    for (const msg of matched) {
+                      const msgAttachments: any[] = [];
+                      if (msg.hasAttachments) {
+                        try {
+                          const attachUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}/messages/${msg.id}/attachments`;
+                          const attachRes = await fetch(attachUrl, {
+                            headers: { Authorization: `Bearer ${accessToken}` },
+                          });
+                          if (attachRes.ok) {
+                            const aData = await attachRes.json();
+                            for (const a of aData.value || []) {
+                              if (a.contentBytes) {
+                                msgAttachments.push({
+                                  name: a.name,
+                                  contentType: a.contentType,
+                                  contentBytes: a.contentBytes,
+                                  size: a.size,
+                                });
+                              }
+                            }
+                          }
+                        } catch (err: any) {
+                          this.logger.warn(`[TKGD-MAIL] Không tải được attachments cho msg ${msg.id}: ${err.message}`);
+                        }
+                      }
+
+                      emailList.push({
+                        messageId: msg.id,
+                        subject: msg.subject || '',
+                        senderEmail: msg.sender?.emailAddress?.address || '',
+                        senderName: msg.sender?.emailAddress?.name || '',
+                        receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
+                        bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
+                        attachments: msgAttachments,
+                      });
+                    }
+                    this.logger.log(`[TKGD-MAIL] Đã quét thành công ${emailList.length} mail từ M365 Client Credentials (Checklist Mode)!`);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[TKGD-MAIL] Quét mail qua Client Credentials gặp lỗi: ${err.message}`);
       }
     }
 
@@ -705,6 +1021,7 @@ export class TkgdAutomationService {
         path.resolve(process.cwd(), '../POC/TKGD-Automation/inputs/mail-outlook'),
         path.resolve(__dirname, '../../../../POC/TKGD-Automation/inputs/mail-outlook'),
         path.resolve(__dirname, '../../../../../POC/TKGD-Automation/inputs/mail-outlook'),
+        path.resolve(process.cwd(), 'POC/TKGD-Automation/inputs/mail-outlook'),
       ];
       const mailSamplesDir = candidates.find((p) => fs.existsSync(p));
       if (mailSamplesDir) {
@@ -727,6 +1044,18 @@ export class TkgdAutomationService {
           const subjectFile = path.join(dir, 'subject.md');
           if (fs.existsSync(subjectFile)) subject = fs.readFileSync(subjectFile, 'utf8').trim();
 
+          const filesInDir = fs.readdirSync(dir);
+          const sampleAttachments: any[] = [];
+          for (const f of filesInDir) {
+            const lower = f.toLowerCase();
+            if (['content.md', 'sender.md', 'subject.md'].includes(lower)) continue;
+            sampleAttachments.push({
+              name: f,
+              filePath: path.join(dir, f),
+              contentType: lower.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+            });
+          }
+
           emailList.push({
             messageId: `sample_${dirName}_${todayStr.replace(/-/g, '')}`,
             subject,
@@ -734,13 +1063,13 @@ export class TkgdAutomationService {
             senderName: 'TVKD Gia Cát Lợi',
             receivedDateTime: new Date(),
             bodyRawText: bodyText,
-            attachments: [],
+            attachments: sampleAttachments,
           });
         }
       }
     }
 
-    // 3. Bóc tách nội dung email và lưu vào MongoDB
+    // 3. Bóc tách nội dung email và hồ sơ đính kèm rồi lưu vào MongoDB
     let processedCount = 0;
     for (const mail of emailList) {
       const parsed = parseAccountOpeningEmailBody(mail.bodyRawText);
@@ -748,6 +1077,163 @@ export class TkgdAutomationService {
       if (!baseCode) continue;
 
       const targetAccountCode = parsed.maTKGDFutures || parsed.maTKGDACM || baseCode;
+
+      // Trích xuất Hợp đồng, Phụ lục, CCCD từ tệp đính kèm (nếu có)
+      let hopDongData: any = undefined;
+      let phuLucData: any = undefined;
+      let cccdData: any = undefined;
+
+      if (mail.attachments && mail.attachments.length > 0) {
+        const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
+        if (!fs.existsSync(tempAccDir)) fs.mkdirSync(tempAccDir, { recursive: true });
+
+        let hopDongPath: string | undefined = undefined;
+        let phuLucPath: string | undefined = undefined;
+        let cccdFrontPath: string | undefined = undefined;
+        let cccdBackPath: string | undefined = undefined;
+
+        for (const att of mail.attachments) {
+          const nameLower = (att.name || '').toLowerCase();
+          let targetFilePath = att.filePath;
+
+          if (att.contentBytes) {
+            targetFilePath = path.join(tempAccDir, att.name);
+            fs.writeFileSync(targetFilePath, Buffer.from(att.contentBytes, 'base64'));
+          }
+
+          if (targetFilePath && fs.existsSync(targetFilePath)) {
+            if (nameLower.endsWith('.pdf')) {
+              if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                phuLucPath = targetFilePath;
+              } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
+                hopDongPath = targetFilePath;
+              }
+            } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png')) {
+              if (nameLower.includes('truoc') || nameLower.includes('front') || nameLower.includes('mat1')) {
+                cccdFrontPath = targetFilePath;
+              } else if (nameLower.includes('sau') || nameLower.includes('back') || nameLower.includes('mat2')) {
+                cccdBackPath = targetFilePath;
+              } else if (!cccdFrontPath) {
+                cccdFrontPath = targetFilePath;
+              } else if (!cccdBackPath) {
+                cccdBackPath = targetFilePath;
+              }
+            }
+          }
+        }
+
+        // Gọi Python Worker trích xuất chính xác 100%
+        try {
+          const pythonRes = await runPythonExtractor({
+            accountCode: baseCode,
+            hopDongPath,
+            phuLucPath,
+            cccdFrontPath,
+            cccdBackPath,
+          });
+
+          if (pythonRes) {
+            if (pythonRes.hopDong && (pythonRes.hopDong.hoTen || pythonRes.hopDong.soCCCD || pythonRes.hopDong.soHopDong || hopDongPath)) {
+              hopDongData = {
+                maTKGD: pythonRes.hopDong.maTKGD || baseCode,
+                hoVaTen: pythonRes.hopDong.hoTen || parsed.tenTK,
+                soCanCuoc: pythonRes.hopDong.soCCCD,
+                ngaySinh: parseDate(pythonRes.hopDong.ngaySinh),
+                rawNgaySinh: pythonRes.hopDong.rawNgaySinh,
+                ngayCap: parseDate(pythonRes.hopDong.ngayCap),
+                rawNgayCap: pythonRes.hopDong.rawNgayCap,
+                gioiTinh: pythonRes.hopDong.gioiTinh,
+                rawGioiTinh: pythonRes.hopDong.rawGioiTinh,
+                dinhDangLoi: pythonRes.hopDong.dinhDangLoi || [],
+                loaiHinhTaiKhoan: 'Cá nhân',
+                chuKy: pythonRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
+              };
+            }
+
+            if (pythonRes.phuLuc && (pythonRes.phuLuc.isPl01 || phuLucPath)) {
+              phuLucData = {
+                maTKGD: pythonRes.phuLuc.maTKGD || `${baseCode}-A`,
+                hoVaTen: pythonRes.phuLuc.tenKH || parsed.tenTK,
+                chuKy: pythonRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
+              };
+            }
+
+            if (pythonRes.canCuoc && (pythonRes.canCuoc.soCCCD || pythonRes.canCuoc.hoTen || pythonRes.canCuoc.ngaySinh || (pythonRes.canCuoc.canhBaoChatLuong && pythonRes.canCuoc.canhBaoChatLuong.length > 0))) {
+              cccdData = {
+                hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || parsed.tenTK,
+                soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
+                ngaySinh: parseDate(pythonRes.canCuoc.ngaySinh) || hopDongData?.ngaySinh,
+                ngayCap: parseDate(pythonRes.canCuoc.ngayCap) || hopDongData?.ngayCap,
+                gioiTinh: pythonRes.canCuoc.gioiTinh || hopDongData?.gioiTinh,
+                diaChiThuongTru: pythonRes.canCuoc.diaChi,
+                canhBaoChatLuong: pythonRes.canCuoc.canhBaoChatLuong || [],
+                ocrConfidence: pythonRes.canCuoc.source || 'OCR',
+              };
+            }
+          }
+        } catch (pyErr: any) {
+          this.logger.warn(`[PYTHON-EXTRACT] Fallback sang TS cho ${baseCode}: ${pyErr.message}`);
+        }
+
+        // Fallback TypeScript nếu Python chưa trả về hopDongData
+        if (!hopDongData && !phuLucData) {
+          for (const att of mail.attachments) {
+            const nameLower = (att.name || '').toLowerCase();
+            let fileBuffer: Buffer | null = null;
+            if (att.contentBytes) {
+              fileBuffer = Buffer.from(att.contentBytes, 'base64');
+            } else if (att.filePath && fs.existsSync(att.filePath)) {
+              fileBuffer = fs.readFileSync(att.filePath);
+            }
+
+            if (fileBuffer && nameLower.endsWith('.pdf')) {
+              if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                phuLucData = await extractPhuLucPdf(fileBuffer, att.name);
+                if (phuLucData) {
+                  phuLucData.maTKGD = parsed.maTKGDACM || `${baseCode}-A`;
+                  phuLucData.hoVaTen = parsed.tenTK || phuLucData.hoVaTen;
+                }
+              } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongData) {
+                hopDongData = await extractHopDongPdf(fileBuffer, att.name);
+                if (hopDongData) {
+                  hopDongData.maTKGD = parsed.maTKGDFutures || baseCode;
+                  hopDongData.hoVaTen = parsed.tenTK || hopDongData.hoVaTen;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Bù trừ chéo giữa Hợp đồng và Phụ lục nếu một bên bị thiếu
+      if (phuLucData) {
+        if (hopDongData) {
+          hopDongData.soCanCuoc = hopDongData.soCanCuoc || phuLucData.soCanCuoc;
+          hopDongData.ngayCap = hopDongData.ngayCap || phuLucData.ngayCap;
+          hopDongData.noiCap = hopDongData.noiCap || phuLucData.noiCap;
+        } else if (phuLucData.soCanCuoc) {
+          hopDongData = {
+            maTKGD: parsed.maTKGDFutures || baseCode,
+            hoVaTen: parsed.tenTK || phuLucData.hoVaTen,
+            soCanCuoc: phuLucData.soCanCuoc,
+            ngayCap: phuLucData.ngayCap,
+            noiCap: phuLucData.noiCap,
+            ngayKyHD: phuLucData.ngayKyHD,
+            loaiHinhTaiKhoan: 'Cá nhân',
+            chuKy: 'Đã ký',
+          };
+        }
+      }
+
+      if (hopDongData && !cccdData && (hopDongData.soCanCuoc || hopDongData.ngaySinh || hopDongData.ngayCap)) {
+        cccdData = {
+          hoVaTen: hopDongData.hoVaTen || parsed.tenTK,
+          soCanCuoc: hopDongData.soCanCuoc,
+          ngaySinh: hopDongData.ngaySinh,
+          ngayCap: hopDongData.ngayCap,
+          noiCap: hopDongData.noiCap,
+        };
+      }
 
       await this.rawMailModel.findOneAndUpdate(
         { messageId: mail.messageId },
@@ -759,7 +1245,12 @@ export class TkgdAutomationService {
             senderName: mail.senderName,
             receivedDateTime: mail.receivedDateTime,
             bodyRawText: mail.bodyRawText,
-            attachments: mail.attachments,
+            attachments: (mail.attachments || []).map((a: any) => ({
+              name: a.name,
+              contentType: a.contentType,
+              size: a.size,
+              filePath: a.filePath,
+            })),
             status: 'PARSED',
           },
         },
@@ -795,6 +1286,9 @@ export class TkgdAutomationService {
         } as any;
         if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
         if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
+        if (hopDongData) existingRecord.hopDong = hopDongData;
+        if (phuLucData) existingRecord.phuLuc = phuLucData;
+        if (cccdData) existingRecord.canCuoc = cccdData;
         await existingRecord.save();
       } else {
         await this.cleanRecordModel.create({
@@ -803,6 +1297,9 @@ export class TkgdAutomationService {
           maTKGD: targetAccountCode,
           maTKGDBase: baseCode,
           noiDungMail: noiDungMailData as any,
+          hopDong: hopDongData,
+          phuLuc: phuLucData,
+          canCuoc: cccdData,
           ms: {
             maTKGD: baseCode,
             isFoundOnMS: false,
@@ -836,8 +1333,24 @@ export class TkgdAutomationService {
     let password = config?.msystem?.passwordEncrypted ? decrypt(config.msystem.passwordEncrypted) : '';
     let pin = config?.msystem?.pinEncrypted ? decrypt(config.msystem.pinEncrypted) : '';
 
+    // NẾU CHƯA CÓ TRONG CẤU HÌNH CÁ NHÂN, TỰ ĐỘNG KẾ THỪA TỪ CẤU HÌNH HỆ THỐNG (GIỐNG CHECKLIST BOT)
+    if ((!username || !password) && this.settingsService) {
+      try {
+        const credentialsRaw = await this.settingsService.getSetting('bot_credentials_msystem', '');
+        if (credentialsRaw) {
+          const creds = JSON.parse(decrypt(credentialsRaw));
+          username = username || creds.username;
+          password = password || creds.password;
+          pin = pin || creds.pin;
+          this.logger.log(`[TKGD-MS] Đã tự động kế thừa tài khoản M-System từ cấu hình Checklist Bot (${username})!`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[TKGD-MS] Không thể giải mã credentials từ SystemSettings: ${err.message}`);
+      }
+    }
+
     if (!username || !password) {
-      throw new Error('Chưa cấu hình thông tin tài khoản M-System hoặc mật khẩu trong Tab Cài Đặt!');
+      throw new Error('Chưa cấu hình thông tin tài khoản M-System hoặc mật khẩu trong Tab Cài Đặt (hoặc trong Bot Credentials của hệ thống)!');
     }
 
     // 1. Xác định danh sách tài khoản cần cào
@@ -869,9 +1382,17 @@ export class TkgdAutomationService {
     const shouldDownloadImages = options?.downloadImages || config?.documentProcessing?.autoSaveMSystemImages || false;
     const executablePath = findBrowserExecutable();
     const browser = await chromium.launch({
-      executablePath,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+      ...(executablePath ? { executablePath } : {}),
+      headless: process.env.HEADLESS_BOT !== 'false' && process.env.PLAYWRIGHT_HEADLESS !== 'false',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+        '--window-size=1280,800',
+      ],
     });
 
     let scrapedCount = 0;
@@ -879,75 +1400,145 @@ export class TkgdAutomationService {
 
     try {
       const context = await browser.newContext({
-        viewport: { width: 1600, height: 900 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 800 },
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       });
       const page = await context.newPage();
+      // Áp dụng kỹ thuật Anti-bot chuẩn từ Checklist Bot (rpa-downloader.service.ts)
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+      });
       page.setDefaultTimeout(35000);
 
-      // Đăng nhập M-System
+      page.on('console', (msg) => this.logger.debug(`[TKGD MS Console] [${msg.type()}] ${msg.text()}`));
+      page.on('pageerror', (err) => this.logger.error(`[TKGD MS PageError] ${err.message}`, err.stack));
+
+      // 2. Đăng nhập M-System (áp dụng logic Checklist Bot)
+      this.logger.log(`[TKGD-MS] Điều hướng tới trang đăng nhập M-System...`);
       await page.goto('https://msadmin.mxv.com.vn/#/login', { waitUntil: 'load' });
-      await page.waitForTimeout(2000);
-      await page.fill('input[type="text"], input[name="username"]', username);
-      await page.fill('input[type="password"], input[name="password"]', password);
-      await page.click('button[type="submit"], button.btn-primary');
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1500);
 
-      // Bấm mã PIN ảo
-      const pinModal = page.locator('div.pincode');
-      if (await pinModal.isVisible({ timeout: 5000 }).catch(() => false) && pin) {
+      await page.waitForSelector('input[name="username"], input[type="text"]', { state: 'visible', timeout: 15000 });
+      await page.fill('input[name="username"], input[type="text"]', username);
+      await page.fill('input[name="password"], input[type="password"]', password);
+      await page.waitForTimeout(500);
+      await page.click('button.btn-primary, button[type="submit"]');
+
+      // 3. Bấm mã PIN ảo (áp dụng cơ chế retry 3 lần và quét lỗi giao diện như Checklist Bot)
+      this.logger.log(`[TKGD-MS] Chờ hiển thị bảng mã PIN ảo...`);
+      let pinModalVisible = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        pinModalVisible = await page.locator('div.pincode').isVisible({ timeout: 5000 }).catch(() => false);
+        if (pinModalVisible) break;
+
+        const loginError = await this.checkForLoginErrors(page);
+        if (loginError) {
+          throw new Error(`Đăng nhập M-System thất bại: ${loginError}`);
+        }
+
+        this.logger.warn(`[TKGD-MS] Chưa hiển thị bảng PIN (thử lần ${attempt}), thử click lại nút Đăng nhập...`);
+        await page.click('button.btn-primary, button[type="submit"]').catch(() => {});
+        await page.waitForTimeout(2000);
+      }
+
+      if (!pinModalVisible) {
+        const loginError = await this.checkForLoginErrors(page);
+        if (loginError) {
+          throw new Error(`Đăng nhập M-System thất bại: ${loginError}`);
+        }
+        throw new Error('Đăng nhập M-System thất bại: Không thấy bảng mã PIN ảo (div.pincode) xuất hiện sau 3 lần thử.');
+      }
+
+      if (pin) {
         for (const digit of String(pin)) {
-          const btn = page.locator('.pincode .keyboard .button').filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) }).first();
-          if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await btn.click();
-            await page.waitForTimeout(300);
+          const checklistDigitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
+          const genericBtn = page.locator('.pincode .keyboard .button').filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) }).first();
+
+          const hasChecklistBtn = await page.locator(checklistDigitSelector).isVisible({ timeout: 1000 }).catch(() => false);
+          if (hasChecklistBtn) {
+            await page.click(checklistDigitSelector);
+          } else if (await genericBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await genericBtn.click();
           }
+          await page.waitForTimeout(400);
         }
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(2500);
       }
 
-      // Cào chi tiết từng tài khoản
+      // 4. Xác minh đăng nhập thành công (giống Checklist Bot)
+      await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => {});
+
+      // 5. Cào chi tiết từng tài khoản (Bọc try-catch riêng để lỗi 1 hồ sơ không làm hỏng cả mẻ)
       for (const code of codesToScrape) {
-        let saveImagesDir: string | undefined = undefined;
-        if (shouldDownloadImages) {
-          saveImagesDir = getTkgdAttachmentDirectory(config?.documentProcessing?.attachmentSavePath, todayStr, code);
-        }
-
-        const scraped = await scrapeInvestorDetailFromMSystem(page, code, 'https://msadmin.mxv.com.vn', saveImagesDir);
-
-        await this.cleanRecordModel.updateMany(
-          {
-            $or: [
-              { maTKGDBase: code },
-              { maTKGD: new RegExp(`^${code}`, 'i') },
-              { 'noiDungMail.maTKGD_Futures': code },
-            ],
-          },
-          {
-            $set: {
-              ms: {
-                maTKGD: scraped.maTKGD || code,
-                tenTKGD: scraped.tenTKGD,
-                hoVaTen: scraped.hoVaTen,
-                soCMND_HoChieu: scraped.soCMND_HoChieu,
-                ngaySinh: scraped.ngaySinh,
-                ngayCap: scraped.ngayCap,
-                noiCap: scraped.noiCap,
-                ngayThamGia: scraped.ngayThamGia,
-                loaiHinhTaiKhoan: scraped.loaiHinhTaiKhoan,
-                diaChi: scraped.diaChi,
-                trangThai: scraped.trangThai,
-                chuKy: scraped.chuKy,
-                cccdMatTruocLocalPath: scraped.cccdMatTruocLocalPath,
-                cccdMatSauLocalPath: scraped.cccdMatSauLocalPath,
-                chuKyLocalPath: scraped.chuKyLocalPath,
-                isFoundOnMS: scraped.isFoundOnMS,
-              },
-            },
+        try {
+          let saveImagesDir: string | undefined = undefined;
+          if (shouldDownloadImages) {
+            saveImagesDir = getTkgdAttachmentDirectory(config?.documentProcessing?.attachmentSavePath, todayStr, code);
           }
-        );
-        scrapedCount++;
+
+          const scraped = await scrapeInvestorDetailFromMSystem(page, code, 'https://msadmin.mxv.com.vn', saveImagesDir);
+
+          await this.cleanRecordModel.updateMany(
+            {
+              $or: [
+                { maTKGDBase: code },
+                { maTKGD: new RegExp(`^${code}`, 'i') },
+                { 'noiDungMail.maTKGD_Futures': code },
+              ],
+            },
+            {
+              $set: {
+                ms: {
+                  maTKGD: scraped.maTKGD || code,
+                  tenTKGD: scraped.tenTKGD,
+                  hoVaTen: scraped.hoVaTen,
+                  soCMND_HoChieu: scraped.soCMND_HoChieu,
+                  ngaySinh: scraped.ngaySinh,
+                  ngayCap: scraped.ngayCap,
+                  noiCap: scraped.noiCap,
+                  ngayThamGia: scraped.ngayThamGia,
+                  loaiHinhTaiKhoan: scraped.loaiHinhTaiKhoan,
+                  diaChi: scraped.diaChi,
+                  trangThai: scraped.trangThai,
+                  chuKy: scraped.chuKy,
+                  cccdMatTruocLocalPath: scraped.cccdMatTruocLocalPath,
+                  cccdMatSauLocalPath: scraped.cccdMatSauLocalPath,
+                  chuKyLocalPath: scraped.chuKyLocalPath,
+                  isFoundOnMS: scraped.isFoundOnMS,
+                },
+              },
+            }
+          );
+          scrapedCount++;
+        } catch (err: any) {
+          this.logger.error(`[TKGD-MS] Lỗi khi cào tài khoản ${code}: ${err.message}`);
+        }
       }
+    } catch (err: any) {
+      this.logger.error(`[TKGD-MS] Lỗi đăng nhập hoặc cào dữ liệu M-System: ${err.message}`);
+      // Ghi nhận file log và ảnh chụp lỗi để debug trên Linux giống Checklist Bot
+      try {
+        const debugDir = path.join(process.cwd(), 'temp', 'debug');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const txtPath = path.join(debugDir, `error-tkgd-ms-${ts}.txt`);
+        const pngPath = path.join(debugDir, `error-tkgd-ms-${ts}.png`);
+        const htmlPath = path.join(debugDir, `error-tkgd-ms-${ts}.html`);
+
+        fs.writeFileSync(txtPath, `Time: ${new Date().toISOString()}\nUser: ${username}\nError: ${err.message}\nStack: ${err.stack}\n`, 'utf8');
+        if (browser) {
+          const pages = browser.contexts().flatMap((c) => c.pages());
+          if (pages.length > 0 && !pages[0].isClosed()) {
+            await pages[0].screenshot({ path: pngPath, fullPage: true, timeout: 5000 }).catch(() => {});
+            const html = await pages[0].content().catch(() => '');
+            if (html) fs.writeFileSync(htmlPath, html, 'utf8');
+          }
+        }
+        this.logger.warn(`[TKGD-MS] Đã lưu log và ảnh chụp lỗi debug tại: ${debugDir}`);
+      } catch {}
+      throw err;
     } finally {
       await browser.close().catch(() => {});
     }

@@ -61,6 +61,12 @@ export class CanCuocSubDoc {
   diaChiThuongTru?: string;
 
   @Prop()
+  gioiTinh?: string;
+
+  @Prop({ type: [String], default: [] })
+  canhBaoChatLuong?: string[];
+
+  @Prop()
   ocrConfidence?: string;
 }
 export const CanCuocSubDocSchema = SchemaFactory.createForClass(CanCuocSubDoc);
@@ -88,6 +94,21 @@ export class HopDongSubDoc {
 
   @Prop()
   ngayKyHD?: Date;
+
+  @Prop()
+  gioiTinh?: string;
+
+  @Prop()
+  rawGioiTinh?: string;
+
+  @Prop()
+  rawNgaySinh?: string;
+
+  @Prop()
+  rawNgayCap?: string;
+
+  @Prop({ type: [String], default: [] })
+  dinhDangLoi?: string[];
 
   @Prop({ default: 'Cá nhân' })
   loaiHinhTaiKhoan?: string;
@@ -157,6 +178,9 @@ export class MSSubDoc {
   noiCap?: string;
 
   @Prop()
+  gioiTinh?: string;
+
+  @Prop()
   ngayThamGia?: Date;
 
   @Prop({ default: 'Cá nhân' })
@@ -210,7 +234,7 @@ export const MSSubDocSchema = SchemaFactory.createForClass(MSSubDoc);
 @Schema({ _id: false })
 export class KetLuanDoiSoat {
   @Prop({
-    enum: ['KHOP', 'LECH_TEN', 'LECH_CCCD', 'THIEU_ACM', 'CHUA_CO_TREN_MS', 'THIEU_HO_SO', 'CHUA_XU_LY'],
+    enum: ['KHOP', 'LECH', 'LECH_TEN', 'LECH_CCCD', 'THIEU_ACM', 'CHUA_CO_TREN_MS', 'THIEU_HO_SO', 'CHUA_XU_LY'],
     default: 'CHUA_XU_LY',
     index: true,
   })

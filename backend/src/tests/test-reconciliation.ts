@@ -19,7 +19,7 @@ const DEBUG_DIR = path.join(
 
 function step(msg: string) {
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`⚡ BƯỚC: ${msg}`);
+  console.log(` BƯỚC: ${msg}`);
   console.log('='.repeat(60));
 }
 

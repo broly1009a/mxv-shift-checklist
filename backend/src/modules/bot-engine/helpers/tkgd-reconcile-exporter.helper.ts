@@ -27,12 +27,37 @@ function formatDate(date: Date | string | undefined | null): string {
   return `${day}/${month}/${year}`;
 }
 
-/**
- * Chuẩn hóa họ tên tiếng Việt để so sánh không phân biệt hoa thường và khoảng trắng
- */
 function normalizeName(name: string | undefined | null): string {
   if (!name) return '';
-  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+  let s = name.trim().replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
+  s = s.replace(/[;,.\-]+$/, '').trim();
+  return s.toLowerCase().replace(/\s+/g, ' ');
+}
+
+function normalizeDateStr(d: string | undefined | null): string {
+  if (!d) return '';
+  const s = d.trim().replace(/-/g, '/');
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+  }
+  return s;
+}
+
+function isGenderMatch(g1?: string, g2?: string): boolean {
+  if (!g1 || !g2) return true;
+  const s1 = g1.trim().toLowerCase();
+  const s2 = g2.trim().toLowerCase();
+  const isFemale1 = ['nữ', 'nu', 'female', 'f'].includes(s1);
+  const isFemale2 = ['nữ', 'nu', 'female', 'f'].includes(s2);
+  const isMale1 = ['nam', 'male', 'm'].includes(s1);
+  const isMale2 = ['nam', 'male', 'm'].includes(s2);
+  if (isFemale1 && isFemale2) return true;
+  if (isMale1 && isMale2) return true;
+  return s1 === s2;
 }
 
 /**
@@ -118,18 +143,29 @@ export function findTkgdTemplatePath(): string {
   // 1. Thử tìm trên ổ mạng M:\ hoặc /mnt/qlgd-it nếu có
   const networkCandidates = [
     '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Auto Data mail.xlsm',
+    '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/Auto Data mail.xlsm',
     'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Auto Data mail.xlsm',
+    'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\Auto Data mail.xlsm',
     'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Auto Data mail.xlsm',
   ];
   for (const p of networkCandidates) {
     if (fs.existsSync(p)) return p;
   }
 
-  // 2. Fallback template gốc trong project
-  return path.resolve(
-    __dirname,
-    '../../../../../POC/TKGD-Automation/inputs/excel-templates/Auto Data mail.xlsm',
-  );
+  // 2. Thử tìm trong assets của backend
+  const localCandidates = [
+    path.resolve(process.cwd(), 'assets/templates/Auto Data mail.xlsm'),
+    path.resolve(process.cwd(), 'src/assets/templates/Auto Data mail.xlsm'),
+    path.resolve(__dirname, '../../../../assets/templates/Auto Data mail.xlsm'),
+    path.resolve(__dirname, '../../assets/templates/Auto Data mail.xlsm'),
+    path.resolve(__dirname, '../../../../../POC/TKGD-Automation/inputs/excel-templates/Auto Data mail.xlsm'),
+    path.resolve(process.cwd(), '../POC/TKGD-Automation/inputs/excel-templates/Auto Data mail.xlsm'),
+  ];
+  for (const p of localCandidates) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  return path.resolve(process.cwd(), 'assets/templates/Auto Data mail.xlsm');
 }
 
 /**
@@ -219,6 +255,18 @@ export async function reconcileAndExportToExcel(
     },
   };
 
+  const styleKhopText = {
+    fill: {
+      type: 'pattern' as const,
+      pattern: 'solid' as const,
+      fgColor: { argb: 'FFFFF2CC' }, // Vàng/cam nhạt
+    },
+    font: {
+      color: { argb: 'FFB25900' }, // Cam đậm
+      bold: true,
+    },
+  };
+
   const borderThin: Partial<ExcelJS.Borders> = {
     top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
     left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
@@ -285,11 +333,60 @@ export async function reconcileAndExportToExcel(
         isMatched = false;
         errors.push(`Lệch họ tên (Mail: ${mail.tenTaiKhoan} != MS: ${ms.hoVaTen})`);
       }
+
+      const mailCccd = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').trim();
+      const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
+      if (mailCccd && msCccd && mailCccd !== msCccd) {
+        isMatched = false;
+        errors.push(`Lệch số CCCD (HĐ: ${mailCccd} != MS: ${msCccd})`);
+      }
+
+      // 4. Đối chiếu Ngày sinh
+      const hdDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '');
+      const cccdDob = cccd.ngaySinh ? formatDate(cccd.ngaySinh) : '';
+      if (hdDob && cccdDob && normalizeDateStr(hdDob) !== normalizeDateStr(cccdDob)) {
+        isMatched = false;
+        errors.push(`Lệch ngày sinh (HĐ: ${hdDob} != CCCD: ${cccdDob})`);
+      }
+
+      // 5. Đối chiếu Ngày cấp
+      const hdIssue = hd.rawNgayCap || (hd.ngayCap ? formatDate(hd.ngayCap) : '');
+      const cccdIssue = cccd.ngayCap ? formatDate(cccd.ngayCap) : '';
+      if (hdIssue && cccdIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(cccdIssue)) {
+        isMatched = false;
+        errors.push(`Lệch ngày cấp (HĐ: ${hdIssue} != CCCD: ${cccdIssue})`);
+      }
+
+      // 6. Đối chiếu Giới tính
+      const hdSex = hd.rawGioiTinh || hd.gioiTinh;
+      const cccdSex = cccd.gioiTinh;
+      if (hdSex && cccdSex && !isGenderMatch(hdSex, cccdSex)) {
+        isMatched = false;
+        errors.push(`Lệch giới tính (HĐ: ${hdSex} != CCCD: ${cccdSex})`);
+      }
     }
 
-    const ketQuaText = isMatched
-      ? (targetAccountCode.includes('-A') ? 'so sánh mã TKGD với bên PL01 khớp' : 'so sánh mã TKGD với bên HĐ, MS khớp')
-      : `Lệch: ${errors.join('; ')}`;
+    // 7. Kiểm tra lỗi định dạng trên Hợp đồng (YYYY-MM-DD, female/male)
+    if (hd.dinhDangLoi && Array.isArray(hd.dinhDangLoi) && hd.dinhDangLoi.length > 0) {
+      isMatched = false;
+      errors.push(...hd.dinhDangLoi);
+    }
+
+    // 8. Kiểm tra lỗi chất lượng ảnh CCCD (mất góc, lẹm viền, cắt chữ)
+    if (cccd.canhBaoChatLuong && Array.isArray(cccd.canhBaoChatLuong) && cccd.canhBaoChatLuong.length > 0) {
+      isMatched = false;
+      errors.push(...cccd.canhBaoChatLuong);
+    }
+
+    const mailCccdVal = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').trim();
+    const msCccdVal = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').trim();
+    const isFullKhop = isMatched && !!(mailCccdVal && msCccdVal && mailCccdVal === msCccdVal);
+
+    const ketQuaText = !isMatched
+      ? `Lệch: ${errors.join('; ')}`
+      : isFullKhop
+      ? (targetAccountCode.includes('-A') ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%' : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%')
+      : 'Khớp thông tin cơ bản (Chưa quét đính kèm)';
 
     if (isMatched) {
       khopCount++;
@@ -315,12 +412,15 @@ export async function reconcileAndExportToExcel(
           cell.alignment = { vertical: 'middle' };
         }
         if (colNumber === 4) {
-          if (isMatched) {
+          if (!isMatched) {
+            cell.fill = styleLech.fill;
+            cell.font = styleLech.font;
+          } else if (isFullKhop) {
             cell.fill = styleKhop.fill;
             cell.font = styleKhop.font;
           } else {
-            cell.fill = styleLech.fill;
-            cell.font = styleLech.font;
+            cell.fill = styleKhopText.fill;
+            cell.font = styleKhopText.font;
           }
         }
       });

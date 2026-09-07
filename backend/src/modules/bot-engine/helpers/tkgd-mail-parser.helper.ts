@@ -79,8 +79,31 @@ export function normalizeVietnameseName(str: string): string {
     .replace(/\s+/g, ' ');
 }
 
+export function htmlToPlainText(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .replace(/\n{2,}/g, '\n\n')
+    .trim();
+}
+
 export function parseAccountOpeningEmailBody(bodyContent: string): ParsedEmailInfo {
-  const text = bodyContent || '';
+  let text = bodyContent || '';
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    text = htmlToPlainText(text);
+  }
 
   // 1. Mã TK Futures: 3 số + 1 chữ cái + 7 số (không có hậu tố -)
   let maTKGDFutures: string | null = null;
@@ -117,9 +140,12 @@ export function parseAccountOpeningEmailBody(bodyContent: string): ParsedEmailIn
 
   // 5. Tên tài khoản
   let tenTK: string | null = null;
-  const mTen = text.match(/Tên tài khoản\s*:\s*([^\r\n]+)/i);
+  const mTen = text.match(/Tên tài khoản\s*:\s*([^\r\n\t]+?)(?=\s*(?:\r?\n|TVKD|Tài khoản|Mã TKGD|Bản scan|Phụ lục|Chi tiết|2\.|\.|$))/i);
   if (mTen) {
-    tenTK = mTen[1].trim();
+    let clean = mTen[1].trim();
+    clean = clean.replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
+    clean = clean.replace(/[;,.\-]+$/, '').trim();
+    tenTK = clean || null;
   }
 
   // 6. Mã TVKD từ 3 ký tự đầu

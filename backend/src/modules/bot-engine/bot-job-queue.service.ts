@@ -96,8 +96,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async checkAgentConnectionHealth() {
-    const { AgentController } = require('./bot-engine.controller');
-    const statuses = AgentController.agentStatuses;
+    const { AgentController } = require('./bot-agent.controller');
+    const statuses = AgentController?.agentStatuses;
     if (!statuses) return;
 
     for (const [hostname, status] of statuses.entries()) {
