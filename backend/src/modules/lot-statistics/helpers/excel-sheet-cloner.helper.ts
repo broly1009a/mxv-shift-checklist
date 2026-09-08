@@ -51,7 +51,7 @@ export function ensureMonthSheetExists(
       [scriptPath, '--file', excelFilePath, '--sheet', targetSheetName],
       {
         encoding: 'utf-8',
-        timeout: 30000, // 30 giây timeout
+        timeout: 60000, // 60 giây timeout cho ổ đĩa mạng CIFS
         windowsHide: true,
       },
     );
@@ -64,7 +64,12 @@ export function ensureMonthSheetExists(
       jobLogs?.push(successMsg);
       return true;
     } else {
-      const errMsg = `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${result.stderr || result.stdout}`;
+      const detailErr =
+        result.stderr?.trim() ||
+        result.stdout?.trim() ||
+        result.error?.message ||
+        (result.status === null ? 'Quá thời gian chờ (Timeout > 60s)' : `Thoát với mã ${result.status}`);
+      const errMsg = `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${detailErr}`;
       logger.error(errMsg);
       jobLogs?.push(errMsg);
       return false;

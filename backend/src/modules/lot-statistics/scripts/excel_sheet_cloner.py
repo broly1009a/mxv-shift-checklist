@@ -72,23 +72,35 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         new_sheet = wb.copy_worksheet(source_sheet)
         new_sheet.title = target_sheet_name
 
-        # Dọn dẹp cell comments của sheet mới để tránh lỗi broken relationship 'comments' khi ExcelJS đọc lại
+        # Cắt tỉa triệt để các phantom cells ngoài phạm vi bảng tháng (row > 60)
+        # Các file thống kê MXV chỉ có tối đa ~31 ngày giao dịch + dòng TỔNG (thường là row 28-35).
+        # Sự xuất hiện của cell rác ở tận row 1,048,560 khiến openpyxl tốn hàng GB RAM và timeout.
+        if hasattr(new_sheet, '_cells'):
+            phantom_keys = [k for k in new_sheet._cells.keys() if k[0] > 60]
+            if phantom_keys:
+                print(f"[INFO] Phat hien va cat tia {len(phantom_keys)} o ma vuot qua row 60.")
+                for k in phantom_keys:
+                    del new_sheet._cells[k]
+
+        # Dọn dẹp cell comments của sheet mới chỉ trên các cell thực sự tồn tại
         try:
-            for row in new_sheet.iter_rows():
-                for cell in row:
-                    if cell.comment:
-                        cell.comment = None
+            for cell in list(new_sheet._cells.values()):
+                if hasattr(cell, 'comment') and cell.comment:
+                    cell.comment = None
             if hasattr(new_sheet, '_comments'):
                 new_sheet._comments = []
         except Exception:
             pass
 
-        # 5. Cập nhật tiêu đề hiển thị tháng mới trong ô A1 (nếu có chuỗi tháng cũ)
-        cell_a1 = new_sheet.cell(row=1, column=1)
-        if cell_a1.value and isinstance(cell_a1.value, str):
-            old_str = cell_a1.value
-            new_str = re.sub(r'th[aá]ng\s+\d{1,2}/\d{4}', f'tháng {target_month:02d}/{target_year}', old_str, flags=re.IGNORECASE)
-            new_sheet.cell(row=1, column=1).value = new_str
+        # 5. Cập nhật tiêu đề hiển thị tháng mới trong ô A1 hoặc A2 (nếu có chuỗi tháng cũ)
+        for title_row in (1, 2):
+            cell_title = new_sheet.cell(row=title_row, column=1)
+            if cell_title.value and isinstance(cell_title.value, str):
+                old_str = cell_title.value
+                new_str = re.sub(r'th[aá]ng\s+\d{1,2}/\d{4}', f'tháng {target_month:02d}/{target_year}', old_str, flags=re.IGNORECASE)
+                if old_str != new_str:
+                    cell_title.value = new_str
+                    print(f"[INFO] Cap nhat tieu de thang tai A{title_row}: {new_str.strip()}")
 
         # 6. Cập nhật mốc ngày làm việc đầu tiên của tháng cho công thức =WORKDAY(...)
         # - Nếu ngày 01 rơi vào Thứ 7 (weekday 5) -> Ngày giao dịch đầu tiên là Thứ 2 ngày 03
@@ -100,33 +112,33 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         elif first_date_val.weekday() == 6:  # Chủ Nhật
             first_date_val = datetime(target_year, target_month, 2)
 
-        cell_b5 = new_sheet.cell(row=5, column=2).value
-        cell_a6 = new_sheet.cell(row=6, column=1).value
-
-        if isinstance(cell_b5, datetime) or (isinstance(cell_b5, str) and re.match(r'^\d{4}-\d{2}-\d{2}', str(cell_b5))):
-            new_sheet.cell(row=5, column=2).value = first_date_val
-            print(f"[INFO] Cap nhat moc ngay dau thang tai B5: {first_date_val.strftime('%Y-%m-%d')}")
-
-        if isinstance(cell_a6, datetime) or (isinstance(cell_a6, str) and re.match(r'^\d{4}-\d{2}-\d{2}', str(cell_a6))):
-            new_sheet.cell(row=6, column=1).value = first_date_val
-            print(f"[INFO] Cap nhat moc ngay dau thang tai A6: {first_date_val.strftime('%Y-%m-%d')}")
+        for (r, c) in [(5, 2), (6, 2), (6, 1)]:
+            v = new_sheet.cell(row=r, column=c).value
+            if isinstance(v, datetime) or (isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}', str(v))):
+                new_sheet.cell(row=r, column=c).value = first_date_val
+                col_letter = 'B' if c == 2 else 'A'
+                print(f"[INFO] Cap nhat moc ngay dau thang tai {col_letter}{r}: {first_date_val.strftime('%Y-%m-%d')}")
+                break
 
         # 7. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
         if clean_data:
             print("[INFO] Dang don dep du lieu ngay cu (giu nguyen cong thuc)...")
             
-            max_row = new_sheet.max_row
+            # Giới hạn tối đa row 50 (bảng tháng chỉ có tối đa 31 ngày + dòng tổng)
+            max_row = min(new_sheet.max_row, 50)
             max_col = new_sheet.max_column
+            cell_b5 = new_sheet.cell(row=5, column=2).value
 
             for r in range(5, max_row + 1):
                 cell_a = new_sheet.cell(row=r, column=1).value
                 cell_b = new_sheet.cell(row=r, column=2).value
                 
-                # Bỏ qua dòng TỔNG / TOTAL
+                # Bỏ qua và dừng lại khi gặp dòng TỔNG / TOTAL
                 str_a = str(cell_a).upper() if cell_a else ""
                 str_b = str(cell_b).upper() if cell_b else ""
-                if "TỔNG" in str_a or "TOTAL" in str_a or "TỔNG" in str_b or "TOTAL" in str_b or "TONG" in str_a or "TONG" in str_b:
-                    continue
+                if "TỔNG" in str_a or "TOTAL" in str_a or "TONG" in str_a or "TỔNG" in str_b or "TOTAL" in str_b or "TONG" in str_b:
+                    print(f"[INFO] Dung don dep tai dong tong cong: Row {r}")
+                    break
 
                 # Bỏ qua các dòng chỉ chứa nhãn/tiêu đề
                 # Chỉ xóa các ô số liệu (cột 3 trở đi cho Lot, cột 2 trở đi cho Value)

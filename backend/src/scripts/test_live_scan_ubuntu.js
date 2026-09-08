@@ -63,8 +63,8 @@ conn.on('ready', async () => {
         console.log(`      • Ngày cấp:       ${cc.ngayCap || 'Chưa đọc'}`);
         console.log(`      • Nơi cấp:        ${cc.noiCap || 'Chưa đọc'}`);
         console.log(`      • Nguồn đọc:      ${cc.source || '-'}`);
-        console.log(`      • Thế hệ thẻ:     🏷️ ${cc.theGeneration || 'Chưa xác định'}`);
-        console.log(`      • Độ tin cậy AI:  ⭐ ${Math.round((cc.confidenceScore || 0) * 100)}%`);
+        console.log(`      • Thế hệ thẻ:      ${cc.theGeneration || 'Chưa xác định'}`);
+        console.log(`      • Độ tin cậy AI:   ${Math.round((cc.confidenceScore || 0) * 100)}%`);
         console.log(`      • Cảnh báo lỗi:   ${(cc.canhBaoChatLuong && cc.canhBaoChatLuong.length > 0) ? ('⚠ ' + cc.canhBaoChatLuong.join('; ')) : '✓ Hợp lệ 100% (Đủ 4 góc viền)'}`);
       } else {
         console.log(`   ❌ Không tìm thấy JSON output:\n${rawOut}`);

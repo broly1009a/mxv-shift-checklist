@@ -158,7 +158,7 @@ async function runE2ETest() {
   await connection.disconnect();
 
   if (passed) {
-    console.log('\n⭐ TẤT CẢ CÁC BƯỚC TEST ĐÃ THÀNH CÔNG RỰC RỠ! ⭐');
+    console.log('\n TẤT CẢ CÁC BƯỚC TEST ĐÃ THÀNH CÔNG RỰC RỠ! ');
   } else {
     console.error('\n❌ TEST THẤT BẠI!');
     process.exit(1);

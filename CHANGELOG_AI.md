@@ -2,6 +2,204 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-08] Khắc Phục Lỗi Logic Cảnh Báo "Mép Ảnh Sát Viền" Bị Quá Đà (False Positive) & Lỗi Nginx 504 Gateway Time-out
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: 
+  1. *"logic lỗi hay sao mà toàn thấy báo mép ảnh sát viền thế này"* kèm ảnh chụp danh sách hồ sơ bị báo `❌ LỆCH DỮ LIỆU` hàng loạt với lỗi `CCCD bị cắt xén sát mép ảnh`.
+  2. *"sát cũng vẫn không sao mà trừ khi lém vào khung hình thật"*.
+  3. Lỗi `504 Gateway Time-out` (Nginx) khi bấm cào lại dữ liệu M-System và thắc mắc liệu có đang bị xung đột tài khoản M-System với Checklist Bot.
+- **Nguyên nhân gốc rễ phát hiện qua điều tra**:
+  1. **Logic phát hiện mép viền quá nhạy (False Positive)**: Trong `tkgd_extractor_worker.py`, điều kiện `all_bright_edges = sum(1 for e in edges if e > 95) >= 3` đã đánh đồng toàn bộ ảnh chụp CCCD đặt trên mặt bàn sáng màu, nền trắng hoặc giấy trắng thành "bị crop dính sát mép ảnh", dẫn tới 90% hồ sơ bình thường bị gắn cờ lỗi vô lý.
+  2. **Tự động ép trạng thái từ KHỚP sang LỆCH**: Trong `tkgd-automation.service.ts` (dòng 720 và 992), khi phát hiện `cccdWarnings.length > 0`, hệ thống tự động ép `doc.ketLuan.trangThai = 'LECH'`, dù toàn bộ các trường số CCCD, họ tên, ngày sinh đều khớp 100%.
+  3. **Nginx 504 Gateway Time-out**: Nginx trên Ubuntu mặc định `proxy_read_timeout` chỉ 60 giây. Khi cào nhiều tài khoản M-System qua Playwright, thời gian xử lý vượt quá 60s khiến Nginx tự ngắt kết nối và trả về mã lỗi 504.
+  4. **Xung đột tài khoản M-System**: Khi người dùng chưa cấu hình tài khoản M-System riêng trong cấu hình TKGD, hệ thống tự động kế thừa tài khoản của Checklist Bot (`bot_credentials_msystem`). Vì M-System chỉ cho phép 1 session đồng thời, nếu Checklist Bot đang chạy thì phiên đăng nhập sẽ bị đá văng.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/scripts/python/tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py)**:
+   - Loại bỏ hoàn toàn điều kiện bắt viền sáng giả định (`all_bright_edges > 95`).
+   - Đúng như chỉ đạo của USER: Chỉ cảnh báo khi **thực sự lẹm vào khung hình / cắt cụt chữ** hoặc tỷ lệ ảnh bị cắt xén bất thường quá nặng (`ratio < 1.15` hoặc `ratio > 2.25`).
+2. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Loại bỏ việc tự động chuyển trạng thái `LECH` khi chỉ có cảnh báo chất lượng hình ảnh `cccdWarnings`.
+   - Giữ nguyên trạng thái `KHOP` khi các thông tin số CCCD, họ tên, ngày sinh khớp 100%.
+3. **Nginx (`/etc/nginx/sites-available/default`) trên Ubuntu**:
+   - Bổ sung `proxy_read_timeout 300s; proxy_connect_timeout 300s; proxy_send_timeout 300s;` cho `location /api`.
+4. **MongoDB**:
+   - Dọn dẹp và khôi phục trạng thái cho 8 tài khoản bị đánh nhầm sang `LECH` về lại đúng trạng thái `KHOP` (bao gồm `003C2795169`, `003C8669767`, `036C8888871`, `036C0141369`...).
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **Kiểm thử đối soát**: 
+  - Tài khoản `003C2795169` (Đặng Quí Sĩ Phú): Trạng thái `KHOP`, không còn cảnh báo lỗi mép viền.
+  - Tài khoản `003C8669767` (Trần Ngọc Dịu): Trạng thái `KHOP`.
+  - Tài khoản `036C8888871` (Hoàng Thị Lan): Trạng thái `KHOP`.
+  - Tài khoản `036C0141369` (Võ Thị Minh Huyền): Trạng thái `KHOP`.
+  - Tài khoản `003C1399395` (Nguyễn Thị Thu Thúy): Báo `LECH` đúng lý do thật (Ngày sinh trên HĐ ghi `1980-06-16` sai định dạng thay vì `16/06/1980`), không còn lỗi mép viền.
+- **Triển khai**: Đã reload Nginx với timeout 300s, rebuild NestJS và reload PM2 `mxv-backend`.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi [PYTHON-BRIDGE] Command failed Do Quá Thời Gian Chờ (Timeout 30s)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Kiểm tra lỗi trong log PM2 Ubuntu khi cào lại dữ liệu:
+  `[PYTHON-BRIDGE] Lỗi thực thi Python worker cho 036C8888871: Command failed: python3 /opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py --code 036C8888871 --hopdong ... --front ... --back ...`
+  (Xảy ra tương tự cho các tài khoản `003C1399395`, `036C0141369`).
+- **Nguyên nhân gốc rễ phát hiện qua điều tra**:
+  - Khi bóc tách hồ sơ đầy đủ bao gồm cả file Hợp đồng PDF nhiều trang và 2 file ảnh CCCD mặt trước / mặt sau (chạy giải mã QR, khử lóa Telea inpaint, cắt viền Canny, nắn góc nghiêng perspective transform, và OCR đa góc xoay), thời gian xử lý thực tế của Python trên CPU server mất từ **40 đến 90 giây** (ví dụ test `036C8888871` mất 45s, `003C1399395` mất 106s).
+  - Trong khi đó, tại [tkgd-python-bridge.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts), tham số `timeout` của `execFileAsync` bị cố định ở mức **30,000ms (30 giây)**.
+  - Khi vượt quá 30 giây, Node.js tự động ngắt tiến trình bằng tín hiệu SIGTERM và ném lỗi `Command failed`, khiến quá trình trích xuất bị hủy ngang.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts)**:
+   - Tăng `timeout` từ `30000` (30 giây) lên **`120000` (120 giây / 2 phút)** để tiến trình Python có đủ thời gian hoàn tất toàn bộ các bước bóc tách PDF và OCR 2 mặt thẻ.
+   - Bổ sung ghi log chi tiết `err.stderr` khi xảy ra sự cố để dễ dàng chẩn đoán.
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **Kiểm thử trực tiếp trên Ubuntu**: Chạy thử lệnh trích xuất tài khoản `036C8888871` với cả file PDF hợp đồng và 2 file ảnh có chứa dấu cách/ký tự tiếng Việt `tải xuống (2).png`:
+  - Mã thoát (Exit Code): `0` (Thành công).
+  - Trích xuất đầy đủ và chính xác dữ liệu khách hàng `HOÀNG THỊ LAN`, số CCCD `020176002511`, ngày sinh `27/10/1976`, nơi cấp `CỤC CẢNH SÁT QLHC VỀ TTXH`.
+- **Triển khai máy chủ**: Đã upload mã nguồn qua SFTP, build production NestJS (`nest build`) và reload dịch vụ PM2 `mxv-backend` (PID 2998545) trên máy chủ Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-09-08] Tối Ưu UX: Thu Gọn Dòng Cảnh Báo Lẹm Viền Thành Badge Súc Tích Kèm Nút Xem Chi Tiết
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Giảm thiểu chữ rườm rà trên thanh Header của Modal Tab "Hồ Sơ & Ảnh CCCD". Thay vì in toàn bộ một câu mô tả thuật toán dài hơn 100 chữ (`⚠ CCCD bị cắt xén sát mép ảnh (TRAN-NGOC-DIU-CCCD-truoc.jpg): thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn`), chuyển thành badge ngắn gọn, có nút bấm xem chi tiết khi cần để tránh quá tải thị giác (Text Overload).
+
+### Chi tiết các file đã chỉnh sửa
+1. **[frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)**:
+   - Thêm trạng thái toggle độc lập `showFrontWarningDetail` và `showBackWarningDetail`.
+   - Thu gọn toàn bộ cảnh báo trên Header Khối 1 (Mặt trước) và Khối 2 (Mặt sau) thành nút badge nhỏ súc tích:
+     `[ ⚠ Mép ảnh sát viền ▾ ]` hoặc `[ ⚠ n cảnh báo viền ▾ ]`.
+   - Bổ sung panel thông tin chi tiết (Accordion panel) ngay dưới thanh Header, chỉ bung ra giải thích cặn kẽ khi chuyên viên chủ động bấm vào badge.
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **TypeScript & Build**: Kiểm thử thành công `npx tsc --noEmit` và `npm run build` trên cả môi trường local và Ubuntu `10.0.0.26`.
+- **Trải nghiệm người dùng (UX)**:
+  - Thanh tiêu đề trở nên cực kỳ gọn gàng, thoáng đãng, giữ đúng các thông tin nhận diện cốt lõi (`Số CCCD`, `Loại thẻ`, `Độ tin cậy`).
+  - Không còn hiện tượng vỡ dòng (wrap) làm đẩy 2 khung ảnh xuống dưới màn hình.
+  - Khi cần xem giải trình kỹ thuật để trao đổi với TVKD, chuyên viên chỉ cần click nhẹ vào badge là panel chi tiết bung ra lập tức.
+- **Triển khai máy chủ**: Đã upload file qua SFTP, build production Next.js và reload dịch vụ PM2 `mxv-frontend` (PID 2992277) trên Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi Quay Loading Chậm (25 Giây) Khi Mở Modal Hồ Sơ & Ảnh CCCD
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"sao trên ubuntu lại quay hồ sơ và anhcccd lâu vậy"* (Kèm ảnh chụp màn hình Modal TKGD `003C8669767` Trần Ngọc Dịu bị treo loading xoay vòng: *"Đang nạp hồ sơ đính kèm và kết nối stream ảnh..."*).
+- **Nguyên nhân cốt lõi phát hiện qua điều tra**:
+  1. **Chặn luồng đồng bộ (Synchronous Blocking Call)**: Trong `tkgd-automation.service.ts`, hàm `getAccountFilesManifest` kiểm tra `if (!record.canCuoc?.theGeneration)` và thực hiện `await this.enrichMissingCccdData(record)` một cách đồng bộ. Khi mở hồ sơ chưa có metadata AI, tiến trình Python `tkgd_extractor_worker.py` bị gọi và thực thi hàng loạt tác vụ nặng (Canny edge, contour, CLAHE, Otsu, deskew, checksum). Request HTTP bị giữ chân trọn vẹn **24,974ms (~25 giây)** mới trả về manifest.
+  2. **Vòng lặp xoay 4 góc OCR lãng phí**: Trong `ocr_img`, Python worker duyệt qua 4 góc xoay ($0^\circ, 90^\circ, 180^\circ, 270^\circ$) với cả ảnh gốc và ảnh Otsu (tổng cộng 16 lượt gọi Tesseract OCR cho 2 mặt ảnh), ngay cả khi ảnh gốc ở góc $0^\circ$ đã nhận diện rõ ràng tiêu đề Căn cước.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Chuyển `this.enrichMissingCccdData(record)` sang cơ chế bất đồng bộ nền (`non-blocking background task`).
+   - Hàm `getAccountFilesManifest` quét thư mục và trả về danh sách tệp đính kèm ngay lập tức mà không phải chờ đợi tiến trình AI bóc tách.
+2. **[backend/src/scripts/python/tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py)**:
+   - Thêm cơ chế **Early Exit** trong `ocr_img`: Nếu góc ảnh hiện tại đã nhận diện tốt tiêu đề nhận dạng (CĂN CƯỚC, CỘNG HÒA, IDVNM...) và có độ dài ký tự đủ lớn, lập tức ngắt vòng lặp xoay, bỏ qua 6/8 lượt gọi Tesseract không cần thiết.
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **Đo lường thời gian phản hồi API (`getAccountFilesManifest`)**:
+  - Trước khi tối ưu: **`24,974 ms` (~25.0s)** $\rightarrow$ Màn hình quay vòng loading kéo dài.
+  - Sau khi tối ưu: **`78 ms` (<0.1s)** $\rightarrow$ **Tốc độ phản hồi tăng hơn 300 lần!**
+- **Trải nghiệm người dùng**: Khi bấm xem hồ sơ, Modal mở ra tức thì, danh sách tệp đính kèm và ảnh CCCD mặt trước, mặt sau hiện ngay lập tức không còn hiện tượng quay chờ.
+- **Triển khai**: Đã deploy lên server Ubuntu `10.0.0.26`, PM2 `mxv-backend` & `mxv-frontend` online ổn định.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi Treo Timeout / OOM Khi Tự Động Sinh Sheet 'T09.2026' (Auto-Clone Month Sheet)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Kiểm tra nguyên nhân lỗi Job macro Thống kê số lốt thất bại: `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet 'T09.2026' trong Thong ke so lot giao dich 2026 2.xlsx` dẫn tới `File chưa có Sheet T09.2026. Không thể tự động tạo Sheet bằng Python openpyxl.`
+- **Nguyên nhân cốt lõi phát hiện qua điều tra**:
+  1. **Ô rác ma ở dòng giới hạn Excel (Phantom Cell at row 1,048,560)**: Trong sheet nguồn `T08.2026` của file `Thong ke so lot giao dich 2026 2.xlsx`, người dùng trước đó đã vô tình nhập công thức `=ADDRESS(2,6)` ở dòng `1,048,560` (cột F).
+  2. **Vòng lặp quá tải bộ nhớ (170 triệu ô cell)**: Khi clone sheet, openpyxl xác định `max_row = 1048560`. Logic dọn dẹp cell comments (`iter_rows()`) và xóa trắng dữ liệu ngày cũ đã duyệt qua toàn bộ $1,048,560 \times 163 \approx 170$ triệu ô. Tiến trình Python ngốn sạch 3.8GB RAM và 2.2GB Swap, làm tê liệt CPU máy chủ Ubuntu và bị `spawnSync` kích hoạt timeout 30s.
+  3. **Đường dẫn tĩnh file DSGD**: `lotConfig.defaultPathDsgdCumulative` lưu cứng `DSGD T08.2026.xlsx`, chưa tự động biến thiên theo tháng giao dịch `month` của ngày chạy.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py)**:
+   - Thêm cơ chế tự động phát hiện và cắt tỉa triệt để toàn bộ `_cells` có `row > 60` ngay sau khi clone (bảng thống kê tháng thực tế chỉ có tối đa 31 ngày giao dịch + dòng TỔNG ở khoảng row 28-35).
+   - Tối ưu dọn dẹp comments: Duyệt trực tiếp qua `_cells.values()` thay vì `iter_rows()`.
+   - Cập nhật tiêu đề tháng mới thông minh (quét cả ô A1 và A2) và mốc ngày đầu tháng (quét B5, B6, A6).
+   - Giới hạn phạm vi xóa trắng dữ liệu tối đa `min(max_row, 50)` và dừng ngay lập tức khi chạm dòng `TỔNG` / `TOTAL`.
+2. **[backend/src/modules/lot-statistics/helpers/excel-sheet-cloner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/lot-statistics/helpers/excel-sheet-cloner.helper.ts)**:
+   - Tăng timeout từ 30s lên 60s để đảm bảo an toàn cho các tác vụ ghi file qua ổ đĩa mạng CIFS.
+   - Bổ sung chi tiết lỗi chẩn đoán (`result.error?.message`, `result.status`) thay vì log rỗng khi tiến trình bị timeout.
+3. **[backend/src/modules/bot-engine/handlers/macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts)**:
+   - Tự động thay thế chuỗi tháng `T[MM].[YYYY]` trong `pathDsgdCumulative` theo tháng thực tế của phiên giao dịch.
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **Kiểm thử trực tiếp trên file thật**: Đã chạy `excel_sheet_cloner.py` trên file `/mnt/qlgd-it/.../Thong ke so lot giao dich 2026 2.xlsx`.
+- **Kết quả**: Cắt tỉa thành công **5,254 ô ma** vượt quá row 60, tự động cập nhật tiêu đề tháng 09/2026, cập nhật mốc ngày `2026-09-01` tại B6, dọn dẹp dữ liệu cũ xong trong **dưới 3 giây** (so với việc bị treo/timeout sau 85s trước đó). Sheet `T09.2026` đã được tạo thành công 100%!
+- **Đã đồng bộ lên máy chủ Ubuntu (10.0.0.26)**: Đã deploy code mới lên cả `src` và `dist`, reload PM2 `mxv-backend` thành công.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi Hiển Thị Cảnh Báo Lẹm Cạnh CCCD & Phân Định Cảnh Báo Mặt Trước / Mặt Sau
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"vậy sao tkgd này không có thông báo về việc ảnh cccd bị lém cạnh"* (Kèm ảnh hồ sơ `003C2333888` Ngô Đức Hải, chụp thẻ CCCD bị crop sát mép ảnh, vi phạm quy chuẩn góc bo tròn nhưng giao diện hiển thị `✓ Đủ 4 góc viền`).
+- **Nguyên nhân cốt lõi phát hiện qua điều tra**:
+  1. **Lỗi truy vấn đa đợt (Multi-batch collision)**: Trong MongoDB tồn tại 2 bản ghi của tài khoản `003C2333888` (ngày `2026-09-04` và ngày `2026-09-07`). Hàm `getAccountFilesManifest` trong `tkgd-automation.service.ts` gọi `cleanRecordModel.findOne({ maTKGD })` không lọc theo `batchDate` và không `sort({ batchDate: -1 })`, dẫn tới việc luôn lấy ra bản ghi cũ ngày `2026-09-04` (lần quét cũ trước khi nâng cấp AI) có `canhBaoChatLuong: []`.
+  2. **Bỏ qua quét làm giàu (Enrich bypass)**: Hàm `enrichMissingCccdData` kiểm tra `if (ngaySinh && gioiTinh && noiCap) return;` nên các bản ghi đã lưu từ trước không được tự động quét lại với Engine AI mới để bổ sung `theGeneration`, `confidenceScore` và `canhBaoChatLuong`.
+  3. **Thiếu hiển thị cảnh báo cho Mặt Sau (Section 2)**: Giao diện `TabAttachmentsViewer.tsx` ở Khối 2 (Mặt Sau) gán cứng nhãn `✓ Nhận diện MRZ & Ngày cấp` mà không kiểm tra các cảnh báo lẹm mép của ảnh mặt sau.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Sửa `enrichMissingCccdData`: Bắt buộc kiểm tra thêm `&& record.canCuoc?.theGeneration`, nếu chưa có thế hệ thẻ AI thì tự động chạy `runPythonExtractor` để trích xuất đầy đủ chất lượng ảnh, phân loại thế hệ và chấm điểm tin cậy.
+   - Sửa `getAccountFilesManifest`:
+     - Thêm điều kiện lọc `batchDate` vào `queryFilter` và sắp xếp `.sort({ batchDate: -1, createdAt: -1 })` để đảm bảo luôn lấy đúng đợt mở tài khoản được yêu cầu.
+     - Tự động gọi `enrichMissingCccdData` nếu bản ghi chưa có thế hệ thẻ AI mới để đồng bộ dữ liệu on-the-fly.
+2. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Thêm cơ chế **Tự động kiểm tra tính nhất quán Kết Luận (Consistency Re-evaluation)** trong `getRecords`: Khi gom nhóm hồ sơ, nếu phát hiện `canhBaoChatLuong` hoặc `dinhDangLoi` có lỗi mà `ketLuan.trangThai` trong DB vẫn đang lưu `KHOP` (từ lần chạy cũ trước đó), hệ thống lập tức tự động chuyển đổi `ketLuan.trangThai = 'LECH'`, gộp danh sách lỗi và cập nhật ngầm vào MongoDB.
+   - Thêm cập nhật `ketLuan` vào `enrichMissingCccdData` để đảm bảo khi bóc tách được lỗi lẹm cạnh/mất góc thì trạng thái kết luận của hồ sơ cũng được đồng bộ sang `LECH` ngay lập tức.
+3. **[frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)**:
+   - Phân tách bộ lọc cảnh báo:
+     - Khối 1 (Mặt Trước): Lọc `frontWarnings` (các cảnh báo liên quan đến mặt trước). Nếu có cảnh báo $\rightarrow$ hiển thị nhãn màu đỏ `⚠ {frontWarnings}`; nếu không có $\rightarrow$ hiển thị `✓ Đủ 4 góc viền`.
+     - Khối 2 (Mặt Sau): Lọc `backWarnings` (các cảnh báo liên quan đến mặt sau). Nếu có cảnh báo $\rightarrow$ hiển thị nhãn màu đỏ `⚠ {backWarnings}`; nếu không có $\rightarrow$ hiển thị `✓ Đủ 4 góc viền`.
+
+### Kết quả Kiểm thử & Triển khai
+- **Build**: Cả Backend (`nest build`) và Frontend (`next build`) đều build thành công $100\%$.
+- **Deploy**: Đã đồng bộ lên máy chủ Ubuntu `10.0.0.26`, PM2 `mxv-backend` & `mxv-frontend` restart online thành công.
+- **Kiểm thử API Manifest thực tế trên hồ sơ `003C2333888` (ngày 2026-09-07)**:
+  - Bắt đúng 3 cảnh báo lẹm mép:
+    1. `CCCD bị cắt xén sát mép ảnh (NGO-DUC-HAI-CCCD-truoc.jpg): thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn`
+    2. `CCCD bị cắt xén sát mép ảnh (NGO-DUC-HAI-CCCD-sau.jpg): thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn`
+    3. `CCCD bị xén sát mép ảnh (NGO-DUC-HAI-CCCD-sau.jpg): chữ 'IDVNMO790155634031079015563<<.' chạm sát viền ảnh (<8px)`
+  - Điểm tin cậy: `85%` (bị trừ điểm do có lỗi lẹm viền).
+  - Thế hệ thẻ: `CCCD_CHIP_2021`.
+  - Trên Modal: Cả mặt trước và mặt sau đều hiển thị nhãn cảnh báo màu đỏ trực quan.
+
+---
+
+## [2026-09-08] Khởi Tạo & Cấu Hình Tự Động Kích Hoạt (Bỏ Qua Phê Duyệt) Cho 8 Nhân Sự Khối Quản Lý Giao Dịch
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Insert danh sách 8 cán bộ/nhân sự thuộc Khối Quản lý Giao dịch (Vũ Xuân Quyết, Đào Quốc Anh, Văn Minh Hoàng, Đoàn Thị Giang, Tạ Thiên Hải, Lê Doãn Việt Hoàng, Phạm Vũ Sơn Hà, Lê Đăng Bình Minh) theo role hiện có ở hệ thống để bỏ qua bước duyệt (tự động kích hoạt tài khoản), và hướng dẫn/tắt hiển thị thông tin giám sát ở Sidebar (Hệ thống & Tiến độ ca trực).
+- **Nguyên tắc tuân thủ**: Không sửa đổi mã nguồn ứng dụng (.ts), chỉ cập nhật file cấu hình SSO auto-assign và cung cấp script chèn dữ liệu độc lập cho USER.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/sso-auto-assign.config.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/sso-auto-assign.config.json)**:
+   - Thêm cấu hình tự động kích hoạt (`isActive: true`), gán phòng ban `QLGD_OPS` (Khối Quản lý Giao dịch) và phân quyền tương ứng:
+     - **Vũ Xuân Quyết**: Role `DEPARTMENT_HEAD` (Trưởng Bộ phận), email `quyetvx@mxv.vn` / `quyet.vu@mxv.vn`.
+     - **Đào Quốc Anh**: Role `STAFF` (Nhân viên), email `anhdao@mxv.vn` / `anh.dao@mxv.vn`.
+     - **Văn Minh Hoàng**: Role `STAFF`, email `hoangvm@mxv.vn` / `hoang.van@mxv.vn`.
+     - **Đoàn Thị Giang**: Role `STAFF`, email `giangdt@mxv.vn` / `giang.doan@mxv.vn`.
+     - **Tạ Thiên Hải**: Role `STAFF`, email `haitt@mxv.vn` / `hai.ta@mxv.vn`.
+     - **Lê Doãn Việt Hoàng**: Role `STAFF`, email `hoangldv@mxv.vn` / `hoang.le@mxv.vn`.
+     - **Phạm Vũ Sơn Hà**: Role `STAFF`, email `hapvs@mxv.vn` / `ha.pham@mxv.vn`.
+     - **Lê Đăng Bình Minh**: Role `STAFF`, email `minhldb@mxv.vn` / `minh.le@mxv.vn`.
+2. **[backend/src/scripts/insert_qlgd_users.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/insert_qlgd_users.js)**:
+   - Tạo script độc lập giúp chèn trực tiếp 8 tài khoản vào MongoDB (phòng ban `QLGD_OPS`, mật khẩu mặc định `Staff@MXV123`, `isActive: true`).
+
+### Triển khai & Kiểm thử trên Máy chủ Cloud Ubuntu (10.0.0.26)
+- **Đồng bộ file cấu hình**: Đã upload `sso-auto-assign.config.json` và script `insert_qlgd_users.js` lên máy chủ Ubuntu (`/opt/mxv-checklist/backend/`).
+- **Thực thi chèn tài khoản**: Chạy `node src/scripts/insert_qlgd_users.js` trên máy chủ Ubuntu kết nối MongoDB local (`mongodb://127.0.0.1:27017/mxv_shift_checklist`). Kết quả: 8/8 tài khoản được khởi tạo thành công với `isActive: true`.
+- **Reload Dịch vụ**: Đã reload `mxv-backend` qua PM2 thành công (status `online`). Người dùng trên cloud có thể đăng nhập ngay bằng tài khoản local hoặc SSO M365.
+
+---
+
 ## [2026-09-08] Hoàn Thiện 100% Module Scan CCCD: Khử Lóa Flash (Telea Inpainting), Check Digit ICAO 9303, Phân Loại 4 Thế Hệ Thẻ & Điểm Tin Cậy AI
 
 ### Mục tiêu thay đổi
@@ -29,7 +227,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 5. **[frontend/src/features/tkgd/types/tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)**:
    - Khai báo kiểu dữ liệu cho `theGeneration`, `confidenceScore`, `boundingBoxes`.
 6. **[frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)**:
-   - Hiển thị Huy hiệu thế hệ thẻ (màu tím cho Căn cước 2024, xanh dương cho CCCD Chip, đỏ cho CMND 9 số) và Huy hiệu ⭐ Tin cậy AI (%).
+   - Hiển thị Huy hiệu thế hệ thẻ (màu tím cho Căn cước 2024, xanh dương cho CCCD Chip, đỏ cho CMND 9 số) và Huy hiệu  Tin cậy AI (%).
 7. **[frontend/src/features/tkgd/components/modal/TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)**:
    - Hiển thị dòng Thế hệ thẻ Căn cước và điểm tin cậy AI trong bảng so sánh thông tin.
 
@@ -41,18 +239,18 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **Kết quả Kiểm thử Thực tế qua SSH trên 3 Hồ sơ Điển hình**:
   1. **`012C0074622` (Hoàng Văn Long - Ảnh ghép 2 mặt `CC HOÀNG VĂN LONG.png`)**:
      - Bóc tách đầy đủ: Số CCCD `014201005533`, Họ tên `Hoàng Văn Long`, Ngày sinh `15/05/2001`, Ngày cấp `25/11/2024`, Nơi cấp `BỘ CÔNG AN`.
-     - Phân loại chuẩn xác: 🏷️ `CAN_CUOC_2024` (Thẻ Căn cước mới).
-     - Điểm tin cậy: **⭐ 100%**.
+     - Phân loại chuẩn xác:  `CAN_CUOC_2024` (Thẻ Căn cước mới).
+     - Điểm tin cậy: ** 100%**.
      - Đánh giá chất lượng: **`✓ Hợp lệ 100% (Đủ 4 góc viền)`** (Đã triệt tiêu hoàn toàn lỗi phạt oan lẹm mép!).
   2. **`003C3393939` (Lê Trọng Huy - Ảnh mờ hoa văn bảo an)**:
      - Bóc tách: Số CCCD `038087035120`, Họ tên `LE TRONG HUY`, Ngày sinh `16/04/1987`.
-     - Phân loại: 🏷️ `CCCD_CHIP_2021`.
-     - Điểm tin cậy: **⭐ 80%** (Đạt chuẩn Green/Yellow, hiển thị đầy đủ trên giao diện).
+     - Phân loại:  `CCCD_CHIP_2021`.
+     - Điểm tin cậy: ** 80%** (Đạt chuẩn Green/Yellow, hiển thị đầy đủ trên giao diện).
      - Đánh giá chất lượng: **`✓ Hợp lệ 100% (Đủ 4 góc viền)`**.
   3. **`003C2333888` (Ngô Đức Hải - Thẻ CCCD gắn chip)**:
      - Bóc tách đầy đủ 100%: Số CCCD `031079015563`, Họ tên `NGO DUC HAT`, Ngày sinh `13/10/1979`, Ngày cấp `27/08/2022`, Nơi cấp `Cục Cảnh sát QLHC về TTXH`.
-     - Phân loại: 🏷️ `CCCD_CHIP_2021`.
-     - Điểm tin cậy: **⭐ 85%**.
+     - Phân loại:  `CCCD_CHIP_2021`.
+     - Điểm tin cậy: ** 85%**.
 
 ---
 

@@ -1014,6 +1014,11 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
             except Exception:
                 pass
 
+            # Early exit: Nếu ảnh đã đúng chiều và nhận diện rõ ràng tiêu đề hoặc MRZ, không cần thử các góc 90/180/270
+            has_identity = any(k in best_text.upper() for k in ['CĂN CƯỚC', 'CAN CUOC', 'CỘNG HÒA', 'CHỦ NGHĨA', 'ĐẶC ĐIỂM', 'IDVNM', 'GIÁ TRỊ ĐẾN', 'NGÀY HẾT HẠN'])
+            if has_identity and len(best_text.strip()) >= 70:
+                break
+
         return best_text
 
     # Front OCR
@@ -1231,21 +1236,13 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
                         has_margin_around_card = True
                         break
             
-            # Chỉ cảnh báo Zero-Margin nếu không phải ảnh ghép VÀ không có lề bao quanh an toàn
-            if not is_composite_card and not has_margin_around_card:
-                all_bright_edges = sum(1 for e in edges if e > 95) >= 3
-                all_bright_corners = sum(1 for c in corners if c > 90) >= 3
-                if all_bright_edges and all_bright_corners and w > int(h * 1.2):
-                    w_msg = f"CCCD bị cắt xén sát mép ảnh ({base_name}): thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn"
+            # Chỉ cảnh báo nếu tỷ lệ ảnh bị cắt xén bất thường quá nặng (mất hẳn chiều ngang hoặc dọc)
+            if not is_composite_card and w > int(h * 1.1):
+                ratio = w / max(h, 1)
+                if ratio < 1.15 or ratio > 2.25:
+                    w_msg = f"Tỉ lệ ảnh CCCD bất thường ({base_name}: {ratio:.2f} thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
                     if w_msg not in warnings:
                         warnings.append(w_msg)
-
-                if all_bright_edges and w > int(h * 1.2):
-                    ratio = w / max(h, 1)
-                    if ratio < 1.32 or ratio > 1.95:
-                        w_msg = f"Tỉ lệ ảnh CCCD bất thường ({base_name}: {ratio:.2f} thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
-                        if w_msg not in warnings:
-                            warnings.append(w_msg)
         except Exception:
             pass
 

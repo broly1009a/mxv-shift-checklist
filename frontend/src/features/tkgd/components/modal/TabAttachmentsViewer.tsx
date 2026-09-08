@@ -11,6 +11,9 @@ import {
   FileText,
   Eye,
   Download,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { CleanRecord, AccountManifest, PreviewImageState, PreviewPdfState } from '../../types/tkgd.types';
 import { formatDateStr } from '../../utils/tkgd.helpers';
@@ -32,6 +35,21 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
   onPreviewPdf,
   apiBaseUrl,
 }) => {
+  const [showFrontWarningDetail, setShowFrontWarningDetail] = React.useState(false);
+  const [showBackWarningDetail, setShowBackWarningDetail] = React.useState(false);
+
+  const frontWarnings = React.useMemo(() => {
+    return (accountManifest?.ocrSummary?.canhBaoChatLuong || []).filter(
+      (w) => !w.toLowerCase().includes('sau') && !w.toLowerCase().includes('back')
+    );
+  }, [accountManifest?.ocrSummary?.canhBaoChatLuong]);
+
+  const backWarnings = React.useMemo(() => {
+    return (accountManifest?.ocrSummary?.canhBaoChatLuong || []).filter(
+      (w) => w.toLowerCase().includes('sau') || w.toLowerCase().includes('back')
+    );
+  }, [accountManifest?.ocrSummary?.canhBaoChatLuong]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Đường dẫn thư mục lưu trữ thực tế */}
@@ -141,8 +159,8 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                 ) : null}
                 {(() => {
                   const theGen = accountManifest?.ocrSummary?.theGeneration || inspectRecord?.canCuoc?.theGeneration;
-                  const confScore = accountManifest?.ocrSummary?.confidenceScore !== undefined 
-                    ? accountManifest.ocrSummary.confidenceScore 
+                  const confScore = accountManifest?.ocrSummary?.confidenceScore !== undefined
+                    ? accountManifest.ocrSummary.confidenceScore
                     : inspectRecord?.canCuoc?.confidenceScore;
                   return (
                     <>
@@ -156,9 +174,9 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                             fontWeight: 600,
                           }}
                         >
-                          {theGen === 'CAN_CUOC_2024' && '🏷️ Căn Cước 2024'}
-                          {theGen === 'CCCD_CHIP_2021' && '🏷️ CCCD Gắn Chip'}
-                          {theGen === 'CCCD_MA_VACH' && '🏷️ CCCD Mã Vạch'}
+                          {theGen === 'CAN_CUOC_2024' && ' Căn Cước 2024'}
+                          {theGen === 'CCCD_CHIP_2021' && ' CCCD Gắn Chip'}
+                          {theGen === 'CCCD_MA_VACH' && ' CCCD Mã Vạch'}
                           {theGen === 'CMND_9_SO' && '⛔ CMND 9 Số Cũ'}
                         </span>
                       )}
@@ -172,24 +190,36 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                             fontWeight: 700,
                           }}
                         >
-                          ⭐ Tin cậy: {Math.round(confScore * 100)}%
+                          Tin cậy: {Math.round(confScore * 100)}%
                         </span>
                       )}
                     </>
                   );
                 })()}
-                {accountManifest?.ocrSummary?.canhBaoChatLuong && accountManifest.ocrSummary.canhBaoChatLuong.length > 0 ? (
-                  <span
+                {frontWarnings.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowFrontWarningDetail((prev) => !prev)}
                     style={{
                       padding: '3px 10px',
                       borderRadius: '12px',
-                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                      color: '#f59e0b',
+                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
                       fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.72rem',
+                      transition: 'all 0.15s ease',
                     }}
+                    title="Bấm để xem/ẩn chi tiết cảnh báo chất lượng ảnh"
                   >
-                    ⚠ {accountManifest.ocrSummary.canhBaoChatLuong.join('; ')}
-                  </span>
+                    <AlertTriangle size={12} />
+                    <span>{frontWarnings.length === 1 ? 'Mép ảnh sát viền' : `${frontWarnings.length} cảnh báo viền`}</span>
+                    {showFrontWarningDetail ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
                 ) : (
                   <span
                     style={{
@@ -205,6 +235,33 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Chi tiết cảnh báo mặt trước (chỉ mở khi người dùng bấm nút) */}
+            {showFrontWarningDetail && frontWarnings.length > 0 && (
+              <div
+                style={{
+                  padding: '10px 18px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                  borderBottom: '1px solid rgba(239, 68, 68, 0.15)',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                }}
+              >
+                <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '3px' }}>
+                    Chi tiết cảnh báo chất lượng ảnh mặt trước:
+                  </div>
+                  {frontWarnings.map((w, idx) => (
+                    <div key={idx} style={{ color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      • {w}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Body: Split View 2 Cột */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', padding: '16px' }}>
@@ -478,8 +535,72 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                 >
                   ✓ Nhận diện MRZ & Ngày cấp
                 </span>
+                {backWarnings.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowBackWarningDetail((prev) => !prev)}
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.72rem',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Bấm để xem/ẩn chi tiết cảnh báo chất lượng ảnh"
+                  >
+                    <AlertTriangle size={12} />
+                    <span>{backWarnings.length === 1 ? 'Mép ảnh sát viền' : `${backWarnings.length} cảnh báo viền`}</span>
+                    {showBackWarningDetail ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: '#3b82f6',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✓ Đủ 4 góc viền
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* Chi tiết cảnh báo mặt sau (chỉ mở khi người dùng bấm nút) */}
+            {showBackWarningDetail && backWarnings.length > 0 && (
+              <div
+                style={{
+                  padding: '10px 18px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                  borderBottom: '1px solid rgba(239, 68, 68, 0.15)',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                }}
+              >
+                <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '3px' }}>
+                    Chi tiết cảnh báo chất lượng ảnh mặt sau:
+                  </div>
+                  {backWarnings.map((w, idx) => (
+                    <div key={idx} style={{ color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      • {w}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Body: Split View 2 Cột */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', padding: '16px' }}>

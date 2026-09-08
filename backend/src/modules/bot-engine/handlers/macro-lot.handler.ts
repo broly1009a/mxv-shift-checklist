@@ -84,9 +84,18 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       const parentBaseCqg =
         lastPartCqgIdx > 0 ? backupCqg.substring(0, lastPartCqgIdx) : backupCqg;
 
-      const pathDsgdCumulative =
+      let pathDsgdCumulative =
         lotConfig.defaultPathDsgdCumulative ||
         `${folderPathMs}\\DSGD T${month}.${year}.xlsx`;
+      if (
+        lotConfig.defaultPathDsgdCumulative &&
+        /DSGD\s+T\d{2}\.\d{4}\.xlsx$/i.test(pathDsgdCumulative)
+      ) {
+        pathDsgdCumulative = pathDsgdCumulative.replace(
+          /DSGD\s+T\d{2}\.\d{4}\.xlsx$/i,
+          `DSGD T${month}.${year}.xlsx`,
+        );
+      }
       const pathNormal =
         lotConfig.defaultPathNormal ||
         `${folderPathCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`;

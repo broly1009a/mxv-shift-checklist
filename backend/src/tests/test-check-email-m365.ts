@@ -87,7 +87,7 @@ async function run() {
       if (isSenderMatch) {
         found = true;
         console.log('\n======================================================================');
-        console.log('⭐️⭐️⭐️ ĐÃ TÌM THẤY THƯ KHỚP YÊU CẦU! ⭐️⭐️⭐️');
+        console.log('️️️ ĐÃ TÌM THẤY THƯ KHỚP YÊU CẦU! ️️️');
         console.log('======================================================================');
         console.log(`Tiêu đề (Subject): ${subject}`);
         console.log(`Người gửi (Sender): ${msg.from?.emailAddress?.name} <${fromAddress}>`);

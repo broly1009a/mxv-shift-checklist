@@ -713,6 +713,30 @@ export class TkgdAutomationService {
       }
     }
 
+    // Tự động kiểm tra tính nhất quán: Chỉ chuyển LECH khi có lỗi định dạng hợp đồng thực tế (hdErrors), không chuyển LECH vì cảnh báo mép ảnh CCCD
+    for (const doc of groupedMap.values()) {
+      const hdErrors: string[] = doc.hopDong?.dinhDangLoi || [];
+      if (hdErrors.length > 0 && doc.ketLuan?.trangThai === 'KHOP') {
+        const combinedErrors = Array.from(
+          new Set([...(doc.ketLuan?.danhSachLoi || []), ...hdErrors])
+        );
+        doc.ketLuan = {
+          trangThai: 'LECH',
+          danhSachLoi: combinedErrors,
+          reconciledAt: doc.ketLuan?.reconciledAt || new Date(),
+        };
+        if (doc._id) {
+          this.cleanRecordModel
+            .updateMany(
+              { $or: [{ _id: doc._id }, { maTKGD: doc.maTKGD }, { maTKGDBase: doc.maTKGDBase }] },
+              { $set: { 'ketLuan.trangThai': 'LECH', 'ketLuan.danhSachLoi': combinedErrors } },
+            )
+            .exec()
+            .catch(() => {});
+        }
+      }
+    }
+
     const allGroupedList = Array.from(groupedMap.values());
 
     // Thống kê TOÀN BỘ đợt hồ sơ (không phụ thuộc vào trang hoặc tab filter hiện tại)
@@ -811,8 +835,13 @@ export class TkgdAutomationService {
     const baseCode = (record.maTKGDBase || record.maTKGD?.split('-')[0] || '').trim();
     if (!baseCode) return;
 
-    // Nếu đã có đủ ngày sinh, giới tính và nơi cấp thì không cần quét lại
-    if (record.canCuoc?.ngaySinh && record.canCuoc?.gioiTinh && (record.hopDong?.noiCap || record.canCuoc?.noiCap)) {
+    // Chỉ bỏ qua nếu đã có đủ ngày sinh, giới tính, nơi cấp VÀ đã có phân loại thế hệ thẻ AI mới
+    if (
+      record.canCuoc?.ngaySinh &&
+      record.canCuoc?.gioiTinh &&
+      (record.hopDong?.noiCap || record.canCuoc?.noiCap) &&
+      record.canCuoc?.theGeneration
+    ) {
       return;
     }
 
@@ -956,6 +985,19 @@ export class TkgdAutomationService {
 
           if (record.hopDong) updatePayload.hopDong = record.hopDong;
           if (record.canCuoc) updatePayload.canCuoc = record.canCuoc;
+
+          const hdErrors: string[] = pyRes.hopDong?.dinhDangLoi || record.hopDong?.dinhDangLoi || [];
+          if (hdErrors.length > 0 && (!record.ketLuan?.trangThai || record.ketLuan?.trangThai === 'KHOP')) {
+            const combinedErrors = Array.from(
+              new Set([...(record.ketLuan?.danhSachLoi || []), ...hdErrors])
+            );
+            record.ketLuan = {
+              trangThai: 'LECH',
+              danhSachLoi: combinedErrors,
+              reconciledAt: new Date(),
+            };
+            updatePayload.ketLuan = record.ketLuan;
+          }
 
           if (Object.keys(updatePayload).length > 0 && record._id) {
             await this.cleanRecordModel.updateOne({ _id: record._id }, { $set: updatePayload });
@@ -2145,16 +2187,28 @@ export class TkgdAutomationService {
 
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
 
-    // Tìm record trong DB để lấy thêm thông tin batchDate & đường dẫn MS nếu có
+    const queryFilter: any = {
+      $or: [
+        { maTKGDBase: code },
+        { maTKGD: code },
+        { 'noiDungMail.maTKGD_Futures': code },
+      ],
+    };
+    if (batchDate && batchDate.trim()) {
+      queryFilter.batchDate = batchDate.trim();
+    }
+
     const record = await this.cleanRecordModel
-      .findOne({
-        $or: [
-          { maTKGDBase: code },
-          { maTKGD: code },
-          { 'noiDungMail.maTKGD_Futures': code },
-        ],
-      })
+      .findOne(queryFilter)
+      .sort({ batchDate: -1, createdAt: -1 })
       .lean();
+
+    if (record && !record.canCuoc?.theGeneration) {
+      // Kích hoạt làm giàu AI bất đồng bộ (Non-blocking), không chặn luồng trả về manifest tệp hồ sơ
+      this.enrichMissingCccdData(record).catch((err) => {
+        console.warn(`[MANIFEST] Không thể tự động làm giàu CCCD cho ${code}:`, err);
+      });
+    }
 
     const effectiveBatchDate =
       batchDate?.trim() || record?.batchDate || new Date().toISOString().slice(0, 10);

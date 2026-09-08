@@ -16,5 +16,165 @@
     "role": "DEPARTMENT_HEAD",
     "departmentCode": "QLGD_OPS",
     "fullName": "Giám đốc Khối QLGD"
+  },
+  {
+    "email": "quyetvx@mxv.vn",
+    "role": "DEPARTMENT_HEAD",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Vũ Xuân Quyết",
+    "title": "Trưởng Bộ phận",
+    "phoneNumber": "0903479316",
+    "dateOfBirth": "02/10/1990",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "quyet.vu@mxv.vn",
+    "role": "DEPARTMENT_HEAD",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Vũ Xuân Quyết",
+    "title": "Trưởng Bộ phận",
+    "phoneNumber": "0903479316",
+    "dateOfBirth": "02/10/1990",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "anhdao@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Đào Quốc Anh",
+    "title": "Nhân viên",
+    "phoneNumber": "0981234196",
+    "dateOfBirth": "23/01/1996",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "anh.dao@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Đào Quốc Anh",
+    "title": "Nhân viên",
+    "phoneNumber": "0981234196",
+    "dateOfBirth": "23/01/1996",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hoangvm@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Văn Minh Hoàng",
+    "title": "Nhân viên",
+    "phoneNumber": "0984907097",
+    "dateOfBirth": "16/12/1997",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hoang.van@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Văn Minh Hoàng",
+    "title": "Nhân viên",
+    "phoneNumber": "0984907097",
+    "dateOfBirth": "16/12/1997",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "giangdt@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Đoàn Thị Giang",
+    "title": "Nhân viên",
+    "phoneNumber": "0912291097",
+    "dateOfBirth": "29/10/1997",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "giang.doan@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Đoàn Thị Giang",
+    "title": "Nhân viên",
+    "phoneNumber": "0912291097",
+    "dateOfBirth": "29/10/1997",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "haitt@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Tạ Thiên Hải",
+    "title": "Nhân viên",
+    "phoneNumber": "0903295228",
+    "dateOfBirth": "02/02/2002",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hai.ta@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Tạ Thiên Hải",
+    "title": "Nhân viên",
+    "phoneNumber": "0903295228",
+    "dateOfBirth": "02/02/2002",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hoangldv@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Lê Doãn Việt Hoàng",
+    "title": "Nhân viên",
+    "phoneNumber": "0981692265",
+    "dateOfBirth": "07/11/2001",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hoang.le@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Lê Doãn Việt Hoàng",
+    "title": "Nhân viên",
+    "phoneNumber": "0981692265",
+    "dateOfBirth": "07/11/2001",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "hapvs@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Phạm Vũ Sơn Hà",
+    "title": "Nhân viên",
+    "phoneNumber": "0365392897",
+    "dateOfBirth": "12/02/2003",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "ha.pham@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Phạm Vũ Sơn Hà",
+    "title": "Nhân viên",
+    "phoneNumber": "0365392897",
+    "dateOfBirth": "12/02/2003",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "minhldb@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Lê Đăng Bình Minh",
+    "title": "Nhân viên",
+    "phoneNumber": "0352218687",
+    "dateOfBirth": "29/01/2004",
+    "status": "Đang công tác"
+  },
+  {
+    "email": "minh.le@mxv.vn",
+    "role": "STAFF",
+    "departmentCode": "QLGD_OPS",
+    "fullName": "Lê Đăng Bình Minh",
+    "title": "Nhân viên",
+    "phoneNumber": "0352218687",
+    "dateOfBirth": "29/01/2004",
+    "status": "Đang công tác"
   }
 ]

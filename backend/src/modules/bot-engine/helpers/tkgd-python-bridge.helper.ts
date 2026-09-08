@@ -110,7 +110,7 @@ export async function runPythonExtractor(input: PythonExtractorInput): Promise<P
 
   try {
     const { stdout } = await execFileAsync(pythonBin, args, {
-      timeout: 30000,
+      timeout: 120000,
       maxBuffer: 10 * 1024 * 1024,
       encoding: 'utf-8',
     });
@@ -119,6 +119,9 @@ export async function runPythonExtractor(input: PythonExtractorInput): Promise<P
     return parsed;
   } catch (err: any) {
     console.error(`[PYTHON-BRIDGE] Lỗi thực thi Python worker cho ${input.accountCode}:`, err.message);
+    if (err.stderr) {
+      console.error(`[PYTHON-BRIDGE] STDERR:`, err.stderr.trim());
+    }
     return null;
   }
 }

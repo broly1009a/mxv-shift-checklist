@@ -139,7 +139,7 @@ async function runMSPricesTest() {
         ) {
           const apiFileName = cleanUrl.replace(/[^a-zA-Z0-9]/g, '_') + '.json';
           fs.writeFileSync(path.join(DEBUG_DIR, apiFileName), jsonStr, 'utf8');
-          console.log(`⭐ Saved interesting API response to: ${apiFileName}`);
+          console.log(` Saved interesting API response to: ${apiFileName}`);
         }
       } catch { }
     }
