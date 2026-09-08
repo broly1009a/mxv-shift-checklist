@@ -352,20 +352,42 @@ export function dispatchAttachmentsForAccount(
   // Kiểm tra xem trong danh sách matched đã có ảnh CCCD chưa
   const hasImages = matched.some((att) => isImageFile(att.name));
 
-  // 2. Thuật toán Gom cụm tuần tự (Sequential Clustering):
-  // Nếu đã match được file PDF nhưng CHƯA có ảnh (do ảnh CCCD mang tên ngẫu nhiên: mt.png, ms.png, tải xuống...)
+  // 2. Thuật toán Gom cụm (Clustering):
+  // Nếu đã match được file PDF nhưng CHƯA có ảnh (do ảnh CCCD mang tên ngẫu nhiên: mt.png, ms.png, tải xuống, image001...)
   if (matched.length > 0 && !hasImages) {
-    for (let i = 0; i < allAttachments.length; i++) {
-      const att = allAttachments[i];
-      if (isMatchAccount(att.name) && (att.name || '').toLowerCase().endsWith('.pdf')) {
-        // Gom tất cả các ảnh nằm ngay sau file PDF này cho đến khi gặp file PDF của khách hàng tiếp theo
-        for (let j = i + 1; j < allAttachments.length; j++) {
-          const nextAtt = allAttachments[j];
-          const nextName = (nextAtt.name || '').toLowerCase();
-          if (nextName.endsWith('.pdf')) break; // Đã sang file PDF của khách tiếp theo -> dừng gom
-          if (isImageFile(nextAtt.name)) {
-            if (!matched.some((m) => m.name === nextAtt.name && m.size === nextAtt.size)) {
-              matched.push(nextAtt);
+    const allImages = allAttachments.filter((att) => isImageFile(att.name));
+    // Nếu tổng số ảnh trong email <= 4 (trường hợp email đơn lẻ hoặc ít ảnh), gom toàn bộ ảnh cho khách này
+    if (allImages.length <= 4) {
+      for (const img of allImages) {
+        if (!matched.some((m) => m.name === img.name && m.size === img.size)) {
+          matched.push(img);
+        }
+      }
+    } else {
+      // Trường hợp email gom nhiều khách: gom ảnh xung quanh vị trí file PDF (cả trước và sau)
+      for (let i = 0; i < allAttachments.length; i++) {
+        const att = allAttachments[i];
+        if (isMatchAccount(att.name) && (att.name || '').toLowerCase().endsWith('.pdf')) {
+          // Gom tất cả các ảnh nằm ngay sau file PDF này cho đến khi gặp file PDF của khách hàng tiếp theo
+          for (let j = i + 1; j < allAttachments.length; j++) {
+            const nextAtt = allAttachments[j];
+            const nextName = (nextAtt.name || '').toLowerCase();
+            if (nextName.endsWith('.pdf')) break;
+            if (isImageFile(nextAtt.name)) {
+              if (!matched.some((m) => m.name === nextAtt.name && m.size === nextAtt.size)) {
+                matched.push(nextAtt);
+              }
+            }
+          }
+          // Gom cả các ảnh nằm ngay trước file PDF này (ảnh dán trên thân thư trước file PDF đính kèm)
+          for (let j = i - 1; j >= 0; j--) {
+            const prevAtt = allAttachments[j];
+            const prevName = (prevAtt.name || '').toLowerCase();
+            if (prevName.endsWith('.pdf')) break;
+            if (isImageFile(prevAtt.name)) {
+              if (!matched.some((m) => m.name === prevAtt.name && m.size === prevAtt.size)) {
+                matched.push(prevAtt);
+              }
             }
           }
         }

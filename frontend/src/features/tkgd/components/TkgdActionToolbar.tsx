@@ -370,69 +370,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           )}
         </div>
       </div>
-
-      {/* LIVE PROGRESS BANNER */}
-      {isProcessing && (
-        <div
-          className="animate-pulse"
-          style={{
-            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            borderRadius: '14px',
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#3b82f6',
-              }}
-            >
-              <Loader2 size={20} className="animate-spin" />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-                  Hệ Thống Đang Xử Lý
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    padding: '2px 8px',
-                    borderRadius: '20px',
-                    backgroundColor:
-                      sprintMode === 'FAST' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(139, 92, 246, 0.15)',
-                    color: sprintMode === 'FAST' ? '#3b82f6' : '#8b5cf6',
-                    fontWeight: 700,
-                  }}
-                >
-                  {sprintMode === 'FAST' ? 'Sprint 1: Nhanh (Text)' : 'Sprint 2: Đầy Đủ (Ảnh & PDF)'}
-                </span>
-              </div>
-              <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                {processingStage || 'Đang thực thi tác vụ trong nền, vui lòng đợi trong giây lát...'}
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Tự động cập nhật bảng khi hoàn tất
-            </span>
-          </div>
-        </div>
-      )}
     </>
   );
 };

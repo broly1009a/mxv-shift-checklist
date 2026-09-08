@@ -26,6 +26,19 @@ import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-
 import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
+export interface TkgdProgressState {
+  isProcessing: boolean;
+  taskType: 'SYNC_MAIL' | 'SYNC_MS' | 'RECONCILE' | 'PIPELINE_ALL' | 'IDLE';
+  current: number;
+  total: number;
+  percent: number;
+  currentCode?: string;
+  currentName?: string;
+  stage: string;
+  detail?: string;
+  updatedAt: number;
+}
+
 function findBrowserExecutable(): string | undefined {
   if (process.platform === 'linux') {
     const linuxPaths = [
@@ -56,17 +69,29 @@ function findBrowserExecutable(): string | undefined {
 /**
  * Nhận diện và bỏ qua các tệp ảnh logo, banner, chữ ký email không phải hồ sơ pháp lý
  */
-function isIgnoredEmailAttachment(fileName?: string): boolean {
+function isIgnoredEmailAttachment(fileName?: string, size?: number): boolean {
   if (!fileName) return true;
   const lower = fileName.trim().toLowerCase();
-  if (
-    lower === 'thumbs.db' ||
-    lower === 'desktop.ini' ||
+  if (lower === 'thumbs.db' || lower === 'desktop.ini') return true;
+
+  // Nếu là ảnh kiểu image001, image002, image.png... nhưng dung lượng thực tế >= 25KB,
+  // đây là ảnh CCCD/tài liệu được dán hoặc chèn vào email -> KHÔNG ĐƯỢC BỎ QUA!
+  const isGenericImageName =
     lower === 'image.png' ||
     lower === 'image.jpg' ||
     lower === 'image.jpeg' ||
     lower === 'image.gif' ||
     /^image\d+\.(png|jpe?g|gif)$/i.test(lower) ||
+    lower.startsWith('image0');
+
+  if (isGenericImageName) {
+    if (size !== undefined && size >= 25000) {
+      return false; // Ảnh CCCD / tài liệu có dung lượng thực tế
+    }
+    return true; // Icon chữ ký nhỏ (< 25KB)
+  }
+
+  if (
     lower.startsWith('logo') ||
     lower.includes('-logo') ||
     lower.includes('_logo') ||
@@ -184,6 +209,52 @@ export class TkgdAutomationService {
     @InjectModel(CleanAccountRecord.name) private cleanRecordModel: Model<CleanAccountRecordDocument>,
     @Optional() private readonly settingsService?: SystemSettingsService,
   ) { }
+
+  private progressMap = new Map<string, TkgdProgressState>();
+
+  /**
+   * Cập nhật trạng thái tiến trình thời gian thực theo từng người dùng
+   */
+  updateProgress(userEmail: string, state: Partial<TkgdProgressState>) {
+    const prev = this.progressMap.get(userEmail) || {
+      isProcessing: false,
+      taskType: 'IDLE' as const,
+      current: 0,
+      total: 0,
+      percent: 0,
+      stage: '',
+      updatedAt: Date.now(),
+    };
+    this.progressMap.set(userEmail, {
+      ...prev,
+      ...state,
+      updatedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Lấy trạng thái tiến trình hiện tại của người dùng
+   */
+  getProgress(userEmail: string): TkgdProgressState {
+    const state = this.progressMap.get(userEmail);
+    if (!state) {
+      return {
+        isProcessing: false,
+        taskType: 'IDLE',
+        current: 0,
+        total: 0,
+        percent: 0,
+        stage: '',
+        updatedAt: Date.now(),
+      };
+    }
+    // Safeguard: Tự động nhả cờ nếu quá 10 phút không cập nhật
+    if (state.isProcessing && Date.now() - state.updatedAt > 10 * 60 * 1000) {
+      state.isProcessing = false;
+      state.stage = '';
+    }
+    return state;
+  }
 
   /**
    * Quét các thông báo lỗi Ant Design / Bootstrap trên trang đăng nhập M-System (Áp dụng từ Checklist Bot)
@@ -1018,13 +1089,38 @@ export class TkgdAutomationService {
     if (batchDate) query.batchDate = batchDate;
     const records = await this.cleanRecordModel.find(query).sort({ createdAt: -1 }).limit(100);
 
-    for (const record of records) {
+    this.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'RECONCILE',
+      current: 0,
+      total: records.length || 1,
+      percent: 20,
+      stage: `Đang làm giàu dữ liệu & đối soát chéo cho ${records.length} hồ sơ...`,
+    });
+
+    for (let rIdx = 0; rIdx < records.length; rIdx++) {
+      const record = records[rIdx];
+      const baseCode = record.maTKGDBase || record.maTKGD || '';
+      this.updateProgress(userEmail, {
+        current: rIdx + 1,
+        total: records.length,
+        percent: 20 + Math.round(((rIdx + 1) / records.length) * 60),
+        currentCode: baseCode,
+        stage: `Đang đối soát hồ sơ ${baseCode} (${rIdx + 1}/${records.length})...`,
+      });
       await this.enrichMissingCccdData(record);
     }
 
     const outDir = resolveTkgdOutputDir(config?.storage?.windowsPath);
     const dateStr = (batchDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const targetFile = path.join(outDir, `Auto_Data_mail_${dateStr}.xlsx`);
+
+    this.updateProgress(userEmail, {
+      current: records.length,
+      total: records.length,
+      percent: 85,
+      stage: 'Đang tổng hợp báo cáo và xuất file Excel đối soát...',
+    });
 
     const summary: ReconcileSummary = await reconcileAndExportToExcel(records, {
       outputPath: targetFile,
@@ -1202,6 +1298,13 @@ export class TkgdAutomationService {
       );
     }
 
+    this.updateProgress(userEmail, {
+      isProcessing: false,
+      taskType: 'IDLE',
+      percent: 100,
+      stage: 'Đối soát chéo dữ liệu hoàn tất!',
+    });
+
     return {
       success: true,
       summary,
@@ -1212,6 +1315,15 @@ export class TkgdAutomationService {
    * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
    */
   async syncMailOpeningAccounts(userEmail: string, batchDate?: string) {
+    this.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'SYNC_MAIL',
+      current: 0,
+      total: 1,
+      percent: 10,
+      stage: 'Đang kết nối Outlook và quét email mở TKGD...',
+    });
+
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
     const todayStr = batchDate || new Date().toISOString().slice(0, 10);
     let emailList: Array<{
@@ -1307,7 +1419,8 @@ export class TkgdAutomationService {
                 if (attachRes.ok) {
                   const aData = await attachRes.json();
                   for (const a of aData.value || []) {
-                    if (a.contentBytes && !a.isInline && !isIgnoredEmailAttachment(a.name)) {
+                    const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
+                    if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
                       msgAttachments.push({
                         name: a.name,
                         contentType: a.contentType,
@@ -1391,7 +1504,8 @@ export class TkgdAutomationService {
                           if (attachRes.ok) {
                             const aData = await attachRes.json();
                             for (const a of aData.value || []) {
-                              if (a.contentBytes && !a.isInline && !isIgnoredEmailAttachment(a.name)) {
+                              const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
+                              if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
                                 msgAttachments.push({
                                   name: a.name,
                                   contentType: a.contentType,
@@ -1513,9 +1627,21 @@ export class TkgdAutomationService {
       const accountGroups = parseAccountOpeningEmailMulti(mail.bodyRawText);
       if (!accountGroups || accountGroups.length === 0) continue;
 
-      for (const group of accountGroups) {
+      for (let gIdx = 0; gIdx < accountGroups.length; gIdx++) {
+        const group = accountGroups[gIdx];
         const baseCode = group.maTKGDBase;
         if (!baseCode) continue;
+
+        this.updateProgress(userEmail, {
+          isProcessing: true,
+          taskType: 'SYNC_MAIL',
+          current: processedCount + 1,
+          total: Math.max(accountGroups.length, processedCount + 1),
+          percent: Math.min(95, Math.round(((gIdx + 1) / accountGroups.length) * 100)),
+          currentCode: baseCode,
+          currentName: group.tenTaiKhoan || undefined,
+          stage: `Đang bóc tách hợp đồng & OCR CCCD: ${baseCode} (${group.tenTaiKhoan || ''})`,
+        });
 
         const targetAccountCode = group.maTKGDFutures || group.maTKGDACM || baseCode;
 
@@ -1543,7 +1669,8 @@ export class TkgdAutomationService {
           let cccdBackPath: string | undefined = undefined;
 
           for (const att of targetAttachments) {
-            if (isIgnoredEmailAttachment(att.name)) continue;
+            const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
+            if (isIgnoredEmailAttachment(att.name, attSize)) continue;
             const nameLower = (att.name || '').toLowerCase();
             let targetFilePath = att.filePath;
 
@@ -1576,8 +1703,8 @@ export class TkgdAutomationService {
                   hopDongPath = targetFilePath;
                 }
               } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
-                const isFront = /\b(truoc|front|mat1|mt)\b/i.test(nameLower) || nameLower.includes('mặt trước') || nameLower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('mt.');
-                const isBack = /\b(sau|back|mat2|ms)\b/i.test(nameLower) || nameLower.includes('mặt sau') || nameLower.includes('matsau') || /^ms[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('ms.');
+                const isFront = /\b(truoc|front|mat1|mt)\b/i.test(nameLower) || nameLower.includes('mặt trước') || nameLower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('mt.') || nameLower.includes('image001');
+                const isBack = /\b(sau|back|mat2|ms)\b/i.test(nameLower) || nameLower.includes('mặt sau') || nameLower.includes('matsau') || /^ms[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('ms.') || nameLower.includes('image002');
                 if (isFront) {
                   cccdFrontPath = targetFilePath;
                 } else if (isBack) {
@@ -1848,6 +1975,13 @@ export class TkgdAutomationService {
       }
     }
 
+    this.updateProgress(userEmail, {
+      isProcessing: false,
+      taskType: 'IDLE',
+      percent: 100,
+      stage: `Hoàn tất bóc tách ${processedCount} hồ sơ từ email Outlook!`,
+    });
+
     return {
       success: true,
       count: processedCount,
@@ -1863,6 +1997,15 @@ export class TkgdAutomationService {
     userEmail: string,
     options?: { investorCode?: string; downloadImages?: boolean; batchDate?: string }
   ) {
+    this.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'SYNC_MS',
+      current: 0,
+      total: 1,
+      percent: 5,
+      stage: 'Đang khởi động trình duyệt và đăng nhập M-System...',
+    });
+
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
     let username = config?.msystem?.username;
     let password = config?.msystem?.passwordEncrypted ? decrypt(config.msystem.passwordEncrypted) : '';
@@ -2008,7 +2151,17 @@ export class TkgdAutomationService {
       await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => { });
 
       // 5. Cào chi tiết từng tài khoản (Bọc try-catch riêng để lỗi 1 hồ sơ không làm hỏng cả mẻ)
-      for (const code of codesToScrape) {
+      for (let cIdx = 0; cIdx < codesToScrape.length; cIdx++) {
+        const code = codesToScrape[cIdx];
+        this.updateProgress(userEmail, {
+          isProcessing: true,
+          taskType: 'SYNC_MS',
+          current: cIdx + 1,
+          total: codesToScrape.length,
+          percent: Math.min(95, Math.round(((cIdx + 1) / codesToScrape.length) * 100)),
+          currentCode: code,
+          stage: `Đang cào dữ liệu M-System: ${code} (${cIdx + 1}/${codesToScrape.length})...`,
+        });
         try {
           let saveImagesDir: string | undefined = undefined;
           if (shouldDownloadImages) {
@@ -2086,6 +2239,13 @@ export class TkgdAutomationService {
     // TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC
     const reconResult = await this.runReconciliation(userEmail);
 
+    this.updateProgress(userEmail, {
+      isProcessing: false,
+      taskType: 'IDLE',
+      percent: 100,
+      stage: `Đã cào M-System thành công cho ${scrapedCount} hồ sơ!`,
+    });
+
     return {
       success: true,
       scrapedCount,
@@ -2101,13 +2261,40 @@ export class TkgdAutomationService {
     userEmail: string,
     options?: { downloadImages?: boolean; batchDate?: string }
   ) {
+    this.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'PIPELINE_ALL',
+      current: 1,
+      total: 3,
+      percent: 15,
+      stage: 'Bước 1/3: Đang quét email mở TKGD và hồ sơ đính kèm...',
+    });
+
     // 1. Quét Mail
     const mailResult = await this.syncMailOpeningAccounts(userEmail, options?.batchDate);
+
+    this.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'PIPELINE_ALL',
+      current: 2,
+      total: 3,
+      percent: 50,
+      stage: 'Bước 2/3: Đang cào dữ liệu đối ứng từ M-System...',
+    });
 
     // 2. Cào M-System & Tự động đối soát (mặc định tải ảnh và bóc tách đầy đủ)
     const msResult = await this.syncMSystemAccounts(userEmail, {
       downloadImages: options?.downloadImages !== undefined ? options.downloadImages : true,
       batchDate: options?.batchDate,
+    });
+
+    this.updateProgress(userEmail, {
+      isProcessing: false,
+      taskType: 'IDLE',
+      current: 3,
+      total: 3,
+      percent: 100,
+      stage: 'Hoàn tất toàn bộ chu trình tự động A-Z!',
     });
 
     return {
@@ -2301,7 +2488,13 @@ export class TkgdAutomationService {
     };
 
     for (const f of filesInDir) {
-      if (isIgnoredEmailAttachment(f)) continue;
+      let fileSize: number | undefined = undefined;
+      if (foundDir) {
+        try {
+          fileSize = fs.statSync(path.join(foundDir, f)).size;
+        } catch { }
+      }
+      if (isIgnoredEmailAttachment(f, fileSize)) continue;
       const lower = f.toLowerCase();
       const isMS = lower.includes('_ms_') || lower.startsWith(`${code.toLowerCase()}_ms`);
 
@@ -2328,9 +2521,9 @@ export class TkgdAutomationService {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
           }
         } else {
-          if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1')) {
+          if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('image001')) {
             mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2')) {
+          } else if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('image002')) {
             mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
           } else if (lower.includes('chuky') || lower.includes('signature')) {
             otherFiles.push(buildFileObj(f, 'IMAGE'));

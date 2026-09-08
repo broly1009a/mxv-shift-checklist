@@ -2,7 +2,83 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-09-08] Khắc Phục Lỗi Logic Cảnh Báo "Mép Ảnh Sát Viền" Bị Quá Đà (False Positive) & Lỗi Nginx 504 Gateway Time-out
+## [2026-09-08] Thiết Kế & Triển Khai Real-time Progress Tracker Cho TKGD, Dọn Dẹp Banner UI Trùng Lặp & Sửa Dứt Điểm Lỗi 403 Forbidden Của Checklist Bot
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: 
+  1. *"ví dụ hệ thống đang xử lý liệu có hiển thị được số tiến trình tkgd làm được không"* $\rightarrow$ *"đánh giá và tạo bản thiết kế"*.
+  2. *"Hệ Thống Đang Xử Lý Sprint 2: Đầy Đủ (Ảnh & PDF) Đang đọc email Outlook yêu cầu mở TKGD mới... tại sao lại có hai msg giống nhau vậy"* (2 khối banner tiến trình bị render đè nhau).
+  3. Log PM2: `[EmailWatcherService] Error in getLatestEmail: Graph API query failed: Forbidden` lặp lại mỗi phút.
+- **Nguyên nhân gốc rễ**:
+  1. **Tiến trình xử lý ngầm chưa có cơ chế báo số lượng**: Backend xử lý batch nhiều tài khoản (Playwright cào M-System, OCR bóc tách CCCD) nhưng không phát broadcast trạng thái tiến độ cho từng tài khoản, khiến Frontend chỉ hiển thị dòng thông báo tĩnh `Đang xử lý...` mà không biết đã hoàn thành bao nhiêu hồ sơ (ví dụ `3/10 (30%)`).
+  2. **Banner tiến trình bị trùng lặp**: Cả component con `TkgdActionToolbar.tsx` và component cha `TkgdDashboard.tsx` đều chứa khối banner render điều kiện `{isProcessing && (...)}`, khiến giao diện xuất hiện 2 khung thông báo giống hệt nhau.
+  3. **Checklist Bot bị lỗi 403 Forbidden mỗi phút**: Trong `email-watcher.service.ts`, hàm `getLatestEmail()` bị hardcode gọi `client_credentials` (App-only). Ứng dụng Azure chưa được cấp Application Permission `Mail.Read` cho toàn tổ chức, trong khi Delegated Refresh Token (`m365_refresh_token`) của tài khoản trực vận hành đã có sẵn trong cơ sở dữ liệu `system_settings`.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Khai báo interface `TkgdProgressState` (`current`, `total`, `percent`, `currentCode`, `currentName`, `stage`, `taskType`).
+   - Xây dựng `progressMap` (in-memory Map trong RAM) và các helper `updateProgress()`, `getProgress()`.
+   - Gắn lệnh cập nhật tiến độ chi tiết theo từng bước vào các hàm `syncMailOpeningAccounts`, `syncMSystemAccounts`, `runReconciliation`, `runPipelineAll`.
+2. **[backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts)**:
+   - Mở endpoint `@Get('progress')` trả về trạng thái tiến độ tức thời (`< 1ms` phản hồi).
+3. **[backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts)**:
+   - Trong `getLatestEmail()`: Bổ sung cơ chế ưu tiên dùng Delegated Refresh Token (`m365_refresh_token`) từ cơ sở dữ liệu trước khi fallback về `client_credentials`.
+   - Tự động làm mới và cập nhật Refresh Token mới vào database `system_settings`, chấm dứt hoàn toàn lỗi `403 Forbidden`.
+4. **[frontend/src/features/tkgd/types/tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)**:
+   - Khai báo kiểu dữ liệu `TkgdProgressState`.
+5. **[frontend/src/features/tkgd/services/tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts)**:
+   - Bổ sung hàm API `tkgdApi.getProgress()`.
+6. **[frontend/src/features/tkgd/hooks/useTkgdActions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts)**:
+   - Bổ sung state `progress: TkgdProgressState | null`.
+   - Khi `isProcessing = true`, tự động bật polling 1.000ms để cập nhật tiến độ; tắt timer khi tác vụ kết thúc.
+7. **[frontend/src/features/tkgd/components/TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)**:
+   - Xóa bỏ khối banner tiến trình bị thừa ở cuối file để thanh toolbar chỉ tập trung chứa các nút hành động.
+8. **[frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)**:
+   - Lấy state `progress` từ hook `useTkgdActions`.
+   - Thiết kế lại thành Real-time Progress Tracker đẳng cấp:
+     - Badge đếm số lượng hồ sơ: `Hồ sơ ${current}/${total} (${percent}%)`.
+     - Badge tài khoản đang thực thi: `Đang xử lý: {currentCode}` kèm tên khách hàng.
+     - Thanh **Progress Bar** gradient (`linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981)`) co giãn mượt mà từ 0% đến 100%.
+
+### Kết quả Kiểm thử & Triển khai
+- **Kiểm thử Build**:
+  - Backend: `npm run build` thành công (Exit Code 0).
+  - Frontend: `npm run build` thành công (Exit Code 0).
+- **Triển khai máy chủ Ubuntu 10.0.0.26**:
+  - Đã tải toàn bộ các file cập nhật lên máy chủ.
+  - Rebuild production và reload PM2 `mxv-backend` (PID: 3027022) và `mxv-frontend` (PID: 3027235).
+- **Xác nhận thực tế**:
+  - Log PM2: `EmailWatcherService` kết nối M365 qua Delegated Token thành công: `[M365-DELEGATED] Requesting new access token with Refresh Token... Tự động cập nhật Refresh Token mới vào Database`. Lỗi `403 Forbidden` chấm dứt hoàn toàn.
+  - API `/api/v1/tkgd/progress` phản hồi `< 1ms`: `{"isProcessing":false,"taskType":"IDLE","current":0,"total":0,"percent":0,"stage":"","updatedAt":...}`.
+  - Giao diện người dùng: Không còn hiện tượng 2 banner chồng chéo; thanh Progress Bar sẵn sàng hiển thị tiến độ thời gian thực khi chạy tác vụ.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi Không Tải Được Ảnh CCCD Nhúng Trực Tiếp Từ Thân Email (Inline Image) & Tên File Dạng `image001.jpg`
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"sao tài khoản giao dịch này không tải được ảnh về từ mail"* kèm hình ảnh tài khoản `003C2823217` (Nguyễn Tất Thắng) hiển thị `Chưa có ảnh CCCD mặt trước từ email` và `Chưa có ảnh CCCD mặt sau từ email`.
+- **Nguyên nhân gốc rễ phát hiện qua điều tra trực tiếp trên hòm thư Graph API**:
+  1. **Chặn ảnh nhúng `isInline: true`**: Khi TVKD (Gia Cát Lợi) hoặc Outlook dán ảnh (paste Ctrl+V) trực tiếp vào thân thư, Microsoft Graph API tự động gán cờ `isInline: true`. Tại dòng 1310 và 1394 trong `tkgd-automation.service.ts`, điều kiện `if (a.contentBytes && !a.isInline && !isIgnoredEmailAttachment(a.name))` đã **loại bỏ hoàn toàn** 2 file ảnh CCCD `image001.jpg` (90 KB) và `image002.jpg` (89 KB).
+  2. **Bộ lọc tệp rác `isIgnoredEmailAttachment` chặn mọi tên `image0...`**: Trong `tkgd-automation.service.ts`, hàm này chặn cứng mọi file có tên `image001`, `image002` hoặc regex `/^image\d+\.(png|jpe?g|gif)$/i` mà không kiểm tra dung lượng `size`, dẫn đến nhầm ảnh CCCD thật (90 KB) với icon chữ ký nhỏ (< 15 KB).
+  3. **Thuật toán gom cụm ảnh `dispatchAttachmentsForAccount` chỉ tìm ảnh nằm sau file PDF**: Trong `tkgd-mail-parser.helper.ts`, vòng lặp gom ảnh chỉ quét `j = i + 1` (sau file PDF). Khi người gửi dán ảnh ở đầu thư trước file PDF đính kèm, các ảnh này bị bỏ sót.
+
+### Chi tiết các file đã chỉnh sửa
+1. **[backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Nâng cấp `isIgnoredEmailAttachment(fileName?: string, size?: number)`: Phân biệt dựa trên dung lượng thực tế. Nếu tệp dạng `image001`, `image002`, `image.png`... có dung lượng $\ge 25\text{ KB}$, giữ lại làm tệp hồ sơ hợp lệ.
+   - Cho phép tải các tệp ảnh nhúng có dung lượng thực tế $\ge 25\text{ KB}$ kể cả khi `isInline: true`.
+   - Nhận diện `image001` làm mặt trước (`MAIL_CCCD_FRONT`) và `image002` làm mặt sau (`MAIL_CCCD_BACK`).
+2. **[backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts)**:
+   - Nâng cấp thuật toán `dispatchAttachmentsForAccount`: Nếu email có $\le 4$ ảnh hoặc là email đơn lẻ, gom toàn bộ ảnh hồ sơ hợp lệ cho khách hàng; nếu là email gom nhiều khách, quét ảnh ở cả trước (`j = i - 1`) và sau (`j = i + 1`) file PDF.
+
+### Kết quả Kiểm thử & Triển khai thực tế
+- **Kiểm chứng dữ liệu nhị phân thực tế**: Tải trực tiếp `image001.jpg` (719x445 px, 90 KB) và `image002.jpg` (664x414 px, 89 KB) từ Graph API, chạy OCR nhận dạng thành công 100% số CCCD `001065002279`, họ tên `Nguyễn Tất Thắng`, ngày sinh `08/05/1965`.
+- **Kiểm thử Build**: 
+  - Backend: `nest build` thành công (Exit Code 0).
+  - Frontend: `next build` thành công (Exit Code 0).
+- **Triển khai**: Đã đồng bộ lên Ubuntu `10.0.0.26`, chạy `npm run build` và reload PM2 `mxv-backend` thành công (Process ID: 0).
+
+---
 
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**: 

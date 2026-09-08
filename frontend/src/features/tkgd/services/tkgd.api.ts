@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/context/AuthContext';
-import { CleanRecord, TkgdStats, AccountManifest } from '../types/tkgd.types';
+import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState } from '../types/tkgd.types';
 
 function getHeaders(token?: string | null, userEmail?: string): HeadersInit {
   return {
@@ -145,6 +145,27 @@ export const tkgdApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Không thể hủy phê duyệt');
+    }
+    return res.json();
+  },
+
+  async getProgress(
+    token?: string | null,
+    userEmail?: string
+  ): Promise<TkgdProgressState> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/progress`, {
+      headers: getHeaders(token, userEmail),
+    });
+    if (!res.ok) {
+      return {
+        isProcessing: false,
+        taskType: 'IDLE',
+        current: 0,
+        total: 0,
+        percent: 0,
+        stage: '',
+        updatedAt: Date.now(),
+      };
     }
     return res.json();
   },

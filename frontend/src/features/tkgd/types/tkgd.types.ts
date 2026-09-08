@@ -194,3 +194,17 @@ export interface ReconcileSummary {
   lechCount: number;
   outputFilePath?: string;
 }
+
+export interface TkgdProgressState {
+  isProcessing: boolean;
+  taskType: 'SYNC_MAIL' | 'SYNC_MS' | 'RECONCILE' | 'PIPELINE_ALL' | 'IDLE';
+  current: number;
+  total: number;
+  percent: number;
+  currentCode?: string;
+  currentName?: string;
+  stage: string;
+  detail?: string;
+  updatedAt: number;
+}
+

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { SprintMode } from '../types/tkgd.types';
+import { SprintMode, TkgdProgressState } from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
 
 interface UseTkgdActionsProps {
@@ -14,7 +14,28 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
   const [sprintMode, setSprintMode] = useState<SprintMode>('FULL');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStage, setProcessingStage] = useState<string>('');
+  const [progress, setProgress] = useState<TkgdProgressState | null>(null);
   const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);
+
+  // Poll tiến độ thời gian thực khi isProcessing = true
+  useEffect(() => {
+    let timer: any = null;
+    if (isProcessing) {
+      const fetchProgress = async () => {
+        try {
+          const p = await tkgdApi.getProgress(token, userEmail);
+          if (p) setProgress(p);
+        } catch { }
+      };
+      fetchProgress();
+      timer = setInterval(fetchProgress, 1000);
+    } else {
+      setProgress(null);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isProcessing, token, userEmail]);
 
   // Nút 1: Quét Mail Outlook
   const handleSyncMail = useCallback(async () => {
@@ -151,6 +172,7 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     setSprintMode,
     isProcessing,
     processingStage,
+    progress,
     syncingRowCode,
     handleSyncMail,
     handleSyncMSystem,

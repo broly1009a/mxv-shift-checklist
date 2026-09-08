@@ -27,6 +27,15 @@ export class TkgdAutomationController {
   }
 
   /**
+   * Lấy tiến trình thời gian thực khi đang xử lý TKGD (Real-time Progress Tracker)
+   */
+  @Get('progress')
+  async getProgress(@Req() req: any) {
+    const email = this.getUserEmail(req);
+    return this.tkgdService.getProgress(email);
+  }
+
+  /**
    * Lấy cấu hình đối soát TKGD của User
    */
   @Get('config')

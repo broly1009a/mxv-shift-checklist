@@ -400,32 +400,50 @@ export class EmailWatcherService {
     }
 
     try {
-      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
-      const params = new URLSearchParams();
-      params.append('client_id', clientId);
-      params.append('scope', 'https://graph.microsoft.com/.default');
-      params.append('client_secret', clientSecret);
-      params.append('grant_type', 'client_credentials');
+      let accessToken = '';
+      let isDelegated = false;
 
-      const tokenRes = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params,
-      });
-
-      if (!tokenRes.ok) {
-        throw new Error(`Auth failed: ${tokenRes.statusText}`);
+      // 1. Thử lấy token qua Delegated Refresh Token trước (nếu có cấu hình m365_refresh_token)
+      try {
+        accessToken = await this.getAccessTokenDelegated(clientId, clientSecret, tenantId);
+        if (accessToken) {
+          isDelegated = true;
+        }
+      } catch (delegatedErr: any) {
+        this.logger.debug(`[EmailWatcher] Không dùng được delegated token: ${delegatedErr.message}, fallback client_credentials`);
       }
 
-      const tokenData = await tokenRes.json();
-      const accessToken = tokenData.access_token;
+      // 2. Fallback: Client credentials nếu chưa có delegated token
+      if (!accessToken) {
+        const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+        const params = new URLSearchParams();
+        params.append('client_id', clientId);
+        params.append('scope', 'https://graph.microsoft.com/.default');
+        params.append('client_secret', clientSecret);
+        params.append('grant_type', 'client_credentials');
+
+        const tokenRes = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+        });
+
+        if (!tokenRes.ok) {
+          throw new Error(`Auth failed: ${tokenRes.statusText}`);
+        }
+
+        const tokenData = await tokenRes.json();
+        accessToken = tokenData.access_token;
+      }
 
       const timeLimit = new Date(
         Date.now() - 24 * 60 * 60 * 1000,
       ).toISOString();
       const filter = `receivedDateTime ge ${timeLimit}`;
       const select = 'subject,sender,body';
-      const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`;
+      const url = isDelegated
+        ? `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`
+        : `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`;
 
       const mailRes = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
