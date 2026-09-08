@@ -4,6 +4,43 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T17:44] Tái Thiết Kế Giao Diện Chế Độ Vận Hành (Operation Mode) Chuẩn Enterprise & Bổ Sung Confirmation Modal
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"hiện tại phần này tôi thấy nhìn nó AI và công nghiệp quá không thân thiện với người dùng và khi chuyển thì cũng không có confirm giúp tôi. đánh giá lại bằng một bản thiết kế mới"*
+- **Khắc phục các nhược điểm của giao diện cũ**:
+  1. Loại bỏ text lỗi cú pháp MathJax thô: `$\rightarrow$`.
+  2. Dọn sạch toàn bộ emoji rác (`🤖`, `👤`, `⚡`, `⚙️`) gây cảm giác thiếu chuyên nghiệp.
+  3. Xóa bỏ nút Switch toggle trùng lặp ở góc trên (tránh xung đột UX với 2 card lựa chọn bên dưới).
+  4. Bổ sung **Hộp thoại xác nhận chuyển đổi an toàn (Enterprise Confirmation Dialog)** trước khi gọi API đổi chế độ ngầm 24/7.
+  5. Thiết kế lại quy trình 4 bước thành **Mini Process Stepper** thanh lịch với icon `ChevronRight`.
+
+### Danh sách file chỉnh sửa
+- [`frontend/src/components/tkgd/TkgdConfigPanel.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx)
+
+### Tóm tắt nội dung code đã sửa
+1. **Quản lý trạng thái chuyển đổi**:
+   - Thêm state `pendingModeChange: boolean | null`.
+   - Hàm `requestModeChange(targetState)` chỉ mở Modal xác nhận, không gọi API ngay.
+   - Hàm `executeToggleAutoMode(nextState)` thực thi gọi API `/api/v1/tkgd/auto-pipeline/toggle` chỉ khi người dùng click xác nhận trên Modal.
+2. **Card 0 (Clean Enterprise Redesign)**:
+   - Header: Giữ 1 Status Pill Badge trực quan với chấm pulse xanh (`Đang Vận Hành Tự Động 24/7`) hoặc chấm xám (`Đang Ở Chế Độ Thủ Công`). Bỏ switch toggle trùng lặp.
+   - 2 Thẻ Segmented:
+     - Card Tự Động: Icon `PlayCircle` (Emerald), badge `Khuyến nghị`, mô tả ngắn gọn và Stepper 4 bước mini (`Hòm thư M365` $\rightarrow$ `Bóc tách OCR` $\rightarrow$ `Đối chiếu M-System` $\rightarrow$ `Cập nhật Excel`).
+     - Card Thủ Công: Icon `SlidersHorizontal` (Blue), mô tả trạng thái nghỉ của bot và ghi chú phù hợp cho bảo trì/kiểm thử.
+3. **Confirmation Modal**:
+   - Backdrop mờ hiện đại (`backdrop-blur-sm`).
+   - Cảnh báo rõ ràng tác động của việc Bật / Tắt chế độ quét 24/7 đối với hòm thư và ca trực.
+   - 2 nút hành động phân cấp rõ: `Hủy bỏ` (Secondary) và `Xác nhận` (Primary Emerald / Amber).
+
+### Xác nhận Build & Deploy
+- ✅ Frontend compile TypeScript: `tsc --noEmit` exit code 0.
+- ✅ Đã đồng bộ sang Ubuntu qua `deploy_to_ubuntu.js`.
+- ✅ Backend & Frontend Next.js build trên Ubuntu thành công (Exit code 0).
+- ✅ PM2 restart: `mxv-frontend` (pid 3070942) và `mxv-backend` đều `online`.
+
+---
+
 ## [2026-09-08T17:12] Đồng Bộ Toàn Bộ Code Mới Sang Ubuntu Server & Khởi Động Lại Hệ Thống
 
 ### Mục tiêu thay đổi

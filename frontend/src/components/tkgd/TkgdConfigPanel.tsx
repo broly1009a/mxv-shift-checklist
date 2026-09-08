@@ -32,6 +32,11 @@ import {
   Cpu,
   Zap,
   SlidersHorizontal,
+  Bot,
+  PlayCircle,
+  PauseCircle,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 
 export default function TkgdConfigPanel() {
@@ -160,8 +165,18 @@ export default function TkgdConfigPanel() {
     }
   };
 
-  // Toggle nhanh chế độ Tự Động vs Thủ Công
-  const handleToggleAutoMode = async (nextState: boolean) => {
+  // Modal xác nhận chuyển đổi chế độ vận hành (null: đóng; true: muốn bật Auto; false: muốn chuyển Thủ công)
+  const [pendingModeChange, setPendingModeChange] = useState<boolean | null>(null);
+
+  // Yêu cầu chuyển chế độ -> Mở Modal xác nhận
+  const requestModeChange = (targetState: boolean) => {
+    if (targetState === autoPipelineEnabled || togglingAuto) return;
+    setPendingModeChange(targetState);
+  };
+
+  // Thực thi chuyển đổi sau khi người dùng xác nhận
+  const executeToggleAutoMode = async (nextState: boolean) => {
+    setPendingModeChange(null);
     setTogglingAuto(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/auto-pipeline/toggle`, {
@@ -176,7 +191,7 @@ export default function TkgdConfigPanel() {
       const data = await res.json();
       if (res.ok) {
         setAutoPipelineEnabled(data.enabled);
-        toast.success(data.message || (nextState ? 'Đã kích hoạt chế độ Tự Động 24/7' : 'Đã chuyển sang chế độ Thủ Công'));
+        toast.success(data.message || (nextState ? 'Đã kích hoạt chế độ Vận Hành Tự Động 24/7' : 'Đã chuyển sang chế độ Vận Hành Thủ Công'));
       } else {
         toast.error(data.message || 'Không thể thay đổi chế độ vận hành');
       }
@@ -445,24 +460,22 @@ export default function TkgdConfigPanel() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-        {/* Card 0: CHẾ ĐỘ VẬN HÀNH BOT (TỰ ĐỘNG 24/7 VS THỦ CÔNG) */}
+        {/* Card 0: CHẾ ĐỘ VẬN HÀNH HỆ THỐNG (ENTERPRISE CLEAN REDESIGN) */}
         <div
           id="tutorial-tkgd-config-operation-mode"
           style={{
             ...cardStyle,
             gridColumn: '1 / -1',
             border: autoPipelineEnabled
-              ? '1px solid rgba(16, 185, 129, 0.4)'
+              ? '1px solid rgba(16, 185, 129, 0.35)'
               : '1px solid var(--border-color)',
-            background: autoPipelineEnabled
-              ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, var(--bg-card) 100%)'
-              : 'var(--bg-card)',
+            background: 'var(--bg-card)',
             position: 'relative',
             overflow: 'hidden',
           }}
           className="glass-panel"
         >
-          {/* Header */}
+          {/* Header thống nhất, loại bỏ switch trùng lặp */}
           <div
             style={{
               display: 'flex',
@@ -480,158 +493,191 @@ export default function TkgdConfigPanel() {
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
-                  background: autoPipelineEnabled
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                    : 'var(--bg-input)',
+                  backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
+                  border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: autoPipelineEnabled ? '#ffffff' : 'var(--text-secondary)',
-                  boxShadow: autoPipelineEnabled ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
+                  color: autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)',
                 }}
               >
-                <Cpu size={20} />
+                <Bot size={20} />
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                    Chế Độ Vận Hành Bot (Operation Mode)
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      padding: '2px 8px',
-                      borderRadius: '8px',
-                      fontWeight: 700,
-                      backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                      color: autoPipelineEnabled ? '#10b981' : 'var(--text-muted)',
-                      border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.3)',
-                    }}
-                  >
-                    {autoPipelineEnabled ? 'ĐANG BẬT TỰ ĐỘNG 24/7' : 'CHẾ ĐỘ THỦ CÔNG'}
-                  </span>
-                </div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Chế Độ Vận Hành Hệ Thống (Operation Mode)
+                </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Lựa chọn vận hành ngầm liên tục 24/7 (tự quét mail M365 & đối soát) hoặc kích hoạt thủ công theo yêu cầu.
+                  Lựa chọn cơ chế quét hòm thư M365, bóc tách hồ sơ và đồng bộ dữ liệu đối soát.
                 </p>
               </div>
             </div>
 
-            {/* Switch Toggle Nhanh */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)' }}>
-                {autoPipelineEnabled ? 'Bật Tự Động' : 'Tắt Tự Động'}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggleAutoMode(!autoPipelineEnabled)}
-                disabled={togglingAuto}
+            {/* Status Pill Badge trực quan */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
+                color: autoPipelineEnabled ? '#059669' : 'var(--text-muted)',
+                border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
+              }}
+            >
+              <span
                 style={{
-                  width: '52px',
-                  height: '28px',
-                  borderRadius: '14px',
-                  backgroundColor: autoPipelineEnabled ? '#10b981' : 'var(--border-color)',
-                  position: 'relative',
-                  border: 'none',
-                  cursor: togglingAuto ? 'not-allowed' : 'pointer',
-                  transition: 'background-color 0.25s ease',
-                  padding: '2px',
-                  outline: 'none',
-                  boxShadow: autoPipelineEnabled ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: autoPipelineEnabled ? '#10b981' : '#94a3b8',
                 }}
-              >
-                <div
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ffffff',
-                    position: 'absolute',
-                    top: '2px',
-                    left: autoPipelineEnabled ? '26px' : '2px',
-                    transition: 'left 0.25s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {togglingAuto && <Loader2 size={12} className="animate-spin text-emerald-600" />}
-                </div>
-              </button>
+                className={autoPipelineEnabled ? 'animate-pulse' : ''}
+              />
+              <span>{autoPipelineEnabled ? 'Đang Vận Hành Tự Động 24/7' : 'Đang Ở Chế Độ Thủ Công'}</span>
             </div>
           </div>
 
-          {/* 2 Chế Độ Lựa Chọn Dạng Thẻ Segmented */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+          {/* 2 Chế Độ Lựa Chọn Dạng Segmented Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
             {/* Thẻ 1: Tự Động 24/7 */}
             <div
-              onClick={() => {
-                if (!autoPipelineEnabled) handleToggleAutoMode(true);
-              }}
+              onClick={() => requestModeChange(true)}
               style={{
-                padding: '16px',
+                padding: '18px',
                 borderRadius: '12px',
                 border: autoPipelineEnabled ? '2px solid #10b981' : '1px solid var(--border-color)',
-                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-input)',
+                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.04)' : 'var(--bg-input)',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
               }}
-              className="hover:border-emerald-500"
+              className="hover:border-emerald-400"
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Zap size={18} color="#10b981" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                    🤖 Tự Động Hóa 24/7 (Khuyến nghị)
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <PlayCircle size={20} color={autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)'} />
+                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                    Tự Động Hóa 24/7
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      color: '#059669',
+                    }}
+                  >
+                    Khuyến nghị
                   </span>
                 </div>
-                <input
-                  type="radio"
-                  name="operationMode"
-                  checked={autoPipelineEnabled}
-                  onChange={() => handleToggleAutoMode(true)}
-                  style={{ cursor: 'pointer', accentColor: '#10b981' }}
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    border: autoPipelineEnabled ? '5px solid #10b981' : '2px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    transition: 'all 0.2s ease',
+                  }}
                 />
               </div>
+
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Hệ thống tự động chạy ngầm theo chu kỳ: Quét email M365 $\rightarrow$ Bóc tách OCR $\rightarrow$ Cào M-System $\rightarrow$ Đối soát 3 bên $\rightarrow$ Cập nhật Excel sẵn sàng cho chuyên viên.
+                Hệ thống tự động chạy ngầm theo chu kỳ định kỳ. Chuyên viên chỉ cần theo dõi và kiểm tra kết quả đối soát trên bàn làm việc.
               </p>
+
+              {/* Stepper Quy Trình Mini Thanh Lịch */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  paddingTop: '6px',
+                  fontSize: '0.72rem',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
+                  Hòm thư M365
+                </span>
+                <ChevronRight size={13} color="var(--text-muted)" />
+                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
+                  Bóc tách OCR
+                </span>
+                <ChevronRight size={13} color="var(--text-muted)" />
+                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
+                  Đối chiếu M-System
+                </span>
+                <ChevronRight size={13} color="var(--text-muted)" />
+                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
+                  Cập nhật Excel
+                </span>
+              </div>
             </div>
 
             {/* Thẻ 2: Thủ Công On-Demand */}
             <div
-              onClick={() => {
-                if (autoPipelineEnabled) handleToggleAutoMode(false);
-              }}
+              onClick={() => requestModeChange(false)}
               style={{
-                padding: '16px',
+                padding: '18px',
                 borderRadius: '12px',
                 border: !autoPipelineEnabled ? '2px solid #3b82f6' : '1px solid var(--border-color)',
-                backgroundColor: !autoPipelineEnabled ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-input)',
+                backgroundColor: !autoPipelineEnabled ? 'rgba(59, 130, 246, 0.04)' : 'var(--bg-input)',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
               }}
-              className="hover:border-blue-500"
+              className="hover:border-blue-400"
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <SlidersHorizontal size={18} color="#3b82f6" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                    👤 Kích Hoạt Thủ Công (On-Demand)
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <SlidersHorizontal size={20} color={!autoPipelineEnabled ? '#3b82f6' : 'var(--text-secondary)'} />
+                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                    Vận Hành Thủ Công (Theo yêu cầu)
                   </span>
                 </div>
-                <input
-                  type="radio"
-                  name="operationMode"
-                  checked={!autoPipelineEnabled}
-                  onChange={() => handleToggleAutoMode(false)}
-                  style={{ cursor: 'pointer', accentColor: '#3b82f6' }}
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    border: !autoPipelineEnabled ? '5px solid #3b82f6' : '2px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    transition: 'all 0.2s ease',
+                  }}
                 />
               </div>
+
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Bot hoàn toàn ở trạng thái nghỉ. Chỉ thực hiện quét mail, cào M-System hoặc đối soát khi chuyên viên bấm nút tại thanh công cụ bàn làm việc.
+                Bot ở trạng thái nghỉ hoàn toàn. Các tác vụ quét hòm thư, cào M-System và đối soát chỉ thực thi khi chuyên viên bấm nút kích hoạt trên thanh công cụ.
               </p>
+
+              <div style={{ paddingTop: '6px' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.72rem',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  Phù hợp khi bảo trì hòm thư hoặc chạy kiểm thử từng mẻ riêng biệt
+                </span>
+              </div>
             </div>
           </div>
 
@@ -639,7 +685,7 @@ export default function TkgdConfigPanel() {
           {autoPipelineEnabled && (
             <div
               style={{
-                padding: '16px',
+                padding: '16px 18px',
                 borderRadius: '12px',
                 backgroundColor: 'var(--bg-input)',
                 border: '1px solid var(--border-color)',
@@ -650,19 +696,19 @@ export default function TkgdConfigPanel() {
             >
               <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Clock size={15} color="#10b981" />
-                <span>Tham Số Vận Hành Tự Động Định Kỳ:</span>
+                <span>Tham Số Vận Hành Định Kỳ:</span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
                 <div>
-                  <label style={labelStyle}>Chu kỳ quét mail tự động (Phút)</label>
+                  <label style={labelStyle}>Chu kỳ quét mail tự động</label>
                   <select
                     style={inputStyle}
                     value={autoIntervalMinutes}
                     onChange={(e) => setAutoIntervalMinutes(Number(e.target.value))}
                   >
                     <option value={3}>3 phút / lần (Siêu nhanh)</option>
-                    <option value={5}>5 phút / lần (Khuyến nghị)</option>
+                    <option value={5}>5 phút / lần (Khuyến nghị chuẩn)</option>
                     <option value={10}>10 phút / lần</option>
                     <option value={15}>15 phút / lần</option>
                     <option value={30}>30 phút / lần</option>
@@ -670,7 +716,7 @@ export default function TkgdConfigPanel() {
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Kích thước mẻ xử lý (Số hồ sơ/lần)</label>
+                  <label style={labelStyle}>Kích thước mẻ xử lý tối đa</label>
                   <select
                     style={inputStyle}
                     value={autoBatchSize}
@@ -684,7 +730,7 @@ export default function TkgdConfigPanel() {
               </div>
 
               {/* Checkboxes tuỳ chọn */}
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', paddingTop: '4px' }}>
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', paddingTop: '2px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   <input
                     type="checkbox"
@@ -710,12 +756,12 @@ export default function TkgdConfigPanel() {
               {autoLastRunTime > 0 && (
                 <div
                   style={{
-                    padding: '8px 12px',
+                    padding: '8px 14px',
                     borderRadius: '8px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
                     border: '1px solid rgba(16, 185, 129, 0.2)',
                     fontSize: '0.75rem',
-                    color: '#10b981',
+                    color: '#059669',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -1566,6 +1612,184 @@ export default function TkgdConfigPanel() {
           </div>
         </div>
       </div>
+
+      {/* MODAL XÁC NHẬN CHUYỂN ĐỔI CHẾ ĐỘ VẬN HÀNH (ENTERPRISE CONFIRMATION DIALOG) */}
+      {pendingModeChange !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPendingModeChange(null);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+            }}
+            className="animate-in fade-in zoom-in-95 duration-150"
+          >
+            {/* Header Modal */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: pendingModeChange ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                    color: pendingModeChange ? '#059669' : '#d97706',
+                    border: pendingModeChange ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {pendingModeChange ? <PlayCircle size={24} /> : <AlertTriangle size={24} />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {pendingModeChange ? 'Kích Hoạt Chế Độ Tự Động 24/7?' : 'Tạm Dừng Chế Độ Tự Động 24/7?'}
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {pendingModeChange ? 'Xác nhận chuyển sang tiến trình quét ngầm liên tục' : 'Xác nhận chuyển về vận hành thủ công'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingModeChange(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Nội dung diễn giải tác động */}
+            <div
+              style={{
+                backgroundColor: 'var(--bg-input)',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.82rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.55,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              {pendingModeChange ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
+                    <span>Hệ thống sẽ chạy ngầm và quét hòm thư M365 định kỳ <strong>mỗi {autoIntervalMinutes} phút</strong>.</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
+                    <span>Tự động bóc tách OCR, đối chiếu M-System và cập nhật dữ liệu sẵn sàng cho ca trực.</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
+                    <span>Chuyên viên không cần kích hoạt thủ công từng lần trên Dashboard.</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
+                    <span>Hệ thống sẽ <strong>tạm ngừng hoàn toàn</strong> việc tự động quét ngầm hòm thư M365 và M-System.</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
+                    <span>Các hồ sơ mở tài khoản mới gửi đến sẽ <strong>chờ chuyên viên bấm nút quét thủ công</strong> tại bàn làm việc.</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
+                    <span>Bạn có thể kích hoạt lại chế độ tự động 24/7 bất cứ lúc nào.</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Actions Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setPendingModeChange(null)}
+                disabled={togglingAuto}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s',
+                }}
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeToggleAutoMode(pendingModeChange)}
+                disabled={togglingAuto}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: pendingModeChange ? '#10b981' : '#f59e0b',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: togglingAuto ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: pendingModeChange
+                    ? '0 4px 12px rgba(16, 185, 129, 0.25)'
+                    : '0 4px 12px rgba(245, 158, 11, 0.25)',
+                  transition: 'transform 0.1s, opacity 0.15s',
+                }}
+              >
+                {togglingAuto && <Loader2 size={15} className="animate-spin" />}
+                <span>
+                  {pendingModeChange ? 'Xác Nhận Kích Hoạt 24/7' : 'Xác Nhận Tạm Dừng'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
