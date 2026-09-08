@@ -429,7 +429,7 @@ export const TkgdDashboard: React.FC = () => {
                           fontWeight: 700,
                         }}
                       >
-                        {sprintMode === 'FAST' ? 'Sprint 1: Nhanh (Text)' : 'Sprint 2: Đầy Đủ (Ảnh & PDF)'}
+                        {sprintMode === 'FAST' ? 'Chế độ: Nhanh (Text)' : 'Chế độ: Đầy Đủ (Ảnh & PDF)'}
                       </span>
                       {progress?.currentCode && (
                         <span

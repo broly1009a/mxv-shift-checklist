@@ -4,6 +4,26 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T18:27] Xóa Bỏ Từ Kỹ Thuật 'Sprint 2' & Chuẩn Hóa Hiển Thị Ngày Giờ Email
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"mà tại sao lại có từ kỹ thuật Sprint 2: trên ảnh, đồng thời 📩 10:29 đang dùng icon cũ và chưa hiển thị ra ngày. và tôi cũng chưa biết xem log ở đâu"*.
+- **Khắc phục**:
+  1. Xóa bỏ từ ngữ dev/scrum `Sprint 1:` / `Sprint 2:` trên badge tiến độ, đổi sang thuật ngữ trực quan: `Chế độ: Đầy Đủ (Ảnh & PDF)` và `Chế độ: Nhanh (Text)`.
+  2. Đồng bộ file `TkgdRecordsTable.tsx` lên Ubuntu: thay icon emoji cũ `📩` bằng Lucide icon `<Mail size={11} />`, hiển thị đầy đủ cả Ngày và Giờ nhận email (`DD/MM/YYYY HH:mm`).
+  3. Hướng dẫn chi tiết vị trí và các phương thức xem log bot chạy cho USER.
+
+### Danh sách file chỉnh sửa
+- [`frontend/src/features/tkgd/components/TkgdDashboard.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+
+### Xác nhận Build & Deploy
+- ✅ Frontend TypeScript compile sạch 100% không lỗi (`node ./node_modules/typescript/bin/tsc --noEmit`).
+- ✅ File `TkgdRecordsTable.tsx` đã được đồng bộ lên Ubuntu và verify trực tiếp.
+- ✅ Đang build production Next.js và backend trên Ubuntu VM `10.0.0.26`.
+
+---
+
 ## [2026-09-08T18:03] Chuẩn Hóa Thuật Ngữ Vận Hành: Đổi 'Mẻ' Sang 'Lượt' / 'Đợt' Dễ Hiểu
 
 ### Mục tiêu thay đổi
