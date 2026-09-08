@@ -84,3 +84,70 @@ export const tkgdTutorialSteps: TutorialStep[] = [
     padding: 8,
   },
 ];
+
+export const tkgdConfigTutorialSteps: TutorialStep[] = [
+  {
+    target: '#tutorial-tkgd-config-header',
+    title: 'Cấu Hình & Quản Trị Bot TKGD',
+    icon: Sliders,
+    description:
+      'Nơi thiết lập toàn bộ tài khoản đăng nhập M-System, hòm thư Outlook, thư mục mạng và các quy tắc bóc tách tự động. Nhớ nhấn "Lưu Cấu Hình" sau khi thay đổi.',
+    placement: 'bottom',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-profile',
+    title: '1. Thông Tin Chuyên Viên',
+    icon: BookOpen,
+    description:
+      'Khai báo họ và tên chuyên viên cùng phòng ban vận hành ca trực để hệ thống ghi nhận nhật ký thao tác và thẩm định hồ sơ.',
+    placement: 'bottom',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-ms',
+    title: '2. Tài Khoản M-System & Thử Nghiệm Bot',
+    icon: Zap,
+    description:
+      'Nhập tài khoản, mật khẩu và mã PIN M-System. Bạn có thể bấm nút "Kiểm Tra Đăng Nhập MS" để bot tự động thử kết nối ngay lập tức.',
+    placement: 'bottom',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-outlook',
+    title: '3. Kết Nối Outlook Độc Lập (OAuth2)',
+    icon: SlidersHorizontal,
+    description:
+      'Kết nối hòm thư nhận yêu cầu mở tài khoản (clearing.acc@mxv.vn). Cơ chế độc lập 100% giúp bảo mật và không bao giờ chia sẻ token với Checklist bot.',
+    placement: 'bottom',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-storage',
+    title: '4. Thư Mục Lưu Trữ Mạng (Ổ M:\\)',
+    icon: Download,
+    description:
+      'Đường dẫn mạng chia sẻ thư mục lưu file Excel kết quả đối soát trên máy Windows và server Linux để toàn bộ phòng nghiệp vụ có thể mở ngay.',
+    placement: 'top',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-excel',
+    title: 'Tự Động Tô Màu File Excel',
+    icon: Table,
+    description:
+      'Bật/tắt tự động tô màu xanh lá (Khớp hoàn toàn) hoặc vàng/đỏ (Cần kiểm tra/Sai lệch) cho các ô dữ liệu trong file Excel kết xuất.',
+    placement: 'top',
+    padding: 8,
+  },
+  {
+    target: '#tutorial-tkgd-config-processing',
+    title: '5. Động Cơ Bóc Tách, OCR & Đối Chiếu 3 Chiều',
+    icon: Eye,
+    description:
+      'Cấu hình tự động tải tệp đính kèm email, lưu ảnh CCCD/chữ ký từ M-System về máy, tự động bóc tách PDF Hợp đồng/PL01, nhận diện OCR và kiểm tra chữ ký mẫu.',
+    placement: 'top',
+    padding: 8,
+  },
+];
+

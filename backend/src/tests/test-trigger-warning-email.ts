@@ -54,7 +54,7 @@ async function run() {
       console.log('❌ Xác thực thất bại đúng như kịch bản!');
       const errorMsg = `Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`;
 
-      console.log('📧 Đang tiến hành gửi Email Cảnh báo Sự cố...');
+      console.log(' Đang tiến hành gửi Email Cảnh báo Sự cố...');
       // Gọi trực tiếp hàm gửi cảnh báo
       await settingsService.sendM365TokenExpiredAlert(errorMsg);
       console.log('✅ ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');

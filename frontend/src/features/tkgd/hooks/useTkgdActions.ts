@@ -11,7 +11,7 @@ interface UseTkgdActionsProps {
 }
 
 export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTkgdActionsProps = {}) {
-  const [sprintMode, setSprintMode] = useState<SprintMode>('FAST');
+  const [sprintMode, setSprintMode] = useState<SprintMode>('FULL');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStage, setProcessingStage] = useState<string>('');
   const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);

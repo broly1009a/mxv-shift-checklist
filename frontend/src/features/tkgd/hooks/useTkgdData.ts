@@ -26,8 +26,13 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
     totalCount: 0,
     pendingMsCount: 0,
     matchedCount: 0,
+    matchedTextCount: 0,
     canKiemTraCount: 0,
     mismatchedCount: 0,
+    futuresCount: 0,
+    acmCount: 0,
+    lmeCount: 0,
+    spreadCount: 0,
   });
   const [inspectRecord, setInspectRecord] = useState<CleanRecord | null>(null);
   const [accountManifest, setAccountManifest] = useState<AccountManifest | null>(null);
@@ -71,6 +76,9 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
       setRecords(data.items || []);
       setTotal(data.total || 0);
       setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize) || 1);
+      if (data.stats) {
+        setStats(data.stats);
+      }
     } catch (err: any) {
       toast.error('Không thể tải dữ liệu đối soát: ' + err.message);
     } finally {

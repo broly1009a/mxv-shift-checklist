@@ -25,6 +25,10 @@ const baseFiles = [
     remote: '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
   },
   {
+    local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
+    remote: '/opt/mxv-checklist/backend/dist/scripts/python/tkgd_extractor_worker.py',
+  },
+  {
     local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts'),
     remote: '/opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts',
   },
@@ -71,6 +75,10 @@ const baseFiles = [
   {
     local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/components/tkgd/TkgdConfigPanel.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx',
   },
 ];
 

@@ -9,6 +9,11 @@ export function formatDateStr(val?: any): string {
   const str = String(val).trim();
   if (!str || str === '-' || str === 'undefined' || str === 'null') return '-';
 
+  // 0. Nếu chỉ là chuỗi năm 4 chữ số (ví dụ: "1967"): Giữ nguyên năm sinh, tuyệt đối không tự sinh ra ngày 01/01
+  if (/^\d{4}$/.test(str)) {
+    return `${str} (Năm sinh)`;
+  }
+
   // 1. Dạng chuỗi thuần ngày DD/MM/YYYY hoặc D/M/YYYY hoặc DD-MM-YYYY hoặc D-M-YYYY
   const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (dmyMatch) {

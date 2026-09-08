@@ -121,8 +121,13 @@ export interface TkgdStats {
   totalCount: number;
   pendingMsCount: number;
   matchedCount: number;
+  matchedTextCount?: number;
   canKiemTraCount?: number;
   mismatchedCount: number;
+  futuresCount?: number;
+  acmCount?: number;
+  lmeCount?: number;
+  spreadCount?: number;
 }
 
 export interface ManifestFileItem {

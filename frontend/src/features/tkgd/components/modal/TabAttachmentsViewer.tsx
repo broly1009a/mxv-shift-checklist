@@ -183,7 +183,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Mail size={13} /> 📧 Tệp Đính Kèm Mail (Khách gửi)
+                    <Mail size={13} />  Tệp Đính Kèm Mail (Khách gửi)
                   </span>
                   {accountManifest?.files?.mailCccdFront && (
                     <button
@@ -289,7 +289,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Globe size={13} /> 🖥️ Tải Từ M-System (TVKD up)
+                    <Globe size={13} />  Tải Từ M-System (TVKD up)
                   </span>
                   {accountManifest?.files?.msCccdFront && (
                     <button
@@ -458,7 +458,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Mail size={13} /> 📧 Tệp Đính Kèm Mail (Khách gửi)
+                    <Mail size={13} />  Tệp Đính Kèm Mail (Khách gửi)
                   </span>
                   {accountManifest?.files?.mailCccdBack && (
                     <button
@@ -564,7 +564,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Globe size={13} /> 🖥️ Tải Từ M-System (TVKD up)
+                    <Globe size={13} />  Tải Từ M-System (TVKD up)
                   </span>
                   {accountManifest?.files?.msCccdBack && (
                     <button
@@ -732,7 +732,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    ✍️ Chữ Ký Mẫu (M-System)
+                    Chữ Ký Mẫu (M-System)
                   </span>
                   {accountManifest?.files?.msSignature && (
                     <button

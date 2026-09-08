@@ -72,13 +72,17 @@ function getPythonExecutable(): string {
  * Gọi Python Worker trích xuất dữ liệu hợp đồng, phụ lục, CCCD và phát hiện lỗi định dạng/mất góc
  */
 export async function runPythonExtractor(input: PythonExtractorInput): Promise<PythonExtractorResult | null> {
-  const pythonScript = path.resolve(
-    __dirname,
-    '../../../scripts/python/tkgd_extractor_worker.py',
-  );
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'src/scripts/python/tkgd_extractor_worker.py'),
+    path.resolve(__dirname, '../../../../src/scripts/python/tkgd_extractor_worker.py'),
+    '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
+    path.resolve(process.cwd(), 'dist/scripts/python/tkgd_extractor_worker.py'),
+    path.resolve(__dirname, '../../../scripts/python/tkgd_extractor_worker.py'),
+  ];
+  const pythonScript = candidatePaths.find((p) => fs.existsSync(p));
 
-  if (!fs.existsSync(pythonScript)) {
-    console.warn(`[PYTHON-BRIDGE] Không tìm thấy worker script: ${pythonScript}`);
+  if (!pythonScript) {
+    console.warn(`[PYTHON-BRIDGE] Không tìm thấy worker script trong các đường dẫn:`, candidatePaths);
     return null;
   }
 

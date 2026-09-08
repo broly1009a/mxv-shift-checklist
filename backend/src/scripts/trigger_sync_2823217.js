@@ -2,8 +2,13 @@ const { Client } = require('ssh2');
 
 const conn = new Client();
 conn.on('ready', () => {
-  console.log('Connected to Ubuntu. Triggering sync-mail...');
-  conn.exec('curl -s -X POST http://localhost:3001/api/v1/tkgd/sync-mail -H "Content-Type: application/json" -d "{\\"batchDate\\":\\"2026-09-07\\"}"', (err, stream) => {
+  console.log('Connected to Ubuntu. Triggering sync-mail and run...');
+  const cmd = `
+    curl -s -X POST http://localhost:3001/api/v1/tkgd/sync-mail -H "Content-Type: application/json" -d '{"batchDate":"2026-09-07"}'
+    echo ""
+    curl -s -X POST http://localhost:3001/api/v1/tkgd/run -H "Content-Type: application/json" -d '{}'
+  `;
+  conn.exec(cmd, (err, stream) => {
     if (err) {
       console.error(err);
       conn.end();
@@ -14,7 +19,7 @@ conn.on('ready', () => {
     stream.stderr.on('data', errChunk => console.error('STDERR:', errChunk.toString()));
     stream.on('close', (code) => {
       console.log('Exit code:', code);
-      console.log('API Response:\n', out);
+      console.log('API Output:\n', out);
       conn.end();
     });
   });

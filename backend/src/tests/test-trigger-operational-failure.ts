@@ -11,7 +11,7 @@ async function run() {
   const botJobQueueService = app.get(BotJobQueueService);
 
   try {
-    console.log('📧 Đang tạo dữ liệu Job giả lập có danh sách lệch khớp lệnh lớn...');
+    console.log(' Đang tạo dữ liệu Job giả lập có danh sách lệch khớp lệnh lớn...');
 
     // Giao dịch lệch khớp lệnh giả lập tương tự như payload thật của user
     const mockMismatchedTrades = [

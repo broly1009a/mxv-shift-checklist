@@ -171,7 +171,7 @@ def process_mail(raw_mail) -> ParsedMailData:
     # Gán file đính kèm
     parsed = match_attachments(parsed, raw_mail.attachments)
     
-    print(f"\n  📧 Mail: {raw_mail.mail_id}")
+    print(f"\n   Mail: {raw_mail.mail_id}")
     print(f"     Futures: {parsed.maTKGDFutures}")
     print(f"     ACM:     {parsed.maTKGDACM}")
     print(f"     Tên TK:  {parsed.tenTK}")

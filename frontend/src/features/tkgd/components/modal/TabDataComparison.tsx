@@ -34,30 +34,30 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     ...(hasACM
       ? [
-          {
-            label: 'Tiểu khoản ACM (-A)',
-            left: inspectRecord.noiDungMail?.maTKGD_ACM || `${baseCode}-A`,
-            right: inspectRecord.ms?.maTKGD?.includes('-A') ? inspectRecord.ms.maTKGD : `${baseCode}-A`,
-            customMatch: true,
-          },
-          {
-            label: 'Phụ lục PL01 (ACM)',
-            left: inspectRecord.phuLuc?.chuKy ? 'Đã ký (PL01)' : 'Có đính kèm file PL01',
-            right:
-              inspectRecord.ms?.maTKGD?.includes('-A') ||
+        {
+          label: 'Tiểu khoản ACM (-A)',
+          left: inspectRecord.noiDungMail?.maTKGD_ACM || `${baseCode}-A`,
+          right: inspectRecord.ms?.maTKGD?.includes('-A') ? inspectRecord.ms.maTKGD : `${baseCode}-A`,
+          customMatch: true,
+        },
+        {
+          label: 'Phụ lục PL01 (ACM)',
+          left: inspectRecord.phuLuc?.chuKy ? 'Đã ký (PL01)' : 'Có đính kèm file PL01',
+          right:
+            inspectRecord.ms?.maTKGD?.includes('-A') ||
               inspectRecord.subAccounts?.some((s) => s.type === 'ACM')
-                ? 'Đã kích hoạt trên MS'
-                : 'Đang xử lý',
-            customMatch: true,
-          },
-        ]
+              ? 'Đã kích hoạt trên MS'
+              : 'Đang xử lý',
+          customMatch: true,
+        },
+      ]
       : []),
     {
       label: 'Họ và tên',
       left: cleanMailName(
         inspectRecord.hopDong?.hoVaTen ||
-          inspectRecord.canCuoc?.hoVaTen ||
-          inspectRecord.noiDungMail?.tenTaiKhoan
+        inspectRecord.canCuoc?.hoVaTen ||
+        inspectRecord.noiDungMail?.tenTaiKhoan
       ),
       right: inspectRecord.ms?.hoVaTen || inspectRecord.ms?.tenTKGD || '-',
     },
@@ -68,25 +68,51 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     {
       label: 'Ngày sinh',
-      left: inspectRecord.hopDong?.rawNgaySinh
-        ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
-        : formatDateStr(inspectRecord.hopDong?.ngaySinh || inspectRecord.canCuoc?.ngaySinh),
-      right: inspectRecord.ms?.rawNgaySinh
-        ? formatDateStr(inspectRecord.ms.rawNgaySinh)
-        : formatDateStr(inspectRecord.ms?.ngaySinh) ||
-          formatDateStr(inspectRecord.canCuoc?.ngaySinh) ||
-          '-',
+      left: (() => {
+        const raw =
+          (inspectRecord.hopDong?.rawNgaySinh && formatDateStr(inspectRecord.hopDong.rawNgaySinh) !== '-')
+            ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
+            : (inspectRecord.hopDong?.ngaySinh && formatDateStr(inspectRecord.hopDong.ngaySinh) !== '-')
+              ? formatDateStr(inspectRecord.hopDong.ngaySinh)
+              : (inspectRecord.canCuoc?.rawNgaySinh && formatDateStr(inspectRecord.canCuoc.rawNgaySinh) !== '-')
+                ? formatDateStr(inspectRecord.canCuoc.rawNgaySinh)
+                : formatDateStr(inspectRecord.canCuoc?.ngaySinh);
+        if (raw && raw !== '-') return raw;
+        // Tự suy luận năm sinh từ cấu trúc 12 chữ số CCCD chuẩn BCA
+        const cccd = (inspectRecord.hopDong?.soCanCuoc || inspectRecord.canCuoc?.soCanCuoc || inspectRecord.ms?.soCMND_HoChieu || '').replace(/\D/g, '');
+        if (cccd.length === 12) {
+          const g = parseInt(cccd.charAt(3), 10);
+          const yy = parseInt(cccd.slice(4, 6), 10);
+          if (!isNaN(g) && !isNaN(yy)) {
+            const century = g <= 1 ? 1900 : g <= 3 ? 2000 : g <= 5 ? 2100 : g <= 7 ? 2200 : 2300;
+            return `${century + yy} (Theo CCCD)`;
+          }
+        }
+        return '-';
+      })(),
+      right:
+        (inspectRecord.ms?.rawNgaySinh && formatDateStr(inspectRecord.ms.rawNgaySinh) !== '-')
+          ? formatDateStr(inspectRecord.ms.rawNgaySinh)
+          : (inspectRecord.ms?.ngaySinh && formatDateStr(inspectRecord.ms.ngaySinh) !== '-')
+            ? formatDateStr(inspectRecord.ms.ngaySinh)
+            : formatDateStr(inspectRecord.canCuoc?.rawNgaySinh || inspectRecord.canCuoc?.ngaySinh),
     },
     {
       label: 'Ngày cấp',
-      left: inspectRecord.hopDong?.rawNgayCap
-        ? formatDateStr(inspectRecord.hopDong.rawNgayCap)
-        : formatDateStr(inspectRecord.hopDong?.ngayCap || inspectRecord.canCuoc?.ngayCap),
-      right: inspectRecord.ms?.rawNgayCap
-        ? formatDateStr(inspectRecord.ms.rawNgayCap)
-        : formatDateStr(inspectRecord.ms?.ngayCap) ||
-          formatDateStr(inspectRecord.canCuoc?.ngayCap) ||
-          '-',
+      left:
+        (inspectRecord.hopDong?.rawNgayCap && formatDateStr(inspectRecord.hopDong.rawNgayCap) !== '-')
+          ? formatDateStr(inspectRecord.hopDong.rawNgayCap)
+          : (inspectRecord.hopDong?.ngayCap && formatDateStr(inspectRecord.hopDong.ngayCap) !== '-')
+            ? formatDateStr(inspectRecord.hopDong.ngayCap)
+            : (inspectRecord.canCuoc?.rawNgayCap && formatDateStr(inspectRecord.canCuoc.rawNgayCap) !== '-')
+              ? formatDateStr(inspectRecord.canCuoc.rawNgayCap)
+              : formatDateStr(inspectRecord.canCuoc?.ngayCap),
+      right:
+        (inspectRecord.ms?.rawNgayCap && formatDateStr(inspectRecord.ms.rawNgayCap) !== '-')
+          ? formatDateStr(inspectRecord.ms.rawNgayCap)
+          : (inspectRecord.ms?.ngayCap && formatDateStr(inspectRecord.ms.ngayCap) !== '-')
+            ? formatDateStr(inspectRecord.ms.ngayCap)
+            : formatDateStr(inspectRecord.canCuoc?.rawNgayCap || inspectRecord.canCuoc?.ngayCap),
     },
     {
       label: 'Giới tính',
@@ -94,8 +120,27 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         inspectRecord.hopDong?.rawGioiTinh ||
         inspectRecord.hopDong?.gioiTinh ||
         inspectRecord.canCuoc?.gioiTinh ||
-        '-',
-      right: inspectRecord.ms?.gioiTinh || inspectRecord.canCuoc?.gioiTinh || '-',
+        (() => {
+          const clean = (inspectRecord.hopDong?.soCanCuoc || inspectRecord.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
+          if (clean.length === 12) {
+            const d = parseInt(clean.charAt(3), 10);
+            if ([0, 2, 4, 6, 8].includes(d)) return 'Nam';
+            if ([1, 3, 5, 7, 9].includes(d)) return 'Nữ';
+          }
+          return '-';
+        })(),
+      right:
+        inspectRecord.ms?.gioiTinh ||
+        inspectRecord.canCuoc?.gioiTinh ||
+        (() => {
+          const clean = (inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
+          if (clean.length === 12) {
+            const d = parseInt(clean.charAt(3), 10);
+            if ([0, 2, 4, 6, 8].includes(d)) return 'Nam';
+            if ([1, 3, 5, 7, 9].includes(d)) return 'Nữ';
+          }
+          return '-';
+        })(),
     },
     {
       label: 'Nơi cấp',
@@ -104,23 +149,23 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     ...(inspectRecord.hopDong?.dinhDangLoi && inspectRecord.hopDong.dinhDangLoi.length > 0
       ? [
-          {
-            label: 'Cảnh báo định dạng HĐ',
-            left: inspectRecord.hopDong.dinhDangLoi.join('; '),
-            right: 'Yêu cầu quy chuẩn DD/MM/YYYY & Nam/Nữ',
-            customMatch: false,
-          },
-        ]
+        {
+          label: 'Cảnh báo định dạng HĐ',
+          left: inspectRecord.hopDong.dinhDangLoi.join('; '),
+          right: 'Yêu cầu quy chuẩn DD/MM/YYYY & Nam/Nữ',
+          customMatch: false,
+        },
+      ]
       : []),
     ...(inspectRecord.canCuoc?.canhBaoChatLuong && inspectRecord.canCuoc.canhBaoChatLuong.length > 0
       ? [
-          {
-            label: 'Chất lượng ảnh CCCD',
-            left: inspectRecord.canCuoc.canhBaoChatLuong.join('; '),
-            right: 'Yêu cầu đủ 4 góc, không cắt lẹm viền',
-            customMatch: false,
-          },
-        ]
+        {
+          label: 'Chất lượng ảnh CCCD',
+          left: inspectRecord.canCuoc.canhBaoChatLuong.join('; '),
+          right: 'Yêu cầu đủ 4 góc, không cắt lẹm viền',
+          customMatch: false,
+        },
+      ]
       : []),
     {
       label: 'Ngày ký HĐ / Ngày duyệt MS',
@@ -130,7 +175,7 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     {
       label: 'Chữ ký khách hàng',
-      left: inspectRecord.hopDong?.chuKy || 'Đã ký (HĐ)',
+      left: inspectRecord.hopDong?.chuKy || 'Đã ký',
       right: inspectRecord.ms?.chuKy || 'Đã ký',
       customMatch: true,
     },
@@ -142,6 +187,24 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
   const normalizeForCompare = (val: string, label: string) => {
     if (!val || val === '-') return '';
     const s = val.trim();
+    if (label.toLowerCase().includes('họ và tên') || label.toLowerCase().includes('tên')) {
+      return s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'd')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    }
+    if (label.toLowerCase().includes('ngày sinh')) {
+      const mYear = s.match(/\b(19\d{2}|20\d{2})\b/);
+      if (s.includes('Theo CCCD') && mYear) {
+        return mYear[0];
+      }
+      const clean = s.replace(/\s*\(HĐ\)/i, '').trim();
+      const formatted = formatDateStr(clean);
+      return formatted !== '-' ? formatted : s;
+    }
     if (label.toLowerCase().includes('ngày')) {
       const clean = s.replace(/\s*\(HĐ\)/i, '').trim();
       return formatDateStr(clean);
@@ -151,6 +214,20 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
       if (['nữ', 'nu', 'female', 'f'].includes(clean)) return 'nu';
       if (['nam', 'male', 'm'].includes(clean)) return 'nam';
       return clean;
+    }
+    if (label.toLowerCase().includes('nơi cấp')) {
+      const clean = s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      if (
+        clean.includes('BO CONG AN') ||
+        clean.includes('CUC CANH SAT') ||
+        clean.includes('CS QLHC') ||
+        clean.includes('C06')
+      ) {
+        return 'bca_c06';
+      }
     }
     return normalizeStr(s);
   };
@@ -172,10 +249,10 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
                 Trường Thông Tin
               </th>
               <th style={{ padding: '10px 14px', width: '35%', color: '#3b82f6', fontWeight: 700 }}>
-                📧 Outlook & Tệp Đính Kèm
+                Outlook & Tệp Đính Kèm
               </th>
               <th style={{ padding: '10px 14px', width: '35%', color: '#10b981', fontWeight: 700 }}>
-                🖥️ M-System Web & OCR
+                M-System Web & OCR
               </th>
               <th style={{ padding: '10px 14px', width: '8%', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 Đối Soát
@@ -184,13 +261,18 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
           </thead>
           <tbody>
             {rows.map((item: any, rowIdx: number) => {
+              const normLeft = normalizeForCompare(item.left, item.label);
+              const normRight = normalizeForCompare(item.right, item.label);
               const isMatch = item.isInfoNotice
                 ? true
                 : item.customMatch !== undefined
-                ? item.customMatch
-                : item.left !== '-' &&
+                  ? item.customMatch
+                  : item.left !== '-' &&
                   item.right !== '-' &&
-                  normalizeForCompare(item.left, item.label) === normalizeForCompare(item.right, item.label);
+                  (normLeft === normRight ||
+                    (item.label.includes('Ngày sinh') &&
+                      normLeft.length === 4 &&
+                      normRight.endsWith(`/${normLeft}`)));
 
               const isMissingAttachment = !item.isInfoNotice && !isMatch && (item.left === '-' || item.right === '-');
 

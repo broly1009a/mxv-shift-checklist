@@ -346,6 +346,7 @@ export default function TkgdConfigPanel() {
     <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Action bar */}
       <div
+        id="tutorial-tkgd-config-header"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -389,7 +390,7 @@ export default function TkgdConfigPanel() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
         {/* Card 1: Thông tin nhân sự */}
-        <div style={cardStyle} className="glass-panel">
+        <div id="tutorial-tkgd-config-profile" style={cardStyle} className="glass-panel">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <Sliders color="#3b82f6" size={20} />
             <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -421,7 +422,7 @@ export default function TkgdConfigPanel() {
         </div>
 
         {/* Card 2: Tài khoản M-System */}
-        <div style={cardStyle} className="glass-panel">
+        <div id="tutorial-tkgd-config-ms" style={cardStyle} className="glass-panel">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <KeyRound color="#10b981" size={20} />
@@ -519,7 +520,7 @@ export default function TkgdConfigPanel() {
         </div>
 
         {/* Card 3: Hộp thư Outlook Độc Lập */}
-        <div style={cardStyle} className="glass-panel">
+        <div id="tutorial-tkgd-config-outlook" style={cardStyle} className="glass-panel">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Mail color="#8b5cf6" size={20} />
@@ -735,7 +736,7 @@ export default function TkgdConfigPanel() {
         </div>
 
         {/* Card 4: Thư mục lưu trữ & Tùy chọn xử lý Excel */}
-        <div style={cardStyle} className="glass-panel">
+        <div id="tutorial-tkgd-config-storage" style={cardStyle} className="glass-panel">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <FolderSync color="#f59e0b" size={20} />
             <div>
@@ -770,6 +771,7 @@ export default function TkgdConfigPanel() {
 
           {/* Tùy chọn xử lý kết quả Excel */}
           <div
+            id="tutorial-tkgd-config-excel"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -826,7 +828,7 @@ export default function TkgdConfigPanel() {
       </div>
 
       {/* Card 5: Cấu hình tải tệp đính kèm, ảnh CCCD M-System, OCR & Đối chiếu 3 chiều (Full width) */}
-      <div style={cardStyle} className="glass-panel">
+      <div id="tutorial-tkgd-config-processing" style={cardStyle} className="glass-panel">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FolderDown color="#0ea5e9" size={22} />

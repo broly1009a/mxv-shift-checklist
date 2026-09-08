@@ -20,7 +20,7 @@ export const tkgdApi = {
     },
     token?: string | null,
     userEmail?: string
-  ): Promise<{ items: CleanRecord[]; total: number; totalPages: number }> {
+  ): Promise<{ items: CleanRecord[]; total: number; totalPages: number; stats?: TkgdStats }> {
     const query = new URLSearchParams({
       page: String(params.page || 1),
       limit: String(params.limit || 10),

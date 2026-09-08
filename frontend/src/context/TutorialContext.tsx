@@ -17,7 +17,7 @@ export interface TutorialStep {
   padding?: number;
 }
 
-export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings' | 'tkgd';
+export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings' | 'tkgd' | 'tkgd-config';
 
 interface TutorialContextValue {
   isActive: boolean;

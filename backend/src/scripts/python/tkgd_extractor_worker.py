@@ -74,7 +74,41 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
             return res
 
     if not text.strip():
-        res['warning'] = 'PDF không có text layer (dạng scan)'
+        # PDF dạng scan ảnh: Tự động render trang 1 thành ảnh và chạy OCR Tesseract
+        try:
+            import pymupdf
+            doc = pymupdf.open(pdf_path)
+            res['totalPages'] = len(doc)
+            ocr_pages = []
+            import pytesseract
+            from PIL import Image
+            import io
+
+            # Render trang 1 thành ảnh để OCR
+            p0 = doc[0]
+            pix0 = p0.get_pixmap(dpi=200)
+            img0 = Image.open(io.BytesIO(pix0.tobytes("png")))
+            txt0 = pytesseract.image_to_string(img0, lang='vie+eng')
+            if txt0 and txt0.strip():
+                ocr_pages.append(txt0)
+
+            # Nếu có trang 2 và trang 1 ngắn, render thêm trang 2
+            if len(doc) > 1 and len(txt0.strip()) < 300:
+                p1 = doc[1]
+                pix1 = p1.get_pixmap(dpi=200)
+                img1 = Image.open(io.BytesIO(pix1.tobytes("png")))
+                txt1 = pytesseract.image_to_string(img1, lang='vie+eng')
+                if txt1 and txt1.strip():
+                    ocr_pages.append(txt1)
+
+            doc.close()
+            full_pages = ocr_pages
+            text = '\n'.join(full_pages)
+        except Exception as e_ocr:
+            res['warning'] = f'Lỗi OCR PDF dạng scan: {str(e_ocr)}'
+
+    if not text.strip():
+        res['warning'] = 'PDF không có text layer và không thể OCR'
         return res
 
     # ─────────────────────────────────────────────────────────
@@ -147,14 +181,14 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
     # 3. Họ tên khách hàng (Nếu chưa tìm thấy qua Anchor)
     if not res.get('hoTen'):
         m_name = re.search(
-            r'(?:BÊN B[\s\S]*?(?:Ông/bà|Họ [&và] tên|Tên khách hàng))[\s:]+([^\n\r]+)',
+            r'(?:BÊN B[\s\S]*?(?:Ông/bà|Ong/ba|Họ [&và] tên|Tên khách hàng))[\s:]+([^\n\r]+)',
             text, re.IGNORECASE
         )
         if not m_name:
-            m_name = re.search(r'(?:Họ [&và] tên|Tên khách hàng|Ông/bà)[\s:]+([A-ZÀ-Ỹ\s]{4,40})', text)
+            m_name = re.search(r'(?:Họ [&và] tên|Tên khách hàng|Ông/bà|Ong/ba)[\s:]+([A-ZÀ-Ỹ\s]{4,40})', text)
         if m_name:
             name_cand = m_name.group(1).strip()
-            name_cand = re.sub(r'^(Ông/bà|Khách hàng|Bên B)\s*[:\-]?\s*', '', name_cand, flags=re.IGNORECASE).strip()
+            name_cand = re.sub(r'^(Ông/bà|Ong/ba|Khách hàng|Bên B)\s*[:\-]?\s*', '', name_cand, flags=re.IGNORECASE).strip()
             # Lọc bỏ nếu nhầm vào nhãn biểu mẫu
             if len(name_cand) >= 3 and not any(k in name_cand.lower() for k in ['công ty', 'gia cát lợi', 'hitech', 'lương tuấn vũ', 'cccd', 'cmnd', 'hộ chiếu', 'giới tính', 'nơi cấp', 'địa chỉ', 'ngày sinh']):
                 res['hoTen'] = name_cand
@@ -164,6 +198,15 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         m_cccd = re.search(r'(?:CCCD[^\d:\n]*|CMND[^\d:\n]*|Số định danh[^\d:\n]*)[\s:]+(\d{9,12})', text, re.IGNORECASE)
         if m_cccd:
             res['soCCCD'] = m_cccd.group(1).strip()
+
+    # Tự động suy luận Giới tính từ số CCCD 12 chữ số nếu chưa có
+    if res.get('soCCCD') and len(res['soCCCD']) == 12 and not res.get('gioiTinh'):
+        try:
+            g_digit = int(res['soCCCD'][3])
+            res['gioiTinh'] = 'Nam' if g_digit % 2 == 0 else 'Nữ'
+            res['rawGioiTinh'] = res['gioiTinh']
+        except Exception:
+            pass
 
     # 5. Ngày sinh (Nếu chưa tìm thấy qua Anchor)
     if not res.get('ngaySinh'):
@@ -639,8 +682,66 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
 # 3. PHÁT HIỆN LỖI ẢNH CCCD: MẤT GÓC, CẮT LẸM VIỀN, CẮT CHỮ
 # ─────────────────────────────────────────────────────────────
 
+def extract_issue_date_with_clahe(back_path: Optional[str]) -> Optional[str]:
+    """Bóc tách ngày cấp nâng cao từ mặt sau CCCD bằng cách khoanh vùng ROI + Upscaling x2 + CLAHE."""
+    if not back_path or not os.path.exists(back_path):
+        return None
+    try:
+        import cv2
+        import numpy as np
+        import pytesseract
+
+        im = cv2.imread(back_path)
+        if im is None:
+            return None
+
+        # Thử 4 góc xoay để đảm bảo ảnh đúng chiều
+        for angle in [0, 90, 180, 270]:
+            if angle == 0: rot = im
+            elif angle == 90: rot = cv2.rotate(im, cv2.ROTATE_90_CLOCKWISE)
+            elif angle == 180: rot = cv2.rotate(im, cv2.ROTATE_180)
+            elif angle == 270: rot = cv2.rotate(im, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            h, w = rot.shape[:2]
+            # Vùng ngày cấp trên mặt sau: Thường nằm ở 1/3 phía trên, bên phải chip (từ x=25% đến 98%, y=8% đến 65%)
+            roi = rot[int(h * 0.08):int(h * 0.65), int(w * 0.25):int(w * 0.98)]
+            if roi.shape[0] < 20 or roi.shape[1] < 20:
+                continue
+
+            # Phóng đại x2 (Bicubic Upscaling)
+            roi_large = cv2.resize(roi, (0, 0), fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+
+            # Chuyển xám và cân bằng tương phản cục bộ (CLAHE)
+            gray = cv2.cvtColor(roi_large, cv2.COLOR_BGR2GRAY)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(gray)
+
+            # Thử OCR trên cả ảnh enhanced và Otsu threshold
+            candidates = [
+                enhanced,
+                cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
+            ]
+
+            for cand in candidates:
+                txt = pytesseract.image_to_string(cand, lang='vie+eng', config='--oem 3 --psm 6')
+                
+                # Tìm mẫu Ngày ... tháng ... năm ... hoặc DD/MM/YYYY
+                m_cap = re.search(r'(?:Ngày[,\s]+tháng[,\s]+năm|Date[,\s]+month[,\s]+year|ngày|Date)[\s:/]+(\d{1,2})[\s/-]+(\d{1,2})[\s/-]+(\d{4})', txt, re.IGNORECASE)
+                if not m_cap:
+                    m_cap = re.search(r'\b(0[1-9]|[12]\d|3[01])[/-](0[1-9]|1[0-2])[/-](201[5-9]|202[0-9])\b', txt)
+                    if m_cap:
+                        return f"{m_cap.group(1)}/{m_cap.group(2)}/{m_cap.group(3)}"
+                else:
+                    d, m, y = int(m_cap.group(1)), int(m_cap.group(2)), int(m_cap.group(3))
+                    if 1 <= d <= 31 and 1 <= m <= 12 and 2015 <= y <= 2026:
+                        return f"{d:02d}/{m:02d}/{y}"
+    except Exception:
+        pass
+    return None
+
+
 def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Optional[str], account_code: str = '') -> List[str]:
-    """Kiểm tra xem ảnh CCCD có bị mất góc, mép thẻ bị cắt lẹm, hoặc text bị xén đứt đoạn không."""
+    """Kiểm tra chất lượng ảnh CCCD và bắt các lỗi cắt xén, mất góc, mờ nhòe với đa kịch bản."""
     warnings = []
     
     # Nếu tài khoản là testcase chỉ định mất góc 003C9462626
@@ -662,38 +763,100 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
         if im is None:
             continue
 
-        # 1. Kiểm tra text bị xén cụt ở mép
+        base_name = os.path.basename(p)
+        h, w = im.shape[:2]
+
+        # 1. Kịch bản 1: Kiểm tra độ phân giải quá thấp hoặc mờ nhòe (Low-Res / Blur Detection)
+        try:
+            gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+            if min(w, h) < 350 or max(w, h) < 550:
+                w_msg = f"Ảnh CCCD độ phân giải thấp ({base_name}: {w}x{h}px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+                if w_msg not in warnings:
+                    warnings.append(w_msg)
+            
+            lap_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+            if lap_var < 35.0 and max(w, h) >= 400:
+                w_msg = f"Ảnh CCCD bị mờ/nhòe nét ({base_name}: blur={lap_var:.1f}): chất lượng kém, nguy cơ đọc sai ký tự"
+                if w_msg not in warnings:
+                    warnings.append(w_msg)
+        except Exception:
+            pass
+
+        # 2. Kịch bản 2: Kiểm tra text bị xén cụt ở mép (Truncated text patterns)
         try:
             txt = pytesseract.image_to_string(im, lang='vie+eng')
-            # Các từ điển hình bị cắt đứt khi lẹm viền phải
             truncated_patterns = [
                 'Việt N\n', 'Việt N ', 'Viet N\n', 'Viet N ',
                 'trỏ phả\n', 'ngón trỏ phả', 'Hồ Chí Mir\n', 'Hồ Chí Mir '
             ]
             if any(pt in txt for pt in truncated_patterns):
-                w_msg = f"CCCD bị cắt lẹm chữ ở viền ảnh ({os.path.basename(p)}): dòng chữ bị xén cụt ở mép"
-                if w_msg not in warnings and 'CCCD bị mất góc' not in ''.join(warnings):
+                w_msg = f"CCCD bị cắt lẹm chữ ở viền ảnh ({base_name}): dòng chữ bị xén cụt ở mép"
+                if w_msg not in warnings:
                     warnings.append(w_msg)
         except Exception:
             pass
 
-        # 2. Kiểm tra cường độ viền (nếu 1 mép là thẻ trắng/xanh chạm sát mép ảnh không có background viền)
+        # 3. Kịch bản 3: Phân tích viền và góc ảnh (Zero-Margin / Over-Cropped Detection)
         try:
-            gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-            h, w = gray.shape
-            left_mean = np.mean(gray[:, :5])
-            right_mean = np.mean(gray[:, w-5:])
-            top_mean = np.mean(gray[:5, :])
-            bot_mean = np.mean(gray[h-5:, :])
-
-            # Nếu 3 mép là nền tối (deskpad < 90) nhưng mép còn lại > 130 (thẻ chạm sát cạnh)
+            # Cường độ 4 dải mép viền (dày 6px sát 4 cạnh)
+            left_mean = float(np.mean(gray[:, :6]))
+            right_mean = float(np.mean(gray[:, w-6:]))
+            top_mean = float(np.mean(gray[:6, :]))
+            bot_mean = float(np.mean(gray[h-6:, :]))
             edges = [left_mean, right_mean, top_mean, bot_mean]
-            dark_count = sum(1 for e in edges if e < 85)
-            bright_count = sum(1 for e in edges if e > 125)
-            if dark_count >= 2 and bright_count >= 1:
-                w_msg = f"CCCD bị xén sát mép ảnh ({os.path.basename(p)}): mép thẻ chạm thẳng vào khung hình không có viền bao quanh"
-                if w_msg not in warnings and 'CCCD bị mất góc' not in ''.join(warnings):
-                    warnings.append(w_msg)
+
+            # Cường độ 4 góc ảnh (10x10px)
+            c_tl = float(np.mean(gray[:10, :10]))
+            c_tr = float(np.mean(gray[:10, w-10:]))
+            c_bl = float(np.mean(gray[h-10:, :10]))
+            c_br = float(np.mean(gray[h-10:, w-10:]))
+            corners = [c_tl, c_tr, c_bl, c_br]
+
+            # Rule nhận diện Ảnh ghép 2 mặt (Composite Dual-Card Canvas)
+            # Thẻ mặt trước và mặt sau xếp chồng theo chiều dọc (H >= W*0.85), có lề đệm đen/tối ở 2 bên
+            is_composite_card = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
+            
+            # Nếu là ảnh ghép 2 mặt hợp lệ có viền đệm canvas:
+            # Miễn là chữ/chi tiết không bị xén cụt thì coi là ảnh hợp lệ chuẩn
+            if not is_composite_card:
+                # 3A: Cắt xén sát rạt cả 4 cạnh (Zero-Margin / Over-Cropped như 003C8622268)
+                # Áp dụng cho thẻ đơn (W > H*1.2): Cả 4 cạnh và 4 góc đều sáng màu thẻ (edges > 95 và corners > 90),
+                # mất hoàn toàn 4 góc bo tròn chuẩn ISO/IEC 7810 ID-1
+                all_bright_edges = sum(1 for e in edges if e > 95) >= 3
+                all_bright_corners = sum(1 for c in corners if c > 90) >= 3
+                if all_bright_edges and all_bright_corners and w > int(h * 1.2):
+                    w_msg = f"CCCD bị cắt xén sát mép ảnh ({base_name}): thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn"
+                    if w_msg not in warnings:
+                        warnings.append(w_msg)
+
+                # 3B: Tỉ lệ khung hình biến dạng đối với thẻ đơn
+                if all_bright_edges and w > int(h * 1.2):
+                    ratio = w / max(h, 1)
+                    if ratio < 1.32 or ratio > 1.95:
+                        w_msg = f"Tỉ lệ ảnh CCCD bất thường ({base_name}: {ratio:.2f} thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+                        if w_msg not in warnings:
+                            warnings.append(w_msg)
+        except Exception:
+            pass
+
+        # 4. Kịch bản 5: Khoảng cách chữ/chi tiết tới mép ảnh (Edge-to-Text Proximity < 10px)
+        try:
+            data = pytesseract.image_to_data(im, lang='vie+eng', output_type=pytesseract.Output.DICT)
+            n_boxes = len(data['text'])
+            h_img, w_img = im.shape[:2]
+            for i in range(n_boxes):
+                word = data['text'][i].strip()
+                if len(word) >= 3 and int(data['conf'][i]) > 30:
+                    x, y, bw, bh = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
+                    # Bắt các từ khóa quan trọng ở tiêu đề, số thẻ hoặc dòng MRZ
+                    is_core_text = any(kw in word.upper() for kw in ['CỘNG', 'HÒA', 'CĂN', 'CƯỚC', 'IDVNM', 'CHỦ', 'NGHĨA', 'VIỆT', 'NAM'])
+                    is_core_text = is_core_text or (len(re.sub(r'\D', '', word)) >= 9) # Số CCCD
+                    if is_core_text:
+                        if x < 8 or y < 8 or (w_img - (x + bw)) < 8 or (h_img - (y + bh)) < 8:
+                            w_msg = f"CCCD bị xén sát mép ảnh ({base_name}): chữ '{word}' chạm sát viền ảnh (<8px)"
+                            if w_msg not in warnings:
+                                warnings.append(w_msg)
+                            break
         except Exception:
             pass
 
@@ -864,6 +1027,24 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
             cccd_data[k] = ocr_data[k]
             if cccd_data['source'] == 'NONE':
                 cccd_data['source'] = 'OCR'
+
+    # Tối ưu tiền xử lý (Upscaling x2 + CLAHE) trích xuất ngày cấp mặt sau nếu OCR cơ bản chưa bóc tách được
+    if not cccd_data.get('ngayCap'):
+        if back and os.path.exists(back):
+            cand_issue_date = extract_issue_date_with_clahe(back)
+            if cand_issue_date:
+                cccd_data['ngayCap'] = cand_issue_date
+                cccd_data['rawNgayCap'] = cand_issue_date
+                if cccd_data['source'] == 'NONE':
+                    cccd_data['source'] = 'CLAHE_OCR'
+        if not cccd_data.get('ngayCap') and front and os.path.exists(front):
+            # Thử thêm trường hợp front/back bị gửi hoán đổi
+            cand_issue_date = extract_issue_date_with_clahe(front)
+            if cand_issue_date:
+                cccd_data['ngayCap'] = cand_issue_date
+                cccd_data['rawNgayCap'] = cand_issue_date
+                if cccd_data['source'] == 'NONE':
+                    cccd_data['source'] = 'CLAHE_OCR'
 
     # Thử Tầng Fallback AI Vision (Gemini Vision) nếu offline vẫn thiếu thông tin cốt lõi
     if not (cccd_data.get('soCCCD') and cccd_data.get('ngaySinh') and cccd_data.get('gioiTinh')):

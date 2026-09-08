@@ -52,7 +52,7 @@ async function runFullPipeline() {
 
   // ─── BƯỚC 1: NẠP VÀ BÓC TÁCH EMAIL ─────────────────────────────────────────
   console.log('\n' + '-'.repeat(50));
-  console.log('📧 BƯỚC 1: ĐỌC & BÓC TÁCH EMAIL VÀO MONGODB');
+  console.log(' BƯỚC 1: ĐỌC & BÓC TÁCH EMAIL VÀO MONGODB');
   console.log('-'.repeat(50));
 
   // Kiểm tra nạp 2 mẫu email trong inputs
@@ -122,7 +122,7 @@ async function runFullPipeline() {
 
   // ─── BƯỚC 2: CÀO M-SYSTEM (PLAYWRIGHT) ─────────────────────────────────────
   console.log('\n' + '-'.repeat(50));
-  console.log(`🖥️ BƯỚC 2: RPA M-SYSTEM CÀO DỮ LIỆU (Giao diện: ${isHeaded ? 'BẬT' : 'TẮT'})`);
+  console.log(` BƯỚC 2: RPA M-SYSTEM CÀO DỮ LIỆU (Giao diện: ${isHeaded ? 'BẬT' : 'TẮT'})`);
   console.log('-'.repeat(50));
 
   const setting = await SettingModel.findOne({ key: 'bot_credentials_msystem' }).lean();
@@ -130,7 +130,7 @@ async function runFullPipeline() {
   if (setting && (setting as any).value) {
     try {
       credentials = JSON.parse(decrypt((setting as any).value));
-    } catch {}
+    } catch { }
   }
 
   if (credentials && credentials.username) {

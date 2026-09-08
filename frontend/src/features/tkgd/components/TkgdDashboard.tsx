@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useTutorial } from '@/context/TutorialContext';
-import { tkgdTutorialSteps } from '@/tutorials/tkgdTutorial';
+import { tkgdTutorialSteps, tkgdConfigTutorialSteps } from '@/tutorials/tkgdTutorial';
 import TkgdConfigPanel from '@/components/tkgd/TkgdConfigPanel';
 
 import {
@@ -68,24 +68,6 @@ export const TkgdDashboard: React.FC = () => {
     inspectRecord,
     setInspectRecord,
   } = useTkgdData();
-
-  // Tính toán KPI cho thẻ thống kê & thanh lọc
-  const khopCount = useMemo(
-    () => records.filter((r) => r.ketLuan?.trangThai === 'KHOP').length,
-    [records]
-  );
-  const khopTextCount = useMemo(
-    () => records.filter((r) => r.ketLuan?.trangThai === 'KHOP_TEXT').length,
-    [records]
-  );
-  const canKiemTraCount = useMemo(
-    () => records.filter((r) => r.ketLuan?.trangThai === 'CAN_KIEM_TRA').length,
-    [records]
-  );
-  const lechCount = useMemo(
-    () => records.filter((r) => r.ketLuan?.trangThai === 'LECH').length,
-    [records]
-  );
 
   // Hook điều khiển hành động Pipeline / Xuất Excel
   const {
@@ -332,12 +314,17 @@ export const TkgdDashboard: React.FC = () => {
           {/* Nút Hướng Dẫn Sử Dụng (Tutorial Tour) */}
           <button
             onClick={() => {
-              setShowStats(true);
-              localStorage.setItem('tkgd_show_stats', 'true');
-              resetTutorial('tkgd');
-              startTutorial('tkgd', tkgdTutorialSteps);
+              if (mainTab === 'CONFIG') {
+                resetTutorial('tkgd-config');
+                startTutorial('tkgd-config', tkgdConfigTutorialSteps);
+              } else {
+                setShowStats(true);
+                localStorage.setItem('tkgd_show_stats', 'true');
+                resetTutorial('tkgd');
+                startTutorial('tkgd', tkgdTutorialSteps);
+              }
             }}
-            title="Xem hướng dẫn sử dụng phân hệ TKGD"
+            title={mainTab === 'CONFIG' ? 'Xem hướng dẫn cài đặt & cấu hình bot' : 'Xem hướng dẫn sử dụng phân hệ TKGD'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -452,8 +439,8 @@ export const TkgdDashboard: React.FC = () => {
           {/* Stats Cards (Thống kê KPI) */}
           {(showStats || isTutorialActive) && (
             <TkgdStatsCards
-              records={records}
-              total={total}
+              stats={tkgdStats}
+              currentShowing={records.length}
               activeFilter={statusFilter}
               onFilterSelect={(f) => setStatusFilter(f)}
             />
@@ -469,11 +456,8 @@ export const TkgdDashboard: React.FC = () => {
             setSearchTerm={setSearchQuery}
             isCompactView={compactView}
             toggleCompactView={toggleCompactView}
+            stats={tkgdStats}
             total={total}
-            khopCount={khopCount}
-            khopTextCount={khopTextCount}
-            canKiemTraCount={canKiemTraCount}
-            lechCount={lechCount}
             onResetPage={() => setPage(1)}
           />
 

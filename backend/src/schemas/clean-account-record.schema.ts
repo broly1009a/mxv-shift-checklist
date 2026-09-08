@@ -283,7 +283,7 @@ export class ManualReviewSubDoc {
   @Prop({ default: false, index: true })
   isOverridden: boolean;
 
-  @Prop({ enum: ['KHOP', 'DA_DUYET', 'TU_CHOI'], default: 'DA_DUYET' })
+  @Prop({ enum: ['CHUA_XU_LY', 'KHOP', 'DA_DUYET', 'TU_CHOI'], default: 'CHUA_XU_LY' })
   status: string;
 
   @Prop()

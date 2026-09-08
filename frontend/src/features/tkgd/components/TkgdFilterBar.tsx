@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, Search, X, SlidersHorizontal } from 'lucide-react';
-import { FilterStatus } from '../types/tkgd.types';
+import { FilterStatus, TkgdStats } from '../types/tkgd.types';
 
 interface TkgdFilterBarProps {
   filter: FilterStatus;
@@ -11,11 +11,12 @@ interface TkgdFilterBarProps {
   setSearchTerm: (s: string) => void;
   isCompactView: boolean;
   toggleCompactView: () => void;
-  total: number;
-  khopCount: number;
-  khopTextCount: number;
-  canKiemTraCount: number;
-  lechCount: number;
+  stats?: TkgdStats;
+  total?: number;
+  khopCount?: number;
+  khopTextCount?: number;
+  canKiemTraCount?: number;
+  lechCount?: number;
   onResetPage: () => void;
 }
 
@@ -28,13 +29,20 @@ export const TkgdFilterBar: React.FC<TkgdFilterBarProps> = ({
   setSearchTerm,
   isCompactView,
   toggleCompactView,
-  total,
-  khopCount,
-  khopTextCount,
-  canKiemTraCount,
-  lechCount,
+  stats,
+  total = 0,
+  khopCount = 0,
+  khopTextCount = 0,
+  canKiemTraCount = 0,
+  lechCount = 0,
   onResetPage,
 }) => {
+  const effectiveTotal = stats?.totalCount ?? total;
+  const effectiveKhop = stats?.matchedCount ?? khopCount;
+  const effectiveKhopText = stats?.matchedTextCount ?? khopTextCount;
+  const effectiveCanKiemTra = stats?.canKiemTraCount ?? canKiemTraCount;
+  const effectiveLech = stats?.mismatchedCount ?? lechCount;
+
   return (
     <div
       className="glass-panel"
@@ -54,11 +62,11 @@ export const TkgdFilterBar: React.FC<TkgdFilterBarProps> = ({
       {/* Cụm Tabs Lọc Trạng thái & Phân hệ */}
       <div id="tutorial-tkgd-tabs" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
         {[
-          { id: 'ALL', label: `Tất Cả (${total})` },
-          { id: 'KHOP', label: `Khớp 100% (${khopCount})`, color: '#10b981' },
-          { id: 'CAN_KIEM_TRA', label: `Cần Ktra (${canKiemTraCount})`, color: '#f59e0b' },
-          ...(khopTextCount > 0 ? [{ id: 'KHOP_TEXT', label: `Khớp Text (${khopTextCount})`, color: '#3b82f6' }] : []),
-          { id: 'LECH', label: `Sai Lệch (${lechCount})`, color: '#ef4444' },
+          { id: 'ALL', label: `Tất Cả (${effectiveTotal})` },
+          { id: 'KHOP', label: `Khớp 100% (${effectiveKhop})`, color: '#10b981' },
+          { id: 'CAN_KIEM_TRA', label: `Cần Ktra (${effectiveCanKiemTra})`, color: '#f59e0b' },
+          ...(effectiveKhopText > 0 ? [{ id: 'KHOP_TEXT', label: `Khớp Text (${effectiveKhopText})`, color: '#3b82f6' }] : []),
+          { id: 'LECH', label: `Sai Lệch (${effectiveLech})`, color: '#ef4444' },
         ].map((t) => {
           const active = filter === t.id;
           return (
@@ -88,10 +96,10 @@ export const TkgdFilterBar: React.FC<TkgdFilterBarProps> = ({
         <span style={{ color: 'var(--border-color)', margin: '0 4px' }}>|</span>
 
         {[
-          { id: 'FUTURES', label: 'Futures', color: '#3b82f6' },
-          { id: 'ACM', label: 'ACM (-A)', color: '#8b5cf6' },
-          { id: 'LME', label: 'LME (-L)', color: '#f59e0b' },
-          { id: 'SPREAD', label: 'Spread (-S)', color: '#14b8a6' },
+          { id: 'FUTURES', label: stats?.futuresCount !== undefined ? `Futures (${stats.futuresCount})` : 'Futures', color: '#3b82f6' },
+          { id: 'ACM', label: stats?.acmCount !== undefined ? `ACM (-A) (${stats.acmCount})` : 'ACM (-A)', color: '#8b5cf6' },
+          { id: 'LME', label: stats?.lmeCount !== undefined ? `LME (-L) (${stats.lmeCount})` : 'LME (-L)', color: '#f59e0b' },
+          { id: 'SPREAD', label: stats?.spreadCount !== undefined ? `Spread (-S) (${stats.spreadCount})` : 'Spread (-S)', color: '#14b8a6' },
         ].map((t) => {
           const active = filter === t.id;
           return (

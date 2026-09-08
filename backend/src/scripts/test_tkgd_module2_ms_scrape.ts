@@ -54,7 +54,7 @@ async function loginMSystem(
   headless: boolean = true,
 ): Promise<{ browser: Browser; page: Page }> {
   const executablePath = findBrowserExecutable();
-  console.log(`\n  🖥️ Khởi chạy trình duyệt: ${executablePath} (Headless: ${headless})`);
+  console.log(`\n   Khởi chạy trình duyệt: ${executablePath} (Headless: ${headless})`);
 
   const browser = await chromium.launch({
     executablePath,

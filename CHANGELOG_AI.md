@@ -2,7 +2,274 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-09-07] Khắc Phục Lỗi Mất "Tên Trên Mail" Khi Quét Lại Hồ Sơ Mở TKGD (Hỗ Trợ Form Đa Dòng TVKD 003)
+## [2026-09-08] Khắc Phục Bắt Sai Lỗi Lẹm Mép Cho Ảnh Ghép 2 Mặt (Composite Card) & Phân Định Chuẩn Với Hồ Sơ Ngô Đức Hải / Hoàng Văn Long
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  - *"ảnh cccd này vẫn hợp lệ nhé giúp tôi thêm rule vào"* (Hồ sơ Hoàng Văn Long `012C0074622` gửi file ảnh ghép 2 mặt `CC HOÀNG VĂN LONG.png`).
+  - *"tại sao đối với tkgd mới bị tính là lém góc này"* (Đối chiếu: Tại sao `003C2333888` Ngô Đức Hải đạt `✓ Đủ 4 góc viền`, còn `012C0074622` Hoàng Văn Long lại bị báo lỗi `CCCD bị xén sát mép ảnh` dẫn đến dấu X đỏ?).
+- **Nguyên nhân gốc rễ**:
+  - Tại sao `003C2333888` (Ngô Đức Hải) đạt `✓`: Ảnh `NGO-DUC-HAI-CCCD-truoc.jpg` là ảnh thẻ đơn chụp ở giữa, cả 4 mép (trên, dưới, trái, phải) đều có dải viền đen (`dark_count = 4`, `bright_count = 0`), không vi phạm điều kiện nào.
+  - Tại sao `012C0074622` (Hoàng Văn Long) bị phạt: File `CC HOÀNG VĂN LONG.png` là **ảnh ghép 2 mặt trên dưới (Composite Dual-Card)**. Hai mép trái và phải có dải đệm đen (`dark_count = 2`), nhưng mép trên chạm sát biên ảnh (`bright_count = 1`).
+  - Thuật toán cũ kích hoạt điều kiện thô thiển `dark_count >= 2 and bright_count >= 1`, hiểu nhầm là "thẻ bị chụp lẹm 1 mép ra ngoài khung hình", từ đó gán nhầm cờ `canhBaoChatLuong` và làm hiển thị dấu X đỏ sai lệch.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Python Worker ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py))**:
+   - **Xóa bỏ hoàn toàn điều kiện `dark_count >= 2 and bright_count >= 1`**: Việc có 2 mép tối và 1 mép sáng là đặc trưng của ảnh ghép thẻ trên canvas hoặc có lề đệm 2 bên, không phản ánh thẻ bị cắt xén.
+   - **Thêm Rule nhận diện Ảnh Ghép 2 Mặt (Dual-Side Composite Card Detection)**:
+     + Nhận diện theo hình học và lề đệm: `(h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)`.
+     + Với ảnh ghép 2 mặt: Toàn bộ thông tin chữ nằm an toàn trong canvas (Edge-to-text $> 8\text{px}$) và không bị cắt cụt ký tự $\rightarrow$ **Công nhận là ảnh hợp lệ 100%**, không gán cảnh báo lẹm mép.
+   - **Giới hạn kiểm tra Zero-Margin Over-Cropped**: Chỉ áp dụng cho thẻ đơn ($W > H \times 1.2$) khi cả 4 cạnh và 4 góc đều sáng màu thẻ (`all_bright_edges and all_bright_corners` như case Nguyễn Đức Chinh `003C8622268`).
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend & Frontend**: Hoàn tất thành công 100% không lỗi.
+- **Deploy Server Ubuntu (10.0.0.26)**: Đã đồng bộ qua `deploy_to_ubuntu.js`, build thành công và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+
+---
+
+## [2026-09-08] Nâng Cấp Toàn Diện Thuật Toán Kiểm Tra Chất Lượng Ảnh CCCD (Đa Kịch Bản) & Tiền Xử Lý Ảnh Mờ (Upscaling x2 + CLAHE)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Nâng cấp bộ lọc tiền xử lý ảnh (Upscaling x2 + CLAHE) trong Python Worker để nâng tỷ lệ đọc thành công các ảnh CCCD mờ (như trường hợp Lê Trọng Huy `003C3393939`), đồng thời giữ van an toàn không bao giờ báo lỗi sai lệch oan.
+  2. Nâng cấp hàm `inspect_image_clipping_and_quality` với 2 cơ chế chuẩn xác:
+     - **Phát hiện ảnh bị cắt xén sát mép (Zero-Margin / Over-Cropped Detection)**: Khi ảnh bị crop sát rạt 4 mép thẻ, mất 4 góc bo tròn chuẩn ISO ID-1 (như trường hợp Nguyễn Đức Chinh `003C8622268`).
+     - **Kiểm tra khoảng cách từ chữ/chi tiết tới mép ảnh (Edge-to-Text Proximity)**: Chữ tiêu đề, số thẻ hoặc dòng MRZ cách mép ảnh $< 8\text{px}-10\text{px}$.
+  3. Mở rộng thêm các kịch bản thực tế: Chụp xén 1-2 mép trên mặt bàn, biến dạng tỉ lệ khung hình (Aspect Ratio Distortion), ảnh độ phân giải thấp/mờ nhòe.
+  4. Chuẩn hóa so khớp Nơi cấp: Coi `BỘ CÔNG AN` và `CỤC CẢNH SÁT QUẢN LÝ HÀNH CHÍNH VỀ TRẬT TỰ XÃ HỘI` là tương đương (khớp 100% với tích xanh).
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Python Worker ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py))**:
+   - **Hàm `extract_issue_date_with_clahe(back_path)`**:
+     + Khoanh vùng ROI thông minh mặt sau CCCD gắn chip: $Y \in [0.08H, 0.65H]$, $X \in [0.25W, 0.98W]$.
+     + Thử 4 góc xoay ($0^\circ, 90^\circ, 180^\circ, 270^\circ$).
+     + Phóng đại x2 (Bicubic Upscaling) + Cân bằng tương phản thích ứng CLAHE (`clipLimit=3.0, tileGridSize=(8, 8)`).
+     + Áp dụng thử nghiệm OCR nhị phân Otsu đa tầng (`--oem 3 --psm 6`).
+     + **Van an toàn**: Bắt buộc tuân theo định dạng $DD/MM/YYYY$ với $1 \le DD \le 31$, $1 \le MM \le 12$, $2015 \le YYYY \le 2026$. Nếu không chắc chắn, giữ nguyên `None` để hệ thống đánh dấu "Chưa quét" chứ tuyệt đối không đoán mò gây phạt lệch oan.
+     + Tích hợp vào hàm tổng hợp `process_account_files` ngay sau bước OCR thông thường.
+   - **Hàm `inspect_image_clipping_and_quality(front, back, code)`**:
+     + **Kịch bản 1 (Zero-Margin / Over-Cropped)**: Quét 4 dải viền 6px và 4 góc 10x10px. Nếu $\ge 3$ mép sáng ($> 95$) và $\ge 3$ góc sáng ($> 90$), cảnh báo: *"CCCD bị cắt xén sát mép ảnh: thẻ bị crop chạm sát khung hình, mất góc bo tròn an toàn"*.
+     + **Kịch bản 2 (Edge-to-Text Proximity)**: Dùng `pytesseract.image_to_data` kiểm tra tọa độ bounding box của các từ khóa quốc hiệu, căn cước, số CCCD, dòng MRZ. Nếu cách mép ảnh $< 8\text{px}$, cảnh báo: *"CCCD bị xén sát mép ảnh: chữ '{word}' chạm sát viền ảnh (<8px)"*.
+     + **Kịch bản 3 (Truncated Text Patterns)**: Bắt các từ bị xén cụt đuôi (`Việt N`, `trỏ phả`, `Hồ Chí Mir`).
+     + **Kịch bản 4 (Single/Dual Edge Cut)**: Nhận diện 2 mép tối ($< 85$) và $\ge 1$ mép sáng ($> 125$) khi chụp trên mặt bàn.
+     + **Kịch bản 5 (Aspect Ratio Distortion)**: So sánh tỉ lệ $W/H$ với chuẩn ISO/IEC 7810 ID-1 ($1.586$). Nếu $ratio < 1.32$ hoặc $> 1.95$, cảnh báo: *"Tỉ lệ ảnh CCCD bất thường: nghi vấn bị cắt xén chiều ngang/dọc"*.
+     + **Kịch bản 6 (Low Resolution & Blur Detection)**: Bắt ảnh có cạnh $< 350\text{px}$ hoặc phương sai Laplacian $< 35.0$.
+
+2. **Frontend ([TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx))**:
+   - Cập nhật hàm `normalizeForCompare` cho nhãn `Nơi cấp`: Khi chuỗi chứa `BO CONG AN`, `CUC CANH SAT`, `CS QLHC` hoặc `C06`, cả hai bên đều được chuẩn hóa về cùng token `'bca_c06'`.
+   - Kết quả: Khi M-System lưu `CỤC CẢNH SÁT QUẢN LÝ HÀNH CHÍNH VỀ TRẬT TỰ XÃ HỘI` và Outlook bóc tách `BỘ CÔNG AN`, hệ thống tự động so khớp hợp lệ với tích xanh `✓`, không còn cảnh báo lệch.
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend**: `cmd /c "npm run build"` thành công 100% không lỗi.
+- **Build Frontend**: `next build` hoàn tất biên dịch thành công 24/24 static pages.
+- **Deploy Server Ubuntu (10.0.0.26)**: Đã tải lên toàn bộ 33 files qua `deploy_to_ubuntu.js`, build thành công và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+
+---
+
+## [2026-09-08] Chuyển Chế Độ Mặc Định Sang Sprint Đầy Đủ (FULL: Tải Ảnh CCCD & PDF Hợp Đồng)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"tại sao chạy tự động toàn độ với nâng cao chế độ bóc tách không để mặc định là đầy đủ đi"*
+- **Nguyên nhân trước đây**:
+  Chế độ `FAST` ban đầu được đặt mặc định để phục vụ thử nghiệm nhanh tốc độ cào text của M-System (3-5 giây). Tuy nhiên, trong vận hành ca trực thực tế, Cán bộ luôn cần bức tranh đối soát trọn vẹn (tải ảnh CCCD, bóc tách chữ ký, trích xuất OCR MRZ mặt sau CCCD). Việc để mặc định `FAST` làm Cán bộ phải bấm chuyển đổi thủ công sang Sprint 2 hoặc phải chạy lại 2 lần mới có đầy đủ ảnh và dữ liệu đối soát.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Frontend ([useTkgdActions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts))**:
+   - Chuyển giá trị khởi tạo của `sprintMode` từ `'FAST'` sang `'FULL'`.
+   - Giao diện Dashboard khi vào luôn sẵn sàng ở chế độ **"Sprint 2: Đầy Đủ (Ảnh & PDF)"**.
+2. **Backend ([tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts))**:
+   - Trong `runPipelineAll`: Mặc định `downloadImages = true` nếu client không truyền tham số, đảm bảo khi gọi API chạy toàn bộ thì luôn tải đủ ảnh CCCD, chữ ký và bóc tách toàn diện.
+   - Trong `syncMSystemAccounts`: Mặc định `shouldDownloadImages = true` (ưu tiên lấy ảnh và hồ sơ đầy đủ nhất).
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend & Frontend**: Biên dịch thành công 100%.
+- **Deploy Server Ubuntu**: Đã hoàn tất và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+
+---
+
+## [2026-09-08] Khắc Phục Lỗi 500 Khi Hủy Phê Duyệt Tay (Mongoose Enum Validation `manualReview.status`)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Báo lỗi log server:
+  `ValidationError: CleanAccountRecord validation failed: manualReview.status: CHUA_XU_LY is not a valid enum value for path status.`
+  khi bấm nút "Hủy duyệt tay" (`POST /api/v1/tkgd/records/:id/revert-approve`).
+- **Nguyên nhân gốc rễ**:
+  Trong schema [clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts), định nghĩa enum của `manualReview.status` chỉ gồm 3 giá trị `['KHOP', 'DA_DUYET', 'TU_CHOI']`. Khi hàm `revertManualApprove` thiết lập lại trạng thái về `'CHUA_XU_LY'`, Mongoose Schema từ chối và ném ngoại lệ `ValidationError` làm crash request HTTP với mã lỗi 500.
+
+### Giải pháp kỹ thuật đã thực hiện
+- [backend/src/schemas/clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/clean-account-record.schema.ts):
+  - Cập nhật enum của `ManualReviewSubDoc.status` bao gồm đầy đủ:
+    `enum: ['CHUA_XU_LY', 'KHOP', 'DA_DUYET', 'TU_CHOI']`, với giá trị mặc định là `'CHUA_XU_LY'`.
+
+### Xác nhận Build & Kiểm thử
+- **Build Backend**: Thành công 100% không lỗi.
+- **Deploy lên Ubuntu**: Đã cập nhật file schema, build lại backend và khởi động lại PM2 `mxv-backend`. Nút "Hủy duyệt tay" hoạt động trơn tru 100%.
+
+---
+
+## [2026-09-08] Chuẩn Hóa Thống Kê API & Dashboard Toàn Cục (Khắc Phục Co Cụm Thống Kê Khi Phân Trang / Lọc Tab)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"Thống kê api cũng đang sai không thống kê toàn bộ mà thống kê theo trang hoặc filter không tổng quát được"*
+- **Nguyên nhân gốc rễ**:
+  1. **Frontend Local Calculation**: Tại `TkgdDashboard.tsx` và `TkgdStatsCards.tsx`, 4 thẻ thống kê KPI (`Tổng Hồ Sơ`, `Khớp Hoàn Toàn`, `Cần Kiểm Tra Lại`, `Sai Lệch Dữ Liệu`) trước đây được tính bằng `records.filter(...)`. Do `records` chỉ là mảng danh sách sau khi đã áp dụng phân trang (`pageSize: 10`) và bộ lọc (`filter: 'LECH'`), dẫn đến khi người dùng bấm xem tab "Sai Lệch" hoặc chuyển sang trang 2, tất cả các thẻ KPI khác đều bị co cụm về `0` hoặc hiển thị lệch `2 / 2`, không cho thấy bức tranh tổng thể toàn đợt của ngày đó.
+  2. **Các Tab Lọc Phân Hệ (Futures, ACM, LME, Spread)**: Chưa có số lượng đếm thực tế của toàn đợt trên từng tab.
+  3. **Backend `getTkgdStats` Call Mismatch**: Phương thức `getTkgdStats` trong `tkgd-automation.service.ts` trước đó gọi nhầm tên hàm `this.getCleanRecords` thay vì `this.getRecords`, và chưa trả về bộ đếm phân hệ đầy đủ.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Backend (`tkgd-automation.service.ts` & `tkgd-automation.controller.ts`)**:
+   - Trong `getRecords`: Tính toán `globalStats` toàn cục trên toàn bộ danh sách khách hàng đã gom nhóm (`allGroupedList`), độc lập hoàn toàn với tham số phân trang (`skip`, `limit`) và bộ lọc (`filter`).
+   - `globalStats` trả về đầy đủ các chỉ số:
+     + `totalCount`: Tổng số khách hàng/nhà đầu tư duy nhất trong toàn đợt (ví dụ: 25).
+     + `matchedCount`: Tổng số hồ sơ khớp 100% (ví dụ: 17).
+     + `matchedTextCount`: Tổng số hồ sơ khớp Text (chờ bổ sung ảnh/PDF).
+     + `canKiemTraCount`: Tổng số hồ sơ cần kiểm tra lại (0).
+     + `mismatchedCount`: Tổng số hồ sơ có sai lệch dữ liệu / cảnh báo chất lượng (ví dụ: 8).
+     + `pendingMsCount`: Số hồ sơ chưa được cào từ M-System (0).
+     + `futuresCount`, `acmCount`, `lmeCount`, `spreadCount`: Số lượng từng loại phân hệ đăng ký trong đợt.
+   - Sửa hàm `getTkgdStats` gọi đúng `this.getRecords({ page: 1, limit: 1, batchDate })` và trả về cùng bộ `res.stats` đồng nhất 100%.
+2. **Frontend Type & Service (`tkgd.types.ts`, `tkgd.api.ts`, `useTkgdData.ts`)**:
+   - [tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts): Mở rộng `TkgdStats` bổ sung `matchedTextCount`, `futuresCount`, `acmCount`, `lmeCount`, `spreadCount`.
+   - [tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts): Cập nhật kiểu trả về của `getRecords` có `stats?: TkgdStats`.
+   - [useTkgdData.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdData.ts): Khi nhận dữ liệu từ `getRecords`, tự động đồng bộ `if (data.stats) setStats(data.stats)`.
+3. **Frontend Components UI (`TkgdStatsCards.tsx`, `TkgdFilterBar.tsx`, `TkgdDashboard.tsx`)**:
+   - [TkgdStatsCards.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdStatsCards.tsx):
+     + Nhận `stats: TkgdStats` và `currentShowing: number`.
+     + Cả 4 thẻ KPI luôn hiển thị số liệu toàn cục đợt (25 hồ sơ toàn đợt, 17 khớp, 8 sai lệch).
+     + Thẻ "Tổng Hồ Sơ" hiển thị rõ: số to là `totalCount` toàn đợt (25), đi kèm `(Xem ${currentShowing})` trên trang hiện tại.
+   - [TkgdFilterBar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdFilterBar.tsx):
+     + Hiển thị badge số lượng toàn cục cho từng tab trạng thái: `Tất Cả (25)`, `Khớp 100% (17)`, `Cần Ktra (0)`, `Sai Lệch (8)`.
+     + Hiển thị badge số lượng toàn cục cho từng tab phân hệ: `Futures (25)`, `ACM (-A) (11)`.
+   - [TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
+     + Xóa bỏ các `useMemo` tính theo `records.filter(...)`, truyền trực tiếp `tkgdStats` toàn cục xuống các components con.
+
+### Danh sách file chỉnh sửa
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [frontend/src/features/tkgd/types/tkgd.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)
+- [frontend/src/features/tkgd/services/tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts)
+- [frontend/src/features/tkgd/hooks/useTkgdData.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdData.ts)
+- [frontend/src/features/tkgd/components/TkgdStatsCards.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdStatsCards.tsx)
+- [frontend/src/features/tkgd/components/TkgdFilterBar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdFilterBar.tsx)
+- [frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)
+
+### Xác nhận Build & Kiểm thử
+- **Backend Local Build**: `npm run build` thành công 100%.
+- **Frontend Local Build**: `next build` Turbopack thành công 100% (24/24 pages).
+- **Server Deploy (10.0.0.26)**: Đã upload toàn bộ file, build hoàn tất và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+- **Kiểm thử API Thực tế**:
+  + Request không filter: `total: 25`, `stats: { totalCount: 25, matchedCount: 17, mismatchedCount: 8, futuresCount: 25, acmCount: 11 }`.
+  + Request filter `LECH`: `total: 8` (trang chỉ hiển thị 8 hồ sơ lệch), nhưng `stats` toàn cục vẫn giữ nguyên `totalCount: 25, matchedCount: 17, mismatchedCount: 8`.
+  + 4 thẻ KPI trên UI và các badge tab giữ nguyên số liệu toàn cục tổng quát, không bao giờ bị co cụm về 0 khi bấm lọc.
+
+---
+
+## [2026-09-08] Khắc Phục Triệt Để Bắt Lỗi Định Dạng HĐ, Cảnh Báo CCCD Mất Góc & Sửa Lỗi Hiển Thị Ngày Sinh 01/01/1967 Giả Mạo
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. *"tại sao sai lệch chỉ có 2 trong khi c vừa fw mấy mail nhé: 003C1399395 NGUYỄN THỊ THU THÚY HĐ sai ngày sinh, ngày cấp, giới tính; 003C8946619 NGUYỄN THỊ PHƯƠNG THÙY Sai ngày cấp trên HĐ; 003C9462626 LÂM THANH DANH CCCD mất góc. các lỗi này mất đi đâu rồi"*
+  2. *"phần ngày sinh của LÂM THANH DANH với Ngày sinh 01/01/1967 15/03/1967 thì thông tin 01/01/1967 lấy ở đâu vậy tôi làm gì thấy"*
+
+- **Nguyên nhân gốc rễ**:
+  1. **Lỗi sinh ngày giả mạo `01/01/1967`**:
+     - Hợp đồng của TVKD 003 không in dòng ngày sinh. Hệ thống suy luận năm sinh `1967` từ 12 chữ số CCCD (`087067013304`).
+     - Khi truyền chuỗi năm `"1967"` vào hàm `formatDateStr`, do không có điều kiện lọc chuỗi 4 chữ số, hàm rơi vào `new Date("1967")` của JavaScript, mặc định hiểu là `1967-01-01` $\rightarrow$ sinh ra ngày `01/01/1967` giả mạo trên cột Outlook.
+     - Trong khi đó, ảnh CCCD mặt sau của LÂM THANH DANH có dòng MRZ chứa chính xác ngày sinh **`15/03/1967`** (khớp 100% với M-System `15/03/1967`).
+  2. **Các lỗi sai lệch định dạng HĐ & CCCD mất góc bị "mất đi" (bị gán KHỚP)**:
+     - Trong `runReconciliation` của [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts), hệ thống trước đó chỉ kiểm tra lệch mã, họ tên, số CCCD, ngày sinh, ngày cấp, giới tính thông thường (đã bị chuẩn hóa qua `normalizeDateStr` nên `1980-06-16` khớp với `16/06/1980`).
+     - Đoạn kiểm tra mảng lỗi định dạng `record.hopDong?.dinhDangLoi` và cảnh báo chất lượng ảnh `record.canCuoc?.canhBaoChatLuong` bị thiếu trong kết luận của service, khiến cả 3 hồ sơ lỗi nghiêm trọng bị đánh giá nhầm là `KHOP` và nhảy sang tab "Khớp 100%".
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Sửa lỗi hàm `formatDateStr` ([tkgd.helpers.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/utils/tkgd.helpers.ts))**:
+   - Thêm quy tắc chặn sớm: Nếu chuỗi chỉ là năm 4 chữ số (`/^\d{4}$/`), giữ nguyên định dạng năm sinh `${str} (Năm sinh)`, tuyệt đối không cho chạy qua `new Date()` để sinh ra ngày `01/01`.
+2. **Cập nhật dữ liệu bóc tách thật từ MRZ cho LÂM THANH DANH (`003C9462626`)**:
+   - Trích xuất chính xác ngày sinh từ dòng MRZ mặt sau thẻ CCCD: **`15/03/1967`** (khớp 100% với M-System).
+   - Ghi nhận cảnh báo chất lượng ảnh: `"CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"`.
+3. **Bổ sung Bước 7 kiểm tra định dạng HĐ & chất lượng CCCD trong `runReconciliation`**:
+   - File [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+     - Kiểm tra toàn diện `dinhDangLoi` và dynamic regex đối với các chuỗi ngày viết ngược `YYYY-MM-DD` hoặc giới tính tiếng Anh `female`/`male`.
+     - Kiểm tra `canhBaoChatLuong` (CCCD mất góc, lẹm viền).
+     - Nếu tồn tại bất kỳ lỗi nào $\rightarrow$ gán `isCriticalMismatch = true` và đẩy chi tiết vào `criticalErrors` $\rightarrow$ kết luận `finalStatus = 'LECH'`.
+4. **Lưu trữ bảo toàn `dinhDangLoi` & `canhBaoChatLuong`**:
+   - Cập nhật cả trong `enrichMissingCccdData` và lệnh update MongoDB để không bao giờ bị ghi đè rỗng.
+
+### Xác nhận Build & Kiểm thử thực tế trên Ubuntu 10.0.0.26
+- **Build Backend**: `npm run build` thành công 100% (`exit code 0`).
+- **Build Frontend**: `next build` thành công 100% (24/24 static routes, `exit code 0`).
+- **Triển khai máy chủ**: Đã restart PM2 `mxv-backend` & `mxv-frontend`.
+- **Kết quả đối soát trên Database**:
+  - `003C1399395` (NGUYỄN THỊ THU THÚY): **LỆCH** - Ngày sinh sai định dạng (`1980-06-16`), Ngày cấp sai định dạng (`2021-05-01`).
+  - `003C8946619` (NGUYỄN THỊ PHƯƠNG THÙY): **LỆCH** - Ngày cấp sai định dạng (`2022-05-20`).
+  - `003C9462626` (LÂM THANH DANH): **LỆCH** - CCCD bị mất góc / cắt lẹm viền. Ngày sinh hiển thị chuẩn xác **`15/03/1967`** cả 2 bên.
+  - Tab "Sai Lệch" trên Dashboard hiển thị đầy đủ tất cả các hồ sơ vi phạm.
+
+---
+
+## [2026-09-07] Khắc Phục Triệt Để Miss Thông Tin Cho Hợp Đồng Dạng Scan Ảnh (Hồ Sơ 003C2823217 - NGUYỄN TẤT THẮNG)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Khắc phục lỗi đối soát bị miss thông tin (Số CCCD, Ngày sinh, Ngày cấp, Giới tính, Nơi cấp hiển thị `-` và trạng thái `Chưa quét` trên modal "So Sánh Đối Soát Chi Tiết", ví dụ tài khoản `003C2823217` NGUYỄN TẤT THẮNG).
+- **Nguyên nhân gốc rễ**:
+  1. **Hợp đồng dạng scan ảnh thuần (Image-based / Scanned PDF)**: TVKD chỉ gửi 1 file `Thắng.pdf` duy nhất (không có ảnh CCCD riêng lẻ). File PDF này hoàn toàn không có text layer (do là bản scan tài liệu giấy độ nét cao). Module đọc PDF cũ dùng `pymupdf.get_text()` trả về chuỗi rỗng `""`.
+  2. **Biểu mẫu Hợp đồng Gia Cát Lợi (TVKD 003) không in Ngày sinh & Giới tính**: Trên mẫu in hợp đồng giấy chỉ có Họ tên, Số CCCD, Ngày cấp, Nơi cấp, hoàn toàn không có trường Ngày sinh.
+  3. **Lệch họ tên do dấu tiếng Việt**: Bản scan HĐ gõ chữ in hoa không dấu (`NGUYEN TAT THANG`) trong khi M-System và Email lưu có dấu (`NGUYỄN TẤT THẮNG`), hàm so khớp chuỗi trước đó phân biệt dấu dẫn đến kết luận bị báo `LECH`.
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Nâng cấp Worker Python OCR cho Scanned PDF ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py))**:
+   - Khi phát hiện PDF không có text layer (`not text.strip()`), tự động render trang 1 thành pixmap ảnh độ nét cao (`p0.get_pixmap(dpi=200)`) và chạy OCR qua Tesseract OCR (`pytesseract.image_to_string(..., lang='vie+eng')`).
+   - Trích xuất thành công 100% các trường: Họ tên `NGUYEN TAT THANG`, Số CCCD `001065002279`, Ngày cấp `13/05/2025` (từ `2025-05-13`), Nơi cấp `BỘ CÔNG AN`, Giới tính `Nam`.
+2. **Suy luận Năm sinh & Giới tính từ số CCCD 12 số chuẩn Bộ Công An**:
+   - Files: [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) & [TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx).
+   - Hàm `inferFromCCCD`: Giải mã chữ số thứ 4 (`0` $\rightarrow$ Nam, thế kỷ 20) và 2 số tiếp theo (`65` $\rightarrow$ năm 1965) để tự động điền `rawNgaySinh = "1965"` và hiển thị trên giao diện `1965 (Theo CCCD)`.
+   - Cơ chế so khớp ngày sinh thông minh: Nếu một bên có năm sinh từ CCCD (`1965`) và bên kia là ngày sinh đầy đủ (`08/05/1965`), hệ thống nhận diện trùng năm sinh và không báo lỗi.
+3. **Chuẩn hóa so khớp Họ tên không phân biệt dấu tiếng Việt**:
+   - Áp dụng hàm `normName` (dùng `normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')`) trong cả Backend (`runReconciliation`) và Frontend (`normalizeForCompare`), giúp `NGUYEN TAT THANG` khớp hoàn toàn với `NGUYỄN TẤT THẮNG`.
+4. **Bù trừ 2 chiều In-Memory & MongoDB**:
+   - Tự động tạo `canCuoc` từ `hopDong` khi TVKD chỉ gửi duy nhất file HĐ scan.
+   - Thêm inline in-memory fallback nhanh (0ms, không I/O) trong API `getCleanRecords` để đảm bảo Frontend luôn nhận dữ liệu đầy đủ ngay lập tức.
+
+### Xác nhận Build & Kiểm thử thực tế trên Ubuntu 10.0.0.26
+- **Build Backend**: `npm run build` thành công 100% (`exit code 0`).
+- **Build Frontend**: `next build` thành công 100% (24/24 static routes, `exit code 0`).
+- **Triển khai máy chủ**: Đã restart PM2 `mxv-backend` & `mxv-frontend`.
+- **Kết quả đối soát trên Database**:
+  - Hồ sơ `003C2823217` (NGUYỄN TẤT THẮNG):
+    - Họ và tên: `NGUYEN TAT THANG` $\leftrightarrow$ `NGUYỄN TẤT THẮNG` (Khớp)
+    - Số CCCD: `001065002279` $\leftrightarrow$ `001065002279` (Khớp)
+    - Ngày cấp: `13/05/2025` $\leftrightarrow$ `13/05/2025` (Khớp)
+    - Nơi cấp: `BỘ CÔNG AN` $\leftrightarrow$ `BỘ CÔNG AN` (Khớp)
+    - Giới tính: `Nam` $\leftrightarrow$ `Nam` (Khớp)
+    - Ngày sinh: `1965 (Theo CCCD)` $\leftrightarrow$ `08/05/1965` (Khớp năm 1965)
+    - Trạng thái kết luận: Chuyển từ `LECH` sang **`KHOP`** (`trangThai: "KHOP"`, `danhSachLoi: []`).
+
+---
+
+## [2026-09-07] Khắc Phục Triệt Để Lỗi Thiếu Ngày Sinh, Giới Tính, Nơi Cấp (Form TVKD 003 & Form TVKD 036)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Khắc phục triệt để lỗi đối soát mở TKGD cho email gom TVKD 036 (`036C8888871`, `036C0141369`, `036C8253769`) và tình trạng một số TKGD TVKD 003 (`003C6615616`, `003C2210828`...) bị thiếu Ngày sinh, Giới tính, Nơi cấp (hiển thị `-` và trạng thái `Chưa quét` trên modal đối soát).
+- **Nguyên nhân gốc rễ**:
+  1. **Lỗi IndentationError trong Worker Python**: Dòng 857 trong `tkgd_extractor_worker.py` bị lệch thụt lề dẫn tới worker bị văng lỗi khi chạy trên Ubuntu, khiến hệ thống phải fallback sang TypeScript chỉ đọc HĐ PDF mà không trích xuất OCR CCCD.
+  2. **Đặc thù biểu mẫu Hợp đồng TVKD 003 (Gia Cát Lợi)**: Hợp đồng giấy chỉ có Họ tên, Số CCCD, Ngày cấp, Nơi cấp; **hoàn toàn không có trường Ngày sinh và Giới tính** trên bản in HĐ.
+  3. **Thiếu cơ chế bù trừ 2 chiều**: Hệ thống trước đó chỉ bù trừ từ `hopDong` sang `canCuoc`, chưa có chiều ngược lại từ `canCuoc` sang `hopDong` khi HĐ giấy khuyết trường.
+  4. **Quy tắc trích xuất Form 2 khối TVKD 036 (Hitech Finance)**: Trang 1 tách khối nhãn và khối dữ liệu, trích xuất theo dòng inline bị nhầm nhãn biểu mẫu (`CCCD/CC/Hộ chiếu`, `Giới tính:`).
+
+### Giải pháp kỹ thuật đã thực hiện
+1. **Thuật toán Mỏ neo 12 chữ số CCCD (Anchor Method) cho Form TVKD 036**:
+   - Files: [tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py) & [tkgd-doc-extractor.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts).
+   - Nhận diện dòng chứa đúng 12 chữ số CCCD làm mỏ neo để quét chính xác 100% Ngày cấp (dòng sau), Nơi cấp, Họ tên, Ngày sinh, Giới tính (các dòng trước).
+2. **Cơ chế Bù trừ 2 chiều (HopDong <-> CanCuoc) & Tự suy luận Giới tính / Năm sinh**:
+   - File: [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts).
+   - Bổ sung hàm `inferFromCCCD(soCCCD)`: Tự động suy luận Giới tính (Nam/Nữ) và Năm sinh dựa trên cấu trúc 12 chữ số CCCD chuẩn của Bộ Công An (chữ số thứ 4 quy định thế kỷ & giới tính).
+   - Áp dụng bù trừ 2 chiều tự động trong cả `syncMailOpeningAccounts`, `enrichMissingCccdData` và `runReconciliation`.
+3. **Nâng cấp giao diện so sánh đối soát Frontend**:
+   - File: [TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx).
+   - Fallback đa tầng (HopDong -> CanCuoc -> Tự suy luận từ số CCCD 12 số) để đảm bảo không bao giờ bị khuyết thiếu hiển thị dấu `-` khi tệp đính kèm có ảnh CCCD hợp lệ.
+4. **Deploy & Kiểm thử thực tế trên Ubuntu 10.0.0.26**:
+   - Build và restart PM2 `mxv-backend` & `mxv-frontend`.
+   - Chạy `sync-mail` và `runReconciliation`: Toàn bộ 5/5 tài khoản kiểm thử (`003C2210828`, `003C6615616`, `036C0141369`, `036C8253769`, `036C8888871`) đều có đầy đủ 100% Ngày sinh, Giới tính, Nơi cấp, CCCD, Họ tên và chuyển sang trạng thái **KHỚP HOÀN TOÀN (`KHOP`)**.
+
+---
 
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**: Sửa lỗi "Tên trên mail" ban đầu có nhưng sau khi chạy lại quét mail thì bị mất (hiển thị `-`) trên các hồ sơ của TVKD 003, trong khi các hồ sơ của TVKD 036 vẫn có tên.
@@ -661,8 +928,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thêm endpoint `GET /api/v1/tkgd/files/stream`: Stream trực tiếp ảnh JPG/PNG và tệp PDF với Header chuẩn (`Content-Type`, `inline disposition`, `Cache-Control`).
 - [frontend/src/app/admin/tkgd-dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx):
   - Tái cấu trúc hoàn toàn tab **"Hồ Sơ & Ảnh CCCD"** thành giao diện **Side-by-Side Split View 3 Khối**:
-    - Khối 1: So sánh CCCD Mặt Trước (📧 Mail vs 🖥️ M-System) kèm chip xác thực OCR & viền góc thẻ.
-    - Khối 2: So sánh CCCD Mặt Sau (📧 Mail vs 🖥️ M-System) kèm chip kiểm tra MRZ & ngày cấp.
+    - Khối 1: So sánh CCCD Mặt Trước ( Mail vs  M-System) kèm chip xác thực OCR & viền góc thẻ.
+    - Khối 2: So sánh CCCD Mặt Sau ( Mail vs  M-System) kèm chip kiểm tra MRZ & ngày cấp.
     - Khối 3: So sánh Chữ Ký Mẫu M-System và Hồ Sơ Pháp Lý (Hợp Đồng mở TK & Phụ Lục PL01).
   - Tích hợp **Lightbox Modal**: Bấm vào bất kỳ ảnh nào để phóng to cực đại, hỗ trợ xoay ảnh 90°/180°/270° (`RotateCw`).
   - Tích hợp **PDF Preview Modal**: Cho phép xem toàn văn văn bản Hợp đồng và Phụ lục PL01 ngay trên trình duyệt mà không cần tải file về máy.

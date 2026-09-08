@@ -1,31 +1,25 @@
 import React from 'react';
 import { Users, CheckCircle2, AlertTriangle, X } from 'lucide-react';
-import { CleanRecord, FilterStatus } from '../types/tkgd.types';
+import { FilterStatus, TkgdStats } from '../types/tkgd.types';
 
 interface TkgdStatsCardsProps {
-  records: CleanRecord[];
-  total: number;
+  stats: TkgdStats;
+  currentShowing?: number;
   activeFilter?: FilterStatus;
   onFilterSelect?: (filter: FilterStatus) => void;
 }
 
 export const TkgdStatsCards: React.FC<TkgdStatsCardsProps> = ({
-  records,
-  total,
+  stats,
+  currentShowing = 0,
   activeFilter,
   onFilterSelect,
 }) => {
-  const khopCount = records.filter((r) => r.ketLuan?.trangThai === 'KHOP').length;
-  const khopTextCount = records.filter((r) => r.ketLuan?.trangThai === 'KHOP_TEXT').length;
-  const canKiemTraCount = records.filter((r) => r.ketLuan?.trangThai === 'CAN_KIEM_TRA').length;
-  const lechCount = records.filter(
-    (r) =>
-      r.ketLuan?.trangThai &&
-      r.ketLuan?.trangThai !== 'KHOP' &&
-      r.ketLuan?.trangThai !== 'KHOP_TEXT' &&
-      r.ketLuan?.trangThai !== 'CAN_KIEM_TRA' &&
-      r.ketLuan?.trangThai !== 'CHUA_XU_LY'
-  ).length;
+  const total = stats?.totalCount ?? 0;
+  const khopCount = stats?.matchedCount ?? 0;
+  const khopTextCount = stats?.matchedTextCount ?? 0;
+  const canKiemTraCount = stats?.canKiemTraCount ?? 0;
+  const lechCount = stats?.mismatchedCount ?? 0;
 
   return (
     <div
@@ -53,14 +47,19 @@ export const TkgdStatsCards: React.FC<TkgdStatsCardsProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-            Tổng Hồ Sơ (Trang này)
+            Tổng Hồ Sơ Toàn Đợt
           </span>
           <Users size={17} color="#3b82f6" />
         </div>
         <p style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--text-primary)', margin: '6px 0 2px 0' }}>
-          {records.length} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {total}</span>
+          {total}{' '}
+          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+            (Xem {currentShowing})
+          </span>
         </p>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hồ sơ trong database</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          Toàn bộ khách hàng trong đợt
+        </span>
       </div>
 
       {/* Card 2: Khớp */}

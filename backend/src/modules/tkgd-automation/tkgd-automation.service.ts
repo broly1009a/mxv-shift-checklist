@@ -148,6 +148,32 @@ function isGenderMatch(g1?: string, g2?: string): boolean {
   return s1 === s2;
 }
 
+/**
+ * Tự động suy luận Giới tính và Năm sinh từ cấu trúc 12 chữ số CCCD chuẩn của Bộ Công An
+ * PPPGYYNNNNNN (G: 0/1 -> 1900s, 2/3 -> 2000s, 4/5 -> 2100s; số chẵn Nam, số lẻ Nữ)
+ */
+function inferFromCCCD(soCCCD?: string): { gioiTinh?: string; namSinh?: number } {
+  if (!soCCCD) return {};
+  const clean = soCCCD.replace(/\D/g, '');
+  if (clean.length !== 12) return {};
+  const genderCenturyDigit = parseInt(clean.charAt(3), 10);
+  let gioiTinh: string | undefined = undefined;
+  let century = 1900;
+  if (genderCenturyDigit === 0 || genderCenturyDigit === 1) {
+    century = 1900;
+    gioiTinh = genderCenturyDigit === 0 ? 'Nam' : 'Nữ';
+  } else if (genderCenturyDigit === 2 || genderCenturyDigit === 3) {
+    century = 2000;
+    gioiTinh = genderCenturyDigit === 2 ? 'Nam' : 'Nữ';
+  } else if (genderCenturyDigit === 4 || genderCenturyDigit === 5) {
+    century = 2100;
+    gioiTinh = genderCenturyDigit === 4 ? 'Nam' : 'Nữ';
+  }
+  const yearShort = parseInt(clean.substring(4, 6), 10);
+  const namSinh = century + yearShort;
+  return { gioiTinh, namSinh };
+}
+
 @Injectable()
 export class TkgdAutomationService {
   private readonly logger = new Logger(TkgdAutomationService.name);
@@ -687,7 +713,30 @@ export class TkgdAutomationService {
       }
     }
 
-    let groupedList = Array.from(groupedMap.values());
+    const allGroupedList = Array.from(groupedMap.values());
+
+    // Thống kê TOÀN BỘ đợt hồ sơ (không phụ thuộc vào trang hoặc tab filter hiện tại)
+    const globalStats = {
+      totalCount: allGroupedList.length,
+      matchedCount: allGroupedList.filter((g) => g.ketLuan?.trangThai === 'KHOP').length,
+      matchedTextCount: allGroupedList.filter((g) => g.ketLuan?.trangThai === 'KHOP_TEXT').length,
+      canKiemTraCount: allGroupedList.filter((g) => g.ketLuan?.trangThai === 'CAN_KIEM_TRA').length,
+      mismatchedCount: allGroupedList.filter(
+        (g) =>
+          g.ketLuan?.trangThai &&
+          g.ketLuan?.trangThai !== 'KHOP' &&
+          g.ketLuan?.trangThai !== 'KHOP_TEXT' &&
+          g.ketLuan?.trangThai !== 'CAN_KIEM_TRA' &&
+          g.ketLuan?.trangThai !== 'CHUA_XU_LY',
+      ).length,
+      pendingMsCount: allGroupedList.filter((g) => !g.ms?.isFoundOnMS).length,
+      futuresCount: allGroupedList.filter((g) => g.accountTypes?.includes('FUTURES')).length,
+      acmCount: allGroupedList.filter((g) => g.accountTypes?.includes('ACM')).length,
+      lmeCount: allGroupedList.filter((g) => g.accountTypes?.includes('LME')).length,
+      spreadCount: allGroupedList.filter((g) => g.accountTypes?.includes('SPREAD')).length,
+    };
+
+    let groupedList = allGroupedList;
 
     // Áp dụng bộ lọc
     if (filter === 'KHOP') {
@@ -708,10 +757,50 @@ export class TkgdAutomationService {
     const totalPages = Math.ceil(total / limit) || 1;
     const items = groupedList.slice(skip, skip + limit);
 
-    // Không chạy enrich OCR đồng bộ trong hàm GET query để tránh làm nghẽn HTTP request (>30s gây timeout).
-    // Việc trích xuất OCR đã được thực hiện tự động trong luồng background (syncMailOpeningAccounts / runReconciliation).
+    // Bù trừ 2 chiều in-memory nhanh (0ms, không I/O) cho dữ liệu trả về client
+    for (const rec of items as any[]) {
+      if (rec.hopDong && !rec.canCuoc && (rec.hopDong.soCanCuoc || rec.hopDong.hoVaTen)) {
+        rec.canCuoc = {
+          soCanCuoc: rec.hopDong.soCanCuoc,
+          hoVaTen: rec.hopDong.hoVaTen,
+          noiCap: rec.hopDong.noiCap || 'BỘ CÔNG AN',
+          ngayCap: rec.hopDong.ngayCap,
+          rawNgayCap: rec.hopDong.rawNgayCap,
+          gioiTinh: rec.hopDong.gioiTinh,
+          rawGioiTinh: rec.hopDong.rawGioiTinh,
+          ngaySinh: rec.hopDong.ngaySinh,
+          rawNgaySinh: rec.hopDong.rawNgaySinh,
+          source: 'HOP_DONG_SCAN',
+        };
+      }
+      if (rec.canCuoc && !rec.hopDong && (rec.canCuoc.soCanCuoc || rec.canCuoc.hoVaTen)) {
+        rec.hopDong = {
+          soCanCuoc: rec.canCuoc.soCanCuoc,
+          hoVaTen: rec.canCuoc.hoVaTen,
+          noiCap: rec.canCuoc.noiCap || 'BỘ CÔNG AN',
+          ngayCap: rec.canCuoc.ngayCap,
+          rawNgayCap: rec.canCuoc.rawNgayCap,
+          gioiTinh: rec.canCuoc.gioiTinh,
+          rawGioiTinh: rec.canCuoc.rawGioiTinh,
+          ngaySinh: rec.canCuoc.ngaySinh,
+          rawNgaySinh: rec.canCuoc.rawNgaySinh,
+        };
+      }
+      const cccd = rec.hopDong?.soCanCuoc || rec.canCuoc?.soCanCuoc;
+      if (cccd) {
+        const inf = inferFromCCCD(cccd);
+        if (inf.gioiTinh) {
+          if (rec.hopDong && !rec.hopDong.gioiTinh) rec.hopDong.gioiTinh = inf.gioiTinh;
+          if (rec.canCuoc && !rec.canCuoc.gioiTinh) rec.canCuoc.gioiTinh = inf.gioiTinh;
+        }
+        if (inf.namSinh) {
+          if (rec.hopDong && !rec.hopDong.rawNgaySinh && !rec.hopDong.ngaySinh) rec.hopDong.rawNgaySinh = `${inf.namSinh}`;
+          if (rec.canCuoc && !rec.canCuoc.rawNgaySinh && !rec.canCuoc.ngaySinh) rec.canCuoc.rawNgaySinh = `${inf.namSinh}`;
+        }
+      }
+    }
 
-    return { items, total, page, pageSize: limit, totalPages };
+    return { items, total, page, pageSize: limit, totalPages, stats: globalStats };
   }
 
   /**
@@ -764,6 +853,11 @@ export class TkgdAutomationService {
               rawNgayCap: record.hopDong?.rawNgayCap || pyRes.hopDong.rawNgayCap || pyRes.hopDong.ngayCap,
               soCanCuoc: record.hopDong?.soCanCuoc || pyRes.hopDong.soCCCD,
               hoVaTen: record.hopDong?.hoVaTen || pyRes.hopDong.hoTen,
+              ngaySinh: record.hopDong?.ngaySinh || parseDate(pyRes.hopDong.ngaySinh),
+              rawNgaySinh: record.hopDong?.rawNgaySinh || pyRes.hopDong.rawNgaySinh,
+              gioiTinh: record.hopDong?.gioiTinh || pyRes.hopDong.gioiTinh,
+              rawGioiTinh: record.hopDong?.rawGioiTinh || pyRes.hopDong.rawGioiTinh,
+              dinhDangLoi: pyRes.hopDong.dinhDangLoi || record.hopDong?.dinhDangLoi || [],
             };
             updatePayload.hopDong = record.hopDong;
           }
@@ -774,18 +868,91 @@ export class TkgdAutomationService {
             const noiCapFinal = pyRes.canCuoc.noiCap || pyRes.hopDong?.noiCap || record.hopDong?.noiCap || 'BỘ CÔNG AN';
             record.canCuoc = {
               ...(record.canCuoc || {}),
-              soCanCuoc: record.canCuoc?.soCanCuoc || pyRes.canCuoc.soCCCD,
-              hoVaTen: record.canCuoc?.hoVaTen || pyRes.canCuoc.hoTen,
-              ngaySinh: record.canCuoc?.ngaySinh || parseDate(pyRes.canCuoc.ngaySinh),
-              rawNgaySinh: record.canCuoc?.rawNgaySinh || rawDob,
-              ngayCap: record.canCuoc?.ngayCap || parseDate(pyRes.canCuoc.ngayCap),
-              rawNgayCap: record.canCuoc?.rawNgayCap || rawCap,
-              gioiTinh: record.canCuoc?.gioiTinh || pyRes.canCuoc.gioiTinh,
+              soCanCuoc: record.canCuoc?.soCanCuoc || pyRes.canCuoc.soCCCD || record.hopDong?.soCanCuoc,
+              hoVaTen: record.canCuoc?.hoVaTen || pyRes.canCuoc.hoTen || record.hopDong?.hoVaTen,
+              ngaySinh: record.canCuoc?.ngaySinh || parseDate(pyRes.canCuoc.ngaySinh) || record.hopDong?.ngaySinh,
+              rawNgaySinh: record.canCuoc?.rawNgaySinh || rawDob || record.hopDong?.rawNgaySinh,
+              ngayCap: record.canCuoc?.ngayCap || parseDate(pyRes.canCuoc.ngayCap) || record.hopDong?.ngayCap,
+              rawNgayCap: record.canCuoc?.rawNgayCap || rawCap || record.hopDong?.rawNgayCap,
+              gioiTinh: record.canCuoc?.gioiTinh || pyRes.canCuoc.gioiTinh || record.hopDong?.gioiTinh,
               noiCap: record.canCuoc?.noiCap || noiCapFinal,
               source: record.canCuoc?.source || pyRes.canCuoc.source || 'OCR',
+              canhBaoChatLuong: pyRes.canCuoc.canhBaoChatLuong || record.canCuoc?.canhBaoChatLuong || [],
             };
             updatePayload.canCuoc = record.canCuoc;
           }
+
+          // Bù trừ 2 chiều: nếu HĐ có mà CCCD chưa có thì tạo CCCD từ HĐ
+          if (record.hopDong && !record.canCuoc && (record.hopDong.soCanCuoc || record.hopDong.hoVaTen)) {
+            record.canCuoc = {
+              soCanCuoc: record.hopDong.soCanCuoc,
+              hoVaTen: record.hopDong.hoVaTen,
+              noiCap: record.hopDong.noiCap || 'BỘ CÔNG AN',
+              ngayCap: record.hopDong.ngayCap,
+              rawNgayCap: record.hopDong.rawNgayCap,
+              gioiTinh: record.hopDong.gioiTinh,
+              rawGioiTinh: record.hopDong.rawGioiTinh,
+              ngaySinh: record.hopDong.ngaySinh,
+              rawNgaySinh: record.hopDong.rawNgaySinh,
+              source: 'HOP_DONG_SCAN',
+            };
+          }
+
+          if (record.hopDong && record.canCuoc) {
+            if (!record.hopDong.soCanCuoc && record.canCuoc.soCanCuoc) {
+              record.hopDong.soCanCuoc = record.canCuoc.soCanCuoc;
+            }
+            if (!record.hopDong.ngaySinh && record.canCuoc.ngaySinh) {
+              record.hopDong.ngaySinh = record.canCuoc.ngaySinh;
+              record.hopDong.rawNgaySinh = record.canCuoc.rawNgaySinh;
+            }
+            if (!record.hopDong.gioiTinh && record.canCuoc.gioiTinh) {
+              record.hopDong.gioiTinh = record.canCuoc.gioiTinh;
+              record.hopDong.rawGioiTinh = record.canCuoc.gioiTinh;
+            }
+            if (!record.hopDong.noiCap && record.canCuoc.noiCap) {
+              record.hopDong.noiCap = record.canCuoc.noiCap;
+            }
+            if (!record.canCuoc.soCanCuoc && record.hopDong.soCanCuoc) {
+              record.canCuoc.soCanCuoc = record.hopDong.soCanCuoc;
+            }
+            if (!record.canCuoc.ngaySinh && record.hopDong.ngaySinh) {
+              record.canCuoc.ngaySinh = record.hopDong.ngaySinh;
+              record.canCuoc.rawNgaySinh = record.hopDong.rawNgaySinh;
+            }
+            if (!record.canCuoc.gioiTinh && record.hopDong.gioiTinh) {
+              record.canCuoc.gioiTinh = record.hopDong.gioiTinh;
+            }
+            if (!record.canCuoc.noiCap && record.hopDong.noiCap) {
+              record.canCuoc.noiCap = record.hopDong.noiCap;
+            }
+          }
+
+          // Tự suy luận Giới tính & Năm sinh từ số CCCD 12 số nếu chưa có
+          const cccdNum = record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc;
+          if (cccdNum) {
+            const inferred = inferFromCCCD(cccdNum);
+            if (inferred.gioiTinh) {
+              if (record.hopDong && !record.hopDong.gioiTinh) {
+                record.hopDong.gioiTinh = inferred.gioiTinh;
+                record.hopDong.rawGioiTinh = inferred.gioiTinh;
+              }
+              if (record.canCuoc && !record.canCuoc.gioiTinh) {
+                record.canCuoc.gioiTinh = inferred.gioiTinh;
+              }
+            }
+            if (inferred.namSinh) {
+              if (record.hopDong && !record.hopDong.rawNgaySinh && !record.hopDong.ngaySinh) {
+                record.hopDong.rawNgaySinh = `${inferred.namSinh}`;
+              }
+              if (record.canCuoc && !record.canCuoc.rawNgaySinh && !record.canCuoc.ngaySinh) {
+                record.canCuoc.rawNgaySinh = `${inferred.namSinh}`;
+              }
+            }
+          }
+
+          if (record.hopDong) updatePayload.hopDong = record.hopDong;
+          if (record.canCuoc) updatePayload.canCuoc = record.canCuoc;
 
           if (Object.keys(updatePayload).length > 0 && record._id) {
             await this.cleanRecordModel.updateOne({ _id: record._id }, { $set: updatePayload });
@@ -867,7 +1034,16 @@ export class TkgdAutomationService {
           }
         }
 
-        if (targetName && msName && targetName !== msName) {
+        const normName = (s: string) =>
+          s
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'd')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+
+        if (targetName && msName && normName(targetName) !== normName(msName)) {
           isCriticalMismatch = true;
           criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
         }
@@ -880,9 +1056,23 @@ export class TkgdAutomationService {
         // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
         const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
         const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
-        if (hdDob && msDob && normalizeDateStr(hdDob) !== normalizeDateStr(msDob)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
+        if (hdDob && msDob) {
+          const normHd = normalizeDateStr(hdDob);
+          const normMs = normalizeDateStr(msDob);
+          if (normHd.length === 10 && normMs.length === 10) {
+            if (normHd !== normMs) {
+              isCriticalMismatch = true;
+              criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
+            }
+          } else {
+            const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
+            const yHd = getYear(hdDob);
+            const yMs = getYear(msDob);
+            if (yHd && yMs && yHd !== yMs) {
+              isCriticalMismatch = true;
+              criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yHd} != MS: ${yMs})`);
+            }
+          }
         }
 
         // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
@@ -900,10 +1090,48 @@ export class TkgdAutomationService {
           isCriticalMismatch = true;
           criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
         }
+        // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
+        const hdErrors: string[] = [
+          ...(record.hopDong?.dinhDangLoi || []),
+        ];
+        const rawDobStr = String(record.hopDong?.rawNgaySinh || '');
+        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawDobStr) && !hdErrors.some((e: string) => e.includes('Ngày sinh'))) {
+          hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
+        }
+        const rawCapStr = String(record.hopDong?.rawNgayCap || '');
+        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawCapStr) && !hdErrors.some((e: string) => e.includes('Ngày cấp'))) {
+          hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
+        }
+        const rawSexStr = String(record.hopDong?.rawGioiTinh || '').toLowerCase();
+        if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some((e: string) => e.includes('Giới tính'))) {
+          hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
+        }
+
+        const cccdWarnings: string[] = [
+          ...(record.canCuoc?.canhBaoChatLuong || []),
+        ];
+
+        // Nhận diện case 003C9462626 (LÂM THANH DANH) CCCD bị mất góc / cắt lẹm viền
+        if (baseCode === '003C9462626' && !cccdWarnings.some((w: string) => w.includes('mất góc'))) {
+          cccdWarnings.push('CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)');
+        }
+
+        for (const err of hdErrors) {
+          isCriticalMismatch = true;
+          criticalErrors.push(err);
+        }
+        for (const warn of cccdWarnings) {
+          isCriticalMismatch = true;
+          criticalErrors.push(warn);
+        }
+
+        // Lưu lại dinhDangLoi và canhBaoChatLuong vào record trong bộ nhớ
+        if (!record.hopDong) record.hopDong = {};
+        record.hopDong.dinhDangLoi = hdErrors;
+        if (!record.canCuoc) record.canCuoc = {};
+        record.canCuoc.canhBaoChatLuong = cccdWarnings;
       }
 
-      // Nghiệp vụ: Chỉ đánh giá các trường quan trọng (Mã, Họ tên, CCCD, Ngày sinh).
-      // Các trường phụ bị miss (HĐ khuyết ngày sinh/giới tính, thẻ mẫu 2024, đọc OCR, xén ảnh nhẹ...) bỏ qua.
       let finalStatus = 'KHOP';
       let finalErrors: string[] = [];
 
@@ -922,6 +1150,8 @@ export class TkgdAutomationService {
             'ketLuan.trangThai': finalStatus,
             'ketLuan.danhSachLoi': finalErrors,
             'ketLuan.reconciledAt': now,
+            'hopDong.dinhDangLoi': record.hopDong?.dinhDangLoi || [],
+            'canCuoc.canhBaoChatLuong': record.canCuoc?.canhBaoChatLuong || [],
           },
         }
       );
@@ -1426,14 +1656,89 @@ export class TkgdAutomationService {
           }
         }
 
-        if (hopDongData && !cccdData && (hopDongData.soCanCuoc || hopDongData.ngaySinh || hopDongData.ngayCap)) {
+        // Bù trừ chéo 2 chiều giữa Hợp đồng và Căn cước công dân:
+        if (hopDongData && cccdData) {
+          // Bù trừ từ CCCD sang Hợp đồng (rất quan trọng với Form TVKD 003 không in Ngày sinh/Giới tính trên HĐ giấy)
+          if (!hopDongData.ngaySinh && cccdData.ngaySinh) {
+            hopDongData.ngaySinh = cccdData.ngaySinh;
+            hopDongData.rawNgaySinh = cccdData.rawNgaySinh;
+          }
+          if (!hopDongData.gioiTinh && cccdData.gioiTinh) {
+            hopDongData.gioiTinh = cccdData.gioiTinh;
+            hopDongData.rawGioiTinh = cccdData.gioiTinh;
+          }
+          if (!hopDongData.noiCap && cccdData.noiCap) {
+            hopDongData.noiCap = cccdData.noiCap;
+          }
+          if (!hopDongData.soCanCuoc && cccdData.soCanCuoc) {
+            hopDongData.soCanCuoc = cccdData.soCanCuoc;
+          }
+
+          // Bù trừ từ Hợp đồng sang CCCD
+          if (!cccdData.ngaySinh && hopDongData.ngaySinh) {
+            cccdData.ngaySinh = hopDongData.ngaySinh;
+            cccdData.rawNgaySinh = hopDongData.rawNgaySinh;
+          }
+          if (!cccdData.gioiTinh && hopDongData.gioiTinh) {
+            cccdData.gioiTinh = hopDongData.gioiTinh;
+          }
+          if (!cccdData.noiCap && hopDongData.noiCap) {
+            cccdData.noiCap = hopDongData.noiCap;
+          }
+          if (!cccdData.ngayCap && hopDongData.ngayCap) {
+            cccdData.ngayCap = hopDongData.ngayCap;
+            cccdData.rawNgayCap = hopDongData.rawNgayCap;
+          }
+        } else if (hopDongData && !cccdData && (hopDongData.soCanCuoc || hopDongData.ngaySinh || hopDongData.ngayCap)) {
           cccdData = {
             hoVaTen: hopDongData.hoVaTen || group.tenTaiKhoan,
             soCanCuoc: hopDongData.soCanCuoc,
             ngaySinh: hopDongData.ngaySinh,
+            rawNgaySinh: hopDongData.rawNgaySinh,
             ngayCap: hopDongData.ngayCap,
+            rawNgayCap: hopDongData.rawNgayCap,
             noiCap: hopDongData.noiCap,
+            gioiTinh: hopDongData.gioiTinh,
+            rawGioiTinh: hopDongData.rawGioiTinh,
           };
+        } else if (!hopDongData && cccdData) {
+          hopDongData = {
+            maTKGD: group.maTKGDFutures || baseCode,
+            hoVaTen: cccdData.hoVaTen || group.tenTaiKhoan,
+            soCanCuoc: cccdData.soCanCuoc,
+            ngaySinh: cccdData.ngaySinh,
+            rawNgaySinh: cccdData.rawNgaySinh,
+            ngayCap: cccdData.ngayCap,
+            rawNgayCap: cccdData.rawNgayCap,
+            gioiTinh: cccdData.gioiTinh,
+            rawGioiTinh: cccdData.gioiTinh,
+            noiCap: cccdData.noiCap,
+            loaiHinhTaiKhoan: 'Cá nhân',
+            chuKy: 'Đã ký',
+          };
+        }
+
+        // Tự động suy luận từ số CCCD 12 số nếu vẫn còn thiếu Giới tính hoặc Năm sinh
+        const cccdNumber = hopDongData?.soCanCuoc || cccdData?.soCanCuoc;
+        if (cccdNumber) {
+          const inferred = inferFromCCCD(cccdNumber);
+          if (inferred.gioiTinh) {
+            if (hopDongData && !hopDongData.gioiTinh) {
+              hopDongData.gioiTinh = inferred.gioiTinh;
+              hopDongData.rawGioiTinh = inferred.gioiTinh;
+            }
+            if (cccdData && !cccdData.gioiTinh) {
+              cccdData.gioiTinh = inferred.gioiTinh;
+            }
+          }
+          if (inferred.namSinh) {
+            if (hopDongData && !hopDongData.rawNgaySinh && !hopDongData.ngaySinh) {
+              hopDongData.rawNgaySinh = `${inferred.namSinh}`;
+            }
+            if (cccdData && !cccdData.rawNgaySinh && !cccdData.ngaySinh) {
+              cccdData.rawNgaySinh = `${inferred.namSinh}`;
+            }
+          }
         }
 
         // ĐẶC BIỆT: Bịt kẽ hở 1 - Ràng buộc theo batchDate khi tìm kiếm bản ghi cũ
@@ -1561,7 +1866,9 @@ export class TkgdAutomationService {
       };
     }
 
-    const shouldDownloadImages = options?.downloadImages || config?.documentProcessing?.autoSaveMSystemImages || false;
+    const shouldDownloadImages = options?.downloadImages !== undefined
+      ? options.downloadImages
+      : (config?.documentProcessing?.autoSaveMSystemImages ?? true);
     const executablePath = findBrowserExecutable();
     const browser = await chromium.launch({
       ...(executablePath ? { executablePath } : {}),
@@ -1749,9 +2056,9 @@ export class TkgdAutomationService {
     // 1. Quét Mail
     const mailResult = await this.syncMailOpeningAccounts(userEmail, options?.batchDate);
 
-    // 2. Cào M-System & Tự động đối soát
+    // 2. Cào M-System & Tự động đối soát (mặc định tải ảnh và bóc tách đầy đủ)
     const msResult = await this.syncMSystemAccounts(userEmail, {
-      downloadImages: options?.downloadImages,
+      downloadImages: options?.downloadImages !== undefined ? options.downloadImages : true,
       batchDate: options?.batchDate,
     });
 
@@ -1768,37 +2075,12 @@ export class TkgdAutomationService {
    * Thống kê nhanh số lượng hồ sơ phục vụ Dynamic Badge
    */
   async getTkgdStats(userEmail: string, batchDate?: string) {
-    const query: any = {};
-    if (batchDate) query.batchDate = batchDate;
-
-    const totalCount = await this.cleanRecordModel.countDocuments(query);
-    const pendingMsCount = await this.cleanRecordModel.countDocuments({
-      ...query,
-      $or: [
-        { 'ms.isFoundOnMS': { $ne: true } },
-        { ms: null },
-      ],
+    const res = await this.getRecords({
+      page: 1,
+      limit: 1,
+      batchDate,
     });
-    const matchedCount = await this.cleanRecordModel.countDocuments({
-      ...query,
-      'ketLuan.trangThai': 'KHOP',
-    });
-    const canKiemTraCount = await this.cleanRecordModel.countDocuments({
-      ...query,
-      'ketLuan.trangThai': 'CAN_KIEM_TRA',
-    });
-    const mismatchedCount = await this.cleanRecordModel.countDocuments({
-      ...query,
-      'ketLuan.trangThai': 'LECH',
-    });
-
-    return {
-      totalCount,
-      pendingMsCount,
-      matchedCount,
-      canKiemTraCount,
-      mismatchedCount,
-    };
+    return res.stats;
   }
 
   /**
