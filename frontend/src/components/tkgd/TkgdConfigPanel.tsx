@@ -675,7 +675,7 @@ export default function TkgdConfigPanel() {
                     color: 'var(--text-muted)',
                   }}
                 >
-                  Phù hợp khi bảo trì hòm thư hoặc chạy kiểm thử từng mẻ riêng biệt
+                  Phù hợp khi bảo trì hòm thư hoặc chạy kiểm thử từng đợt riêng biệt
                 </span>
               </div>
             </div>
@@ -716,15 +716,15 @@ export default function TkgdConfigPanel() {
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Kích thước mẻ xử lý tối đa</label>
+                  <label style={labelStyle}>Số lượng hồ sơ xử lý mỗi lượt</label>
                   <select
                     style={inputStyle}
                     value={autoBatchSize}
                     onChange={(e) => setAutoBatchSize(Number(e.target.value))}
                   >
-                    <option value={20}>20 hồ sơ / mẻ</option>
-                    <option value={50}>50 hồ sơ / mẻ (Khuyến nghị)</option>
-                    <option value={100}>100 hồ sơ / mẻ</option>
+                    <option value={20}>20 hồ sơ / lượt</option>
+                    <option value={50}>50 hồ sơ / lượt (Khuyến nghị chuẩn)</option>
+                    <option value={100}>100 hồ sơ / lượt</option>
                   </select>
                 </div>
               </div>

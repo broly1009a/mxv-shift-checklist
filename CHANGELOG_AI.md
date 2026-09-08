@@ -4,6 +4,28 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T18:03] Chuẩn Hóa Thuật Ngữ Vận Hành: Đổi 'Mẻ' Sang 'Lượt' / 'Đợt' Dễ Hiểu
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"dùng từ 50 hồ sơ / mẻ liệu có gây khó hiểu không đến tôi cũng không biết được"* và *"có giúp tôi sửa ngay vì hiện tại đang chạy chung song song với checklist"*.
+- **Vấn đề**: Từ "mẻ" (dịch máy từ "batch") mang tính kỹ thuật/công xưởng, không phải ngôn ngữ nghiệp vụ giám sát vận hành sàn giao dịch, gây bối rối cho cán bộ trực ca.
+
+### Danh sách file chỉnh sửa
+- [`frontend/src/components/tkgd/TkgdConfigPanel.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx)
+
+### Tóm tắt nội dung code đã sửa
+- `Kích thước mẻ xử lý tối đa` $\rightarrow$ `Số lượng hồ sơ xử lý mỗi lượt`.
+- `20 hồ sơ / mẻ` $\rightarrow$ `20 hồ sơ / lượt`.
+- `50 hồ sơ / mẻ (Khuyến nghị)` $\rightarrow$ `50 hồ sơ / lượt (Khuyến nghị chuẩn)`.
+- `100 hồ sơ / mẻ` $\rightarrow$ `100 hồ sơ / lượt`.
+- `chạy kiểm thử từng mẻ riêng biệt` $\rightarrow$ `chạy kiểm thử từng đợt riêng biệt`.
+
+### Xác nhận Build & Deploy
+- ✅ Frontend TypeScript compile sạch 100% không lỗi.
+- ✅ Đang đồng bộ và build trực tiếp trên Server Ubuntu (`10.0.0.26`).
+
+---
+
 ## [2026-09-08T17:50] Sửa Lỗi Nhận Diện Ảnh CCCD M-System: Multi-Date Fallback & Chống Đè Regex
 
 ### Mục tiêu thay đổi
