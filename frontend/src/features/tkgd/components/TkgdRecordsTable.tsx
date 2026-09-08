@@ -173,7 +173,23 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                         {(page - 1) * pageSize + index + 1}
                       </td>
                       <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#3b82f6' }}>
-                        {targetCode}
+                        <div>{targetCode}</div>
+                        {r.noiDungMail?.receivedDateTime && (
+                          <div
+                            style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 500,
+                              color: 'var(--text-muted)',
+                              marginTop: '2px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                            title={`Thời gian nhận email: ${new Date(r.noiDungMail.receivedDateTime).toLocaleString('vi-VN')}`}
+                          >
+                            <span>📩 {new Date(r.noiDungMail.receivedDateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px 14px' }}>{renderModuleBadges(r)}</td>
                       <td style={{ padding: '12px 14px', fontWeight: 600 }}>

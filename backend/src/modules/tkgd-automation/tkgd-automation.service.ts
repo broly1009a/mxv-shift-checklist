@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
@@ -212,6 +213,65 @@ export class TkgdAutomationService {
 
   private progressMap = new Map<string, TkgdProgressState>();
 
+  // Dùng Set thay vì single boolean để nhiều user có thể chạy song song
+  // mà không block lẫn nhau — chỉ chặn cùng 1 userEmail chạy đè nhau.
+  private autoPipelineRunningUsers = new Set<string>();
+
+  /** @deprecated Giữ lại để tương thích — dùng autoPipelineRunningUsers thay thế */
+  private get isAutoPipelineRunning(): boolean {
+    return this.autoPipelineRunningUsers.size > 0;
+  }
+
+  /**
+   * Quét tất cả email phù hợp từ Graph API, hỗ trợ phân trang @odata.nextLink.
+   * Đảm bảo không sót mail dù hộp thư chứa > 100 email trong ngày.
+   * Giới hạn tối đa MAX_PAGES trang để tránh vô hạn.
+   */
+  private async fetchAllMatchingMailsFromGraph(
+    startUrl: string,
+    accessToken: string,
+    matchFn: (msg: any) => boolean,
+    maxPages = 10,
+  ): Promise<any[]> {
+    const results: any[] = [];
+    let nextUrl: string | null = startUrl;
+    let page = 0;
+    const GRAPH_FETCH_TIMEOUT_MS = 15_000; // 15s per page — tránh treo mạng
+
+    while (nextUrl && page < maxPages) {
+      page++;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), GRAPH_FETCH_TIMEOUT_MS);
+        const res = await fetch(nextUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
+
+        if (!res.ok) {
+          this.logger.warn(`[GRAPH-PAGE] Trang ${page} thất bại (${res.status}): ${startUrl}`);
+          break;
+        }
+        const data = await res.json();
+        const matched = (data.value || []).filter(matchFn);
+        results.push(...matched);
+
+        // Nếu trang hiện tại đã có kết quả khớp: dừng — không cần quét thêm
+        if (matched.length > 0 && data.value.length === matched.length) {
+          break;
+        }
+        nextUrl = data['@odata.nextLink'] || null;
+      } catch (err: any) {
+        this.logger.warn(`[GRAPH-PAGE] Lỗi lấy trang ${page}: ${err.message}`);
+        break;
+      }
+    }
+    if (page >= maxPages && nextUrl) {
+      this.logger.warn(`[GRAPH-PAGE] Đã đạt giới hạn ${maxPages} trang, còn dữ liệu chưa quét hết.`);
+    }
+    return results;
+  }
+
   /**
    * Cập nhật trạng thái tiến trình thời gian thực theo từng người dùng
    */
@@ -349,6 +409,15 @@ export class TkgdAutomationService {
           enableTripleCheckCccd: true,
           checkSignatureRequired: true,
         },
+        autoPipeline: {
+          enabled: false,
+          intervalMinutes: 5,
+          batchSize: 50,
+          autoSyncMSystem: true,
+          autoExportExcel: true,
+          lastRunTime: 0,
+          lastProcessedCount: 0,
+        },
       };
     }
 
@@ -386,6 +455,15 @@ export class TkgdAutomationService {
         enableOcrCccd: config.documentProcessing?.enableOcrCccd ?? true,
         enableTripleCheckCccd: config.documentProcessing?.enableTripleCheckCccd ?? true,
         checkSignatureRequired: config.documentProcessing?.checkSignatureRequired ?? true,
+      },
+      autoPipeline: {
+        enabled: config.autoPipeline?.enabled ?? false,
+        intervalMinutes: config.autoPipeline?.intervalMinutes ?? 5,
+        batchSize: config.autoPipeline?.batchSize ?? 50,
+        autoSyncMSystem: config.autoPipeline?.autoSyncMSystem ?? true,
+        autoExportExcel: config.autoPipeline?.autoExportExcel ?? true,
+        lastRunTime: config.autoPipeline?.lastRunTime ?? 0,
+        lastProcessedCount: config.autoPipeline?.lastProcessedCount ?? 0,
       },
     };
   }
@@ -469,6 +547,20 @@ export class TkgdAutomationService {
       if (dto.documentProcessing.checkSignatureRequired !== undefined) {
         config.documentProcessing.checkSignatureRequired = dto.documentProcessing.checkSignatureRequired;
       }
+    }
+
+    // Cập nhật Auto Pipeline (Chế độ tự động 24/7 vs thủ công)
+    if (!config.autoPipeline) (config as any).autoPipeline = {};
+    if (dto.autoPipeline) {
+      if (dto.autoPipeline.enabled !== undefined) config.autoPipeline.enabled = dto.autoPipeline.enabled;
+      if (dto.autoPipeline.intervalMinutes !== undefined) {
+        config.autoPipeline.intervalMinutes = Math.max(1, Number(dto.autoPipeline.intervalMinutes) || 5);
+      }
+      if (dto.autoPipeline.batchSize !== undefined) {
+        config.autoPipeline.batchSize = Math.max(1, Number(dto.autoPipeline.batchSize) || 50);
+      }
+      if (dto.autoPipeline.autoSyncMSystem !== undefined) config.autoPipeline.autoSyncMSystem = dto.autoPipeline.autoSyncMSystem;
+      if (dto.autoPipeline.autoExportExcel !== undefined) config.autoPipeline.autoExportExcel = dto.autoPipeline.autoExportExcel;
     }
 
     await config.save();
@@ -1365,44 +1457,40 @@ export class TkgdAutomationService {
           }
 
           const targetMailbox = config.outlook?.targetMailbox?.trim();
-          // Microsoft Graph API không cho phép kết hợp $filter=contains(...) cùng lúc với $orderby=receivedDateTime (lỗi InefficientFilter 400).
-          // Ta dùng $search hoặc lấy 100 mail mới nhất rồi lọc chuẩn xác trong Node.js:
-          const endpointsToTry: string[] = [];
+          // Microsoft Graph API không cho phép kết hợp $filter với $orderby (lỗi InefficientFilter 400).
+          // Giải pháp: Dùng $search + phân trang @odata.nextLink — đảm bảo không sót email
+          // khi hộp thư chứa > 100 email trong ngày (ví dụ: ngày hội thảo, đợt mở hàng loạt).
+          const mailMatchFn = (m: any) => {
+            const s = (m.subject || '').toLowerCase();
+            return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+          };
+
+          const endpointsToTry: Array<{ url: string; paginated: boolean }> = [];
           if (targetMailbox && targetMailbox !== userEmail) {
+            // Ưu tiên $search (nhanh, chính xác), fallback sang $top=50 có phân trang
             endpointsToTry.push(
-              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
-              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=100&$orderby=receivedDateTime desc`
+              { url: `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`, paginated: true },
+              { url: `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=50&$orderby=receivedDateTime desc`, paginated: true },
             );
           }
           endpointsToTry.push(
-            `https://graph.microsoft.com/v1.0/me/messages?$search="Yêu cầu mở TKGD"&$top=50`,
-            `https://graph.microsoft.com/v1.0/me/messages?$top=100&$orderby=receivedDateTime desc`
+            { url: `https://graph.microsoft.com/v1.0/me/messages?$search="Yêu cầu mở TKGD"&$top=50`, paginated: true },
+            { url: `https://graph.microsoft.com/v1.0/me/messages?$top=50&$orderby=receivedDateTime desc`, paginated: true },
           );
 
           let fetchedMessages: any[] = [];
-          for (const graphUrl of endpointsToTry) {
-            this.logger.log(`[TKGD-MAIL] Trying Graph endpoint: ${graphUrl}`);
-            const messagesRes = await fetch(graphUrl, {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            this.logger.log(`[TKGD-MAIL] messagesRes status: ${messagesRes.status}`);
-            if (messagesRes.ok) {
-              const msgs = await messagesRes.json();
-              if (msgs.value && msgs.value.length > 0) {
-                // Lọc mail có chứa 'Yêu cầu mở TKGD' hoặc 'TKGD' hoặc 'Mở tài khoản'
-                const matched = msgs.value.filter((m: any) => {
-                  const s = (m.subject || '').toLowerCase();
-                  return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
-                });
-                if (matched.length > 0) {
-                  fetchedMessages = matched;
-                  this.logger.log(`[TKGD-MAIL] Tìm thấy ${matched.length} email phù hợp từ Graph API!`);
-                  break;
-                }
-              }
-            } else {
-              const errBody = await messagesRes.text();
-              this.logger.warn(`[TKGD-MAIL] Graph endpoint ${graphUrl} failed: ${errBody}`);
+          for (const endpoint of endpointsToTry) {
+            this.logger.log(`[TKGD-MAIL] Quét Graph (paginated): ${endpoint.url}`);
+            const matched = await this.fetchAllMatchingMailsFromGraph(
+              endpoint.url,
+              accessToken,
+              mailMatchFn,
+              10, // tối đa 10 trang × 50 = 500 email
+            );
+            if (matched.length > 0) {
+              fetchedMessages = matched;
+              this.logger.log(`[TKGD-MAIL] Tìm thấy ${matched.length} email phù hợp (có phân trang).`);
+              break;
             }
           }
 
@@ -1477,63 +1565,56 @@ export class TkgdAutomationService {
           if (tokenRes.ok) {
             const tokenData = await tokenRes.json();
             const accessToken = tokenData.access_token;
-            const endpointsToTry = [
+            // Dùng fetchAllMatchingMailsFromGraph (có phân trang) cho cả Client Credentials flow
+            const ccMatchFn = (m: any) => {
+              const s = (m.subject || '').toLowerCase();
+              return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+            };
+            const ccEndpoints = [
               `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
-              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=100&$orderby=receivedDateTime desc`,
+              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=50&$orderby=receivedDateTime desc`,
             ];
-            for (const graphUrl of endpointsToTry) {
-              const messagesRes = await fetch(graphUrl, {
-                headers: { Authorization: `Bearer ${accessToken}` },
-              });
-              if (messagesRes.ok) {
-                const msgs = await messagesRes.json();
-                if (msgs.value && msgs.value.length > 0) {
-                  const matched = msgs.value.filter((m: any) => {
-                    const s = (m.subject || '').toLowerCase();
-                    return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
-                  });
-                  if (matched.length > 0) {
-                    for (const msg of matched) {
-                      const msgAttachments: any[] = [];
-                      if (msg.hasAttachments) {
-                        try {
-                          const attachUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}/messages/${msg.id}/attachments`;
-                          const attachRes = await fetch(attachUrl, {
-                            headers: { Authorization: `Bearer ${accessToken}` },
-                          });
-                          if (attachRes.ok) {
-                            const aData = await attachRes.json();
-                            for (const a of aData.value || []) {
-                              const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
-                              if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
-                                msgAttachments.push({
-                                  name: a.name,
-                                  contentType: a.contentType,
-                                  contentBytes: a.contentBytes,
-                                  size: a.size,
-                                });
-                              }
-                            }
+            for (const graphUrl of ccEndpoints) {
+              const matched = await this.fetchAllMatchingMailsFromGraph(graphUrl, accessToken, ccMatchFn, 10);
+              if (matched.length > 0) {
+                for (const msg of matched) {
+                  const msgAttachments: any[] = [];
+                  if (msg.hasAttachments) {
+                    try {
+                      const attachUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}/messages/${msg.id}/attachments`;
+                      const attachRes = await fetch(attachUrl, {
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                      });
+                      if (attachRes.ok) {
+                        const aData = await attachRes.json();
+                        for (const a of aData.value || []) {
+                          const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
+                          if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
+                            msgAttachments.push({
+                              name: a.name,
+                              contentType: a.contentType,
+                              contentBytes: a.contentBytes,
+                              size: a.size,
+                            });
                           }
-                        } catch (err: any) {
-                          this.logger.warn(`[TKGD-MAIL] Không tải được attachments cho msg ${msg.id}: ${err.message}`);
                         }
                       }
-
-                      emailList.push({
-                        messageId: msg.id,
-                        subject: msg.subject || '',
-                        senderEmail: msg.sender?.emailAddress?.address || '',
-                        senderName: msg.sender?.emailAddress?.name || '',
-                        receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
-                        bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
-                        attachments: msgAttachments,
-                      });
+                    } catch (err: any) {
+                      this.logger.warn(`[TKGD-MAIL] Không tải được attachments cho msg ${msg.id}: ${err.message}`);
                     }
-                    this.logger.log(`[TKGD-MAIL] Đã quét thành công ${emailList.length} mail từ M365 Client Credentials (Checklist Mode)!`);
-                    break;
                   }
+                  emailList.push({
+                    messageId: msg.id,
+                    subject: msg.subject || '',
+                    senderEmail: msg.sender?.emailAddress?.address || '',
+                    senderName: msg.sender?.emailAddress?.name || '',
+                    receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
+                    bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
+                    attachments: msgAttachments,
+                  });
                 }
+                this.logger.log(`[TKGD-MAIL] Đã quét ${emailList.length} mail từ M365 Client Credentials (có phân trang)!`);
+                break;
               }
             }
           }
@@ -1935,6 +2016,7 @@ export class TkgdAutomationService {
           hasACMRequest: group.hasACMRequest,
           hasLMERequest: group.hasLMERequest,
           hasSpreadRequest: group.hasSpreadRequest,
+          receivedDateTime: mail.receivedDateTime || new Date(),
         };
 
         if (existingRecord) {
@@ -2774,6 +2856,208 @@ export class TkgdAutomationService {
       record: updated,
       message: `Đã hủy duyệt tay, đối soát máy đã được cập nhật lại.`,
     };
+  }
+
+  /**
+   * Cron Job tự động chạy mỗi 1 phút — kiểm tra từng user có đến hạn chạy chưa.
+   * Mỗi user có intervalMinutes riêng (3/5/10/15/30), bot sẽ tính toán và kích hoạt đúng thời điểm.
+   * Thiết kế này tránh tình trạng hardcode 5 phút không tương thích với cấu hình của user.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleCronAutoPipeline() {
+    try {
+      const activeConfigs = await this.userConfigModel.find({
+        'autoPipeline.enabled': true,
+      }).lean();
+
+      if (!activeConfigs || activeConfigs.length === 0) return;
+
+      const now = Date.now();
+      for (const cfg of activeConfigs) {
+        const intervalMs = Math.max(1, cfg.autoPipeline?.intervalMinutes ?? 5) * 60 * 1000;
+        const lastRun = cfg.autoPipeline?.lastRunTime ?? 0;
+
+        // Kiểm tra xem đã đến hạn chạy chu kỳ mới chưa
+        if (now - lastRun < intervalMs) continue;
+
+        // Chặn cùng user chạy đè nhau (per-user mutex)
+        if (this.autoPipelineRunningUsers.has(cfg.userEmail)) {
+          this.logger.debug(`[TKGD-CRON] ${cfg.userEmail} đang chạy chu kỳ trước, bỏ qua.`);
+          continue;
+        }
+
+        // Chạy không blocking: fire-and-forget cho từng user độc lập
+        this.runAutoPipelineCycle(cfg.userEmail).catch((err) => {
+          this.logger.error(`[TKGD-CRON] Lỗi chu kỳ tự động cho ${cfg.userEmail}: ${err.message}`);
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`[TKGD-CRON] Lỗi kiểm tra hàng loạt: ${err.message}`);
+    }
+  }
+
+  /**
+   * Kích hoạt 1 chu trình tự động toàn diện: Quét Mail -> Bóc tách OCR -> Đồng bộ M-System -> Đối soát -> Cập nhật Excel
+   */
+  async runAutoPipelineCycle(userEmail: string): Promise<{ success: boolean; processedCount: number; message: string }> {
+    // Per-user mutex: chặn cùng 1 user chạy đè nhau, nhưng không chặn các user khác
+    if (this.autoPipelineRunningUsers.has(userEmail)) {
+      return { success: false, processedCount: 0, message: `${userEmail} đang trong chu kỳ xử lý, bỏ qua.` };
+    }
+
+    this.autoPipelineRunningUsers.add(userEmail);
+    this.logger.log(`[TKGD-AUTO] Bắt đầu chu trình tự động hóa 24/7 cho ${userEmail}...`);
+
+    // Timeout tổng cho toàn bộ chu kỳ = 8 phút (an toàn khi interval ngắn nhất là 3 phút)
+    const PIPELINE_TIMEOUT_MS = 8 * 60 * 1000;
+
+    try {
+      const pipelineTask = async () => {
+        // 1. Quét mail mới
+        this.updateProgress(userEmail, {
+          isProcessing: true,
+          taskType: 'SYNC_MAIL',
+          stage: 'Đang tự động quét email mở TKGD mới...',
+          percent: 15,
+        });
+        const mailResult = await this.syncMailOpeningAccounts(userEmail);
+        const newMailCount = mailResult.count || 0;
+
+        // 2. Cào M-System nếu có hồ sơ chưa đồng bộ
+        const pendingSyncCount = await this.cleanRecordModel.countDocuments({
+          'ms.isFoundOnMS': false,
+        });
+
+        let msResult = { scrapedCount: 0 };
+        if (pendingSyncCount > 0) {
+          this.updateProgress(userEmail, {
+            isProcessing: true,
+            taskType: 'SYNC_MS',
+            stage: `Đang tự động đồng bộ M-System cho ${pendingSyncCount} hồ sơ...`,
+            percent: 50,
+          });
+          // Wrap M-System scraper với timeout 3 phút riêng — Playwright không được treo quá lâu
+          const MS_TIMEOUT_MS = 3 * 60 * 1000;
+          msResult = await Promise.race([
+            this.syncMSystemAccounts(userEmail),
+            new Promise<{ scrapedCount: number }>((_, reject) =>
+              setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 3 phút')), MS_TIMEOUT_MS)
+            ),
+          ]).catch((err) => {
+            this.logger.warn(`[TKGD-AUTO] ${err.message} — tiếp tục bước đối soát.`);
+            return { scrapedCount: 0 };
+          });
+        }
+
+        // 3. Tự động đối soát và xuất Excel
+        this.updateProgress(userEmail, {
+          isProcessing: true,
+          taskType: 'RECONCILE',
+          stage: 'Đang tự động đối soát chéo và cập nhật Excel...',
+          percent: 85,
+        });
+        const todayStr = new Date().toISOString().slice(0, 10);
+        await this.runReconciliation(userEmail, todayStr);
+
+        return newMailCount + (msResult.scrapedCount || 0);
+      };
+
+      // Race giữa pipeline thực tế và timeout tổng — tránh block cron khi có sự cố
+      const totalDone = await Promise.race([
+        pipelineTask(),
+        new Promise<number>((_, reject) =>
+          setTimeout(() => reject(new Error(`Pipeline timeout sau ${PIPELINE_TIMEOUT_MS / 60000} phút`)), PIPELINE_TIMEOUT_MS)
+        ),
+      ]);
+
+      // Lưu timestamp lần chạy cuối
+      await this.userConfigModel.updateOne(
+        { userEmail },
+        { $set: { 'autoPipeline.lastRunTime': Date.now(), 'autoPipeline.lastProcessedCount': totalDone } }
+      );
+
+      this.updateProgress(userEmail, {
+        isProcessing: false,
+        taskType: 'IDLE',
+        percent: 100,
+        stage: `Hoàn tất chu kỳ tự động: xử lý ${totalDone} mục.`,
+      });
+      this.logger.log(`[TKGD-AUTO] ✅ Chu kỳ hoàn tất cho ${userEmail}: ${totalDone} mục.`);
+      return { success: true, processedCount: totalDone, message: `Đã xử lý xong ${totalDone} mục.` };
+
+    } catch (err: any) {
+      this.logger.error(`[TKGD-AUTO] ❌ Lỗi chu trình tự động cho ${userEmail}: ${err.message}`);
+      // Vẫn lưu lastRunTime để tránh retry ngay lập tức
+      await this.userConfigModel.updateOne(
+        { userEmail },
+        { $set: { 'autoPipeline.lastRunTime': Date.now() } }
+      ).catch(() => {});
+      this.updateProgress(userEmail, {
+        isProcessing: false,
+        taskType: 'IDLE',
+        stage: `Lỗi chu kỳ tự động: ${err.message}`,
+      });
+      return { success: false, processedCount: 0, message: err.message };
+    } finally {
+      this.autoPipelineRunningUsers.delete(userEmail);
+    }
+  }
+
+  /**
+   * Bật/Tắt chế độ tự động 24/7 cho User
+   */
+  async toggleAutoPipeline(userEmail: string, enabled?: boolean) {
+    let cfg = await this.userConfigModel.findOne({ userEmail });
+    if (!cfg) {
+      cfg = await this.userConfigModel.create({
+        userEmail,
+        fullName: userEmail.split('@')[0],
+        autoPipeline: { enabled: true, intervalMinutes: 5, batchSize: 50 },
+      });
+    }
+
+    const currentStatus = cfg.autoPipeline?.enabled ?? false;
+    const newStatus = typeof enabled === 'boolean' ? enabled : !currentStatus;
+
+    await this.userConfigModel.updateOne(
+      { userEmail },
+      { $set: { 'autoPipeline.enabled': newStatus } }
+    );
+
+    this.logger.log(`[TKGD-AUTO] ${userEmail} đã ${newStatus ? 'BẬT' : 'TẮT'} chế độ tự động 24/7.`);
+    return {
+      success: true,
+      enabled: newStatus,
+      message: newStatus ? 'Đã kích hoạt chế độ Tự Động 24/7 (Quét mỗi 5 phút).' : 'Đã tạm dừng chế độ Tự Động 24/7.',
+    };
+  }
+
+  /**
+   * Lấy trạng thái hiện tại của Bot tự động hóa
+   */
+  async getAutoPipelineStatus(userEmail: string) {
+    const cfg = await this.userConfigModel.findOne({ userEmail });
+    const isEnabled = cfg?.autoPipeline?.enabled ?? false;
+    const lastRunTime = cfg?.autoPipeline?.lastRunTime ?? 0;
+    const lastProcessedCount = cfg?.autoPipeline?.lastProcessedCount ?? 0;
+    const intervalMinutes = cfg?.autoPipeline?.intervalMinutes ?? 5;
+
+    return {
+      enabled: isEnabled,
+      isRunning: this.isAutoPipelineRunning,
+      lastRunTime,
+      lastProcessedCount,
+      intervalMinutes,
+      nextRunTime: lastRunTime > 0 ? lastRunTime + intervalMinutes * 60 * 1000 : 0,
+    };
+  }
+
+  /**
+   * Quét vét kho dữ liệu lịch sử theo khoảng ngày (Backfill)
+   */
+  async runHistoricalBackfill(userEmail: string, fromDate?: string, toDate?: string) {
+    this.logger.log(`[TKGD-BACKFILL] ${userEmail} yêu cầu quét vét dữ liệu lịch sử từ ${fromDate || 'toàn bộ'} đến ${toDate || 'nay'}`);
+    return this.runAutoPipelineCycle(userEmail);
   }
 }
 

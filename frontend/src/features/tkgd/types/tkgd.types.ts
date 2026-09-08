@@ -20,6 +20,7 @@ export interface CleanRecord {
     hasACMRequest?: boolean;
     hasLMERequest?: boolean;
     hasSpreadRequest?: boolean;
+    receivedDateTime?: string | Date;
   };
   hopDong?: {
     soHopDong?: string;
@@ -207,4 +208,14 @@ export interface TkgdProgressState {
   detail?: string;
   updatedAt: number;
 }
+
+export interface TkgdAutoPipelineStatus {
+  enabled: boolean;
+  isRunning: boolean;
+  lastRunTime: number;
+  lastProcessedCount: number;
+  intervalMinutes: number;
+  nextRunTime: number;
+}
+
 

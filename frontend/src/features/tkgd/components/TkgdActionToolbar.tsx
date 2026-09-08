@@ -9,8 +9,9 @@ import {
   Globe,
   RefreshCw,
   Loader2,
+  Bot,
 } from 'lucide-react';
-import { SprintMode } from '../types/tkgd.types';
+import { SprintMode, TkgdAutoPipelineStatus } from '../types/tkgd.types';
 
 interface TkgdActionToolbarProps {
   sprintMode: SprintMode;
@@ -25,6 +26,7 @@ interface TkgdActionToolbarProps {
   onSyncMail: () => void;
   onSyncMSystem: () => void;
   onRunReconcile: () => void;
+  autoStatus?: TkgdAutoPipelineStatus | null;
 }
 
 export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
@@ -40,13 +42,51 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
   onSyncMail,
   onSyncMSystem,
   onRunReconcile,
+  autoStatus,
 }) => {
   const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
 
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {/* 1. HERO BUTTON: CHẠY TỰ ĐỘNG (All-in-One Pipeline) */}
+        {/* Chỉ báo trạng thái Tự Động 24/7 (Badge tinh tế) */}
+        {autoStatus?.enabled && (
+          <div
+            title={`Bot đang chạy ngầm định kỳ mỗi ${autoStatus.intervalMinutes || 5} phút (quét mail, bóc tách và đối soát). Cấu hình tại tab Cài Đặt & Cấu Hình Bot.`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              color: '#10b981',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+            }}
+          >
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                boxShadow: '0 0 6px #10b981',
+                display: 'inline-block',
+              }}
+              className="animate-pulse"
+            />
+            <span>Tự Động 24/7</span>
+            {autoStatus?.lastRunTime ? (
+              <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>
+                ({new Date(autoStatus.lastRunTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
+              </span>
+            ) : null}
+          </div>
+        )}
+
+        {/* 1. HERO BUTTON: CHẠY QUY TRÌNH TOÀN BỘ (All-in-One Pipeline) */}
         <button
           id="tutorial-tkgd-auto-btn"
           onClick={onRunPipelineAll}

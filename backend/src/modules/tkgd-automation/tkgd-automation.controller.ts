@@ -277,5 +277,36 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     return await this.tkgdService.revertManualApprove(id, email);
   }
+
+  /**
+   * Bật/Tắt chế độ tự động hóa 24/7 (Quét mỗi 5 phút)
+   */
+  @Post('auto-pipeline/toggle')
+  async toggleAutoPipeline(@Req() req: any, @Body('enabled') enabled?: boolean) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.toggleAutoPipeline(email, enabled);
+  }
+
+  /**
+   * Lấy trạng thái hiện tại của Bot tự động hóa 24/7
+   */
+  @Get('auto-pipeline/status')
+  async getAutoPipelineStatus(@Req() req: any) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.getAutoPipelineStatus(email);
+  }
+
+  /**
+   * Kích hoạt quét vét dữ liệu lịch sử
+   */
+  @Post('auto-pipeline/backfill')
+  async runHistoricalBackfill(
+    @Req() req: any,
+    @Body('fromDate') fromDate?: string,
+    @Body('toDate') toDate?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.runHistoricalBackfill(email, fromDate, toDate);
+  }
 }
 

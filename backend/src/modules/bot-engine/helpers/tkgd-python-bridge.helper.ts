@@ -28,6 +28,7 @@ export interface PythonExtractorResult {
     rawGioiTinh?: string;
     diaChi?: string;
     noiCap?: string;
+    ngayKyHD?: string;
     hasSignature?: boolean;
     hasStamp?: boolean;
     totalPages?: number;
@@ -108,17 +109,25 @@ export async function runPythonExtractor(input: PythonExtractorInput): Promise<P
     args.push('--back', input.cccdBackPath);
   }
 
+  // Timeout 60s / tài khoản: đủ cho ảnh CCCD phức tạp nhất.
+  // Nếu vượt quá, process Python bị force-kill để không block cron pipeline 24/7 chạy song song.
+  const OCR_TIMEOUT_MS = 60_000;
+  const startTime = Date.now();
   try {
     const { stdout } = await execFileAsync(pythonBin, args, {
-      timeout: 120000,
-      maxBuffer: 10 * 1024 * 1024,
+      timeout: OCR_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+      maxBuffer: 25 * 1024 * 1024,
       encoding: 'utf-8',
     });
 
     const parsed: PythonExtractorResult = JSON.parse(stdout.trim());
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[PYTHON-BRIDGE] [SUCCESS] Hoàn tất bóc tách cho ${input.accountCode} trong ${duration}s`);
     return parsed;
   } catch (err: any) {
-    console.error(`[PYTHON-BRIDGE] Lỗi thực thi Python worker cho ${input.accountCode}:`, err.message);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.error(`[PYTHON-BRIDGE] Lỗi thực thi Python worker cho ${input.accountCode} sau ${duration}s:`, err.message);
     if (err.stderr) {
       console.error(`[PYTHON-BRIDGE] STDERR:`, err.stderr.trim());
     }

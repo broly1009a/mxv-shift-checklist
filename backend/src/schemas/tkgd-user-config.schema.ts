@@ -79,6 +79,29 @@ export class DocumentProcessingConfigSubDoc {
   checkSignatureRequired: boolean; // Cảnh báo nếu chưa có chữ ký mẫu trên M-System
 }
 
+export class AutoPipelineConfigSubDoc {
+  @Prop({ default: false })
+  enabled: boolean; // Bật/Tắt chế độ tự động 24/7
+
+  @Prop({ default: 5 })
+  intervalMinutes: number; // Chu kỳ quét (mặc định 5 phút)
+
+  @Prop({ default: 50 })
+  batchSize: number; // Số lượng hồ sơ mỗi mẻ
+
+  @Prop({ default: true })
+  autoSyncMSystem: boolean; // Tự động cào M-System sau khi bóc tách mail
+
+  @Prop({ default: true })
+  autoExportExcel: boolean; // Tự động cập nhật file Excel hàng ngày
+
+  @Prop({ default: 0 })
+  lastRunTime: number; // Timestamp lần chạy gần nhất
+
+  @Prop({ default: 0 })
+  lastProcessedCount: number; // Số hồ sơ xử lý được trong lần gần nhất
+}
+
 @Schema({ timestamps: true, collection: 'tkgd_user_configs' })
 export class TkgdUserConfig {
   @Prop({ required: true, unique: true, index: true })
@@ -104,6 +127,9 @@ export class TkgdUserConfig {
 
   @Prop({ type: DocumentProcessingConfigSubDoc, default: () => ({}) })
   documentProcessing: DocumentProcessingConfigSubDoc;
+
+  @Prop({ type: AutoPipelineConfigSubDoc, default: () => ({}) })
+  autoPipeline: AutoPipelineConfigSubDoc;
 
   @Prop({ default: true })
   isActive: boolean;

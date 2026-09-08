@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/context/AuthContext';
-import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState } from '../types/tkgd.types';
+import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState, TkgdAutoPipelineStatus } from '../types/tkgd.types';
 
 function getHeaders(token?: string | null, userEmail?: string): HeadersInit {
   return {
@@ -166,6 +166,60 @@ export const tkgdApi = {
         stage: '',
         updatedAt: Date.now(),
       };
+    }
+    return res.json();
+  },
+
+  async getAutoPipelineStatus(
+    token?: string | null,
+    userEmail?: string
+  ): Promise<TkgdAutoPipelineStatus> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/auto-pipeline/status`, {
+      headers: getHeaders(token, userEmail),
+    });
+    if (!res.ok) {
+      return {
+        enabled: false,
+        isRunning: false,
+        lastRunTime: 0,
+        lastProcessedCount: 0,
+        intervalMinutes: 5,
+        nextRunTime: 0,
+      };
+    }
+    return res.json();
+  },
+
+  async toggleAutoPipeline(
+    enabled?: boolean,
+    token?: string | null,
+    userEmail?: string
+  ): Promise<{ success: boolean; enabled: boolean; message: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/auto-pipeline/toggle`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể chuyển đổi trạng thái Tự Động');
+    }
+    return res.json();
+  },
+
+  async runBackfill(
+    params: { fromDate?: string; toDate?: string },
+    token?: string | null,
+    userEmail?: string
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/auto-pipeline/backfill`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể kích hoạt quét vét lịch sử');
     }
     return res.json();
   },

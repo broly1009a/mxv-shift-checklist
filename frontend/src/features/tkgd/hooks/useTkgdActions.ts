@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { SprintMode, TkgdProgressState } from '../types/tkgd.types';
+import { SprintMode, TkgdProgressState, TkgdAutoPipelineStatus } from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
 
 interface UseTkgdActionsProps {
@@ -16,6 +16,34 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
   const [processingStage, setProcessingStage] = useState<string>('');
   const [progress, setProgress] = useState<TkgdProgressState | null>(null);
   const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);
+  const [autoStatus, setAutoStatus] = useState<TkgdAutoPipelineStatus | null>(null);
+
+  // Lấy trạng thái Tự Động Hóa 24/7
+  const fetchAutoStatus = useCallback(async () => {
+    try {
+      const st = await tkgdApi.getAutoPipelineStatus(token, userEmail);
+      if (st) setAutoStatus(st);
+    } catch { }
+  }, [token, userEmail]);
+
+  useEffect(() => {
+    fetchAutoStatus();
+    const interval = setInterval(fetchAutoStatus, 15000);
+    return () => clearInterval(interval);
+  }, [fetchAutoStatus]);
+
+  // Bật/Tắt chế độ Tự Động 24/7
+  const handleToggleAutoPipeline = useCallback(async (enabled?: any) => {
+    try {
+      // Đảm bảo chỉ nhận giá trị boolean, tránh React SyntheticEvent gây lỗi Circular JSON
+      const boolVal = typeof enabled === 'boolean' ? enabled : undefined;
+      const res = await tkgdApi.toggleAutoPipeline(boolVal, token, userEmail);
+      toast.success(res.message);
+      await fetchAutoStatus();
+    } catch (err: any) {
+      toast.error('Lỗi khi đổi trạng thái Tự Động: ' + err.message);
+    }
+  }, [token, userEmail, fetchAutoStatus]);
 
   // Poll tiến độ thời gian thực khi isProcessing = true
   useEffect(() => {
@@ -173,6 +201,9 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     isProcessing,
     processingStage,
     progress,
+    autoStatus,
+    handleToggleAutoPipeline,
+    fetchAutoStatus,
     syncingRowCode,
     handleSyncMail,
     handleSyncMSystem,

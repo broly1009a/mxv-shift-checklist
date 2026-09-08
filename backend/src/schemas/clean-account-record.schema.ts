@@ -32,6 +32,9 @@ export class NoiDungMailSubDoc {
 
   @Prop()
   ghiChuSoSanh?: string; // 'so sánh mã TKGD với bên HĐ, MS khớp'
+
+  @Prop({ index: true })
+  receivedDateTime?: Date; // Ngày giờ nhận được mail yêu cầu mở TKGD từ TVKD
 }
 export const NoiDungMailSubDocSchema = SchemaFactory.createForClass(NoiDungMailSubDoc);
 
@@ -358,5 +361,6 @@ export const CleanAccountRecordSchema = SchemaFactory.createForClass(CleanAccoun
 // Compound Index tối ưu hóa truy vấn theo ngày và mã gốc
 CleanAccountRecordSchema.index({ batchDate: 1, maTKGDBase: 1 });
 CleanAccountRecordSchema.index({ batchDate: 1, 'manualReview.isOverridden': 1 });
+CleanAccountRecordSchema.index({ 'noiDungMail.receivedDateTime': -1 });
 
 

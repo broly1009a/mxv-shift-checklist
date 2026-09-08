@@ -77,6 +77,8 @@ export const TkgdDashboard: React.FC = () => {
     sprintMode,
     setSprintMode,
     syncingRowCode,
+    autoStatus,
+    handleToggleAutoPipeline,
     handleSyncMail,
     handleSyncMSystem,
     handleRunPipelineAll,
@@ -362,6 +364,7 @@ export const TkgdDashboard: React.FC = () => {
               onSyncMail={handleSyncMail}
               onSyncMSystem={handleSyncMSystem}
               onRunReconcile={handleRunReconcile}
+              autoStatus={autoStatus}
             />
           )}
         </div>

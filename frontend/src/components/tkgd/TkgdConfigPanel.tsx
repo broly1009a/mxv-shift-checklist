@@ -29,6 +29,9 @@ import {
   ChevronUp,
   Clock,
   Key,
+  Cpu,
+  Zap,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export default function TkgdConfigPanel() {
@@ -84,6 +87,16 @@ export default function TkgdConfigPanel() {
   const [enableTripleCheckCccd, setEnableTripleCheckCccd] = useState(true);
   const [checkSignatureRequired, setCheckSignatureRequired] = useState(true);
 
+  // Operation Mode: Auto Pipeline 24/7 States
+  const [autoPipelineEnabled, setAutoPipelineEnabled] = useState(false);
+  const [autoIntervalMinutes, setAutoIntervalMinutes] = useState(5);
+  const [autoBatchSize, setAutoBatchSize] = useState(50);
+  const [autoSyncMSystem, setAutoSyncMSystem] = useState(true);
+  const [autoExportExcel, setAutoExportExcel] = useState(true);
+  const [autoLastRunTime, setAutoLastRunTime] = useState(0);
+  const [autoLastProcessedCount, setAutoLastProcessedCount] = useState(0);
+  const [togglingAuto, setTogglingAuto] = useState(false);
+
   // Test status
   const [testingMs, setTestingMs] = useState(false);
   const [msTestResult, setMsTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -130,11 +143,47 @@ export default function TkgdConfigPanel() {
           if (dp.enableTripleCheckCccd !== undefined) setEnableTripleCheckCccd(dp.enableTripleCheckCccd);
           if (dp.checkSignatureRequired !== undefined) setCheckSignatureRequired(dp.checkSignatureRequired);
         }
+        if (data.autoPipeline) {
+          if (data.autoPipeline.enabled !== undefined) setAutoPipelineEnabled(data.autoPipeline.enabled);
+          if (data.autoPipeline.intervalMinutes !== undefined) setAutoIntervalMinutes(data.autoPipeline.intervalMinutes);
+          if (data.autoPipeline.batchSize !== undefined) setAutoBatchSize(data.autoPipeline.batchSize);
+          if (data.autoPipeline.autoSyncMSystem !== undefined) setAutoSyncMSystem(data.autoPipeline.autoSyncMSystem);
+          if (data.autoPipeline.autoExportExcel !== undefined) setAutoExportExcel(data.autoPipeline.autoExportExcel);
+          if (data.autoPipeline.lastRunTime !== undefined) setAutoLastRunTime(data.autoPipeline.lastRunTime);
+          if (data.autoPipeline.lastProcessedCount !== undefined) setAutoLastProcessedCount(data.autoPipeline.lastProcessedCount);
+        }
       }
     } catch (err: any) {
       toast.error('Không thể tải cấu hình TKGD: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Toggle nhanh chế độ Tự Động vs Thủ Công
+  const handleToggleAutoMode = async (nextState: boolean) => {
+    setTogglingAuto(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/auto-pipeline/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+        body: JSON.stringify({ enabled: nextState }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAutoPipelineEnabled(data.enabled);
+        toast.success(data.message || (nextState ? 'Đã kích hoạt chế độ Tự Động 24/7' : 'Đã chuyển sang chế độ Thủ Công'));
+      } else {
+        toast.error(data.message || 'Không thể thay đổi chế độ vận hành');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi khi đổi chế độ vận hành: ' + err.message);
+    } finally {
+      setTogglingAuto(false);
     }
   };
 
@@ -228,6 +277,13 @@ export default function TkgdConfigPanel() {
           enableOcrCccd,
           enableTripleCheckCccd,
           checkSignatureRequired,
+        },
+        autoPipeline: {
+          enabled: autoPipelineEnabled,
+          intervalMinutes: Number(autoIntervalMinutes) || 5,
+          batchSize: Number(autoBatchSize) || 50,
+          autoSyncMSystem,
+          autoExportExcel,
         },
       };
 
@@ -389,6 +445,297 @@ export default function TkgdConfigPanel() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+        {/* Card 0: CHẾ ĐỘ VẬN HÀNH BOT (TỰ ĐỘNG 24/7 VS THỦ CÔNG) */}
+        <div
+          id="tutorial-tkgd-config-operation-mode"
+          style={{
+            ...cardStyle,
+            gridColumn: '1 / -1',
+            border: autoPipelineEnabled
+              ? '1px solid rgba(16, 185, 129, 0.4)'
+              : '1px solid var(--border-color)',
+            background: autoPipelineEnabled
+              ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, var(--bg-card) 100%)'
+              : 'var(--bg-card)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+          className="glass-panel"
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: autoPipelineEnabled
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                    : 'var(--bg-input)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: autoPipelineEnabled ? '#ffffff' : 'var(--text-secondary)',
+                  boxShadow: autoPipelineEnabled ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
+                }}
+              >
+                <Cpu size={20} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    Chế Độ Vận Hành Bot (Operation Mode)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                      color: autoPipelineEnabled ? '#10b981' : 'var(--text-muted)',
+                      border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.3)',
+                    }}
+                  >
+                    {autoPipelineEnabled ? 'ĐANG BẬT TỰ ĐỘNG 24/7' : 'CHẾ ĐỘ THỦ CÔNG'}
+                  </span>
+                </div>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Lựa chọn vận hành ngầm liên tục 24/7 (tự quét mail M365 & đối soát) hoặc kích hoạt thủ công theo yêu cầu.
+                </p>
+              </div>
+            </div>
+
+            {/* Switch Toggle Nhanh */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)' }}>
+                {autoPipelineEnabled ? 'Bật Tự Động' : 'Tắt Tự Động'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleToggleAutoMode(!autoPipelineEnabled)}
+                disabled={togglingAuto}
+                style={{
+                  width: '52px',
+                  height: '28px',
+                  borderRadius: '14px',
+                  backgroundColor: autoPipelineEnabled ? '#10b981' : 'var(--border-color)',
+                  position: 'relative',
+                  border: 'none',
+                  cursor: togglingAuto ? 'not-allowed' : 'pointer',
+                  transition: 'background-color 0.25s ease',
+                  padding: '2px',
+                  outline: 'none',
+                  boxShadow: autoPipelineEnabled ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    position: 'absolute',
+                    top: '2px',
+                    left: autoPipelineEnabled ? '26px' : '2px',
+                    transition: 'left 0.25s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {togglingAuto && <Loader2 size={12} className="animate-spin text-emerald-600" />}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* 2 Chế Độ Lựa Chọn Dạng Thẻ Segmented */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+            {/* Thẻ 1: Tự Động 24/7 */}
+            <div
+              onClick={() => {
+                if (!autoPipelineEnabled) handleToggleAutoMode(true);
+              }}
+              style={{
+                padding: '16px',
+                borderRadius: '12px',
+                border: autoPipelineEnabled ? '2px solid #10b981' : '1px solid var(--border-color)',
+                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-input)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              className="hover:border-emerald-500"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Zap size={18} color="#10b981" />
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    🤖 Tự Động Hóa 24/7 (Khuyến nghị)
+                  </span>
+                </div>
+                <input
+                  type="radio"
+                  name="operationMode"
+                  checked={autoPipelineEnabled}
+                  onChange={() => handleToggleAutoMode(true)}
+                  style={{ cursor: 'pointer', accentColor: '#10b981' }}
+                />
+              </div>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Hệ thống tự động chạy ngầm theo chu kỳ: Quét email M365 $\rightarrow$ Bóc tách OCR $\rightarrow$ Cào M-System $\rightarrow$ Đối soát 3 bên $\rightarrow$ Cập nhật Excel sẵn sàng cho chuyên viên.
+              </p>
+            </div>
+
+            {/* Thẻ 2: Thủ Công On-Demand */}
+            <div
+              onClick={() => {
+                if (autoPipelineEnabled) handleToggleAutoMode(false);
+              }}
+              style={{
+                padding: '16px',
+                borderRadius: '12px',
+                border: !autoPipelineEnabled ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                backgroundColor: !autoPipelineEnabled ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-input)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              className="hover:border-blue-500"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SlidersHorizontal size={18} color="#3b82f6" />
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    👤 Kích Hoạt Thủ Công (On-Demand)
+                  </span>
+                </div>
+                <input
+                  type="radio"
+                  name="operationMode"
+                  checked={!autoPipelineEnabled}
+                  onChange={() => handleToggleAutoMode(false)}
+                  style={{ cursor: 'pointer', accentColor: '#3b82f6' }}
+                />
+              </div>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Bot hoàn toàn ở trạng thái nghỉ. Chỉ thực hiện quét mail, cào M-System hoặc đối soát khi chuyên viên bấm nút tại thanh công cụ bàn làm việc.
+              </p>
+            </div>
+          </div>
+
+          {/* Chi tiết cài đặt nâng cao khi ở chế độ Tự Động */}
+          {autoPipelineEnabled && (
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={15} color="#10b981" />
+                <span>Tham Số Vận Hành Tự Động Định Kỳ:</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                <div>
+                  <label style={labelStyle}>Chu kỳ quét mail tự động (Phút)</label>
+                  <select
+                    style={inputStyle}
+                    value={autoIntervalMinutes}
+                    onChange={(e) => setAutoIntervalMinutes(Number(e.target.value))}
+                  >
+                    <option value={3}>3 phút / lần (Siêu nhanh)</option>
+                    <option value={5}>5 phút / lần (Khuyến nghị)</option>
+                    <option value={10}>10 phút / lần</option>
+                    <option value={15}>15 phút / lần</option>
+                    <option value={30}>30 phút / lần</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Kích thước mẻ xử lý (Số hồ sơ/lần)</label>
+                  <select
+                    style={inputStyle}
+                    value={autoBatchSize}
+                    onChange={(e) => setAutoBatchSize(Number(e.target.value))}
+                  >
+                    <option value={20}>20 hồ sơ / mẻ</option>
+                    <option value={50}>50 hồ sơ / mẻ (Khuyến nghị)</option>
+                    <option value={100}>100 hồ sơ / mẻ</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Checkboxes tuỳ chọn */}
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={autoSyncMSystem}
+                    onChange={(e) => setAutoSyncMSystem(e.target.checked)}
+                    style={{ accentColor: '#10b981' }}
+                  />
+                  <span>Tự động đồng bộ cổng M-System sau khi bóc tách mail</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={autoExportExcel}
+                    onChange={(e) => setAutoExportExcel(e.target.checked)}
+                    style={{ accentColor: '#10b981' }}
+                  />
+                  <span>Tự động cập nhật file Excel đối soát mới nhất</span>
+                </label>
+              </div>
+
+              {/* Thông tin mốc thời gian lần quét cuối */}
+              {autoLastRunTime > 0 && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    fontSize: '0.75rem',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981' }} className="animate-pulse" />
+                    <span>Lần quét gần nhất: <strong>{new Date(autoLastRunTime).toLocaleString('vi-VN')}</strong></span>
+                  </div>
+                  <div>
+                    Số hồ sơ xử lý đợt gần nhất: <strong>{autoLastProcessedCount} hồ sơ</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Card 1: Thông tin nhân sự */}
         <div id="tutorial-tkgd-config-profile" style={cardStyle} className="glass-panel">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
