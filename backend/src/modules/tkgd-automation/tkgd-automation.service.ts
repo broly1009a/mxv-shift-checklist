@@ -2603,15 +2603,18 @@ export class TkgdAutomationService {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
           }
         } else {
-          if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('image001')) {
+          const isFront = /\b(truoc|front|mat1|mt)\b/i.test(lower) || lower.includes('mặt trước') || lower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(lower) || lower.startsWith('mt.') || lower.includes('image001');
+          const isBack = /\b(sau|back|mat2|ms)\b/i.test(lower) || lower.includes('mặt sau') || lower.includes('matsau') || /^ms[_\-\.\s]/i.test(lower) || lower.startsWith('ms.') || lower.includes('image002');
+
+          if (isFront) {
             mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('image002')) {
+          } else if (isBack) {
             mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
           } else if (lower.includes('chuky') || lower.includes('signature')) {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
-          } else if (!mailCccdFront) {
+          } else if (!mailCccdFront && !lower.startsWith('image')) {
             mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (!mailCccdBack) {
+          } else if (!mailCccdBack && !lower.startsWith('image')) {
             mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
           } else {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
@@ -2622,7 +2625,7 @@ export class TkgdAutomationService {
       }
     }
 
-    // Fallback: nếu MS chưa có trong folder nhưng có path trong DB record
+    // Fallback 1: nếu MS chưa có trong folder nhưng có path trong DB record
     if (!msCccdFront && record?.ms?.cccdMatTruocLocalPath && fs.existsSync(record.ms.cccdMatTruocLocalPath)) {
       msCccdFront = {
         fileName: path.basename(record.ms.cccdMatTruocLocalPath),
@@ -2646,6 +2649,53 @@ export class TkgdAutomationService {
         subType: 'MS_SIGNATURE',
         url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(record.ms.chuKyLocalPath)}`,
       };
+    }
+
+    // Fallback 2: Quét các thư mục ngày khác nếu thư mục ngày hiện tại chưa có file M-System
+    if (!msCccdFront || !msCccdBack || !msSignature) {
+      for (const nb of netBases) {
+        if (fs.existsSync(nb)) {
+          try {
+            const dateDirs = fs.readdirSync(nb).filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f));
+            dateDirs.sort().reverse(); // Ưu tiên các ngày gần nhất trước
+            for (const dDir of dateDirs) {
+              const accPath = path.join(nb, dDir, code);
+              if (fs.existsSync(accPath) && accPath !== foundDir) {
+                const subFiles = fs.readdirSync(accPath);
+                for (const sf of subFiles) {
+                  const sfLower = sf.toLowerCase();
+                  const isMSFile = sfLower.includes('_ms_') || sfLower.startsWith(`${code.toLowerCase()}_ms`);
+                  if (isMSFile) {
+                    const fullP = path.join(accPath, sf);
+                    if (!msCccdFront && (sfLower.includes('truoc') || sfLower.includes('front') || sfLower.includes('mat1'))) {
+                      msCccdFront = {
+                        fileName: sf,
+                        size: fs.statSync(fullP).size,
+                        subType: 'MS_CCCD_FRONT',
+                        url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(fullP)}`,
+                      };
+                    } else if (!msCccdBack && (sfLower.includes('sau') || sfLower.includes('back') || sfLower.includes('mat2'))) {
+                      msCccdBack = {
+                        fileName: sf,
+                        size: fs.statSync(fullP).size,
+                        subType: 'MS_CCCD_BACK',
+                        url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(fullP)}`,
+                      };
+                    } else if (!msSignature && (sfLower.includes('chuky') || sfLower.includes('ky') || sfLower.includes('signature'))) {
+                      msSignature = {
+                        fileName: sf,
+                        size: fs.statSync(fullP).size,
+                        subType: 'MS_SIGNATURE',
+                        url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(fullP)}`,
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          } catch { }
+        }
+      }
     }
 
     return {

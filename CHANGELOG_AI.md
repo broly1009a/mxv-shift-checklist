@@ -4,6 +4,34 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T17:50] Sửa Lỗi Nhận Diện Ảnh CCCD M-System: Multi-Date Fallback & Chống Đè Regex
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"và ảnh cccd tải từ m-system tôi thấy lưu từ ms về thư mục rồi nhưng tôi chưa hiểu tại sao giờ nó lại báo là Chưa cào được ảnh CCCD mặt trước từ M-System"* kèm ảnh chụp màn hình UI báo chưa cào và thư mục chứa 7 file.
+- **Nguyên nhân cốt lõi**:
+  1. **Lệch mốc thời gian**: Khi mở modal ở phút 17:42, thư mục ngày `2026-09-08` lúc đó chỉ có 4 file của khách (badge hiển thị đúng `4 tệp hồ sơ`). Đến phút 17:43 scraper mới tải xong 3 file MS về thư mục `2026-09-08`. File trong ảnh chụp màn hình Explorer của USER hiển thị `9/7/2026 5:25 PM` (thuộc đợt cào ngày hôm trước `2026-09-07`).
+  2. **Thiếu cơ chế fallback ngày**: Nếu hồ sơ thuộc đợt ngày hôm nay (`2026-09-08`) nhưng file cào từ MS nằm ở ngày trước đó, hệ thống chỉ quét đúng folder `batchDate` nên không tìm thấy.
+  3. **Regex nhận diện ảnh CCCD**: Cần bổ sung regex chặt chẽ `mt.png`/`ms.png` và tránh để file ảnh rác đè lên các slot CCCD trước/sau.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+
+### Tóm tắt nội dung code đã sửa
+1. **Bổ sung Multi-Date Fallback trong `getAccountFilesManifest`**:
+   - Nếu trong thư mục `batchDate` hiện tại chưa có đủ `msCccdFront`, `msCccdBack`, hoặc `msSignature`, hàm sẽ tự động duyệt các thư mục ngày khác (`YYYY-MM-DD` theo thứ tự mới nhất) của mã tài khoản này trên ổ đĩa.
+   - Khi tìm thấy file MS ở ngày trước đó (ví dụ `2026-09-07`), tự động mapping và trả về cho Frontend hiển thị ngay lập tức, không cần cào lại.
+2. **Siết chặt CCCD Classification Regex**:
+   - Thêm pattern nhận diện `_mt\.|mt\.|măt truoc|mat_truoc` cho mặt trước và `_ms\.|ms\.|măt sau|mat_sau` cho mặt sau.
+   - Loại trừ `image\d+` khỏi việc tự động gán slot CCCD.
+
+### Xác nhận Build & Deploy
+- ✅ Build TypeScript backend: `npx tsc --project tsconfig.build.json` exit code 0.
+- ✅ Deploy đồng bộ sang Ubuntu (`10.0.0.26`) qua `deploy_to_ubuntu.js`: Exit code 0.
+- ✅ PM2 restart: `mxv-backend` (pid: 3073103) online.
+- ✅ Kiểm thử API thực tế trên Ubuntu: `curl http://localhost:3001/api/v1/tkgd/files/manifest/003C2333888?batchDate=2026-09-08` đã trả về đầy đủ 7 file (`msFront`, `msBack`, `msSign`).
+
+---
+
 ## [2026-09-08T17:44] Tái Thiết Kế Giao Diện Chế Độ Vận Hành (Operation Mode) Chuẩn Enterprise & Bổ Sung Confirmation Modal
 
 ### Mục tiêu thay đổi
