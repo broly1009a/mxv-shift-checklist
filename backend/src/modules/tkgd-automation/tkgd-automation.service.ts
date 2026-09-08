@@ -878,6 +878,9 @@ export class TkgdAutomationService {
               noiCap: record.canCuoc?.noiCap || noiCapFinal,
               source: record.canCuoc?.source || pyRes.canCuoc.source || 'OCR',
               canhBaoChatLuong: pyRes.canCuoc.canhBaoChatLuong || record.canCuoc?.canhBaoChatLuong || [],
+              theGeneration: pyRes.canCuoc.theGeneration || record.canCuoc?.theGeneration,
+              confidenceScore: pyRes.canCuoc.confidenceScore !== undefined ? pyRes.canCuoc.confidenceScore : record.canCuoc?.confidenceScore,
+              boundingBoxes: pyRes.canCuoc.boundingBoxes || record.canCuoc?.boundingBoxes,
             };
             updatePayload.canCuoc = record.canCuoc;
           }
@@ -1599,6 +1602,9 @@ export class TkgdAutomationService {
                   diaChiThuongTru: pythonRes.canCuoc.diaChi,
                   canhBaoChatLuong: pythonRes.canCuoc.canhBaoChatLuong || [],
                   ocrConfidence: pythonRes.canCuoc.source || 'OCR',
+                  theGeneration: pythonRes.canCuoc.theGeneration,
+                  confidenceScore: pythonRes.canCuoc.confidenceScore,
+                  boundingBoxes: pythonRes.canCuoc.boundingBoxes,
                 };
               }
             }
@@ -2336,6 +2342,8 @@ export class TkgdAutomationService {
         hoTenMs: record?.ms?.hoVaTen,
         canhBaoChatLuong: record?.canCuoc?.canhBaoChatLuong || [],
         dinhDangLoi: record?.hopDong?.dinhDangLoi || [],
+        theGeneration: record?.canCuoc?.theGeneration,
+        confidenceScore: record?.canCuoc?.confidenceScore,
       },
     };
   }

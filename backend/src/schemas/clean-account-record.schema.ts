@@ -77,6 +77,15 @@ export class CanCuocSubDoc {
 
   @Prop()
   source?: string; // 'QR' | 'MRZ' | 'OCR'
+
+  @Prop()
+  theGeneration?: string; // 'CMND_9_SO' | 'CCCD_MA_VACH' | 'CCCD_CHIP_2021' | 'CAN_CUOC_2024'
+
+  @Prop()
+  confidenceScore?: number;
+
+  @Prop({ type: Object })
+  boundingBoxes?: Record<string, any>;
 }
 export const CanCuocSubDocSchema = SchemaFactory.createForClass(CanCuocSubDoc);
 

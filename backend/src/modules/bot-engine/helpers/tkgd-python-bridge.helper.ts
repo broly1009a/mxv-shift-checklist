@@ -54,6 +54,9 @@ export interface PythonExtractorResult {
     diaChi?: string;
     source?: string;
     canhBaoChatLuong?: string[];
+    theGeneration?: string;
+    confidenceScore?: number;
+    boundingBoxes?: Record<string, any>;
   };
   warnings?: string[];
 }

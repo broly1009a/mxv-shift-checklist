@@ -61,6 +61,9 @@ export interface CleanRecord {
     source?: string;
     ocrConfidence?: string;
     diaChiThuongTru?: string;
+    theGeneration?: string;
+    confidenceScore?: number;
+    boundingBoxes?: Record<string, any>;
   };
   ms?: {
     maTKGD?: string;
@@ -160,6 +163,8 @@ export interface AccountManifest {
     hoTenMs?: string;
     canhBaoChatLuong?: string[];
     dinhDangLoi?: string[];
+    theGeneration?: string;
+    confidenceScore?: number;
   };
 }
 

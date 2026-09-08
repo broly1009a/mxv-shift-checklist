@@ -13,7 +13,7 @@ import os
 import json
 import re
 import argparse
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # Reconfigure stdout to utf-8
 try:
@@ -342,8 +342,367 @@ def extract_pdf_pl01(pdf_path: str) -> Dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. CCCD QR CODE & MRZ & OCR EXTRACTOR
+# 2. MODULE NẮN THẲNG HÌNH HỌC (AUTO-DESKEW) & TÁCH ẢNH GHÉP (AUTO-SPLIT)
 # ─────────────────────────────────────────────────────────────
+
+def auto_deskew_perspective_transform(im: Any) -> Any:
+    """Tự động nắn phẳng hình học 4 điểm (4-Point Perspective Transform) cho ảnh CCCD bị chụp nghiêng/xiên.
+    Nếu không phát hiện đủ 4 góc rõ ràng hoặc tỉ lệ không khớp chuẩn ID-1, giữ nguyên ảnh gốc an toàn."""
+    if im is None:
+        return None
+    try:
+        import cv2
+        import numpy as np
+
+        h, w = im.shape[:2]
+        if h < 300 or w < 300:
+            return im
+
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edged = cv2.Canny(blurred, 50, 150)
+
+        contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return im
+
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        card_contour = None
+        img_area = h * w
+
+        for c in contours[:5]:
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+            c_area = cv2.contourArea(c)
+            # Thẻ CCCD phải chiếm ít nhất 35% diện tích ảnh và có đúng 4 đỉnh
+            if len(approx) == 4 and (c_area / img_area) >= 0.35:
+                card_contour = approx
+                break
+
+        if card_contour is None:
+            return im
+
+        pts = card_contour.reshape(4, 2)
+        rect = np.zeros((4, 2), dtype="float32")
+        s = pts.sum(axis=1)
+        rect[0] = pts[np.argmin(s)]       # Top-Left (x+y nhỏ nhất)
+        rect[2] = pts[np.argmax(s)]       # Bottom-Right (x+y lớn nhất)
+        diff = np.diff(pts, axis=1)
+        rect[1] = pts[np.argmin(diff)]    # Top-Right (y-x nhỏ nhất)
+        rect[3] = pts[np.argmax(diff)]    # Bottom-Left (y-x lớn nhất)
+
+        tl, tr, br, bl = rect
+        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+        maxWidth = max(int(widthA), int(widthB))
+
+        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+        maxHeight = max(int(heightA), int(heightB))
+
+        if maxWidth <= 0 or maxHeight <= 0:
+            return im
+        aspect = max(maxWidth, maxHeight) / max(min(maxWidth, maxHeight), 1)
+        # Chuẩn ID-1 là ~1.586, chấp nhận trong khoảng 1.25 đến 2.0
+        if aspect < 1.25 or aspect > 2.0:
+            return im
+
+        dst = np.array([
+            [0, 0],
+            [maxWidth - 1, 0],
+            [maxWidth - 1, maxHeight - 1],
+            [0, maxHeight - 1]
+        ], dtype="float32")
+
+        M = cv2.getPerspectiveTransform(rect, dst)
+        warped = cv2.warpPerspective(im, M, (maxWidth, maxHeight))
+        return warped
+    except Exception:
+        return im
+
+
+def auto_split_composite_dual_card(img_path: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """Nhận diện nếu một file ảnh là ảnh ghép 2 mặt CCCD (như file CC HOÀNG VĂN LONG.png).
+    Tự động cắt tách thành 2 ảnh con tạm thời (front_temp, back_temp) để bóc tách trọn vẹn cả 2 mặt."""
+    if not img_path or not os.path.exists(img_path):
+        return None, None
+    try:
+        import cv2
+        import numpy as np
+
+        im = cv2.imread(img_path)
+        if im is None:
+            return None, None
+        h, w = im.shape[:2]
+
+        # Kiểm tra hình học ảnh ghép 2 mặt theo chiều dọc:
+        # 1. H >= W * 0.82 (ảnh vuông hoặc khổ đứng)
+        # 2. Hai mép trái phải có dải đệm tối (canvas padding)
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        left_mean = float(np.mean(gray[:, :6]))
+        right_mean = float(np.mean(gray[:, w-6:]))
+
+        is_composite = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
+        if not is_composite and h > int(w * 1.25):
+            is_composite = True
+
+        if not is_composite:
+            return None, None
+
+        base_dir = os.path.dirname(img_path)
+        stem = os.path.splitext(os.path.basename(img_path))[0]
+        front_temp = os.path.join(base_dir, f"{stem}_AUTO_FRONT.jpg")
+        back_temp = os.path.join(base_dir, f"{stem}_AUTO_BACK.jpg")
+
+        # Nửa trên: Mặt trước (từ 0 đến 53% chiều cao)
+        front_slice = im[0 : int(h * 0.53), :]
+        # Nửa dưới: Mặt sau (từ 47% đến 100% chiều cao)
+        back_slice = im[int(h * 0.47) :, :]
+
+        cv2.imwrite(front_temp, front_slice)
+        cv2.imwrite(back_temp, back_slice)
+        return front_temp, back_temp
+    except Exception:
+        return None, None
+
+
+def suppress_specular_glare(im: Any) -> Any:
+    """Khử lóa đèn flash (Specular Glare Removal) bằng phương pháp Telea Fast Marching Inpainting (Telea 2004)
+    trên không gian màu HSV: V >= 230 và S <= 40."""
+    if im is None:
+        return None
+    try:
+        import cv2
+        import numpy as np
+
+        h, w = im.shape[:2]
+        hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+        h_ch, s_ch, v_ch = cv2.split(hsv)
+
+        # Mask các điểm chói sáng cực đại và mất bão hòa màu do đèn flash
+        glare_mask = ((v_ch >= 230) & (s_ch <= 40)).astype(np.uint8) * 255
+        glare_ratio = float(np.sum(glare_mask > 0)) / (h * w)
+
+        # Chỉ kích hoạt inpainting nếu vùng lóa chiếm từ 0.05% đến 12% diện tích
+        if 0.0005 <= glare_ratio <= 0.12:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            dilated_mask = cv2.dilate(glare_mask, kernel, iterations=1)
+            inpainted = cv2.inpaint(im, dilated_mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+            return inpainted
+        return im
+    except Exception:
+        return im
+
+
+def compute_icao_check_digit(chars: str) -> int:
+    """Tính check digit theo chuẩn ICAO Doc 9303 Part 5 TD1 (Modulo 10 với trọng số lặp 7, 3, 1)."""
+    weights = [7, 3, 1]
+    total = 0
+    for idx, ch in enumerate(chars):
+        w = weights[idx % 3]
+        if '0' <= ch <= '9':
+            v = int(ch)
+        elif 'A' <= ch <= 'Z':
+            v = ord(ch) - ord('A') + 10
+        elif 'a' <= ch <= 'z':
+            v = ord(ch) - ord('a') + 10
+        else:
+            v = 0  # Ký tự filler '<' hoặc ký tự khác
+        total += w * v
+    return total % 10
+
+
+def verify_and_repair_mrz_field(field_text: str, check_char: str) -> Tuple[str, bool]:
+    """Kiểm tra và tự động sửa lỗi OCR cho trường MRZ dựa trên Check Digit ICAO."""
+    if not check_char or not check_char.isdigit():
+        return field_text, False
+    expected_cd = int(check_char)
+    actual_cd = compute_icao_check_digit(field_text)
+    if actual_cd == expected_cd:
+        return field_text, True
+
+    # Heuristic OCR character repair: Thử thay thế các ký tự dễ nhầm lẫn
+    confusion_map = {
+        'O': '0', '0': 'O',
+        'B': '8', '8': 'B',
+        'I': '1', '1': 'I',
+        'Z': '2', '2': 'Z',
+        'S': '5', '5': 'S',
+        'D': '0', 'Q': '0'
+    }
+    field_chars = list(field_text)
+    for i, c in enumerate(field_chars):
+        if c in confusion_map:
+            orig = field_chars[i]
+            field_chars[i] = confusion_map[c]
+            cand = "".join(field_chars)
+            if compute_icao_check_digit(cand) == expected_cd:
+                return cand, True
+            field_chars[i] = orig
+    return field_text, False
+
+
+def detect_card_generation(so_cccd: Optional[str], front_text: str = '', back_text: str = '',
+                           has_mrz: bool = False, has_qr: bool = False,
+                           issue_date: Optional[str] = None) -> str:
+    """Phân loại 4 thế hệ thẻ định danh cá nhân Việt Nam (1999 - 2024):
+    - CMND_9_SO: 9 chữ số (hết hiệu lực từ 01/01/2025).
+    - CCCD_MA_VACH: 12 số, không chip, không MRZ, phát hành 2016-2020.
+    - CCCD_CHIP_2021: Tiêu đề 'CĂN CƯỚC CÔNG DÂN', chip ở mặt trước, QR mặt trước, MRZ mặt sau.
+    - CAN_CUOC_2024: Tiêu đề 'CĂN CƯỚC' (bỏ 'CÔNG DÂN'), chip/QR chuyển sang mặt sau, MRZ mặt sau."""
+    clean_id = re.sub(r'\D', '', so_cccd or '')
+    combined_upper = (front_text + ' ' + back_text).upper()
+
+    if len(clean_id) == 9:
+        return 'CMND_9_SO'
+
+    # Kiểm tra Thẻ Căn Cước Luật 2023 (hiệu lực từ 01/07/2024)
+    # Đặc điểm: Tiêu đề là "CĂN CƯỚC" và không chứa "CÔNG DÂN", hoặc có ghi "NƠI CƯ TRÚ"
+    if 'CĂN CƯỚC' in combined_upper and 'CÔNG DÂN' not in combined_upper:
+        return 'CAN_CUOC_2024'
+    if 'BỘ CÔNG AN' in combined_upper and ('NƠI CƯ TRÚ' in combined_upper or 'KHAI SINH' in combined_upper):
+        return 'CAN_CUOC_2024'
+
+    # Kiểm tra Ngày cấp nếu >= 01/07/2024
+    if issue_date:
+        try:
+            parts = issue_date.split('/')
+            if len(parts) == 3:
+                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                if y > 2024 or (y == 2024 and (m > 7 or (m == 7 and d >= 1))):
+                    return 'CAN_CUOC_2024'
+        except Exception:
+            pass
+
+    # Kiểm tra CCCD Gắn Chip (2021 - 06/2024)
+    if has_mrz or 'CỤC CẢNH SÁT' in combined_upper or 'C06' in combined_upper:
+        return 'CCCD_CHIP_2021'
+    if issue_date:
+        try:
+            parts = issue_date.split('/')
+            if len(parts) == 3 and int(parts[2]) >= 2021:
+                return 'CCCD_CHIP_2021'
+        except Exception:
+            pass
+
+    # Kiểm tra CCCD Mã vạch (2016-2020)
+    if len(clean_id) == 12:
+        return 'CCCD_MA_VACH'
+
+    return 'CCCD_CHIP_2021'
+
+
+def calculate_confidence_score(cccd_data: Dict[str, Any], quality_warnings: List[str]) -> float:
+    """Tính điểm tin cậy tổng thể (Confidence Score) từ 0.0 đến 1.0 theo công thức trọng số chuẩn:
+    Score = (W_cccd * 0.35) + (W_ten * 0.25) + (W_dob * 0.20) + (W_issue * 0.10) + (W_place * 0.10)"""
+    score = 0.0
+
+    # 1. Số CCCD (35%)
+    cccd_num = (cccd_data.get('soCCCD') or '').strip()
+    if cccd_num:
+        clean_num = re.sub(r'\D', '', cccd_num)
+        if len(clean_num) == 12:
+            source = cccd_data.get('source', '')
+            if source in ['QR', 'MRZ', 'MRZ_DESKEW']:
+                score += 0.35
+            else:
+                score += 0.32
+        elif len(clean_num) == 9:
+            score += 0.25
+
+    # 2. Họ và tên (25%)
+    name = (cccd_data.get('hoTen') or '').strip()
+    if name:
+        words = name.split()
+        if len(words) >= 2:
+            score += 0.25
+        elif len(words) == 1:
+            score += 0.15
+
+    # 3. Ngày sinh (20%)
+    dob = (cccd_data.get('ngaySinh') or '').strip()
+    if dob and len(dob.split('/')) == 3:
+        score += 0.20
+
+    # 4. Ngày cấp (10%)
+    issue = (cccd_data.get('ngayCap') or '').strip()
+    if issue and len(issue.split('/')) == 3:
+        score += 0.10
+
+    # 5. Nơi cấp (10%)
+    place = (cccd_data.get('noiCap') or '').strip()
+    if place:
+        score += 0.10
+
+    # Giảm trừ cho mỗi cảnh báo chất lượng hình ảnh (-0.05 / cảnh báo)
+    if quality_warnings:
+        penalty = min(0.20, len(quality_warnings) * 0.05)
+        score -= penalty
+
+    return round(max(0.0, min(1.0, score)), 2)
+
+
+def extract_bounding_boxes(img_path: Optional[str], target_fields: Dict[str, Optional[str]]) -> Dict[str, List[int]]:
+    """Trích xuất tọa độ Bounding Box [x, y, w, h] cho các trường dữ liệu số CCCD, họ tên, ngày sinh."""
+    boxes: Dict[str, List[int]] = {}
+    if not img_path or not os.path.exists(img_path):
+        return boxes
+
+    try:
+        import cv2
+        import pytesseract
+        from pytesseract import Output
+
+        im = cv2.imread(img_path)
+        if im is None:
+            return boxes
+
+        data = pytesseract.image_to_data(im, lang='vie+eng', output_type=Output.DICT)
+        n = len(data['text'])
+
+        # Tìm số CCCD
+        so_cccd = target_fields.get('soCCCD')
+        if so_cccd:
+            clean_so = re.sub(r'\D', '', so_cccd)
+            for i in range(n):
+                w_txt = data['text'][i].strip()
+                clean_w = re.sub(r'\D', '', w_txt)
+                if clean_w and clean_w in clean_so and len(clean_w) >= 6:
+                    boxes['soCCCD'] = [data['left'][i], data['top'][i], data['width'][i], data['height'][i]]
+                    break
+
+        # Tìm họ tên
+        ho_ten = target_fields.get('hoTen')
+        if ho_ten:
+            name_parts = ho_ten.upper().split()
+            first_part = name_parts[0] if name_parts else ''
+            for i in range(n):
+                w_txt = data['text'][i].strip().upper()
+                if first_part and first_part == w_txt:
+                    # Gộp box các từ tiếp theo nếu liền kề
+                    bx, by, bw, bh = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
+                    boxes['hoTen'] = [bx, by, bw * len(name_parts), bh]
+                    break
+
+        # Tìm ngày sinh
+        ngay_sinh = target_fields.get('ngaySinh')
+        if ngay_sinh:
+            dob_clean = ngay_sinh.replace('/', '').replace('-', '')
+            for i in range(n):
+                w_txt = data['text'][i].strip().replace('/', '').replace('-', '')
+                if dob_clean in w_txt or (len(w_txt) >= 4 and w_txt in dob_clean):
+                    boxes['ngaySinh'] = [data['left'][i], data['top'][i], data['width'][i], data['height'][i]]
+                    break
+    except Exception:
+        pass
+
+    return boxes
+
+
+# ─────────────────────────────────────────────────────────────
+# 3. CCCD QR CODE & MRZ & OCR EXTRACTOR
+# ─────────────────────────────────────────────────────────────
+
 
 def try_decode_qr(image_path: str) -> Optional[Dict[str, Any]]:
     """Giải mã QR Code trên CCCD bằng zxing-cpp, pyzbar, cv2 theo 4 góc xoay."""
@@ -473,6 +832,9 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
         elif angle == 180: rot = cv2.rotate(img, cv2.ROTATE_180)
         elif angle == 270: rot = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
+        # Áp dụng bộ lọc khử lóa flash Telea Inpainting nếu có phản xạ ánh đèn
+        rot = suppress_specular_glare(rot)
+
         # Lấy 45% phía dưới
         h, w = rot.shape[:2]
         mrz_region = rot[int(h * 0.55):, :]
@@ -498,6 +860,28 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
                     except Exception:
                         pass
                     return parsed
+
+    # Fallback: Thử nắn thẳng phối cảnh 4 điểm nếu ảnh chụp bị xiên góc
+    deskewed = auto_deskew_perspective_transform(img)
+    if deskewed is not None and deskewed is not img:
+        try:
+            for angle in [0, 180]:
+                rot_d = deskewed if angle == 0 else cv2.rotate(deskewed, cv2.ROTATE_180)
+                rot_d = suppress_specular_glare(rot_d)
+                h_d, w_d = rot_d.shape[:2]
+                mrz_reg = rot_d[int(h_d * 0.55):, :]
+                gray_d = cv2.cvtColor(mrz_reg, cv2.COLOR_BGR2GRAY)
+                custom_cfg = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
+                txt_d = pytesseract.image_to_string(gray_d, config=custom_cfg)
+                lines_d = [l.strip() for l in txt_d.split('\n') if len(l.strip()) >= 10]
+                for l in lines_d:
+                    if re.search(r'[IDLT]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
+                        parsed_d = parse_mrz_lines(lines_d)
+                        if parsed_d and (parsed_d.get('soCCCD') or parsed_d.get('ngaySinh')):
+                            parsed_d['source'] = 'MRZ_DESKEW'
+                            return parsed_d
+        except Exception:
+            pass
 
     return None
 
@@ -532,22 +916,39 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
                         res['soCCCD'] = m.group(1)
 
     if line2:
-        m = re.search(r'(?:(\d{2}))?(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[0-9ó<]?([FM])', line2)
-        if m:
-            yy_str, mm_str, dd_str, sex_char = m.groups()
+        # Chuẩn ICAO Doc 9303 Part 5 TD1 Dòng 2: YYMMDD(check)SexYYMMDD(check)
+        m_icao2 = re.search(r'(\d{6})([0-9])([FM<])(\d{6})([0-9])', line2)
+        if m_icao2:
+            dob_raw, dob_cd, sex_char, exp_raw, exp_cd = m_icao2.groups()
+            repaired_dob, is_dob_valid = verify_and_repair_mrz_field(dob_raw, dob_cd)
             res['gioiTinh'] = 'Nữ' if sex_char == 'F' else 'Nam'
-            mm = int(mm_str)
-            dd = int(dd_str)
-            if yy_str:
-                yy = int(yy_str)
+            try:
+                yy = int(repaired_dob[0:2])
+                mm = int(repaired_dob[2:4])
+                dd = int(repaired_dob[4:6])
                 year = 1900 + yy if yy > 30 else 2000 + yy
-            else:
-                year = 2000
-                if res.get('soCCCD') and len(res['soCCCD']) == 12:
-                    c_digit = res['soCCCD'][3]
-                    yy = int(res['soCCCD'][4:6])
-                    year = 1900 + yy if c_digit in ['0', '1'] else 2000 + yy
-            res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{year}"
+                if 1 <= dd <= 31 and 1 <= mm <= 12:
+                    res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{year}"
+            except Exception:
+                pass
+
+        if not res['ngaySinh']:
+            m = re.search(r'(?:(\d{2}))?(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[0-9ó<]?([FM])', line2)
+            if m:
+                yy_str, mm_str, dd_str, sex_char = m.groups()
+                res['gioiTinh'] = 'Nữ' if sex_char == 'F' else 'Nam'
+                mm = int(mm_str)
+                dd = int(dd_str)
+                if yy_str:
+                    yy = int(yy_str)
+                    year = 1900 + yy if yy > 30 else 2000 + yy
+                else:
+                    year = 2000
+                    if res.get('soCCCD') and len(res['soCCCD']) == 12:
+                        c_digit = res['soCCCD'][3]
+                        yy = int(res['soCCCD'][4:6])
+                        year = 1900 + yy if c_digit in ['0', '1'] else 2000 + yy
+                res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{year}"
 
     # Tìm dòng tên: chứa <<, không có VNM, không phải dòng ngày tháng sinh
     name_lines = [l for l in lines if '<<' in l and 'VNM' not in l and not re.search(r'\d{4,6}[FM]', l)]
@@ -764,6 +1165,10 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
             continue
 
         base_name = os.path.basename(p)
+        # Bỏ qua kiểm tra cắt mép đối với ảnh con tạm thời tự động tách từ ảnh ghép 2 mặt
+        if '_AUTO_FRONT' in base_name or '_AUTO_BACK' in base_name:
+            continue
+
         h, w = im.shape[:2]
 
         # 1. Kịch bản 1: Kiểm tra độ phân giải quá thấp hoặc mờ nhòe (Low-Res / Blur Detection)
@@ -813,15 +1218,21 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
             corners = [c_tl, c_tr, c_bl, c_br]
 
             # Rule nhận diện Ảnh ghép 2 mặt (Composite Dual-Card Canvas)
-            # Thẻ mặt trước và mặt sau xếp chồng theo chiều dọc (H >= W*0.85), có lề đệm đen/tối ở 2 bên
             is_composite_card = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
+
+            # Kiểm tra xem thẻ có đường biên lọt bên trong an toàn (viền bàn/giấy cách mép ảnh >= 8px) hay không
+            edged = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 40, 140)
+            contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            has_margin_around_card = False
+            for c in contours:
+                x_c, y_c, w_c, h_c = cv2.boundingRect(c)
+                if (w_c * h_c) >= 0.35 * (w * h):
+                    if x_c >= 8 and y_c >= 8 and (w - (x_c + w_c)) >= 8 and (h - (y_c + h_c)) >= 8:
+                        has_margin_around_card = True
+                        break
             
-            # Nếu là ảnh ghép 2 mặt hợp lệ có viền đệm canvas:
-            # Miễn là chữ/chi tiết không bị xén cụt thì coi là ảnh hợp lệ chuẩn
-            if not is_composite_card:
-                # 3A: Cắt xén sát rạt cả 4 cạnh (Zero-Margin / Over-Cropped như 003C8622268)
-                # Áp dụng cho thẻ đơn (W > H*1.2): Cả 4 cạnh và 4 góc đều sáng màu thẻ (edges > 95 và corners > 90),
-                # mất hoàn toàn 4 góc bo tròn chuẩn ISO/IEC 7810 ID-1
+            # Chỉ cảnh báo Zero-Margin nếu không phải ảnh ghép VÀ không có lề bao quanh an toàn
+            if not is_composite_card and not has_margin_around_card:
                 all_bright_edges = sum(1 for e in edges if e > 95) >= 3
                 all_bright_corners = sum(1 for c in corners if c > 90) >= 3
                 if all_bright_edges and all_bright_corners and w > int(h * 1.2):
@@ -829,7 +1240,6 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
                     if w_msg not in warnings:
                         warnings.append(w_msg)
 
-                # 3B: Tỉ lệ khung hình biến dạng đối với thẻ đơn
                 if all_bright_edges and w > int(h * 1.2):
                     ratio = w / max(h, 1)
                     if ratio < 1.32 or ratio > 1.95:
@@ -839,7 +1249,7 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
         except Exception:
             pass
 
-        # 4. Kịch bản 5: Khoảng cách chữ/chi tiết tới mép ảnh (Edge-to-Text Proximity < 10px)
+        # 4. Kịch bản 5: Khoảng cách chữ/chi tiết tới mép ảnh (Edge-to-Text Proximity < 8px)
         try:
             data = pytesseract.image_to_data(im, lang='vie+eng', output_type=pytesseract.Output.DICT)
             n_boxes = len(data['text'])
@@ -848,8 +1258,8 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
                 word = data['text'][i].strip()
                 if len(word) >= 3 and int(data['conf'][i]) > 30:
                     x, y, bw, bh = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
-                    # Bắt các từ khóa quan trọng ở tiêu đề, số thẻ hoặc dòng MRZ
-                    is_core_text = any(kw in word.upper() for kw in ['CỘNG', 'HÒA', 'CĂN', 'CƯỚC', 'IDVNM', 'CHỦ', 'NGHĨA', 'VIỆT', 'NAM'])
+                    # Bắt các từ khóa quan trọng ở tiêu đề hoặc số thẻ (không phạt đáy MRZ)
+                    is_core_text = any(kw in word.upper() for kw in ['CỘNG', 'HÒA', 'CĂN', 'CƯỚC', 'CHỦ', 'NGHĨA', 'VIỆT', 'NAM'])
                     is_core_text = is_core_text or (len(re.sub(r'\D', '', word)) >= 9) # Số CCCD
                     if is_core_text:
                         if x < 8 or y < 8 or (w_img - (x + bw)) < 8 or (h_img - (y + bh)) < 8:
@@ -977,6 +1387,21 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
     if phuluc and os.path.exists(phuluc):
         result['phuLuc'] = extract_pdf_pl01(phuluc)
 
+    # 0. Tự động nhận diện và phân tách ảnh ghép 2 mặt (Auto-Split Composite Dual-Card)
+    auto_split_temps = []
+    if front and not back:
+        s_front, s_back = auto_split_composite_dual_card(front)
+        if s_front and s_back:
+            front = s_front
+            back = s_back
+            auto_split_temps.extend([s_front, s_back])
+    elif back and not front:
+        s_front, s_back = auto_split_composite_dual_card(back)
+        if s_front and s_back:
+            front = s_front
+            back = s_back
+            auto_split_temps.extend([s_front, s_back])
+
     # 3. Bóc tách CCCD: QR Code -> MRZ -> OCR
     cccd_data = {
         'soCCCD': None,
@@ -1103,6 +1528,37 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                         result['warnings'].append('Căn cước cũ, ktra lại')
                 except Exception:
                     pass
+    # 6. Phân loại thế hệ thẻ định danh cá nhân
+    the_gen = detect_card_generation(
+        so_cccd=cccd_data.get('soCCCD') or result['hopDong'].get('soCCCD'),
+        front_text='',
+        back_text='',
+        has_mrz=(cccd_data.get('source') in ['MRZ', 'MRZ_DESKEW']),
+        has_qr=(cccd_data.get('source') == 'QR'),
+        issue_date=cccd_data.get('ngayCap') or result['hopDong'].get('ngayCap')
+    )
+    cccd_data['theGeneration'] = the_gen
+
+    # 7. Tính điểm tin cậy tổng thể (Confidence Score: 0.0 - 1.0)
+    confidence = calculate_confidence_score(cccd_data, quality_warnings)
+    cccd_data['confidenceScore'] = confidence
+
+    # 8. Trích xuất Bounding Boxes [x, y, w, h] trên ảnh CCCD
+    box_targets = {
+        'soCCCD': cccd_data.get('soCCCD'),
+        'hoTen': cccd_data.get('hoTen'),
+        'ngaySinh': cccd_data.get('ngaySinh'),
+        'ngayCap': cccd_data.get('ngayCap')
+    }
+    cccd_data['boundingBoxes'] = extract_bounding_boxes(front or back, box_targets)
+
+    # Dọn dẹp file ảnh cắt tạm nếu có
+    for tmp_f in auto_split_temps:
+        try:
+            if os.path.exists(tmp_f):
+                os.remove(tmp_f)
+        except Exception:
+            pass
 
     result['canCuoc'] = cccd_data
 

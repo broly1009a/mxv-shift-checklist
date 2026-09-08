@@ -139,6 +139,45 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                     Số CCCD: {accountManifest.ocrSummary.soCanCuocMail}
                   </span>
                 ) : null}
+                {(() => {
+                  const theGen = accountManifest?.ocrSummary?.theGeneration || inspectRecord?.canCuoc?.theGeneration;
+                  const confScore = accountManifest?.ocrSummary?.confidenceScore !== undefined 
+                    ? accountManifest.ocrSummary.confidenceScore 
+                    : inspectRecord?.canCuoc?.confidenceScore;
+                  return (
+                    <>
+                      {theGen && (
+                        <span
+                          style={{
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: theGen === 'CAN_CUOC_2024' ? 'rgba(168, 85, 247, 0.12)' : theGen === 'CMND_9_SO' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                            color: theGen === 'CAN_CUOC_2024' ? '#a855f7' : theGen === 'CMND_9_SO' ? '#ef4444' : '#3b82f6',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {theGen === 'CAN_CUOC_2024' && '🏷️ Căn Cước 2024'}
+                          {theGen === 'CCCD_CHIP_2021' && '🏷️ CCCD Gắn Chip'}
+                          {theGen === 'CCCD_MA_VACH' && '🏷️ CCCD Mã Vạch'}
+                          {theGen === 'CMND_9_SO' && '⛔ CMND 9 Số Cũ'}
+                        </span>
+                      )}
+                      {confScore !== undefined && (
+                        <span
+                          style={{
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: confScore >= 0.95 ? 'rgba(16, 185, 129, 0.12)' : confScore >= 0.80 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                            color: confScore >= 0.95 ? '#10b981' : confScore >= 0.80 ? '#f59e0b' : '#ef4444',
+                            fontWeight: 700,
+                          }}
+                        >
+                          ⭐ Tin cậy: {Math.round(confScore * 100)}%
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
                 {accountManifest?.ocrSummary?.canhBaoChatLuong && accountManifest.ocrSummary.canhBaoChatLuong.length > 0 ? (
                   <span
                     style={{
