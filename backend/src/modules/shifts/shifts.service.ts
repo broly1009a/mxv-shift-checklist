@@ -396,6 +396,7 @@ export class ShiftsService {
     const validStatuses = [
       'PENDING',
       'WAITING',
+      'IN_PROGRESS',
       'PASSED',
       'FAILED',
       'SKIPPED',

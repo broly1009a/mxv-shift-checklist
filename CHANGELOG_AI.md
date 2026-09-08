@@ -4,6 +4,46 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T17:02] Hotfix: Thêm `IN_PROGRESS` vào validStatuses — Ngăn Bot Retry Loop gây OOM Crash
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Kiểm tra log `pm2 logs mxv-backend` phát hiện backend đang crash liên tục (116 restarts, heap 92.5%).
+- **Root cause**: `BotJobQueueService` gửi status `'IN_PROGRESS'` để cập nhật task checklist khi bot bắt đầu xử lý job, nhưng `shifts.service.ts` chỉ chấp nhận 6 trạng thái cố định — không có `'IN_PROGRESS'` → throw `BadRequestException` → bị nuốt bởi catch → task vẫn ở `WAITING` → `shouldEnqueueNewJob` retry sau 15 phút → launch Playwright mới → login M-System thất bại → tích lũy RAM → OOM crash → PM2 restart → lặp vô tận.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/modules/shifts/shifts.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts)
+
+### Tóm tắt nội dung code đã sửa
+
+#### `shifts.service.ts` — Hàm `updateTaskStatus()` (dòng 396–404)
+
+**Trước:**
+```typescript
+const validStatuses = [
+  'PENDING', 'WAITING', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION',
+];
+```
+
+**Sau:**
+```typescript
+const validStatuses = [
+  'PENDING', 'WAITING', 'IN_PROGRESS', 'PASSED', 'FAILED', 'SKIPPED', 'NEEDS_ATTENTION',
+];
+```
+
+**Lý do không sửa dependency check**: Dependency check ở dòng 482–496 (`shifts.service.ts`) là đúng thiết kế nghiệp vụ — không cho PASSED khi dep chưa xong. Lỗi "phụ thuộc vào SOD chưa hoàn thành" khi bot update `FAILED` là triệu chứng thứ cấp: nếu bot update `IN_PROGRESS` thành công, job `FAILED` → task chuyển đúng sang `FAILED` trước khi retry loop xảy ra.
+
+### Xác nhận Build/Kiểm thử
+- ✅ `node node_modules/typescript/bin/tsc --noEmit`: Không có lỗi mới liên quan đến file đã sửa
+- ✅ `node node_modules/@nestjs/cli/bin/nest.js build`: **Exit code 0 — Build thành công**
+
+### Lệnh deploy trên Ubuntu
+```bash
+cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-backend
+```
+
+---
+
 ## [2026-09-08T16:44] Bản Vá Ổn Định Hóa Batch Processing 24/7 (Stability Hotfix for Long-Running Background Scan)
 
 ### Mục tiêu thay đổi
