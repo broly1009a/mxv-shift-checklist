@@ -4,6 +4,34 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 
 ---
 
+## [2026-09-08T17:12] Đồng Bộ Toàn Bộ Code Mới Sang Ubuntu Server & Khởi Động Lại Hệ Thống
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"giúp tôi xem ubtune đã update code mới nhất chưa nếu chưa thì chuyển sang và start lại"*
+- **Hiện trạng kiểm tra thực tế**:
+  - Trên server Ubuntu (`10.0.0.26`), code chưa có hotfix `'IN_PROGRESS'` trong `shifts.service.ts` (gây 116 lần restart OOM).
+  - Thiếu toàn bộ các file mới của module TKGD (`tkgd-mail-ingest.service.ts`, các services con, và bản cập nhật timeout python bridge 60s).
+- **Hành động**:
+  - Nâng cấp script [`backend/src/scripts/deploy_to_ubuntu.js`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js) để tự động đồng bộ đệ quy tất cả các module (`shifts`, `tkgd-automation`, `bot-engine`, `auth`, `lot-statistics`, `schemas`, `frontend/src/features/tkgd`, v.v. — tổng cộng 130 files).
+  - Tự động SFTP upload sang Ubuntu, thực hiện `npm run build` cho cả Backend (NestJS) và Frontend (Next.js Turbopack).
+  - Khởi động lại `mxv-backend` và `mxv-frontend` qua PM2.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/scripts/deploy_to_ubuntu.js`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js)
+
+### Kết quả kiểm tra sau khi chuyển và restart
+- ✅ Toàn bộ 130 files đã được upload sang `/opt/mxv-checklist/` thành công.
+- ✅ Backend build thành công (`nest build` exit code 0).
+- ✅ Frontend build thành công (`next build` compile 24 static routes exit code 0).
+- ✅ PM2 restart: `mxv-backend` và `mxv-frontend` đều `online`.
+- ✅ Đã kiểm tra lại code thực tế trên Ubuntu:
+  - `shifts.service.ts`: Đã có `'IN_PROGRESS'`.
+  - `tkgd-python-bridge.helper.ts`: Đã có timeout `OCR_TIMEOUT_MS` (60s).
+  - `tkgd-mail-ingest.service.ts`: Đã có đầy đủ (25KB).
+- ✅ Log hệ thống sau khi chạy lại: RAM backend hạ từ 692MB xuống 221MB, các API trả về HTTP 200 OK bình thường.
+
+---
+
 ## [2026-09-08T17:02] Hotfix: Thêm `IN_PROGRESS` vào validStatuses — Ngăn Bot Retry Loop gây OOM Crash
 
 ### Mục tiêu thay đổi

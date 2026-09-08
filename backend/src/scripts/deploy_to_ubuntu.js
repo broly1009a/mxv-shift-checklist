@@ -19,7 +19,66 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
   return arrayOfFiles;
 }
 
-const baseFiles = [
+// Danh sách các thư mục cần đồng bộ toàn bộ từ local sang Ubuntu
+const syncDirs = [
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/shifts'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/shifts',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/tkgd-automation'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/tkgd-automation',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/bot-engine'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/bot-engine',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/auth'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/auth',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/lot-statistics'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/lot-statistics',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/schemas'),
+    remoteDir: '/opt/mxv-checklist/backend/src/schemas',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/features/tkgd'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/features/tkgd',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/components/tkgd'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/components/tkgd',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/tutorials'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/tutorials',
+  },
+];
+
+let filesToUpload = [];
+
+// 1. Quét thư mục
+syncDirs.forEach(({ localDir, remoteDir }) => {
+  const files = getAllFiles(localDir);
+  files.forEach((file) => {
+    const rel = path.relative(localDir, file).replace(/\\/g, '/');
+    filesToUpload.push({
+      local: file,
+      remote: `${remoteDir}/${rel}`,
+    });
+  });
+});
+
+// 2. Các file đơn lẻ quan trọng
+const specificFiles = [
+  {
+    local: path.join(repoRoot, 'backend/src/app.module.ts'),
+    remote: '/opt/mxv-checklist/backend/src/app.module.ts',
+  },
   {
     local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
     remote: '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
@@ -29,75 +88,59 @@ const baseFiles = [
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/tkgd_extractor_worker.py',
   },
   {
-    local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/modules/tkgd-automation/tkgd-automation.service.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/modules/tkgd-automation/tkgd-automation.controller.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts'),
-    remote: '/opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/schemas/clean-account-record.schema.ts'),
-    remote: '/opt/mxv-checklist/backend/src/schemas/clean-account-record.schema.ts',
+    local: path.join(repoRoot, 'backend/assets/templates/Auto Data mail.xlsm'),
+    remote: '/opt/mxv-checklist/backend/assets/templates/Auto Data mail.xlsm',
   },
   {
     local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-dashboard/page.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx',
   },
   {
-    local: path.join(repoRoot, 'frontend/src/tutorials/tkgdTutorial.ts'),
-    remote: '/opt/mxv-checklist/frontend/src/tutorials/tkgdTutorial.ts',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/context/TutorialContext.tsx',
+    local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-config/page.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/app/admin/tkgd-config/page.tsx',
   },
   {
     local: path.join(repoRoot, 'frontend/src/components/GlobalLayout.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/components/GlobalLayout.tsx',
   },
   {
+    local: path.join(repoRoot, 'frontend/src/components/Sidebar.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/Sidebar.tsx',
+  },
+  {
     local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
   },
   {
-    local: path.join(repoRoot, 'frontend/src/components/tkgd/TkgdConfigPanel.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/components/tkgd/TkgdConfigPanel.tsx',
+    local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/context/TutorialContext.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/context/AuthContext.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/context/AuthContext.tsx',
   },
 ];
 
-// Thêm toàn bộ các file trong thư mục module frontend/src/features/tkgd
-const tkgdFeaturesDir = path.join(repoRoot, 'frontend/src/features/tkgd');
-const tkgdFeatureFiles = getAllFiles(tkgdFeaturesDir).map((fullPath) => {
-  const relPath = path.relative(path.join(repoRoot, 'frontend'), fullPath).replace(/\\/g, '/');
-  return {
-    local: fullPath,
-    remote: `/opt/mxv-checklist/frontend/${relPath}`,
-  };
+specificFiles.forEach((item) => {
+  if (fs.existsSync(item.local)) {
+    filesToUpload.push(item);
+  }
 });
 
-const filesToUpload = [...baseFiles, ...tkgdFeatureFiles];
+// Loại bỏ trùng lặp remote path
+const seen = new Set();
+filesToUpload = filesToUpload.filter((item) => {
+  if (seen.has(item.remote)) return false;
+  seen.add(item.remote);
+  return true;
+});
+
+console.log(`Tong so file can dong bo: ${filesToUpload.length}`);
 
 const conn = new Client();
 
 conn.on('ready', () => {
-  console.log('Connected to Ubuntu 10.0.0.26');
+  console.log('Da ket noi SSH toi Ubuntu 10.0.0.26');
 
   // 1. Tạo tất cả thư mục cha từ xa
   const remoteDirs = Array.from(
@@ -107,13 +150,13 @@ conn.on('ready', () => {
   const mkdirCmd = `mkdir -p ${remoteDirs.join(' ')}`;
   conn.exec(mkdirCmd, (err, stream) => {
     if (err) {
-      console.error('Mkdir error:', err);
+      console.error('Loi mkdir:', err);
       conn.end();
       return;
     }
-    stream.on('data', (d) => console.log(d.toString()));
+    stream.on('data', (d) => process.stdout.write(d.toString()));
     stream.on('close', () => {
-      console.log('Remote directories ready.');
+      console.log('Cac thu muc tren Ubuntu da san sang.');
 
       // 2. Mở SFTP và upload tuần tự
       conn.sftp((sftpErr, sftp) => {
@@ -126,17 +169,16 @@ conn.on('ready', () => {
         let idx = 0;
         function uploadNext() {
           if (idx >= filesToUpload.length) {
-            console.log('\nAll files uploaded successfully!');
+            console.log('\n=== TAT CA FILE DA DUOC DONG BO LEN UBUNTU THANH CONG! ===');
             runBuildAndRestart();
             return;
           }
           const item = filesToUpload[idx++];
-          console.log(`[${idx}/${filesToUpload.length}] Uploading: ${path.basename(item.local)} -> ${item.remote}`);
           sftp.fastPut(item.local, item.remote, (putErr) => {
             if (putErr) {
-              console.error(`  ❌ Error uploading ${item.remote}:`, putErr.message);
+              console.error(`  ❌ Loi upload ${item.remote}:`, putErr.message);
             } else {
-              console.log(`  ✅ Uploaded: ${item.remote}`);
+              console.log(`  [${idx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)} -> ${item.remote}`);
             }
             uploadNext();
           });
@@ -147,9 +189,20 @@ conn.on('ready', () => {
   });
 
   function runBuildAndRestart() {
-    console.log('\nBuilding Backend & Frontend on Ubuntu...');
-    const cmd =
-      'cd /opt/mxv-checklist/backend && npm run build && pm2 restart mxv-backend && cd /opt/mxv-checklist/frontend && npm run build && pm2 restart mxv-frontend';
+    console.log('\n=== DANG BUILD BACKEND VA FRONTEND TREN UBUNTU ===');
+    // Build backend, restart backend, build frontend, restart frontend
+    const cmd = `
+      echo "=== 1. BUILD BACKEND ==="
+      cd /opt/mxv-checklist/backend && npm run build
+      echo "=== 2. RESTART BACKEND PM2 ==="
+      pm2 restart mxv-backend
+      echo "=== 3. BUILD FRONTEND ==="
+      cd /opt/mxv-checklist/frontend && npm run build
+      echo "=== 4. RESTART FRONTEND PM2 ==="
+      pm2 restart mxv-frontend
+      echo "=== 5. PM2 LIST ==="
+      pm2 list
+    `;
     conn.exec(cmd, (err, stream) => {
       if (err) {
         console.error('Exec error:', err);
@@ -159,7 +212,7 @@ conn.on('ready', () => {
       stream.on('data', (d) => process.stdout.write(d.toString()));
       stream.stderr.on('data', (d) => process.stderr.write(d.toString()));
       stream.on('close', (code) => {
-        console.log(`\nBuild and restart completed with exit code: ${code}`);
+        console.log(`\n=== HOAN TAT BUILD VA RESTART VOI EXIT CODE: ${code} ===`);
         conn.end();
       });
     });
