@@ -234,7 +234,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
             style={{ fontSize: '0.75rem', padding: '8px 20px', fontWeight: 700 }}
           >
             <Activity size={14} className={reconAutoRunning ? 'animate-spin' : ''} />
-            {reconAutoRunning ? 'Bot đang xử lý...' : '🤖 Bot tự động đối chiếu'}
+            {reconAutoRunning ? 'Bot đang xử lý...' : ' Bot tự động đối chiếu'}
           </button>
         </div>
       </div>

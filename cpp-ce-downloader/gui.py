@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
             self.chk_headless_widget.show()
             self.log_console.show()
         else:
-            self.btn_toggle_mode.setText("⚙️ Chế độ: Cơ bản (Bấm để mở Cấu hình Nâng cao)")
+            self.btn_toggle_mode.setText(" Chế độ: Cơ bản (Bấm để mở Cấu hình Nâng cao)")
             self.btn_toggle_mode.setStyleSheet("background-color: #198754; color: #fff; font-weight: bold; padding: 5px 10px;")
             self.group_auth.hide()
             self.chk_headless_widget.hide()

@@ -4,7 +4,7 @@
 
 | Ký hiệu | Tiêu chí xác định |
 |:---:|:---|
-| 🤖 **Bot 100%** | Kết quả kỹ thuật là **xác định** (đúng/sai rõ ràng). Khi bot SUCCESS → task cha tự PASSED, **không cần Maker checkbox thêm gì**. |
+|  **Bot 100%** | Kết quả kỹ thuật là **xác định** (đúng/sai rõ ràng). Khi bot SUCCESS → task cha tự PASSED, **không cần Maker checkbox thêm gì**. |
 | 🤝 **Bot + Maker** | Bot làm phần kỹ thuật, nhưng **kể cả khi SUCCESS**, Maker vẫn **phải thực hiện thêm hành động** (gửi file, bấm nút, phán đoán, phê duyệt). |
 | 🔴 **Thủ công hoàn toàn** | Không có API/automation. Toàn bộ do Maker thực hiện trên phần mềm bên thứ 3. |
 
@@ -18,14 +18,14 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 1.1 | Bot tự kiểm tra email "Job Snapshot" trong Inbox | 🤖 Auto-check |
-| 1.2 | Bot gửi cảnh báo Telegram nếu không thấy email thành công | 🤖 Auto-check |
+| 1.1 | Bot tự kiểm tra email "Job Snapshot" trong Inbox |  Auto-check |
+| 1.2 | Bot gửi cảnh báo Telegram nếu không thấy email thành công |  Auto-check |
 | 1.3 | **Maker xác nhận đã đọc kết quả** (nếu OK → tick; nếu FAILED → ghi nhận đã liên hệ Newgen) | 👤 Maker |
 
 ---
 
 ### Task 2 · Tải Báo Cáo CQG CAST Balances (07:00)
-**🤖 Bot 100%**
+** Bot 100%**
 > Bot đăng nhập CQG CAST, tải file `Accounts_Balances.xlsx`. Thành công hay thất bại là xác định. Không cần Maker làm gì thêm với bản thân việc tải file.
 
 *(Không có sub-task — bot tự check task cha khi job COMPLETED)*
@@ -33,7 +33,7 @@
 ---
 
 ### Task 3 · Tải Báo Cáo M-System Đầu Ngày (08:00)
-**🤖 Bot 100%**
+** Bot 100%**
 > Bot tải các file QLTKGD, NR, DSTKGD-* từ M-System. Kết quả kỹ thuật xác định. Không cần Maker xác nhận file đã download.
 
 *(Không có sub-task — bot tự check task cha khi job COMPLETED)*
@@ -65,7 +65,7 @@
 ---
 
 ### Task 6 · Kiểm Tra File Backup M-System (sau EOD)
-**🤖 Bot 100%**
+** Bot 100%**
 > Bot scan thư mục backup, tự tải bổ sung file thiếu. Kết quả: danh sách file OK/MISSING/OUTDATED là xác định tuyệt đối.
 
 *(Không có sub-task — bot tự check task cha khi job COMPLETED)*
@@ -73,7 +73,7 @@
 ---
 
 ### Task 7 · Kiểm Tra File Backup CQG (sau EOD)
-**🤖 Bot 100%**
+** Bot 100%**
 > Bot scan và tự merge file CQG bị thiếu. Kỹ thuật xác định.
 
 *(Không có sub-task — bot tự check task cha khi job COMPLETED)*
@@ -81,7 +81,7 @@
 ---
 
 ### Task 8 · Kiểm Tra File Backup ACM — Ưu tiên cao (sau EOD)
-**🤖 Bot 100%**
+** Bot 100%**
 > Bot scan Order.xlsx, Fill.xlsx, file SFTP CSV/XLS. Kết quả xác định.
 
 *(Không có sub-task — bot tự check task cha khi job COMPLETED)*
@@ -94,8 +94,8 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 9.1 | Bot phân tích file EOD, tổng hợp danh sách TKGD âm ký quỹ | 🤖 Auto-check (`CHECK_PRE_EOD`) |
-| 9.2 | Bot gửi cảnh báo Telegram danh sách âm ký quỹ | 🤖 Auto-check |
+| 9.1 | Bot phân tích file EOD, tổng hợp danh sách TKGD âm ký quỹ |  Auto-check (`CHECK_PRE_EOD`) |
+| 9.2 | Bot gửi cảnh báo Telegram danh sách âm ký quỹ |  Auto-check |
 | 9.3 | **Maker xác nhận đã nhận cảnh báo và theo dõi xử lý** | 👤 Maker |
 
 ---
@@ -118,8 +118,8 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 11.1 | Bot đối chiếu số dư M-System vs CQG, tạo báo cáo lệch | 🤖 Auto-check (`AUTO_CHECK_SOD`) |
-| 11.2 | Bot gửi kết quả đối chiếu qua Telegram | 🤖 Auto-check |
+| 11.1 | Bot đối chiếu số dư M-System vs CQG, tạo báo cáo lệch |  Auto-check (`AUTO_CHECK_SOD`) |
+| 11.2 | Bot gửi kết quả đối chiếu qua Telegram |  Auto-check |
 | 11.3 | **Maker xác nhận đã xem kết quả** (nếu lệch → ghi nhận đã xử lý) | 👤 Maker |
 
 ---
@@ -143,8 +143,8 @@
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
 | 13.1 | **Maker trigger gửi email sao kê** trên M-System | 👤 Maker |
-| 13.2 | Bot xác minh lịch sử gửi email sao kê trong M-System Admin | 🤖 Auto-check (`VERIFY_EMAIL_STATUS`) |
-| 13.3 | Bot cảnh báo Telegram nếu có email gửi thất bại | 🤖 Auto-check |
+| 13.2 | Bot xác minh lịch sử gửi email sao kê trong M-System Admin |  Auto-check (`VERIFY_EMAIL_STATUS`) |
+| 13.3 | Bot cảnh báo Telegram nếu có email gửi thất bại |  Auto-check |
 | 13.4 | **Maker xác nhận đã hoàn tất gửi sao kê** | 👤 Maker |
 
 ---
@@ -169,7 +169,7 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 15.1 | Bot so sánh M-System vs CQG và gửi kết quả Telegram | 🤖 Auto-check |
+| 15.1 | Bot so sánh M-System vs CQG và gửi kết quả Telegram |  Auto-check |
 | 15.2 | **Maker xác nhận đã xem kết quả** (nếu lệch → ghi nhận đã xử lý xong) | 👤 Maker |
 
 ---
@@ -180,8 +180,8 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 16.1 | Bot chạy macro thống kê số lô giao dịch | 🤖 Auto-check (`RUN_LOT_MACRO`) |
-| 16.2 | Bot chạy macro thống kê giá trị giao dịch | 🤖 Auto-check (`RUN_VALUE_MACRO`) |
+| 16.1 | Bot chạy macro thống kê số lô giao dịch |  Auto-check (`RUN_LOT_MACRO`) |
+| 16.2 | Bot chạy macro thống kê giá trị giao dịch |  Auto-check (`RUN_VALUE_MACRO`) |
 | 16.3 | **Maker gửi file báo cáo lên nhóm Whatsapp** Ban giám sát | 👤 Maker |
 | 16.4 | **Maker xác nhận đã gửi thành công** | 👤 Maker |
 
@@ -206,7 +206,7 @@
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
-| 18.1 | Bot tính mốc đáo hạn và gửi thông báo nhắc nhở TVKD | 🤖 Auto-check (`NOTIFY_MATURITY`) |
+| 18.1 | Bot tính mốc đáo hạn và gửi thông báo nhắc nhở TVKD |  Auto-check (`NOTIFY_MATURITY`) |
 | 18.2 | **Maker xác nhận đã gửi thông báo** và theo dõi phản hồi TVKD | 👤 Maker |
 | 18.3 | Nếu TVKD không tự xử lý: Maker hủy lệnh chờ & force close | 👤 Maker |
 
@@ -226,7 +226,7 @@
 ## PHIÊN ĐÓNG CỬA (CLOSE SESSION) — 04:00 → 05:00
 
 ### Task 20 · Chạy Macro Tổng Hợp Cuối Phiên
-**🤖 Bot 100%**
+** Bot 100%**
 > Macro chạy, xuất kết quả. Kỹ thuật xác định, không cần Maker xác nhận macro đã chạy xong.
 
 *(Không có sub-task — bot tự check task cha khi COMPLETED)*
@@ -248,20 +248,20 @@
 
 | Loại | Task cha | Ghi chú |
 |:---|:---|:---|
-| 🤖 **Bot 100%** (6 task) | Task 2, 3, 6, 7, 8, 20 | Download, File Audit, Macro — kết quả kỹ thuật xác định, không cần Maker |
+|  **Bot 100%** (6 task) | Task 2, 3, 6, 7, 8, 20 | Download, File Audit, Macro — kết quả kỹ thuật xác định, không cần Maker |
 | 🤝 **Bot + Maker** (10 task) | Task 1, 4, 9, 11, 13, 15, 16, 18, 21 + Task 12 | Bot check phần kỹ thuật; Maker làm hành động nghiệp vụ bắt buộc |
 | 🔴 **Thủ công hoàn toàn** (5 task) | Task 5, 10, 14, 17, 19 | Không có API, hoặc Maker-Checker bắt buộc |
 
 > [!TIP]
 > **Nguyên tắc phân biệt Bot 100% vs Bot+Maker**: Hỏi câu này — *"Nếu bot chạy SUCCESS, Maker có cần làm thêm bất kỳ hành động nào không?"*
-> - **KHÔNG** → 🤖 Bot 100%
+> - **KHÔNG** →  Bot 100%
 > - **CÓ** (gửi file, bấm nút, phán đoán, phê duyệt) → 🤝 Bot + Maker
 
 ---
 
 ## DANH SÁCH JOB TYPE PHÂN LOẠI
 
-### 🤖 Job type → Task 100% Bot
+###  Job type → Task 100% Bot
 | Job Type | Task cha |
 |---|---|
 | `DOWNLOAD_CAST` | Task 2 |

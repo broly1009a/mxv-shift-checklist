@@ -679,6 +679,14 @@ export class TkgdAutomationService {
       if (dto.autoPipeline.autoExportExcel !== undefined) config.autoPipeline.autoExportExcel = dto.autoPipeline.autoExportExcel;
     }
 
+    // Đánh dấu Mongoose nhận diện thay đổi trên các subdocument lồng nhau
+    config.markModified('msystem');
+    config.markModified('outlook');
+    config.markModified('storage');
+    config.markModified('preferences');
+    config.markModified('documentProcessing');
+    config.markModified('autoPipeline');
+
     await config.save();
     this.logger.log(`Đã lưu cấu hình TKGD cho user: ${userEmail}`);
 
@@ -2512,7 +2520,8 @@ export class TkgdAutomationService {
         ],
       };
       if (options?.batchDate) query.batchDate = options.batchDate;
-      const pendingRecords = await this.cleanRecordModel.find(query).limit(50);
+      const batchLimit = Math.max(1, config?.autoPipeline?.batchSize || 50);
+      const pendingRecords = await this.cleanRecordModel.find(query).limit(batchLimit);
       codesToScrape = Array.from(new Set(
         pendingRecords.map((r) => r.maTKGDBase || r.noiDungMail?.maTKGD_Futures || r.maTKGD?.split('-')[0] || '').filter(Boolean)
       ));
@@ -3636,41 +3645,52 @@ export class TkgdAutomationService {
         const mailResult = await this.syncMailOpeningAccounts(userEmail);
         const newMailCount = mailResult.count || 0;
 
-        // 2. Cào M-System nếu có hồ sơ chưa đồng bộ
-        const pendingSyncCount = await this.cleanRecordModel.countDocuments({
-          'ms.isFoundOnMS': false,
-        });
+        const userCfg = await this.userConfigModel.findOne({ userEmail }).lean();
+        const shouldSyncMS = userCfg?.autoPipeline?.autoSyncMSystem !== false;
+        const shouldExportExcel = userCfg?.autoPipeline?.autoExportExcel !== false;
 
+        // 2. Cào M-System nếu bật cấu hình và có hồ sơ chưa đồng bộ
         let msResult = { scrapedCount: 0 };
-        if (pendingSyncCount > 0) {
-          this.updateProgress(userEmail, {
-            isProcessing: true,
-            taskType: 'SYNC_MS',
-            stage: `Đang tự động đồng bộ M-System cho ${pendingSyncCount} hồ sơ...`,
-            percent: 50,
+        if (shouldSyncMS) {
+          const pendingSyncCount = await this.cleanRecordModel.countDocuments({
+            'ms.isFoundOnMS': false,
           });
-          // Wrap M-System scraper với timeout 3 phút riêng — Playwright không được treo quá lâu
-          const MS_TIMEOUT_MS = 3 * 60 * 1000;
-          msResult = await Promise.race([
-            this.syncMSystemAccounts(userEmail),
-            new Promise<{ scrapedCount: number }>((_, reject) =>
-              setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 3 phút')), MS_TIMEOUT_MS)
-            ),
-          ]).catch((err) => {
-            this.logger.warn(`[TKGD-AUTO] ${err.message} — tiếp tục bước đối soát.`);
-            return { scrapedCount: 0 };
-          });
+
+          if (pendingSyncCount > 0) {
+            const batchSize = Math.max(1, userCfg?.autoPipeline?.batchSize || 50);
+            const processBatchCount = Math.min(pendingSyncCount, batchSize);
+
+            this.updateProgress(userEmail, {
+              isProcessing: true,
+              taskType: 'SYNC_MS',
+              stage: `Đang tự động đồng bộ M-System cho ${processBatchCount} hồ sơ (trong tổng ${pendingSyncCount} hồ sơ chờ)...`,
+              percent: 50,
+            });
+            // Wrap M-System scraper với timeout 3 phút riêng — Playwright không được treo quá lâu
+            const MS_TIMEOUT_MS = 3 * 60 * 1000;
+            msResult = await Promise.race([
+              this.syncMSystemAccounts(userEmail),
+              new Promise<{ scrapedCount: number }>((_, reject) =>
+                setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 3 phút')), MS_TIMEOUT_MS)
+              ),
+            ]).catch((err) => {
+              this.logger.warn(`[TKGD-AUTO] ${err.message} — tiếp tục bước đối soát.`);
+              return { scrapedCount: 0 };
+            });
+          }
         }
 
-        // 3. Tự động đối soát và xuất Excel
-        this.updateProgress(userEmail, {
-          isProcessing: true,
-          taskType: 'RECONCILE',
-          stage: 'Đang tự động đối soát chéo và cập nhật Excel...',
-          percent: 85,
-        });
-        const todayStr = new Date().toISOString().slice(0, 10);
-        await this.runReconciliation(userEmail, todayStr);
+        // 3. Tự động đối soát và xuất Excel (nếu bật cấu hình)
+        if (shouldExportExcel) {
+          this.updateProgress(userEmail, {
+            isProcessing: true,
+            taskType: 'RECONCILE',
+            stage: 'Đang tự động đối soát chéo và cập nhật Excel...',
+            percent: 85,
+          });
+          const todayStr = new Date().toISOString().slice(0, 10);
+          await this.runReconciliation(userEmail, todayStr);
+        }
 
         return newMailCount + (msResult.scrapedCount || 0);
       };

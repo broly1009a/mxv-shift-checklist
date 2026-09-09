@@ -142,7 +142,7 @@ export default function JobQueuePanel({
       case 'FILE_AUDIT_CQG':
         return 'Kiểm Tra & Ghép File CQG';
       case 'FILE_AUDIT_ACM':
-        return '🤖 Tải Báo Cáo Tự Doanh ACM';
+        return ' Tải Báo Cáo Tự Doanh ACM';
       case 'RUN_LOT_MACRO':
         return '📊 Chạy Excel Macro Số Lot';
       case 'RUN_VALUE_MACRO':
@@ -218,7 +218,7 @@ export default function JobQueuePanel({
                 </div>
               </div>
             )}
- 
+
             {/* Logs Area */}
             <div style={{ backgroundColor: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '0.7rem', color: '#34d399', lineHeight: 1.6, maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {loadingLogs && !selectedJobDetail ? (
@@ -229,7 +229,7 @@ export default function JobQueuePanel({
                 <div style={{ color: '#64748b', textAlign: 'center', padding: '16px 0' }}>Chưa có dòng log nào được ghi.</div>
               )}
             </div>
- 
+
             {/* ZIP Download Button */}
             {selectedJob.status === 'COMPLETED' && selectedJob.jobType === 'RPA_DOWNLOAD_REPORTS' && (
               <button

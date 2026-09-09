@@ -203,6 +203,14 @@ export class TkgdConfigService {
       if (dto.autoPipeline.autoExportExcel !== undefined) config.autoPipeline.autoExportExcel = dto.autoPipeline.autoExportExcel;
     }
 
+    // Đánh dấu Mongoose nhận diện thay đổi trên các subdocument lồng nhau
+    config.markModified('msystem');
+    config.markModified('outlook');
+    config.markModified('storage');
+    config.markModified('preferences');
+    config.markModified('documentProcessing');
+    config.markModified('autoPipeline');
+
     await config.save();
     this.logger.log(`Đã lưu cấu hình TKGD cho user: ${userEmail}`);
     return await this.getUserConfig(userEmail);

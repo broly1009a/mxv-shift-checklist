@@ -249,3 +249,196 @@ Trích xuất từ bản ghi thực tế đã hoàn tất trong collection `bot_
 ```
 *(Cấu trúc này khẳng định sự khớp nối hoàn hảo giữa thuật toán tính toán của Backend và hiển thị trên UI Frontend: khi các mảng `mismatched` rỗng và `differ == 0`, hệ thống cấp cờ `passed = true`)*.
 
+---
+
+## V. BÀI TOÁN KIỂM CHỨNG SONG SONG (SHADOW / PARALLEL RUN CONSOLE) & ĐÁNH GIÁ 5 ĐIỂM RỦI RO LỆCH CHUẨN
+
+### 1. Bản chất & Mục tiêu của Màn hình Kiểm chứng Song song
+* **Vấn đề cốt lõi**: Trong giai đoạn chuyển đổi từ Tool C# (`operate-transaction-app`) sang Bot ngầm NestJS trên Ubuntu, việc thay thế đột ngột tiềm ẩn rủi ro rất cao đối với giao dịch tài chính nếu Bot ngầm tính toán lệch dù chỉ 1 lot.
+* **Mục tiêu**: Màn hình này **không phải là trang nghiệp vụ thông thường**, mà đóng vai trò là **Trọng tài kiểm chứng song song (Shadow/Parallel Verification Console)**:
+  - Cho phép người trực ca hoặc IT quan sát đồng thời kết quả của **Tool C# (Ground Truth)** và **Bot NestJS (Shadow Bot)** trên cùng một giao diện.
+  - Tự động so khớp độ lệch (Delta = `Số C#` - `Số Bot`), hiển thị trạng thái `MATCH (Khớp 100%)` hoặc `DIVERGED (Lệch)` tức thì.
+  - Cung cấp công cụ Replay / Dry-run độc lập: Cho phép kéo thả trực tiếp chính bộ file mà Tool C# vừa xử lý để Bot Backend tính toán lại ngay, loại bỏ độ lệch do thời gian trễ.
+
+### 2. 5 Điểm Rủi Ro Lệch Chuẩn (Divergence Risks) Cần Kiểm Soát Tuyệt Đối
+| STT | Điểm rủi ro lệch chuẩn | Bản chất kỹ thuật gây lỗi | Cơ chế phòng ngừa & Kiểm soát |
+| :---: | :--- | :--- | :--- |
+| **1** | **Ghép nối file thô CQG (`FR1`+`FR2`, `PS1`+`PS2`)** | Tool C# ghép file qua thư viện Windows, loại bỏ header trùng lặp. Node.js `exceljs` nếu xử lý cột rỗng ẩn, khoảng trắng tài khoản hoặc định dạng Date serial không chuẩn sẽ sinh ra `CombinedKey` lệch. | So khớp song song **Tổng số dòng (Row Count)** và **Tổng Lot** trước/sau khi ghép nối. |
+| **2** | **Đọc File Straits CSV (ACM)** | Khác biệt về mã hóa (Windows ANSI / UTF-8 with BOM) và ký tự phân cách (Dấu phẩy `,` vs Tab `\t`). Nếu Bot Ubuntu nhận diện sai cột sẽ làm lệch tổng lot ACM và tài khoản Nano. | Chuẩn hóa parser tự động phát hiện delimiter và encoding `utf-8-sig`. So khớp cột `DifferACM`. |
+| **3** | **Quy đổi Hợp đồng LME & Lịch Nghỉ Lễ** | Hợp đồng LME có ngày prompt date thay đổi vào các ngày nghỉ ngân hàng Anh (UK Bank Holidays). Nếu bảng `working_calendars` thiếu ngày nghỉ, Bot ngầm sẽ ghép sai symbol $\rightarrow$ Báo lệch TTM ảo. | Bổ sung widget kiểm tra bảng mapping mã LME đã quy đổi để đối soát chéo với C#. |
+| **4** | **Phân loại 4 nhóm ký quỹ IMR (`QLTKGD`)** | Tool C# đọc theo chỉ số Index cột cố định (0, 1, 2, 3, 4, 5, 6). Báo cáo M-System khi xuất ra có thể chèn thêm cột ẩn khiến logic đọc theo index bị lệch hoàn toàn sang cột khác. | **Bắt buộc dùng Header Matching** (tìm cột theo tên: *Ký quỹ tạm tính*, *Ký quỹ yêu cầu*, *Ký quỹ khả dụng*) thay vì dùng index số. |
+| **5** | **Thời điểm chốt dữ liệu (Snapshot Timing Drift)** | Tool C# bấm `Check` lúc 14:02:15 nhưng Bot ngầm chạy Cron lúc 14:00:00. Hai bên chênh nhau 2 phút phát sinh thêm các lệnh khớp mới trên M-System $\rightarrow$ Lệch số lot giả tạo. | Ghi nhận **Timestamp chính xác đến từng giây** của bộ file đầu vào trên giao diện để so sánh cùng một mốc snapshot. |
+
+### 3. Thiết Kế Bố Cục Màn Hình Kiểm Chứng Song Song (3 Tầng Tác Nghiệp)
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                   MÀN HÌNH KIỂM CHỨNG SONG SONG (SHADOW CONSOLE UI)                    │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [TẦNG 1] BẢNG ĐỐI SOÁT CHÉO THỜI GIAN THỰC (LIVE DUAL-RUN COMPARISON):                │
+│  • Tổng KLGD MS    : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 (✅ MATCH)      │
+│  • Tổng KLGD CQG   : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 (✅ MATCH)      │
+│  • Tổng KLGD ACM   : [ Tool C#:    420 ]  [ Bot:    420 ]  -> Delta: 0 (✅ MATCH)      │
+│  • Số TK âm IMR    : [ Tool C#:      2 ]  [ Bot:      2 ]  -> Delta: 0 (✅ MATCH)      │
+│  • Giá thanh toán  : [ Tool C#:     48 ]  [ Bot:     48 ]  -> Delta: 0 (✅ MATCH)      │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [TẦNG 2] 4 KHỐI CHI TIẾT TƯƠNG ỨNG TAB 1 C# (DRILL-DOWN & ON-DEMAND CHECK):           │
+│  • Khối 1: Ma trận 4 bên (KLGD/TTM/TTTT) + Bảng lệnh lệch (Mã lệnh, HĐ, Giá, KL...)    │
+│  • Khối 2: Quét TKGD âm KQ mới trước EOD (So khớp danh sách tài khoản)                │
+│  • Khối 3: Kết quả chạy EOD / Pre-EOD (Đối chiếu vị thế ròng NetPosition)             │
+│  • Khối 4: Đồng bộ số dư CQG (Balance MS vs Balance CQG)                              │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [TẦNG 3] CÔNG CỤ TÁI HIỆN & ĐỐI SOÁT ĐỘC LẬP (REPLAY & DRY-RUN TOOL):                  │
+│  • Kéo thả cùng bộ file Tool C# vừa xử lý -> Kích hoạt Bot NestJS tính toán tức thì.  │
+│  • Tự động chỉ điểm dòng Excel/mã tài khoản gây lệch nếu kết quả khác nhau.          │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## VI. ĐỀ XUẤT NÂNG CẤP: KIẾN TRÚC LAI PYTHON DATA ENGINE (HYBRID ARCHITECTURE)
+
+### 1. Bài Học Thành Công Từ Phân Hệ TKGD Automation
+* Phân hệ **TKGD Automation** đã áp dụng cực kỳ hiệu quả mô hình lai:
+  - **NestJS**: Đóng vai trò Orchestrator (API Gateway, WebSocket tiến trình, quản lý MongoDB, RBAC, Web UI).
+  - **Python Worker (`tkgd_extractor_worker.py`)**: Đóng vai trò Data Engine chuyên trách (xử lý ảnh CCCD, MRZ đa vùng, OCR, PDF trích xuất).
+* **Kết quả**: Xử lý hàng nghìn hồ sơ trong vài phút, không bao giờ bị nghẽn Event Loop hay rò rỉ RAM trên Node.js.
+
+### 2. So Sánh: Node.js (`exceljs`) vs Python (`pandas` / `openpyxl`)
+| Tiêu chí | Node.js Hiện Tại (`reconciliation.service.ts`) | Đề Xuất: Python Worker (`recon_data_worker.py`) |
+| :--- | :--- | :--- |
+| **Độ dài code** | Hơn 3,900 dòng code TypeScript duyệt mảng thủ công. | Khoảng 350 dòng code Python tận dụng sức mạnh thư viện. |
+| **Ghép file thô** | Duyệt từng ô `row.getCell()`, ghép mảng dễ lệch cột. | `pd.concat([df1, df2])` tự động căn chỉnh theo tên cột. |
+| **Đọc CSV** | Dễ lỗi Encoding Windows ANSI / UTF-8 with BOM. | `pd.read_csv(encoding='utf-8-sig', sep=None)` nhận diện tự động. |
+| **Group by & Pivot** | Vòng lặp `Map<string, any>` lồng nhau dễ sai dấu âm/dương. | `df.groupby(['Account', 'Symbol'])['Qty'].sum()` chuẩn toán học. |
+| **Tiêu thụ RAM** | Giữ toàn bộ cây Workbook trong heap Node.js $\rightarrow$ Dễ crash PM2. | Xử lý theo Stream C-Extension, giải phóng RAM ngay sau khi chạy. |
+
+### 3. Phân Định Vai Trò Trong Kiến Trúc Lai Đối Soát
+```
+   [ FRONTEND: Shadow Console UI ]
+                 ▲
+                 │ REST / WebSockets
+                 ▼
+   [ BACKEND: NestJS Orchestrator ]
+     • Quản lý Ca trực & Checklist
+     • Quản lý Cron Scheduler & MongoDB
+     • Dispatch Job & Nhận JSON kết quả
+                 ▲
+                 │ Child Process (JSON IPC Bridge)
+                 ▼
+   [ DATA ENGINE: recon_data_worker.py ]
+     • Nhận: File paths + Check type
+     • Xử lý: Ghép file, lọc Nano, GroupBy ma trận 4 bên, quét 4 nhóm IMR
+     • Xuất: Chuỗi JSON kết quả chuẩn hóa { totals, mismatches, imrRisks }
+```
+
+### 4. Lộ Trình Triển Khai Thực Chiến (4 Bước An Toàn)
+1. **Bước 1 (Frontend)**: Xây dựng màn hình **Shadow Console UI** (Tầng 1 + Tầng 2) hiển thị dữ liệu đối chiếu hiện tại để cán bộ trực ca quan sát ngay kết quả song song.
+2. **Bước 2 (Python Engine)**: Xây dựng file `recon_data_worker.py` và helper bridge kết nối từ NestJS.
+3. **Bước 3 (Thẩm định 3 bên)**: Chạy đối chiếu chéo đồng thời giữa **Tool C# Prod** $\leftrightarrow$ **NestJS cũ** $\leftrightarrow$ **Python Engine mới**.
+4. **Bước 4 (Cắt chuyển)**: Khi kết quả Python Engine đạt `✅ MATCH 100%` liên tục qua các ca trực, chính thức chuyển giao toàn bộ tác vụ đối soát ngầm cho Python Engine và đưa Tool C# vào trạng thái dự phòng.
+
+---
+
+## VII. CHIẾN LƯỢC THAY THẾ HOÀN TOÀN TOOL C# & KHUNG KIỂM SOÁT CHẤT LƯỢNG (QUALITY GATES)
+
+### 1. Tuyên Ngôn Mục Tiêu & Nguyên Tắc Vận Hành
+* **Mục tiêu tối thượng**: Hệ thống Web mới (NestJS Backend + Next.js Frontend + Python Data Engine) **bắt buộc phải thay thế hoàn toàn Tool C# Desktop trong tương lai**, giải phóng cán bộ trực ca khỏi việc thao tác thủ công trên máy trạm Windows.
+* **Nguyên tắc chất lượng (Zero-Defect Tolerance)**: Trong nghiệp vụ sàn giao dịch hàng hóa, sai lệch 1 số lot hay 1 hợp đồng vị thế ròng đều ảnh hưởng trực tiếp đến tiền ký quỹ và tính toàn vẹn của thị trường. Logic đằng sau cỗ máy mới phải chuẩn xác tuyệt đối trên 100% các tình huống biên (Edge Cases).
+
+### 2. 4 Trụ Cột Kỹ Thuật Đảm Bảo Tính Đúng Đắn Của Logic
+1. **Chuẩn Hóa Số Học Chính Xác Cao (Precision Engine)**:
+   - Nghiêm cấm dùng số thực dấu phẩy động (`float` / `Number`) cho các phép tính số lot, giá và ký quỹ. Bắt buộc dùng kiểu dữ liệu số học chính xác cao (**Python `Decimal`** hoặc **`BigNumber`**), khớp chuẩn mực `decimal` của C#.
+   - Chuẩn hóa chữ hoa/chữ thường và cắt sạch khoảng trắng (`trim()`) cho các mã định danh (`Mã TKGD`, `Mã Hợp Đồng`, `Mã Lệnh`).
+2. **Bộ Kiểm Thử Đối Chiếu Ngược Lịch Sử (Golden Test Datasets)**:
+   - Thu thập 10 bộ dữ liệu file thô thực tế từ các phiên giao dịch lịch sử đã được Tool C# chạy và chốt ca thành công (bao gồm phiên bình thường, phiên có lệnh Spread, phiên có hợp đồng LME và phiên cuối tuần).
+   - Thiết lập bài test hồi quy tự động: Kết quả tính toán của cỗ máy mới phải so khớp 1-1 với số liệu C# lịch sử với độ lệch:
+     $$\Delta = |\text{Kết quả Mới} - \text{Kết quả C\#}| = 0$$
+3. **Cơ Chế Chốt An Toàn (Fail-Safe) & Cảnh Báo Chủ Động**:
+   - Khi thiếu bất kỳ file nào trong cặp file thô (chỉ có `FR1` thiếu `FR2`, hoặc chưa có file `Straits.csv`): Hệ thống giữ trạng thái `IS_WAITING_FILES`, ghi log rõ file thiếu, tuyệt đối không tính toán trên tập dữ liệu khuyết.
+   - Khi cấu trúc cột trong file M-System (`QLTKGD`, `DSGD`) bị thay đổi: Phát cảnh báo `SCHEMA_MISMATCH`, yêu cầu xác nhận trước khi tiếp tục, tuyệt đối không đọc bừa theo vị trí cột.
+4. **Tiêu Chuẩn Thẩm Định 14 Ngày (14-Day Zero-Delta Gate)**:
+   - Trước khi chính thức tắt bỏ Tool C#, hệ thống Web mới phải trải qua giai đoạn chạy song song có giám sát trong tối thiểu **14 ngày làm việc liên tiếp** với kết quả đối soát luôn đạt `✅ MATCH 100%` (Delta = 0 trên tất cả các ca trực).
+
+### 3. Đặc Tả Giao Diện Bàn Giao Tác Nghiệp (Trading Operation Console UI Specification)
+Màn hình Web mới sẽ kế thừa trọn vẹn sức mạnh của Tool C# nhưng được tối ưu hóa giao diện phẳng, hiện đại:
+* **Thanh Trạng Thái Hệ Thống (Status Bar)**:
+  - Hiển thị ngày phiên hiện tại, giờ máy chủ chính xác đến từng giây, trạng thái Bot ngầm (Online/Offline) và chu kỳ quét tự động (mỗi 60 phút).
+* **Khối 1: Ma Trận Đối Chiếu Trong Phiên (4-Way Matrix)**:
+  - Bảng tổng hợp số lot theo 3 dòng (`KLGD`, `TTM`, `TTTT`) và 4 cột nguồn dữ liệu (`M-System`, `CQG`, `ACM`, `Nano`).
+  - Cột `Độ lệch (Delta)` và `Trạng thái` nổi bật (Xanh: Khớp 100%, Đỏ: Lệch số liệu).
+  - Bảng Drilldown (Tabs): Xem chi tiết từng lệnh lệch và vị thế net lệch kèm đầy đủ thông tin (Mã lệnh, TKGD, Mã HĐ, Giá, Khối lượng, Thời gian).
+* **Khối 2: Kiểm Tra Trước EOD & Rủi Ro Ký Quỹ (Risk Scan)**:
+  - Danh sách tài khoản phát sinh âm ký quỹ ban đầu mới (`IMR < 0`).
+  - Bảng phân loại 4 nhóm rủi ro ký quỹ IMR (đối soát chéo giữa `TTM`, `DSLCK` và `QLTKGD`).
+* **Khối 3: Kết Quả Đóng Phiên EOD & Đồng Bộ Số Dư CQG**:
+  - Báo cáo kết quả Pre-EOD 3 bên cuối ngày (`Passed / Failed`, `TotalVolume`, vị thế ròng).
+  - Bảng đối soát số dư tiền giữa báo cáo CAST CQG và QLTKGD M-System.
+
+### 4. Quy Trình Xử Lý Khi Phát Hiện Sai Lệch (Discrepancy Resolution Protocol)
+Khi phát hiện `Delta != 0` giữa Tool C# và Bot ngầm trong giai đoạn chạy song song:
+1. **Bước 1 (Kiểm tra Timestamp)**: Xác minh xem 2 bên có đang đọc cùng một snapshot file tại cùng thời điểm hay không.
+2. **Bước 2 (Chạy Replay Dry-Run)**: Kéo thả chính bộ file mà C# vừa xử lý vào công cụ Dry-run trên Web để loại trừ nguyên nhân chênh lệch thời gian lấy file.
+3. **Bước 3 (Chỉ điểm nguồn gốc lệch - Root Cause Analysis)**:
+   - Nếu lệch do file thô chưa được ghép đủ (`FR1` + `FR2`) $\rightarrow$ Kiểm tra dịch vụ ghép file tự động.
+   - Nếu lệch do mã hợp đồng LME $\rightarrow$ Kiểm tra bảng lịch nghỉ lễ `working_calendars`.
+   - Nếu lệch do bóc tách Nano $\rightarrow$ Kiểm tra parser `Straits.csv`.
+4. **Bước 4 (Hiệu chỉnh & Ghi vết)**: Cập nhật thuật toán, ghi rõ nguyên nhân vào `CHANGELOG_AI.md` và chạy lại bộ Golden Test để bảo đảm không tái diễn lỗi.
+
+---
+
+## VIII. CƠ CHẾ VẬN HÀNH TỰ ĐỘNG ĐỊNH KỲ 60 PHÚT & QUY TRÌNH CAN THIỆP THỦ CÔNG DÀNH CHO MAKER
+
+### 1. Kiến Trúc Vận Hành Tự Động Định Kỳ (60 Phút / Lần)
+Tác vụ đối chiếu giao dịch trong phiên (`TASK_CHECK_KLGD_s1`) được thiết kế chạy hoàn toàn tự động theo chu kỳ khép kín:
+
+```
+[Cron Bot Engine (Mỗi 1 phút)]
+       │
+       ▼
+[Pass 1: Quét thời gian stale]
+   • Kiểm tra task [TASK_CHECK_KLGD_s1]
+   • Nếu task đã xong (PASSED / NEEDS_ATTENTION) & diffMin >= frequencyMinutesSnapshot (60 phút)
+   • Tự động reset trạng thái task về 'PENDING'
+       │
+       ▼
+[Pass 2: Enqueue Job]
+   • Bot Job Queue tiếp nhận job 'CHECK_KLGD'
+   • recon-jobs.handler kích hoạt reconciliationService.runAutoCheckKLGD()
+   • Quét thư mục Backup ngày YYYY/TMM.YYYY/DD.MM
+   • Lọc lệnh phát sinh từ session_start_time (05:00 sáng) đến hiện tại
+       │
+       ▼
+[Cập Nhật & Lưu Trữ]
+   • Lưu kết quả chi tiết { totals, mismatchedTrades, mismatchedTTM } vào MongoDB bot_jobs
+   • Cập nhật trạng thái task trong ShiftLog (PASSED nếu differ = 0, NEEDS_ATTENTION nếu có lệch)
+   • Bắt đầu đếm chu kỳ 60 phút tiếp theo
+```
+
+### 2. Quy Trình Maker Can Thiệp Thủ Công & Cơ Chế "Phá Vỡ Cooldown" (Bypass Cooldown)
+Hệ thống cho phép Maker chủ động can thiệp bất kỳ lúc nào mà **không bao giờ bị ép buộc phải chờ đủ 60 phút**:
+
+1. **Thao tác trên giao diện Checklist**:
+   - Tại dòng task con `TASK_CHECK_KLGD_s1`, Maker click vào biểu tượng mũi tên xổ xuống (`ChevronDown` - *"Can thiệp / Đổi trạng thái thủ công"*).
+   - Chọn chuyển trạng thái về **🔘 Chưa thực hiện (`PENDING`)**.
+2. **Logic Backend xử lý tự động (Bypass Cooldown)**:
+   - Trong `bot-engine.service.ts` (hàm `shouldEnqueueNewJob`), hệ thống so sánh:
+     $$\text{taskResetTime} = \max(\text{task.startedAt}, \text{task.updatedAt}) > \text{lastJobTime}$$
+   - Nhận diện Maker vừa can thiệp chủ động, Bot Engine **lập tức bỏ qua thời gian chờ 60 phút** và kích hoạt Job đối chiếu mới ngay trong lượt quét kế tiếp.
+3. **Nút 1-Chạm trên Trading Operation Console (`[🔄 Chạy lại ngay / Re-run]`)**:
+   - Trên giao diện Trading Operation Console mới, Maker chỉ cần bấm nút **"Chạy lại ngay"**.
+   - Frontend tự động gọi API reset task về `PENDING`, kích hoạt Bot chạy lại tức thì để kiểm chứng ngay các file vừa tải bổ sung.
+
+### 3. Đánh Giá Khả Thi & Mức Độ Khó Của Python Data Worker (`recon_data_worker.py`)
+* **Mức độ khó đối với Backend**: **2/10 (Rất Thấp)**.
+  - Backend NestJS đã có sẵn Design Pattern gọi Python qua `child_process.spawnSync` / `execFileAsync` và chạy ổn định tại 2 module: `lot-statistics` (`excel-sheet-cloner.helper.ts`) và `tkgd-automation` (`tkgd-python-bridge.helper.ts`).
+  - Server Ubuntu VM (`10.0.0.26`) đã có sẵn Python 3, `pandas`, `openpyxl`.
+  - Backend NestJS chỉ đóng vai trò Orchestrator (truyền JSON file path $\rightarrow$ nhận JSON kết quả), không cần thay đổi logic nghiệp vụ hay CSDL MongoDB.
+* **Hiệu quả xử lý 4 Case Rủi Ro bằng Python**:
+  1. *Ghép file thô CQG (`FR1+FR2`, `PS1+PS2`...)*: `pd.concat([df1, df2])` chạy dưới 0.5 giây, RAM < 50MB (triệt tiêu nguy cơ Out-Of-Memory của Node.js).
+  2. *Đọc file Straits CSV (ACM)*: `pd.read_csv(sep=None, encoding='utf-8-sig')` tự động nhận diện dấu phẩy/chấm phẩy và gọt sạch BOM header.
+  3. *Lệch vị trí cột trong IMR / TTM*: Sử dụng Header Column Matching thay vì Index số cột $\rightarrow$ Miễn nhiễm khi M-System đổi thứ tự cột.
+  4. *Lọc Hợp đồng LME*: Lọc qua danh sách `working_calendars` chỉ với 1 dòng query Pandas.
+* **3 Quy Tắc Kỹ Thuật Bắt Buộc Khi Viết Python Worker**:
+  - **Stdout Clean**: Toàn bộ log debug/progress phải đẩy ra `sys.stderr`. Duy nhất dòng kết quả JSON cuối cùng được xuất ra `sys.stdout` để Node.js `JSON.parse()` an toàn 100%.
+  - **Timeout Execution**: Thiết lập timeout 60 giây trong `spawnSync` để chống treo process nếu file bị khóa mạng CIFS.
+  - **Cross-Platform**: Tự động nhận diện lệnh thực thi (`python` trên Windows, `python3` trên Ubuntu).

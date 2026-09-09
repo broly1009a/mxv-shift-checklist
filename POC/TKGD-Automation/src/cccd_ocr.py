@@ -490,7 +490,7 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
             from gemini_model_manager import GeminiModelManager
             g_manager = GeminiModelManager(api_keys=gemini_key)
             if g_manager.api_keys or os.getenv("GEMINI_API_KEY"):
-                print(f"     🤖 Offline OCR chưa đủ trường, gọi Gemini AI Vision ({g_manager.current_model_name})...")
+                print(f"      Offline OCR chưa đủ trường, gọi Gemini AI Vision ({g_manager.current_model_name})...")
                 ai_data = g_manager.extract_cccd(truoc_path, sau_path)
                 if ai_data and ai_data.get("soCCCD"):
                     result.soCCCD = ai_data.get("soCCCD") or result.soCCCD

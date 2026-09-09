@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { 
-  Settings, 
-  Layers, 
-  Plus, 
-  Trash2, 
-  Save, 
-  ChevronRight, 
+import {
+  Settings,
+  Layers,
+  Plus,
+  Trash2,
+  Save,
+  ChevronRight,
   Edit,
   ArrowUp,
   ArrowDown,
@@ -112,7 +112,7 @@ export default function AdminTemplatesPage() {
   const [newFrequencyMinutes, setNewFrequencyMinutes] = useState<string>('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [isTaskFormExpanded, setIsTaskFormExpanded] = useState(false);
-  
+
   // Modal states for Template CRUD
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editingTemplateInfo, setEditingTemplateInfo] = useState<Template | null>(null);
@@ -188,7 +188,7 @@ export default function AdminTemplatesPage() {
       const data = await res.json();
       const templatesList = res.ok && Array.isArray(data) ? data : [];
       setTemplates(templatesList);
-      
+
       // Auto-select template
       if (templatesList.length > 0) {
         if (selectId) {
@@ -351,7 +351,7 @@ export default function AdminTemplatesPage() {
       };
 
       const method = editingTemplateInfo ? 'PUT' : 'POST';
-      const url = editingTemplateInfo 
+      const url = editingTemplateInfo
         ? `${API_BASE_URL}/api/v1/templates/${editingTemplateInfo._id}`
         : `${API_BASE_URL}/api/v1/templates`;
 
@@ -371,7 +371,7 @@ export default function AdminTemplatesPage() {
 
       const savedTpl = await res.json();
       toast.success(editingTemplateInfo ? 'Cập nhật mẫu thành công!' : 'Tạo mẫu mới thành công!');
-      
+
       // Refresh list and keep selection
       await fetchTemplates(savedTpl._id);
       setTimeout(() => closeTemplateModal(), 800);
@@ -442,7 +442,7 @@ export default function AdminTemplatesPage() {
             frequencyMinutes: newIsBotCheck ? (newFrequencyMinutes ? Number(newFrequencyMinutes) : null) : null
           };
         }
-         return t;
+        return t;
       });
 
       saveTemplateTasks(updatedTasks);
@@ -479,7 +479,7 @@ export default function AdminTemplatesPage() {
       dependsOnTaskIds: newDependsOnTaskIds.length > 0 ? newDependsOnTaskIds : undefined,
       parentTaskId: newParentTaskId || null,
       frequencyMinutes: newIsBotCheck ? (newFrequencyMinutes ? Number(newFrequencyMinutes) : null) : null
-    }; 
+    };
 
     const updatedTasks = [...selectedTemplate.tasks, newTask];
     saveTemplateTasks(updatedTasks);
@@ -524,7 +524,7 @@ export default function AdminTemplatesPage() {
     if (!selectedTemplate) return;
     const tasks = [...selectedTemplate.tasks];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (targetIndex < 0 || targetIndex >= tasks.length) return;
 
     // Swap
@@ -565,7 +565,7 @@ export default function AdminTemplatesPage() {
 
     const tasks = [...selectedTemplate.tasks];
     const draggedItem = tasks[draggedIndex];
-    
+
     // Remove from old position
     tasks.splice(draggedIndex, 1);
     // Insert into new position
@@ -657,11 +657,10 @@ export default function AdminTemplatesPage() {
           <button
             type="button"
             onClick={() => setMobileTab('list')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
-              mobileTab === 'list' 
-                ? 'bg-[var(--color-accent)] text-white shadow-md' 
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${mobileTab === 'list'
+                ? 'bg-[var(--color-accent)] text-white shadow-md'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
+              }`}
           >
             📋 Danh sách mẫu ({templates.length})
           </button>
@@ -669,13 +668,12 @@ export default function AdminTemplatesPage() {
             type="button"
             onClick={() => setMobileTab('editor')}
             disabled={!selectedTemplate}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
-              mobileTab === 'editor' 
-                ? 'bg-[var(--color-accent)] text-white shadow-md' 
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${mobileTab === 'editor'
+                ? 'bg-[var(--color-accent)] text-white shadow-md'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            } ${!selectedTemplate ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${!selectedTemplate ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            ⚙️ Nội dung Task {selectedTemplate ? `(${selectedTemplate.tasks?.length || 0})` : ''}
+            Nội dung Task {selectedTemplate ? `(${selectedTemplate.tasks?.length || 0})` : ''}
           </button>
         </div>
 
@@ -728,7 +726,7 @@ export default function AdminTemplatesPage() {
           {selectedTemplate ? (
             <div className={`glass-panel ${mobileTab === 'editor' ? 'block' : 'hidden lg:block'}`} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-              
+
               {/* Template Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
                 <div>
@@ -752,16 +750,16 @@ export default function AdminTemplatesPage() {
 
                 {isAdmin && (
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      onClick={() => openEditTemplateModal(selectedTemplate)} 
-                      className="btn btn-secondary" 
+                    <button
+                      onClick={() => openEditTemplateModal(selectedTemplate)}
+                      className="btn btn-secondary"
                       style={{ padding: '8px 14px', fontSize: '0.82rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                       <Edit size={14} /> Sửa thông tin mẫu
                     </button>
-                    <button 
-                      onClick={() => handleDeleteTemplate(selectedTemplate)} 
-                      className="btn btn-secondary" 
+                    <button
+                      onClick={() => handleDeleteTemplate(selectedTemplate)}
+                      className="btn btn-secondary"
                       style={{ padding: '8px 14px', fontSize: '0.82rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444' }}
                     >
                       <Trash2 size={14} /> Xóa mẫu
@@ -770,19 +768,19 @@ export default function AdminTemplatesPage() {
                 )}
               </div>
 
-                            {/* Add Task Button */}
+              {/* Add Task Button */}
               {isAdmin && (
-                <button 
-                  onClick={() => setIsTaskFormExpanded(true)} 
-                  className="btn btn-secondary" 
-                  style={{ 
-                    width: '100%', 
-                    padding: '16px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '8px', 
-                    background: 'rgba(59, 130, 246, 0.04)', 
+                <button
+                  onClick={() => setIsTaskFormExpanded(true)}
+                  className="btn btn-secondary"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: 'rgba(59, 130, 246, 0.04)',
                     border: '1px dashed rgba(59, 130, 246, 0.2)',
                     borderRadius: '12px',
                     color: 'var(--text-primary)',
@@ -795,7 +793,7 @@ export default function AdminTemplatesPage() {
                   <Plus size={18} color="var(--color-primary)" /> Thêm tác vụ mới vào danh sách
                 </button>
               )}
-              
+
               {/* Tasks List Table */}
               <div>
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -815,7 +813,7 @@ export default function AdminTemplatesPage() {
                         const isOver = dragOverIndex === index;
 
                         return (
-                          <div 
+                          <div
                             key={task.taskId}
                             draggable={isAdmin}
                             onDragStart={(e) => handleDragStart(e, index)}
@@ -826,10 +824,10 @@ export default function AdminTemplatesPage() {
                             style={{
                               padding: isSubtask ? '12px 16px' : '16px',
                               borderRadius: '8px',
-                              backgroundColor: isDragged 
-                                ? 'rgba(59, 130, 246, 0.08)' 
-                                : isSubtask 
-                                  ? 'rgba(139, 92, 246, 0.04)' 
+                              backgroundColor: isDragged
+                                ? 'rgba(59, 130, 246, 0.08)'
+                                : isSubtask
+                                  ? 'rgba(139, 92, 246, 0.04)'
                                   : 'rgba(255, 255, 255, 0.03)',
                               borderTop: isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
                               borderRight: isOver ? '1px dashed var(--color-primary)' : isDragged ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-color)',
@@ -1041,152 +1039,152 @@ export default function AdminTemplatesPage() {
           backdropFilter: 'blur(4px)'
         }}>
           <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '24px', position: 'relative' }}>
-              <button
-                onClick={closeTemplateModal}
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={20} />
-              </button>
+            <button
+              onClick={closeTemplateModal}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={20} />
+            </button>
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Building2 size={20} color="var(--color-primary)" />
-                {editingTemplateInfo ? 'Cập Nhật Thông Tin Mẫu' : 'Khởi Tạo Mẫu Checklist Mới'}
-              </h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Building2 size={20} color="var(--color-primary)" />
+              {editingTemplateInfo ? 'Cập Nhật Thông Tin Mẫu' : 'Khởi Tạo Mẫu Checklist Mới'}
+            </h3>
 
-              <form onSubmit={handleTemplateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Title */}
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Tên / Tiêu đề mẫu checklist <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="vd: Checklist Mở Cửa - Ban IT"
-                    required
-                    value={templateTitle}
-                    onChange={(e) => setTemplateTitle(e.target.value)}
-                    disabled={templateSubmitting}
-                  />
-                  {templateErrors.title && (
-                    <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertCircle size={12} /> {templateErrors.title}
-                    </p>
-                  )}
-                </div>
+            <form onSubmit={handleTemplateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Title */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Tên / Tiêu đề mẫu checklist <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="vd: Checklist Mở Cửa - Ban IT"
+                  required
+                  value={templateTitle}
+                  onChange={(e) => setTemplateTitle(e.target.value)}
+                  disabled={templateSubmitting}
+                />
+                {templateErrors.title && (
+                  <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={12} /> {templateErrors.title}
+                  </p>
+                )}
+              </div>
 
-                {/* Department */}
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Phòng ban chịu trách nhiệm <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    className="form-input"
-                    value={templateDeptId}
-                    onChange={(e) => setTemplateDeptId(e.target.value)}
-                    style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
-                    disabled={templateSubmitting}
-                  >
-                    <option value="">-- Chọn phòng ban --</option>
-                    {departments.map(dept => (
-                      <option key={dept._id} value={dept._id}>{dept.name} ({dept.code})</option>
-                    ))}
-                  </select>
-                  {templateErrors.dept && (
-                    <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertCircle size={12} /> {templateErrors.dept}
-                    </p>
-                  )}
-                </div>
+              {/* Department */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Phòng ban chịu trách nhiệm <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  className="form-input"
+                  value={templateDeptId}
+                  onChange={(e) => setTemplateDeptId(e.target.value)}
+                  style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
+                  disabled={templateSubmitting}
+                >
+                  <option value="">-- Chọn phòng ban --</option>
+                  {departments.map(dept => (
+                    <option key={dept._id} value={dept._id}>{dept.name} ({dept.code})</option>
+                  ))}
+                </select>
+                {templateErrors.dept && (
+                  <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={12} /> {templateErrors.dept}
+                  </p>
+                )}
+              </div>
 
-                {/* Session Type */}
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Phiên vận hành <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    className="form-input"
-                    value={templateSession}
-                    onChange={(e) => setTemplateSession(e.target.value as any)}
-                    style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
-                    disabled={templateSubmitting}
-                  >
-                    <option value="OPEN">MỞ CỬA</option>
-                    <option value="DURING">TRONG PHIÊN</option>
-                    <option value="CLOSE">ĐÓNG CỬA</option>
-                  </select>
-                </div>
+              {/* Session Type */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Phiên vận hành <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  className="form-input"
+                  value={templateSession}
+                  onChange={(e) => setTemplateSession(e.target.value as any)}
+                  style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
+                  disabled={templateSubmitting}
+                >
+                  <option value="OPEN">MỞ CỬA</option>
+                  <option value="DURING">TRONG PHIÊN</option>
+                  <option value="CLOSE">ĐÓNG CỬA</option>
+                </select>
+              </div>
 
-                {/* Shift Slot Dropdown */}
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Ca trực tương ứng
-                  </label>
-                  <select
-                    className="form-input"
-                    value={templateShiftSlotId}
-                    onChange={(e) => setTemplateShiftSlotId(e.target.value)}
-                    style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
-                    disabled={templateSubmitting}
-                  >
-                    <option value="">-- Chọn ca trực (Không bắt buộc) --</option>
-                    {shiftSlots.map(slot => (
-                      <option key={slot._id} value={slot._id}>
-                        {slot.name} ({slot.startTime} - {slot.endTime})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* Shift Slot Dropdown */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Ca trực tương ứng
+                </label>
+                <select
+                  className="form-input"
+                  value={templateShiftSlotId}
+                  onChange={(e) => setTemplateShiftSlotId(e.target.value)}
+                  style={{ background: 'var(--bg-app)', cursor: 'pointer' }}
+                  disabled={templateSubmitting}
+                >
+                  <option value="">-- Chọn ca trực (Không bắt buộc) --</option>
+                  {shiftSlots.map(slot => (
+                    <option key={slot._id} value={slot._id}>
+                      {slot.name} ({slot.startTime} - {slot.endTime})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {/* Is Active toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '4px' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', flex: 1, cursor: 'pointer' }} htmlFor="templateIsActive">
-                    Trạng thái hoạt động (Active)
-                  </label>
-                  <input
-                    type="checkbox"
-                    id="templateIsActive"
-                    checked={templateIsActive}
-                    onChange={(e) => setTemplateIsActive(e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    disabled={templateSubmitting}
-                  />
-                </div>
+              {/* Is Active toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '4px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', flex: 1, cursor: 'pointer' }} htmlFor="templateIsActive">
+                  Trạng thái hoạt động (Active)
+                </label>
+                <input
+                  type="checkbox"
+                  id="templateIsActive"
+                  checked={templateIsActive}
+                  onChange={(e) => setTemplateIsActive(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  disabled={templateSubmitting}
+                />
+              </div>
 
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={closeTemplateModal}
-                    className="btn btn-secondary"
-                    style={{ flex: 1 }}
-                    disabled={templateSubmitting}
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                    disabled={templateSubmitting}
-                  >
-                    <Save size={16} />
-                    {templateSubmitting ? 'Đang lưu...' : (editingTemplateInfo ? 'Cập nhật' : 'Tạo mới')}
-                  </button>
-                </div>
-              </form>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={closeTemplateModal}
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  disabled={templateSubmitting}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  disabled={templateSubmitting}
+                >
+                  <Save size={16} />
+                  {templateSubmitting ? 'Đang lưu...' : (editingTemplateInfo ? 'Cập nhật' : 'Tạo mới')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
-    
+
       {/* Task Create/Edit Modal at Root Level */}
       {isAdmin && isTaskFormExpanded && selectedTemplate && (
         <div style={{
@@ -1203,8 +1201,8 @@ export default function AdminTemplatesPage() {
           alignItems: 'center',
           padding: '20px'
         }}>
-          <div className="glass-panel animate-fade-in" style={{ 
-            padding: 0, 
+          <div className="glass-panel animate-fade-in" style={{
+            padding: 0,
             background: 'var(--bg-card)',
             width: '100%',
             maxWidth: '850px',
@@ -1217,11 +1215,11 @@ export default function AdminTemplatesPage() {
             borderRadius: '16px'
           }}>
             {/* Modal Header */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              padding: '20px 24px', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 24px',
               borderBottom: '1px solid var(--border-color)',
               backgroundColor: 'rgba(255,255,255,0.01)'
             }}>
@@ -1229,386 +1227,386 @@ export default function AdminTemplatesPage() {
                 {editingTaskId ? <Edit size={18} color="var(--color-primary)" /> : <Plus size={18} color="var(--color-primary)" />}
                 {editingTaskId ? `Chỉnh sửa tác vụ: ${editingTaskId}` : 'Thêm tác vụ mới vào danh sách'}
               </h4>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => {
                   if (editingTaskId) {
                     handleCancelEditTask();
                   } else {
                     setIsTaskFormExpanded(false);
                   }
-                }} 
+                }}
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             {/* Modal Body */}
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }} className="custom-scrollbar">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: it_open_06"
-                            value={newTaskId}
-                            onChange={(e) => setNewTaskId(e.target.value)}
-                            disabled={!!editingTaskId}
-                            style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Nhập nội dung tác vụ..."
-                            value={newTaskName}
-                            onChange={(e) => setNewTaskName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
-                          <select
-                            className="form-input"
-                            value={newPriority}
-                            onChange={(e) => setNewPriority(e.target.value as any)}
-                            style={{ background: 'var(--bg-app)' }}
-                          >
-                            <option value="LOW">THẤP</option>
-                            <option value="MEDIUM">T.BÌNH</option>
-                            <option value="HIGH">CAO</option>
-                            <option value="CRITICAL">KHẨN CẤP</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: 16:30"
-                            value={newDeadline}
-                            onChange={(e) => setNewDeadline(e.target.value)}
-                          />
-                        </div>
-                      </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: it_open_06"
+                      value={newTaskId}
+                      onChange={(e) => setNewTaskId(e.target.value)}
+                      disabled={!!editingTaskId}
+                      style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Nhập nội dung tác vụ..."
+                      value={newTaskName}
+                      onChange={(e) => setNewTaskName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
+                    <select
+                      className="form-input"
+                      value={newPriority}
+                      onChange={(e) => setNewPriority(e.target.value as any)}
+                      style={{ background: 'var(--bg-app)' }}
+                    >
+                      <option value="LOW">THẤP</option>
+                      <option value="MEDIUM">T.BÌNH</option>
+                      <option value="HIGH">CAO</option>
+                      <option value="CRITICAL">KHẨN CẤP</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Hạn Chót</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: 16:30"
+                      value={newDeadline}
+                      onChange={(e) => setNewDeadline(e.target.value)}
+                    />
+                  </div>
+                </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="http://..."
+                      value={newFunctionUrl}
+                      onChange={(e) => setNewFunctionUrl(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="URD-XXX"
+                      value={newUrdReference}
+                      onChange={(e) => setNewUrdReference(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: /var/log/..."
+                      value={newFileLocation}
+                      onChange={(e) => setNewFileLocation(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: 08:00 - 10:00"
+                      value={newTimetable}
+                      onChange={(e) => setNewTimetable(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
+                    <select
+                      className="form-input"
+                      value={newParentTaskId}
+                      onChange={(e) => setNewParentTaskId(e.target.value)}
+                      style={{ background: 'var(--bg-app)', width: '100%' }}
+                    >
+                      <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
+                      {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
+                        <option key={t.taskId} value={t.taskId}>
+                          {t.taskName} ({t.taskId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
+                    <select
+                      className="form-input"
+                      value={newSlaType}
+                      onChange={(e) => setNewSlaType(e.target.value as any)}
+                      style={{ background: 'var(--bg-app)', width: '100%' }}
+                    >
+                      <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
+                      <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: 06:00"
+                      value={newTriggerTime}
+                      onChange={(e) => setNewTriggerTime(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder={newSlaType === 'FIXED_TIME' ? 'vd: 07:30' : 'vd: 30'}
+                      value={newSlaDeadline}
+                      onChange={(e) => setNewSlaDeadline(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '12px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
+                  <div style={{
+                    maxHeight: '160px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    background: 'var(--bg-app)',
+                  }} className="custom-scrollbar">
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                      gap: '10px'
+                    }}>
+                      {selectedTemplate.tasks?.filter(t =>
+                        t.taskId !== editingTaskId &&
+                        (!newParentTaskId || t.taskId !== newParentTaskId) &&
+                        (!editingTaskId || t.parentTaskId !== editingTaskId)
+                      ).map(t => {
+                        const isChecked = newDependsOnTaskIds.includes(t.taskId);
+                        return (
+                          <label
+                            key={t.taskId}
+                            className={`dependency-card ${isChecked ? 'checked' : ''}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '10px 14px',
+                              cursor: 'pointer',
+                              fontSize: '0.82rem',
+                              borderRadius: '8px',
+                              border: isChecked ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                              background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.01)',
+                              transition: 'all 0.2s ease',
+                              boxShadow: isChecked ? '0 2px 4px rgba(59, 130, 246, 0.05)' : 'none'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewDependsOnTaskIds([...newDependsOnTaskIds, t.taskId]);
+                                } else {
+                                  setNewDependsOnTaskIds(newDependsOnTaskIds.filter(id => id !== t.taskId));
+                                }
+                              }}
+                              style={{ width: '15px', height: '15px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                            />
+                            <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400, lineHeight: 1.4 }}>
+                              {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                      {(!selectedTemplate.tasks || selectedTemplate.tasks.filter(t => t.taskId !== editingTaskId && (!newParentTaskId || t.taskId !== newParentTaskId) && (!editingTaskId || t.parentTaskId !== editingTaskId)).length === 0) && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px', textAlign: 'center', gridColumn: '1 / -1' }}>
+                          Chưa có tác vụ nào khác trong mẫu để chọn phụ thuộc.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mô tả hành động chi tiết</label>
+                  <textarea
+                    className="form-input"
+                    placeholder="Mô tả các bước thực hiện của công việc này..."
+                    value={newActionDescription}
+                    onChange={(e) => setNewActionDescription(e.target.value)}
+                    style={{ width: '100%', height: '60px', resize: 'vertical', padding: '8px 12px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      id="newIsBotCheck"
+                      checked={newIsBotCheck}
+                      onChange={(e) => setNewIsBotCheck(e.target.checked)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                      Sử dụng Bot Check tự động
+                    </label>
+                  </div>
+
+                  {newIsBotCheck && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="http://..."
-                            value={newFunctionUrl}
-                            onChange={(e) => setNewFunctionUrl(e.target.value)}
+                            placeholder="vd: 08:30"
+                            value={newBotTriggerTime}
+                            onChange={(e) => setNewBotTriggerTime(e.target.value)}
+                            style={{ width: '100%' }}
                           />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>URD Reference</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="URD-XXX"
-                            value={newUrdReference}
-                            onChange={(e) => setNewUrdReference(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: /var/log/..."
-                            value={newFileLocation}
-                            onChange={(e) => setNewFileLocation(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="vd: 08:00 - 10:00"
-                            value={newTimetable}
-                            onChange={(e) => setNewTimetable(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
                           <select
                             className="form-input"
-                            value={newParentTaskId}
-                            onChange={(e) => setNewParentTaskId(e.target.value)}
+                            value={newBotCheckType}
+                            onChange={(e) => setNewBotCheckType(e.target.value)}
                             style={{ background: 'var(--bg-app)', width: '100%' }}
                           >
-                            <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
-                            {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
-                              <option key={t.taskId} value={t.taskId}>
-                                {t.taskName} ({t.taskId})
-                              </option>
-                            ))}
+                            <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
+                            <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
+                            <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
+                            <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
+                            <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
+                            <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
+                            <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
+                            <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
+                            <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
+                            <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
+                            <option value="DOWNLOAD_CQG_BACKUP">RPA Tải + Ghép file CQG (DOWNLOAD_CQG_BACKUP)</option>
+                            <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
+                            <option value="RUN_LOT_MACRO">Thống kê số lốt giao dịch (RUN_LOT_MACRO)</option>
+                            <option value="RUN_VALUE_MACRO">Thống kê giá trị giao dịch (RUN_VALUE_MACRO)</option>
+                            <option value="RUN_VALUE_TVKD_MACRO">Thống kê TVKD lũy kế (RUN_VALUE_TVKD_MACRO)</option>
+                            <option value="RPA_DOWNLOAD">RPA Tải báo cáo M-System (RPA_DOWNLOAD)</option>
+                            <option value="RPA_DOWNLOAD_CAST">RPA Tải báo cáo CQG CAST (RPA_DOWNLOAD_CAST)</option>
+                            <option value="EMAIL_STATUS_CHECK">RPA Xác minh gửi email (EMAIL_STATUS_CHECK)</option>
+                            <option value="CHECK_MARGIN_DECISION">RPA Quét quyết định ký quỹ (CHECK_MARGIN_DECISION)</option>
+                            <option value="NOTIFY_MATURITY">RPA Thông báo HĐ đến hạn (NOTIFY_MATURITY)</option>
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
-                          <select
-                            className="form-input"
-                            value={newSlaType}
-                            onChange={(e) => setNewSlaType(e.target.value as any)}
-                            style={{ background: 'var(--bg-app)', width: '100%' }}
-                          >
-                            <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
-                            <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
                           <input
-                            type="text"
+                            type="number"
                             className="form-input"
-                            placeholder="vd: 06:00"
-                            value={newTriggerTime}
-                            onChange={(e) => setNewTriggerTime(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                            {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
-                          </label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder={newSlaType === 'FIXED_TIME' ? 'vd: 07:30' : 'vd: 30'}
-                            value={newSlaDeadline}
-                            onChange={(e) => setNewSlaDeadline(e.target.value)}
+                            placeholder="Bỏ trống nếu chạy 1 lần"
+                            value={newFrequencyMinutes}
+                            onChange={(e) => setNewFrequencyMinutes(e.target.value)}
+                            style={{ width: '100%' }}
                           />
                         </div>
                       </div>
-
-                      <div style={{ marginTop: '12px' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
-                        <div style={{
-                          maxHeight: '160px',
-                          overflowY: 'auto',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          padding: '12px',
-                          background: 'var(--bg-app)',
-                        }} className="custom-scrollbar">
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                            gap: '10px'
-                          }}>
-                            {selectedTemplate.tasks?.filter(t => 
-                              t.taskId !== editingTaskId && 
-                              (!newParentTaskId || t.taskId !== newParentTaskId) &&
-                              (!editingTaskId || t.parentTaskId !== editingTaskId)
-                            ).map(t => {
-                              const isChecked = newDependsOnTaskIds.includes(t.taskId);
-                              return (
-                                <label 
-                                  key={t.taskId} 
-                                  className={`dependency-card ${isChecked ? 'checked' : ''}`}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '10px 14px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.82rem',
-                                    borderRadius: '8px',
-                                    border: isChecked ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                                    background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.01)',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: isChecked ? '0 2px 4px rgba(59, 130, 246, 0.05)' : 'none'
-                                  }}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setNewDependsOnTaskIds([...newDependsOnTaskIds, t.taskId]);
-                                      } else {
-                                        setNewDependsOnTaskIds(newDependsOnTaskIds.filter(id => id !== t.taskId));
-                                      }
-                                    }}
-                                    style={{ width: '15px', height: '15px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-                                  />
-                                  <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400, lineHeight: 1.4 }}>
-                                    {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
-                                  </span>
-                                </label>
-                              );
-                            })}
-                            {(!selectedTemplate.tasks || selectedTemplate.tasks.filter(t => t.taskId !== editingTaskId && (!newParentTaskId || t.taskId !== newParentTaskId) && (!editingTaskId || t.parentTaskId !== editingTaskId)).length === 0) && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px', textAlign: 'center', gridColumn: '1 / -1' }}>
-                                Chưa có tác vụ nào khác trong mẫu để chọn phụ thuộc.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '12px', marginBottom: '12px' }}>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mô tả hành động chi tiết</label>
-                        <textarea
-                          className="form-input"
-                          placeholder="Mô tả các bước thực hiện của công việc này..."
-                          value={newActionDescription}
-                          onChange={(e) => setNewActionDescription(e.target.value)}
-                          style={{ width: '100%', height: '60px', resize: 'vertical', padding: '8px 12px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="checkbox"
-                            id="newIsBotCheck"
-                            checked={newIsBotCheck}
-                            onChange={(e) => setNewIsBotCheck(e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                          <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                            Sử dụng Bot Check tự động
-                          </label>
-                        </div>
-
-                        {newIsBotCheck && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder="vd: 08:30"
-                                  value={newBotTriggerTime}
-                                  onChange={(e) => setNewBotTriggerTime(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
-                                <select
-                                  className="form-input"
-                                  value={newBotCheckType}
-                                  onChange={(e) => setNewBotCheckType(e.target.value)}
-                                  style={{ background: 'var(--bg-app)', width: '100%' }}
-                                >
-                                  <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
-                                  <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
-                                  <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
-                                  <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
-                                  <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
-                                  <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
-                                  <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
-                                  <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
-                                  <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
-                                  <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
-                                  <option value="DOWNLOAD_CQG_BACKUP">RPA Tải + Ghép file CQG (DOWNLOAD_CQG_BACKUP)</option>
-                                  <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
-                                  <option value="RUN_LOT_MACRO">Thống kê số lốt giao dịch (RUN_LOT_MACRO)</option>
-                                  <option value="RUN_VALUE_MACRO">Thống kê giá trị giao dịch (RUN_VALUE_MACRO)</option>
-                                  <option value="RUN_VALUE_TVKD_MACRO">Thống kê TVKD lũy kế (RUN_VALUE_TVKD_MACRO)</option>
-                                  <option value="RPA_DOWNLOAD">RPA Tải báo cáo M-System (RPA_DOWNLOAD)</option>
-                                  <option value="RPA_DOWNLOAD_CAST">RPA Tải báo cáo CQG CAST (RPA_DOWNLOAD_CAST)</option>
-                                  <option value="EMAIL_STATUS_CHECK">RPA Xác minh gửi email (EMAIL_STATUS_CHECK)</option>
-                                  <option value="CHECK_MARGIN_DECISION">RPA Quét quyết định ký quỹ (CHECK_MARGIN_DECISION)</option>
-                                  <option value="NOTIFY_MATURITY">RPA Thông báo HĐ đến hạn (NOTIFY_MATURITY)</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  placeholder="Bỏ trống nếu chạy 1 lần"
-                                  value={newFrequencyMinutes}
-                                  onChange={(e) => setNewFrequencyMinutes(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                            </div>
-                            {['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'].includes(newBotCheckType) && (
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE'
-                                    ? 'Tham số Email (JSON: subject, sender, downloadDir)'
-                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                    ? 'Đường dẫn tệp tin / Thư mục'
-                                    : newBotCheckType === 'API_STATUS'
+                      {['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'].includes(newBotCheckType) && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                              {newBotCheckType === 'EMAIL_PARSE'
+                                ? 'Tham số Email (JSON: subject, sender, downloadDir)'
+                                : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                  ? 'Đường dẫn tệp tin / Thư mục'
+                                  : newBotCheckType === 'API_STATUS'
                                     ? 'Địa chỉ API Endpoint'
                                     : 'Tham số / Cấu hình bổ sung (JSON, để trống nếu dùng mặc định)'}
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder={
-                                    newBotCheckType === 'EMAIL_PARSE'
-                                      ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
-                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                      ? 'vd: C:\\Backup\\EOD_TTM.csv'
-                                      : newBotCheckType === 'API_STATUS'
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder={
+                                newBotCheckType === 'EMAIL_PARSE'
+                                  ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
+                                  : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? 'vd: C:\\Backup\\EOD_TTM.csv'
+                                    : newBotCheckType === 'API_STATUS'
                                       ? 'vd: http://oms.mxv.vn/api/v1/health'
                                       : 'vd: {"allowDiffer": 0}'
-                                  }
-                                  value={newBotCheckTarget}
-                                  onChange={(e) => setNewBotCheckTarget(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                                  {newBotCheckType === 'EMAIL_PARSE'
-                                    ? 'Từ khóa thành công (vd: successfully)'
-                                    : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                    ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
-                                    : newBotCheckType === 'API_STATUS'
+                              }
+                              value={newBotCheckTarget}
+                              onChange={(e) => setNewBotCheckTarget(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                              {newBotCheckType === 'EMAIL_PARSE'
+                                ? 'Từ khóa thành công (vd: successfully)'
+                                : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                  ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
+                                  : newBotCheckType === 'API_STATUS'
                                     ? 'Điều kiện API thành công (vd: {"status": "UP"})'
                                     : 'Điều kiện kết quả đối chiếu (để trống nếu dùng mặc định)'}
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder={
-                                    newBotCheckType === 'EMAIL_PARSE'
-                                      ? 'successfully'
-                                      : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
-                                      ? '{"minSizeKb": 10}'
-                                      : newBotCheckType === 'API_STATUS'
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder={
+                                newBotCheckType === 'EMAIL_PARSE'
+                                  ? 'successfully'
+                                  : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                    ? '{"minSizeKb": 10}'
+                                    : newBotCheckType === 'API_STATUS'
                                       ? '{"status": "UP"}'
                                       : '{"allowDiffer": 0}'
-                                  }
-                                  value={newBotSuccessCondition}
-                                  onChange={(e) => setNewBotSuccessCondition(e.target.value)}
-                                  style={{ width: '100%' }}
-                                />
-                              </div>
-                            </div>
-)}
+                              }
+                              value={newBotSuccessCondition}
+                              onChange={(e) => setNewBotSuccessCondition(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
                           </div>
-                        )}
                         </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              gap: '12px', 
-              padding: '16px 24px', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              padding: '16px 24px',
               borderTop: '1px solid var(--border-color)',
               backgroundColor: 'rgba(255,255,255,0.01)'
             }}>
@@ -1631,7 +1629,8 @@ export default function AdminTemplatesPage() {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .dependency-card {
           user-select: none;
         }

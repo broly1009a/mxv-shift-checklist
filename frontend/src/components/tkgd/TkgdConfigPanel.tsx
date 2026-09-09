@@ -331,6 +331,7 @@ export default function TkgdConfigPanel() {
         setMsPassword('');
         setMsPin('');
         setClientSecret('');
+        await fetchConfig();
       } else {
         const err = await res.json();
         toast.error(err.message || 'Lưu cấu hình thất bại');

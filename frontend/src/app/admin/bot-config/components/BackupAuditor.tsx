@@ -544,7 +544,7 @@ export default function BackupAuditor({
             style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditMs ? 'animate-pulse' : ''} />
-            🤖 Tải bổ sung file thiếu MS
+            Tải bổ sung file thiếu MS
           </button>
         </div>
 
@@ -596,7 +596,7 @@ export default function BackupAuditor({
             style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditCqg ? 'animate-pulse' : ''} />
-            🤖 Ghép file backup CQG
+            Ghép file backup CQG
           </button>
         </div>
 
@@ -645,7 +645,7 @@ export default function BackupAuditor({
             style={{ fontSize: '0.75rem', padding: '8px 18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Cpu size={14} className={triggeringAuditAcm ? 'animate-pulse' : ''} />
-            🤖 Đồng bộ Backup ACM
+            Đồng bộ Backup ACM
           </button>
         </div>
 

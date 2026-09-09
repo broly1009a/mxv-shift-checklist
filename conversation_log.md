@@ -10,7 +10,7 @@ bạn có thể giúp tôi đọc lại logic
 
 ---
 
-### 🤖 Trợ lý (10:13)
+###  Trợ lý (10:13)
 Dưới đây là chi tiết logic xử lý **Quét Email (`EMAIL_PARSE`)** dựa trên cấu hình tham số JSON (bao gồm `subject`, `sender`, `downloadDir`) trong hệ thống:
 
 Luồng xử lý chính được điều hướng từ class [BotEngineService](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts#L201-L206) thông qua phương thức [checkEmailTaskDelegated](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts#L468-L648) thuộc class [EmailWatcherService](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/email-watcher.service.ts).
@@ -60,7 +60,7 @@ tôi vừa trao đổi với QLRR thì phần này trường downloadDir họ s�
 
 ---
 
-### 🤖 Trợ lý (10:56)
+###  Trợ lý (10:56)
 Dạ đúng rồi ạ, logic hiện tại của anh **mới chỉ xử lý được một nửa yêu cầu** đó, cụ thể như sau:
 
 #### 1. Phần ĐÃ XỬ LÝ: Định dạng ngày tháng năm của thư mục (`downloadDir`)
@@ -97,7 +97,7 @@ tôi thấy là theo kiểu giữ nguyên tên file tải về rồi rename ph�
 
 ---
 
-### 🤖 Trợ lý (15:18)
+###  Trợ lý (15:18)
 Dạ đúng vậy ạ. Trong nghiệp vụ đối chiếu (Reconciliation), các phòng ban như Quét Lỗi Rủi Ro (QLRR) thường yêu cầu file đầu vào có một định dạng tên cố định hoặc chuẩn hóa theo ngày (ví dụ: `Straits_03082026.csv` hoặc đổi hẳn về `Straits.csv`) để các công cụ đối chiếu tự động ở bước sau (như tool C# hay dịch vụ NestJS) có thể nhận diện chính xác mà không bị lệch tên file chứa timestamp ngẫu nhiên khi tải từ email về.
 
 Để giải quyết bài toán này một cách linh hoạt nhất (đúng tinh thần "tính năng linh hoạt mở rộng sau này"), em đề xuất chúng ta có thể bổ sung thêm tham số **`renamePattern`** vào JSON cấu hình ở `target`.
@@ -134,7 +134,7 @@ Hệ thống sẽ hỗ trợ các biến động sau cho `renamePattern`:
 
 ---
 
-### 🤖 Trợ lý (15:19)
+###  Trợ lý (15:19)
 Dạ vâng anh, khi nào anh có thông tin hoặc quy tắc đặt tên file cụ thể từ phòng QLRR, anh cứ gửi cho em nhé. 
 
 Em sẽ dựa vào đó để đề xuất giải pháp chuẩn xác nhất và cập nhật hệ thống cho anh ngay lập tức!

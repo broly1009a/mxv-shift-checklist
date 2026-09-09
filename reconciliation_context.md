@@ -8,7 +8,7 @@ Tài liệu này lưu trữ toàn bộ tiến độ, cấu trúc code hiện t�
 Chúng ta đã phát triển xong cả backend và frontend cho tính năng **Kiểm thử đối chiếu dữ liệu** (gồm KLGD, EOD, CQG) với 2 chế độ chạy:
 1. **Chạy kiểm thử bằng file mẫu local (đang hoạt động tốt):** Đọc các file trực tiếp từ thư mục BackupMS của tool mẫu trên máy.
 2. **Tải lên và chạy kiểm thử bằng file thủ công (Mới bổ sung và đang hoạt động tốt):** Cho phép chọn các file từ máy tính cá nhân để upload và chạy đối chiếu ngay lập tức qua API `/reconciliation/test-upload` mà không cần bot hay thư mục local.
-3. **🤖 Bot tự động tải & Đối chiếu (đang ở trạng thái chờ xác nhận URL):** Bot tự động đăng nhập M-System và tải file về đối chiếu.
+3. ** Bot tự động tải & Đối chiếu (đang ở trạng thái chờ xác nhận URL):** Bot tự động đăng nhập M-System và tải file về đối chiếu.
 
 ---
 
