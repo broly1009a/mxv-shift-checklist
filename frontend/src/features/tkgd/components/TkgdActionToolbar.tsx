@@ -52,7 +52,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
 }) => {
   const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
   const [showRunConfigModal, setShowRunConfigModal] = useState<boolean>(false);
-  const [timeRangeMode, setTimeRangeMode] = useState<'TODAY' | 'CURRENT_SHIFT' | 'CUSTOM'>('TODAY');
+  const [timeRangeMode, setTimeRangeMode] = useState<'TODAY' | 'CUSTOM'>('TODAY');
   const [customFromDateTime, setCustomFromDateTime] = useState<string>('');
   const [customToDateTime, setCustomToDateTime] = useState<string>('');
   const [smartSkipEnabled, setSmartSkipEnabled] = useState<boolean>(true);
@@ -67,28 +67,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
         fromDateTime: from.toISOString(),
         toDateTime: now.toISOString(),
         label: `Hôm nay (00:00 - ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})`,
-      };
-    }
-
-    if (timeRangeMode === 'CURRENT_SHIFT') {
-      const curHour = now.getHours();
-      let shiftStartHour = 7; // Ca sáng
-      let shiftName = 'Ca Sáng (07:00 - 14:00)';
-      if (curHour >= 14 && curHour < 22) {
-        shiftStartHour = 14; // Ca chiều
-        shiftName = 'Ca Chiều (14:00 - 22:00)';
-      } else if (curHour >= 22 || curHour < 7) {
-        shiftStartHour = 22; // Ca tối/đêm
-        shiftName = 'Ca Tối (22:00 - 07:00)';
-      }
-      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), shiftStartHour, 0, 0);
-      if (curHour < 7) {
-        from.setDate(from.getDate() - 1);
-      }
-      return {
-        fromDateTime: from.toISOString(),
-        toDateTime: now.toISOString(),
-        label: `${shiftName} (từ ${from.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} đến nay)`,
       };
     }
 
@@ -627,43 +605,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     />
                   </div>
 
-                  {/* Preset 2: Ca trực hiện tại */}
-                  <div
-                    onClick={() => setTimeRangeMode('CURRENT_SHIFT')}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      border: timeRangeMode === 'CURRENT_SHIFT' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
-                      backgroundColor: timeRangeMode === 'CURRENT_SHIFT' ? 'rgba(59, 130, 246, 0.06)' : 'var(--bg-input)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Ca Trực Hiện Tại
-                        </span>
-                      </div>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Chỉ quét các email phát sinh từ thời điểm bắt đầu ca trực hiện tại
-                      </p>
-                    </div>
-                    <div
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        border: timeRangeMode === 'CURRENT_SHIFT' ? '5px solid #3b82f6' : '2px solid var(--border-color)',
-                        backgroundColor: '#ffffff',
-                      }}
-                    />
-                  </div>
-
-                  {/* Preset 3: Tùy chỉnh */}
+                  {/* Preset 2: Tùy chỉnh */}
                   <div
                     onClick={() => setTimeRangeMode('CUSTOM')}
                     style={{

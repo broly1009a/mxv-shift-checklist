@@ -175,16 +175,31 @@ export class AuthController {
 
         if (tokenData.refresh_token) {
           let authorizedEmail = '';
-          try {
-            const meRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-              headers: { Authorization: `Bearer ${tokenData.access_token}` },
-            });
-            if (meRes.ok) {
-              const profile = await meRes.json();
-              authorizedEmail = profile.mail || profile.userPrincipalName || '';
+
+          // 1. Thử giải mã id_token JWT để lấy email chính xác của tài khoản vừa đăng nhập
+          if (tokenData.id_token) {
+            try {
+              const payloadBase64 = tokenData.id_token.split('.')[1];
+              const payloadJson = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
+              authorizedEmail = payloadJson.preferred_username || payloadJson.email || payloadJson.upn || '';
+            } catch (e) {
+              // ignore
             }
-          } catch (e) {
-            // ignore
+          }
+
+          // 2. Fallback gọi Microsoft Graph /me nếu chưa lấy được từ id_token
+          if (!authorizedEmail && tokenData.access_token) {
+            try {
+              const meRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+                headers: { Authorization: `Bearer ${tokenData.access_token}` },
+              });
+              if (meRes.ok) {
+                const profile = await meRes.json();
+                authorizedEmail = profile.mail || profile.userPrincipalName || '';
+              }
+            } catch (e) {
+              // ignore
+            }
           }
 
           await this.tkgdService.saveOutlookAuthorizedToken(userEmail, {

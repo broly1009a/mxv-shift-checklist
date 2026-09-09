@@ -430,7 +430,7 @@ export class AuthService {
         },
         body: new URLSearchParams({
           client_id: clientId || '',
-          scope: 'Mail.Read Mail.ReadWrite offline_access',
+          scope: 'openid profile email User.Read Mail.Read Mail.ReadWrite offline_access',
           code: code,
           redirect_uri: redirectUri || '',
           grant_type: 'authorization_code',

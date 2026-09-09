@@ -37,10 +37,14 @@ import {
   PauseCircle,
   ChevronRight,
   X,
+  HelpCircle,
 } from 'lucide-react';
+import { useTutorial } from '@/context/TutorialContext';
+import { tkgdConfigTutorialSteps } from '@/tutorials/tkgdTutorial';
 
 export default function TkgdConfigPanel() {
   const { user, token } = useAuth();
+  const { startTutorial, resetTutorial } = useTutorial();
 
   // State cấu hình
   const [loading, setLoading] = useState(true);
@@ -430,33 +434,62 @@ export default function TkgdConfigPanel() {
       >
         <div>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            ⚙️ Cấu Hình Thông Số Bot & Quy Trình Bóc Tách
+            Cấu Hình Thông Số Bot & Quy Trình Bóc Tách
           </h3>
           <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Thiết lập tài khoản M-System, hòm thư Outlook, thư mục ổ M:\ và cơ chế đối soát 3 chiều.
           </p>
         </div>
-        <button
-          type="submit"
-          disabled={saving}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 22px',
-            borderRadius: '10px',
-            backgroundColor: '#10b981',
-            color: '#ffffff',
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            border: 'none',
-            cursor: saving ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-          }}
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          <span>{saving ? 'Đang lưu...' : 'Lưu Cấu Hình'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              resetTutorial('tkgd-config');
+              startTutorial('tkgd-config', tkgdConfigTutorialSteps);
+            }}
+            title="Xem hướng dẫn từng bước cấu hình Bot"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              color: '#3b82f6',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-blue-500 hover:text-white"
+          >
+            <HelpCircle size={16} />
+            <span>Hướng Dẫn Cấu Hình</span>
+          </button>
+          <button
+            type="submit"
+            id="tutorial-tkgd-config-save-btn"
+            disabled={saving}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              borderRadius: '10px',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              border: 'none',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            <span>{saving ? 'Đang lưu...' : 'Lưu Cấu Hình'}</span>
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
