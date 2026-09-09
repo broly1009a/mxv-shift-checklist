@@ -337,7 +337,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                             >
                               <Check size={12} strokeWidth={3} /> KHỚP 100%
                             </span>
-                            {r.canCuoc?.source === 'VERIFIED_MS_HASH' && (
+                            {!isCompactView && r.canCuoc?.source === 'VERIFIED_MS_HASH' && (
                               <span
                                 style={{
                                   fontSize: '0.62rem',

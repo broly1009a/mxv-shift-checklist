@@ -2,7 +2,28 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-09-09T10:35] Hoàn Thiện Thông Báo Toast + Chuông Âm Thanh Khi Xong Chu Trình, Bổ Sung Tutorial Cấu Hình & Chuẩn Hóa Nhận Diện Tài Khoản Microsoft OAuth
+## [2026-09-09T10:45] Tích Hợp Chuông Thông Báo Vào Dashboard TKGD, Bỏ Icon Checkmark Toast & Tối Ưu Nhãn Bảo Chứng MD5 Trong Chế Độ Rút Gọn
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Gắn icon Chuông thông báo (Notification Tray) lên đầu trang TKGD để cán bộ có thể mở xem lịch sử thông báo bất kỳ lúc nào.
+  2. Bỏ icon emoji `✅` trong thông báo Toast khi hoàn tất chu trình bóc tách.
+  3. Badge "Bảo chứng MS (MD5)" chỉ hiển thị ở chế độ "Đầy đủ", ẩn hoàn toàn ở chế độ "Rút gọn" để bảng gọn gàng.
+
+### Danh sách file chỉnh sửa
+- [`frontend/src/features/tkgd/components/TkgdDashboard.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
+  - Tích hợp component `<NotificationDropdown />` (Icon hình Cái Chuông 🔔) vào thanh công cụ góc trên bên phải cạnh nút chuyển giao diện Sáng/Tối.
+- [`frontend/src/features/tkgd/hooks/useTkgdActions.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts):
+  - Loại bỏ icon `icon: '✅'` trong `toast.success`, sử dụng thông báo Toast chuẩn tối giản.
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx):
+  - Bọc điều kiện `{!isCompactView && ...}` cho nhãn badge `Bảo chứng MS (MD5)`: Khi xem ở chế độ rút gọn sẽ tự động ẩn đi, chỉ hiện khi bật chế độ xem đầy đủ.
+
+### Xác nhận Build & Triển khai
+- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
+- ✅ Triển khai Production: Đã đồng bộ và reload PM2 `mxv-frontend` trên Ubuntu VM `10.0.0.26` thành công (`online`).
+
+---
+
 
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**:

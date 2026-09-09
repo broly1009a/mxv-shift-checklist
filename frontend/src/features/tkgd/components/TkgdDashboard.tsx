@@ -5,6 +5,7 @@ import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useTutorial } from '@/context/TutorialContext';
 import { tkgdTutorialSteps, tkgdConfigTutorialSteps } from '@/tutorials/tkgdTutorial';
 import TkgdConfigPanel from '@/components/tkgd/TkgdConfigPanel';
+import NotificationDropdown from '@/components/NotificationDropdown';
 
 import {
   FileSpreadsheet,
@@ -293,6 +294,9 @@ export const TkgdDashboard: React.FC = () => {
           >
             {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
+
+          {/* Chuông Thông Báo Hệ Thống */}
+          <NotificationDropdown />
 
           {/* Nút Làm mới */}
           <button

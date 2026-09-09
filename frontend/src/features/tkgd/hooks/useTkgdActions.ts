@@ -89,7 +89,6 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
               playNotificationChime();
               toast.success(p.detail || 'Đã hoàn tất chu trình bóc tách & đối soát TKGD!', {
                 duration: 4500,
-                icon: '✅',
               });
               if (onSuccess) await onSuccess();
             }
