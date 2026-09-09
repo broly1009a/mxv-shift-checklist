@@ -1,920 +1,1147 @@
-# Graph Report - mxv-shift-checklist  (2026-08-14)
+# Graph Report - mxv-shift-checklist  (2026-09-09)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 731 files · ~964,761 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3225 nodes · 6771 edges · 302 communities (190 shown, 112 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 469 edges (avg confidence: 0.74)
+- 4463 nodes · 9384 edges · 380 communities (273 shown, 107 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 547 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
-## Graph Freshness
-- Built from commit: `a06d79b4`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
-
 ## Community Hubs (Navigation)
-- ReconciliationService
-- margin-change-requests.module.ts
-- libs.js
-- BotEngineController
-- TradingReportService
-- AppModule
-- NotificationsController
-- system-settings.module.ts
-- auth.module.ts
-- RpaDownloaderService
-- dependencies
-- BotLogViewerModal.tsx
-- ChecklistTemplate
-- useAuth
-- SystemSettingsService
-- bot-config/page.tsx
-- BotJobQueueService
-- dashboard/page.tsx
-- bot-engine.module.ts
-- scripts
-- TeamsNotifierService
-- AuthService
-- CcpStatisticsService
-- WorkingCalendarService
-- test-aggregate.ts
-- checklist/page.tsx
-- LotStatisticsService
-- MarginCheckerService
-- Permissions
-- excel-accumulator.helper.ts
-- trade-classifier.helper.ts
-- detailed-match.ts
-- parseExcelBuffer
-- DashboardService
-- AuthContext.tsx
-- database.module.ts
-- ShiftSlotsService
-- SettingsWindow
-- lot-calculator.service.ts
-- inspect-trade-mismatch.js
-- lot-statistics.service.ts
-- EmailWatcherService
-- history/page.tsx
-- TutorialContext.tsx
-- macro-gia-tri.ts
-- app_sanction_search.py
-- ActivityLog
-- compilerOptions
-- IncidentsService
-- .updateTaskStatus
-- ValueStatisticsService
-- components.json
-- GttCheckerService
-- value-statistics.service.ts
-- ShiftsController
-- TrayIcon
-- AgentWorker
-- LogWindow
-- devDependencies
-- ShiftLog
-- ShiftsGateway
-- macro-so-lot.ts
-- TelegramService
-- AgentCore
-- .getSetting
-- AgentController
-- exclude
-- agent.py
-- dependencies
-- TemplatesController
-- OmsWatcherService
-- test-pre-eod-parse.js
-- NotificationToast
-- GlobalLayout.tsx
-- compilerOptions
-- compilerOptions
-- devDependencies
-- UsersController
-- IncidentList.tsx
-- DepartmentsController
-- RolesController
-- i18n.py
-- Notifier
-- excel-reader.ts
-- trade-classifier.service.ts
-- devDependencies
-- fr-calculator.helper.ts
-- CqgSyncService
-- check-all-files.js
-- compilerOptions
-- tray.py
-- Path
-- app.module.ts
-- ValueStatisticsController
-- marco/package.json
-- test-teams-maturity.ts
-- jest
-- inspect-duplicates.js
-- update-close-trading-tasks.js
-- test-cqg-qss.ts
-- test-reconciliation.ts
-- calendar/page.tsx
-- date-utils.ts
-- debug-find-files.js
-- inspect-balances-file.js
-- test-playwright-nktht.js
-- frontend/tsconfig.json
-- backend/package.json
-- find_tokens.js
-- excel-writer.helper.ts
-- SystemSettingsController
-- test_excel.js
-- test_pdf.js
-- include
-- scripts
-- nest-cli.json
-- check-backup-files.js
-- inspect-json-telegram.js
-- locate-sod-files.js
-- update-active-shift-recon.js
-- test_eval.js
-- test-teams-maturity-step3.ts
-- import-templates-from-bson.js
-- print_frames.js
-- SlaPolicy
-- check-aug7-jobs.js
-- check-jobs.js
-- drop-logs.js
-- find_cqg_files.js
-- inspect-audit-log.js
-- inspect-bot-jobs-details.js
-- inspect-checklist-status.js
-- inspect-klgd-audit.js
-- inspect-klgd-job.js
-- inspect-m365-settings.js
-- inspect-parent-task.js
-- inspect-s1-details.js
-- inspect-sod-job.js
-- inspect-stuck-checklist.js
-- list-distinct-jobs.js
-- list-pending-shifts.js
-- print-aug7-task.js
-- print-latest-job-aug7.js
-- seed-notification-rules.js
-- _test_mongoose.js
-- test-reconciliation-run.js
-- close_shifts.js
-- ShiftsService
-- split-close-macro-task.js
-- inspect-ms-files.ts
-- export-templates-to-seed.js
-- seed-subtasks.js
-- search-contracts.ts
-- test-cast-download.ts
-- lib
-- msgbox_dismisser
-- msgbox_dismisser
-- check_duplicates.js
-- check_prod_duplicates.js
-- check_system_activity_duplicates.js
-- query_collections_scratch.js
-- query_notification_rules.js
-- compare_outputs.ts
-- compare_value_outputs.ts
-- check_db_status.js
-- check_shifts.js
-- close_old_shifts.js
-- print_shifts.js
-- print_users.js
-- update_templates.js
-- find_all_rows.ts
-- inspect_dsgd_columns.ts
-- inspect_headers2.ts
-- query_active_jobs.js
-- query_sod_state.js
-- check_klgd_task.js
-- check-processing-jobs.js
-- _check_shift_tasks.js
-- check-templates.js
-- cleanup-db-logs.js
-- clear-stuck-jobs.js
-- find-181-task.js
-- find-am-ky-quy-task.js
-- find-eod-shifts.js
-- _find_latest_job.js
-- fix-parent-snapshot-field.js
-- fix-parent-task-ids.js
-- force-seed-sb1-all-shifts.js
-- inject-into-all-shifts-today.js
-- inject-into-shift-details.js
-- inspect-active-negative-margin-task.js
-- inspect-checklist-templates.js
-- inspect-db-collections.js
-- inspect-klgd.js
-- inspect-latest-shift.js
-- inspect-ops-during.js
-- _inspect_payload.js
-- inspect-rpa-log.js
-- inspect-sod-resultnote.js
-- inspect-stuck-jobs.js
-- inspect-subtask-resultnote.js
-- inspect-template-klgd.js
-- inspect-template-telegram.js
-- inspect-today-shifts.js
-- migrate-scan-negative-margin-checktype.js
-- replace-telegram-in-db-templates-and-logs.js
-- reset-sod-task.js
-- seed-margin-decision-subtask.js
-- seed-ops-during-sb1.js
-- update-active-negative-margin-task.js
-- update-active-shift-eod-subtasks.js
-- update_klgd_db.js
-- update-klgd-jobtype-db.js
-- update-telegram-titles.js
-- test_is_same_date.ts
-- .constructor
-- dotenv
-- @nestjs/common
-- @nestjs/core
-- @nestjs/jwt
-- @nestjs/mongoose
-- @nestjs/passport
-- @nestjs/platform-express
-- @nestjs/schedule
-- passport
-- passport-jwt
-- pdf-parse
-- playwright-core
-- reflect-metadata
-- socket.io
-- ssh2
-- xlsx
-- @eslint/eslintrc
-- jest
-- @nestjs/cli
-- @nestjs/schematics
-- @nestjs/testing
-- source-map-support
-- supertest
-- ts-jest
-- MarginCheckerController
-- @types/bcrypt
-- @types/cron
-- @types/express
-- @types/jest
-- @types/multer
-- @types/ssh2
-- typescript-eslint
-- frontend/eslint.config.mjs
-- next.config.ts
-- postcss.config.mjs
-- SystemLog
-- Roles
-- rpa-downloader.service.ts
-- PostEodHandlerService
-- .handleBotChecks
-- main.ts
-- .constructor
-- mongoose
-- eslint-plugin-prettier
+- Test Tests Main
+- Test Schema Shift
+- Database Temp Libs
+- Test Tests Statistics
+- Bot Engine Handler
+- Tkgd Features Types
+- Admin Notifications Authcontext
+- Tkgd Automation Services
+- Trading Report Tradingreportservice
+- Bot Engine Job
+- Schema Auth Schemas
+- Incidents Admin Templates
+- Bot Engine Botenginecontroller
+- System Shifts Logs
+- Dashboard Marginchangerequestswidget History
+- Bot Engine Rpa
+- Bot Log Viewer
+- Debug Lme Tests
+- Working Calendar Workingcalendarservice
+- Package Devdependencies Types
+- Margin Change Requests
+- Checklist Tasktable Usechecklist
+- Statistics Auth Lot
+- Schema Schemas Notification
+- Statistics Value Lot
+- Admin Bot Config
+- Package Scripts Test
+- Tkgd Mail Bot
+- Notifications Notificationscontroller Notificationsservice
+- Scripts Python Tkgd
+- Package Dependencies React
+- Tkgd Automation Tkgdautomationservice
+- Auth Authcontroller Authservice
+- Bot Engine Cqg
+- Lot Statistics Helpers
+- Tkgd Automation Tkgdautomationcontroller
+- Test Aggregate Accountidx
+- Tests Test Aggregate
+- Package Dependencies Nestjs
+- Shifts Shiftscontroller Shiftsservice
+- Ccp Statistics Ccpstatisticsservice
+- Reconciliation Parsers Parser
+- Downloader Original Cpp
+- Lot Statistics Lotstatisticscontroller
+- Tkgd Automation Bot
+- Downloader Cpp Config
+- Agent Deployment Rpa
+- Reconciliation Reconciliationservice Buildpreeodemailhtml
+- Original Downloader Cpp
+- Detailed Match Accountidx
+- Cpp Downloader Report
+- Tutorialcontext Context Tutorialoverlay
+- Margin Change Requests
+- Dashboard Dashboardcontroller Dashboardservice
+- Bot Engine Agent
+- Shift Slots Shiftslotsservice
+- Deployment Rpa Agent
+- Marco Types Services
+- Inspect Trade Mismatch
+- Margin Checker Margincheckerservice
+- Tests Inspects Inspect
+- Marco Services Value
+- Model Poc Tkgd
+- Poc Tkgd Automation
+- Sanction Aml Search
+- Bot Engine System
+- Tsconfig Compileroptions Allowsyntheticdefaultimports
+- Lot Statistics Helpers
+- Activity Log Interceptors
+- Tkgd Bot Engine
+- Reconciliation Reconciliationcontroller Checknegativemargin
+- Schema Tkgd Schemas
+- Aliases Tailwind Hooks
+- Bot Engine Gtt
+- Shift Jobs Job
+- Cpp Downloader Gui
+- Deployment Rpa Agent
+- Schema Schemas Clean
+- Cpp Downloader Objects
+- Agent Deployment Rpa
+- Reader Poc Tkgd
+- Bot Engine Watcher
+- Lot Statistics Helpers
+- Deployment Rpa Agent
+- Marco Types Trade
+- Package Marco Scripts
+- Post Eod Bot
+- System Settings Systemsettingscontroller
+- Pdf Poc Tkgd
+- Package Jest Transform
+- Ref Tsconfig Build
+- Agent Deployment Rpa
+- Cccd Ocr Poc
+- Lot Statistics Helpers
+- Bot Engine Botengineservice
+- Reconciliation Reconciliationservice Margin
+- Scripts Test Pre
+- Deployment Rpa Agent
+- Tsconfig Compileroptions Allowjs
+- Marco Tsconfig Compileroptions
+- Package Devdependencies Eslint
+- Admin Users Userscontroller
+- Checklist Incidentlist Activeincidentswidget
+- Admin Departments Departmentscontroller
+- Admin Roles Rolescontroller
+- Notifications Teams Notifier
+- Scripts Deploy Ubuntu
+- Tsconfig Build Compileroptions
+- Deployment Rpa Agent
+- Notifier Deployment Rpa
+- Layout Button Test
+- Marco Utils Excel
+- Marco Services Trade
+- Package Devdependencies Node
+- Margin Checker Margincheckercontroller
+- Scripts Check All
+- Deployment Rpa Agent
+- Scripts Winscp Backup
+- Appcontroller Gethello Appservice
+- Roles Auth Guard
+- Download Deployment Rpa
+- Mock Sftp Package
+- Sftp Server Mock
+- Database Seed Seedservice
+- Inspect Test Calculation
+- Scripts Inspect Duplicates
+- Scripts Test Scan
+- Tasks Scripts Update
+- Test Cqg Qss
+- Test Reconciliation Addsettlementcolumn
+- Tests Test Cqg
+- Tests Test Reconciliation
+- Downloader Cpp Download
+- Package Scripts Name
+- Utils Marco Date
+- Poc Tkgd Automation
+- Scripts Debug Find
+- Scripts Inspect Balances
+- Sftp Scripts Run
+- Scripts Test Playwright
+- Cpp Downloader Services
+- Tsconfig Marco Ref
+- Nest Cli Compileroptions
+- Database Find Tokens
+- Scripts Forensic Check
+- Test Excel Data
+- Test Pdf Bursapdfpath
+- Tests Test Excel
+- Test Tests Pdf
+- Ref Next Tsconfig
+- System Settings Cleanup
+- Scripts Check Backup
+- Scripts Inspect Json
+- Scripts Locate Sod
+- Scripts Save Test
+- Scripts Update Active
+- Test Eval Cleanformula
+- Test Teams Maturity
+- Tests Test Eval
+- Tests Test Teams
+- Dashboard Performanceoverview Sparkline
+- Bson Import Templates
+- Database Print Frames
+- Sheet Lot Statistics
+- Schema Schemas Sla
+- Scripts Check Aug7
+- Scripts Check Graph
+- Scripts Check Jobs
+- Scripts Drop Logs
+- Scripts Find Cqg
+- Scripts Insert Qlgd
+- Scripts Inspect Audit
+- Scripts Inspect Bot
+- Scripts Inspect Checklist
+- Scripts Inspect Klgd
+- Scripts Inspect Klgd
+- Scripts Inspect Live
+- Scripts Inspect M365
+- Scripts Inspect Parent
+- Scripts Inspect Details
+- Scripts Inspect Sod
+- Scripts Inspect Stuck
+- Scripts List Distinct
+- Scripts List Pending
+- Scripts Print Aug7
+- Scripts Print Forwarded
+- Scripts Print Latest
+- Scripts Seed Notification
+- Scripts Test Live
+- Test Mongoose Scripts
+- Scripts Test Reconciliation
+- Calendarview Admin Calendar
+- Close Shifts Dotenv
+- Ref Package Json
+- Split Close Macro
+- Inspect Files Inspectfile
+- Scripts Export Templates
+- Scripts Query Mongo
+- Scripts Seed Subtasks
+- Search Contracts Openpospath
+- Test Cast Download
+- Tests Inspects Inspect
+- Tests Test Cast
+- Cpp Downloader Test
+- Ref Dom Tsconfig
+- Scripts Run Lot
+- Scripts Run Value
+- Check Duplicates Mongoclient
+- Check Prod Duplicates
+- Check System Activity
+- Query Collections Scratch
+- Query Notification Rules
+- Compare Outputs Comparefiles
+- Compare Value Outputs
+- Database Check Status
+- Database Check Shifts
+- Database Close Old
+- Database Print Shifts
+- Database Print Users
+- Database Update Templates
+- Find All Rows
+- Inspect Dsgd Columns
+- Inspect Headers2 Files
+- Query Active Jobs
+- Query Sod State
+- Scripts Check Klgd
+- Scripts Check Processing
+- Check Scripts Shift
+- Check Scripts Templates
+- Scripts Check Ubuntu
+- Scripts Cleanup Logs
+- Scripts Clear Stuck
+- Scripts Debug Live
+- Scripts Find 181
+- Scripts Find Quy
+- Scripts Find Eod
+- Scripts Find Latest
+- Scripts Fix Parent
+- Scripts Fix Parent
+- Scripts Force Seed
+- Scripts Inject Into
+- Scripts Inject Into
+- Scripts Inspect 2333888
+- Scripts Inspect Account
+- Scripts Inspect Active
+- Scripts Inspect All
+- Scripts Inspect All
+- Scripts Inspect Checklist
+- Scripts Inspect Collections
+- Scripts Inspect Klgd
+- Inspect Scripts Latest
+- Scripts Inspect Live
+- Scripts Inspect Mail
+- Scripts Inspect Mongo
+- Scripts Inspect Ops
+- Scripts Inspect Payload
+- Scripts Inspect Raw
+- Scripts Inspect Rpa
+- Scripts Inspect Sod
+- Scripts Inspect Stuck
+- Scripts Inspect Subtask
+- Scripts Inspect Template
+- Scripts Inspect Template
+- Scripts Inspect Today
+- Scripts Install Ubuntu
+- Migrate Scripts Scan
+- Scripts Query Batch
+- Scripts Replace Telegram
+- Scripts Reset Sod
+- Scripts Seed Margin
+- Scripts Seed Ops
+- Scripts Test Group
+- Scripts Test Group
+- Scripts Test Ubuntu
+- Scripts Trigger Sync
+- Scripts Update Active
+- Scripts Update Active
+- Scripts Update Klgd
+- Scripts Update Klgd
+- Scripts Update Telegram
+- Test Same Date
+- Tests Inspects Inspect
+- Tests Inspects Inspect
+- Tests Test Same
+- Mongoose Package Dependencies
+- Nestjs Core Package
+- Nestjs Mongoose Package
+- Nestjs Passport Package
+- Nestjs Platform Socket
+- Nestjs Websockets Package
+- Package Playwright Core
+- Package Ssh2 Dependencies
+- Xlsx Package Dependencies
+- Prettier Package Devdependencies
+- Types Supertest Package
+- Eslint Config Eslintconfig
+- Next Config Nextconfig
+- Config Postcss
+- Bot Engine Uploadedfile
+- Bot Engine Useinterceptors
+- Bot Engine Job
+- Req
 
 ## God Nodes (most connected - your core abstractions)
-1. `Permissions()` - 90 edges
-2. `SystemSettingsService` - 76 edges
-3. `RpaDownloaderService` - 69 edges
-4. `AppModule` - 62 edges
-5. `ShiftLog` - 53 edges
-6. `BotEngineController` - 51 edges
-7. `BotJobQueueService` - 50 edges
-8. `ReconciliationService` - 49 edges
-9. `useAuth()` - 49 edges
-10. `decrypt()` - 43 edges
+1. `SystemSettingsService` - 112 edges
+2. `AppModule` - 100 edges
+3. `Permissions()` - 90 edges
+4. `RpaDownloaderService` - 81 edges
+5. `decrypt()` - 70 edges
+6. `parseExcelBuffer()` - 62 edges
+7. `ShiftLog` - 61 edges
+8. `ReconciliationService` - 54 edges
+9. `useAuth()` - 53 edges
+10. `BotEngineController` - 51 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `exclude` --extends--> `node_modules`  [EXTRACTED]
   backend/tsconfig.build.json → marco/tsconfig.json
-- `SettingsWindow` --uses--> `AgentCore`  [INFERRED]
-  deployment/rpa-agent/app/settings_window.py → deployment/rpa-agent/app/agent_core.py
-- `TrayIcon` --uses--> `SettingsWindow`  [INFERRED]
-  deployment/rpa-agent/app/tray.py → deployment/rpa-agent/app/settings_window.py
-- `TrayIcon` --uses--> `AgentCore`  [INFERRED]
-  deployment/rpa-agent/app/tray.py → deployment/rpa-agent/app/agent_core.py
-- `TrayIcon` --uses--> `LogWindow`  [INFERRED]
-  deployment/rpa-agent/app/tray.py → deployment/rpa-agent/app/log_window.py
+- `CCCDData` --uses--> `GeminiModelManager`  [INFERRED]
+  POC/TKGD-Automation/src/cccd_ocr.py → POC/TKGD-Automation/src/gemini_model_manager.py
+- `RecordResult` --uses--> `CCCDData`  [INFERRED]
+  POC/TKGD-Automation/src/main.py → POC/TKGD-Automation/src/cccd_ocr.py
+- `RecordResult` --uses--> `GraphMailReader`  [INFERRED]
+  POC/TKGD-Automation/src/main.py → POC/TKGD-Automation/src/outlook_reader.py
+- `download_single_report()` --calls--> `set_mui_date_range_and_search()`  [INFERRED]
+  cpp-ce-downloader/backup_original_monolithic/downloader_original.py → cpp-ce-downloader/downloader.py
 
 ## Import Cycles
-- None detected.
+- 4-file cycle: `backend/src/modules/auth/auth.module.ts -> backend/src/modules/tkgd-automation/tkgd-automation.module.ts -> backend/src/modules/system-settings/system-settings.module.ts -> backend/src/modules/shifts/shifts.module.ts -> backend/src/modules/auth/auth.module.ts`
+- 5-file cycle: `backend/src/modules/auth/auth.module.ts -> backend/src/modules/tkgd-automation/tkgd-automation.module.ts -> backend/src/modules/system-settings/system-settings.module.ts -> backend/src/modules/shifts/shifts.module.ts -> backend/src/modules/working-calendar/working-calendar.module.ts -> backend/src/modules/auth/auth.module.ts`
 
-## Communities (302 total, 112 thin omitted)
+## Communities (380 total, 107 thin omitted)
 
-### Community 1 - "margin-change-requests.module.ts"
-Cohesion: 0.05
-Nodes (25): addTokenToRequestHeaders(), isAbortedRequest(), postJsonData(), postPageDataInternal(), RequestManager(), WeakMap(), WeakMultiMap(), MarginChangeRequestsController (+17 more)
+### Community 0 - "Test Tests Main"
+Cohesion: 0.03
+Nodes (38): AppModule, Module, DatabaseModule, Module, CompactConsoleLogger, LoggerMiddleware, Injectable, ActivityLogModule (+30 more)
 
-### Community 2 - "libs.js"
+### Community 1 - "Test Schema Shift"
+Cohesion: 0.07
+Nodes (27): InjectModel, BotEngineService, TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email…, Inject, Injectable, InjectModel, InjectModel, ShiftsService (+19 more)
+
+### Community 2 - "Database Temp Libs"
 Cohesion: 0.09
 Nodes (63): a(), b(), c(), ca(), cb(), d(), Da(), dc() (+55 more)
 
-### Community 3 - "BotEngineController"
-Cohesion: 0.13
-Nodes (5): BotEngineController, Body, Post, UseGuards, HttpCode
-
-### Community 4 - "TradingReportService"
+### Community 3 - "Test Tests Statistics"
 Cohesion: 0.06
-Nodes (29): TradingReportController, Body, Controller, Delete, Get, Param, Post, Res (+21 more)
+Nodes (34): decrypt(), encrypt(), getSecretKey(), CcpConfig, Injectable, ValueStatisticsService, SystemSettingsService, Injectable (+26 more)
 
-### Community 5 - "AppModule"
-Cohesion: 0.06
-Nodes (3): AppModule, Module, CheckKLGDResult
-
-### Community 6 - "NotificationsController"
-Cohesion: 0.10
-Nodes (12): NotificationsController, Body, Controller, Delete, Get, Param, Post, Put (+4 more)
-
-### Community 7 - "system-settings.module.ts"
-Cohesion: 0.12
-Nodes (22): { PDFParse }, InjectModel, InjectModel, GroupedMatch, InjectModel, SystemSettingsModule, Global, Module (+14 more)
-
-### Community 8 - "auth.module.ts"
-Cohesion: 0.10
-Nodes (19): InjectModel, InjectModel, InjectModel, InjectModel, JwtStrategy, Injectable, InjectModel, Department (+11 more)
-
-### Community 10 - "dependencies"
-Cohesion: 0.04
-Nodes (45): @base-ui/react, chart.js, class-variance-authority, clsx, dependencies, @base-ui/react, chart.js, class-variance-authority (+37 more)
-
-### Community 11 - "BotLogViewerModal.tsx"
+### Community 4 - "Bot Engine Handler"
 Cohesion: 0.09
-Nodes (33): BotStatusBadge(), BotStatusBadgeProps, getBotStatusText(), BotStatusStateBanner(), BotStatusStateBannerProps, shouldShowBotStatusBanner(), EmailScanVisualReport(), EmailScanVisualReportProps (+25 more)
+Nodes (24): IBotJobHandler, IJobExecutionContext, BotJobHandlerRegistry, Injectable, CastDownloadJobHandler, Injectable, CcpStatsJobHandler, Injectable (+16 more)
 
-### Community 12 - "ChecklistTemplate"
-Cohesion: 0.16
-Nodes (12): InjectModel, InjectModel, ShiftSlot, ShiftSlotSchema, Prop, Schema, ChecklistTemplate, ChecklistTemplateSchema (+4 more)
-
-### Community 13 - "useAuth"
+### Community 5 - "Tkgd Features Types"
 Cohesion: 0.08
-Nodes (32): AdminDepartmentsPage(), buildDepartmentTree(), Department, validateForm(), AdminNotificationsPage(), Department, NotificationChannel, NotificationLog (+24 more)
+Nodes (46): TabAttachmentsViewer(), TabAttachmentsViewerProps, TabDataComparison(), TabDataComparisonProps, TabRawJsonLog(), TabRawJsonLogProps, TkgdInspectionModal(), TkgdInspectionModalProps (+38 more)
 
-### Community 14 - "SystemSettingsService"
+### Community 6 - "Admin Notifications Authcontext"
+Cohesion: 0.07
+Nodes (44): ActivityLogsPage(), LogEntry, UserInfo, AdminCalendarPage(), CalendarEntry, ShiftSlot, AdminDepartmentsPage(), buildDepartmentTree() (+36 more)
+
+### Community 7 - "Tkgd Automation Services"
+Cohesion: 0.06
+Nodes (33): dispatchAttachmentsForAccount(), normalizeVietnameseName(), execFileAsync, getPythonExecutable(), PythonExtractorInput, PythonExtractorResult, runPythonExtractor(), TkgdConfigService (+25 more)
+
+### Community 8 - "Trading Report Tradingreportservice"
+Cohesion: 0.06
+Nodes (27): TradingReportController, Body, Controller, Delete, Get, Param, Post, Res (+19 more)
+
+### Community 9 - "Bot Engine Job"
+Cohesion: 0.06
+Nodes (14): InjectModel, TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email…, InjectModel, BotJobQueueService, Injectable, InjectModel, SchedulerService, SchedulerTaskConfig (+6 more)
+
+### Community 10 - "Schema Auth Schemas"
+Cohesion: 0.08
+Nodes (27): InjectModel, InjectModel, AccessControlService, Injectable, InjectModel, InjectModel, JwtStrategy, Injectable (+19 more)
+
+### Community 11 - "Incidents Admin Templates"
+Cohesion: 0.06
+Nodes (31): TemplatesController, Body, Controller, Delete, Get, Param, Post, Put (+23 more)
+
+### Community 12 - "Bot Engine Botenginecontroller"
+Cohesion: 0.09
+Nodes (9): BotEngineController, Body, Controller, Get, Param, Post, Query, Res (+1 more)
+
+### Community 13 - "System Shifts Logs"
+Cohesion: 0.07
+Nodes (29): AuthModule, Module, IncidentsModule, Module, InjectModel, ShiftsGateway, Inject, InjectModel (+21 more)
+
+### Community 14 - "Dashboard Marginchangerequestswidget History"
+Cohesion: 0.07
+Nodes (35): ActiveShiftsWidget(), ActiveShiftsWidgetProps, getSessionBadge(), AutoShiftWidget(), AutoShiftWidgetProps, HealthChecksWidget(), hourlyChartOptions, HourlyChartWidget() (+27 more)
+
+### Community 16 - "Bot Log Viewer"
+Cohesion: 0.08
+Nodes (37): BotStatusBadge(), BotStatusBadgeProps, getBotStatusText(), BotStatusStateBanner(), BotStatusStateBannerProps, shouldShowBotStatusBanner(), EmailScanVisualReport(), EmailScanVisualReportProps (+29 more)
+
+### Community 17 - "Debug Lme Tests"
+Cohesion: 0.08
+Nodes (26): main(), main(), main(), main(), main(), main(), main(), debugTttt() (+18 more)
+
+### Community 18 - "Working Calendar Workingcalendarservice"
+Cohesion: 0.08
+Nodes (23): Body, Controller, Delete, Get, Param, Post, Put, Request (+15 more)
+
+### Community 19 - "Package Devdependencies Types"
+Cohesion: 0.04
+Nodes (47): devDependencies, eslint-config-prettier, @eslint/eslintrc, @eslint/js, eslint-plugin-prettier, globals, jest, @nestjs/cli (+39 more)
+
+### Community 20 - "Margin Change Requests"
+Cohesion: 0.07
+Nodes (17): addTokenToRequestHeaders(), isAbortedRequest(), postJsonData(), postPageDataInternal(), RequestManager(), WeakMap(), WeakMultiMap(), MarginChangeRequestsController (+9 more)
+
+### Community 21 - "Checklist Tasktable Usechecklist"
+Cohesion: 0.07
+Nodes (29): AdhocTaskModal(), AdhocTaskModalProps, AuditLogsPanel(), AuditLogsPanelProps, CcpStatisticsModal(), CcpStatisticsModalProps, CloseShiftModal(), CloseShiftModalProps (+21 more)
+
+### Community 22 - "Statistics Auth Lot"
+Cohesion: 0.15
+Nodes (14): JwtAuthGuard, Injectable, Permissions(), PERMISSIONS_KEY, PermissionsGuard, Injectable, InjectModel, Body (+6 more)
+
+### Community 23 - "Schema Schemas Notification"
 Cohesion: 0.10
-Nodes (21): GttDataRow, GttReport, decrypt(), encrypt(), getSecretKey(), SystemSettingsService, Injectable, main() (+13 more)
+Nodes (27): MarginCheckerModule, Module, InjectModel, NotificationsModule, Module, InjectModel, GroupedMatch, InjectModel (+19 more)
 
-### Community 15 - "bot-config/page.tsx"
+### Community 24 - "Statistics Value Lot"
+Cohesion: 0.12
+Nodes (26): assertSafeWritePath(), ensureBaseFileExists(), ensureDirExists(), isSameDate(), safeWriteExcel(), sanitizeWorkbook(), ACM_COMMODITIES, findOrCreateValueTargetRow() (+18 more)
+
+### Community 25 - "Admin Bot Config"
 Cohesion: 0.07
 Nodes (28): BackupAuditor(), BackupAuditorProps, renderAuditResultsTable(), ConnectionSettings(), ConnectionSettingsProps, GttChecker(), GttCheckerProps, BotJob (+20 more)
 
-### Community 17 - "dashboard/page.tsx"
-Cohesion: 0.09
-Nodes (25): ActiveShiftsWidget(), ActiveShiftsWidgetProps, getSessionBadge(), AutoShiftWidget(), AutoShiftWidgetProps, HealthChecksWidget(), hourlyChartOptions, HourlyChartWidget() (+17 more)
+### Community 26 - "Package Scripts Test"
+Cohesion: 0.05
+Nodes (37): scripts, build, format, lint, start, start:debug, start:dev, start:prod (+29 more)
 
-### Community 18 - "bot-engine.module.ts"
-Cohesion: 0.10
-Nodes (16): TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email…, BotEngineModule, Module, REQUIRED_MS_FILES, CqgAuditResult, REQUIRED_CQG_FILES, MarginCheckerModule, Module (+8 more)
-
-### Community 19 - "scripts"
-Cohesion: 0.06
-Nodes (36): scripts, build, format, lint, start, start:debug, start:dev, start:prod (+28 more)
-
-### Community 20 - "TeamsNotifierService"
-Cohesion: 0.29
-Nodes (3): TeamsNotifierService, Injectable, Inject
-
-### Community 21 - "AuthService"
+### Community 27 - "Tkgd Mail Bot"
 Cohesion: 0.12
-Nodes (13): AuthController, getCookie(), Body, Controller, Get, Post, Put, Query (+5 more)
+Nodes (27): extractAndSaveImage(), MSystemInvestorScrapedData, parseDateDDMMYYYY(), scrapeInvestorDetailFromMSystem(), classifyAttachmentType(), cleanPersonName(), detectAccountType(), extractBaseAccountCode() (+19 more)
 
-### Community 22 - "CcpStatisticsService"
-Cohesion: 0.13
-Nodes (12): CcpStatisticsController, Body, Controller, Get, Post, Res, UploadedFiles, UseGuards (+4 more)
+### Community 28 - "Notifications Notificationscontroller Notificationsservice"
+Cohesion: 0.10
+Nodes (12): NotificationsController, Body, Controller, Delete, Get, Param, Post, Put (+4 more)
 
-### Community 23 - "WorkingCalendarService"
-Cohesion: 0.06
-Nodes (23): ShiftJobScheduler, Cron, Injectable, ShiftJobsController, Body, Controller, Post, Request (+15 more)
+### Community 29 - "Scripts Python Tkgd"
+Cohesion: 0.10
+Nodes (36): auto_deskew_perspective_transform(), auto_split_composite_dual_card(), calculate_confidence_score(), call_gemini_vision_fallback(), compute_icao_check_digit(), detect_card_generation(), extract_bounding_boxes(), extract_cccd_ocr_details() (+28 more)
 
-### Community 24 - "test-aggregate.ts"
+### Community 30 - "Package Dependencies React"
+Cohesion: 0.05
+Nodes (37): @base-ui/react, chart.js, class-variance-authority, clsx, dependencies, @base-ui/react, chart.js, class-variance-authority (+29 more)
+
+### Community 31 - "Tkgd Automation Tkgdautomationservice"
+Cohesion: 0.10
+Nodes (10): findBrowserExecutable(), formatDateStr(), inferFromCCCD(), isGenderMatch(), isIgnoredEmailAttachment(), normalizeDateStr(), parseDate(), TkgdAutomationService (+2 more)
+
+### Community 32 - "Auth Authcontroller Authservice"
+Cohesion: 0.11
+Nodes (14): AuthController, getCookie(), Body, Controller, Get, Inject, Post, Put (+6 more)
+
+### Community 33 - "Bot Engine Cqg"
+Cohesion: 0.11
+Nodes (15): CqgAuditResult, CqgSyncService, REQUIRED_CQG_FILES, Injectable, FileAuditJobHandler, Injectable, InjectModel, Inject (+7 more)
+
+### Community 34 - "Lot Statistics Helpers"
+Cohesion: 0.19
+Nodes (26): AccumulatorPaths, appendRawDsgd(), backupFile(), findOrCreateTargetRow(), getNextWorkday(), getSheetName(), matchProductHeader(), matchTvkdHeader() (+18 more)
+
+### Community 35 - "Tkgd Automation Tkgdautomationcontroller"
+Cohesion: 0.21
+Nodes (9): TkgdAutomationController, Body, Controller, Get, Param, Post, Query, Req (+1 more)
+
+### Community 36 - "Test Aggregate Accountidx"
 Cohesion: 0.06
 Nodes (31): accountIdx, aggregatedOrders, aggregatedPos, content, ExpiringContract, expiringContracts, filteredContracts, klBanIdx (+23 more)
 
-### Community 25 - "checklist/page.tsx"
-Cohesion: 0.11
-Nodes (21): AdhocTaskModal(), AdhocTaskModalProps, AuditLogsPanel(), AuditLogsPanelProps, CloseShiftModal(), CloseShiftModalProps, MaturityTemplateModal(), MaturityTemplateModalProps (+13 more)
+### Community 37 - "Tests Test Aggregate"
+Cohesion: 0.06
+Nodes (31): accountIdx, aggregatedOrders, aggregatedPos, content, ExpiringContract, expiringContracts, filteredContracts, klBanIdx (+23 more)
 
-### Community 26 - "LotStatisticsService"
+### Community 38 - "Package Dependencies Nestjs"
+Cohesion: 0.06
+Nodes (31): dependencies, bcrypt, class-transformer, class-validator, dotenv, @nestjs/common, @nestjs/jwt, @nestjs/platform-express (+23 more)
+
+### Community 39 - "Shifts Shiftscontroller Shiftsservice"
+Cohesion: 0.15
+Nodes (10): ShiftsController, Body, Controller, Get, Param, Patch, Post, Query (+2 more)
+
+### Community 40 - "Ccp Statistics Ccpstatisticsservice"
+Cohesion: 0.15
+Nodes (11): CcpStatisticsController, Body, Controller, Get, Post, Res, UploadedFiles, UseGuards (+3 more)
+
+### Community 41 - "Reconciliation Parsers Parser"
+Cohesion: 0.14
+Nodes (9): CqgExcelParser, CqgOpenPositionRecord, CqgPositionRecord, CqgTradeRecord, MsExcelParser, MsOpenPositionRecord, MsTradeRecord, StraitsCsvParser (+1 more)
+
+### Community 42 - "Downloader Original Cpp"
+Cohesion: 0.13
+Nodes (28): dismiss_modal_backdrop(), download_single_report(), ensure_sidebar_expanded(), get_app_dir(), get_base_origin(), get_bundled_config_path(), launch_browser_resilient(), load_config() (+20 more)
+
+### Community 43 - "Lot Statistics Lotstatisticscontroller"
 Cohesion: 0.12
 Nodes (15): ensureBaseDirectoryExists(), LotConfigDto, LotStatisticsController, Body, Controller, Get, Post, Put (+7 more)
 
-### Community 28 - "Permissions"
-Cohesion: 0.25
-Nodes (7): JwtAuthGuard, Injectable, Permissions(), PERMISSIONS_KEY, PermissionsGuard, Injectable, InjectModel
-
-### Community 29 - "excel-accumulator.helper.ts"
-Cohesion: 0.23
-Nodes (22): assertSafeWritePath(), ensureBaseFileExists(), AccumulatorPaths, appendRawDsgd(), backupFile(), ensureDirExists(), findOrCreateTargetRow(), getSheetName() (+14 more)
-
-### Community 30 - "trade-classifier.helper.ts"
-Cohesion: 0.18
-Nodes (23): main(), main(), main(), ParsedRow, toStr(), getSPFromDsgd(), classifyDsgd(), classifyFr() (+15 more)
-
-### Community 31 - "detailed-match.ts"
-Cohesion: 0.07
-Nodes (26): accountIdx, aggregatedOrders, aggregatedPos, content, ExpiringContract, expiringContracts, klBanIdx, klMuaIdx (+18 more)
-
-### Community 32 - "parseExcelBuffer"
-Cohesion: 0.14
-Nodes (14): main(), main(), main(), main(), main(), main(), debugTttt(), main() (+6 more)
-
-### Community 33 - "DashboardService"
-Cohesion: 0.20
-Nodes (8): DashboardController, Controller, Get, Query, Request, UseGuards, DashboardService, Injectable
-
-### Community 34 - "AuthContext.tsx"
-Cohesion: 0.10
-Nodes (18): CcpStatisticsModal(), CcpStatisticsModalProps, OmsStatusModal(), OmsStatusModalProps, ReconciliationModal(), ReconciliationModalProps, TradingReportModal(), TradingReportModalProps (+10 more)
-
-### Community 35 - "database.module.ts"
-Cohesion: 0.21
-Nodes (14): InjectModel, InjectModel, ExchangeHoliday, ExchangeHolidaySchema, Prop, Schema, Exchange, ExchangeSchema (+6 more)
-
-### Community 36 - "ShiftSlotsService"
-Cohesion: 0.13
-Nodes (11): ShiftSlotsController, Body, Controller, Delete, Get, Param, Post, Put (+3 more)
-
-### Community 37 - "SettingsWindow"
-Cohesion: 0.13
-Nodes (12): _draw_svg_icon(), _load_cfg(), QIcon, QWidget, settings_window.py — MXV RPA Agent Settings Window A QDialog with 3 tabs:…, Self-onboarding guide tab — content populated by _rebuild_guide_content()., Draw professional minimalist outline icons programmatically using QPainter., Rebuild guide tab content using current language. Called on init + lang switch. (+4 more)
-
-### Community 38 - "lot-calculator.service.ts"
-Cohesion: 0.15
-Nodes (21): aggregateByProduct(), aggregateByTvkd(), calcFrProduct(), calculateDailyLotReport(), FrExclusionConfig, TODO: Cần xác nhận Sheet2!A18 chứa gì, sumDsgdQ(), sumFrI() (+13 more)
-
-### Community 39 - "inspect-trade-mismatch.js"
-Cohesion: 0.08
-Nodes (22): dsgdAccountIdx, dsgdData, dsgdHeader, dsgdPath, dsgdPriceIdx, dsgdQtyIdx, dsgdRows, dsgdSymbolIdx (+14 more)
-
-### Community 40 - "lot-statistics.service.ts"
-Cohesion: 0.18
-Nodes (17): main(), ProcessLotDto, toNum(), FrExclusionConfig, aggregateByTvkd(), getSPFromSpread(), LotByProduct, LotByTvkd (+9 more)
-
-### Community 42 - "history/page.tsx"
-Cohesion: 0.12
-Nodes (17): ActivityLogsPage(), LogEntry, UserInfo, AdminUsersPage(), Department, User, Department, ShiftLog (+9 more)
-
-### Community 43 - "TutorialContext.tsx"
-Cohesion: 0.12
-Nodes (17): Home(), SettingsPage(), TabType, calcTooltipPos(), getSpotlightRect(), SpotlightRect, TooltipPos, TutorialOverlay() (+9 more)
-
-### Community 44 - "macro-gia-tri.ts"
+### Community 44 - "Tkgd Automation Bot"
 Cohesion: 0.16
-Nodes (22): CliConfig, FullGtgdConfig, loadConfig(), loadDsgdData(), main(), parseArgs(), printGtgdReport(), printHelp() (+14 more)
+Nodes (18): findTkgdTemplatePath(), formatDate(), getTkgdAttachmentDirectory(), getTkgdOutputDirectory(), isGenderMatch(), normalizeDateStr(), normalizeName(), reconcileAndExportToExcel() (+10 more)
 
-### Community 45 - "app_sanction_search.py"
-Cohesion: 0.20
-Nodes (22): build_record(), compact_join(), extract_years(), first_non_empty(), index(), load_eu_records(), load_ofac_addresses(), load_ofac_records() (+14 more)
-
-### Community 46 - "ActivityLog"
-Cohesion: 0.11
-Nodes (16): ActivityLogInterceptor, Injectable, InjectModel, ActivityLogController, Controller, Get, InjectModel, Query (+8 more)
-
-### Community 47 - "compilerOptions"
-Cohesion: 0.09
-Nodes (22): compilerOptions, allowSyntheticDefaultImports, baseUrl, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames (+14 more)
-
-### Community 48 - "IncidentsService"
-Cohesion: 0.11
-Nodes (17): IncidentsController, Body, Controller, Get, Param, Patch, Post, Request (+9 more)
-
-### Community 49 - ".updateTaskStatus"
-Cohesion: 0.21
-Nodes (9): ReconciliationController, Body, Controller, Get, Post, Query, UploadedFiles, UseGuards (+1 more)
-
-### Community 51 - "components.json"
-Cohesion: 0.09
-Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
-
-### Community 53 - "value-statistics.service.ts"
+### Community 45 - "Downloader Cpp Config"
 Cohesion: 0.14
-Nodes (15): ACM_COMMODITIES, LME_COMMODITIES, NORMAL_COMMODITIES, OPTIONS_COMMODITIES, SPREAD_COMMODITIES, ValueAccumulatorPaths, getMaHHFromDsgd(), getMaHHFromSpread() (+7 more)
+Nodes (23): Browser, get_config_path(), load_config(), config_manager.py — Quản lý cấu hình tập trung cho Tool CPP/CE Downloader, Lưu dictionary cấu hình vào file config.json., Trả về đường dẫn tuyệt đối của file config.json., Đọc cấu hình từ config.json, tự động bảo toàn đủ 5 loại báo cáo tiêu chuẩn., save_config() (+15 more)
 
-### Community 54 - "ShiftsController"
-Cohesion: 0.21
-Nodes (10): ShiftsController, Body, Controller, Get, Param, Patch, Post, Query (+2 more)
-
-### Community 55 - "TrayIcon"
-Cohesion: 0.12
-Nodes (5): ActivationReason, System tray icon with dynamic state (online/offline/working) and a context menu…, Update all tray menu text and tooltip from i18n., TrayIcon, QSystemTrayIcon
-
-### Community 56 - "AgentWorker"
-Cohesion: 0.24
-Nodes (5): AgentWorker, pyqtSlot, Scan running processes and kill orphaned EXCEL.EXE processes to free RAM., Main entry point — called when QThread starts., Runs in a QThread — handles polling + heartbeat loops.
-
-### Community 57 - "LogWindow"
-Cohesion: 0.15
-Nodes (7): _draw_svg_icon(), LogWindow, pyqtSlot, QIcon, QWidget, Update all UI chrome text from i18n. Log content is NOT translated., Draw clean, modern vector icons for the log viewer programmatically.
-
-### Community 58 - "devDependencies"
-Cohesion: 0.11
-Nodes (19): devDependencies, eslint-config-prettier, @eslint/js, globals, prettier, ts-loader, tsconfig-paths, @types/nodemailer (+11 more)
-
-### Community 59 - "ShiftLog"
-Cohesion: 0.09
-Nodes (27): AccessControlService, Injectable, AuthModule, Module, TODO: Bỏ đoạn fallback đọc file mail.txt dưới đây khi đã cấu hình đọc email…, SchedulerTaskConfig, InjectModel, IncidentsModule (+19 more)
-
-### Community 60 - "ShiftsGateway"
-Cohesion: 0.13
-Nodes (11): Inject, InjectModel, InjectModel, ShiftsGateway, Inject, InjectModel, ConnectedSocket, MessageBody (+3 more)
-
-### Community 61 - "macro-so-lot.ts"
-Cohesion: 0.21
-Nodes (16): FullConfig, loadConfig(), loadFrData(), main(), parseArgs(), printHelp(), printReport(), DsgdRow (+8 more)
-
-### Community 62 - "TelegramService"
-Cohesion: 0.16
-Nodes (7): CleanupService, Cron, Injectable, InjectModel, TelegramService, Injectable, InjectModel
-
-### Community 63 - "AgentCore"
+### Community 46 - "Agent Deployment Rpa"
 Cohesion: 0.10
 Nodes (16): AgentCore, load_config(), QObject, agent_core.py — MXV RPA Agent Core Logic Refactored from agent.py into a…, Public facade used by tray, settings window, log window, and notifier. Manages…, log_window.py — MXV RPA Agent Log Viewer Realtime log display with filtering,…, _add_lang_toggle(), _load_icon() (+8 more)
 
-### Community 64 - ".getSetting"
-Cohesion: 0.10
-Nodes (8): Get, Query, Res, SchedulerService, Cron, Injectable, InjectModel, sanitizeConfig()
+### Community 48 - "Original Downloader Cpp"
+Cohesion: 0.12
+Nodes (14): generate_monthly_intervals(), Tách khoảng thời gian start_date -> end_date thành từng tháng. Tự động chuẩn…, save_config(), DownloadWorker, get_resource_path(), launch_gui(), log_uncaught_exceptions(), MainWindow (+6 more)
 
-### Community 65 - "AgentController"
+### Community 49 - "Detailed Match Accountidx"
+Cohesion: 0.07
+Nodes (26): accountIdx, aggregatedOrders, aggregatedPos, content, ExpiringContract, expiringContracts, klBanIdx, klMuaIdx (+18 more)
+
+### Community 50 - "Cpp Downloader Report"
+Cohesion: 0.11
+Nodes (15): BasePage, Page, Đóng các popup backdrop MUI che phủ giao diện nếu có., Kiểm tra và mở rộng Sidebar menu nếu đang ở dạng thu gọn., Bắt và ghi log thông báo Toast Notistack/MUI Alert nếu có., CoreEXPage, Điều hướng đến trang báo cáo CoreEX (Lịch sử lệnh & Lịch sử giao dịch)., Page (+7 more)
+
+### Community 51 - "Tutorialcontext Context Tutorialoverlay"
+Cohesion: 0.11
+Nodes (19): Home(), SettingsPage(), TabType, Header(), HeaderProps, calcTooltipPos(), getSpotlightRect(), SpotlightRect (+11 more)
+
+### Community 52 - "Margin Change Requests"
+Cohesion: 0.15
+Nodes (8): MarginChangeRequestsService, Inject, Injectable, InjectModel, MarginChangeRequest, MarginChangeRequestSchema, Prop, Schema
+
+### Community 53 - "Dashboard Dashboardcontroller Dashboardservice"
+Cohesion: 0.20
+Nodes (8): DashboardController, Controller, Get, Query, Request, UseGuards, DashboardService, Injectable
+
+### Community 54 - "Bot Engine Agent"
+Cohesion: 0.20
+Nodes (11): AgentController, Body, Controller, Get, Param, Post, Query, UploadedFile (+3 more)
+
+### Community 55 - "Shift Slots Shiftslotsservice"
+Cohesion: 0.13
+Nodes (11): ShiftSlotsController, Body, Controller, Delete, Get, Param, Post, Put (+3 more)
+
+### Community 56 - "Deployment Rpa Agent"
+Cohesion: 0.13
+Nodes (12): _draw_svg_icon(), _load_cfg(), QIcon, QWidget, settings_window.py — MXV RPA Agent Settings Window A QDialog with 3 tabs:…, Self-onboarding guide tab — content populated by _rebuild_guide_content()., Draw professional minimalist outline icons programmatically using QPainter., Rebuild guide tab content using current language. Called on init + lang switch. (+4 more)
+
+### Community 57 - "Marco Types Services"
+Cohesion: 0.15
+Nodes (21): aggregateByProduct(), aggregateByTvkd(), calcFrProduct(), calculateDailyLotReport(), FrExclusionConfig, TODO: Cần xác nhận Sheet2!A18 chứa gì, sumDsgdQ(), sumFrI() (+13 more)
+
+### Community 58 - "Inspect Trade Mismatch"
+Cohesion: 0.08
+Nodes (22): dsgdAccountIdx, dsgdData, dsgdHeader, dsgdPath, dsgdPriceIdx, dsgdQtyIdx, dsgdRows, dsgdSymbolIdx (+14 more)
+
+### Community 60 - "Tests Inspects Inspect"
+Cohesion: 0.08
+Nodes (22): dsgdAccountIdx, dsgdData, dsgdHeader, dsgdPath, dsgdPriceIdx, dsgdQtyIdx, dsgdRows, dsgdSymbolIdx (+14 more)
+
+### Community 61 - "Marco Services Value"
+Cohesion: 0.16
+Nodes (22): CliConfig, FullGtgdConfig, loadConfig(), loadDsgdData(), main(), parseArgs(), printGtgdReport(), printHelp() (+14 more)
+
+### Community 62 - "Model Poc Tkgd"
+Cohesion: 0.12
+Nodes (12): GeminiModelManager, Any, Module: Gemini Model Manager & Multi-Model Token Rotator…, Lọc các model hỗ trợ generateContent (text/vision) và sắp xếp theo thứ tự ưu…, Tính điểm năng lực của model để xếp hạng ưu tiên: - 2.5 > 2.0 > 1.5 - Pro >…, Danh sách ưu tiên mặc định khi chưa gọi được API hoặc offline., Xoay sang model ưu tiên kế tiếp khi model hiện tại hết quota. Nếu đã duyệt hết…, Gọi generateContent với cơ chế Sticky Model: - Dùng model hiện tại. - Thành… (+4 more)
+
+### Community 63 - "Poc Tkgd Automation"
+Cohesion: 0.14
+Nodes (20): match_attachments(), normalize_name(), parse_mail_body(), ParsedMailData, process_mail(), Module 2: Mail Parser — Trích xuất dữ liệu có cấu trúc từ Body Mail…, Gán đường dẫn file đính kèm vào ParsedMailData dựa trên loại file đã được…, Dữ liệu đã bóc tách từ body mail. (+12 more)
+
+### Community 64 - "Sanction Aml Search"
+Cohesion: 0.20
+Nodes (22): build_record(), compact_join(), extract_years(), first_non_empty(), index(), load_eu_records(), load_ofac_addresses(), load_ofac_records() (+14 more)
+
+### Community 65 - "Bot Engine System"
+Cohesion: 0.17
+Nodes (4): EmailWatcherService, Injectable, Cron, sanitizeConfig()
+
+### Community 66 - "Tsconfig Compileroptions Allowsyntheticdefaultimports"
+Cohesion: 0.09
+Nodes (22): compilerOptions, allowSyntheticDefaultImports, baseUrl, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames (+14 more)
+
+### Community 67 - "Lot Statistics Helpers"
+Cohesion: 0.21
+Nodes (19): main(), main(), ParsedRow, classifyDsgd(), classifyOp(), classifyPs(), classifyTtm(), classifyTttt() (+11 more)
+
+### Community 68 - "Activity Log Interceptors"
+Cohesion: 0.11
+Nodes (14): ActivityLogInterceptor, Injectable, InjectModel, ActivityLogController, Controller, Get, InjectModel, Query (+6 more)
+
+### Community 69 - "Tkgd Bot Engine"
+Cohesion: 0.16
+Nodes (18): compareCccdTripleCheck(), ExtractedCanCuoc, ExtractedHopDong, ExtractedPhuLuc, extractHopDongPdf(), extractPhuLucPdf(), parseDateDetails(), parseDateString() (+10 more)
+
+### Community 70 - "Reconciliation Reconciliationcontroller Checknegativemargin"
+Cohesion: 0.20
+Nodes (9): ReconciliationController, Body, Controller, Get, Post, Query, UploadedFiles, UseGuards (+1 more)
+
+### Community 71 - "Schema Tkgd Schemas"
+Cohesion: 0.15
+Nodes (18): TkgdAutomationModule, Module, AttachmentMeta, AttachmentMetaSchema, RawAccountMail, RawAccountMailSchema, Prop, Schema (+10 more)
+
+### Community 72 - "Aliases Tailwind Hooks"
+Cohesion: 0.09
+Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
+
+### Community 74 - "Shift Jobs Job"
+Cohesion: 0.13
+Nodes (11): ShiftJobScheduler, Cron, Injectable, ShiftJobsController, Body, Controller, Post, Request (+3 more)
+
+### Community 75 - "Cpp Downloader Gui"
+Cohesion: 0.14
+Nodes (8): DownloadWorker, get_resource_path(), MainWindow, QMainWindow, QThread, Lấy đường dẫn chuẩn của file tài nguyên (hỗ trợ cả chạy nguồn lẫn file…, Chuyển đổi qua lại giữa Chế độ Cơ bản và Chế độ Cấu hình Nâng cao, Cập nhật trạng thái hiển thị của các widget theo chế độ
+
+### Community 76 - "Deployment Rpa Agent"
+Cohesion: 0.12
+Nodes (5): ActivationReason, System tray icon with dynamic state (online/offline/working) and a context menu…, Update all tray menu text and tooltip from i18n., TrayIcon, QSystemTrayIcon
+
+### Community 77 - "Schema Schemas Clean"
+Cohesion: 0.18
+Nodes (19): CanCuocSubDoc, CanCuocSubDocSchema, CleanAccountRecord, HopDongSubDoc, HopDongSubDocSchema, KetLuanDoiSoat, KetLuanDoiSoatSchema, ManualReviewSubDoc (+11 more)
+
+### Community 78 - "Cpp Downloader Objects"
+Cohesion: 0.14
+Nodes (10): base_page.py — Base Page chứa các thao tác Playwright cơ sở dùng chung., BaseReportPage, base_report_page.py — Page Object Lớp cha chứa các thao tác lọc ngày, bộ lọc…, Chờ bảng hoàn tất nạp dữ liệu từ Server. Tối ưu hóa: Sử dụng chu kỳ kiểm tra…, Thao tác xuất file CSV chuẩn: 1. Kiểm tra nhanh nếu bảng báo 'Không có dữ liệu'…, Điền khoảng thời gian cho MUI DatePicker, lọc Mã thành viên & Mã TKGD / Số tiểu…, CoreCCPPage, core_ccp_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreCCP… (+2 more)
+
+### Community 79 - "Agent Deployment Rpa"
 Cohesion: 0.24
-Nodes (7): AgentController, Controller, InjectModel, Param, UploadedFile, UseInterceptors, Headers
+Nodes (5): AgentWorker, pyqtSlot, Scan running processes and kill orphaned EXCEL.EXE processes to free RAM., Main entry point — called when QThread starts., Runs in a QThread — handles polling + heartbeat loops.
 
-### Community 66 - "exclude"
+### Community 80 - "Reader Poc Tkgd"
+Cohesion: 0.15
+Nodes (14): classify_attachment(), get_mail_reader(), GraphMailReader, MailAttachment, Module 1: Outlook Reader — Đọc mail từ Microsoft 365 Graph API…, Đọc mail từ mailbox Microsoft 365 qua Graph API. Cần cấu hình Azure AD App với…, Lấy OAuth2 access token., Lấy danh sách mail theo bộ lọc. Args: subject_filter: Lọc theo tiêu đề (chứa… (+6 more)
+
+### Community 81 - "Bot Engine Watcher"
+Cohesion: 0.18
+Nodes (4): ApiWatcherService, Injectable, OmsWatcherService, Injectable
+
+### Community 82 - "Lot Statistics Helpers"
+Cohesion: 0.18
+Nodes (14): ProcessLotDto, addByProductSheet(), addByTvkdSheet(), addSummarySheet(), addValidationSheet(), createResultExcel(), saveTempExcel(), FrExclusionConfig (+6 more)
+
+### Community 83 - "Deployment Rpa Agent"
+Cohesion: 0.15
+Nodes (7): _draw_svg_icon(), LogWindow, pyqtSlot, QIcon, QWidget, Update all UI chrome text from i18n. Log content is NOT translated., Draw clean, modern vector icons for the log viewer programmatically.
+
+### Community 84 - "Marco Types Trade"
+Cohesion: 0.21
+Nodes (16): FullConfig, loadConfig(), loadFrData(), main(), parseArgs(), printHelp(), printReport(), DsgdRow (+8 more)
+
+### Community 85 - "Package Marco Scripts"
+Cohesion: 0.12
+Nodes (16): exceljs, dependencies, exceljs, description, engines, node, exceljs, name (+8 more)
+
+### Community 86 - "Post Eod Bot"
+Cohesion: 0.16
+Nodes (3): NegativeMarginAccount, PostEodHandlerService, Injectable
+
+### Community 87 - "System Settings Systemsettingscontroller"
+Cohesion: 0.13
+Nodes (11): SystemSettingsController, Body, Controller, Get, Param, Post, UseGuards, InjectModel (+3 more)
+
+### Community 88 - "Pdf Poc Tkgd"
+Cohesion: 0.21
+Nodes (16): count_pdf_pages(), detect_signature_stamp(), extract_from_hop_dong(), extract_from_pl01(), extract_pdf(), extract_text_pdfplumber(), extract_text_pymupdf(), PDFExtractResult (+8 more)
+
+### Community 89 - "Package Jest Transform"
+Cohesion: 0.12
+Nodes (15): author, description, jest, collectCoverageFrom, coverageDirectory, rootDir, testEnvironment, testRegex (+7 more)
+
+### Community 90 - "Ref Tsconfig Build"
 Cohesion: 0.12
 Nodes (16): exclude, dist, **/*spec.ts, src/compare*, src/debug*, src/detailed-match.ts, src/dump*, src/inspect* (+8 more)
 
-### Community 67 - "agent.py"
+### Community 91 - "Agent Deployment Rpa"
 Cohesion: 0.33
 Nodes (14): agent_get(), agent_post(), complete_job(), dispatch(), fail_job(), handle_delegated_nestjs_job(), handle_run_lot_macro(), handle_run_value_macro() (+6 more)
 
-### Community 68 - "dependencies"
-Cohesion: 0.13
-Nodes (15): dependencies, bcrypt, class-transformer, class-validator, @nestjs/platform-socket.io, @nestjs/websockets, nodemailer, rxjs (+7 more)
+### Community 92 - "Cccd Ocr Poc"
+Cohesion: 0.20
+Nodes (13): CCCDData, decode_mrz_from_image(), decode_qr_code(), extract_cccd_data(), ocr_cccd_text(), parse_mrz_lines(), Module 3: CCCD OCR — Trích xuất thông tin từ ảnh Căn cước Công dân…, Đọc và giải mã dòng MRZ (Machine Readable Zone) từ mặt sau CCCD. MRZ CCCD VN… (+5 more)
 
-### Community 69 - "TemplatesController"
-Cohesion: 0.21
-Nodes (11): TemplatesController, Body, Controller, Delete, Get, Param, Post, Put (+3 more)
+### Community 93 - "Lot Statistics Helpers"
+Cohesion: 0.33
+Nodes (12): main(), calcFrProduct(), FrProductResult, getFrMaSP(), getFrSerial(), getPreviousWorkday(), isSameDate(), normalizeFrTradingDate() (+4 more)
 
-### Community 71 - "test-pre-eod-parse.js"
+### Community 94 - "Bot Engine Botengineservice"
+Cohesion: 0.17
+Nodes (4): Cron, FileWatcherService, Injectable, ExpiringContract
+
+### Community 96 - "Scripts Test Pre"
 Cohesion: 0.13
 Nodes (13): acmDailyPath, castDownloadsDir, cqgDailyPath, day, dsgdPath, fs, month, msDailyPath (+5 more)
 
-### Community 72 - "NotificationToast"
+### Community 97 - "Deployment Rpa Agent"
 Cohesion: 0.21
 Nodes (6): NotificationToast, QWidget, notifier_widget.py — Custom PyQt6 Toast Notification System Provides…, A single frameless custom notification toast displaying at the bottom-right., Manages active toasts, stacks them vertically starting from the bottom-right…, ToastManager
 
-### Community 73 - "GlobalLayout.tsx"
-Cohesion: 0.20
-Nodes (9): metadata, plusJakartaSans, RootLayout(), GlobalLayout(), Header(), Button(), buttonVariants, AuthProvider() (+1 more)
-
-### Community 74 - "compilerOptions"
+### Community 98 - "Tsconfig Compileroptions Allowjs"
 Cohesion: 0.13
 Nodes (15): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, module, moduleResolution (+7 more)
 
-### Community 75 - "compilerOptions"
+### Community 99 - "Marco Tsconfig Compileroptions"
 Cohesion: 0.13
 Nodes (15): compilerOptions, declaration, declarationMap, esModuleInterop, forceConsistentCasingInFileNames, lib, module, outDir (+7 more)
 
-### Community 76 - "devDependencies"
+### Community 100 - "Package Devdependencies Eslint"
 Cohesion: 0.14
 Nodes (14): eslint, eslint, eslint-config-next, devDependencies, eslint, eslint-config-next, tailwindcss, @tailwindcss/postcss (+6 more)
 
-### Community 77 - "UsersController"
+### Community 101 - "Admin Users Userscontroller"
 Cohesion: 0.21
 Nodes (10): Body, Controller, Delete, Get, Param, Post, Put, Query (+2 more)
 
-### Community 78 - "IncidentList.tsx"
+### Community 102 - "Checklist Incidentlist Activeincidentswidget"
 Cohesion: 0.21
 Nodes (8): IncidentList(), IncidentListProps, IncidentSlaCountdownProps, IncidentReportModal(), IncidentReportModalProps, ActiveIncidentsWidget(), Incident, getFriendlyCode()
 
-### Community 79 - "DepartmentsController"
+### Community 103 - "Admin Departments Departmentscontroller"
 Cohesion: 0.22
 Nodes (9): DepartmentsController, Body, Controller, Delete, Get, Param, Post, Put (+1 more)
 
-### Community 80 - "RolesController"
+### Community 104 - "Admin Roles Rolescontroller"
 Cohesion: 0.23
 Nodes (8): RolesController, Body, Controller, Get, InjectModel, Param, Put, UseGuards
 
-### Community 81 - "i18n.py"
+### Community 105 - "Notifications Teams Notifier"
+Cohesion: 0.29
+Nodes (3): TeamsNotifierService, Injectable, Inject
+
+### Community 106 - "Scripts Deploy Ubuntu"
+Cohesion: 0.17
+Nodes (11): { Client }, conn, filesToUpload, fs, path, repoRoot, runBuildAndRestart(), seen (+3 more)
+
+### Community 107 - "Tsconfig Build Compileroptions"
+Cohesion: 0.15
+Nodes (12): compilerOptions, alwaysStrict, noImplicitAny, noImplicitThis, rootDir, strict, strictBindCallApply, strictFunctionTypes (+4 more)
+
+### Community 108 - "Deployment Rpa Agent"
 Cohesion: 0.19
 Nodes (12): get_lang(), load_lang_pref(), i18n.py — Internationalization support for MXV RPA Agent Supports Vietnamese…, Translate a key to the current language. Supports .format(**kwargs)., Switch between vi and en, return new lang., Persist language preference to config.json., Load language preference from config.json (if exists)., save_lang_pref() (+4 more)
 
-### Community 82 - "Notifier"
+### Community 109 - "Notifier Deployment Rpa"
 Cohesion: 0.28
 Nodes (7): _job_label(), Notifier, pyqtSlot, QObject, notifier.py — Windows Custom Toast Notifications for MXV RPA Agent Uses custom…, Subscribes to AgentCore signals and displays Windows toast notifications., _toast()
 
-### Community 83 - "excel-reader.ts"
+### Community 110 - "Layout Button Test"
+Cohesion: 0.23
+Nodes (8): metadata, plusJakartaSans, RootLayout(), GlobalLayout(), Button(), buttonVariants, AuthProvider(), cn()
+
+### Community 111 - "Marco Utils Excel"
 Cohesion: 0.21
 Nodes (10): loadHHLookup(), loadDsgdData(), loadGenericData(), compareCellValues(), formatDate(), matchRowIndex(), readExcelSheet(), readLastSheet() (+2 more)
 
-### Community 84 - "trade-classifier.service.ts"
+### Community 112 - "Marco Services Trade"
 Cohesion: 0.46
 Nodes (12): classifyAllTrades(), classifyDsgd(), classifyFr(), classifyOp(), classifyPs(), classifyTtm(), classifyTttt(), isAcm() (+4 more)
 
-### Community 85 - "devDependencies"
+### Community 113 - "Package Devdependencies Node"
 Cohesion: 0.17
 Nodes (12): ts-node, @types/node, typescript, @types/node, typescript, devDependencies, ts-node, @types/node (+4 more)
 
-### Community 86 - "fr-calculator.helper.ts"
-Cohesion: 0.38
-Nodes (10): main(), calcFrProduct(), FrProductResult, getFrMaSP(), getFrSerial(), getPreviousWorkday(), isSameDate(), normalizeFrTradingDate() (+2 more)
+### Community 114 - "Margin Checker Margincheckercontroller"
+Cohesion: 0.23
+Nodes (8): MarginCheckerController, Body, Controller, Post, Req, UploadedFiles, UseGuards, UseInterceptors
 
-### Community 88 - "check-all-files.js"
+### Community 115 - "Scripts Check All"
 Cohesion: 0.17
 Nodes (11): acmDailyPath, castDownloadsDir, cqgDailyPath, day, fs, month, msDailyPath, path (+3 more)
 
-### Community 89 - "compilerOptions"
-Cohesion: 0.17
-Nodes (11): compilerOptions, alwaysStrict, noImplicitAny, noImplicitThis, strict, strictBindCallApply, strictFunctionTypes, strictNullChecks (+3 more)
-
-### Community 90 - "tray.py"
+### Community 116 - "Deployment Rpa Agent"
 Cohesion: 0.24
 Nodes (7): _draw_menu_icon(), _load_icon(), _make_circle_icon(), QIcon, tray.py — MXV RPA Agent System Tray Icon Manages the Windows system tray icon,…, Create a simple colored circle icon with a letter (fallback if PNG missing)., Draw clean, modern vector icons for the tray menu programmatically.
 
-### Community 91 - "Path"
+### Community 117 - "Scripts Winscp Backup"
 Cohesion: 0.24
-Nodes (10): Logger, Path, get_short_path(), get_winscp_path(), main(), backup_winscp.py — SFTP Backup using WinSCP.com via CMD…, Convert duong dan co Unicode (tieng Viet, khoang trang, ...) sang 8.3 short…, Tim WinSCP.com theo 3 cach, tra ve (duong_dan, cach_tim_duoc). Neu khong tim… (+2 more)
+Nodes (10): Logger, get_short_path(), get_winscp_path(), main(), Path, backup_winscp.py — SFTP Backup using WinSCP.com via CMD…, Convert duong dan co Unicode (tieng Viet, khoang trang, ...) sang 8.3 short…, Tim WinSCP.com theo 3 cach, tra ve (duong_dan, cach_tim_duoc). Neu khong tim… (+2 more)
 
-### Community 92 - "app.module.ts"
-Cohesion: 0.08
-Nodes (23): AppController, Controller, Get, AppService, Injectable, DatabaseModule, Module, LoggerMiddleware (+15 more)
+### Community 118 - "Appcontroller Gethello Appservice"
+Cohesion: 0.29
+Nodes (5): AppController, Controller, Get, AppService, Injectable
 
-### Community 93 - "ValueStatisticsController"
-Cohesion: 0.24
-Nodes (7): Body, Controller, Get, Post, Put, UseGuards, ValueStatisticsController
+### Community 119 - "Roles Auth Guard"
+Cohesion: 0.36
+Nodes (4): Roles(), ROLES_KEY, RolesGuard, Injectable
 
-### Community 94 - "marco/package.json"
-Cohesion: 0.20
-Nodes (9): exceljs, dependencies, exceljs, description, engines, node, exceljs, name (+1 more)
+### Community 120 - "Download Deployment Rpa"
+Cohesion: 0.25
+Nodes (10): download_single_report(), generate_monthly_intervals(), Page, download_cpp_ce_reports.py — Tool tải báo cáo tự động từ CPP & CE theo tháng…, Hỗ trợ bỏ thuộc tính readonly của ô nhập ngày và điền Từ ngày -> Đến ngày ->…, Tải 1 file báo cáo cụ thể theo từng tháng và lưu đúng thư mục con với tên file…, Hàm thực thi chính: Đăng nhập -> Sinh khoảng tháng -> Vòng lặp tải 5 báo cáo, Sinh danh sách khoảng thời gian theo từng tháng từ start_date -> end_date. Định… (+2 more)
 
-### Community 95 - "test-teams-maturity.ts"
-Cohesion: 0.16
-Nodes (4): SeedService, Injectable, BotEngineService, Injectable
+### Community 121 - "Mock Sftp Package"
+Cohesion: 0.18
+Nodes (10): dependencies, ssh2, description, ssh2, main, name, scripts, start (+2 more)
 
-### Community 97 - "jest"
-Cohesion: 0.15
-Nodes (13): jest, collectCoverageFrom, coverageDirectory, moduleFileExtensions, rootDir, testEnvironment, testRegex, transform (+5 more)
+### Community 122 - "Sftp Server Mock"
+Cohesion: 0.25
+Nodes (10): checkAndScheduleDailyGenerator(), crypto, fs, generateDailyAcmFiles(), getSftpAttrs(), keyPair, path, resolveLocalPath() (+2 more)
 
-### Community 98 - "inspect-duplicates.js"
+### Community 124 - "Inspect Test Calculation"
+Cohesion: 0.40
+Nodes (7): main(), toStr(), getMaHHFromDsgd(), getVal(), main(), getVal(), main()
+
+### Community 125 - "Scripts Inspect Duplicates"
 Cohesion: 0.22
 Nodes (8): accounts, currencies, duplicateAccounts, fs, path, rows, workbook, XLSX
 
-### Community 99 - "update-close-trading-tasks.js"
+### Community 126 - "Scripts Test Scan"
+Cohesion: 0.25
+Nodes (8): { execFile }, fs, main(), path, pythonWorker, runWorker(), testCases, testDir
+
+### Community 127 - "Tasks Scripts Update"
 Cohesion: 0.22
 Nodes (6): fs, { MongoClient, ObjectId }, NEW_TASKS, path, REPLACED_TASK_IDS, TASK_DEFAULTS
 
-### Community 100 - "test-cqg-qss.ts"
+### Community 128 - "Test Cqg Qss"
 Cohesion: 0.44
 Nodes (8): addSettlementColumn(), ALL_SYMBOLS, DEBUG_DIR, openQSSTabWithSymbols(), runCQGQSSTest(), scrapeQSSPrices(), screenshot(), step()
 
-### Community 101 - "test-reconciliation.ts"
+### Community 129 - "Test Reconciliation Addsettlementcolumn"
 Cohesion: 0.42
 Nodes (8): addSettlementColumn(), DEBUG_DIR, parseMSMarketCsv(), parseUniqueMSContracts(), runEndToEndReconciliation(), scrapeQSSPrices(), screenshot(), step()
 
-### Community 102 - "calendar/page.tsx"
-Cohesion: 0.25
-Nodes (6): AdminCalendarPage(), CalendarEntry, CalendarView, ShiftSlot, CalendarEntry, CalendarViewProps
+### Community 130 - "Tests Test Cqg"
+Cohesion: 0.44
+Nodes (8): addSettlementColumn(), ALL_SYMBOLS, DEBUG_DIR, openQSSTabWithSymbols(), runCQGQSSTest(), scrapeQSSPrices(), screenshot(), step()
 
-### Community 103 - "date-utils.ts"
+### Community 131 - "Tests Test Reconciliation"
+Cohesion: 0.42
+Nodes (8): addSettlementColumn(), DEBUG_DIR, parseMSMarketCsv(), parseUniqueMSContracts(), runEndToEndReconciliation(), scrapeQSSPrices(), screenshot(), step()
+
+### Community 132 - "Downloader Cpp Download"
+Cohesion: 0.36
+Nodes (8): ensure_sidebar_expanded(), navigate_to_report_page(), set_date_range_and_search(), set_mui_date_range_and_search(), trigger_export_download(), test_live_download.py — Kịch bản chạy test thực tế trên hệ thống UAT CPP với…, run_live_test(), take_ss()
+
+### Community 133 - "Package Scripts Name"
+Cohesion: 0.22
+Nodes (8): name, private, scripts, build, dev, lint, start, version
+
+### Community 134 - "Utils Marco Date"
 Cohesion: 0.28
 Nodes (4): excelSerialToDate(), isSameDate(), normalizeFrDate(), normalizeFrTradingDate()
 
-### Community 104 - "debug-find-files.js"
+### Community 135 - "Poc Tkgd Automation"
+Cohesion: 0.31
+Nodes (8): extract_pdf_contract(), extract_pdf_phuluc(), ocr_cccd_images(), SCAN & EXTRACT TOÀN BỘ TỆP ĐÍNH KÈM (PDF HỢP ĐỒNG + PHỤ LỤC + ẢNH CCCD) VÀ TỰ…, Bóc tách thông tin từ PDF Hợp đồng mở TK (*-mxv.pdf), Bóc tách thông tin từ PDF Phụ lục 01 (*-PL01.pdf), OCR trích xuất thông tin từ các ảnh CCCD mặt trước & mặt sau, run_extraction_pipeline()
+
+### Community 136 - "Scripts Debug Find"
 Cohesion: 0.32
 Nodes (7): dotenv, findLatestFile(), fs, main(), mergeCqgRawFiles(), { MongoClient }, path
 
-### Community 105 - "inspect-balances-file.js"
+### Community 137 - "Scripts Inspect Balances"
 Cohesion: 0.25
 Nodes (7): descIdx, fs, header, path, rows, workbook, XLSX
 
-### Community 106 - "test-playwright-nktht.js"
+### Community 138 - "Sftp Scripts Run"
+Cohesion: 0.39
+Nodes (7): checkAndScheduleDailyGenerator(), generateDailyAcmFiles(), getSftpAttrs(), { privateKey }, resolveLocalPath(), server, SFTP_ROOT
+
+### Community 139 - "Scripts Test Playwright"
 Cohesion: 0.29
 Nodes (7): { chromium }, crypto, decrypt(), fs, mongoose, path, runPlaywrightNkthtTest()
 
-### Community 107 - "frontend/tsconfig.json"
+### Community 140 - "Cpp Downloader Services"
+Cohesion: 0.39
+Nodes (6): merge_csv_files(), date_service.py — Xử lý tính toán và chia khoảng thời gian theo từng tháng., Chia đôi khoảng ngày start_str -> end_str (định dạng dd/mm/yyyy). Ví dụ:…, Hợp nhất danh sách các file CSV tạm thành 1 file CSV duy nhất. Giữ dòng Header…, split_interval(), test_split_and_merge()
+
+### Community 141 - "Tsconfig Marco Ref"
 Cohesion: 0.25
 Nodes (6): exclude, exclude, include, dist, node_modules, src/**/*
 
-### Community 108 - "backend/package.json"
+### Community 142 - "Nest Cli Compileroptions"
 Cohesion: 0.29
-Nodes (6): author, description, license, name, private, version
+Nodes (6): collection, compilerOptions, assets, deleteOutDir, $schema, sourceRoot
 
-### Community 109 - "find_tokens.js"
+### Community 143 - "Database Find Tokens"
 Cohesion: 0.33
 Nodes (6): download(), fs, https, main(), path, urls
 
-### Community 110 - "excel-writer.helper.ts"
-Cohesion: 0.52
-Nodes (6): addByProductSheet(), addByTvkdSheet(), addSummarySheet(), addValidationSheet(), createResultExcel(), saveTempExcel()
+### Community 144 - "Scripts Forensic Check"
+Cohesion: 0.29
+Nodes (5): dotenv, fs, mongoose, path, pdfParse
 
-### Community 111 - "SystemSettingsController"
-Cohesion: 0.12
-Nodes (12): SystemSettingsController, Body, Controller, Get, Param, Post, UseGuards, InjectModel (+4 more)
-
-### Community 112 - "test_excel.js"
+### Community 145 - "Test Excel Data"
 Cohesion: 0.29
 Nodes (6): data, filePath, formulas, path, workbook, XLSX
 
-### Community 113 - "test_pdf.js"
+### Community 146 - "Test Pdf Bursapdfpath"
 Cohesion: 0.29
 Nodes (5): bursaPdfPath, cmePdfPath, fs, path, { PDFParse }
 
-### Community 114 - "include"
+### Community 147 - "Tests Test Excel"
+Cohesion: 0.29
+Nodes (6): data, filePath, formulas, path, workbook, XLSX
+
+### Community 148 - "Test Tests Pdf"
+Cohesion: 0.29
+Nodes (5): bursaPdfPath, cmePdfPath, fs, path, { PDFParse }
+
+### Community 149 - "Ref Next Tsconfig"
 Cohesion: 0.29
 Nodes (7): include, **/*.ts, **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next/types/**/*.ts, **/*.tsx
 
-### Community 115 - "scripts"
-Cohesion: 0.29
-Nodes (7): scripts, build, build:gia-tri, build:so-lot, gia-tri, so-lot, typecheck
+### Community 151 - "System Settings Cleanup"
+Cohesion: 0.40
+Nodes (3): CleanupService, Cron, Injectable
 
-### Community 116 - "nest-cli.json"
-Cohesion: 0.33
-Nodes (5): collection, compilerOptions, deleteOutDir, $schema, sourceRoot
-
-### Community 117 - "check-backup-files.js"
+### Community 152 - "Scripts Check Backup"
 Cohesion: 0.33
 Nodes (4): dotenv, fs, { MongoClient }, path
 
-### Community 118 - "inspect-json-telegram.js"
+### Community 153 - "Scripts Inspect Json"
 Cohesion: 0.33
 Nodes (5): content, data, filePath, fs, path
 
-### Community 119 - "locate-sod-files.js"
+### Community 154 - "Scripts Locate Sod"
 Cohesion: 0.33
 Nodes (4): dotenv, fs, { MongoClient }, path
 
-### Community 120 - "update-active-shift-recon.js"
+### Community 155 - "Scripts Save Test"
+Cohesion: 0.33
+Nodes (4): dotenv, fs, mongoose, path
+
+### Community 156 - "Scripts Update Active"
 Cohesion: 0.33
 Nodes (4): { AppModule }, { MongoClient }, { NestFactory }, { ReconciliationService }
 
-### Community 121 - "test_eval.js"
+### Community 157 - "Test Eval Cleanformula"
 Cohesion: 0.40
 Nodes (5): cleanFormula(), ctx, evalFormula(), formulas, vm
 
-### Community 122 - "test-teams-maturity-step3.ts"
+### Community 158 - "Test Teams Maturity"
 Cohesion: 0.40
 Nodes (5): ExpiringContract, GroupedMatch, MatchResult, parseEmailText(), runStep3Test()
 
-### Community 123 - "import-templates-from-bson.js"
+### Community 159 - "Tests Test Eval"
+Cohesion: 0.40
+Nodes (5): cleanFormula(), ctx, evalFormula(), formulas, vm
+
+### Community 160 - "Tests Test Teams"
+Cohesion: 0.40
+Nodes (5): ExpiringContract, GroupedMatch, MatchResult, parseEmailText(), runStep3Test()
+
+### Community 161 - "Dashboard Performanceoverview Sparkline"
+Cohesion: 0.40
+Nodes (4): PerformanceOverview(), PerformanceOverviewProps, Sparkline(), SparklineProps
+
+### Community 162 - "Bson Import Templates"
 Cohesion: 0.40
 Nodes (3): fs, { MongoClient, BSON }, path
 
-### Community 124 - "print_frames.js"
+### Community 163 - "Database Print Frames"
 Cohesion: 0.40
 Nodes (3): { chromium }, fs, path
 
-### Community 125 - "SlaPolicy"
+### Community 164 - "Sheet Lot Statistics"
+Cohesion: 0.60
+Nodes (4): clone_month_sheet(), main(), parse_month_year_from_sheet_name(), Trích xuất (month, year) từ tên sheet dạng T08.2026 hoặc T08_2026
+
+### Community 165 - "Schema Schemas Sla"
 Cohesion: 0.40
 Nodes (4): SlaPolicy, SlaPolicySchema, Prop, Schema
 
-### Community 126 - "check-aug7-jobs.js"
+### Community 166 - "Scripts Check Aug7"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 127 - "check-jobs.js"
+### Community 167 - "Scripts Check Graph"
+Cohesion: 0.40
+Nodes (3): dotenv, mongoose, path
+
+### Community 168 - "Scripts Check Jobs"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 128 - "drop-logs.js"
+### Community 169 - "Scripts Drop Logs"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 129 - "find_cqg_files.js"
+### Community 170 - "Scripts Find Cqg"
 Cohesion: 0.40
 Nodes (3): found, fs, path
 
-### Community 130 - "inspect-audit-log.js"
+### Community 171 - "Scripts Insert Qlgd"
+Cohesion: 0.40
+Nodes (3): bcrypt, { MongoClient, ObjectId }, personnelList
+
+### Community 172 - "Scripts Inspect Audit"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 131 - "inspect-bot-jobs-details.js"
+### Community 173 - "Scripts Inspect Bot"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 132 - "inspect-checklist-status.js"
+### Community 174 - "Scripts Inspect Checklist"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 133 - "inspect-klgd-audit.js"
+### Community 175 - "Scripts Inspect Klgd"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 134 - "inspect-klgd-job.js"
+### Community 176 - "Scripts Inspect Klgd"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 135 - "inspect-m365-settings.js"
+### Community 177 - "Scripts Inspect Live"
+Cohesion: 0.40
+Nodes (4): { Client }, conn, fs, path
+
+### Community 178 - "Scripts Inspect M365"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 136 - "inspect-parent-task.js"
+### Community 179 - "Scripts Inspect Parent"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 137 - "inspect-s1-details.js"
+### Community 180 - "Scripts Inspect Details"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 138 - "inspect-sod-job.js"
+### Community 181 - "Scripts Inspect Sod"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 139 - "inspect-stuck-checklist.js"
+### Community 182 - "Scripts Inspect Stuck"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 140 - "list-distinct-jobs.js"
+### Community 183 - "Scripts List Distinct"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 141 - "list-pending-shifts.js"
+### Community 184 - "Scripts List Pending"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 142 - "print-aug7-task.js"
+### Community 185 - "Scripts Print Aug7"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 143 - "print-latest-job-aug7.js"
+### Community 186 - "Scripts Print Forwarded"
+Cohesion: 0.40
+Nodes (3): dotenv, mongoose, path
+
+### Community 187 - "Scripts Print Latest"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient, ObjectId }, path
 
-### Community 144 - "seed-notification-rules.js"
+### Community 188 - "Scripts Seed Notification"
 Cohesion: 0.40
 Nodes (3): dotenv, { MongoClient }, path
 
-### Community 145 - "_test_mongoose.js"
+### Community 189 - "Scripts Test Live"
+Cohesion: 0.40
+Nodes (3): { Client }, conn, testCases
+
+### Community 190 - "Test Mongoose Scripts"
 Cohesion: 0.40
 Nodes (3): BotJob, BotJobSchema, mongoose
 
-### Community 146 - "test-reconciliation-run.js"
+### Community 191 - "Scripts Test Reconciliation"
 Cohesion: 0.40
 Nodes (3): { AppModule }, { NestFactory }, { ReconciliationService }
 
-### Community 147 - "close_shifts.js"
+### Community 192 - "Calendarview Admin Calendar"
+Cohesion: 0.40
+Nodes (3): CalendarView, CalendarEntry, CalendarViewProps
+
+### Community 193 - "Close Shifts Dotenv"
 Cohesion: 0.50
 Nodes (3): dotenv, mongoose, path
 
-### Community 154 - "test-cast-download.ts"
+### Community 194 - "Ref Package Json"
+Cohesion: 0.50
+Nodes (4): moduleFileExtensions, ts, js, json
+
+### Community 198 - "Scripts Query Mongo"
+Cohesion: 0.50
+Nodes (3): { Client }, conn, path
+
+### Community 201 - "Test Cast Download"
 Cohesion: 0.67
 Nodes (3): DEBUG_DIR, log(), main()
 
-### Community 155 - "lib"
+### Community 203 - "Tests Test Cast"
+Cohesion: 0.67
+Nodes (3): DEBUG_DIR, log(), main()
+
+### Community 204 - "Cpp Downloader Test"
+Cohesion: 0.67
+Nodes (3): test_dsl_loading.py — Kịch bản kiểm thử tự động chi tiết giao diện bảng…, run_automated_evaluation(), take_ss()
+
+### Community 205 - "Ref Dom Tsconfig"
 Cohesion: 0.50
 Nodes (4): lib, dom, dom.iterable, esnext
 
-### Community 156 - "msgbox_dismisser"
+### Community 206 - "Scripts Run Lot"
 Cohesion: 0.67
 Nodes (3): main(), msgbox_dismisser(), Background thread tự động đóng các dialog MsgBox/VBA Error từ Excel.
 
-### Community 157 - "msgbox_dismisser"
+### Community 207 - "Scripts Run Value"
 Cohesion: 0.67
 Nodes (3): main(), msgbox_dismisser(), Background thread tự động đóng các dialog MsgBox/VBA Error từ Excel.
-
-### Community 216 - ".constructor"
-Cohesion: 0.18
-Nodes (6): ApiWatcherService, Injectable, Inject, InjectModel, FileWatcherService, Injectable
-
-### Community 241 - "MarginCheckerController"
-Cohesion: 0.20
-Nodes (9): MarginCheckerController, Body, Controller, Get, Post, UploadedFiles, UseGuards, UseInterceptors (+1 more)
-
-### Community 293 - "SystemLog"
-Cohesion: 0.24
-Nodes (7): SystemLogsService, Injectable, InjectModel, SystemLog, SystemLogSchema, Prop, Schema
-
-### Community 294 - "Roles"
-Cohesion: 0.33
-Nodes (4): Roles(), ROLES_KEY, RolesGuard, Injectable
-
-### Community 295 - "rpa-downloader.service.ts"
-Cohesion: 0.18
-Nodes (4): NOTE: Selector debug guide - if download fails, check:, NOTE: Tạm thời đóng phần tự động lọc ngày (RangePicker) để đồng bộ với các tác…, NOTE: This method handles the CQG 100-symbol limit by batching into groups., TODO: Xác nhận lại tên menu chính xác trên M-System cho tab Options
-
-### Community 296 - "PostEodHandlerService"
-Cohesion: 0.29
-Nodes (3): NegativeMarginAccount, PostEodHandlerService, Injectable
 
 ## Knowledge Gaps
-- **680 isolated node(s):** `CalendarEntry`, `ShiftSlot`, `CalendarEntry`, `CalendarViewProps`, `BotStatusBadgeProps` (+675 more)
+- **881 isolated node(s):** `ExpiringContract`, `GroupedMatch`, `MatchResult`, `SidebarItem`, `ExpiringContract` (+876 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **112 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **107 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Permissions()` connect `Permissions` to `ShiftSlotsService`, `TemplatesController`, `TradingReportService`, `UsersController`, `ActivityLog`, `DepartmentsController`, `RolesController`, `IncidentsService`, `MarginCheckerController`, `.updateTaskStatus`, `WorkingCalendarService`, `CcpStatisticsService`, `ShiftsController`, `LotStatisticsService`, `ValueStatisticsController`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `SystemSettingsService` connect `SystemSettingsService` to `margin-change-requests.module.ts`, `BotEngineController`, `TradingReportService`, `AppModule`, `system-settings.module.ts`, `auth.module.ts`, `RpaDownloaderService`, `bot-engine.module.ts`, `ShiftsService`, `AuthService`, `CcpStatisticsService`, `TeamsNotifierService`, `WorkingCalendarService`, `LotStatisticsService`, `Permissions`, `database.module.ts`, `Roles`, `rpa-downloader.service.ts`, `lot-statistics.service.ts`, `EmailWatcherService`, `PostEodHandlerService`, `.constructor`, `ValueStatisticsService`, `GttCheckerService`, `value-statistics.service.ts`, `ShiftLog`, `.getSetting`, `OmsWatcherService`, `CqgSyncService`, `.constructor`, `test-teams-maturity.ts`, `test-cqg-qss.ts`, `test-reconciliation.ts`, `SystemSettingsController`?**
-  _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Why does `ShiftLog` connect `ShiftLog` to `.getSetting`, `DashboardService`, `margin-change-requests.module.ts`, `.loadConfig`, `AppModule`, `auth.module.ts`, `ChecklistTemplate`, `ShiftsGateway`, `BotJobQueueService`, `.updateTaskStatus`, `bot-engine.module.ts`, `ShiftsService`, `ShiftsController`, `.constructor`, `Permissions`, `TelegramService`, `test-teams-maturity.ts`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **What connects `CalendarEntry`, `ShiftSlot`, `CalendarEntry` to the rest of the system?**
-  _680 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `margin-change-requests.module.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.051560379918588875 - nodes in this community are weakly interconnected._
-- **Should `libs.js` be split into smaller, more focused modules?**
+- **Why does `SystemSettingsService` connect `Test Tests Statistics` to `Test Tests Main`, `Test Schema Shift`, `Test Cqg Qss`, `Test Reconciliation Addsettlementcolumn`, `Bot Engine Handler`, `Tests Test Cqg`, `Tests Test Reconciliation`, `Tkgd Automation Services`, `Trading Report Tradingreportservice`, `Bot Engine Job`, `Schema Auth Schemas`, `Bot Engine Rpa`, `Working Calendar Workingcalendarservice`, `Statistics Auth Lot`, `Schema Schemas Notification`, `Statistics Value Lot`, `Auth Authcontroller Authservice`, `Bot Engine Cqg`, `Ccp Statistics Ccpstatisticsservice`, `Lot Statistics Lotstatisticscontroller`, `Tkgd Automation Bot`, `Margin Change Requests`, `Bot Engine System`, `Reconciliation Reconciliationcontroller Checknegativemargin`, `Bot Engine Gtt`, `Shift Jobs Job`, `Bot Engine Watcher`, `Lot Statistics Helpers`, `Post Eod Bot`, `System Settings Systemsettingscontroller`, `Notifications Teams Notifier`, `Roles Auth Guard`?**
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Why does `Permissions()` connect `Statistics Auth Lot` to `Activity Log Interceptors`, `Admin Users Userscontroller`, `Reconciliation Reconciliationcontroller Checknegativemargin`, `Admin Departments Departmentscontroller`, `Admin Roles Rolescontroller`, `Ccp Statistics Ccpstatisticsservice`, `Shifts Shiftscontroller Shiftsservice`, `Incidents Admin Templates`, `Lot Statistics Lotstatisticscontroller`, `Trading Report Tradingreportservice`, `Margin Checker Margincheckercontroller`, `Working Calendar Workingcalendarservice`, `Shift Slots Shiftslotsservice`, `Reconciliation Reconciliationservice Margin`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
+- **Why does `ShiftLog` connect `Test Schema Shift` to `Test Tests Main`, `Bot Engine Handler`, `Shifts Shiftscontroller Shiftsservice`, `Bot Engine Job`, `Schema Auth Schemas`, `Incidents Admin Templates`, `System Shifts Logs`, `Working Calendar Workingcalendarservice`, `Dashboard Dashboardcontroller Dashboardservice`, `Statistics Auth Lot`, `Reconciliation Reconciliationservice Margin`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **What connects `ExpiringContract`, `GroupedMatch`, `MatchResult` to the rest of the system?**
+  _881 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Test Tests Main` be split into smaller, more focused modules?**
+  _Cohesion score 0.026863226863226862 - nodes in this community are weakly interconnected._
+- **Should `Test Schema Shift` be split into smaller, more focused modules?**
+  _Cohesion score 0.06574074074074074 - nodes in this community are weakly interconnected._
+- **Should `Database Temp Libs` be split into smaller, more focused modules?**
   _Cohesion score 0.08701754385964912 - nodes in this community are weakly interconnected._
-- **Should `BotEngineController` be split into smaller, more focused modules?**
-  _Cohesion score 0.12682926829268293 - nodes in this community are weakly interconnected._
