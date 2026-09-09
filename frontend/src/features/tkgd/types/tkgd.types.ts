@@ -106,6 +106,8 @@ export interface CleanRecord {
     action: string;
     previousData: any;
   }>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type FilterStatus =

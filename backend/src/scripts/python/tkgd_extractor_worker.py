@@ -958,7 +958,10 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
         if len(parts) >= 2:
             res['hoTenKhongDau'] = f"{parts[0]} {' '.join(parts[1:])}".strip()
         elif len(parts) == 1:
-            res['hoTenKhongDau'] = parts[0].replace('<', ' ').strip()
+            cand = parts[0].replace('<', ' ').strip()
+            # Tên tiếng Việt từ MRZ không thể quá ngắn dưới 4 ký tự (loại bỏ chuỗi rác như UNN)
+            if len(cand) >= 4 and not cand.startswith('UNN'):
+                res['hoTenKhongDau'] = cand
 
     return res
 
@@ -1029,16 +1032,12 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
     combined = front_txt + '\n' + back_txt
     data['_rawCombinedText'] = combined
 
-    # Số CCCD (ưu tiên chuỗi 12 số bắt đầu bằng 0)
-    m_cccd = re.search(r'(?:Số định danh cá nhân|Personal identification number|Số|No\.?|sé/no|séno)[\s:/]*(\d{12})', combined, re.IGNORECASE)
+    # Số CCCD (CCCD Việt Nam 12 số luôn bắt đầu bằng 0 tương ứng mã tỉnh 001 - 096)
+    m_cccd = re.search(r'(?:Số định danh cá nhân|Personal identification number|Số|No\.?|sé/no|séno)[\s:/]*(0\d{11})', combined, re.IGNORECASE)
     if not m_cccd:
         m_cands = re.findall(r'(0\d{11})', combined)
         if m_cands:
             data['soCCCD'] = m_cands[0]
-        else:
-            m_cccd = re.search(r'(\d{12})', combined)
-            if m_cccd:
-                data['soCCCD'] = m_cccd.group(1).strip()
     else:
         data['soCCCD'] = m_cccd.group(1).strip()
 

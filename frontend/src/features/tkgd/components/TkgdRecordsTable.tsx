@@ -16,6 +16,7 @@ import {
   Info,
   ShieldCheck,
   Mail,
+  Clock,
 } from 'lucide-react';
 import { CleanRecord } from '../types/tkgd.types';
 import { cleanMailName, checkIsOldIdCard, getBadgeInfo } from '../utils/tkgd.helpers';
@@ -126,6 +127,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
               {!isCompactView && <th style={{ padding: '12px 14px' }}>Trạng Thái MS</th>}
               {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center' }}>Snapshot</th>}
               <th style={{ padding: '12px 14px', textAlign: 'center' }}>Kết Luận</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', width: '135px' }}>Thời Gian Kiểm Tra</th>
               <th id="tutorial-tkgd-inspect-col" style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}>
                 So Sánh
               </th>
@@ -134,14 +136,14 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isCompactView ? 8 : 10} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={isCompactView ? 9 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   <Loader2 size={24} className="animate-spin text-emerald-500" style={{ margin: '0 auto 8px auto' }} />
                   <span>Đang tải danh sách hồ sơ...</span>
                 </td>
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={isCompactView ? 8 : 10} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={isCompactView ? 9 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   Không tìm thấy hồ sơ đối soát nào phù hợp.
                 </td>
               </tr>
@@ -434,6 +436,41 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           >
                             CHỜ ĐỐI SOÁT
                           </span>
+                        )}
+                      </td>
+
+                      {/* Cột Thời Gian Kiểm Tra */}
+                      <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {r.ketLuan?.reconciledAt || r.updatedAt ? (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.72rem',
+                              color: 'var(--text-secondary)',
+                              backgroundColor: 'var(--bg-input)',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                            }}
+                            title={`Thời gian kiểm tra: ${new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleString('vi-VN')}`}
+                          >
+                            <Clock size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
+                            <span>
+                              {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleDateString('vi-VN', {
+                                day: '2-digit',
+                                month: '2-digit',
+                              })}{' '}
+                              {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleTimeString('vi-VN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>-</span>
                         )}
                       </td>
 

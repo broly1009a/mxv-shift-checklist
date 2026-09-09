@@ -889,6 +889,12 @@ export class TkgdAutomationService {
         } else if (r.ketLuan?.trangThai === 'KHOP_TEXT' && (!existing.ketLuan?.trangThai || existing.ketLuan?.trangThai === 'CHUA_XU_LY')) {
           existing.ketLuan = r.ketLuan;
         }
+
+        const rUpdated = (r as any).updatedAt;
+        const existingUpdated = (existing as any).updatedAt;
+        if (rUpdated && (!existingUpdated || new Date(rUpdated) > new Date(existingUpdated))) {
+          (existing as any).updatedAt = rUpdated;
+        }
       }
     }
 

@@ -2,6 +2,45 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T08:35] Bổ Sung Cột Thời Gian Kiểm Tra (Web & Excel) và Chặn Số/Tên Rác Khi Bóc Tách CCCD
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. *"18 UNN 990290600070 26/06/2004 04/04/2021 CỤC CẢNH SÁT QUẢN LÝ trong Cancuoc trong M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD Auto_Data_mail_20260908.xlsx tại tại lại có bản ghi lạ này tôi không tra cứu được UNN và 990290600070 sinh ra từ đâu"*.
+  2. *"giúp tôi thêm luôn cả cột thời gian kiểm tra để hỗ trợ tra cứu nên không bạn đánh giá"*.
+- **Đánh giá nghiệp vụ**:
+  1. **Nguồn gốc bản ghi lạ**:
+     - Thuộc tài khoản `003C6615616` (Khách hàng thực tế: `MAI ĐỨC DƯƠNG`, CCCD chuẩn: `066204000906`).
+     - Ảnh mặt trước bị cắt mất 8 số sau (chỉ còn `stino. 0662`). Mặt sau dải đọc máy (MRZ) bị mờ/nhiễu ký tự, Tesseract OCR xuất ra `Ÿÿ>>90460000Z9902906000702NWNAGT`.
+     - Thuật toán cũ tìm chuỗi 12 số bất kỳ và đã bắt trúng chuỗi rác `990290600070`, đồng thời bóc nhầm tên rác `UNN`.
+  2. **Đánh giá cột Thời Gian Kiểm Tra**:
+     - **Rất nên và cực kỳ cần thiết**: Giúp cán bộ trực ca và kiểm toán phân định rõ giữa *Thời gian nhận email từ TVKD* (`receivedDateTime`) và *Thời gian kiểm tra/đối soát thực tế* (`reconciledAt`).
+     - Giúp đo lường SLA xử lý hồ sơ, phục vụ bàn giao ca trực và kiểm tra nhanh hồ sơ vừa được xử lý trong đợt chạy gần nhất.
+- **Giải pháp thực hiện**:
+  1. **Cột Thời Gian Kiểm Tra trên Web UI**:
+     - Thêm cột `Thời Gian Kiểm Tra` vào bảng [`TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx) với icon đồng hồ `<Clock size={11} />`, hiển thị ngày giờ chi tiết (`DD/MM HH:mm:ss`).
+     - Cập nhật kiểu dữ liệu `CleanRecord` bổ sung `reconciledAt`, `updatedAt`, `createdAt`.
+  2. **Cột Thời Gian Kiểm Tra trong File Excel Xuất Ra**:
+     - Trong sheet `NoiDungMail` của file `Auto_Data_mail_YYYYMMDD.xlsx`: Bổ sung tiêu đề cột `E1 = 'Thời gian kiểm tra'` (in đậm, căn giữa).
+     - Ghi dữ liệu thời gian kiểm tra chuẩn xác (`DD/MM/YYYY HH:mm:ss`) vào từng dòng của sheet `NoiDungMail`.
+  3. **Khắc phục triệt để lỗi OCR CCCD (Loại bỏ số/tên rác)**:
+     - Trong [`tkgd_extractor_worker.py`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py): Quy định chặt chẽ số CCCD 12 số của Việt Nam **bắt buộc phải bắt đầu bằng số `0`** (mã tỉnh thành `001` - `096`), triệt tiêu việc nhận diện các chuỗi số ngẫu nhiên từ dải MRZ/mã vạch.
+     - Lọc bỏ tên bóc từ MRZ nếu quá ngắn (< 4 ký tự) hoặc chứa chuỗi rác như `UNN`.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/scripts/python/tkgd_extractor_worker.py`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py)
+- [`backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts)
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [`backend/src/scripts/deploy_to_ubuntu.js`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js)
+- [`frontend/src/features/tkgd/types/tkgd.types.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+
+### Xác nhận Build & Kiểm thử
+- ✅ Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).
+- ✅ Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).
+
+---
+
 ## [2026-09-09T08:20] Bổ Sung Bộ Lọc Khoảng Ngày & Giờ và Cơ Chế Bóc Tách Thông Minh (Smart Skip) Cho TKGD Automation
 
 ### Mục tiêu thay đổi

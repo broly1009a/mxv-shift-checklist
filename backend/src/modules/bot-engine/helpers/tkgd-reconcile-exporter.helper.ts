@@ -35,6 +35,22 @@ function formatDate(date: Date | string | undefined | null): string {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * Format ngày giờ sang chuỗi 'DD/MM/YYYY HH:mm:ss'
+ */
+function formatDateTime(date: Date | string | undefined | null): string {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return typeof date === 'string' ? date : '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  const secs = String(d.getSeconds()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${mins}:${secs}`;
+}
+
 function normalizeName(name: string | undefined | null): string {
   if (!name) return '';
   let s = name.split(/[\r\n]/)[0].trim();
@@ -259,12 +275,17 @@ export async function reconcileAndExportToExcel(
   cleanOldRows(sheetPhuluc);
   cleanOldRows(sheetMS);
 
-  // Chuẩn hóa tiêu đề cột Kết Quả cho sheet NoiDungMail
+  // Chuẩn hóa tiêu đề cột Kết Quả và Thời Gian Kiểm Tra cho sheet NoiDungMail
   if (sheetNoiDungMail) {
     const d1 = sheetNoiDungMail.getCell('D1');
     d1.value = 'Kết quả';
     d1.font = { bold: true };
     d1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const e1 = sheetNoiDungMail.getCell('E1');
+    e1.value = 'Thời gian kiểm tra';
+    e1.font = { bold: true };
+    e1.alignment = { horizontal: 'center', vertical: 'middle' };
   }
 
   // Style helper cho ô kết quả khớp (xanh lá), cần kiểm tra (vàng cam) và lệch (đỏ/cam)
@@ -462,18 +483,21 @@ export async function reconcileAndExportToExcel(
     }
 
     // 2. Ghi vào Sheet "NoiDungMail"
-    // Col 1: STT | Col 2: Mã TKGD | Col 3: Tên tài khoản | Col 4: Kết quả
+    // Col 1: STT | Col 2: Mã TKGD | Col 3: Tên tài khoản | Col 4: Kết quả | Col 5: Thời gian kiểm tra
     if (sheetNoiDungMail) {
+      const checkTime = record.ketLuan?.reconciledAt || record.updatedAt || new Date();
+      const checkTimeFormatted = formatDateTime(checkTime);
       const row = sheetNoiDungMail.addRow([
         sttNoiDung++,
         targetAccountCode,
         mail.tenTaiKhoan || '',
         ketQuaText,
+        checkTimeFormatted,
       ]);
 
       row.eachCell((cell, colNumber) => {
         cell.border = borderThin;
-        if (colNumber === 1 || colNumber === 2) {
+        if (colNumber === 1 || colNumber === 2 || colNumber === 5) {
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
         } else {
           cell.alignment = { vertical: 'middle' };

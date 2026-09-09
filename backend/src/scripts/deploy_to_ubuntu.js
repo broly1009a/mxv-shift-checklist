@@ -57,6 +57,10 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'frontend/src/tutorials'),
     remoteDir: '/opt/mxv-checklist/frontend/src/tutorials',
   },
+  {
+    localDir: path.join(repoRoot, 'backend/src/scripts/python'),
+    remoteDir: '/opt/mxv-checklist/backend/src/scripts/python',
+  },
 ];
 
 let filesToUpload = [];
