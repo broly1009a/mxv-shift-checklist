@@ -15,6 +15,7 @@ import {
   Sun,
   Settings,
   Loader2,
+  Clock,
 } from 'lucide-react';
 
 import { CleanRecord } from '../types/tkgd.types';
@@ -27,6 +28,7 @@ import { TkgdStatsCards } from './TkgdStatsCards';
 import { TkgdFilterBar } from './TkgdFilterBar';
 import { TkgdRecordsTable } from './TkgdRecordsTable';
 import { TkgdInspectionModal } from './modal/TkgdInspectionModal';
+import { TkgdActivityLogsModal } from './modal/TkgdActivityLogsModal';
 import { ImageLightboxModal } from './viewer/ImageLightboxModal';
 import { PdfPreviewFrame } from './viewer/PdfPreviewFrame';
 
@@ -36,6 +38,9 @@ export const TkgdDashboard: React.FC = () => {
 
   // Tab chính: Đối Soát Hồ Sơ vs Cấu Hình Bot
   const [mainTab, setMainTab] = useState<'RECONCILE' | 'CONFIG'>('RECONCILE');
+
+  // Modal Nhật Ký Tác Vụ Độc Lập TKGD (Audit Logs)
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   // Hook quản lý dữ liệu Master
   const {
@@ -296,7 +301,28 @@ export const TkgdDashboard: React.FC = () => {
           </button>
 
           {/* Chuông Thông Báo Đối Soát TKGD (Độc Lập TTBT) */}
-          <TkgdNotificationDropdown />
+          <TkgdNotificationDropdown onOpenLogs={() => setShowLogsModal(true)} />
+
+          {/* Nút Mở Nhật Ký Tác Vụ TKGD (Audit Logs Độc Lập) */}
+          <button
+            onClick={() => setShowLogsModal(true)}
+            title="Xem Nhật Ký Tác Vụ TKGD (Audit Logs)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              backgroundColor: showLogsModal ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-card)',
+              border: showLogsModal ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+              color: showLogsModal ? '#3b82f6' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Clock size={15} />
+          </button>
 
           {/* Nút Làm mới */}
           <button
@@ -591,6 +617,12 @@ export const TkgdDashboard: React.FC = () => {
           onClose={() => setPreviewPdf(null)}
         />
       )}
+
+      {/* 4. Modal Nhật Ký Tác Vụ TKGD (Audit Logs Độc Lập TTBT) */}
+      <TkgdActivityLogsModal
+        isOpen={showLogsModal}
+        onClose={() => setShowLogsModal(false)}
+      />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailDocument } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordDocument } from '../../schemas/clean-account-record.schema';
+import { TkgdActivityLog, TkgdActivityLogDocument } from '../../schemas/tkgd-activity-log.schema';
 import { encrypt, decrypt } from '../bot-engine/utils/crypto';
 import { chromium, Page } from 'playwright-core';
 import * as fs from 'fs';
@@ -211,8 +212,104 @@ export class TkgdAutomationService {
     @InjectModel(TkgdUserConfig.name) private userConfigModel: Model<TkgdUserConfigDocument>,
     @InjectModel(RawAccountMail.name) private rawMailModel: Model<RawAccountMailDocument>,
     @InjectModel(CleanAccountRecord.name) private cleanRecordModel: Model<CleanAccountRecordDocument>,
+    @InjectModel(TkgdActivityLog.name) private activityLogModel: Model<TkgdActivityLogDocument>,
     @Optional() private readonly settingsService?: SystemSettingsService,
   ) { }
+
+  /**
+   * Ghi log tác vụ độc lập cho phân hệ TKGD (Thanh Toán Bù Trừ)
+   */
+  async logActivity(params: {
+    action: string;
+    title: string;
+    details?: string;
+    status?: 'SUCCESS' | 'FAILED' | 'WARNING' | 'INFO';
+    userEmail?: string;
+    userName?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      const log = new this.activityLogModel({
+        action: params.action,
+        title: params.title,
+        details: params.details || '',
+        status: params.status || 'SUCCESS',
+        userEmail: params.userEmail || 'clearing.acc@mxv.vn',
+        userName: params.userName || '',
+        ipAddress: params.ipAddress || '',
+        userAgent: params.userAgent || '',
+        metadata: params.metadata || {},
+      });
+      await log.save();
+    } catch (err: any) {
+      this.logger.warn(`[TKGD-LOG] Không thể lưu log tác vụ TKGD: ${err.message}`);
+    }
+  }
+
+  /**
+   * Lấy danh sách nhật ký tác vụ độc lập của TKGD
+   */
+  async getActivityLogs(query: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    status?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    userEmail?: string;
+  }): Promise<{ data: any[]; total: number; page: number; pages: number }> {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const filter: any = {};
+
+    if (query.action && query.action !== 'ALL') {
+      filter.action = query.action;
+    }
+    if (query.status && query.status !== 'ALL') {
+      filter.status = query.status;
+    }
+    if (query.userEmail) {
+      filter.userEmail = query.userEmail;
+    }
+    if (query.search) {
+      const regex = new RegExp(query.search, 'i');
+      filter.$or = [
+        { title: regex },
+        { details: regex },
+        { action: regex },
+        { userEmail: regex },
+      ];
+    }
+    if (query.startDate || query.endDate) {
+      filter.createdAt = {};
+      if (query.startDate) {
+        filter.createdAt.$gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
+    }
+
+    const total = await this.activityLogModel.countDocuments(filter);
+    const data = await this.activityLogModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    return {
+      data,
+      total,
+      page,
+      pages: Math.ceil(total / limit) || 1,
+    };
+  }
 
   private progressMap = new Map<string, TkgdProgressState>();
 
@@ -584,6 +681,14 @@ export class TkgdAutomationService {
 
     await config.save();
     this.logger.log(`Đã lưu cấu hình TKGD cho user: ${userEmail}`);
+
+    await this.logActivity({
+      action: 'CONFIG_UPDATE',
+      title: 'Cập nhật cấu hình bot TKGD',
+      details: `Đã lưu cấu hình bot và thông số tác vụ đối soát cho tài khoản ${userEmail}`,
+      userEmail,
+    });
+
     return await this.getUserConfig(userEmail);
   }
 
@@ -2338,6 +2443,14 @@ export class TkgdAutomationService {
       stage: `Hoàn tất bóc tách ${processedCount} hồ sơ từ email Outlook!`,
     });
 
+    await this.logActivity({
+      action: 'SYNC_MAIL',
+      title: 'Nạp & bóc tách email Outlook',
+      details: `Đã nạp và bóc tách thành công ${processedCount} hồ sơ từ email Outlook`,
+      userEmail,
+      metadata: { processedCount },
+    });
+
     return {
       success: true,
       count: processedCount,
@@ -2602,6 +2715,16 @@ export class TkgdAutomationService {
       stage: `Đã cào M-System thành công cho ${scrapedCount} hồ sơ!`,
     });
 
+    await this.logActivity({
+      action: 'SYNC_MSYSTEM',
+      title: 'Cào dữ liệu M-System',
+      details: options?.investorCode
+        ? `Đã cào M-System thành công cho tài khoản ${options.investorCode}`
+        : `Đã cào M-System thành công cho ${scrapedCount} hồ sơ`,
+      userEmail,
+      metadata: { scrapedCount, summary: reconResult.summary },
+    });
+
     return {
       success: true,
       scrapedCount,
@@ -2820,6 +2943,14 @@ export class TkgdAutomationService {
 
     await record.save();
 
+    await this.logActivity({
+      action: 'REPARSE_ACCOUNT',
+      title: 'Bóc tách lại tài khoản',
+      details: `Đã quét lại email và bóc tách lại hồ sơ ${record.maTKGD || baseCode} thành công!`,
+      userEmail,
+      metadata: { recordId, accountCode, baseCode, batchDate: bDate },
+    });
+
     return {
       success: true,
       message: `Đã quét lại email và bóc tách lại hồ sơ ${record.maTKGD || baseCode} thành công!`,
@@ -2879,6 +3010,18 @@ export class TkgdAutomationService {
       total: 3,
       percent: 100,
       stage: 'Hoàn tất toàn bộ chu trình tự động A-Z!',
+    });
+
+    await this.logActivity({
+      action: 'RUN_PIPELINE',
+      title: 'Hoàn tất chu trình tổng hợp TKGD',
+      details: `Đã nạp ${mailResult.count} mail, cào ${msResult.scrapedCount} hồ sơ MS và xuất file Excel đối soát`,
+      userEmail,
+      metadata: {
+        mailCount: mailResult.count,
+        scrapedCount: msResult.scrapedCount,
+        summary: msResult.summary,
+      },
     });
 
     return {
@@ -3359,6 +3502,15 @@ export class TkgdAutomationService {
 
     await record.save();
     this.logger.log(`[MANUAL-APPROVE] ${userEmail} đã duyệt tay hồ sơ ${record.maTKGD || record.maTKGDBase}`);
+
+    await this.logActivity({
+      action: 'MANUAL_APPROVE',
+      title: 'Phê duyệt hồ sơ thủ công',
+      details: `Phê duyệt thủ công cho hồ sơ ${record.maTKGD || record.maTKGDBase}. Lý do: ${record.manualReview?.reason}`,
+      userEmail,
+      metadata: { recordId, accountCode: record.maTKGD || record.maTKGDBase, reason: record.manualReview?.reason },
+    });
+
     return {
       success: true,
       record,
@@ -3403,6 +3555,15 @@ export class TkgdAutomationService {
 
     const updated = await this.cleanRecordModel.findById(recordId);
     this.logger.log(`[REVERT-APPROVE] ${userEmail} đã hủy duyệt tay hồ sơ ${record.maTKGD || record.maTKGDBase}`);
+
+    await this.logActivity({
+      action: 'REVERT_APPROVE',
+      title: 'Hủy phê duyệt hồ sơ',
+      details: `Đã hủy duyệt tay hồ sơ ${record.maTKGD || record.maTKGDBase}, chuyển về đối soát máy`,
+      userEmail,
+      metadata: { recordId, accountCode: record.maTKGD || record.maTKGDBase },
+    });
+
     return {
       success: true,
       record: updated,

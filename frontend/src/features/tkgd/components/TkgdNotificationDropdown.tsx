@@ -51,7 +51,11 @@ function formatTimeAgo(isoString: string): string {
   }
 }
 
-export const TkgdNotificationDropdown: React.FC = () => {
+interface TkgdNotificationDropdownProps {
+  onOpenLogs?: () => void;
+}
+
+export const TkgdNotificationDropdown: React.FC<TkgdNotificationDropdownProps> = ({ onOpenLogs }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<TkgdNotificationItem[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -471,12 +475,34 @@ export const TkgdNotificationDropdown: React.FC = () => {
               padding: '8px 16px',
               backgroundColor: 'var(--bg-app)',
               borderTop: '1px solid var(--border-color)',
-              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               fontSize: '0.7rem',
               color: 'var(--text-muted)',
             }}
           >
-            Thông báo độc lập module Đối Soát TKGD (TTBT)
+            <span>Module Đối Soát TKGD (TTBT)</span>
+            {onOpenLogs && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenLogs();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#3b82f6',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                Xem Nhật Ký Tác Vụ
+              </button>
+            )}
           </div>
         </div>
       )}

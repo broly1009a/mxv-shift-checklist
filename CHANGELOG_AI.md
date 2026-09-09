@@ -2,7 +2,45 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-09-09T10:55] Tách Độc Lập Hoàn Toàn Component & Dữ Liệu Chuông Thông Báo Cho Phân Hệ TKGD (TTBT)
+## [2026-09-09T11:05] Tách Độc Lập Toàn Diện Hệ Thống Nhật Ký Tác Vụ (Activity Log) Cho Phân Hệ TKGD (TTBT)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"phần log của tkgd cũng phải được ghi ra riêng không chung đụng với checklist"*.
+- **Giải quyết triệt để**:
+  1. Loại bỏ toàn bộ các request ghi dữ liệu của TKGD ra khỏi interceptor toàn cục `ActivityLogInterceptor` của Checklist (ngăn chặn tuyệt đối việc ô nhiễm dữ liệu vào bảng `activity_logs` của ca trực).
+  2. Xây dựng Schema MongoDB độc lập `TkgdActivityLog` lưu trong collection `tkgd_activity_logs`.
+  3. Cài đặt các hàm ghi vết tự động `logActivity` cho tất cả các tác vụ nghiệp vụ TKGD: Nạp mail Outlook, Cào M-System, Chạy toàn bộ chu trình, Bóc tách lại hồ sơ, Phê duyệt tay, Hủy duyệt tay, Cập nhật cấu hình bot.
+  4. Cung cấp API backend chuyên biệt `GET /api/v1/tkgd/logs` với đầy đủ bộ lọc (action, status, date range, search) và phân trang.
+  5. Xây dựng Modal giao diện độc lập [TkgdActivityLogsModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TkgdActivityLogsModal.tsx) và nút bấm trực tiếp trên Header TKGD Dashboard & chân chuông thông báo.
+
+### Danh sách file chỉnh sửa & tạo mới
+- [backend/src/schemas/tkgd-activity-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/schemas/tkgd-activity-log.schema.ts) *(Mới)*:
+  - Schema Mongoose `TkgdActivityLog` trong collection `tkgd_activity_logs`.
+- [backend/src/interceptors/activity-log.interceptor.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/interceptors/activity-log.interceptor.ts):
+  - Bổ sung điều kiện loại trừ: Bỏ qua toàn bộ request có chứa `/tkgd` hoặc `tkgd`, không lưu vào `ActivityLog` của Checklist.
+- [backend/src/modules/tkgd-automation/tkgd-automation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.module.ts):
+  - Khai báo model `TkgdActivityLog` trong `MongooseModule.forFeature`.
+- [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+  - Thêm phương thức `logActivity` và `getActivityLogs`.
+  - Tích hợp ghi log tự động vào `syncMailOpeningAccounts`, `syncMSystemAccounts`, `reparseAccount`, `runPipelineAll`, `manualApproveRecord`, `revertManualApprove`, `saveUserConfig`.
+- [backend/src/modules/tkgd-automation/tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts):
+  - Bổ sung endpoint `GET /api/v1/tkgd/logs`.
+- [frontend/src/features/tkgd/services/tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts):
+  - Thêm API method `getActivityLogs`.
+- [frontend/src/features/tkgd/components/modal/TkgdActivityLogsModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TkgdActivityLogsModal.tsx) *(Mới)*:
+  - Giao diện modal xem toàn bộ nhật ký tác vụ độc lập của TKGD (bộ lọc hành động, tìm kiếm, xem metadata, phân trang).
+- [frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
+  - Gắn nút xem Nhật ký tác vụ (icon Clock) lên Top Header và tích hợp mở modal.
+- [frontend/src/features/tkgd/components/TkgdNotificationDropdown.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdNotificationDropdown.tsx):
+  - Bổ sung nút liên kết *"Xem Nhật Ký Tác Vụ"* ở footer của dropdown thông báo.
+
+### Xác nhận Build & Triển khai
+- ✅ Backend Compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).
+- ✅ Frontend Compile: Đạt 100% (`npx tsc --noEmit` & `npm run build` exit code 0).
+- ✅ Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-backend` (pid 3360763) và `mxv-frontend` (pid 3360973) đều `online` với exit code 0.
+
+---
+
 
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**: *"tôi bảo rồi không được dùng chung modal schema của checklist vì độc lập giúp tôi tách độc lập phần thông báo này ra"*; *"tôi đang thấy phần chuông của checklist"*; *"trong khi yêu cầu của tôi là thông báo độc lập của tkgd và component này cũng hoàn toàn độc lập không chung đụng với checklist"*.
@@ -417,7 +455,7 @@ px tsc --noEmit exit code 0).
 - **Yêu cầu từ USER**: *"hiện tại phần này tôi thấy nhìn nó AI và công nghiệp quá không thân thiện với người dùng và khi chuyển thì cũng không có confirm giúp tôi. đánh giá lại bằng một bản thiết kế mới"*
 - **Khắc phục các nhược điểm của giao diện cũ**:
   1. Loại bỏ text lỗi cú pháp MathJax thô: `$\rightarrow$`.
-  2. Dọn sạch toàn bộ emoji rác (`🤖`, `👤`, `⚡`, ``) gây cảm giác thiếu chuyên nghiệp.
+  2. Dọn sạch toàn bộ emoji rác (``, `👤`, `⚡`, ``) gây cảm giác thiếu chuyên nghiệp.
   3. Xóa bỏ nút Switch toggle trùng lặp ở góc trên (tránh xung đột UX với 2 card lựa chọn bên dưới).
   4. Bổ sung **Hộp thoại xác nhận chuyển đổi an toàn (Enterprise Confirmation Dialog)** trước khi gọi API đổi chế độ ngầm 24/7.
   5. Thiết kế lại quy trình 4 bước thành **Mini Process Stepper** thanh lịch với icon `ChevronRight`.
@@ -581,7 +619,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
     3. **Cơ chế Idempotency chống trùng lặp**: Chỉ bóc tách các email chưa có mã tài khoản trong hệ thống hoặc các tài khoản chưa đồng bộ M-System.
     4. **Công tắc Bật/Tắt chủ động trên Dashboard UI (Toggle Switch)**:
        - Người dùng có thể linh hoạt Bật hoặc Tắt chế độ tự động chạy ngầm chỉ với 1 click.
-       - Hiển thị trực quan trạng thái: `🤖 Tự Động 24/7: BẬT` (xanh ngọc pulse) kèm mốc thời gian lần quét cuối cùng (`HH:mm`), hoặc `🤖 Tự Động 24/7: TẮT`.
+       - Hiển thị trực quan trạng thái: ` Tự Động 24/7: BẬT` (xanh ngọc pulse) kèm mốc thời gian lần quét cuối cùng (`HH:mm`), hoặc ` Tự Động 24/7: TẮT`.
        - Polling cập nhật trạng thái mỗi 15 giây.
 
 ### Chi tiết các file đã chỉnh sửa
@@ -603,7 +641,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 6. **[frontend/src/features/tkgd/hooks/useTkgdActions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts)**:
    - Quản lý state `autoStatus`, định kỳ polling 15 giây và cung cấp hàm xử lý `handleToggleAutoPipeline()`.
 7. **[frontend/src/features/tkgd/components/TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)**:
-   - Bổ sung nút Toggle Switch `🤖 Tự Động 24/7 (BẬT / TẮT)` kèm hiệu ứng pulse và mốc thời gian lần quét cuối.
+   - Bổ sung nút Toggle Switch ` Tự Động 24/7 (BẬT / TẮT)` kèm hiệu ứng pulse và mốc thời gian lần quét cuối.
 8. **[frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx)**:
    - Kết nối state và event handler từ `useTkgdActions` xuống toolbar.
 

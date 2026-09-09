@@ -25,6 +25,11 @@ export class ActivityLogInterceptor implements NestInterceptor {
     // Only log write operations (POST, PUT, DELETE)
     const isWriteOperation = ['POST', 'PUT', 'DELETE'].includes(method);
 
+    // Tuyệt đối không ghi log của phân hệ TKGD (TTBT) vào ActivityLog của Checklist
+    if (originalUrl && (originalUrl.includes('/tkgd') || originalUrl.includes('tkgd'))) {
+      return next.handle();
+    }
+
     return next.handle().pipe(
       tap(async (responseBody) => {
         // Only log if the request succeeded, user is authenticated, and it's a mutative request

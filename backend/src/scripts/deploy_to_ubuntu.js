@@ -84,6 +84,10 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/backend/src/app.module.ts',
   },
   {
+    local: path.join(repoRoot, 'backend/src/interceptors/activity-log.interceptor.ts'),
+    remote: '/opt/mxv-checklist/backend/src/interceptors/activity-log.interceptor.ts',
+  },
+  {
     local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
     remote: '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
   },

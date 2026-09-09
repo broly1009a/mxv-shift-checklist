@@ -337,5 +337,34 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     return await this.tkgdService.runHistoricalBackfill(email, fromDate, toDate);
   }
+
+  /**
+   * Lấy danh sách nhật ký tác vụ độc lập của TKGD (Thanh Toán Bù Trừ)
+   */
+  @Get('logs')
+  async getActivityLogs(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('action') action?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    const p = parseInt(page || '1', 10);
+    const l = parseInt(limit || '20', 10);
+    return await this.tkgdService.getActivityLogs({
+      page: p,
+      limit: l,
+      action,
+      status,
+      search,
+      startDate,
+      endDate,
+      userEmail: email,
+    });
+  }
 }
 

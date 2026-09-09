@@ -239,5 +239,37 @@ export const tkgdApi = {
     }
     return res.json();
   },
+
+  async getActivityLogs(
+    params?: {
+      page?: number;
+      limit?: number;
+      action?: string;
+      status?: string;
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    token?: string | null,
+    userEmail?: string
+  ): Promise<{ data: any[]; total: number; page: number; pages: number }> {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.append('page', String(params.page));
+    if (params?.limit) qs.append('limit', String(params.limit));
+    if (params?.action && params.action !== 'ALL') qs.append('action', params.action);
+    if (params?.status && params.status !== 'ALL') qs.append('status', params.status);
+    if (params?.search) qs.append('search', params.search);
+    if (params?.startDate) qs.append('startDate', params.startDate);
+    if (params?.endDate) qs.append('endDate', params.endDate);
+
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/logs?${qs.toString()}`, {
+      headers: getHeaders(token, userEmail),
+    });
+    if (!res.ok) {
+      throw new Error('Không thể tải nhật ký tác vụ TKGD');
+    }
+    return res.json();
+  },
 };
+
 
