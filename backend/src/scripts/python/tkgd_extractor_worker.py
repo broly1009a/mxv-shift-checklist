@@ -835,31 +835,38 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
         # Áp dụng bộ lọc khử lóa flash Telea Inpainting nếu có phản xạ ánh đèn
         rot = suppress_specular_glare(rot)
 
-        # Lấy 45% phía dưới
+        # Thử các vùng ROI thích ứng (Adaptive Multi-Region Scan):
+        # 1. rot[int(h * 0.50):, :] -> Cận cảnh (50% dưới)
+        # 2. rot[int(h * 0.35):, :] -> Góc rộng / thẻ nằm giữa bàn (65% dưới - chống cắt chém chữ)
+        # 3. rot -> Toàn khung hình (chống cắt viền triệt để)
         h, w = rot.shape[:2]
-        mrz_region = rot[int(h * 0.55):, :]
-        gray = cv2.cvtColor(mrz_region, cv2.COLOR_BGR2GRAY)
+        candidate_regions = [
+            rot[int(h * 0.50):, :],
+            rot[int(h * 0.35):, :],
+            rot
+        ]
 
-        # Config MRZ
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
-        text = pytesseract.image_to_string(gray, config=custom_config)
-        lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 10]
+        for mrz_region in candidate_regions:
+            gray = cv2.cvtColor(mrz_region, cv2.COLOR_BGR2GRAY)
+            text = pytesseract.image_to_string(gray, config=custom_config)
+            lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 10]
 
-        for l in lines:
-            if re.search(r'[IDLT]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
-                parsed = parse_mrz_lines(lines)
-                if parsed and (parsed.get('soCCCD') or parsed.get('ngaySinh')):
-                    parsed['source'] = 'MRZ'
-                    # Kiểm tra Nơi cấp từ mặt sau
-                    try:
-                        full_txt = pytesseract.image_to_string(rot, lang='vie+eng')
-                        if 'BỘ CÔNG AN' in full_txt.upper() or 'BO CONG AN' in full_txt.upper():
-                            parsed['noiCap'] = 'BỘ CÔNG AN'
-                        elif 'CỤC CẢNH SÁT' in full_txt.upper():
-                            parsed['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
-                    except Exception:
-                        pass
-                    return parsed
+            for l in lines:
+                if re.search(r'[IDLT1]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
+                    parsed = parse_mrz_lines(lines)
+                    if parsed and (parsed.get('soCCCD') or parsed.get('ngaySinh')):
+                        parsed['source'] = 'MRZ'
+                        # Kiểm tra Nơi cấp từ mặt sau
+                        try:
+                            full_txt = pytesseract.image_to_string(rot, lang='vie+eng')
+                            if 'BỘ CÔNG AN' in full_txt.upper() or 'BO CONG AN' in full_txt.upper():
+                                parsed['noiCap'] = 'BỘ CÔNG AN'
+                            elif 'CỤC CẢNH SÁT' in full_txt.upper():
+                                parsed['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
+                        except Exception:
+                            pass
+                        return parsed
 
     # Fallback: Thử nắn thẳng phối cảnh 4 điểm nếu ảnh chụp bị xiên góc
     deskewed = auto_deskew_perspective_transform(img)
@@ -869,17 +876,22 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
                 rot_d = deskewed if angle == 0 else cv2.rotate(deskewed, cv2.ROTATE_180)
                 rot_d = suppress_specular_glare(rot_d)
                 h_d, w_d = rot_d.shape[:2]
-                mrz_reg = rot_d[int(h_d * 0.55):, :]
-                gray_d = cv2.cvtColor(mrz_reg, cv2.COLOR_BGR2GRAY)
+                candidate_deskew_regions = [
+                    rot_d[int(h_d * 0.50):, :],
+                    rot_d[int(h_d * 0.35):, :],
+                    rot_d
+                ]
                 custom_cfg = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
-                txt_d = pytesseract.image_to_string(gray_d, config=custom_cfg)
-                lines_d = [l.strip() for l in txt_d.split('\n') if len(l.strip()) >= 10]
-                for l in lines_d:
-                    if re.search(r'[IDLT]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
-                        parsed_d = parse_mrz_lines(lines_d)
-                        if parsed_d and (parsed_d.get('soCCCD') or parsed_d.get('ngaySinh')):
-                            parsed_d['source'] = 'MRZ_DESKEW'
-                            return parsed_d
+                for mrz_reg in candidate_deskew_regions:
+                    gray_d = cv2.cvtColor(mrz_reg, cv2.COLOR_BGR2GRAY)
+                    txt_d = pytesseract.image_to_string(gray_d, config=custom_cfg)
+                    lines_d = [l.strip() for l in txt_d.split('\n') if len(l.strip()) >= 10]
+                    for l in lines_d:
+                        if re.search(r'[IDLT1]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
+                            parsed_d = parse_mrz_lines(lines_d)
+                            if parsed_d and (parsed_d.get('soCCCD') or parsed_d.get('ngaySinh')):
+                                parsed_d['source'] = 'MRZ_DESKEW'
+                                return parsed_d
         except Exception:
             pass
 
@@ -894,7 +906,7 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
         'noiCap': None,
         'hoTenKhongDau': None
     }
-    line1 = next((l for l in lines if re.search(r'[IDLT]DVNM', l) or l.startswith('ID') or l.startswith('LD') or l.startswith('TD') or ('VNM' in l and re.search(r'\d{12}', l))), None)
+    line1 = next((l for l in lines if re.search(r'[IDLT1]DVNM', l) or l.startswith('ID') or l.startswith('LD') or l.startswith('TD') or l.startswith('1D') or ('VNM' in l and re.search(r'\d{12}', l))), None)
     line2 = next((l for l in lines if re.search(r'\d{4,6}[0-9]?[FM]', l)), None)
 
     if line1:
@@ -911,7 +923,7 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
                 if m_all12:
                     res['soCCCD'] = m_all12[-1]
                 else:
-                    m = re.search(r'[IDLT]DVNM(\d{9,12})', line1)
+                    m = re.search(r'[IDLT1]DVNM(\d{9,12})', line1)
                     if m:
                         res['soCCCD'] = m.group(1)
 
@@ -953,10 +965,13 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
     # Tìm dòng tên: chứa <<, không có VNM, không phải dòng ngày tháng sinh
     name_lines = [l for l in lines if '<<' in l and 'VNM' not in l and not re.search(r'\d{4,6}[FM]', l)]
     if name_lines:
-        clean_name = re.sub(r'[^A-Z<]', '', name_lines[0])
-        parts = [p.replace('<', ' ').strip() for p in clean_name.split('<<') if p.strip()]
+        clean_raw = re.sub(r'[^A-Z<]', '', name_lines[0])
+        parts = [p.replace('<', ' ').strip() for p in clean_raw.split('<<') if p.replace('<', ' ').strip()]
         if len(parts) >= 2:
-            res['hoTenKhongDau'] = f"{parts[0]} {' '.join(parts[1:])}".strip()
+            surname = parts[0].strip()
+            given = parts[1].strip()
+            given_words = [w for w in given.split() if len(w) > 1 or w == given.split()[0]]
+            res['hoTenKhongDau'] = f"{surname} {' '.join(given_words)}".strip()
         elif len(parts) == 1:
             cand = parts[0].replace('<', ' ').strip()
             # Tên tiếng Việt từ MRZ không thể quá ngắn dưới 4 ký tự (loại bỏ chuỗi rác như UNN)

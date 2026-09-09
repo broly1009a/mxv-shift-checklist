@@ -2,6 +2,36 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T08:55] Nâng Cấp Quét MRZ Thích Ứng Đa Vùng (Adaptive Multi-Region Scan) & Badge Bảo Chứng Trên Bảng Web
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"tôi vẫn muốn bóc tách cả trường hợp trên để đảm bảo. liệu có khả thi không, hãy đề xuất cho tôi... với các thông tin giúp tôi nâng cấp... nhưng có note lại hoặc log lại để biết không"*.
+- **Vấn đề giải quyết**:
+  1. Khi ảnh CCCD mặt sau được chụp từ xa (thừa viền bàn/sàn nhà rộng), nhát cắt cố định cũ `h * 0.55` chém đứt nửa trên của dải MRZ, làm méo dạng chữ `IDV` thành `1UNN` và mất số CCCD.
+  2. Người dùng muốn xem được nhãn nhận diện bảo chứng trực tiếp ngay trên bảng danh sách hồ sơ ngoài trang tổng quan mà không nhất thiết phải mở modal.
+- **Giải pháp thực hiện**:
+  1. **Python Worker (`tkgd_extractor_worker.py`)**:
+     - Nâng cấp hàm `try_decode_mrz`: Quét thích ứng đa vùng liên hoàn qua 3 cấp độ:
+       + Vùng 1: Crop 50% dưới (cho ảnh chụp cận cảnh).
+       + Vùng 2: Crop 65% dưới (`rot[int(h * 0.35):, :]` - bao trọn dải MRZ khi thẻ nằm lọt thỏm giữa bàn).
+       + Vùng 3: Quét toàn bộ khung hình (`rot`) với whitelist ký tự ICAO Doc 9303 (`A-Z0-9<`).
+     - Tối ưu hàm `parse_mrz_lines`: Hỗ trợ tiền tố OCR nhầm `1DVNM` $\rightarrow$ `IDVNM`, phân tách chính xác Họ tên ICAO bằng phân cách dấu `<<` hai lớp, loại bỏ hoàn toàn các ký tự nhiễu đơn lẻ ở cuối dòng.
+     - Đã kiểm nghiệm thực tế: Bóc tách chính xác 100% số CCCD `066204000906`, ngày sinh `26/06/2004`, giới tính `Nam` và tên `MAI DUC DUONG` trực tiếp từ ảnh chụp xa của khách hàng.
+  2. **Frontend UI (`TkgdRecordsTable.tsx`)**:
+     - Hiển thị nhãn phụ nhỏ màu xanh ngọc: `<ShieldCheck size={10} /> Bảo chứng MS (MD5)` ngay dưới nhãn `✓ KHỚP 100%` tại cột Kết quả đối soát. Giúp cán bộ quan sát ngay lập tức hồ sơ nào được bảo chứng mà không cần click mở modal.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/scripts/python/tkgd_extractor_worker.py`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py)
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+
+### Xác nhận Build & Kiểm thử
+- ✅ Python test bóc tách: Thành công 100% trên cả 2 ảnh mặt trước và sau (`066204000906`).
+- ✅ Backend TypeScript compile: Đạt 100% (`nest build` exit code 0).
+- ✅ Frontend TypeScript compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
+- ✅ Deploy Ubuntu Server `10.0.0.26`: Hoàn tất, PM2 `mxv-backend` & `mxv-frontend` đều `online`.
+
+---
+
 ## [2026-09-09T08:42] Bổ Sung Cơ Chế Bảo Chứng Chéo Qua Mã Băm Ảnh (MD5 Cross-Verification)
 
 ### Mục tiêu thay đổi

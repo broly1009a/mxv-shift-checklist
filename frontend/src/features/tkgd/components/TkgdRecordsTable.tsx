@@ -309,22 +309,44 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                             )}
                           </div>
                         ) : isKhop ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 8px',
-                              borderRadius: '20px',
-                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                              color: '#10b981',
-                              border: '1px solid rgba(16, 185, 129, 0.3)',
-                              fontWeight: 700,
-                              fontSize: '0.7rem',
-                            }}
-                          >
-                            <Check size={12} strokeWidth={3} /> KHỚP 100%
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 8px',
+                                borderRadius: '20px',
+                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                color: '#10b981',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                              }}
+                            >
+                              <Check size={12} strokeWidth={3} /> KHỚP 100%
+                            </span>
+                            {r.canCuoc?.source === 'VERIFIED_MS_HASH' && (
+                              <span
+                                style={{
+                                  fontSize: '0.62rem',
+                                  color: '#0d9488',
+                                  backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(13, 148, 136, 0.3)',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title="Hồ sơ được bảo chứng chéo bằng mã băm MD5 ảnh Mail trùng ảnh MS 100%"
+                              >
+                                <ShieldCheck size={10} /> Bảo chứng MS (MD5)
+                              </span>
+                            )}
+                          </div>
                         ) : isCanKiemTra ? (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
                             <span
