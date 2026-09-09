@@ -383,24 +383,6 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   <Cpu size={18} style={{ flexShrink: 0 }} />
                   <span>Cấu hình Bot/RPA</span>
                 </Link>
-                <Link
-                  href="/admin/tkgd-dashboard"
-                  onClick={onClose}
-                  className={`nav-link ${pathname.startsWith('/admin/tkgd-dashboard') ? 'active' : ''}`}
-                  title={isCollapsed ? "Đối soát mở TKGD" : undefined}
-                >
-                  <FileSpreadsheet size={18} style={{ flexShrink: 0 }} />
-                  <span>Đối soát mở TKGD</span>
-                </Link>
-                <Link
-                  href="/admin/tkgd-config"
-                  onClick={onClose}
-                  className={`nav-link ${pathname.startsWith('/admin/tkgd-config') ? 'active' : ''}`}
-                  title={isCollapsed ? "Cấu hình TKGD (TTBT)" : undefined}
-                >
-                  <KeyRound size={18} style={{ flexShrink: 0 }} />
-                  <span>Cấu hình TKGD (TTBT)</span>
-                </Link>
               </>
             )}
 

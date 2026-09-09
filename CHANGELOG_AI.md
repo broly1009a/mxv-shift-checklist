@@ -2,7 +2,29 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
-## [2026-09-09T10:00] Chuẩn Hóa Toàn Diện Dữ Liệu Bóc Tách TKGD, Sửa Lỗi Tên Trên Mail Bị "A" & Bổ Sung Nút Quét Lại Mail Từng Hồ Sơ (v2.1)
+## [2026-09-09T10:15] Tối Ưu Bảng TKGD: Chuẩn Hóa Cột Thời Gian (Gọn vs Đầy Đủ), Bật Tương Tác Snapshot Camera & Ẩn Menu TKGD Khỏi Sidebar Vận Hành Ca
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Đánh giá và chuẩn hóa cột **Thời Gian Kiểm Tra** nên để ở chế độ "Đầy đủ" hay "Gọn" trên bảng đối soát TKGD.
+  2. Sửa lỗi click vào **icon Camera** (cột Snapshot) không hoạt động: Cho phép click để mở rộng panel xem chi tiết lịch sử snapshot lưu vết.
+  3. Ẩn 2 liên kết `Đối soát mở TKGD` (`/admin/tkgd-dashboard`) và `Cấu hình TKGD (TTBT)` (`/admin/tkgd-config`) khỏi [Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx) vì phân hệ này không thuộc phạm vi vận hành trực ca checklist của MXV.
+
+### Danh sách file chỉnh sửa
+- [`frontend/src/components/Sidebar.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/Sidebar.tsx):
+  - Xóa bỏ 2 thẻ `<Link>` tới `/admin/tkgd-dashboard` và `/admin/tkgd-config` cùng các icon `FileSpreadsheet` và `KeyRound` không còn dùng trong sidebar.
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx):
+  - Chuẩn hóa cột **Thời Gian Kiểm Tra**: Chỉ hiển thị khi bật chế độ "Đầy đủ" (`!isCompactView`), ẩn đi ở chế độ "Gọn" (`isCompactView`) để giao diện gọn gàng, không bị tràn cuộn ngang màn hình.
+  - Chuyển đổi badge **Snapshot Camera** từ static `<span>` thành `<button>` có hiệu ứng hover: khi click sẽ toggle mở/đóng dòng mở rộng (`setExpandedRowId`).
+  - Cập nhật dòng mở rộng: đồng bộ `colSpan={isCompactView ? 8 : 11}`, bổ sung khối hiển thị chi tiết lịch sử Snapshot (`r.snapshots`) liệt kê từng mốc thời gian, loại hành động (`UPDATE`, `REPARSE_ACCOUNT`) và mô tả lưu vết tự động.
+
+### Xác nhận Build & Triển khai
+- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
+- ✅ Triển khai Production: Đã đồng bộ lên máy chủ Ubuntu VM `10.0.0.26`, build Next.js và restart PM2 `mxv-frontend` thành công (`online`).
+
+---
+
+
 
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**:

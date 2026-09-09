@@ -130,7 +130,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
               {!isCompactView && <th style={{ padding: '12px 14px' }}>Trạng Thái MS</th>}
               {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center' }}>Snapshot</th>}
               <th style={{ padding: '12px 14px', textAlign: 'center' }}>Kết Luận</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', width: '135px' }}>Thời Gian Kiểm Tra</th>
+              {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center', width: '135px' }}>Thời Gian Kiểm Tra</th>}
               <th id="tutorial-tkgd-inspect-col" style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}>
                 So Sánh
               </th>
@@ -139,14 +139,14 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isCompactView ? 9 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={isCompactView ? 8 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   <Loader2 size={24} className="animate-spin text-emerald-500" style={{ margin: '0 auto 8px auto' }} />
                   <span>Đang tải danh sách hồ sơ...</span>
                 </td>
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={isCompactView ? 9 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={isCompactView ? 8 : 11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   Không tìm thấy hồ sơ đối soát nào phù hợp.
                 </td>
               </tr>
@@ -252,23 +252,31 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                       {!isCompactView && (
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                           {r.snapshots && r.snapshots.length > 0 ? (
-                            <span
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedRowId(isExpanded ? null : r._id);
+                              }}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '3px',
+                                gap: '4px',
                                 fontSize: '0.68rem',
-                                fontWeight: 600,
-                                color: '#8b5cf6',
-                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                                border: '1px solid rgba(139, 92, 246, 0.25)',
-                                padding: '2px 7px',
-                                borderRadius: '10px',
+                                fontWeight: 700,
+                                color: isExpanded ? '#ffffff' : '#8b5cf6',
+                                backgroundColor: isExpanded ? '#8b5cf6' : 'rgba(139, 92, 246, 0.12)',
+                                border: '1px solid rgba(139, 92, 246, 0.35)',
+                                padding: '3px 9px',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
                               }}
-                              title={`Đã chụp ${r.snapshots.length} lần snapshot`}
+                              className="hover:scale-105 hover:bg-purple-600 hover:text-white shadow-sm"
+                              title={`Click để xem ${r.snapshots.length} lần snapshot lưu vết`}
                             >
-                              <Camera size={11} /> {r.snapshots.length}
-                            </span>
+                              <Camera size={12} /> {r.snapshots.length}
+                            </button>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>-</span>
                           )}
@@ -465,39 +473,41 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                       </td>
 
                       {/* Cột Thời Gian Kiểm Tra */}
-                      <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {r.ketLuan?.reconciledAt || r.updatedAt ? (
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.72rem',
-                              color: 'var(--text-secondary)',
-                              backgroundColor: 'var(--bg-input)',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border-color)',
-                            }}
-                            title={`Thời gian kiểm tra: ${new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleString('vi-VN')}`}
-                          >
-                            <Clock size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
-                            <span>
-                              {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleDateString('vi-VN', {
-                                day: '2-digit',
-                                month: '2-digit',
-                              })}{' '}
-                              {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleTimeString('vi-VN', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>-</span>
-                        )}
-                      </td>
+                      {!isCompactView && (
+                        <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {r.ketLuan?.reconciledAt || r.updatedAt ? (
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.72rem',
+                                color: 'var(--text-secondary)',
+                                backgroundColor: 'var(--bg-input)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                              }}
+                              title={`Thời gian kiểm tra: ${new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleString('vi-VN')}`}
+                            >
+                              <Clock size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
+                              <span>
+                                {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                })}{' '}
+                                {new Date(r.ketLuan?.reconciledAt || r.updatedAt!).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>-</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Cột Thao Tác */}
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
@@ -602,7 +612,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                     {/* Inline Panel mở rộng */}
                     {isExpanded && (
                       <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={isCompactView ? 8 : 10} style={{ padding: '14px 20px' }}>
+                        <td colSpan={isCompactView ? 8 : 11} style={{ padding: '14px 20px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <Info size={14} color="#3b82f6" />
@@ -633,6 +643,76 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                                 Tất cả các trường thông tin (Họ tên, CCCD, ngày sinh, ngày cấp) đã khớp chính xác giữa các bên.
                               </span>
                             )}
+
+                            {/* Khối xem chi tiết Snapshot nếu có */}
+                            {r.snapshots && r.snapshots.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: '6px',
+                                  paddingTop: '8px',
+                                  borderTop: '1px dashed var(--border-color)',
+                                  paddingLeft: '24px',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    marginBottom: '6px',
+                                    fontWeight: 600,
+                                    color: '#8b5cf6',
+                                  }}
+                                >
+                                  <Camera size={13} />
+                                  <span>Lịch sử Snapshot ({r.snapshots.length} lần lưu vết):</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                  {r.snapshots.map((snap, sIdx) => (
+                                    <div
+                                      key={sIdx}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        backgroundColor: 'var(--bg-card)',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--border-color)',
+                                        fontSize: '0.72rem',
+                                        width: 'fit-content',
+                                      }}
+                                    >
+                                      <span style={{ color: 'var(--text-muted)' }}>#{sIdx + 1}</span>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {snap.snapshotAt
+                                          ? new Date(snap.snapshotAt).toLocaleString('vi-VN')
+                                          : 'Không rõ thời gian'}
+                                      </span>
+                                      <span
+                                        style={{
+                                          padding: '1px 6px',
+                                          borderRadius: '4px',
+                                          backgroundColor:
+                                            snap.action === 'REPARSE_ACCOUNT'
+                                              ? 'rgba(59, 130, 246, 0.12)'
+                                              : 'rgba(139, 92, 246, 0.12)',
+                                          color: snap.action === 'REPARSE_ACCOUNT' ? '#3b82f6' : '#8b5cf6',
+                                          fontWeight: 600,
+                                          fontSize: '0.68rem',
+                                        }}
+                                      >
+                                        {snap.action || 'UPDATE'}
+                                      </span>
+                                      <span style={{ color: 'var(--text-secondary)' }}>
+                                        (Lưu vết tự động trước khi cập nhật dữ liệu)
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: '12px', paddingLeft: '24px', marginTop: '4px' }}>
                               <button
                                 onClick={() => onInspect(r)}
