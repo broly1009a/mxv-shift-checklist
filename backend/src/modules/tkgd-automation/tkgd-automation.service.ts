@@ -1428,9 +1428,30 @@ export class TkgdAutomationService {
           criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
         }
 
+        const hdCccd = (record.hopDong?.soCanCuoc || '').replace(/\D/g, '');
+        const imgCccd = (record.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
+
+        if (!isSubAccount) {
+          // Kiểm tra thiếu CCCD trên hồ sơ
+          if (!targetCccd) {
+            isCriticalMismatch = true;
+            criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
+          }
+          // Kiểm tra M-System chưa nhập số CCCD
+          if (ms.isFoundOnMS && !msCccd) {
+            isCriticalMismatch = true;
+            criticalErrors.push('M-System chưa nhập số CCCD');
+          }
+          // Kiểm tra chéo giữa HĐ và ảnh CCCD
+          if (hdCccd && imgCccd && hdCccd !== imgCccd) {
+            isCriticalMismatch = true;
+            criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
+          }
+        }
+
         if (targetCccd && msCccd && targetCccd !== msCccd) {
           isCriticalMismatch = true;
-          criticalErrors.push(`Lệch số CCCD (Yêu cầu: ${targetCccd} != MS: ${msCccd})`);
+          criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
         }
 
         // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
@@ -2034,7 +2055,9 @@ export class TkgdAutomationService {
                   rawNgaySinh: pythonRes.hopDong.rawNgaySinh,
                   ngayCap: parseDate(pythonRes.hopDong.ngayCap),
                   rawNgayCap: pythonRes.hopDong.rawNgayCap,
-                  noiCap: pythonRes.hopDong.noiCap || 'BỘ CÔNG AN',
+                  noiCap: pythonRes.hopDong.noiCap || undefined,
+                  ngayKyHD: parseDate(pythonRes.hopDong.ngayKyHD),
+                  rawNgayKyHD: pythonRes.hopDong.rawNgayKyHD,
                   gioiTinh: pythonRes.hopDong.gioiTinh,
                   rawGioiTinh: pythonRes.hopDong.rawGioiTinh,
                   dinhDangLoi: pythonRes.hopDong.dinhDangLoi || [],
@@ -2047,6 +2070,8 @@ export class TkgdAutomationService {
                 phuLucData = {
                   maTKGD: pythonRes.phuLuc.maTKGD || `${baseCode}-A`,
                   hoVaTen: pythonRes.phuLuc.tenKH || group.tenTaiKhoan,
+                  ngayKyHD: parseDate(pythonRes.phuLuc.ngayKyHD),
+                  rawNgayKyHD: pythonRes.phuLuc.rawNgayKyHD,
                   chuKy: pythonRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
                 };
               }
@@ -2054,7 +2079,7 @@ export class TkgdAutomationService {
               if (pythonRes.canCuoc && (pythonRes.canCuoc.soCCCD || pythonRes.canCuoc.hoTen || pythonRes.canCuoc.ngaySinh || (pythonRes.canCuoc.canhBaoChatLuong && pythonRes.canCuoc.canhBaoChatLuong.length > 0))) {
                 const rawDob = pythonRes.canCuoc.rawNgaySinh || pythonRes.canCuoc.ngaySinh;
                 const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
-                const noiCapFinal = pythonRes.canCuoc.noiCap || pythonRes.hopDong?.noiCap || hopDongData?.noiCap || 'BỘ CÔNG AN';
+                const noiCapFinal = pythonRes.canCuoc.noiCap || pythonRes.hopDong?.noiCap || hopDongData?.noiCap || undefined;
                 cccdData = {
                   hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || group.tenTaiKhoan,
                   soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,

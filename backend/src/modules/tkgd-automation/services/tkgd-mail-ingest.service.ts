@@ -447,7 +447,7 @@ export class TkgdMailIngestService {
                   rawNgaySinh: pythonRes.hopDong.rawNgaySinh || pythonRes.hopDong.ngaySinh,
                   ngayCap: parseDate(pythonRes.hopDong.ngayCap),
                   rawNgayCap: pythonRes.hopDong.rawNgayCap || pythonRes.hopDong.ngayCap,
-                  noiCap: pythonRes.hopDong.noiCap || 'BỘ CÔNG AN',
+                  noiCap: pythonRes.hopDong.noiCap || undefined,
                   ngayKyHD: parseDate(pythonRes.hopDong.ngayKyHD),
                   gioiTinh: pythonRes.hopDong.gioiTinh,
                   rawGioiTinh: pythonRes.hopDong.rawGioiTinh || pythonRes.hopDong.gioiTinh,
@@ -459,7 +459,7 @@ export class TkgdMailIngestService {
               if (pythonRes.canCuoc) {
                 const rawDob = pythonRes.canCuoc.rawNgaySinh || pythonRes.canCuoc.ngaySinh;
                 const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
-                const noiCapFinal = pythonRes.canCuoc.noiCap || hopDongData?.noiCap || 'BỘ CÔNG AN';
+                const noiCapFinal = pythonRes.canCuoc.noiCap || hopDongData?.noiCap || undefined;
                 cccdData = {
                   soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
                   hoVaTen: pythonRes.canCuoc.hoTen || group.tenTaiKhoan || hopDongData?.hoVaTen,

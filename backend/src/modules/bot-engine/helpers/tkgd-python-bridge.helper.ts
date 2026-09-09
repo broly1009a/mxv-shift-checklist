@@ -29,6 +29,7 @@ export interface PythonExtractorResult {
     diaChi?: string;
     noiCap?: string;
     ngayKyHD?: string;
+    rawNgayKyHD?: string;
     hasSignature?: boolean;
     hasStamp?: boolean;
     totalPages?: number;
@@ -38,6 +39,8 @@ export interface PythonExtractorResult {
   phuLuc?: {
     tenKH?: string;
     maTKGD?: string;
+    ngayKyHD?: string;
+    rawNgayKyHD?: string;
     isPl01?: boolean;
     hasSignature?: boolean;
     hasStamp?: boolean;

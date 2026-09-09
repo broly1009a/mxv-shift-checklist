@@ -2,6 +2,31 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T09:30] Nâng Cấp Toàn Vẹn Dữ Liệu & Chuẩn Hóa Kiểm Toán Đối Soát TKGD (v2.0)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Xử lý triệt để việc khuyết thiếu `Ngày ký HĐ` trên biểu mẫu PDF hợp đồng & PL01.
+  2. Tuyệt đối không lấy ngày nhận email (`receivedDateTime`) làm ngày ký hợp đồng vì vi phạm bản chất pháp lý của văn bản.
+  3. Chuẩn hóa Nơi cấp CCCD theo 3 mốc thời hiệu pháp luật của Bộ Công an (Luật Căn cước 2023 & các Thông tư BCA), loại bỏ việc tự đoán theo năm và giữ `null` cho CMND 9 số cũ.
+  4. Độc lập hóa 100% dữ liệu của 5 Sheet Excel (`NoiDungMail`, `Cancuoc`, `HopDong`, `Phuluc`, `MS`), triệt tiêu việc "mượn" dữ liệu chéo giữa các sheet kiểm toán.
+  5. Đồng bộ 100% bộ quy tắc đối soát giữa Web UI (`tkgd-automation.service.ts`) và Helper xuất Excel (`tkgd-reconcile-exporter.helper.ts`), bổ sung kiểm tra chéo HĐ vs Ảnh CCCD (`hdCccd !== imgCccd`) và sinh câu thông báo phản hồi TVKD chuẩn hóa.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/scripts/python/tkgd_extractor_worker.py`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py): Trích xuất `ngayKyHD` cho Hợp đồng và PL01; chuẩn hóa Nơi cấp theo 3 mốc pháp luật cho thẻ 12 số có ngày cấp.
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts): Map `ngayKyHD`, loại bỏ hardcode `BỘ CÔNG AN`, bổ sung đối soát CCCD thiếu, lệch MS, lệch giữa HĐ và Ảnh.
+- [`backend/src/modules/tkgd-automation/services/tkgd-mail-ingest.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/services/tkgd-mail-ingest.service.ts): Đồng bộ loại bỏ hardcode `BỘ CÔNG AN` khi nạp mail tự động.
+- [`backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts): Độc lập hóa 100% dữ liệu gốc của 4 Sheet (`MS`, `Cancuoc`, `HopDong`, `Phuluc`), đồng bộ bộ quy tắc đối soát giống Web UI.
+- [`backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts): Khai báo kiểu dữ liệu TypeScript `rawNgayKyHD` cho hợp đồng và `ngayKyHD`, `rawNgayKyHD` cho phụ lục.
+- [`docs/THIET_KE_VA_TRIEN_KHAI_NANG_CAP_TOAN_VEN_DU_LIEU_TKGD.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/docs/THIET_KE_VA_TRIEN_KHAI_NANG_CAP_TOAN_VEN_DU_LIEU_TKGD.md): Ban hành tài liệu thiết kế và hướng dẫn triển khai nâng cấp v2.0.
+
+### Xác nhận Build & Triển khai
+- ✅ Backend compile: Đạt (`nest build` exit code: 0).
+- ✅ Frontend compile: Đạt (`npx tsc --noEmit` & `next build` exit code: 0).
+- ✅ Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
+
+---
+
 ## [2026-09-09T08:55] Nâng Cấp Quét MRZ Thích Ứng Đa Vùng (Adaptive Multi-Region Scan) & Badge Bảo Chứng Trên Bảng Web
 
 ### Mục tiêu thay đổi

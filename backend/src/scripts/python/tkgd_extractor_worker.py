@@ -41,6 +41,8 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         'rawGioiTinh': None,
         'noiCap': None,
         'diaChi': None,
+        'ngayKyHD': None,
+        'rawNgayKyHD': None,
         'hasSignature': False,
         'hasStamp': False,
         'totalPages': 0,
@@ -290,12 +292,33 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
         if not any(k in addr.lower() for k in ['vạn phúc', 'hiệp bình phước', 'nguyễn thị nhung']):
             res['diaChi'] = addr
 
-    # 9. Chữ ký & con dấu
-    sig_kw = ['chữ ký', 'ký tên', 'người ký', 'đã ký', 'ký, ghi rõ họ tên', '$sign-kh']
-    stamp_kw = ['đóng dấu', 'con dấu', 'dấu mộc', '$sign-gcl']
-    text_lower = text.lower()
-    res['hasSignature'] = any(k in text_lower for k in sig_kw)
-    res['hasStamp'] = any(k in text_lower for k in stamp_kw)
+    # 10. Ngày ký hợp đồng (ngayKyHD)
+    # Mẫu 1: Mở đầu "Hôm nay ngày 11 tháng 08 năm 2026" (xử lý khoảng trắng thừa / tab / chấm)
+    m_ky_preamble = re.search(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
+    if m_ky_preamble:
+        d_ky, m_ky, y_ky = int(m_ky_preamble.group(1)), int(m_ky_preamble.group(2)), int(m_ky_preamble.group(3))
+        if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2000 <= y_ky <= 2099:
+            res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
+            res['rawNgayKyHD'] = m_ky_preamble.group(0).strip()
+
+    if not res.get('ngayKyHD'):
+        # Mẫu 2: Chân trang "Hà Nội, ngày 11 tháng 08 năm 2026"
+        m_ky_place = re.search(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
+        if m_ky_place:
+            d_ky, m_ky, y_ky = int(m_ky_place.group(1)), int(m_ky_place.group(2)), int(m_ky_place.group(3))
+            if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2000 <= y_ky <= 2099:
+                res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
+                res['rawNgayKyHD'] = m_ky_place.group(0).strip()
+
+    if not res.get('ngayKyHD'):
+        # Mẫu 3: Nhãn trường "Ngày ký: 11/08/2026" hoặc "Ký ngày: 11-08-2026"
+        m_ky_lbl = re.search(r'(?:Ngày\s*ký|Ký\s*ngày|Thời\s*gian\s*ký)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE)
+        if m_ky_lbl:
+            raw_d = m_ky_lbl.group(1).replace('-', '/').replace('.', '/')
+            parts_d = raw_d.split('/')
+            if len(parts_d) == 3:
+                res['ngayKyHD'] = f"{int(parts_d[0]):02d}/{int(parts_d[1]):02d}/{parts_d[2]}"
+                res['rawNgayKyHD'] = raw_d
 
     return res
 
@@ -304,6 +327,8 @@ def extract_pdf_pl01(pdf_path: str) -> Dict[str, Any]:
     res = {
         'tenKH': None,
         'maTKGD': None,
+        'ngayKyHD': None,
+        'rawNgayKyHD': None,
         'isPl01': False,
         'hasSignature': False,
         'hasStamp': False,
@@ -335,6 +360,25 @@ def extract_pdf_pl01(pdf_path: str) -> Dict[str, Any]:
     m_code = re.search(r'(003C\d{7}(?:-[ALMS])?)', text)
     if m_code:
         res['maTKGD'] = m_code.group(1).strip()
+
+    # Trích xuất Ngày ký trên PL01
+    m_pl_ky = re.search(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
+    if not m_pl_ky:
+        m_pl_ky = re.search(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
+    if not m_pl_ky:
+        m_pl_ky = re.search(r'(?:Ngày\s*ký|Ký\s*ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE)
+    if m_pl_ky:
+        if len(m_pl_ky.groups()) == 3:
+            d_pl, m_pl, y_pl = int(m_pl_ky.group(1)), int(m_pl_ky.group(2)), int(m_pl_ky.group(3))
+            if 1 <= d_pl <= 31 and 1 <= m_pl <= 12 and 2000 <= y_pl <= 2099:
+                res['ngayKyHD'] = f"{d_pl:02d}/{m_pl:02d}/{y_pl}"
+                res['rawNgayKyHD'] = m_pl_ky.group(0).strip()
+        elif len(m_pl_ky.groups()) == 1:
+            raw_pl = m_pl_ky.group(1).replace('-', '/').replace('.', '/')
+            parts_pl = raw_pl.split('/')
+            if len(parts_pl) == 3:
+                res['ngayKyHD'] = f"{int(parts_pl[0]):02d}/{int(parts_pl[1]):02d}/{parts_pl[2]}"
+                res['rawNgayKyHD'] = raw_pl
 
     res['hasSignature'] = any(k in text_lower for k in ['ký', 'chữ ký', '$sign-kh'])
     res['hasStamp'] = any(k in text_lower for k in ['dấu', 'con dấu', '$sign-gcl'])
@@ -1485,23 +1529,30 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         except Exception:
             pass
 
-    # Bổ sung Nơi cấp thông minh nếu chưa có
+    # Kế thừa Nơi cấp từ Hợp đồng nếu Hợp đồng có ghi rõ
+    if not cccd_data.get('noiCap') and result.get('hopDong', {}).get('noiCap'):
+        cccd_data['noiCap'] = result['hopDong']['noiCap']
+
+    # Chuẩn hóa Nơi cấp theo 3 mốc pháp luật BCA (Luật Căn cước 2023 & Thông tư BCA) cho thẻ 12 số
     if not cccd_data.get('noiCap'):
-        if result['hopDong'].get('noiCap'):
-            cccd_data['noiCap'] = result['hopDong']['noiCap']
-        else:
-            cap_str = cccd_data.get('ngayCap') or result['hopDong'].get('ngayCap')
-            if cap_str:
-                try:
-                    parts = cap_str.split('/')
-                    if len(parts) == 3:
-                        yr = int(parts[2])
-                        if yr >= 2024:
-                            cccd_data['noiCap'] = 'BỘ CÔNG AN'
-                        elif yr >= 2021:
-                            cccd_data['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
-                except Exception:
-                    pass
+        cid = (cccd_data.get('soCCCD') or result.get('hopDong', {}).get('soCCCD') or '').strip()
+        clean_cid = re.sub(r'\D', '', cid)
+        cdate = cccd_data.get('ngayCap') or result.get('hopDong', {}).get('ngayCap')
+        if len(clean_cid) == 12 and cdate:
+            try:
+                parts_cap = cdate.replace('-', '/').replace('.', '/').split('/')
+                if len(parts_cap) == 3:
+                    d_c, m_c, y_c = int(parts_cap[0]), int(parts_cap[1]), int(parts_cap[2])
+                    from datetime import date
+                    issue_dt = date(y_c, m_c, d_c)
+                    if issue_dt >= date(2024, 7, 1):
+                        cccd_data['noiCap'] = 'BỘ CÔNG AN'
+                    elif issue_dt >= date(2018, 10, 10):
+                        cccd_data['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
+                    elif issue_dt >= date(2016, 1, 1):
+                        cccd_data['noiCap'] = 'Cục Cảnh sát đăng ký quản lý cư trú và dữ liệu Quốc gia về dân cư'
+            except Exception:
+                pass
 
     # Bảo toàn chuỗi raw ngày tháng
     if cccd_data.get('ngaySinh') and not cccd_data.get('rawNgaySinh'):

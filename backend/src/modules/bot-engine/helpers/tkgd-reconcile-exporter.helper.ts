@@ -408,9 +408,30 @@ export async function reconcileAndExportToExcel(
         criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
       }
 
+      const hdCccd = (hd.soCanCuoc || '').replace(/\D/g, '');
+      const imgCccd = (cccd.soCanCuoc || '').replace(/\D/g, '');
+
+      if (!isSubAccount) {
+        // Kiểm tra thiếu CCCD trên hồ sơ
+        if (!targetCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
+        }
+        // Kiểm tra M-System chưa nhập số CCCD
+        if (ms.isFoundOnMS && !msCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push('M-System chưa nhập số CCCD');
+        }
+        // Kiểm tra chéo giữa HĐ và ảnh CCCD
+        if (hdCccd && imgCccd && hdCccd !== imgCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
+        }
+      }
+
       if (targetCccd && msCccd && targetCccd !== msCccd) {
         isCriticalMismatch = true;
-        criticalErrors.push(`Lệch số CCCD (Yêu cầu: ${targetCccd} != MS: ${msCccd})`);
+        criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
       }
 
       // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
@@ -527,10 +548,10 @@ export async function reconcileAndExportToExcel(
         baseCode,
         ms.tenTKGD || mail.tenTaiKhoan || '',
         ms.hoVaTen || mail.tenTaiKhoan || '',
-        ms.soCMND_HoChieu || cccd.soCanCuoc || '',
-        formatDate(ms.ngaySinh || cccd.ngaySinh),
-        formatDate(ms.ngayCap || cccd.ngayCap),
-        ms.noiCap || cccd.noiCap || '',
+        ms.soCMND_HoChieu || '',
+        formatDate(ms.ngaySinh),
+        formatDate(ms.ngayCap),
+        ms.noiCap || '',
         formatDate(ms.ngayThamGia),
         ms.loaiHinhTaiKhoan || 'Cá nhân',
         ms.chuKy || 'Đã ký',
@@ -551,51 +572,18 @@ export async function reconcileAndExportToExcel(
       });
     }
 
-    /* =========================================================================
-     * [CODE CŨ DỰ PHÒNG BACKUP]: Ghi tất cả bản ghi (kể cả tiểu khoản -A) vào sheet MS
-     * =========================================================================
-     * if (sheetMS && ms.isFoundOnMS) {
-     *   const row = sheetMS.addRow([
-     *     sttMs++,
-     *     ms.maTKGD || targetAccountCode,
-     *     ms.tenTKGD || mail.tenTaiKhoan || '',
-     *     ms.hoVaTen || mail.tenTaiKhoan || '',
-     *     ms.soCMND_HoChieu || cccd.soCanCuoc || '',
-     *     formatDate(ms.ngaySinh || cccd.ngaySinh),
-     *     formatDate(ms.ngayCap || cccd.ngayCap),
-     *     ms.noiCap || cccd.noiCap || '',
-     *     formatDate(ms.ngayThamGia),
-     *     ms.loaiHinhTaiKhoan || 'Cá nhân',
-     *     ms.chuKy || 'Đã ký',
-     *     'So sánh với thông tin với căn cước khớp',
-     *   ]);
-     *   row.eachCell((cell, colNumber) => {
-     *     cell.border = borderThin;
-     *     if ([1, 2, 5, 6, 7, 9, 10, 11].includes(colNumber)) {
-     *       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-     *     } else {
-     *       cell.alignment = { vertical: 'middle' };
-     *     }
-     *     if (colNumber === 12) {
-     *       cell.fill = styleKhop.fill;
-     *       cell.font = styleKhop.font;
-     *     }
-     *   });
-     * }
-     * ========================================================================= */
-
-    // 4. Ghi vào Sheet "Cancuoc" (nếu có dữ liệu CCCD từ Giai đoạn 2 hoặc mock)
-    const cccdKey = (cccd.soCanCuoc || ms.soCMND_HoChieu || baseCode || mail.tenTaiKhoan || '').trim();
+    // 4. Ghi vào Sheet "Cancuoc" (chỉ ghi dữ liệu gốc bóc từ ảnh CCCD)
+    const cccdKey = (cccd.soCanCuoc || baseCode || mail.tenTaiKhoan || '').trim();
     if (sheetCancuoc && cccdKey && !writtenCccdSet.has(cccdKey)) {
       writtenCccdSet.add(cccdKey);
       const row = sheetCancuoc.addRow([
         sttCccd++,
-        cccd.hoVaTen || ms.hoVaTen || mail.tenTaiKhoan || '',
-        cccd.soCanCuoc || ms.soCMND_HoChieu || '',
-        formatDate(cccd.ngaySinh || ms.ngaySinh),
+        cccd.hoVaTen || mail.tenTaiKhoan || '',
+        cccd.soCanCuoc || '',
+        formatDate(cccd.ngaySinh),
         formatDate(cccd.coGiaTriDen),
-        formatDate(cccd.ngayCap || ms.ngayCap),
-        cccd.noiCap || ms.noiCap || '',
+        formatDate(cccd.ngayCap),
+        cccd.noiCap || '',
       ]);
       row.eachCell((cell, colNumber) => {
         cell.border = borderThin;
@@ -607,19 +595,19 @@ export async function reconcileAndExportToExcel(
       });
     }
 
-    // 5. Ghi vào Sheet "HopDong" (nếu có Hợp đồng)
+    // 5. Ghi vào Sheet "HopDong" (chỉ ghi dữ liệu gốc bóc từ PDF Hợp đồng)
     const isSubAccount = targetAccountCode.includes('-');
     if (sheetHopDong && baseCode && !isSubAccount && !writtenHopDongSet.has(baseCode)) {
       writtenHopDongSet.add(baseCode);
       const row = sheetHopDong.addRow([
         sttHopDong++,
         baseCode,
-        hd.hoVaTen || ms.hoVaTen || mail.tenTaiKhoan || '',
-        hd.soCanCuoc || ms.soCMND_HoChieu || '',
-        formatDate(hd.ngaySinh || ms.ngaySinh),
-        formatDate(hd.ngayCap || ms.ngayCap),
-        hd.noiCap || ms.noiCap || '',
-        formatDate(hd.ngayKyHD || ms.ngayThamGia),
+        hd.hoVaTen || mail.tenTaiKhoan || '',
+        hd.soCanCuoc || '',
+        formatDate(hd.ngaySinh),
+        formatDate(hd.ngayCap),
+        hd.noiCap || '',
+        formatDate(hd.ngayKyHD),
         hd.loaiHinhTaiKhoan || 'Cá nhân',
         hd.chuKy || 'Đã ký',
         'So sánh với thông tin với căn cước khớp',
@@ -638,7 +626,7 @@ export async function reconcileAndExportToExcel(
       });
     }
 
-    // 6. Ghi vào Sheet "Phuluc" (nếu có Phụ lục PL01 / ACM)
+    // 6. Ghi vào Sheet "Phuluc" (chỉ ghi dữ liệu gốc bóc từ PDF Phụ lục PL01 / ACM)
     const subAccountCode = targetAccountCode.includes('-')
       ? targetAccountCode
       : mail.maTKGD_ACM || (mail.hasACMRequest ? `${baseCode}-A` : '');
@@ -647,12 +635,12 @@ export async function reconcileAndExportToExcel(
       const row = sheetPhuluc.addRow([
         sttPhuluc++,
         subAccountCode,
-        pl.hoVaTen || ms.hoVaTen || mail.tenTaiKhoan || '',
-        pl.soCanCuoc || ms.soCMND_HoChieu || '',
-        formatDate(pl.ngaySinh || ms.ngaySinh),
-        formatDate(pl.ngayCap || ms.ngayCap),
-        pl.noiCap || ms.noiCap || '',
-        formatDate(pl.ngayKyHD || ms.ngayThamGia),
+        pl.hoVaTen || mail.tenTaiKhoan || '',
+        pl.soCanCuoc || '',
+        formatDate(pl.ngaySinh),
+        formatDate(pl.ngayCap),
+        pl.noiCap || '',
+        formatDate(pl.ngayKyHD),
         pl.chuKy || 'Đã ký',
         'So sánh với thông tin với căn cước khớp',
       ]);
