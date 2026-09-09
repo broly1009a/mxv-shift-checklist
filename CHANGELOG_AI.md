@@ -2,6 +2,42 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T10:00] Chuẩn Hóa Toàn Diện Dữ Liệu Bóc Tách TKGD, Sửa Lỗi Tên Trên Mail Bị "A" & Bổ Sung Nút Quét Lại Mail Từng Hồ Sơ (v2.1)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Fix lỗi "Tên Trên Mail" bị bắt nhầm thành `"A"` cho tài khoản `ĐÀO TUẤN HẢI (009C2268268)` do email chứa chuỗi `009C2268268 - A` (đăng ký tiểu khoản ACM) khiến regex cắt sót chữ `A` làm tên người, gây báo lệch sai với M-System.
+  2. Tổng hợp, đánh giá và thiết lập ma trận phòng vệ đồng bộ cho tất cả các trường dữ liệu (Tên khách hàng, Số CCCD, Mã TKGD, Ngày tháng, Giới tính, Nơi cấp) khi bóc tách từ email phi cấu trúc theo vai trò vận hành thực tế.
+  3. Bổ sung tính năng **"Quét lại Mail & Bóc tách lại File"** (Single-Account Re-scan/Re-parse) trực tiếp trên Web UI cạnh nút cào lại MS, cho phép cán bộ trực ca làm mới tức thì 1 hồ sơ khi TVKD bổ sung file mà không cần quét lại cả ngày.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts):
+  - Bổ sung hàm kiểm định `isLikelyValidPersonName(name)`: yêu cầu tối thiểu 3 ký tự và 3 chữ cái, loại bỏ triệt để các từ khóa rác phân hệ (`ACM`, `LME`, `Spread`, `Futures`, `Tiểu khoản`), từ khóa văn bản (`HĐ`, `PL01`, `CCCD`, `CMND`) và câu chào (`Kính gửi`, `Bản scan`).
+  - Nâng cấp `cleanPersonName`: loại bỏ các hậu tố `- A`, `- ACM`, `(ACM)` nếu lọt vào sau tên. Nếu chuỗi không đạt `isLikelyValidPersonName`, trả về `""` để kích hoạt quét dòng tiếp theo (`Tên tài khoản: ...`).
+  - Chuẩn hóa `codeRegex` trong `parseAccountOpeningEmailMulti` để nhận diện trọn vẹn cụm có khoảng trắng `(?:\s*-\s*[ALS])?`.
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+  - Đóng gói toàn bộ logic kiểm tra đối soát chéo thành phương thức `evaluateRecordReconciliation(record)` dùng chung 100% giữa `runReconciliation`, `reparseAccount` và `syncMSystemAccounts`.
+  - Bổ sung `record.phuLuc?.hoVaTen` vào thứ tự ưu tiên họ tên khi đối chiếu (`HĐ > PL01 > Ảnh CCCD > Tên sạch trên mail`).
+  - Tự động kế thừa tên khách hàng từ văn bản pháp lý (HĐ / PL01 / CCCD) sang `noiDungMail.tenTaiKhoan` khi tên trên mail bị rác hoặc khuyết thiếu.
+  - Xây dựng phương thức `reparseAccount(userEmail, payload)`: tìm lại email gốc, đọc lại thư mục file đính kèm, chạy lại Python Extractor và đối soát lại ngay cho tài khoản cụ thể.
+- [`backend/src/modules/tkgd-automation/tkgd-automation.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts):
+  - Bổ sung endpoint `POST /api/v1/tkgd/reparse-account`.
+- [`frontend/src/features/tkgd/services/tkgd.api.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts):
+  - Thêm phương thức API `reparseAccount(payload, token, userEmail)`.
+- [`frontend/src/features/tkgd/hooks/useTkgdActions.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts):
+  - Thêm action `handleReparseAccount(recordId, accountCode)` kèm loading state và toast notification.
+- [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx):
+  - Thêm nút thao tác `<FileSearch size={14} />` màu hổ phách bên cạnh nút cào lại MS để cán bộ bấm quét lại mail & bóc tách lại file cho từng hồ sơ.
+- [`frontend/src/features/tkgd/components/TkgdDashboard.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
+  - Kết nối action `handleReparseAccount` vào bảng dữ liệu `TkgdRecordsTable`.
+
+### Xác nhận Build & Triển khai
+- ✅ Backend compile: Đạt 100% (`nest build` exit code: 0).
+- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
+- ✅ Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
+
+---
+
 ## [2026-09-09T09:30] Nâng Cấp Toàn Vẹn Dữ Liệu & Chuẩn Hóa Kiểm Toán Đối Soát TKGD (v2.0)
 
 ### Mục tiêu thay đổi
@@ -241,7 +277,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **Yêu cầu từ USER**: *"hiện tại phần này tôi thấy nhìn nó AI và công nghiệp quá không thân thiện với người dùng và khi chuyển thì cũng không có confirm giúp tôi. đánh giá lại bằng một bản thiết kế mới"*
 - **Khắc phục các nhược điểm của giao diện cũ**:
   1. Loại bỏ text lỗi cú pháp MathJax thô: `$\rightarrow$`.
-  2. Dọn sạch toàn bộ emoji rác (`🤖`, `👤`, `⚡`, `⚙️`) gây cảm giác thiếu chuyên nghiệp.
+  2. Dọn sạch toàn bộ emoji rác (`🤖`, `👤`, `⚡`, ``) gây cảm giác thiếu chuyên nghiệp.
   3. Xóa bỏ nút Switch toggle trùng lặp ở góc trên (tránh xung đột UX với 2 card lựa chọn bên dưới).
   4. Bổ sung **Hộp thoại xác nhận chuyển đổi an toàn (Enterprise Confirmation Dialog)** trước khi gọi API đổi chế độ ngầm 24/7.
   5. Thiết kế lại quy trình 4 bước thành **Mini Process Stepper** thanh lịch với icon `ChevronRight`.
@@ -2360,7 +2396,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - Hỗ trợ Auto-Auth mặc định: Cho phép mở trực tiếp link `http://localhost:3000/admin/tkgd-dashboard` mà không bị văng/redirect về trang `/login`. Tự động gán người dùng tác nghiệp mặc định `Trương Hoàng Hiệp (TTBT)` và gọi API thông suốt.
 - Tích hợp All-in-One (Gộp Cấu Hình vào Dashboard): Bổ sung Tab Switcher trên đầu trang cho phép chuyển đổi tức thì giữa:
   - 📊 **Đối Soát Hồ Sơ**: Bảng dữ liệu toàn màn hình, bộ lọc đa tiêu chí, phân trang, nút mắt so sánh 2 bên (Visual Diff).
-  - ⚙️ **Cài Đặt & Cấu Hình Bot**: Toàn bộ 5 khối cấu hình M-System, Outlook, Ổ M:\, OCR & PDF trích xuất từ component `TkgdConfigPanel`.
+  -  **Cài Đặt & Cấu Hình Bot**: Toàn bộ 5 khối cấu hình M-System, Outlook, Ổ M:\, OCR & PDF trích xuất từ component `TkgdConfigPanel`.
 - Tích hợp nút chuyển đổi giao diện Sáng / Tối (Light / Dark Theme) độc lập ngay trên thanh tiêu đề của trang.
 
 ### Danh sách file chỉnh sửa & tạo mới
@@ -5614,11 +5650,11 @@ UI: "Chỉ cập nhật Lũy kế TVKD"
 
 ### 1. Mục tiêu Thay đổi
 - **Yêu cầu từ USER**:
-  - Loại bỏ nốt icon emoji `⚙️` thô ở nút đóng/mở cấu hình nâng cao và thay thế bằng biểu tượng chuẩn.
+  - Loại bỏ nốt icon emoji `` thô ở nút đóng/mở cấu hình nâng cao và thay thế bằng biểu tượng chuẩn.
 - **Giải pháp**:
   - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
     - Import component `Settings` từ thư viện `lucide-react`.
-    - Thay thế emoji `⚙️` bằng `<Settings size={14} />`.
+    - Thay thế emoji `` bằng `<Settings size={14} />`.
     - Thêm lớp CSS `animate-spin` với `animationDuration: '4s'` để tạo hiệu ứng bánh răng xoay tròn chậm rãi cực kỳ tinh tế và sinh động khi bảng cấu hình nâng cao đang mở rộng (expanded).
     - Thêm chỉ báo hướng đóng/mở dạng mũi tên (`▲` / `▼`) ở cuối nhãn nút bấm để giao diện rõ ràng.
 
@@ -5642,7 +5678,7 @@ UI: "Chỉ cập nhật Lũy kế TVKD"
   - Chỉnh sửa [ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx):
     - Khởi tạo biến trạng thái `showAdvanced` (mặc định là `false`).
     - Gom tất cả các cấu hình đường dẫn chi tiết ít khi cần thay đổi gồm: `Đường dẫn file Macro cấu hình (.xlsm)`, `Đường dẫn file DSGD nguồn` và `5 file Excel lũy kế năm` vào trong panel đóng/mở `<div style={{ borderTop: '1px dashed var(--border-color)', ... }}`.
-    - Thêm nút toggle `⚙️ Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)` để người dùng chủ động click đóng/mở.
+    - Thêm nút toggle ` Hiển thị cấu hình nâng cao (Đường dẫn chi tiết)` để người dùng chủ động click đóng/mở.
     - Rút gọn màn hình cấu hình chính xuống mức tối giản nhất: Chỉ hiển thị **Ngày giao dịch**, **Thư mục gốc (Target Root)** và Checkbox **Ghi đè dữ liệu lũy kế**.
 
 ## [2026-08-05 11:24:00] - Bugfix: Loại bỏ nhãn kỹ thuật (Enum raw string) trong Dropdown Root Cause của IncidentReportModal

@@ -165,6 +165,19 @@ export class TkgdAutomationController {
   }
 
   /**
+   * Quét lại Email & Bóc tách lại File đính kèm cho 1 hồ sơ tài khoản cụ thể
+   */
+  @Post('reparse-account')
+  async reparseAccount(@Req() req: any, @Body() body: any) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.reparseAccount(email, {
+      recordId: body?.recordId,
+      accountCode: body?.accountCode,
+      batchDate: body?.batchDate,
+    });
+  }
+
+  /**
    * Nút 3: Chạy tổng hợp toàn bộ (All-in-One: Quét Mail -> Cào MS -> Đối soát -> Xuất Excel)
    */
   @Post('run-pipeline-all')

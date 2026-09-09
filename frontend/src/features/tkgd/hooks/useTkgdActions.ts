@@ -128,6 +128,43 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     [sprintMode, batchDate, token, userEmail, onSuccess]
   );
 
+  // Quét lại Email & Bóc tách lại File cho 1 hồ sơ cụ thể
+  const handleReparseAccount = useCallback(
+    async (recordId: string, accountCode?: string) => {
+      setIsProcessing(true);
+      if (accountCode) setSyncingRowCode(accountCode);
+      setProcessingStage(
+        accountCode
+          ? `Đang quét lại email và bóc tách lại file cho hồ sơ ${accountCode}...`
+          : `Đang quét lại email và bóc tách lại file cho hồ sơ...`
+      );
+      try {
+        const data = await tkgdApi.reparseAccount(
+          {
+            recordId,
+            accountCode,
+            batchDate,
+          },
+          token,
+          userEmail
+        );
+        if (data?.success) {
+          toast.success(data.message || 'Đã bóc tách lại hồ sơ thành công!');
+          if (onSuccess) await onSuccess();
+        } else {
+          toast.error(data?.message || 'Bóc tách lại hồ sơ thất bại');
+        }
+      } catch (err: any) {
+        toast.error('Lỗi khi bóc tách lại hồ sơ: ' + err.message);
+      } finally {
+        setIsProcessing(false);
+        setProcessingStage('');
+        setSyncingRowCode(null);
+      }
+    },
+    [batchDate, token, userEmail, onSuccess]
+  );
+
   // Nút 3: Chạy quy trình Tổng Hợp Toàn Bộ (All-in-One)
   const handleRunPipelineAll = useCallback(
     async (customOptions?: Partial<RunPipelineOptions>) => {
@@ -218,6 +255,7 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     syncingRowCode,
     handleSyncMail,
     handleSyncMSystem,
+    handleReparseAccount,
     handleRunPipelineAll,
     handleRunReconcile,
     handleDownloadExcel,

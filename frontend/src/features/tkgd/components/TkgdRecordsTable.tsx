@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Mail,
   Clock,
+  FileSearch,
 } from 'lucide-react';
 import { CleanRecord } from '../types/tkgd.types';
 import { cleanMailName, checkIsOldIdCard, getBadgeInfo } from '../utils/tkgd.helpers';
@@ -37,6 +38,7 @@ interface TkgdRecordsTableProps {
   syncingRowCode: string | null;
   onInspect: (record: CleanRecord) => void;
   onSyncMSystem: (code?: string) => void;
+  onReparseAccount?: (recordId: string, accountCode?: string) => void;
 }
 
 export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
@@ -55,6 +57,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
   syncingRowCode,
   onInspect,
   onSyncMSystem,
+  onReparseAccount,
 }) => {
   // Helper render badges phân hệ
   const renderModuleBadges = (record: CleanRecord) => {
@@ -546,6 +549,33 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                               className={syncingRowCode === targetCode ? 'animate-spin' : ''}
                             />
                           </button>
+
+                          {onReparseAccount && (
+                            <button
+                              onClick={() => onReparseAccount(r._id, targetCode)}
+                              disabled={isProcessing}
+                              title={`Quét lại email & bóc tách lại file (HĐ, CCCD, PL01) cho tài khoản ${targetCode}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                                color: '#d97706',
+                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              className="hover:scale-110 hover:bg-amber-500 hover:text-white"
+                            >
+                              <FileSearch
+                                size={14}
+                                className={syncingRowCode === targetCode ? 'animate-pulse' : ''}
+                              />
+                            </button>
+                          )}
 
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : r._id)}

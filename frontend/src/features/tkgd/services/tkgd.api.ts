@@ -72,6 +72,19 @@ export const tkgdApi = {
     return res.json();
   },
 
+  async reparseAccount(
+    payload: { recordId?: string; accountCode?: string; batchDate?: string },
+    token?: string | null,
+    userEmail?: string
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/reparse-account`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
   async runPipelineAll(
     payload: RunPipelineOptions,
     token?: string | null,

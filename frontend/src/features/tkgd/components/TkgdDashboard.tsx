@@ -81,6 +81,7 @@ export const TkgdDashboard: React.FC = () => {
     handleToggleAutoPipeline,
     handleSyncMail,
     handleSyncMSystem,
+    handleReparseAccount,
     handleRunPipelineAll,
     handleRunReconcile,
     handleDownloadExcel,
@@ -546,6 +547,7 @@ export const TkgdDashboard: React.FC = () => {
             syncingRowCode={syncingRowCode}
             onInspect={handleOpenInspection}
             onSyncMSystem={(code) => handleSyncMSystem(code)}
+            onReparseAccount={handleReparseAccount}
           />
         </>
       )}

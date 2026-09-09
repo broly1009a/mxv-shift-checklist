@@ -142,9 +142,7 @@ export function parseAccountOpeningEmailBody(bodyContent: string): ParsedEmailIn
   let tenTK: string | null = null;
   const mTen = text.match(/Tên tài khoản\s*:\s*([^\r\n\t]+?)(?=\s*(?:\r?\n|TVKD|Tài khoản|Mã TKGD|Bản scan|Phụ lục|Chi tiết|2\.|\.|$))/i);
   if (mTen) {
-    let clean = mTen[1].trim();
-    clean = clean.replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi).*$/i, '').trim();
-    clean = clean.replace(/[;,.\-]+$/, '').trim();
+    const clean = cleanPersonName(mTen[1]);
     tenTK = clean || null;
   }
 
@@ -195,11 +193,49 @@ export interface ParsedAccountGroup extends ParsedEmailInfo {
   tenTaiKhoan: string;
 }
 
-function cleanPersonName(name?: string): string {
+export function isLikelyValidPersonName(name?: string): boolean {
+  if (!name) return false;
+  const s = name.trim();
+  if (s.length < 3) return false;
+
+  // Đếm số lượng ký tự chữ cái (bao gồm cả tiếng Việt có dấu)
+  const letters = s.match(/[a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/g);
+  if (!letters || letters.length < 3) return false;
+
+  // Danh mục từ khóa rác / hệ thống / loại tài khoản / câu chào
+  const junkPatterns = [
+    /^(ACM|LME|SPREAD|FUTURES|TIỂU KHOẢN|TÀI KHOẢN|SUB\s*ACCOUNT)$/i,
+    /^(HỢP ĐỒNG|HĐ|PHỤ LỤC|PL01|PL|CCCD|CMND|PASSPORT|HỘ CHIẾU)$/i,
+    /^(KÍNH GỬI|BẢN SCAN|FILE ĐÍNH KÈM|THÔNG BÁO|YÊU CẦU|KÍNH CHÀO|DEAR|GỬI|XIN CHÀO)$/i,
+    /^(MXV|TVKD|SỞ GIAO DỊCH|CÔNG TY|CHI NHÁNH)$/i,
+    /^(MỞ TÀI KHOẢN|KÍCH HOẠT|ĐĂNG KÝ|ĐỐI CHIẾU)$/i,
+    /^[0-9A-Z]{3,4}[0-9]{7}/i, // chuỗi trông giống mã tài khoản
+    /^[-:\s/\\.,|]+$/,
+  ];
+
+  for (const pattern of junkPatterns) {
+    if (pattern.test(s)) return false;
+  }
+
+  // Nếu chuỗi bắt đầu bằng từ khóa văn phòng phẩm / kính gửi
+  if (/^(kính gửi|bản scan|yêu cầu mở|thông báo mở|hồ sơ đính kèm)/i.test(s)) return false;
+
+  return true;
+}
+
+export function cleanPersonName(name?: string): string {
   if (!name) return '';
   let s = name.split(/[\r\n]/)[0].trim();
+  // Loại bỏ các đoạn văn bản thừa theo sau
   s = s.replace(/\s+(TVKD|đã đính kèm|đề nghị|cam kết|kính gửi|Bản scan|HĐ|CCCD|CMND)[\s\S]*$/i, '').trim();
-  s = s.replace(/^[ -:]+/, '').replace(/[;,.\-:]+$/, '').trim();
+  s = s.replace(/^[ -:\t/|]+/, '').replace(/[;,.\-:\t/|]+$/, '').trim();
+
+  // Bỏ các hậu tố rác phân hệ kiểu "- ACM", "- A", "(ACM)" nếu lọt vào sau tên
+  s = s.replace(/\s*[-–]\s*[ALS]\b/i, '').replace(/\s*\((ACM|LME|SPREAD)\)/i, '').trim();
+
+  if (!isLikelyValidPersonName(s)) {
+    return '';
+  }
   return s;
 }
 
@@ -215,15 +251,16 @@ export function parseAccountOpeningEmailMulti(bodyContent: string): ParsedAccoun
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const groupsMap = new Map<string, ParsedAccountGroup>();
 
-  // Regex nhận diện mã TKGD: 3 số + 1 chữ cái + 7 số (có thể có hậu tố -A, -L, -S)
-  const codeRegex = /\b([0-9]{3}[A-Z][0-9]{7}(?:-[ALS])?)\b/i;
+  // Regex nhận diện mã TKGD: 3 số + 1 chữ cái + 7 số (hỗ trợ có hoặc không có khoảng trắng quanh -A, -L, -S)
+  const codeRegex = /\b([0-9]{3}[A-Z][0-9]{7}(?:\s*-\s*[ALS])?)\b/i;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const match = line.match(codeRegex);
     if (!match) continue;
 
-    const rawCode = match[1].toUpperCase().trim();
+    // Chuẩn hóa mã tài khoản (loại bỏ khoảng trắng bên trong ví dụ "009C2268268 - A" -> "009C2268268-A")
+    const rawCode = match[1].replace(/\s+/g, '').toUpperCase().trim();
     const baseCode = extractBaseAccountCode(rawCode);
     const maTVKD = baseCode.substring(0, 3);
     const accType = detectAccountType(rawCode);
@@ -232,16 +269,20 @@ export function parseAccountOpeningEmailMulti(bodyContent: string): ParsedAccoun
     const afterCode = line.substring(match.index! + match[0].length);
     let candidateName = cleanPersonName(afterCode);
 
-    // 2. Nếu trên cùng dòng không có tên (Form TVKD 003: Mã TK 1 dòng, tên ở dòng kế tiếp "Tên tài khoản: ...")
+    // 2. Nếu trên cùng dòng không có tên hợp lệ (do không có hoặc do cleanPersonName lọc bỏ rác "- A")
+    // Quét tìm ở 3 dòng tiếp theo (Form TVKD 003: "Tên tài khoản: ĐÀO TUẤN HẢI", "Họ và tên: ...")
     if (!candidateName) {
-      for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
+      for (let j = i + 1; j < Math.min(lines.length, i + 5); j++) {
         const nextLine = lines[j];
         if (codeRegex.test(nextLine)) break; // gặp mã tài khoản khác thì dừng
 
         const mName = nextLine.match(/(?:Tên\s*(?:tài\s*khoản|khách\s*hàng|KH)?|Họ\s*(?:và|&)?\s*tên)\s*[:\-]\s*([^\r\n]+)/i);
         if (mName) {
-          candidateName = cleanPersonName(mName[1]);
-          break;
+          const parsedNext = cleanPersonName(mName[1]);
+          if (parsedNext) {
+            candidateName = parsedNext;
+            break;
+          }
         }
       }
     }

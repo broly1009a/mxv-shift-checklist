@@ -23,6 +23,8 @@ import {
   parseAccountOpeningEmailMulti,
   dispatchAttachmentsForAccount,
   htmlToPlainText,
+  cleanPersonName,
+  isLikelyValidPersonName,
 } from '../bot-engine/helpers/tkgd-mail-parser.helper';
 import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
@@ -1319,6 +1321,181 @@ export class TkgdAutomationService {
   }
 
   /**
+   * Đánh giá quy tắc đối soát chéo độc lập cho 1 hồ sơ CleanAccountRecord
+   * Dùng chung 100% logic giữa runReconciliation, reparseAccount và syncMSystemAccounts
+   */
+  public evaluateRecordReconciliation(record: any): { finalStatus: string; finalErrors: string[] } {
+    if (record.manualReview?.isOverridden) {
+      return {
+        finalStatus: record.manualReview.status || 'KHOP',
+        finalErrors: [],
+      };
+    }
+
+    const ms: any = record.ms || {};
+    const mail: any = record.noiDungMail || {};
+    const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
+    const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
+
+    // Thứ tự ưu tiên Họ tên: HĐ > Phụ lục 01 > Ảnh CCCD > Tên sạch trên mail
+    const docName = record.hopDong?.hoVaTen || record.phuLuc?.hoVaTen || record.canCuoc?.hoVaTen || '';
+    const mailName = isLikelyValidPersonName(mail.tenTaiKhoan) ? mail.tenTaiKhoan : '';
+    const targetNameRaw = docName || mailName || '';
+    const targetName = cleanPersonName(targetNameRaw).toLowerCase().replace(/\s+/g, ' ');
+    const msName = cleanPersonName(ms.hoVaTen || ms.tenTKGD).toLowerCase().replace(/\s+/g, ' ');
+
+    const targetCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || record.phuLuc?.soCanCuoc || '').replace(/\D/g, '');
+    const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
+
+    let isCriticalMismatch = false;
+    const criticalErrors: string[] = [];
+
+    if (!ms.isFoundOnMS) {
+      isCriticalMismatch = true;
+      criticalErrors.push('Tài khoản chưa được tạo trên M-System');
+    } else {
+      const msCode = (ms.maTKGD || '').trim();
+      const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
+      if (isSubAccount) {
+        // Với tiểu khoản (-A, -L, -S), M-System lưu theo mã NĐT cơ sở (baseCode)
+        const msBaseCode = msCode.split('-')[0].toUpperCase();
+        if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
+        }
+      } else {
+        if (baseCode && msCode && !msCode.startsWith(baseCode)) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
+        }
+      }
+
+      const normName = (s: string) =>
+        s
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'd')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+      if (targetName && msName && normName(targetName) !== normName(msName)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
+      }
+
+      const hdCccd = (record.hopDong?.soCanCuoc || '').replace(/\D/g, '');
+      const imgCccd = (record.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
+
+      if (!isSubAccount) {
+        // Kiểm tra thiếu CCCD trên hồ sơ
+        if (!targetCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
+        }
+        // Kiểm tra M-System chưa nhập số CCCD
+        if (ms.isFoundOnMS && !msCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push('M-System chưa nhập số CCCD');
+        }
+        // Kiểm tra chéo giữa HĐ và ảnh CCCD
+        if (hdCccd && imgCccd && hdCccd !== imgCccd) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
+        }
+      }
+
+      if (targetCccd && msCccd && targetCccd !== msCccd) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
+      }
+
+      // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
+      const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
+      const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
+      if (hdDob && msDob) {
+        const normHd = normalizeDateStr(hdDob);
+        const normMs = normalizeDateStr(msDob);
+        if (normHd.length === 10 && normMs.length === 10) {
+          if (normHd !== normMs) {
+            isCriticalMismatch = true;
+            criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
+          }
+        } else {
+          const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
+          const yHd = getYear(hdDob);
+          const yMs = getYear(msDob);
+          if (yHd && yMs && yHd !== yMs) {
+            isCriticalMismatch = true;
+            criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yHd} != MS: ${yMs})`);
+          }
+        }
+      }
+
+      // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
+      const hdIssue = record.hopDong?.rawNgayCap || (record.hopDong?.ngayCap ? formatDateStr(record.hopDong.ngayCap) : '') || (record.canCuoc?.rawNgayCap || (record.canCuoc?.ngayCap ? formatDateStr(record.canCuoc.ngayCap) : ''));
+      const msIssue = record.ms?.rawNgayCap || (record.ms?.ngayCap ? formatDateStr(record.ms.ngayCap) : '');
+      if (hdIssue && msIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(msIssue)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${hdIssue} != MS: ${msIssue})`);
+      }
+
+      // 6. Đối chiếu Giới tính (nếu cả 2 bên cùng cung cấp)
+      const hdSex = record.hopDong?.rawGioiTinh || record.hopDong?.gioiTinh || record.canCuoc?.gioiTinh;
+      const msSex = record.ms?.gioiTinh;
+      if (hdSex && msSex && !isGenderMatch(hdSex, msSex)) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
+      }
+
+      // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
+      const hdErrors: string[] = [
+        ...(record.hopDong?.dinhDangLoi || []),
+      ];
+      const rawDobStr = String(record.hopDong?.rawNgaySinh || '');
+      if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawDobStr) && !hdErrors.some((e: string) => e.includes('Ngày sinh'))) {
+        hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
+      }
+      const rawCapStr = String(record.hopDong?.rawNgayCap || '');
+      if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawCapStr) && !hdErrors.some((e: string) => e.includes('Ngày cấp'))) {
+        hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
+      }
+      const rawSexStr = String(record.hopDong?.rawGioiTinh || '').toLowerCase();
+      if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some((e: string) => e.includes('Giới tính'))) {
+        hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
+      }
+
+      const cccdWarnings: string[] = [
+        ...(record.canCuoc?.canhBaoChatLuong || []),
+      ];
+
+      // Nhận diện case 003C9462626 (LÂM THANH DANH) CCCD bị mất góc / cắt lẹm viền
+      if (baseCode === '003C9462626' && !cccdWarnings.some((w: string) => w.includes('mất góc'))) {
+        cccdWarnings.push('CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)');
+      }
+
+      for (const err of hdErrors) {
+        isCriticalMismatch = true;
+        criticalErrors.push(err);
+      }
+      for (const warn of cccdWarnings) {
+        isCriticalMismatch = true;
+        criticalErrors.push(warn);
+      }
+
+      if (!record.hopDong) record.hopDong = {};
+      record.hopDong.dinhDangLoi = hdErrors;
+      if (!record.canCuoc) record.canCuoc = {};
+      record.canCuoc.canhBaoChatLuong = cccdWarnings;
+    }
+
+    const finalStatus = isCriticalMismatch ? 'LECH' : 'KHOP';
+    const finalErrors = isCriticalMismatch ? criticalErrors : [];
+
+    return { finalStatus, finalErrors };
+  }
+
+  /**
    * Kích hoạt chạy đối soát chéo, cập nhật trạng thái vào MongoDB và xuất file Excel
    */
   async runReconciliation(userEmail: string, batchDate?: string) {
@@ -1374,175 +1551,7 @@ export class TkgdAutomationService {
         continue;
       }
 
-      const ms: any = record.ms || {};
-      const mail: any = record.noiDungMail || {};
-      const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
-      const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
-      const cleanPersonName = (n: string) => {
-        if (!n) return '';
-        let s = n.split(/[\r\n]/)[0].trim();
-        s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
-        s = s.replace(/[;,.\-:]+$/, '').trim();
-        return s.toLowerCase().replace(/\s+/g, ' ');
-      };
-      const targetName = cleanPersonName(record.hopDong?.hoVaTen || record.canCuoc?.hoVaTen || mail.tenTaiKhoan);
-      const msName = cleanPersonName(ms.hoVaTen || ms.tenTKGD);
-
-      const targetCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || record.phuLuc?.soCanCuoc || '').replace(/\D/g, '');
-      const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
-
-      let isCriticalMismatch = false;
-      const criticalErrors: string[] = [];
-
-      if (!ms.isFoundOnMS) {
-        isCriticalMismatch = true;
-        criticalErrors.push('Tài khoản chưa được tạo trên M-System');
-      } else {
-        const msCode = (ms.maTKGD || '').trim();
-        const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
-        if (isSubAccount) {
-          // Với tiểu khoản (-A, -L, -S), M-System lưu theo mã NĐT cơ sở (baseCode)
-          const msBaseCode = msCode.split('-')[0].toUpperCase();
-          if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-          }
-        } else {
-          if (baseCode && msCode && !msCode.startsWith(baseCode)) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-          }
-        }
-
-        const normName = (s: string) =>
-          s
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/Đ/g, 'd')
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '');
-
-        if (targetName && msName && normName(targetName) !== normName(msName)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
-        }
-
-        const hdCccd = (record.hopDong?.soCanCuoc || '').replace(/\D/g, '');
-        const imgCccd = (record.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
-
-        if (!isSubAccount) {
-          // Kiểm tra thiếu CCCD trên hồ sơ
-          if (!targetCccd) {
-            isCriticalMismatch = true;
-            criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
-          }
-          // Kiểm tra M-System chưa nhập số CCCD
-          if (ms.isFoundOnMS && !msCccd) {
-            isCriticalMismatch = true;
-            criticalErrors.push('M-System chưa nhập số CCCD');
-          }
-          // Kiểm tra chéo giữa HĐ và ảnh CCCD
-          if (hdCccd && imgCccd && hdCccd !== imgCccd) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
-          }
-        }
-
-        if (targetCccd && msCccd && targetCccd !== msCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
-        }
-
-        // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
-        const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
-        const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
-        if (hdDob && msDob) {
-          const normHd = normalizeDateStr(hdDob);
-          const normMs = normalizeDateStr(msDob);
-          if (normHd.length === 10 && normMs.length === 10) {
-            if (normHd !== normMs) {
-              isCriticalMismatch = true;
-              criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
-            }
-          } else {
-            const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
-            const yHd = getYear(hdDob);
-            const yMs = getYear(msDob);
-            if (yHd && yMs && yHd !== yMs) {
-              isCriticalMismatch = true;
-              criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yHd} != MS: ${yMs})`);
-            }
-          }
-        }
-
-        // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
-        const hdIssue = record.hopDong?.rawNgayCap || (record.hopDong?.ngayCap ? formatDateStr(record.hopDong.ngayCap) : '') || (record.canCuoc?.rawNgayCap || (record.canCuoc?.ngayCap ? formatDateStr(record.canCuoc.ngayCap) : ''));
-        const msIssue = record.ms?.rawNgayCap || (record.ms?.ngayCap ? formatDateStr(record.ms.ngayCap) : '');
-        if (hdIssue && msIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(msIssue)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${hdIssue} != MS: ${msIssue})`);
-        }
-
-        // 6. Đối chiếu Giới tính (nếu cả 2 bên cùng cung cấp)
-        const hdSex = record.hopDong?.rawGioiTinh || record.hopDong?.gioiTinh || record.canCuoc?.gioiTinh;
-        const msSex = record.ms?.gioiTinh;
-        if (hdSex && msSex && !isGenderMatch(hdSex, msSex)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
-        }
-        // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
-        const hdErrors: string[] = [
-          ...(record.hopDong?.dinhDangLoi || []),
-        ];
-        const rawDobStr = String(record.hopDong?.rawNgaySinh || '');
-        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawDobStr) && !hdErrors.some((e: string) => e.includes('Ngày sinh'))) {
-          hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
-        }
-        const rawCapStr = String(record.hopDong?.rawNgayCap || '');
-        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawCapStr) && !hdErrors.some((e: string) => e.includes('Ngày cấp'))) {
-          hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
-        }
-        const rawSexStr = String(record.hopDong?.rawGioiTinh || '').toLowerCase();
-        if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some((e: string) => e.includes('Giới tính'))) {
-          hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
-        }
-
-        const cccdWarnings: string[] = [
-          ...(record.canCuoc?.canhBaoChatLuong || []),
-        ];
-
-        // Nhận diện case 003C9462626 (LÂM THANH DANH) CCCD bị mất góc / cắt lẹm viền
-        if (baseCode === '003C9462626' && !cccdWarnings.some((w: string) => w.includes('mất góc'))) {
-          cccdWarnings.push('CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)');
-        }
-
-        for (const err of hdErrors) {
-          isCriticalMismatch = true;
-          criticalErrors.push(err);
-        }
-        for (const warn of cccdWarnings) {
-          isCriticalMismatch = true;
-          criticalErrors.push(warn);
-        }
-
-        // Lưu lại dinhDangLoi và canhBaoChatLuong vào record trong bộ nhớ
-        if (!record.hopDong) record.hopDong = {};
-        record.hopDong.dinhDangLoi = hdErrors;
-        if (!record.canCuoc) record.canCuoc = {};
-        record.canCuoc.canhBaoChatLuong = cccdWarnings;
-      }
-
-      let finalStatus = 'KHOP';
-      let finalErrors: string[] = [];
-
-      if (isCriticalMismatch) {
-        finalStatus = 'LECH';
-        finalErrors = criticalErrors;
-      } else {
-        finalStatus = 'KHOP';
-        finalErrors = [];
-      }
+      const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
 
       await this.cleanRecordModel.updateOne(
         { _id: record._id },
@@ -2049,7 +2058,7 @@ export class TkgdAutomationService {
               if (pythonRes.hopDong && (pythonRes.hopDong.hoTen || pythonRes.hopDong.soCCCD || pythonRes.hopDong.soHopDong || hopDongPath)) {
                 hopDongData = {
                   maTKGD: pythonRes.hopDong.maTKGD || baseCode,
-                  hoVaTen: pythonRes.hopDong.hoTen || group.tenTaiKhoan,
+                  hoVaTen: pythonRes.hopDong.hoTen || (isLikelyValidPersonName(group.tenTaiKhoan) ? group.tenTaiKhoan : undefined),
                   soCanCuoc: pythonRes.hopDong.soCCCD,
                   ngaySinh: parseDate(pythonRes.hopDong.ngaySinh),
                   rawNgaySinh: pythonRes.hopDong.rawNgaySinh,
@@ -2069,7 +2078,7 @@ export class TkgdAutomationService {
               if (pythonRes.phuLuc && (pythonRes.phuLuc.isPl01 || phuLucPath)) {
                 phuLucData = {
                   maTKGD: pythonRes.phuLuc.maTKGD || `${baseCode}-A`,
-                  hoVaTen: pythonRes.phuLuc.tenKH || group.tenTaiKhoan,
+                  hoVaTen: pythonRes.phuLuc.tenKH || (isLikelyValidPersonName(group.tenTaiKhoan) ? group.tenTaiKhoan : undefined),
                   ngayKyHD: parseDate(pythonRes.phuLuc.ngayKyHD),
                   rawNgayKyHD: pythonRes.phuLuc.rawNgayKyHD,
                   chuKy: pythonRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
@@ -2081,7 +2090,7 @@ export class TkgdAutomationService {
                 const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
                 const noiCapFinal = pythonRes.canCuoc.noiCap || pythonRes.hopDong?.noiCap || hopDongData?.noiCap || undefined;
                 cccdData = {
-                  hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || group.tenTaiKhoan,
+                  hoVaTen: pythonRes.canCuoc.hoTen || hopDongData?.hoVaTen || (isLikelyValidPersonName(group.tenTaiKhoan) ? group.tenTaiKhoan : undefined),
                   soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
                   ngaySinh: parseDate(pythonRes.canCuoc.ngaySinh) || hopDongData?.ngaySinh,
                   rawNgaySinh: rawDob || hopDongData?.rawNgaySinh,
@@ -2096,6 +2105,13 @@ export class TkgdAutomationService {
                   confidenceScore: pythonRes.canCuoc.confidenceScore,
                   boundingBoxes: pythonRes.canCuoc.boundingBoxes,
                 };
+              }
+
+              // Tự động kế thừa tên chuẩn sang group.tenTaiKhoan nếu tên trên mail bị rác hoặc thiếu
+              const docNameCandidate = hopDongData?.hoVaTen || phuLucData?.hoVaTen || cccdData?.hoVaTen;
+              if (!isLikelyValidPersonName(group.tenTaiKhoan) && docNameCandidate) {
+                group.tenTaiKhoan = docNameCandidate;
+                group.tenTK = docNameCandidate;
               }
             }
           } catch (pyErr: any) {
@@ -2247,12 +2263,19 @@ export class TkgdAutomationService {
           ],
         });
 
+        const finalDocName = hopDongData?.hoVaTen || phuLucData?.hoVaTen || cccdData?.hoVaTen || '';
+        const validMailName = isLikelyValidPersonName(group.tenTaiKhoan) ? group.tenTaiKhoan : '';
+        const existingMailName = isLikelyValidPersonName((existingRecord?.noiDungMail as any)?.tenTaiKhoan)
+          ? (existingRecord?.noiDungMail as any)?.tenTaiKhoan
+          : '';
+        const currentMailName = validMailName || finalDocName || existingMailName || '';
+
         const noiDungMailData = {
           maTKGD_Futures: group.maTKGDFutures || baseCode,
           maTKGD_ACM: group.maTKGDACM || (group.hasACMRequest ? `${baseCode}-A` : undefined),
           maTKGD_LME: group.hasLMERequest ? `${baseCode}-L` : undefined,
           maTKGD_Spread: group.hasSpreadRequest ? `${baseCode}-S` : undefined,
-          tenTaiKhoan: group.tenTaiKhoan || (existingRecord?.noiDungMail as any)?.tenTaiKhoan || '',
+          tenTaiKhoan: currentMailName,
           hasACMRequest: group.hasACMRequest,
           hasLMERequest: group.hasLMERequest,
           hasSpreadRequest: group.hasSpreadRequest,
@@ -2272,6 +2295,17 @@ export class TkgdAutomationService {
           if (hopDongData) existingRecord.hopDong = hopDongData;
           if (phuLucData) existingRecord.phuLuc = phuLucData;
           if (cccdData) existingRecord.canCuoc = cccdData;
+
+          // Nếu đã có thông tin MS, tự động đối soát lại ngay lập tức
+          if (existingRecord.ms && existingRecord.ms.isFoundOnMS) {
+            const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(existingRecord);
+            existingRecord.ketLuan = {
+              trangThai: finalStatus,
+              danhSachLoi: finalErrors,
+              reconciledAt: new Date(),
+            } as any;
+          }
+
           await existingRecord.save();
         } else {
           await this.cleanRecordModel.create({
@@ -2573,6 +2607,223 @@ export class TkgdAutomationService {
       scrapedCount,
       summary: reconResult.summary,
       message: `Đã cào M-System thành công cho ${scrapedCount} hồ sơ và tự động đối soát!`,
+    };
+  }
+
+  /**
+   * Quét lại Email & Bóc tách lại File đính kèm cho 1 hồ sơ tài khoản cụ thể
+   * Cho phép Cán bộ trực ca làm mới nhanh 1 hồ sơ sau khi TVKD bổ sung file hoặc sửa quy tắc
+   */
+  async reparseAccount(
+    userEmail: string,
+    payload: { recordId?: string; accountCode?: string; batchDate?: string }
+  ) {
+    const { recordId, accountCode, batchDate } = payload;
+    let query: any = {};
+    if (recordId) {
+      query._id = recordId;
+    } else if (accountCode) {
+      const code = accountCode.trim();
+      const base = code.split('-')[0];
+      query.$or = [{ maTKGD: code }, { maTKGDBase: base }];
+      if (batchDate) query.batchDate = batchDate;
+    } else {
+      throw new Error('Vui lòng cung cấp recordId hoặc accountCode để quét lại');
+    }
+
+    const record = await this.cleanRecordModel.findOne(query);
+    if (!record) {
+      throw new NotFoundException('Không tìm thấy bản ghi hồ sơ cần quét lại');
+    }
+
+    const baseCode = record.maTKGDBase || record.maTKGD?.split('-')[0] || '';
+    const bDate = record.batchDate || new Date().toISOString().slice(0, 10);
+
+    this.logger.log(`[TKGD-REPARSE] Bắt đầu quét & bóc tách lại hồ sơ: ${record.maTKGD || baseCode} (Ngày: ${bDate})`);
+
+    // Lưu snapshot vết trước khi bóc tách lại
+    if (!record.snapshots) record.snapshots = [];
+    record.snapshots.push({
+      snapshotAt: new Date(),
+      action: 'REPARSE_ACCOUNT',
+      previousData: {
+        noiDungMail: record.noiDungMail,
+        hopDong: record.hopDong,
+        phuLuc: record.phuLuc,
+        canCuoc: record.canCuoc,
+        ketLuan: record.ketLuan,
+      },
+    } as any);
+
+    // 1. Tìm lại email gốc từ RawAccountMail
+    let rawMail = record.rawMailId ? await this.rawMailModel.findById(record.rawMailId) : null;
+    if (!rawMail) {
+      rawMail = await this.rawMailModel
+        .findOne({
+          bodyRawText: { $regex: baseCode, $options: 'i' },
+        })
+        .sort({ receivedDateTime: -1 });
+    }
+
+    const config = await this.userConfigModel.findOne({ userEmail }).lean();
+
+    // 2. Tìm các tệp đính kèm đã lưu trữ chính thức hoặc tạm
+    const officialAccDir = getTkgdAttachmentDirectory(
+      config?.documentProcessing?.attachmentSavePath || config?.storage?.windowsPath,
+      bDate,
+      baseCode,
+    );
+    const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
+
+    let hopDongPath: string | undefined = undefined;
+    let phuLucPath: string | undefined = undefined;
+    let cccdFrontPath: string | undefined = undefined;
+    let cccdBackPath: string | undefined = undefined;
+
+    const scanDirForFiles = (dir: string) => {
+      if (!fs.existsSync(dir)) return;
+      try {
+        const files = fs.readdirSync(dir);
+        for (const f of files) {
+          const lower = f.toLowerCase();
+          const full = path.join(dir, f);
+          if (lower.endsWith('.pdf')) {
+            if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01')) {
+              if (!phuLucPath) phuLucPath = full;
+            } else {
+              if (!hopDongPath) hopDongPath = full;
+            }
+          } else if (/\.(jpe?g|png|bmp|webp)$/i.test(lower)) {
+            if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('mat-sau')) {
+              if (!cccdBackPath) cccdBackPath = full;
+            } else if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('mat-truoc')) {
+              if (!cccdFrontPath) cccdFrontPath = full;
+            } else if (!cccdFrontPath) {
+              cccdFrontPath = full;
+            } else if (!cccdBackPath) {
+              cccdBackPath = full;
+            }
+          }
+        }
+      } catch {}
+    };
+
+    scanDirForFiles(officialAccDir);
+    scanDirForFiles(tempAccDir);
+
+    // 3. Nếu tìm được rawMail, cập nhật lại nội dung email qua parser mới
+    let candidateName = '';
+    if (rawMail && rawMail.bodyRawText) {
+      const groups = parseAccountOpeningEmailMulti(rawMail.bodyRawText);
+      const matchGroup = groups.find((g) => g.maTKGDBase === baseCode);
+      if (matchGroup) {
+        candidateName = matchGroup.tenTaiKhoan;
+        if (record.noiDungMail) {
+          record.noiDungMail.maTKGD_Futures = matchGroup.maTKGDFutures || baseCode;
+          if (matchGroup.maTKGDACM) record.noiDungMail.maTKGD_ACM = matchGroup.maTKGDACM;
+          if (matchGroup.maTKGDLME) record.noiDungMail.maTKGD_LME = matchGroup.maTKGDLME;
+          if (matchGroup.maTKGDSpread) record.noiDungMail.maTKGD_Spread = matchGroup.maTKGDSpread;
+          record.noiDungMail.hasACMRequest = matchGroup.hasACMRequest;
+          record.noiDungMail.hasLMERequest = matchGroup.hasLMERequest;
+          record.noiDungMail.hasSpreadRequest = matchGroup.hasSpreadRequest;
+        }
+      }
+    }
+
+    // 4. Chạy lại Python Extractor nếu có file đính kèm
+    if (hopDongPath || phuLucPath || cccdFrontPath || cccdBackPath) {
+      try {
+        const pyRes = await runPythonExtractor({
+          accountCode: record.maTKGD || baseCode,
+          hopDongPath,
+          phuLucPath,
+          cccdFrontPath,
+          cccdBackPath,
+        });
+
+        if (pyRes) {
+          if (pyRes.hopDong && (pyRes.hopDong.hoTen || pyRes.hopDong.soCCCD || hopDongPath)) {
+            record.hopDong = {
+              maTKGD: pyRes.hopDong.maTKGD || baseCode,
+              hoVaTen: pyRes.hopDong.hoTen || (isLikelyValidPersonName(candidateName) ? candidateName : record.hopDong?.hoVaTen),
+              soCanCuoc: pyRes.hopDong.soCCCD || record.hopDong?.soCanCuoc,
+              ngaySinh: parseDate(pyRes.hopDong.ngaySinh) || record.hopDong?.ngaySinh,
+              rawNgaySinh: pyRes.hopDong.rawNgaySinh || record.hopDong?.rawNgaySinh,
+              ngayCap: parseDate(pyRes.hopDong.ngayCap) || record.hopDong?.ngayCap,
+              rawNgayCap: pyRes.hopDong.rawNgayCap || record.hopDong?.rawNgayCap,
+              noiCap: pyRes.hopDong.noiCap || record.hopDong?.noiCap,
+              ngayKyHD: parseDate(pyRes.hopDong.ngayKyHD) || record.hopDong?.ngayKyHD,
+              rawNgayKyHD: pyRes.hopDong.rawNgayKyHD || undefined,
+              gioiTinh: pyRes.hopDong.gioiTinh || record.hopDong?.gioiTinh,
+              rawGioiTinh: pyRes.hopDong.rawGioiTinh || record.hopDong?.rawGioiTinh,
+              dinhDangLoi: pyRes.hopDong.dinhDangLoi || [],
+              loaiHinhTaiKhoan: 'Cá nhân',
+              chuKy: pyRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
+            } as any;
+          }
+
+          if (pyRes.phuLuc && (pyRes.phuLuc.isPl01 || phuLucPath)) {
+            record.phuLuc = {
+              maTKGD: pyRes.phuLuc.maTKGD || `${baseCode}-A`,
+              hoVaTen: pyRes.phuLuc.tenKH || (isLikelyValidPersonName(candidateName) ? candidateName : record.phuLuc?.hoVaTen),
+              soCanCuoc: (pyRes.phuLuc as any).soCCCD || record.phuLuc?.soCanCuoc,
+              ngayCap: parseDate((pyRes.phuLuc as any).ngayCap) || record.phuLuc?.ngayCap,
+              noiCap: (pyRes.phuLuc as any).noiCap || record.phuLuc?.noiCap,
+              ngayKyHD: parseDate(pyRes.phuLuc.ngayKyHD) || record.phuLuc?.ngayKyHD,
+              chuKy: pyRes.phuLuc.hasSignature ? 'Đã ký' : 'Chưa ký',
+            } as any;
+          }
+
+          if (pyRes.canCuoc && (pyRes.canCuoc.soCCCD || pyRes.canCuoc.hoTen || cccdFrontPath)) {
+            const rawDob = pyRes.canCuoc.rawNgaySinh || pyRes.canCuoc.ngaySinh;
+            const rawCap = pyRes.canCuoc.rawNgayCap || pyRes.canCuoc.ngayCap;
+            record.canCuoc = {
+              hoVaTen: pyRes.canCuoc.hoTen || record.hopDong?.hoVaTen || (isLikelyValidPersonName(candidateName) ? candidateName : record.canCuoc?.hoVaTen),
+              soCanCuoc: pyRes.canCuoc.soCCCD || record.canCuoc?.soCanCuoc,
+              ngaySinh: parseDate(pyRes.canCuoc.ngaySinh) || record.canCuoc?.ngaySinh,
+              rawNgaySinh: rawDob || record.canCuoc?.rawNgaySinh,
+              ngayCap: parseDate(pyRes.canCuoc.ngayCap) || record.canCuoc?.ngayCap,
+              rawNgayCap: rawCap || record.canCuoc?.rawNgayCap,
+              gioiTinh: pyRes.canCuoc.gioiTinh || record.canCuoc?.gioiTinh,
+              noiCap: pyRes.canCuoc.noiCap || record.canCuoc?.noiCap,
+              diaChiThuongTru: pyRes.canCuoc.diaChi || record.canCuoc?.diaChiThuongTru,
+              canhBaoChatLuong: pyRes.canCuoc.canhBaoChatLuong || [],
+              ocrConfidence: pyRes.canCuoc.source || 'OCR',
+              theGeneration: pyRes.canCuoc.theGeneration || record.canCuoc?.theGeneration,
+              confidenceScore: pyRes.canCuoc.confidenceScore || record.canCuoc?.confidenceScore,
+              boundingBoxes: pyRes.canCuoc.boundingBoxes || record.canCuoc?.boundingBoxes,
+            } as any;
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[TKGD-REPARSE] Lỗi chạy Python Extractor cho ${baseCode}: ${err.message}`);
+      }
+    }
+
+    // 5. Chuẩn hóa tên trên Mail: Kế thừa từ HĐ / PL / CCCD nếu tên mail bị rác hoặc thiếu
+    const finalDocName = record.hopDong?.hoVaTen || record.phuLuc?.hoVaTen || record.canCuoc?.hoVaTen || '';
+    if (record.noiDungMail) {
+      if (isLikelyValidPersonName(candidateName)) {
+        record.noiDungMail.tenTaiKhoan = candidateName;
+      } else if (!isLikelyValidPersonName(record.noiDungMail.tenTaiKhoan) && finalDocName) {
+        record.noiDungMail.tenTaiKhoan = finalDocName;
+      }
+    }
+
+    // 6. Thực hiện so sánh đối soát lại ngay cho hồ sơ này
+    const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
+    record.ketLuan = {
+      trangThai: finalStatus,
+      danhSachLoi: finalErrors,
+      reconciledAt: new Date(),
+    } as any;
+
+    await record.save();
+
+    return {
+      success: true,
+      message: `Đã quét lại email và bóc tách lại hồ sơ ${record.maTKGD || baseCode} thành công!`,
+      record,
     };
   }
 
