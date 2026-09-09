@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { SprintMode, TkgdProgressState, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
+import { addTkgdNotification } from '../utils/tkgdNotifications';
 
 interface UseTkgdActionsProps {
   batchDate?: string;
@@ -90,6 +91,11 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
               toast.success(p.detail || 'Đã hoàn tất chu trình bóc tách & đối soát TKGD!', {
                 duration: 4500,
               });
+              addTkgdNotification({
+                type: 'pipeline',
+                title: 'Hoàn Tất Chu Trình TKGD',
+                message: p.detail || 'Đã hoàn tất chu trình bóc tách email & đối soát hồ sơ.',
+              });
               if (onSuccess) await onSuccess();
             }
           }
@@ -113,6 +119,12 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
       const data = await tkgdApi.syncMail(batchDate, token, userEmail);
       if (data?.success) {
         toast.success(data.message || `Đã nạp thành công ${data.count} email!`);
+        addTkgdNotification({
+          type: 'mail',
+          title: 'Nạp Email Outlook',
+          message: data.message || `Đã nạp thành công ${data.count || 0} email mở TKGD.`,
+          meta: { mailCount: data.count },
+        });
         if (onSuccess) await onSuccess();
       } else {
         toast.error(data?.message || 'Quét mail thất bại');
@@ -147,6 +159,14 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
         );
         if (data?.success) {
           toast.success(data.message || 'Đã cào M-System thành công!');
+          addTkgdNotification({
+            type: 'msystem',
+            title: 'Cào Dữ Liệu M-System',
+            message: investorCode
+              ? `Đã cào dữ liệu cho tài khoản ${investorCode} thành công.`
+              : data.message || 'Đã cào danh sách hồ sơ từ M-System thành công.',
+            meta: investorCode ? { investorCode } : undefined,
+          });
           if (onSuccess) await onSuccess();
         } else {
           toast.error(data?.message || 'Cào M-System thất bại');
@@ -241,6 +261,15 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
         toast.success(
           `Đối soát thành công! Khớp: ${data.summary?.khopCount || 0}, Lệch: ${data.summary?.lechCount || 0}`
         );
+        addTkgdNotification({
+          type: 'reconcile',
+          title: 'Đối Soát Hồ Sơ Khớp / Lệch',
+          message: `Đối soát hoàn tất: ${data.summary?.khopCount || 0} hồ sơ khớp 100%, ${data.summary?.lechCount || 0} hồ sơ lệch.`,
+          meta: {
+            khopCount: data.summary?.khopCount,
+            lechCount: data.summary?.lechCount,
+          },
+        });
         if (onSuccess) await onSuccess();
       } else {
         toast.error(data?.message || 'Chạy đối soát thất bại');

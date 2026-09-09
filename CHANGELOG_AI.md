@@ -2,6 +2,55 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T10:55] Tách Độc Lập Hoàn Toàn Component & Dữ Liệu Chuông Thông Báo Cho Phân Hệ TKGD (TTBT)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"tôi bảo rồi không được dùng chung modal schema của checklist vì độc lập giúp tôi tách độc lập phần thông báo này ra"*; *"tôi đang thấy phần chuông của checklist"*; *"trong khi yêu cầu của tôi là thông báo độc lập của tkgd và component này cũng hoàn toàn độc lập không chung đụng với checklist"*.
+- **Giải quyết triệt để**:
+  1. Gỡ bỏ 100% component `NotificationDropdown` của Checklist (vốn gắn liền với schema ca trực, `/api/v1/dashboard/activity`, WebSocket checklist) ra khỏi màn hình TKGD.
+  2. Tạo mới component chuyên biệt và độc lập `TkgdNotificationDropdown` chỉ phục vụ các sự kiện nghiệp vụ của Thanh Toán Bù Trừ (TKGD).
+  3. Xây dựng bộ lưu trữ và quản lý thông báo độc lập `tkgdNotifications.ts` (lưu trữ `tkgd_notifications_history_v1`, hỗ trợ đếm chưa đọc, đánh dấu đã đọc, xóa lịch sử, lắng nghe event thời gian thực).
+  4. Tự động đẩy thông báo đối soát khi các tác vụ kết thúc (Nạp mail Outlook, Cào M-System, Đối soát Khớp/Lệch, Hoàn tất chu trình bóc tách).
+
+### Danh sách file chỉnh sửa & tạo mới
+- [frontend/src/features/tkgd/components/TkgdNotificationDropdown.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdNotificationDropdown.tsx) *(Mới)*:
+  - Component chuông thông báo độc lập, hiển thị danh sách các sự kiện của TKGD: Nạp mail, cào M-System, kết quả đối soát khớp/lệch, giám sát 24/7.
+  - Phân loại icon theo nghiệp vụ TTBT (Mail, Server, Layers, Cpu, AlertTriangle), gắn tag đếm Khớp/Lệch.
+- [frontend/src/features/tkgd/utils/tkgdNotifications.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/utils/tkgdNotifications.ts) *(Mới)*:
+  - Utility độc lập quản lý trạng thái, lưu trữ local history và broadcast event thông báo TKGD.
+- [frontend/src/features/tkgd/components/TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
+  - Gỡ bỏ import `NotificationDropdown` từ `@/components/NotificationDropdown`.
+  - Nhúng `<TkgdNotificationDropdown />` độc lập vào Top Header.
+- [frontend/src/features/tkgd/hooks/useTkgdActions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts):
+  - Tự động gọi `addTkgdNotification` khi nạp mail, cào M-System, đối soát chéo và hoàn thành pipeline bóc tách.
+- [frontend/src/features/tkgd/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/index.ts):
+  - Xuất khẩu `TkgdNotificationDropdown` và các hàm tiện ích thông báo TKGD.
+
+### Xác nhận Build & Triển khai
+- ✅ Frontend Compile: Đạt 100% (`cmd /c npx tsc --noEmit` & `npm run build` exit code 0).
+- ✅ Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-frontend` (pid 3358392) và `mxv-backend` (pid 3358115) đều `online` với exit code 0.
+
+---
+
+## [2026-09-09T10:55] Chuẩn Hóa Chiến Lược Thay Thế Toàn Diện Tool C# & Bộ Tiêu Chuẩn Chất Lượng (Quality Gates)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"Màn hình này không thay thế ngay Tool C#. Phải thay thế C# trong tương lai nên cần đảm bảo màn hình này và logic đằng sau phải xử lý đúng đắn... tôi cần bạn tổng hợp tiếp các thông tin quan trọng vào tài liệu"*.
+- **Chuẩn hóa vào tài liệu đặc tả**:
+  1. Xác lập **Tuyên ngôn mục tiêu Zero-Defect Tolerance**: Cỗ máy mới phải chuẩn xác tuyệt đối trên 100% các tình huống biên vì tác động trực tiếp đến dòng tiền ký quỹ sàn MXV.
+  2. Bổ sung **4 Trụ cột kỹ thuật đảm bảo tính đúng đắn**: Lõi số học độ chính xác cao (Decimal), Bộ dữ liệu đối chiếu ngược lịch sử (Golden Test Datasets), Cơ chế chốt an toàn Fail-Safe & Cảnh báo chủ động, và Cổng thẩm định 14 ngày Delta = 0 liên tiếp.
+  3. Đặc tả chi tiết giao diện tác nghiệp chuẩn Enterprise (**Trading Operation Console**) và Quy trình truy vết nguyên nhân khi phát sinh sai lệch (**Discrepancy Resolution Protocol**).
+
+### Danh sách file chỉnh sửa & tạo mới
+- [ackend/docs/TAI_LIEU_DOI_CHIEU_MAN_HINH_TRADING_MANAGER.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/docs/TAI_LIEU_DOI_CHIEU_MAN_HINH_TRADING_MANAGER.md):
+  - Bổ sung hoàn chỉnh Phần VII: Chiến lược thay thế hoàn toàn Tool C# & Khung kiểm soát chất lượng (Quality Gates).
+
+### Xác nhận Build & Kiểm thử
+- ✅ Backend compile: Đạt 100% (	sc --project tsconfig.build.json exit code 0).
+- ✅ Frontend compile: Đạt 100% (
+px tsc --noEmit exit code 0).
+
+---
 ## [2026-09-09T10:45] Tích Hợp Chuông Thông Báo Vào Dashboard TKGD, Bỏ Icon Checkmark Toast & Tối Ưu Nhãn Bảo Chứng MD5 Trong Chế Độ Rút Gọn
 
 ### Mục tiêu thay đổi
@@ -8356,5 +8405,6 @@ export interface CheckKLGDResult {
 ### 4. Kết quả Kiểm thử & Build
 - **Backend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
 - **Frontend (`npx tsc --noEmit` & `npm run build`)**: PASSED (0 lỗi)
+
 
 
