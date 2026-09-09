@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  ShieldCheck,
 } from 'lucide-react';
 import { CleanRecord, AccountManifest, PreviewImageState, PreviewPdfState } from '../../types/tkgd.types';
 import { formatDateStr } from '../../utils/tkgd.helpers';
@@ -191,6 +192,23 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                           }}
                         >
                           Tin cậy: {Math.round(confScore * 100)}%
+                        </span>
+                      )}
+                      {inspectRecord?.canCuoc?.source === 'VERIFIED_MS_HASH' && (
+                        <span
+                          style={{
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: 'rgba(6, 182, 212, 0.12)',
+                            color: '#0891b2',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                          title="Ảnh đính kèm Mail và ảnh trên M-System trùng khớp 100% mã băm MD5. Số CCCD được bảo chứng chéo qua Hợp đồng và MS."
+                        >
+                          <ShieldCheck size={12} strokeWidth={2.5} /> Bảo Chứng Ảnh MS (MD5)
                         </span>
                       )}
                     </>

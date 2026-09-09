@@ -477,9 +477,12 @@ export async function reconcileAndExportToExcel(
     } else {
       rowStatus = 'KHOP';
       khopCount++;
-      ketQuaText = targetAccountCode.includes('-A')
-        ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
-        : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%';
+      const isVerifiedHash = cccd.source === 'VERIFIED_MS_HASH' || record.canCuoc?.source === 'VERIFIED_MS_HASH';
+      ketQuaText = isVerifiedHash
+        ? 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)'
+        : (targetAccountCode.includes('-A')
+            ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
+            : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%');
     }
 
     // 2. Ghi vào Sheet "NoiDungMail"

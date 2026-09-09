@@ -2,6 +2,39 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T08:42] Bổ Sung Cơ Chế Bảo Chứng Chéo Qua Mã Băm Ảnh (MD5 Cross-Verification)
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"bạn có thể check được ảnh qua outlook giống của ms thì mới fallback có ổn không... có giúp tôi áp dụng"*.
+- **Vấn đề giải quyết**:
+  1. Khi ảnh CCCD của khách hàng (ví dụ: `MAI ĐỨC DƯƠNG` - `003C6615616`) bị mờ nhẹ hoặc máy Tesseract OCR không đọc đủ 12 số, mắt thường vẫn nhìn thấy rõ số và TVKD đã nhập chuẩn số `066204000906` lên M-System.
+  2. Thay vì fallback mù quáng gây mất an toàn dữ liệu, hệ thống áp dụng cơ chế **Bảo chứng chéo dựa trên mã băm ảnh (MD5 Hash Proof)**:
+     - Nếu ảnh đính kèm từ Mail và ảnh tải từ M-System trùng khớp 100% mã băm MD5.
+     - VÀ số CCCD trên Hợp đồng trùng khớp 100% với M-System.
+     - VÀ Họ tên trên Hợp đồng trùng khớp 100% với M-System.
+     - $\Rightarrow$ Hệ thống kích hoạt cơ chế bảo chứng chéo, tự động làm giàu thông tin CCCD chuẩn và kết luận `KHỚP 100% (Bảo chứng ảnh MS)`.
+- **Giải pháp thực hiện**:
+  1. **Backend (`TkgdAutomationService`)**:
+     - Bổ sung phương thức `verifyAndHealWithImageHash(record)`: Tính mã băm MD5 cho từng cặp ảnh (Mặt trước Mail vs MS, Mặt sau Mail vs MS) trong $<1$ms.
+     - Nếu trùng khớp MD5 và Hợp đồng khớp MS: Tự động gán dữ liệu CCCD chuẩn, set `source = 'VERIFIED_MS_HASH'`, xóa bỏ cảnh báo chất lượng rác và lưu trực tiếp vào MongoDB.
+     - Gọi cơ chế này tự động trong cả chu trình làm giàu dữ liệu `enrichMissingCccdData` và vòng lặp `runReconciliation`.
+  2. **Excel Export (`tkgd-reconcile-exporter.helper.ts`)**:
+     - Ghi nhận `so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)` cho cột Kết quả Sheet `NoiDungMail`.
+     - Sheet `Cancuoc` xuất ra đầy đủ thông tin chuẩn của khách hàng (`066204000906` - `MAI ĐỨC DƯƠNG`).
+  3. **Frontend UI (`TabAttachmentsViewer.tsx`)**:
+     - Hiển thị badge xanh ngọc chuyên nghiệp trên Modal: `<ShieldCheck size={12} /> Bảo Chứng Ảnh MS (MD5)`.
+
+### Danh sách file chỉnh sửa
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [`backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts)
+- [`frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)
+
+### Xác nhận Build & Kiểm thử
+- ✅ Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).
+- ✅ Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).
+
+---
+
 ## [2026-09-09T08:35] Bổ Sung Cột Thời Gian Kiểm Tra (Web & Excel) và Chặn Số/Tên Rác Khi Bóc Tách CCCD
 
 ### Mục tiêu thay đổi
