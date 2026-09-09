@@ -15,6 +15,7 @@ import {
   Camera,
   Info,
   ShieldCheck,
+  Mail,
 } from 'lucide-react';
 import { CleanRecord } from '../types/tkgd.types';
 import { cleanMailName, checkIsOldIdCard, getBadgeInfo } from '../utils/tkgd.helpers';
@@ -187,7 +188,11 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                             }}
                             title={`Thời gian nhận email: ${new Date(r.noiDungMail.receivedDateTime).toLocaleString('vi-VN')}`}
                           >
-                            <span>📩 {new Date(r.noiDungMail.receivedDateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <Mail size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
+                            <span>
+                              {new Date(r.noiDungMail.receivedDateTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}{' '}
+                              {new Date(r.noiDungMail.receivedDateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
                         )}
                       </td>

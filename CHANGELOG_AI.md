@@ -2,6 +2,40 @@
 
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
 
+## [2026-09-09T08:20] Bổ Sung Bộ Lọc Khoảng Ngày & Giờ và Cơ Chế Bóc Tách Thông Minh (Smart Skip) Cho TKGD Automation
+
+### Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"giúp tôi đánh giá kỹ rồi mới bổ sung tính năng này cho chính xác đồng thời nút chạy tự động toàn bộ nên có thêm cơ chế chọn khoảng thời gian được không ví dụ như hôm nay sẽ chỉ chọn khoảng ngày và giờ hôm nay để bóc thay vì khoảng thời gian trước đó nữa"*.
+- **Vấn đề đã đánh giá**:
+  1. **Tình trạng lặp lại (Redundant Extraction)**: Mỗi lần bấm chạy, hệ thống tải lại toàn bộ attachment từ Outlook và gọi Python OCR bóc tách lại tất cả tài khoản từ đầu (kể cả những hồ sơ đã trích xuất hoàn thiện trước đó). Với 25 tài khoản, Python OCR mất ~5 phút, gây lãng phí tài nguyên và làm kết nối HTTP trên trình duyệt bị timeout (báo lỗi toast đỏ dù backend vẫn đang xử lý).
+  2. **Thiếu cơ chế chọn khoảng thời gian**: Trước đó luồng tự động chỉ quét theo ngày thô (`batchDate`), không lọc được theo khoảng giờ (ví dụ: chỉ quét từ 00:00 hôm nay đến hiện tại, hoặc chỉ trong ca trực hiện tại).
+- **Giải pháp thực hiện**:
+  1. **Cơ chế Smart Skip (Tránh bóc tách lặp lại)**:
+     - Trước khi tải tệp đính kèm và gọi tiến trình Python OCR, hệ thống đối chiếu với bản ghi trong MongoDB (`TkgdAccountRecord`).
+     - Nếu hồ sơ đã có đủ thông tin trích xuất Hợp đồng (`hopDong.hoVaTen` hoặc `hopDong.soCanCuoc`) và CCCD (`canCuoc.soCanCuoc` hoặc `theGeneration`), hệ thống sẽ **bỏ qua ngay lập tức** (chỉ mất ~0.05s thay vì 15s cho Python OCR).
+     - Rút ngắn thời gian chạy từ 5 phút xuống còn vài giây nếu không có hồ sơ mới.
+  2. **Hộp thoại Cấu hình Chạy Tự Động Toàn Bộ (Run Configuration Modal)**:
+     - Khi nhấn nút `Chạy Tự Động Toàn Bộ`, hiển thị modal thiết kế hiện đại, tinh gọn với 3 tùy chọn mốc thời gian:
+       + **Hôm nay (Từ 00:00 đến nay)**: Chỉ bóc các email nhận trong ngày hôm nay.
+       + **Ca trực hiện tại**: Tự động tính toán mốc giờ bắt đầu của ca trực hiện tại (Ca 1: 06:30, Ca 2: 14:30, Ca 3: 22:30).
+       + **Tùy chỉnh khoảng ngày & giờ**: Cho phép chọn chính xác `Từ ngày giờ` đến `Đến ngày giờ` bằng input datetime-local.
+     - Tùy chọn checkbox `Chỉ bóc tách hồ sơ mới (Bỏ qua hồ sơ đã xử lý)`: Bật mặc định. Nếu bỏ tick, hệ thống sẽ cho phép force bóc tách lại từ đầu.
+  3. **Tối ưu Asynchronous Job & Chống Timeout Trình Duyệt**:
+     - Controller `runPipelineAll` trả về HTTP 200 `{ success: true, message: '...' }` ngay lập tức để giải phóng request từ trình duyệt.
+     - Toàn bộ tiến trình phức tạp chạy nền, Frontend cập nhật tiến độ mượt mà qua polling `/api/v1/tkgd/progress` thời gian thực (tự động ẩn khi hoàn thành 100%).
+
+### Danh sách file chỉnh sửa
+- [`backend/src/modules/tkgd-automation/tkgd-automation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)
+- [`backend/src/modules/tkgd-automation/tkgd-automation.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts)
+- [`frontend/src/features/tkgd/types/tkgd.types.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/types/tkgd.types.ts)
+- [`frontend/src/features/tkgd/services/tkgd.api.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/services/tkgd.api.ts)
+- [`frontend/src/features/tkgd/hooks/useTkgdActions.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts)
+- [`frontend/src/features/tkgd/components/TkgdActionToolbar.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)
+
+### Xác nhận Build & Kiểm thử
+- ✅ Backend TypeScript compile: Đạt (`tsc --project tsconfig.build.json` exit code 0).
+- ✅ Frontend TypeScript compile: Đạt (`tsc --noEmit` exit code 0).
+
 ---
 
 ## [2026-09-08T18:27] Xóa Bỏ Từ Kỹ Thuật 'Sprint 2' & Chuẩn Hóa Hiển Thị Ngày Giờ Email

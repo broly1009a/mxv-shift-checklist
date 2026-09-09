@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -17,6 +18,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller(['api/v1/tkgd', 'tkgd'])
 export class TkgdAutomationController {
+  private readonly logger = new Logger(TkgdAutomationController.name);
+
   constructor(private readonly tkgdService: TkgdAutomationService) {}
 
   /**
@@ -167,10 +170,23 @@ export class TkgdAutomationController {
   @Post('run-pipeline-all')
   async runPipelineAll(@Req() req: any, @Body() body: any) {
     const email = this.getUserEmail(req);
-    return await this.tkgdService.runPipelineAll(email, {
-      downloadImages: body?.downloadImages,
-      batchDate: body?.batchDate,
-    });
+    // Kích hoạt chu trình trong nền (Async Job) để tránh HTTP Request Timeout khi cào nhiều hồ sơ
+    this.tkgdService
+      .runPipelineAll(email, {
+        downloadImages: body?.downloadImages,
+        batchDate: body?.batchDate,
+        fromDateTime: body?.fromDateTime,
+        toDateTime: body?.toDateTime,
+        forceReparse: body?.forceReparse,
+      })
+      .catch((err) => {
+        this.logger.error(`[TKGD-PIPELINE-ASYNC] Lỗi chu trình toàn bộ: ${err.message}`, err.stack);
+      });
+
+    return {
+      success: true,
+      message: 'Đã tiếp nhận yêu cầu và đang thực thi chu trình bóc tách trong nền. Vui lòng theo dõi thanh tiến độ!',
+    };
   }
 
   /**

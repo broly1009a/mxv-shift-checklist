@@ -10,8 +10,14 @@ import {
   RefreshCw,
   Loader2,
   Bot,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  PlayCircle,
 } from 'lucide-react';
-import { SprintMode, TkgdAutoPipelineStatus } from '../types/tkgd.types';
+import { SprintMode, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
 
 interface TkgdActionToolbarProps {
   sprintMode: SprintMode;
@@ -21,7 +27,7 @@ interface TkgdActionToolbarProps {
   pendingMsCount?: number;
   showStats: boolean;
   toggleStats: () => void;
-  onRunPipelineAll: () => void;
+  onRunPipelineAll: (options?: Partial<RunPipelineOptions>) => void;
   onDownloadExcel: () => void;
   onSyncMail: () => void;
   onSyncMSystem: () => void;
@@ -45,6 +51,67 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
   autoStatus,
 }) => {
   const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
+  const [showRunConfigModal, setShowRunConfigModal] = useState<boolean>(false);
+  const [timeRangeMode, setTimeRangeMode] = useState<'TODAY' | 'CURRENT_SHIFT' | 'CUSTOM'>('TODAY');
+  const [customFromDateTime, setCustomFromDateTime] = useState<string>('');
+  const [customToDateTime, setCustomToDateTime] = useState<string>('');
+  const [smartSkipEnabled, setSmartSkipEnabled] = useState<boolean>(true);
+
+  // Tính toán khoảng thời gian thực tế dựa trên chế độ người dùng chọn
+  const getCalculatedTimeRange = () => {
+    const now = new Date();
+
+    if (timeRangeMode === 'TODAY') {
+      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      return {
+        fromDateTime: from.toISOString(),
+        toDateTime: now.toISOString(),
+        label: `Hôm nay (00:00 - ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})`,
+      };
+    }
+
+    if (timeRangeMode === 'CURRENT_SHIFT') {
+      const curHour = now.getHours();
+      let shiftStartHour = 7; // Ca sáng
+      let shiftName = 'Ca Sáng (07:00 - 14:00)';
+      if (curHour >= 14 && curHour < 22) {
+        shiftStartHour = 14; // Ca chiều
+        shiftName = 'Ca Chiều (14:00 - 22:00)';
+      } else if (curHour >= 22 || curHour < 7) {
+        shiftStartHour = 22; // Ca tối/đêm
+        shiftName = 'Ca Tối (22:00 - 07:00)';
+      }
+      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), shiftStartHour, 0, 0);
+      if (curHour < 7) {
+        from.setDate(from.getDate() - 1);
+      }
+      return {
+        fromDateTime: from.toISOString(),
+        toDateTime: now.toISOString(),
+        label: `${shiftName} (từ ${from.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} đến nay)`,
+      };
+    }
+
+    if (timeRangeMode === 'CUSTOM') {
+      return {
+        fromDateTime: customFromDateTime ? new Date(customFromDateTime).toISOString() : undefined,
+        toDateTime: customToDateTime ? new Date(customToDateTime).toISOString() : undefined,
+        label: 'Khoảng thời gian tùy chỉnh',
+      };
+    }
+
+    return { label: 'Toàn bộ' };
+  };
+
+  const handleExecuteRun = () => {
+    const { fromDateTime, toDateTime } = getCalculatedTimeRange();
+    setShowRunConfigModal(false);
+    onRunPipelineAll({
+      fromDateTime,
+      toDateTime,
+      forceReparse: !smartSkipEnabled,
+    });
+  };
 
   return (
     <>
@@ -89,9 +156,9 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
         {/* 1. HERO BUTTON: CHẠY QUY TRÌNH TOÀN BỘ (All-in-One Pipeline) */}
         <button
           id="tutorial-tkgd-auto-btn"
-          onClick={onRunPipelineAll}
+          onClick={() => setShowRunConfigModal(true)}
           disabled={isProcessing}
-          title="Chạy toàn bộ quy trình: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
+          title="Thiết lập và chạy toàn bộ quy trình: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -410,6 +477,412 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           )}
         </div>
       </div>
+
+      {/* =========================================================================
+       * MODAL CẤU HÌNH KHOẢNG THỜI GIAN & CHẾ ĐỘ BÓC TÁCH (SMART SKIP)
+       * ========================================================================= */}
+      {showRunConfigModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+              maxWidth: '560px',
+              width: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#10b981',
+                  }}
+                >
+                  <Zap size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Cấu Hình Chu Trình Chạy Tự Động
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Tối ưu phạm vi quét email và chế độ bóc tách thông minh
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRunConfigModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '4px',
+                  borderRadius: '6px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '75vh', overflowY: 'auto' }}>
+              {/* Mục 1: Chọn Khoảng Thời Gian */}
+              <div>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <Calendar size={14} color="#3b82f6" />
+                  <span>1. Khoảng Thời Gian Quét Email Outlook:</span>
+                </label>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Preset 1: Hôm nay */}
+                  <div
+                    onClick={() => setTimeRangeMode('TODAY')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: timeRangeMode === 'TODAY' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                      backgroundColor: timeRangeMode === 'TODAY' ? 'rgba(16, 185, 129, 0.06)' : 'var(--bg-input)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Hôm Nay (Từ 00:00 đến nay)
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.65rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            color: '#10b981',
+                            fontWeight: 700,
+                          }}
+                        >
+                          Khuyến nghị
+                        </span>
+                      </div>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Chỉ quét các email yêu cầu mở TKGD được nhận trong ngày hôm nay
+                      </p>
+                    </div>
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        border: timeRangeMode === 'TODAY' ? '5px solid #10b981' : '2px solid var(--border-color)',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
+                  </div>
+
+                  {/* Preset 2: Ca trực hiện tại */}
+                  <div
+                    onClick={() => setTimeRangeMode('CURRENT_SHIFT')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: timeRangeMode === 'CURRENT_SHIFT' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                      backgroundColor: timeRangeMode === 'CURRENT_SHIFT' ? 'rgba(59, 130, 246, 0.06)' : 'var(--bg-input)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Ca Trực Hiện Tại
+                        </span>
+                      </div>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Chỉ quét các email phát sinh từ thời điểm bắt đầu ca trực hiện tại
+                      </p>
+                    </div>
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        border: timeRangeMode === 'CURRENT_SHIFT' ? '5px solid #3b82f6' : '2px solid var(--border-color)',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
+                  </div>
+
+                  {/* Preset 3: Tùy chỉnh */}
+                  <div
+                    onClick={() => setTimeRangeMode('CUSTOM')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: timeRangeMode === 'CUSTOM' ? '2px solid #8b5cf6' : '1px solid var(--border-color)',
+                      backgroundColor: timeRangeMode === 'CUSTOM' ? 'rgba(139, 92, 246, 0.06)' : 'var(--bg-input)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Tùy Chỉnh Khoảng Ngày & Giờ
+                      </span>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Chủ động chọn mốc từ giờ nào đến giờ nào cụ thể
+                      </p>
+                    </div>
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        border: timeRangeMode === 'CUSTOM' ? '5px solid #8b5cf6' : '2px solid var(--border-color)',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
+                  </div>
+
+                  {/* Form input khi chọn CUSTOM */}
+                  {timeRangeMode === 'CUSTOM' && (
+                    <div
+                      style={{
+                        padding: '14px',
+                        borderRadius: '10px',
+                        backgroundColor: 'var(--bg-input)',
+                        border: '1px dashed var(--border-color)',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '12px',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Từ ngày & giờ:
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={customFromDateTime}
+                          onChange={(e) => setCustomFromDateTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Đến ngày & giờ:
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={customToDateTime}
+                          onChange={(e) => setCustomToDateTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mục 2: Cơ Chế Bóc Tách Smart Skip */}
+              <div>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <CheckCircle2 size={14} color="#10b981" />
+                  <span>2. Cơ Chế Bóc Tách OCR (Smart Skip):</span>
+                </label>
+
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={smartSkipEnabled}
+                      onChange={(e) => setSmartSkipEnabled(e.target.checked)}
+                      style={{ marginTop: '3px', accentColor: '#10b981', width: '16px', height: '16px' }}
+                    />
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Chỉ bóc tách hồ sơ mới (Tự động bỏ qua hồ sơ đã có HĐ & CCCD)
+                      </span>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Tự động kiểm tra cơ sở dữ liệu để bỏ qua các hồ sơ đã OCR thành công trước đó. Giúp chu trình chạy siêu tốc trong vài giây thay vì 5 phút.
+                      </p>
+                    </div>
+                  </label>
+
+                  {!smartSkipEnabled && (
+                    <div
+                      style={{
+                        marginTop: '4px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '0.72rem',
+                        color: '#d97706',
+                      }}
+                    >
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <span>
+                        ⚠️ Bạn đang chọn <strong>Bóc tách lại từ đầu</strong>: Hệ thống sẽ gọi lại Python OCR cho toàn bộ hồ sơ trong khoảng thời gian này (mất từ 3 đến 5 phút).
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={12} />
+                <span>{getCalculatedTimeRange().label}</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setShowRunConfigModal(false)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  onClick={handleExecuteRun}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 18px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  <PlayCircle size={14} />
+                  <span>Bắt Đầu Chạy Ngay</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

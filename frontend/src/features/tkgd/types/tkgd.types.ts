@@ -121,6 +121,14 @@ export type FilterStatus =
 
 export type SprintMode = 'FAST' | 'FULL';
 
+export interface RunPipelineOptions {
+  downloadImages?: boolean;
+  batchDate?: string;
+  fromDateTime?: string;
+  toDateTime?: string;
+  forceReparse?: boolean;
+}
+
 export interface TkgdStats {
   totalCount: number;
   pendingMsCount: number;

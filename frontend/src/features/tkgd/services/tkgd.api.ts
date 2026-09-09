@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/context/AuthContext';
-import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState, TkgdAutoPipelineStatus } from '../types/tkgd.types';
+import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
 
 function getHeaders(token?: string | null, userEmail?: string): HeadersInit {
   return {
@@ -15,21 +15,24 @@ export const tkgdApi = {
       page?: number;
       limit?: number;
       filter?: string;
-      batchDate?: string;
       search?: string;
+      batchDate?: string;
+      status?: string;
+      moduleFilter?: string;
     },
     token?: string | null,
     userEmail?: string
   ): Promise<{ items: CleanRecord[]; total: number; totalPages: number; stats?: TkgdStats }> {
-    const query = new URLSearchParams({
-      page: String(params.page || 1),
-      limit: String(params.limit || 10),
-    });
-    if (params.filter && params.filter !== 'ALL') query.append('filter', params.filter);
-    if (params.batchDate) query.append('batchDate', params.batchDate);
-    if (params.search?.trim()) query.append('search', params.search.trim());
+    const qs = new URLSearchParams();
+    if (params.page) qs.append('page', String(params.page));
+    if (params.limit) qs.append('limit', String(params.limit));
+    if (params.filter && params.filter !== 'ALL') qs.append('filter', params.filter);
+    if (params.search?.trim()) qs.append('search', params.search.trim());
+    if (params.batchDate) qs.append('batchDate', params.batchDate);
+    if (params.status) qs.append('status', params.status);
+    if (params.moduleFilter) qs.append('moduleFilter', params.moduleFilter);
 
-    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/records?${query.toString()}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/records?${qs.toString()}`, {
       headers: getHeaders(token, userEmail),
     });
     if (!res.ok) {
@@ -70,7 +73,7 @@ export const tkgdApi = {
   },
 
   async runPipelineAll(
-    payload: { downloadImages?: boolean; batchDate?: string },
+    payload: RunPipelineOptions,
     token?: string | null,
     userEmail?: string
   ) {

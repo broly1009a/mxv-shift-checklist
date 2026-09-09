@@ -232,6 +232,7 @@ export class TkgdAutomationService {
     accessToken: string,
     matchFn: (msg: any) => boolean,
     maxPages = 10,
+    minReceivedDateTime?: Date,
   ): Promise<any[]> {
     const results: any[] = [];
     let nextUrl: string | null = startUrl;
@@ -253,11 +254,26 @@ export class TkgdAutomationService {
           break;
         }
         const data = await res.json();
-        const matched = (data.value || []).filter(matchFn);
+        const messages = data.value || [];
+        const matched = messages.filter(matchFn);
         results.push(...matched);
 
-        // Nếu trang hiện tại đã có kết quả khớp: dừng — không cần quét thêm
-        if (matched.length > 0 && data.value.length === matched.length) {
+        // Early Exit Optimization: Nếu đã có mốc thời gian tối thiểu (minReceivedDateTime)
+        // và trong trang hiện tại xuất hiện email cũ hơn mốc này (do Graph API orderby desc),
+        // các trang kế tiếp chắc chắn đều cũ hơn -> Dừng quét ngay lập tức!
+        if (minReceivedDateTime && messages.length > 0) {
+          const oldestMsg = messages[messages.length - 1];
+          if (oldestMsg?.receivedDateTime) {
+            const oldestDate = new Date(oldestMsg.receivedDateTime);
+            if (!isNaN(oldestDate.getTime()) && oldestDate < minReceivedDateTime) {
+              this.logger.log(`[GRAPH-PAGE] Đã quét tới email ngày ${oldestDate.toISOString()} < mốc lọc ${minReceivedDateTime.toISOString()}. Dừng phân trang sớm.`);
+              break;
+            }
+          }
+        }
+
+        // Nếu trang hiện tại đã có kết quả khớp và tất cả đều khớp: dừng
+        if (matched.length > 0 && messages.length === matched.length) {
           break;
         }
         nextUrl = data['@odata.nextLink'] || null;
@@ -1406,7 +1422,17 @@ export class TkgdAutomationService {
   /**
    * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
    */
-  async syncMailOpeningAccounts(userEmail: string, batchDate?: string) {
+  async syncMailOpeningAccounts(
+    userEmail: string,
+    batchDateOrOptions?:
+      | string
+      | {
+          batchDate?: string;
+          fromDateTime?: string;
+          toDateTime?: string;
+          forceReparse?: boolean;
+        },
+  ) {
     this.updateProgress(userEmail, {
       isProcessing: true,
       taskType: 'SYNC_MAIL',
@@ -1416,8 +1442,23 @@ export class TkgdAutomationService {
       stage: 'Đang kết nối Outlook và quét email mở TKGD...',
     });
 
+    const options =
+      typeof batchDateOrOptions === 'object'
+        ? batchDateOrOptions
+        : { batchDate: batchDateOrOptions };
+    const todayStr = options?.batchDate || new Date().toISOString().slice(0, 10);
+    const fromDateTime = options?.fromDateTime;
+    const toDateTime = options?.toDateTime;
+    const forceReparse = options?.forceReparse === true;
+
+    const fromDateObj = fromDateTime ? new Date(fromDateTime) : undefined;
+    const toDateObj = toDateTime ? new Date(toDateTime) : undefined;
+
+    if (fromDateObj && !isNaN(fromDateObj.getTime())) {
+      this.logger.log(`[TKGD-MAIL] Bộ lọc thời gian: từ ${fromDateObj.toLocaleString('vi-VN')} đến ${toDateObj ? toDateObj.toLocaleString('vi-VN') : 'hiện tại'}`);
+    }
+
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
-    const todayStr = batchDate || new Date().toISOString().slice(0, 10);
     let emailList: Array<{
       messageId: string;
       subject: string;
@@ -1457,12 +1498,16 @@ export class TkgdAutomationService {
           }
 
           const targetMailbox = config.outlook?.targetMailbox?.trim();
-          // Microsoft Graph API không cho phép kết hợp $filter với $orderby (lỗi InefficientFilter 400).
-          // Giải pháp: Dùng $search + phân trang @odata.nextLink — đảm bảo không sót email
-          // khi hộp thư chứa > 100 email trong ngày (ví dụ: ngày hội thảo, đợt mở hàng loạt).
           const mailMatchFn = (m: any) => {
             const s = (m.subject || '').toLowerCase();
-            return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+            const isMatch = s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+            if (!isMatch) return false;
+            if (m.receivedDateTime) {
+              const d = new Date(m.receivedDateTime);
+              if (fromDateObj && !isNaN(fromDateObj.getTime()) && d < fromDateObj) return false;
+              if (toDateObj && !isNaN(toDateObj.getTime()) && d > toDateObj) return false;
+            }
+            return true;
           };
 
           const endpointsToTry: Array<{ url: string; paginated: boolean }> = [];
@@ -1486,6 +1531,7 @@ export class TkgdAutomationService {
               accessToken,
               mailMatchFn,
               10, // tối đa 10 trang × 50 = 500 email
+              fromDateObj,
             );
             if (matched.length > 0) {
               fetchedMessages = matched;
@@ -1568,14 +1614,21 @@ export class TkgdAutomationService {
             // Dùng fetchAllMatchingMailsFromGraph (có phân trang) cho cả Client Credentials flow
             const ccMatchFn = (m: any) => {
               const s = (m.subject || '').toLowerCase();
-              return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+              const isMatch = s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
+              if (!isMatch) return false;
+              if (m.receivedDateTime) {
+                const d = new Date(m.receivedDateTime);
+                if (fromDateObj && !isNaN(fromDateObj.getTime()) && d < fromDateObj) return false;
+                if (toDateObj && !isNaN(toDateObj.getTime()) && d > toDateObj) return false;
+              }
+              return true;
             };
             const ccEndpoints = [
               `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
               `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=50&$orderby=receivedDateTime desc`,
             ];
             for (const graphUrl of ccEndpoints) {
-              const matched = await this.fetchAllMatchingMailsFromGraph(graphUrl, accessToken, ccMatchFn, 10);
+              const matched = await this.fetchAllMatchingMailsFromGraph(graphUrl, accessToken, ccMatchFn, 10, fromDateObj);
               if (matched.length > 0) {
                 for (const msg of matched) {
                   const msgAttachments: any[] = [];
@@ -1725,6 +1778,37 @@ export class TkgdAutomationService {
         });
 
         const targetAccountCode = group.maTKGDFutures || group.maTKGDACM || baseCode;
+
+        // SMART SKIP: Nếu không yêu cầu bóc tách lại (forceReparse !== true)
+        // và tài khoản này trong ngày đã được bóc tách có đủ HĐ & CCCD trong DB -> BỎ QUA NGAY!
+        if (!forceReparse) {
+          const existingRecord = await this.cleanRecordModel.findOne({
+            batchDate: todayStr,
+            $or: [
+              { maTKGDBase: baseCode },
+              { maTKGD: targetAccountCode },
+              { 'noiDungMail.maTKGD_Futures': baseCode },
+            ],
+          }).lean();
+
+          const isAlreadyFullyParsed = Boolean(
+            existingRecord &&
+            (existingRecord.hopDong?.hoVaTen || existingRecord.hopDong?.soCanCuoc) &&
+            (existingRecord.canCuoc?.soCanCuoc || existingRecord.canCuoc?.theGeneration)
+          );
+
+          if (isAlreadyFullyParsed) {
+            this.logger.log(`[TKGD-PARSE-SKIP] Hồ sơ ${baseCode} đã có đầy đủ HĐ & CCCD trong MongoDB. Bỏ qua chạy lại Python OCR.`);
+            if (mail.receivedDateTime && existingRecord && !existingRecord.noiDungMail?.receivedDateTime) {
+              await this.cleanRecordModel.updateOne(
+                { _id: existingRecord._id },
+                { $set: { 'noiDungMail.receivedDateTime': mail.receivedDateTime } }
+              );
+            }
+            processedCount++;
+            continue;
+          }
+        }
 
         // 3. Phân phối tệp đính kèm thông minh cho riêng khách hàng này
         const targetAttachments = dispatchAttachmentsForAccount(group, mail.attachments || []);
@@ -2341,7 +2425,13 @@ export class TkgdAutomationService {
    */
   async runPipelineAll(
     userEmail: string,
-    options?: { downloadImages?: boolean; batchDate?: string }
+    options?: {
+      downloadImages?: boolean;
+      batchDate?: string;
+      fromDateTime?: string;
+      toDateTime?: string;
+      forceReparse?: boolean;
+    },
   ) {
     this.updateProgress(userEmail, {
       isProcessing: true,
@@ -2352,8 +2442,13 @@ export class TkgdAutomationService {
       stage: 'Bước 1/3: Đang quét email mở TKGD và hồ sơ đính kèm...',
     });
 
-    // 1. Quét Mail
-    const mailResult = await this.syncMailOpeningAccounts(userEmail, options?.batchDate);
+    // 1. Quét Mail & Bóc tách (hỗ trợ bộ lọc ngày giờ & smart skip)
+    const mailResult = await this.syncMailOpeningAccounts(userEmail, {
+      batchDate: options?.batchDate,
+      fromDateTime: options?.fromDateTime,
+      toDateTime: options?.toDateTime,
+      forceReparse: options?.forceReparse,
+    });
 
     this.updateProgress(userEmail, {
       isProcessing: true,

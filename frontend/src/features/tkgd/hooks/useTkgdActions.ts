@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { SprintMode, TkgdProgressState, TkgdAutoPipelineStatus } from '../types/tkgd.types';
+import { SprintMode, TkgdProgressState, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
 
 interface UseTkgdActionsProps {
@@ -18,11 +18,11 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
   const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);
   const [autoStatus, setAutoStatus] = useState<TkgdAutoPipelineStatus | null>(null);
 
-  // Lấy trạng thái Tự Động Hóa 24/7
+  // Lấy trạng thái Auto Pipeline hiện tại
   const fetchAutoStatus = useCallback(async () => {
     try {
-      const st = await tkgdApi.getAutoPipelineStatus(token, userEmail);
-      if (st) setAutoStatus(st);
+      const status = await tkgdApi.getAutoPipelineStatus(token, userEmail);
+      if (status) setAutoStatus(status);
     } catch { }
   }, [token, userEmail]);
 
@@ -32,11 +32,9 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     return () => clearInterval(interval);
   }, [fetchAutoStatus]);
 
-  // Bật/Tắt chế độ Tự Động 24/7
-  const handleToggleAutoPipeline = useCallback(async (enabled?: any) => {
+  // Bật/tắt Auto Pipeline
+  const handleToggleAutoPipeline = useCallback(async (boolVal: boolean) => {
     try {
-      // Đảm bảo chỉ nhận giá trị boolean, tránh React SyntheticEvent gây lỗi Circular JSON
-      const boolVal = typeof enabled === 'boolean' ? enabled : undefined;
       const res = await tkgdApi.toggleAutoPipeline(boolVal, token, userEmail);
       toast.success(res.message);
       await fetchAutoStatus();
@@ -52,7 +50,15 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
       const fetchProgress = async () => {
         try {
           const p = await tkgdApi.getProgress(token, userEmail);
-          if (p) setProgress(p);
+          if (p) {
+            setProgress(p);
+            // Khi tác vụ ngầm kết thúc (percent 100 hoặc isProcessing false)
+            if (!p.isProcessing && (p.percent === 100 || p.taskType === 'IDLE')) {
+              setIsProcessing(false);
+              setProcessingStage('');
+              if (onSuccess) await onSuccess();
+            }
+          }
         } catch { }
       };
       fetchProgress();
@@ -63,7 +69,7 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isProcessing, token, userEmail]);
+  }, [isProcessing, token, userEmail, onSuccess]);
 
   // Nút 1: Quét Mail Outlook
   const handleSyncMail = useCallback(async () => {
@@ -123,31 +129,36 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
   );
 
   // Nút 3: Chạy quy trình Tổng Hợp Toàn Bộ (All-in-One)
-  const handleRunPipelineAll = useCallback(async () => {
-    setIsProcessing(true);
-    setProcessingStage('Đang khởi chạy chu trình Tổng Hợp Toàn Bộ (A-Z)...');
-    try {
-      const data = await tkgdApi.runPipelineAll(
-        {
-          downloadImages: sprintMode === 'FULL',
-          batchDate,
-        },
-        token,
-        userEmail
-      );
-      if (data?.success) {
-        toast.success(data.message || 'Hoàn tất toàn bộ chu trình!');
-        if (onSuccess) await onSuccess();
-      } else {
-        toast.error(data?.message || 'Chạy toàn bộ thất bại');
+  const handleRunPipelineAll = useCallback(
+    async (customOptions?: Partial<RunPipelineOptions>) => {
+      setIsProcessing(true);
+      setProcessingStage('Đang khởi chạy chu trình Tổng Hợp Toàn Bộ...');
+      try {
+        const data = await tkgdApi.runPipelineAll(
+          {
+            downloadImages: sprintMode === 'FULL',
+            batchDate,
+            ...customOptions,
+          },
+          token,
+          userEmail
+        );
+        if (data?.success) {
+          toast.success(data.message || 'Đã khởi chạy chu trình thành công!');
+          // Không tắt isProcessing ở đây để useEffect tiếp tục poll getProgress cho tới khi xong
+        } else {
+          toast.error(data?.message || 'Chạy toàn bộ thất bại');
+          setIsProcessing(false);
+          setProcessingStage('');
+        }
+      } catch (err: any) {
+        toast.error('Lỗi chu trình toàn bộ: ' + err.message);
+        setIsProcessing(false);
+        setProcessingStage('');
       }
-    } catch (err: any) {
-      toast.error('Lỗi chu trình toàn bộ: ' + err.message);
-    } finally {
-      setIsProcessing(false);
-      setProcessingStage('');
-    }
-  }, [sprintMode, batchDate, token, userEmail, onSuccess]);
+    },
+    [sprintMode, batchDate, token, userEmail]
+  );
 
   // Kích hoạt chạy đối soát chéo
   const handleRunReconcile = useCallback(async () => {
