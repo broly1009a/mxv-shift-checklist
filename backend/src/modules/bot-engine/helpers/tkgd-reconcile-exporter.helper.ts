@@ -59,6 +59,17 @@ function normalizeName(name: string | undefined | null): string {
   return s.toLowerCase().replace(/\s+/g, ' ');
 }
 
+function normName(s: string | undefined | null): string {
+  if (!s) return '';
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 function normalizeDateStr(d: string | undefined | null): string {
   if (!d) return '';
   const clean = String(d).trim().split('T')[0].split(' ')[0].replace(/-/g, '/');
@@ -241,7 +252,7 @@ export async function reconcileAndExportToExcel(
 
 
   console.log(`\n======================================================`);
-  console.log(`📊 BẮT ĐẦU ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL`);
+  console.log(` BẮT ĐẦU ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL`);
   console.log(`  Template nguồn: ${templatePath}`);
   console.log(`  File đích:      ${outputPath}`);
   console.log(`  Số lượng record: ${records.length}`);
@@ -275,17 +286,30 @@ export async function reconcileAndExportToExcel(
   cleanOldRows(sheetPhuluc);
   cleanOldRows(sheetMS);
 
-  // Chuẩn hóa tiêu đề cột Kết Quả và Thời Gian Kiểm Tra cho sheet NoiDungMail
+  // Chuẩn hóa tiêu đề cột cho sheet NoiDungMail
+  // Col 1 (A): STT | Col 2 (B): Mã TKGD | Col 3 (C): Tên tài khoản | Col 4 (D): Thời gian nhận mail | Col 5 (E): Kết quả | Col 6 (F): Thời gian kiểm tra
   if (sheetNoiDungMail) {
     const d1 = sheetNoiDungMail.getCell('D1');
-    d1.value = 'Kết quả';
+    d1.value = 'Thời gian nhận mail';
     d1.font = { bold: true };
     d1.alignment = { horizontal: 'center', vertical: 'middle' };
 
     const e1 = sheetNoiDungMail.getCell('E1');
-    e1.value = 'Thời gian kiểm tra';
+    e1.value = 'Kết quả';
     e1.font = { bold: true };
     e1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const f1 = sheetNoiDungMail.getCell('F1');
+    f1.value = 'Thời gian kiểm tra';
+    f1.font = { bold: true };
+    f1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    sheetNoiDungMail.getColumn(1).width = 8;
+    sheetNoiDungMail.getColumn(2).width = 18;
+    sheetNoiDungMail.getColumn(3).width = 25;
+    sheetNoiDungMail.getColumn(4).width = 22;
+    sheetNoiDungMail.getColumn(5).width = 48;
+    sheetNoiDungMail.getColumn(6).width = 22;
   }
 
   // Style helper cho ô kết quả khớp (xanh lá), cần kiểm tra (vàng cam) và lệch (đỏ/cam)
@@ -344,12 +368,15 @@ export async function reconcileAndExportToExcel(
     right: { style: 'thin', color: { argb: 'FFD9D9D9' } },
   };
 
-  // Deduplicate records: gom nhóm theo mã TKGD đầy đủ cụ thể (giữ bản ghi mới nhất)
+  // Deduplicate records: gom nhóm theo mã TKGD đầy đủ cụ thể (giữ bản ghi mới nhất vì records đã sort { createdAt: -1 })
   const uniqueRecordMap = new Map<string, any>();
   for (const rec of records) {
     const code = rec.maTKGD || rec.ms?.maTKGD || rec.noiDungMail?.maTKGD_Futures || rec.noiDungMail?.maTKGD_ACM || rec.noiDungMail?.maTKGD_LME || rec.noiDungMail?.maTKGD_Spread;
     if (code) {
-      uniqueRecordMap.set(code.trim().toUpperCase(), rec);
+      const codeKey = code.trim().toUpperCase();
+      if (!uniqueRecordMap.has(codeKey)) {
+        uniqueRecordMap.set(codeKey, rec);
+      }
     }
   }
   const cleanRecords = uniqueRecordMap.size > 0 ? Array.from(uniqueRecordMap.values()) : records;
@@ -403,7 +430,7 @@ export async function reconcileAndExportToExcel(
         }
       }
 
-      if (targetName && msName && targetName !== msName) {
+      if (targetName && msName && normName(targetName) !== normName(msName)) {
         isCriticalMismatch = true;
         criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
       }
@@ -435,8 +462,15 @@ export async function reconcileAndExportToExcel(
       }
 
       // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
-      const hdDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '') || (cccd.rawNgaySinh || (cccd.ngaySinh ? formatDate(cccd.ngaySinh) : ''));
+      const cccdDob = cccd.rawNgaySinh || (cccd.ngaySinh ? formatDate(cccd.ngaySinh) : '');
+      const contractDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '');
       const msDob = ms.rawNgaySinh || (ms.ngaySinh ? formatDate(ms.ngaySinh) : '');
+      let hdDob = contractDob || cccdDob;
+      if (cccdDob && msDob && normalizeDateStr(cccdDob) === normalizeDateStr(msDob)) {
+        hdDob = cccdDob;
+      } else if (!contractDob || isSubAccount) {
+        hdDob = cccdDob || contractDob;
+      }
       if (hdDob && msDob && normalizeDateStr(hdDob) !== normalizeDateStr(msDob)) {
         isCriticalMismatch = true;
         criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
@@ -502,31 +536,34 @@ export async function reconcileAndExportToExcel(
       ketQuaText = isVerifiedHash
         ? 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)'
         : (targetAccountCode.includes('-A')
-            ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
-            : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%');
+          ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
+          : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%');
     }
 
     // 2. Ghi vào Sheet "NoiDungMail"
-    // Col 1: STT | Col 2: Mã TKGD | Col 3: Tên tài khoản | Col 4: Kết quả | Col 5: Thời gian kiểm tra
+    // Col 1: STT | Col 2: Mã TKGD | Col 3: Tên tài khoản | Col 4: Thời gian nhận mail | Col 5: Kết quả | Col 6: Thời gian kiểm tra
     if (sheetNoiDungMail) {
+      const mailReceivedTime = mail.receivedDateTime || record.receivedDateTime || record.rawMail?.receivedDateTime;
+      const mailReceivedFormatted = mailReceivedTime ? formatDateTime(mailReceivedTime) : '';
       const checkTime = record.ketLuan?.reconciledAt || record.updatedAt || new Date();
       const checkTimeFormatted = formatDateTime(checkTime);
       const row = sheetNoiDungMail.addRow([
         sttNoiDung++,
         targetAccountCode,
         mail.tenTaiKhoan || '',
+        mailReceivedFormatted,
         ketQuaText,
         checkTimeFormatted,
       ]);
 
       row.eachCell((cell, colNumber) => {
         cell.border = borderThin;
-        if (colNumber === 1 || colNumber === 2 || colNumber === 5) {
+        if (colNumber === 1 || colNumber === 2 || colNumber === 4 || colNumber === 6) {
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
         } else {
           cell.alignment = { vertical: 'middle' };
         }
-        if (colNumber === 4) {
+        if (colNumber === 5) {
           if (rowStatus === 'LECH') {
             cell.fill = styleLech.fill;
             cell.font = styleLech.font;

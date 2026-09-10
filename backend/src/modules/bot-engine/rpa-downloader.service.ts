@@ -1,16 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { chromium, Browser, Page } from 'playwright-core';
+import { chromium, Browser, Page, Download } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { decrypt } from './utils/crypto';
+import {
+  MSystemTabNavigatorHelper,
+  MS_REPORT_FILE_PATTERNS,
+} from './helpers/msystem-tab-navigator.helper';
 
 @Injectable()
 export class RpaDownloaderService {
   private readonly logger = new Logger(RpaDownloaderService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(private readonly settingsService: SystemSettingsService) { }
 
   /**
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
@@ -258,7 +262,7 @@ export class RpaDownloaderService {
         this.logger.warn(
           `Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
         );
-        await page.click('button.btn-primary').catch(() => {});
+        await page.click('button.btn-primary').catch(() => { });
         await page.waitForTimeout(2000);
       }
 
@@ -293,7 +297,7 @@ export class RpaDownloaderService {
       if (overrideUrl) {
         await page
           .waitForURL(/.*dashboard.*/, { timeout: 15000 })
-          .catch(() => {});
+          .catch(() => { });
       } else {
         await page.waitForSelector(
           'xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]',
@@ -315,7 +319,7 @@ export class RpaDownloaderService {
           const loginErr = await this.checkForLoginErrors(page);
           if (loginErr) extractedError = ` | Chi tiết từ web: ${loginErr}`;
         }
-      } catch {}
+      } catch { }
 
       // Ghi nhận file log và ảnh chụp lỗi để debug
       try {
@@ -337,7 +341,7 @@ export class RpaDownloaderService {
         if (page && !page.isClosed()) {
           await page
             .screenshot({ path: pngPath, fullPage: true, timeout: 5000 })
-            .catch(() => {});
+            .catch(() => { });
           const html = await page.content().catch(() => '');
           if (html) {
             fs.writeFileSync(htmlPath, html, 'utf8');
@@ -354,7 +358,7 @@ export class RpaDownloaderService {
 
       try {
         await browser.close();
-      } catch {}
+      } catch { }
       throw new Error(`${err.message}${extractedError}`);
     }
   }
@@ -395,8 +399,12 @@ export class RpaDownloaderService {
 
     // 2. Launch Browser
     const executablePath = this.getChromeExecutablePath();
+    const isHeadless =
+      process.env.HEADLESS_BOT !== 'false' &&
+      process.env.PLAYWRIGHT_HEADLESS !== 'false';
     const launchOptions: any = {
-      headless: true,
+      headless: isHeadless,
+      slowMo: isHeadless ? 0 : 200,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
     if (executablePath) {
@@ -423,14 +431,27 @@ export class RpaDownloaderService {
 
     try {
       this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
-      await page.goto(cqgUrl);
+      try {
+        await page.goto(cqgUrl, { timeout: 20000 });
+      } catch (navErr: any) {
+        this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
+        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
+      }
 
-      // 3. Fill Login form
-      this.logger.log('Filling CQG username and password...');
-      await page.waitForSelector('input[name="userName"]', {
+      // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
+      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 20000,
-      });
+        timeout: 12000,
+      }).catch(() => null);
+
+      if (!hasLoginForm) {
+        this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
+        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
+        await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 25000,
+        });
+      }
       await page.fill('input[name="userName"]', username);
       await page.fill('input[name="password"]', password);
 
@@ -473,7 +494,7 @@ export class RpaDownloaderService {
         if (page && !page.isClosed()) {
           await page
             .screenshot({ path: pngPath, fullPage: true })
-            .catch(() => {});
+            .catch(() => { });
           const html = await page.content().catch(() => '');
           if (html) {
             fs.writeFileSync(htmlPath, html, 'utf8');
@@ -540,8 +561,12 @@ export class RpaDownloaderService {
     }
 
     const executablePath = this.getChromeExecutablePath();
+    const isHeadless =
+      process.env.HEADLESS_BOT !== 'false' &&
+      process.env.PLAYWRIGHT_HEADLESS !== 'false';
     const launchOptions: any = {
-      headless: true,
+      headless: isHeadless,
+      slowMo: isHeadless ? 0 : 200,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
     if (executablePath) launchOptions.executablePath = executablePath;
@@ -557,11 +582,27 @@ export class RpaDownloaderService {
 
     try {
       this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
-      await page.goto(cqgUrl);
-      await page.waitForSelector('input[name="userName"]', {
+      try {
+        await page.goto(cqgUrl, { timeout: 20000 });
+      } catch (navErr: any) {
+        this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
+        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
+      }
+
+      // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
+      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 20000,
-      });
+        timeout: 12000,
+      }).catch(() => null);
+
+      if (!hasLoginForm) {
+        this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
+        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
+        await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 25000,
+        });
+      }
       await page.fill('input[name="userName"]', username);
       await page.fill('input[name="password"]', password);
       await page.click('button[type="submit"]');
@@ -596,12 +637,29 @@ export class RpaDownloaderService {
     }
   }
 
+  public static readonly MS_FILE_NAME_PATTERNS: Record<string, RegExp> =
+    MS_REPORT_FILE_PATTERNS;
+
+  private async saveAndValidateDownload(
+    download: Download,
+    downloadPath: string,
+    expectedTargetKey?: string,
+  ): Promise<string> {
+    return await MSystemTabNavigatorHelper.saveAndValidateDownload(
+      download,
+      downloadPath,
+      expectedTargetKey,
+      this.logger,
+    );
+  }
+
   private async gotoAndDownload(
     page: Page,
     hashPath: string,
     downloadPath: string,
     optionalTabSelector?: string,
     customTimeoutMs: number = 90000,
+    expectedTargetKey?: string,
   ): Promise<void> {
     try {
       const baseUrl = page.url().split('#')[0];
@@ -615,14 +673,10 @@ export class RpaDownloaderService {
 
       // Click optional tabs if provided
       if (optionalTabSelector) {
-        this.logger.log(`Clicking optional tab: ${optionalTabSelector}`);
-        const tabSelector = `xpath=//a[text()='${optionalTabSelector}' or normalize-space(text())='${optionalTabSelector}']`;
-        await page.waitForSelector(tabSelector, {
-          state: 'visible',
+        await MSystemTabNavigatorHelper.switchSubTab(page, optionalTabSelector, {
           timeout: 15000,
+          logger: this.logger,
         });
-        await page.click(tabSelector);
-        await page.waitForTimeout(3000); // Wait for tab data loading
       }
 
       // Wait for CSV download button
@@ -645,7 +699,7 @@ export class RpaDownloaderService {
       await page.locator(csvButtonSelector).first().click();
 
       const download = await downloadPromise;
-      await download.saveAs(downloadPath);
+      await this.saveAndValidateDownload(download, downloadPath, expectedTargetKey);
       this.logger.log(`Saved report successfully to: ${downloadPath}`);
     } catch (err: any) {
       this.logger.error(
@@ -656,92 +710,28 @@ export class RpaDownloaderService {
   }
 
   /**
-   * Helper to perform navigation and trigger a file download
+   * Helper to perform navigation and trigger a file download via sidebar + sub-tab
    */
   private async navigateAndDownload(
     page: Page,
     menuSteps: string[],
     downloadPath: string,
     optionalTabSelector?: string,
-  ): Promise<void> {
-    try {
-      this.logger.log(`Navigating menu: ${menuSteps.join(' -> ')}`);
-
-      // Click sequential menus intelligently
-      for (let i = 0; i < menuSteps.length; i++) {
-        const menu = menuSteps[i];
-        const selector = `xpath=//*[self::a or self::span or self::li or self::div][contains(text(), '${menu}')]`;
-
-        // Nếu không phải mục cuối cùng (tức là dropdown parent), kiểm tra xem nó đã mở sẵn chưa
-        if (i < menuSteps.length - 1) {
-          const isAlreadyOpen = await page
-            .locator(selector)
-            .evaluate((el) => {
-              const parentLi = el.closest('li');
-              return parentLi
-                ? parentLi.classList.contains('open') ||
-                    parentLi.classList.contains('show')
-                : false;
-            })
-            .catch(() => false);
-
-          if (isAlreadyOpen) {
-            this.logger.log(
-              `Menu cha "${menu}" đã mở sẵn (có class open/show). Bỏ qua click.`,
-            );
-            continue;
-          }
-        }
-
-        await page.waitForSelector(selector, {
-          state: 'visible',
-          timeout: 15000,
-        });
-        await page.click(selector, { force: true });
-        await page.waitForTimeout(1000); // Stabilize UI
-      }
-
-      // Click optional tabs (e.g., Spreads, LME, ACM)
-      if (optionalTabSelector) {
-        this.logger.log(`Clicking optional sub-tab: ${optionalTabSelector}`);
-        const tabSelector = `xpath=//a[text()='${optionalTabSelector}']`;
-        await page.waitForSelector(tabSelector, {
-          state: 'visible',
-          timeout: 10000,
-        });
-        await page.click(tabSelector, { force: true });
-        await page.waitForTimeout(2000);
-      }
-
-      // Wait for CSV download button
-      const csvButtonSelector = `button.ladda-button:has(i.fa-file-csv), i.fa-file-csv, button:has(.fa-file-csv)`;
-      await page.waitForSelector(csvButtonSelector, {
-        state: 'visible',
-        timeout: 45000,
-      });
-
-      // Start waiting for download event before clicking (increased to 90 seconds for heavy reports)
-      const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
-
-      this.logger.log('Clicking CSV/Excel download icon...');
-      await page.locator(csvButtonSelector).first().click({ force: true });
-
-      const download = await downloadPromise;
-
-      // Save downloaded file to target directory
-      await download.saveAs(downloadPath);
-      this.logger.log(`Saved report successfully to: ${downloadPath}`);
-
-      // Optional: click parent menu again to collapse/reset menu state
-      if (menuSteps.length > 0) {
-        const topMenuSelector = `xpath=//a[text()='${menuSteps[0]}']`;
-        await page.click(topMenuSelector, { force: true }).catch(() => {});
-        await page.waitForTimeout(1000);
-      }
-    } catch (err: any) {
-      this.logger.error(`Lỗi khi tải báo cáo: ${err.message}`);
-      throw err;
-    }
+    expectedTargetKey?: string,
+    expectedHashPattern?: RegExp | string,
+  ): Promise<string> {
+    return await MSystemTabNavigatorHelper.navigateMenuAndDownload(
+      page,
+      menuSteps,
+      downloadPath,
+      {
+        optionalTabSelector,
+        expectedTargetKey,
+        expectedHashPattern,
+        customTimeoutMs: 90000,
+        logger: this.logger,
+      },
+    );
   }
 
   // Individual download wrappers mapping to C# methods
@@ -752,6 +742,9 @@ export class RpaDownloaderService {
         page,
         '#/systemManagement/activityHistory',
         destFile,
+        undefined,
+        90000,
+        'NKTTHT',
       );
     } catch (err) {
       this.logger.warn(
@@ -761,6 +754,8 @@ export class RpaDownloaderService {
         page,
         ['QL hệ thống', 'Thông tin chung', 'Nhật ký thao tác hệ thống'],
         destFile,
+        undefined,
+        'NKTTHT',
       );
     }
   }
@@ -771,6 +766,9 @@ export class RpaDownloaderService {
         page,
         '#/clientManagement/investorManagement',
         destFile,
+        undefined,
+        90000,
+        'DSTKGD-Futures',
       );
     } catch (err) {
       this.logger.warn(
@@ -780,35 +778,85 @@ export class RpaDownloaderService {
         page,
         ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
         destFile,
+        undefined,
+        'DSTKGD-Futures',
       );
     }
   }
 
   async downloadDSTKGDSpread(page: Page, destFile: string) {
-    await this.gotoAndDownload(
-      page,
-      '#/clientManagement/investorManagement',
-      destFile,
-      'Spreads',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/investorManagement',
+        destFile,
+        'Spreads',
+        90000,
+        'DSTKGD-Spread',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload failed for DSTKGD-Spread, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
+        destFile,
+        'Spreads',
+        'DSTKGD-Spread',
+        /investorManagement/,
+      );
+    }
   }
 
   async downloadDSTKGDLME(page: Page, destFile: string) {
-    await this.gotoAndDownload(
-      page,
-      '#/clientManagement/investorManagement',
-      destFile,
-      'LME',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/investorManagement',
+        destFile,
+        'LME',
+        90000,
+        'DSTKGD-LME',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload failed for DSTKGD-LME, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
+        destFile,
+        'LME',
+        'DSTKGD-LME',
+        /investorManagement/,
+      );
+    }
   }
 
   async downloadDSTKGDACM(page: Page, destFile: string) {
-    await this.gotoAndDownload(
-      page,
-      '#/clientManagement/investorManagement',
-      destFile,
-      'ACM',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/investorManagement',
+        destFile,
+        'ACM',
+        90000,
+        'DSTKGD-ACM',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload failed for DSTKGD-ACM, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
+        destFile,
+        'ACM',
+        'DSTKGD-ACM',
+        /investorManagement/,
+      );
+    }
   }
 
   async downloadQLTTTKGD(page: Page, destFile: string) {
@@ -818,6 +866,7 @@ export class RpaDownloaderService {
       destFile,
       undefined,
       180000,
+      'QLTTTKGD',
     );
   }
 
@@ -826,6 +875,9 @@ export class RpaDownloaderService {
       page,
       '#/positionManagement/marginList',
       destFile,
+      undefined,
+      90000,
+      'DSQLKQ',
     );
   }
 
@@ -834,6 +886,8 @@ export class RpaDownloaderService {
       page,
       ['QL khách hàng', 'QL TKGD', 'QL TKGD âm ký quỹ'],
       destFile,
+      undefined,
+      'QLTKGDAmKQ',
     );
   }
 
@@ -842,6 +896,8 @@ export class RpaDownloaderService {
       page,
       ['QL khách hàng', 'QL TKGD', 'TLKQ HSKQ'],
       destFile,
+      undefined,
+      'TLKQHSKQ',
     );
   }
 
@@ -851,6 +907,9 @@ export class RpaDownloaderService {
         page,
         '#/clientManagement/transactionHistory',
         destFile,
+        undefined,
+        90000,
+        'NR',
       );
     } catch (err) {
       this.logger.warn(
@@ -860,6 +919,8 @@ export class RpaDownloaderService {
         page,
         ['QL khách hàng', 'QL TKGD', 'Lịch sử giao dịch tiền TKGD'],
         destFile,
+        undefined,
+        'NR',
       );
     }
   }
@@ -869,6 +930,8 @@ export class RpaDownloaderService {
       page,
       ['QL khách hàng', 'QL Trader', 'Danh sách Trader'],
       destFile,
+      undefined,
+      'DSTrader',
     );
   }
 
@@ -895,9 +958,9 @@ export class RpaDownloaderService {
       const downloadPromise = page.waitForEvent('download');
       await page.click("xpath=//i[contains(@class, 'fa-file-csv')]");
       const download = await downloadPromise;
-      await download.saveAs(destFile);
+      await this.saveAndValidateDownload(download, destFile, 'Markettruoc6h');
 
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => {});
+      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`Markettruoc6h downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải Markettruoc6h.xlsx thất bại: ${err.message}`);
@@ -909,6 +972,8 @@ export class RpaDownloaderService {
       page,
       ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã khớp'],
       destFile,
+      undefined,
+      'DSLDK',
     );
   }
 
@@ -917,6 +982,8 @@ export class RpaDownloaderService {
       page,
       ['QL giao dịch', 'Danh sách lệnh', 'Lệnh chờ khớp'],
       destFile,
+      undefined,
+      'DSLCK',
     );
   }
 
@@ -925,6 +992,8 @@ export class RpaDownloaderService {
       page,
       ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã hủy'],
       destFile,
+      undefined,
+      'DSLH',
     );
   }
 
@@ -933,6 +1002,8 @@ export class RpaDownloaderService {
       page,
       ['QL giao dịch', 'Danh sách lệnh', 'Lệnh khác'],
       destFile,
+      undefined,
+      'DSLK',
     );
   }
 
@@ -967,9 +1038,9 @@ export class RpaDownloaderService {
       const downloadPromise = page.waitForEvent('download');
       await page.click("xpath=//i[contains(@class, 'fa-file-csv')]");
       const download = await downloadPromise;
-      await download.saveAs(destFile);
+      await this.saveAndValidateDownload(download, destFile, 'DSGD');
 
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => {});
+      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`DSGD downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải DSGD.xlsx thất bại: ${err.message}`);
@@ -977,11 +1048,22 @@ export class RpaDownloaderService {
   }
 
   async downloadTTTT(page: Page, destFile: string) {
-    await this.gotoAndDownload(
-      page,
-      '#/orderManagement/transactionList',
-      destFile,
-    );
+    try {
+      await this.navigateAndDownload(
+        page,
+        ['QL trạng thái', 'Trạng thái tất toán'],
+        destFile,
+        undefined,
+        'TTTT',
+        /finalPositionInfo/,
+      );
+      this.logger.log(
+        `TTTT (Trạng thái tất toán) downloaded successfully to: ${destFile}`,
+      );
+    } catch (err: any) {
+      this.logger.error(`Tải TTTT (Trạng thái tất toán) thất bại: ${err.message}`);
+      throw err;
+    }
   }
 
   async downloadDSTKGDOptions(page: Page, destFile: string) {
@@ -991,19 +1073,26 @@ export class RpaDownloaderService {
       ['QL khách hàng', 'QL TKGD', 'Danh sách TKGD'],
       destFile,
       'Options',
+      'DSTKGD-Spread',
+      /investorManagement/,
     );
   }
 
   async downloadTTCDH(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      [
-        'QL trạng thái',
-        'Trạng thái tất toán',
+    try {
+      await this.navigateAndDownload(
+        page,
+        ['QL trạng thái', 'Trạng thái tất toán'],
+        destFile,
         'Trạng thái tất toán chờ đáo hạn LME',
-      ],
-      destFile,
-    );
+        'TTCDH',
+        /finalPositionInfo/,
+      );
+      this.logger.log(`TTCDH downloaded successfully to: ${destFile}`);
+    } catch (err: any) {
+      this.logger.error(`Tải TTCDH thất bại: ${err.message}`);
+      throw err;
+    }
   }
 
   /**
@@ -1091,34 +1180,15 @@ export class RpaDownloaderService {
 
   async downloadTTM(page: Page, destFile: string) {
     try {
-      const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/positionManagement/openPositionInfo`);
-      await page.waitForTimeout(3000);
-
-      const possibleSelectors = [
-        "xpath=//i[contains(@class, 'fa-file-excel')]",
-        "xpath=//i[contains(@class, 'fa-file-csv')]",
-        "xpath=//button[contains(@title, 'Export')]",
-      ];
-
-      for (const sel of possibleSelectors) {
-        if (
-          await page
-            .locator(sel)
-            .isVisible()
-            .catch(() => false)
-        ) {
-          const downloadPromise = page.waitForEvent('download');
-          await page.click(sel);
-          const download = await downloadPromise;
-          await download.saveAs(destFile);
-          this.logger.log(`TTM (Trạng thái mở) downloaded to: ${destFile}`);
-          return;
-        }
-      }
-      throw new Error(
-        'Không tìm thấy nút tải Excel/CSV trên trang Trạng thái mở',
+      await this.navigateAndDownload(
+        page,
+        ['QL trạng thái', 'Trạng thái mở'],
+        destFile,
+        undefined,
+        'TTM',
+        /openPositionInfo/,
       );
+      this.logger.log(`TTM (Trạng thái mở) downloaded to: ${destFile}`);
     } catch (err: any) {
       this.logger.error(`Tải TTM (Trạng thái mở) thất bại: ${err.message}`);
       throw err;
@@ -1209,19 +1279,19 @@ export class RpaDownloaderService {
       this.logger.log('Trying to hover or click to choose "Xuất tất cả"...');
       let clicked = false;
       try {
-        await exportBtn.hover().catch(() => {});
+        await exportBtn.hover().catch(() => { });
         await page.waitForTimeout(1000);
-        
+
         const exportAllBtn = page.getByText('Xuất tất cả').first();
         let isVisible = await exportAllBtn.isVisible().catch(() => false);
-        
+
         if (!isVisible) {
           this.logger.log('Dropdown not visible on hover, trying single click to open dropdown...');
-          await exportBtn.click().catch(() => {});
+          await exportBtn.click().catch(() => { });
           await page.waitForTimeout(1000);
           isVisible = await exportAllBtn.isVisible().catch(() => false);
         }
-        
+
         if (isVisible) {
           this.logger.log('Found "Xuất tất cả", clicking it...');
           await exportAllBtn.click();
@@ -1255,7 +1325,7 @@ export class RpaDownloaderService {
         this.logger.warn(`Không thể chụp ảnh màn hình lỗi: ${screenshotErr.message}`);
       }
       this.logger.error(`Lỗi tải tự động DSGD MM CCP: ${err.message}`);
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       throw err;
     }
   }
@@ -1298,12 +1368,12 @@ export class RpaDownloaderService {
             downloaded = true;
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       if (!downloaded) {
         // Fallback: try menu navigation QL hệ thống
-        await page.click("xpath=//a[text()='QL hệ thống']").catch(() => {});
+        await page.click("xpath=//a[text()='QL hệ thống']").catch(() => { });
         await page.waitForTimeout(1000);
 
         const eodMenuSelectors = [
@@ -1346,7 +1416,7 @@ export class RpaDownloaderService {
             path: path.join(debugDir, `eod-csv-debug-${ts}.png`),
             fullPage: true,
           })
-          .catch(() => {});
+          .catch(() => { });
         throw new Error(
           'Không tìm thấy nút tải EOD CSV. Đã lưu debug screenshot tại temp/debug/.',
         );
@@ -1476,7 +1546,7 @@ export class RpaDownloaderService {
             path: path.join(debugDir, `market-csv-page-${ts}.png`),
             fullPage: true,
           })
-          .catch(() => {});
+          .catch(() => { });
         const html = await page.content().catch(() => '');
         fs.writeFileSync(
           path.join(debugDir, `market-csv-page-${ts}.html`),
@@ -1659,14 +1729,14 @@ export class RpaDownloaderService {
             path: path.join(debugDir, `email-history-err-${ts}.png`),
             fullPage: true,
           })
-          .catch(() => {});
+          .catch(() => { });
         const html = await page.content().catch(() => '');
         fs.writeFileSync(
           path.join(debugDir, `email-history-err-${ts}.html`),
           html,
           'utf8',
         );
-      } catch (logErr) {}
+      } catch (logErr) { }
       throw err;
     } finally {
       await browser.close();
@@ -1862,7 +1932,7 @@ export class RpaDownloaderService {
           if (symbolText && !isNaN(price) && price > 0) {
             result.set(symbolText, price);
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -1876,7 +1946,7 @@ export class RpaDownloaderService {
           path: path.join(debugDir, `cqg-qss-${ts}.png`),
           fullPage: true,
         })
-        .catch(() => {});
+        .catch(() => { });
       const html = await page.content().catch(() => '');
       fs.writeFileSync(path.join(debugDir, `cqg-qss-${ts}.html`), html, 'utf8');
       this.logger.warn(
@@ -1904,6 +1974,89 @@ export class RpaDownloaderService {
     };
   }
 
+  private cachedGeminiModels: { list: string[]; fetchedAt: number } | null = null;
+
+  /**
+   * Lấy danh sách các model Gemini đang hoạt động trực tiếp từ Google API theo API key.
+   * Tự động lọc các model hỗ trợ generateContent, ưu tiên các model flash/vision hiện hành.
+   */
+  async getAvailableGeminiModels(apiKey: string): Promise<string[]> {
+    const now = Date.now();
+    const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ
+
+    // 1. Kiểm tra bộ nhớ RAM (Lớp 1 - 0ms)
+    if (
+      this.cachedGeminiModels &&
+      now - this.cachedGeminiModels.fetchedAt < CACHE_TTL_MS &&
+      this.cachedGeminiModels.list.length > 0
+    ) {
+      return this.cachedGeminiModels.list;
+    }
+
+    // 2. Kiểm tra cơ sở dữ liệu MongoDB (Lớp 2 - Persistence khi restart service)
+    try {
+      const dbCachedStr = await this.settingsService.getSetting(
+        'bot_gemini_models_cache',
+        '',
+      );
+      if (dbCachedStr) {
+        const dbCached = JSON.parse(dbCachedStr);
+        if (
+          dbCached.list &&
+          Array.isArray(dbCached.list) &&
+          dbCached.list.length > 0 &&
+          now - (dbCached.fetchedAt || 0) < CACHE_TTL_MS
+        ) {
+          this.cachedGeminiModels = {
+            list: dbCached.list,
+            fetchedAt: dbCached.fetchedAt || now,
+          };
+          return dbCached.list;
+        }
+      }
+    } catch { }
+
+    // 3. Gọi Google API lấy danh sách mới nhất nếu cache chưa có hoặc đã quá 24h
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+      );
+      if (!res.ok) return [];
+      const data: any = await res.json();
+      const contentModels = (data.models || [])
+        .filter(
+          (m: any) =>
+            m.supportedGenerationMethods?.includes('generateContent') &&
+            !m.name?.includes('tts') &&
+            !m.name?.includes('transcribe') &&
+            !m.name?.includes('computer-use'),
+        )
+        .map((m: any) => m.name.replace(/^models\//, ''));
+
+      const flashModels = contentModels.filter(
+        (m: string) => m.includes('flash') && !m.includes('image'),
+      );
+      const otherModels = contentModels.filter(
+        (m: string) => !m.includes('flash') && m.startsWith('gemini-'),
+      );
+      const sorted = [...flashModels, ...otherModels];
+      if (sorted.length > 0) {
+        // Lưu đồng thời vào RAM L1 và MongoDB L2
+        this.cachedGeminiModels = { list: sorted, fetchedAt: now };
+        await this.settingsService
+          .setSetting(
+            'bot_gemini_models_cache',
+            JSON.stringify({ list: sorted, fetchedAt: now }),
+          )
+          .catch(() => { });
+        return sorted;
+      }
+    } catch (e: any) {
+      this.logger.warn(`Không thể lấy danh sách model Gemini động: ${e.message}`);
+    }
+    return [];
+  }
+
   async solveCaptchaWithGemini(
     base64Image: string,
     apiKey: string,
@@ -1911,49 +2064,61 @@ export class RpaDownloaderService {
   ): Promise<string> {
     const log = this.getLogFn(jobLogs);
 
-    await log('Đang gửi ảnh Captcha lên Gemini API (gemini-flash-latest)...');
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: 'Read the characters in this image. It is a captcha code. Output ONLY the raw characters (case-sensitive, no spaces, no punctuation, no bold, no explanation). Example output: EBGPG',
-                  },
-                  {
-                    inlineData: {
-                      mimeType: 'image/png',
-                      data: base64Image,
+    // Lấy danh sách model động trực tiếp từ Google API
+    const dynamicModels = await this.getAvailableGeminiModels(apiKey);
+    const candidateModels =
+      dynamicModels.length > 0
+        ? dynamicModels.slice(0, 6)
+        : ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+
+    for (const model of candidateModels) {
+      try {
+        await log(`Đang gửi ảnh Captcha lên Gemini API (${model})...`);
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: 'Read the characters in this image. It is a captcha code. Output ONLY the raw characters (case-sensitive, no spaces, no punctuation, no bold, no explanation). Example output: EBGPG',
                     },
-                  },
-                ],
-              },
-            ],
-          }),
-        },
-      );
+                    {
+                      inlineData: {
+                        mimeType: 'image/png',
+                        data: base64Image,
+                      },
+                    },
+                  ],
+                },
+              ],
+            }),
+          },
+        );
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
+        if (!response.ok) {
+          const errText = await response.text();
+          this.logger.warn(`Gemini model ${model} HTTP ${response.status}: ${errText}`);
+          continue;
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const solvedCode = text ? text.replace(/[\s\r\n`"']/g, '') : '';
+        if (solvedCode) {
+          await log(`Nhận diện Captcha từ Gemini (${model}) thành công: "${solvedCode}"`);
+          return solvedCode;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Model ${model} failed: ${err.message}`);
       }
-
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const solvedCode = text ? text.replace(/\s/g, '') : '';
-      await log(`Nhận diện Captcha từ Gemini thành công: "${solvedCode}"`);
-      return solvedCode;
-    } catch (err: any) {
-      await log(`Lỗi khi gọi Gemini API: ${err.message}`);
-      throw err;
     }
+    throw new Error('Các model Gemini đều phản hồi bận (503) hoặc không nhận diện được.');
   }
 
   /**
@@ -1985,9 +2150,10 @@ export class RpaDownloaderService {
       );
     }
 
-    const acmUrl =
+    const rawUrl =
       credentials.url ||
-      'https://acm.etp.alphaliongroup.com/exchange/index.html#/login';
+      'https://acm-etp.acmmex.com/exchange/index.html#/login';
+    const acmUrl = rawUrl.replace(/#\/home\/?$/i, '#/login');
     const { username, password, geminiApiKey } = credentials;
 
     if (!username || !password) {
@@ -1998,8 +2164,12 @@ export class RpaDownloaderService {
 
     // 2. Khởi tạo trình duyệt
     const executablePath = this.getChromeExecutablePath();
+    const isHeadless =
+      process.env.HEADLESS_BOT !== 'false' &&
+      process.env.PLAYWRIGHT_HEADLESS !== 'false';
     const launchOptions: any = {
-      headless: true,
+      headless: isHeadless,
+      slowMo: isHeadless ? 0 : 200,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -2032,8 +2202,33 @@ export class RpaDownloaderService {
     page.setDefaultTimeout(30000);
 
     try {
-      await log(`Truy cập trang đăng nhập ACM: ${acmUrl}`);
-      await page.goto(acmUrl);
+      let response: any = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await log(`Truy cập trang đăng nhập ACM (lần ${attempt}/3): ${acmUrl}`);
+        response = await page
+          .goto(acmUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
+          .catch((e: any) => {
+            this.logger.warn(`Lần ${attempt} truy cập ACM thất bại: ${e.message}`);
+            return null;
+          });
+
+        if (response && response.status() >= 500) {
+          if (attempt < 3) {
+            await log(
+              ` Máy chủ ACM phản hồi lỗi HTTP ${response.status()} (${response.statusText() || 'Bad Gateway'}). Tự động thử lại sau 3 giây...`,
+            );
+            await page.waitForTimeout(3000);
+            continue;
+          }
+        }
+        break;
+      }
+
+      if (response && response.status() >= 400) {
+        throw new Error(
+          `Máy chủ web ACM phản hồi mã lỗi HTTP ${response.status()} (${response.statusText() || 'Host Error / Bad Gateway'}). Vui lòng kiểm tra lại dịch vụ máy chủ web ACM.`,
+        );
+      }
       await page.waitForTimeout(2000);
 
       // Định nghĩa các selector tìm kiếm thông minh
@@ -2140,6 +2335,14 @@ export class RpaDownloaderService {
         }
 
         if (!captchaText) {
+          if (attempt < maxCaptchaAttempts) {
+            await log(
+              ` Không giải được Captcha ở lần thử ${attempt}. Đang tải lại Captcha mới...`,
+            );
+            await captchaElement.click().catch(() => { });
+            await page.waitForTimeout(2000);
+            continue;
+          }
           throw new Error(
             'Không giải được Captcha (cả Gemini và nhập tay đều không có kết quả).',
           );
@@ -2185,7 +2388,7 @@ export class RpaDownloaderService {
 
         // Reload captcha ảnh
         await log('Đang tải lại mã Captcha mới để giải lại...');
-        await captchaElement.click().catch(() => {});
+        await captchaElement.click().catch(() => { });
         await page.waitForTimeout(1500);
       }
 
@@ -2206,7 +2409,7 @@ export class RpaDownloaderService {
         await log(`Không thể chụp ảnh debug ACM: ${screenshotErr.message}`);
       }
       await log(`Lỗi đăng nhập ACM: ${err.message}`);
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       throw err;
     }
   }
@@ -2224,19 +2427,59 @@ export class RpaDownloaderService {
     const orderFile = path.join(dailyPath, 'Order.xlsx');
     const fillFile = path.join(dailyPath, 'Fill.xlsx');
 
-    await log('Bắt đầu tải Báo cáo Order...');
+    // Xác định base URL từ chính trang ACM hiện tại đang đăng nhập thành công
+    // Tránh việc hardcode domain dẫn đến lệch domain giữa acm-etp.acmmex.com và alphaliongroup.com làm mất session đăng nhập
+    let baseUrl = page.url().split('#')[0];
+    if (!baseUrl || !baseUrl.startsWith('http')) {
+      const credentialsRaw = await this.settingsService.getSetting(
+        'bot_credentials_acm',
+        '',
+      );
+      let creds: any = {};
+      try {
+        if (credentialsRaw) creds = JSON.parse(decrypt(credentialsRaw));
+      } catch { }
+      baseUrl = (creds.url || 'https://acm-etp.acmmex.com/exchange/index.html#/login').split('#')[0];
+    }
+    if (!baseUrl.includes('/exchange/index.html')) {
+      try {
+        const urlObj = new URL(baseUrl);
+        baseUrl = `${urlObj.origin}/exchange/index.html`;
+      } catch {
+        baseUrl = 'https://acm-etp.acmmex.com/exchange/index.html';
+      }
+    }
+
+    const orderUrl = `${baseUrl}#/business-tetporder`;
+    const fillUrl = `${baseUrl}#/business-tetptrade`;
+
+    await log(`Bắt đầu tải Báo cáo Order từ: ${orderUrl}...`);
     await this.downloadAcmReport(
       page,
       orderFile,
-      'https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetporder',
+      orderUrl,
       jobLogs,
     );
 
-    await log('Bắt đầu tải Báo cáo Fill (Trade)...');
+    // Đảm bảo page còn mở, nếu popup đã mở/đóng thì chuyển sang active page hợp lệ
+    let activePage = page;
+    if (activePage.isClosed()) {
+      const openPages = page.context().pages().filter((p) => !p.isClosed());
+      if (openPages.length > 0) {
+        activePage = openPages[0];
+      } else {
+        activePage = await page.context().newPage();
+      }
+    }
+
+    // Khoảng nghỉ 2s giữa 2 lần tải để dọn dẹp download stream trên Linux
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await log(`Bắt đầu tải Báo cáo Fill (Trade) từ: ${fillUrl}...`);
     await this.downloadAcmReport(
-      page,
+      activePage,
       fillFile,
-      'https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetptrade',
+      fillUrl,
       jobLogs,
     );
   }
@@ -2253,8 +2496,12 @@ export class RpaDownloaderService {
     const log = this.getLogFn(jobLogs);
 
     await log(`Điều hướng đến trang tải báo cáo: ${url}`);
-    await page.goto(url);
-    await page.waitForTimeout(3000); // Đợi tải dữ liệu ban đầu
+    await page
+      .goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      .catch(async () => {
+        await page.goto(url).catch(() => {});
+      });
+    await page.waitForTimeout(3000).catch(() => {}); // Đợi tải dữ liệu ban đầu
 
     const exportBtnSelector =
       '.el-button--info:has-text("Export"), button:has-text("Export"), button:has-text("Download")';
@@ -2265,7 +2512,7 @@ export class RpaDownloaderService {
     // Đợi selector xuất hiện
     await page
       .waitForSelector(exportBtnSelector, { state: 'visible', timeout: 15000 })
-      .catch(() => {});
+      .catch(() => { });
 
     const btn = page.locator(exportBtnSelector).first();
     const isVisible = await btn.isVisible().catch(() => false);
@@ -2287,6 +2534,7 @@ export class RpaDownloaderService {
         const download = await downloadPromise;
         await download.saveAs(destFile);
         await log(`Tải file thành công: ${destFile}`);
+        await page.waitForTimeout(1500).catch(() => {});
         return;
       }
       throw new Error(
@@ -2300,6 +2548,7 @@ export class RpaDownloaderService {
     const download = await downloadPromise;
     await download.saveAs(destFile);
     await log(`Tải và lưu file thành công: ${destFile}`);
+    await page.waitForTimeout(1500).catch(() => {});
   }
 
   /**
@@ -2320,7 +2569,7 @@ export class RpaDownloaderService {
     if (credentialsRaw) {
       try {
         credentials = JSON.parse(decrypt(credentialsRaw));
-      } catch (err) {}
+      } catch (err) { }
     }
 
     const sftpHost = credentials.sftpHost || 'sftp.mxv.com.vn';
@@ -2363,7 +2612,7 @@ export class RpaDownloaderService {
             }
 
             if (!list || !Array.isArray(list)) {
-              await log('⚠️ Không thể đọc danh sách file hoặc danh sách rỗng.');
+              await log(' Không thể đọc danh sách file hoặc danh sách rỗng.');
               conn.end();
               return resolve();
             }
@@ -2390,7 +2639,7 @@ export class RpaDownloaderService {
 
             if (filesToDownload.length === 0) {
               await log(
-                '⚠️ Không tìm thấy file nào khớp với bộ lọc trên SFTP.',
+                ' Không tìm thấy file nào khớp với bộ lọc trên SFTP.',
               );
               conn.end();
               return resolve();
@@ -2675,7 +2924,7 @@ export class RpaDownloaderService {
         }
       }
 
-      await route.continue().catch(() => {});
+      await route.continue().catch(() => { });
     });
 
     try {
@@ -2775,7 +3024,7 @@ export class RpaDownloaderService {
           .goto(`${castBase}/CAST/ReportingTool/ReportingTool.asp`, {
             timeout: 20000,
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       // Tìm main frame chứa form
@@ -2935,7 +3184,7 @@ export class RpaDownloaderService {
                 return (
                   label &&
                   label.textContent.trim().toUpperCase() ===
-                    fcmVal.toUpperCase()
+                  fcmVal.toUpperCase()
                 );
               }) as HTMLInputElement;
 
@@ -2963,7 +3212,7 @@ export class RpaDownloaderService {
                     opt.selected = true;
                     $(select2El).val([val]).trigger('change');
                   }
-                } catch (e) {}
+                } catch (e) { }
               }
               setSelectValue(fcmRow, '2'); // Equals (2)
             }
@@ -3031,7 +3280,7 @@ export class RpaDownloaderService {
                   win.unformatAllLocalFilterValues(rows);
                 if (typeof win.startWaitingForDownload === 'function')
                   win.startWaitingForDownload();
-              } catch (e) {}
+              } catch (e) { }
               return true;
             };
           },
@@ -3068,8 +3317,8 @@ export class RpaDownloaderService {
             path: path.join(debugDir, `error-${ts}.png`),
             fullPage: true,
           })
-          .catch(() => {});
-      } catch {}
+          .catch(() => { });
+      } catch { }
       throw err;
     } finally {
       await browser.close();
@@ -3078,8 +3327,23 @@ export class RpaDownloaderService {
 
   // =========================================================================
   // CQG BACKUP DOWNLOAD METHODS (ported from C# IT Tool ChromeBot.cs)
-  // Các method này đăng nhập vào CQG web và tải FR/PS/OP/OD/AS tương ứng.
-  // =========================================================================
+  /**
+   * Tự động đóng hoặc xóa popup thông báo "There are many widgets open..." của CQG
+   * để không bị che khuất các nút menu ba chấm hoặc nút download.
+   */
+  private async dismissCqgNotifications(page: Page): Promise<void> {
+    try {
+      const closeBtn = page.locator(
+        "//wpfe-multi-snack-bar-container//wpfe-dialog-close-button//button | //button[contains(@class,'wpfe-dialog-close-button-button')]",
+      );
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click({ timeout: 1500, force: true }).catch(() => { });
+      }
+      await page.evaluate(() => {
+        document.querySelectorAll('wpfe-multi-snack-bar-container').forEach((el) => el.remove());
+      }).catch(() => { });
+    } catch { }
+  }
 
   private async downloadCqgWidget(
     page: Page,
@@ -3088,126 +3352,190 @@ export class RpaDownloaderService {
     downloadText: string,
     destFile: string,
   ): Promise<void> {
+    // Tự động đóng/xóa popup Notifications của CQG nếu đang nổi trên màn hình
+    await this.dismissCqgNotifications(page);
+
     // Press Escape to dismiss any open modals or menus
-    await page.keyboard.press('Escape').catch(() => {});
+    await page.keyboard.press('Escape').catch(() => { });
     await page.waitForTimeout(500);
 
-    this.logger.log(`[CQG] Mở widget "${searchTerm}"...`);
+    // Kiểm tra xem tab có sẵn trong workspace hay chưa (ví dụ: 'Fills: All', 'Positions', 'Orders')
+    const existingTab = page
+      .locator(
+        `//div[contains(@class,'wpfe-tab-header') and (.//span[contains(text(),'${tabLabel}')] or .//span[text()='${searchTerm}'])]`,
+      )
+      .first();
+    let isExistingTab = false;
+    if (await existingTab.isVisible().catch(() => false)) {
+      this.logger.log(`[CQG] Tìm thấy tab có sẵn "${tabLabel || searchTerm}", kích hoạt tab...`);
+      await existingTab.click({ timeout: 5000 });
+      await page.waitForTimeout(1000);
+      isExistingTab = true;
+    } else {
+      this.logger.log(`[CQG] Mở widget mới "${searchTerm}"...`);
 
-    // Click plus icon to add widget directly if visible
-    let clickedPlus = false;
-    try {
-      await page
-        .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
-        .first()
-        .click({ timeout: 4000 });
-      clickedPlus = true;
-    } catch (e) {
-      this.logger.log(`[CQG] Nút add-widget không trực tiếp click được, thử reset state...`);
-    }
-
-    if (!clickedPlus) {
-      // Dismiss any open menus/popups
-      await page.keyboard.press('Escape').catch(() => {});
-      await page.waitForTimeout(500);
-
-      // Thử tìm tab Home / Trang chủ / Ho để click (ưu tiên class tab/page để tránh click nhầm avatar/profile menu)
-      const homeTabSelectors = [
-        "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-        "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-        "//div[text()='Home' or text()='Trang chủ']"
-      ];
-      for (const selector of homeTabSelectors) {
-        try {
-          const tab = page.locator(selector).first();
-          if (await tab.isVisible()) {
-            await tab.click({ timeout: 3000 });
-            await page.waitForTimeout(1000);
-            break;
-          }
-        } catch {}
+      // Click plus icon to add widget directly if visible
+      let clickedPlus = false;
+      try {
+        await page
+          .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
+          .first()
+          .click({ timeout: 4000 });
+        clickedPlus = true;
+      } catch (e) {
+        this.logger.log(`[CQG] Nút add-widget không trực tiếp click được, thử reset state...`);
       }
 
-      // Thử click lại plus icon lần nữa với timeout đầy đủ
+      if (!clickedPlus) {
+        // Dismiss any open menus/popups
+        await page.keyboard.press('Escape').catch(() => { });
+        await page.waitForTimeout(500);
+
+        // Thử tìm tab Home / Trang chủ / Ho để click (ưu tiên class tab/page để tránh click nhầm avatar/profile menu)
+        const homeTabSelectors = [
+          "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+          "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+          "//div[text()='Home' or text()='Trang chủ']",
+        ];
+        for (const selector of homeTabSelectors) {
+          try {
+            const tab = page.locator(selector).first();
+            if (await tab.isVisible()) {
+              await tab.click({ timeout: 3000 });
+              await page.waitForTimeout(1000);
+              break;
+            }
+          } catch { }
+        }
+
+        // Thử click lại plus icon lần nữa với timeout đầy đủ
+        await page
+          .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
+          .first()
+          .click({ timeout: 15000 });
+      }
+      await page.waitForTimeout(1000);
+
+      // Fill search input
       await page
-        .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
+        .locator("//input[@placeholder='Search...']")
         .first()
-        .click({ timeout: 15000 });
+        .fill(searchTerm, { timeout: 10000 });
+      await page.waitForTimeout(1000);
+
+      // Click target widget item
+      const itemText =
+        searchTerm === 'P&S'
+          ? 'Purchase & Sales'
+          : searchTerm === 'Pos'
+            ? 'Positions'
+            : searchTerm === 'Orders'
+              ? 'Orders'
+              : 'Fills';
+      const widgetItem = page
+        .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
+        .first();
+      await widgetItem.click({ timeout: 15000 });
+      await page.waitForTimeout(1000);
     }
-    await page.waitForTimeout(1000);
-
-    // Fill search input
-    await page
-      .locator("//input[@placeholder='Search...']")
-      .first()
-      .fill(searchTerm, { timeout: 10000 });
-    await page.waitForTimeout(1000);
-
-    // Click target widget item
-    const itemText =
-      searchTerm === 'P&S'
-        ? 'Purchase & Sales'
-        : searchTerm === 'Pos'
-          ? 'Positions'
-          : searchTerm === 'Orders'
-            ? 'Orders'
-            : 'Fills';
-    const widgetItem = page
-      .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
-      .first();
-    await widgetItem.click({ timeout: 15000 });
-    await page.waitForTimeout(1000);
 
     // Select accounts -> All accounts
-    await page
-      .locator(
-        "//button[contains(@class,'wpfe-widget-account-selector-button')]",
-      )
-      .first()
-      .click({ timeout: 15000 });
-    await page.waitForTimeout(1000);
-    await page
-      .locator(
-        "//div[contains(@class,'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]",
-      )
-      .first()
-      .click({ timeout: 15000 });
-    await page.waitForTimeout(1000);
-    await page.locator("//div[text()='OK']").first().click({ timeout: 10000 });
+    await this.dismissCqgNotifications(page);
+    try {
+      // Định vị account button thuộc widget đang active
+      const activeAccountBtn = page
+        .locator(
+          [
+            "//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//button[contains(@class,'wpfe-widget-account-selector-button') or contains(@class,'account-selector')]",
+            "//button[contains(@class,'wpfe-widget-account-selector-button') and not(ancestor::div[contains(@style,'display: none')])]",
+          ].join(' | '),
+        )
+        .first();
 
-    this.logger.log(`[CQG] Đã chọn All accounts, đang chờ data load (10s)...`);
-    await page.waitForTimeout(10000);
+      let btnText = '';
+      if (await activeAccountBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+        btnText = (await activeAccountBtn.innerText().catch(() => '')) || '';
+      }
 
-    // Click ellipsis menu button
+      if (btnText.includes('All accounts') || btnText.includes('All')) {
+        this.logger.log(`[CQG] Widget đã ở All accounts (${btnText}).`);
+      } else {
+        this.logger.log(`[CQG] Widget đang ở "${btnText}", tiến hành chọn All accounts...`);
+        if (await activeAccountBtn.isVisible().catch(() => false)) {
+          await activeAccountBtn.click({ timeout: 8000 });
+        } else {
+          await page
+            .locator("//button[contains(@class,'wpfe-widget-account-selector-button')]")
+            .first()
+            .click({ timeout: 8000 });
+        }
+        await page.waitForTimeout(1000);
+
+        const allAccountsItem = page
+          .locator(
+            "//div[contains(@class,'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]",
+          )
+          .first();
+        await allAccountsItem.click({ timeout: 10000 });
+        await page.waitForTimeout(800);
+
+        await page
+          .locator("//div[text()='OK' or text()='Ok']")
+          .first()
+          .click({ timeout: 5000 })
+          .catch(() => { });
+        await page.waitForTimeout(1500);
+      }
+    } catch (selectorErr: any) {
+      this.logger.warn(
+        `[CQG] Cảnh báo khi chọn account (${selectorErr.message}), tiếp tục...`,
+      );
+    }
+
+    this.logger.log(`[CQG] Chờ data load (8s)...`);
+    await page.waitForTimeout(8000);
+
+    // Đảm bảo loại bỏ hoàn toàn popup Notifications trước khi click menu ba chấm
+    await this.dismissCqgNotifications(page);
+
+    // Click ellipsis menu button (Chuẩn Ubuntu)
     const ellipsisSelector = [
-      `//span[contains(text(),'${tabLabel}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
       `//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+      `//span[contains(text(),'${tabLabel}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
     ].join(' | ');
+
+    const debugDir = path.join(process.cwd(), 'temp', 'debug');
+    if (!fs.existsSync(debugDir)) {
+      fs.mkdirSync(debugDir, { recursive: true });
+    }
 
     let downloaded = false;
     try {
       await page
         .screenshot({
-          path: path.join(
-            process.cwd(),
-            `cqg-1-before-ellipsis-${searchTerm}.png`,
-          ),
+          path: path.join(debugDir, `cqg-1-before-ellipsis-${searchTerm}.png`),
         })
-        .catch(() => {});
-      await page.locator(ellipsisSelector).first().click({ timeout: 5000 });
+        .catch(() => { });
+      await page.locator(ellipsisSelector).first().click({ timeout: 5000, force: true });
       await page.waitForTimeout(1000);
       await page
         .screenshot({
-          path: path.join(
-            process.cwd(),
-            `cqg-2-after-ellipsis-${searchTerm}.png`,
-          ),
+          path: path.join(debugDir, `cqg-2-after-ellipsis-${searchTerm}.png`),
         })
-        .catch(() => {});
+        .catch(() => { });
 
+      await this.dismissCqgNotifications(page);
       this.logger.log(`[CQG] Click Download menu: "${downloadText}"...`);
       const downloadBtn = page
-        .locator(`//div[contains(text(),"${downloadText}")]`)
+        .locator(
+          [
+            `//div[contains(text(),"${downloadText}")]`,
+            `//div[contains(text(),"Download") and (contains(text(),"orders") or contains(text(),"Orders") or contains(text(),"order") or contains(text(),"Order"))]`,
+            `//div[contains(text(),"Download") and (contains(text(),"fills") or contains(text(),"Fills"))]`,
+            `//div[contains(text(),"Download") and (contains(text(),"positions") or contains(text(),"Positions"))]`,
+            `//div[contains(text(),"Download") and (contains(text(),"sales") or contains(text(),"Sales"))]`,
+          ].join(' | '),
+        )
         .first();
 
       const isDisabled = await downloadBtn
@@ -3220,19 +3548,27 @@ export class RpaDownloaderService {
         .catch(() => false);
 
       if (isDisabled) {
-        this.logger.warn(
-          `[CQG] Nút download "${downloadText}" đang bị vô hiệu hóa (không có dữ liệu). Tạo file Excel trống...`,
-        );
-        const workbook = new ExcelJS.Workbook();
-        workbook.addWorksheet('Sheet1');
-        await workbook.xlsx.writeFile(destFile);
-        this.logger.log(`[CQG] Đã lưu file trống thành công: ${destFile}`);
-        downloaded = true;
+        // Kiểm tra xem destFile đã tồn tại và có dữ liệu (>2.5KB) hay không
+        if (fs.existsSync(destFile) && fs.statSync(destFile).size > 2500) {
+          this.logger.warn(
+            `[CQG] Nút download "${downloadText}" bị vô hiệu hóa nhưng file đích ${destFile} đã có dữ liệu (${fs.statSync(destFile).size} bytes). Giữ nguyên dữ liệu hiện có!`,
+          );
+          downloaded = true;
+        } else {
+          this.logger.warn(
+            `[CQG] Nút download "${downloadText}" đang bị vô hiệu hóa (không có dữ liệu). Tạo file Excel trống...`,
+          );
+          const workbook = new ExcelJS.Workbook();
+          workbook.addWorksheet('Sheet1');
+          await workbook.xlsx.writeFile(destFile);
+          this.logger.log(`[CQG] Đã lưu file trống thành công: ${destFile}`);
+          downloaded = true;
+        }
       } else {
         const downloadPromise = page.waitForEvent('download', {
           timeout: 60000,
         });
-        await downloadBtn.click({ timeout: 5000 });
+        await downloadBtn.click({ timeout: 8000, force: true });
 
         const download = await downloadPromise;
         await download.saveAs(destFile);
@@ -3245,20 +3581,22 @@ export class RpaDownloaderService {
       );
       await page
         .screenshot({
-          path: path.join(process.cwd(), `cqg-3-error-${searchTerm}.png`),
+          path: path.join(debugDir, `cqg-3-error-${searchTerm}.png`),
         })
-        .catch(() => {});
+        .catch(() => { });
     } finally {
-      // Close widget tab
-      const closeSelector = [
-        `//span[contains(text(),'${tabLabel}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
-        `//div[contains(@class,'wpfe-tab-header-active')]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
-      ].join(' | ');
-      await page
-        .locator(closeSelector)
-        .first()
-        .click({ timeout: 5000 })
-        .catch(() => {});
+      // Chỉ đóng widget tab nếu nó do bot tự mở mới (không đóng tab có sẵn của workspace)
+      if (!isExistingTab) {
+        const closeSelector = [
+          `//div[contains(@class,'wpfe-tab-header-active')]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
+          `//span[contains(text(),'${tabLabel}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
+        ].join(' | ');
+        await page
+          .locator(closeSelector)
+          .first()
+          .click({ timeout: 5000 })
+          .catch(() => { });
+      }
     }
 
     await page.waitForTimeout(2000);
@@ -3294,7 +3632,7 @@ export class RpaDownloaderService {
     await this.downloadCqgWidget(
       page,
       'Pos',
-      'Pos: All',
+      'Positions',
       'Download open positions in view',
       destFile,
     );
@@ -3304,7 +3642,7 @@ export class RpaDownloaderService {
     await this.downloadCqgWidget(
       page,
       'Orders',
-      'Orders: All',
+      'Orders',
       'Download orders in view',
       destFile,
     );
@@ -3355,8 +3693,12 @@ export class RpaDownloaderService {
 
     const loginCqgAccount = async (username: string, password: string) => {
       const executablePath = this.getChromeExecutablePath();
+      const isHeadless =
+        process.env.HEADLESS_BOT !== 'false' &&
+        process.env.PLAYWRIGHT_HEADLESS !== 'false';
       const launchOptions: any = {
-        headless: process.env.HEADLESS_BOT !== 'false' && process.env.PLAYWRIGHT_HEADLESS !== 'false',
+        headless: isHeadless,
+        slowMo: isHeadless ? 0 : 200,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       };
       if (executablePath) launchOptions.executablePath = executablePath;
@@ -3371,11 +3713,28 @@ export class RpaDownloaderService {
       const page = await context.newPage();
       page.setDefaultTimeout(30000);
 
-      await page.goto(cqgUrl);
-      await page.waitForSelector('input[name="userName"]', {
+      this.logger.log(`[CQG] Mở trang đăng nhập: ${cqgUrl}...`);
+      try {
+        await page.goto(cqgUrl, { timeout: 20000 });
+      } catch (navErr: any) {
+        this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
+        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
+      }
+
+      // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
+      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 20000,
-      });
+        timeout: 12000,
+      }).catch(() => null);
+
+      if (!hasLoginForm) {
+        this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
+        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
+        await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 25000,
+        });
+      }
       await page.fill('input[name="userName"]', username);
       await page.fill('input[name="password"]', password);
       await page.click('button[type="submit"]');
@@ -3449,7 +3808,7 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG1 login thất bại: ${e.message}`);
         } finally {
-          if (browser1) await browser1.close().catch(() => {});
+          if (browser1) await browser1.close().catch(() => { });
           this.logger.log('[CQG] Đóng phiên CQG1.');
         }
       }
@@ -3516,7 +3875,7 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG2 login thất bại: ${e.message}`);
         } finally {
-          if (browser2) await browser2.close().catch(() => {});
+          if (browser2) await browser2.close().catch(() => { });
           this.logger.log('[CQG] Đóng phiên CQG2.');
         }
       }

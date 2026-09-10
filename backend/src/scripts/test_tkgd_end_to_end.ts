@@ -302,7 +302,7 @@ async function runRealEndToEndTest() {
   console.log('🎉 XUẤT FILE EXCEL HOÀN TẤT ĐÚNG CHUẨN 100% THEO 2 EMAIL MẪU CỦA ANH:');
   console.log('='.repeat(75));
 
-  console.log('📊 Số dòng trong từng Sheet:');
+  console.log(' Số dòng trong từng Sheet:');
   console.log('  • Sheet "NoiDungMail": 3 dòng (Futures & ACM Ngô Đức Hải + Futures Nguyễn Anh Khoa)');
   console.log('  • Sheet "Cancuoc":     2 dòng (2 khách hàng)');
   console.log('  • Sheet "HopDong":     2 dòng (2 hợp đồng mở TK Futures)');

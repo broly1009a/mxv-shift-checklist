@@ -118,7 +118,7 @@ async function runIntegrityTests() {
   // Kết quả tổng hợp
   // -------------------------------------------------------------
   console.log('\n===============================================================');
-  console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passedCount}/${totalCount} TEST CASES PASS`);
+  console.log(` KẾT QUẢ KIỂM THỬ: ${passedCount}/${totalCount} TEST CASES PASS`);
   console.log('===============================================================');
 
   if (passedCount === totalCount) {

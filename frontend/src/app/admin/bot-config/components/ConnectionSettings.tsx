@@ -484,7 +484,7 @@ export default function ConnectionSettings({
 
       <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px' }}>
-          
+
           {/* M-System Config */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <h4 style={{
@@ -629,13 +629,13 @@ export default function ConnectionSettings({
                 </div>
               </div>
 
-               {/* CQG Price Account (mxvprice) — chỉ xem giá, KHÔNG tải file */}
+              {/* CQG Price Account (mxvprice) — chỉ xem giá, KHÔNG tải file */}
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '4px' }}>
                   Tài khoản CQG Price (mxvprice)
                 </span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                  ⚠️ Chỉ dùng xem giá / hợp đồng. Không có quyền tải bất kỳ file backup nào.
+                  Chỉ dùng xem giá / hợp đồng. Không có quyền tải bất kỳ file backup nào.
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>

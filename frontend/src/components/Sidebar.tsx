@@ -22,6 +22,7 @@ import {
   TrendingUp,
   FileSpreadsheet,
   KeyRound,
+  Layers,
 } from 'lucide-react';
 
 
@@ -318,6 +319,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             >
               <History size={18} style={{ flexShrink: 0 }} />
               <span>Tra cứu lịch sử</span>
+            </Link>
+            <Link
+              href="/trading-manager"
+              onClick={onClose}
+              className={`nav-link ${pathname === '/trading-manager' ? 'active' : ''}`}
+              title={isCollapsed ? "Bàn Giám Sát GD" : undefined}
+            >
+              <Layers size={18} style={{ flexShrink: 0 }} />
+              <span>Trading Manager</span>
             </Link>
           </>
         )}

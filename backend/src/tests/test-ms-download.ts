@@ -263,7 +263,7 @@ async function runMSystemDownloadTest() {
     }
     if (!tabClicked) {
       console.log(
-        '⚠️ Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...',
+        ' Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...',
       );
       await page
         .click('text="Lệnh chờ khớp"')

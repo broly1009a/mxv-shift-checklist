@@ -19,7 +19,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly lotStatisticsService: LotStatisticsService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -177,7 +177,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       if (allPassed) {
         log(`✅ Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
       } else {
-        log(`⚠️ Phát hiện chênh lệch đối chiếu:`);
+        log(` Phát hiện chênh lệch đối chiếu:`);
         for (const val of result.validations) {
           if (!val.passed) {
             log(

@@ -229,7 +229,7 @@ async function runFullPipeline() {
       await browser.close();
     }
   } else {
-    console.log('  ⚠️ Không có thông tin tài khoản MS, sử dụng dữ liệu mô phỏng để tiếp tục quy trình.');
+    console.log('   Không có thông tin tài khoản MS, sử dụng dữ liệu mô phỏng để tiếp tục quy trình.');
     for (const record of processedRecords) {
       record.ms = {
         maTKGD: record.noiDungMail?.maTKGD_Futures,
@@ -252,7 +252,7 @@ async function runFullPipeline() {
 
   // ─── BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL ─────────────────────────────
   console.log('\n' + '-'.repeat(50));
-  console.log('📊 BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL');
+  console.log(' BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL');
   console.log('-'.repeat(50));
 
   const summary = await reconcileAndExportToExcel(processedRecords);

@@ -59,7 +59,7 @@ async function run() {
       await settingsService.sendM365TokenExpiredAlert(errorMsg);
       console.log('✅ ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');
     } else {
-      console.log('⚠️ Cảnh báo: Microsoft vẫn chấp nhận token này? Kịch bản test thất bại.');
+      console.log(' Cảnh báo: Microsoft vẫn chấp nhận token này? Kịch bản test thất bại.');
     }
 
   } catch (err: any) {

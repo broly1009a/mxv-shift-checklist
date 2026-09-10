@@ -328,12 +328,12 @@ async function runSidebarClickTest() {
     }
 
     appendLog('\n' + '='.repeat(150));
-    appendLog(`📊 TỔNG KẾT KẾT QUẢ KIỂM THỬ:`);
+    appendLog(` TỔNG KẾT KẾT QUẢ KIỂM THỬ:`);
     appendLog(`- Tổng số mục menu đã test: ${SIDEBAR_ITEMS_TO_TEST.length}`);
     appendLog(`- Click thành công (SUCCESS): ${passCount}`);
     appendLog(`- Thất bại (FAILED): ${failCount}`);
     appendLog(
-      `- Đánh giá khả thi: ${failCount === 0 ? '🟢 100% Khả thi (Cơ chế Click sidebar chạy rất tốt)' : '⚠️ Cần điều chỉnh một số Selector XPath hoặc chuyển hẳn sang Direct Hash URL'}`,
+      `- Đánh giá khả thi: ${failCount === 0 ? '🟢 100% Khả thi (Cơ chế Click sidebar chạy rất tốt)' : ' Cần điều chỉnh một số Selector XPath hoặc chuyển hẳn sang Direct Hash URL'}`,
     );
     appendLog('='.repeat(150));
   } catch (err: any) {

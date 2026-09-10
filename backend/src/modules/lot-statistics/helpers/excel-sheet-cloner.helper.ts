@@ -15,7 +15,7 @@ export function ensureMonthSheetExists(
   jobLogs?: string[],
 ): boolean {
   if (!fs.existsSync(excelFilePath)) {
-    const msg = `[Auto-Clone] ⚠️ File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`;
+    const msg = `[Auto-Clone]  File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`;
     logger.warn(msg);
     jobLogs?.push(msg);
     return false;
@@ -30,7 +30,7 @@ export function ensureMonthSheetExists(
   );
 
   if (!fs.existsSync(scriptPath)) {
-    const msg = `[Auto-Clone] ⚠️ Không tìm thấy script python: ${scriptPath}`;
+    const msg = `[Auto-Clone]  Không tìm thấy script python: ${scriptPath}`;
     logger.warn(msg);
     jobLogs?.push(msg);
     return false;

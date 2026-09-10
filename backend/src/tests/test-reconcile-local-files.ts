@@ -93,7 +93,7 @@ async function testLocalReconciliation() {
       `• Số giao dịch lệch chi tiết: ${resultKLGD.mismatchedTrades.length}`,
     );
     if (resultKLGD.mismatchedTrades.length > 0) {
-      console.log('⚠️ Danh sách giao dịch lệch (tối đa 10 dòng):');
+      console.log(' Danh sách giao dịch lệch (tối đa 10 dòng):');
       resultKLGD.mismatchedTrades.slice(0, 10).forEach((t, i) => {
         console.log(
           `  [${i + 1}] Source: ${t.source} | TK: ${t.maTKGD} | HĐ: ${t.maHD} | Giá: ${t.giaKhop} | Qty: ${t.klGiaoDich} -> Lý do: ${t.reason}`,
@@ -107,7 +107,7 @@ async function testLocalReconciliation() {
       `• Số tài khoản chênh lệch TTM (Trạng thái mở): ${resultKLGD.mismatchedTTM.length}`,
     );
     if (resultKLGD.mismatchedTTM.length > 0) {
-      console.log('⚠️ Danh sách tài khoản lệch TTM:');
+      console.log(' Danh sách tài khoản lệch TTM:');
       resultKLGD.mismatchedTTM.forEach((t, i) => {
         console.log(
           `  [${i + 1}] TK: ${t.maTKGD} | MS TTM: ${t.ttmValue} | CQG Open: ${t.opValue} | Lệch: ${t.differ}`,
@@ -121,7 +121,7 @@ async function testLocalReconciliation() {
       `• Số tài khoản chênh lệch TTTT vs PS: ${resultKLGD.mismatchedTTTT ? resultKLGD.mismatchedTTTT.length : 0}`,
     );
     if (resultKLGD.mismatchedTTTT && resultKLGD.mismatchedTTTT.length > 0) {
-      console.log('⚠️ Danh sách tài khoản lệch TTTT vs PS:');
+      console.log(' Danh sách tài khoản lệch TTTT vs PS:');
       resultKLGD.mismatchedTTTT.forEach((t, i) => {
         console.log(
           `  [${i + 1}] TK: ${t.maTKGD} | MS TTTT: ${t.ttttValue} | CQG PS: ${t.psValue} | Lệch: ${t.differ}`,
@@ -154,7 +154,7 @@ async function testLocalReconciliation() {
       `• Số tài khoản lệch số dư EOD (>= 1,000đ): ${resultEOD.mismatchedEOD.length}`,
     );
     if (resultEOD.mismatchedEOD.length > 0) {
-      console.log('⚠️ Danh sách tài khoản lệch EOD (tối đa 10 dòng):');
+      console.log(' Danh sách tài khoản lệch EOD (tối đa 10 dòng):');
       resultEOD.mismatchedEOD.slice(0, 10).forEach((t, i) => {
         console.log(
           `  [${i + 1}] TK: ${t.maTKGD} | Tính toán: ${t.calculatedBalance.toLocaleString()}đ | EOD: ${t.eodBalance.toLocaleString()}đ | Lệch: ${t.differ.toLocaleString()}đ`,
@@ -196,7 +196,7 @@ async function testLocalReconciliation() {
       `• Số tài khoản lệch số dư CQG (> 100 USD): ${resultCQG.length}`,
     );
     if (resultCQG.length > 0) {
-      console.log('⚠️ Danh sách tài khoản lệch CQG (tối đa 10 dòng):');
+      console.log(' Danh sách tài khoản lệch CQG (tối đa 10 dòng):');
       resultCQG.slice(0, 10).forEach((t, i) => {
         console.log(
           `  [${i + 1}] TK: ${t.maTKGD} | MS: $${t.calculatedBalance} | CQG: $${t.cqgBalance} | Lệch: $${t.differ.toFixed(2)} | In MS: ${t.inMS} | In CQG: ${t.inCQG}`,

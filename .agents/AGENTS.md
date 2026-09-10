@@ -75,6 +75,10 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
    - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
 
+5. **Tuyệt đối Không Dùng Unicode Emojis trên Giao diện UI (`📁`, `💡`, `⚡`, `🚀`, `🔘`, `👁️`...)**:
+   - Trên toàn bộ giao diện Frontend (Modal, Button, Card, Tag, Preview...), **tuyệt đối KHÔNG** chèn các ký tự icon emoji thô dạng Unicode (như `📁`, `💡`, `⚡`, `🚀`, `🔘`, `👁️`, `🟢`, `🔵`...).
+   - **Bắt buộc 100%** sử dụng các icon SVG chuẩn từ thư viện **`lucide-react`** (ví dụ: `import { Folder, Sparkles, Info, Calendar } from 'lucide-react'`) hoặc văn bản rõ nghĩa. Việc dùng emoji thô làm mất tính chuyên nghiệp (Enterprise Look & Feel) và gây vỡ layout/lỗi hiển thị màu sắc trên các nền tảng khác nhau.
+
 ---
 
 ## 5. Dynamic Mock & Environment Rules (Quy tắc Giả lập & Động hóa Môi trường)
@@ -89,5 +93,29 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 
 3. **Phân tích kỹ lưỡng kiến trúc & tài liệu trước khi trả lời**:
    - AI phải luôn kiểm tra đối chiếu kiến trúc thực tế (như `HUONG_DAN_DEPLOY_NATIVE.md`, `bot_credentials_acm`, NestJS Backend PM2) trước khi đưa ra hướng dẫn, tránh nhầm lẫn giữa vai trò SFTP Server và Client.
+
+---
+
+## 6. TKGD Reconciliation & OCR Best Practices (Quy tắc Đối Soát Hồ Sơ Mở TKGD & Bóc Tách Ảnh)
+
+Để tránh tái diễn các lỗi lệch giả (False Positive) khi bóc tách hồ sơ và quét lại (reparse) trên module TKGD:
+
+1. **Phân cấp File Đính Kèm Khách Hàng vs Bằng Chứng M-System (`_MS_`)**:
+   - Thư mục hồ sơ (`HoSo_DinhKem/<Ngày>/<Mã TKGD>/`) chứa 2 nguồn ảnh:
+     - **File gốc đính kèm email của khách hàng** (ví dụ: `HOANG-THANH-TUNG-CCCD-truoc.jpg`, `LE-TRONG-HUY-CCCD-...` độ phân giải cao ~1000px).
+     - **File thumbnail bằng chứng do Bot RPA cào về từ web M-System** (ví dụ: `003C2886699_MS_CCCD_truoc.jpg` kích thước siêu nhỏ chỉ **270x172px**).
+   - **Quy tắc tuyệt đối**: Hàm quét file (`scanDirForFiles`, `scanSingleAccountFiles`) **phải lọc bỏ các file có tiền tố `_MS_`, `chuky`, `signature`, `sign`**. Luôn ưu tiên 100% file ảnh gốc của khách hàng (`customerFiles`). Chỉ fallback sang ảnh thumbnail M-System khi khách hàng hoàn toàn không gửi kèm file ảnh. Việc OCR trên ảnh thumbnail 270px sẽ gây mờ nhòe chữ số, đọc nhầm số CCCD (ví dụ `5` thành `6`) và hạ thấp độ tin cậy AI xuống < 50%.
+
+2. **Quy tắc Bóc Tách MRZ 2 Dòng (Dòng 2 kiểm tra Dòng 1)**:
+   - Thẻ CCCD gắn chip (2021–nay) có mã MRZ gồm 2 dòng ở mặt sau:
+     - Dòng 1: `IDVNM<12 chữ số CCCD><mã bổ sung>...`
+     - Dòng 2: Ngày sinh dạng `YYMMDD` + Giới tính `M/F` + Ngày hết hạn.
+   - **Quy tắc**: Trong [tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py), **luôn xử lý Dòng 2 trước Dòng 1**. Khi tìm số CCCD ứng viên từ Dòng 1 bằng Regex, **bắt buộc kiểm tra 2 chữ số năm sinh (`cccd[4:6]`) phải trùng khớp với `YY` của Dòng 2**. Không sử dụng regex tham lam `0\d{11}` độc lập để tránh hiện tượng cắt nhầm chuỗi số ma (Phantom CCCD, ví dụ: `087035120803` gây suy luận sai năm sinh về 1935 và giới tính Nữ).
+
+3. **Bảo Chứng Chéo Hash Ảnh (`verifyAndHealWithImageHash`) & Thứ Tự Ưu Tiên Trường**:
+   - Khi mã MD5 của ảnh đính kèm mail trùng khớp 100% với ảnh upload trên M-System, danh tính đã được kiểm chứng chuẩn xác qua M-System.
+   - **Thứ tự ưu tiên trường thông tin khi heal**: Luôn ưu tiên trường dữ liệu đã được M-System xác thực (`record.ms?.ngaySinh || record.canCuoc?.ngaySinh || record.hopDong?.ngaySinh`), tuyệt đối không để trường dữ liệu OCR lỗi đè lên trường của M-System.
+   - Kích hoạt `verifyAndHealWithImageHash` cho cả tài khoản cơ sở và tiểu khoản (`-A`, `-L`, `-S` / PL01) trước khi gọi hàm thẩm định đối soát `evaluateRecordReconciliation`.
+
 
 

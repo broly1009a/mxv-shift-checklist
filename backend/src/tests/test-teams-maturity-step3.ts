@@ -435,7 +435,7 @@ function runStep3Test() {
         },
         {
           type: 'TextBlock',
-          text: '⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
+          text: ' **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
           wrap: true,
           weight: 'Bolder',
           color: 'Warning',

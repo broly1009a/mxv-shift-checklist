@@ -13,6 +13,7 @@ import { ShiftsService } from '../shifts/shifts.service';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import {
   parseJobPayload,
@@ -38,7 +39,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly marginCheckerService: MarginCheckerService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+    private readonly systemLogsService: SystemLogsService,
+  ) { }
 
   onModuleInit() {
     // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
@@ -242,6 +244,87 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.isProcessing = true;
+
+    // Chốt chặn Queue Guard: Kiểm tra xem ca trực đã COMPLETED hoặc tác vụ kiểm tra đã được hoàn thành thủ công chưa
+    const payload = parseJobPayload(job);
+    const { shiftLogId, taskId } = payload;
+
+    const AUDIT_JOB_TYPES = [
+      'CHECK_KLGD',
+      'CHECK_PRE_EOD',
+      'CHECK_EOD_MM',
+      'FILE_AUDIT_ACM',
+      'FILE_AUDIT_CQG',
+      'FILE_AUDIT_MS',
+      'AUTO_CHECK_SOD',
+      'RUN_MACRO',
+      'RUN_LOT_MACRO',
+      'RUN_VALUE_MACRO',
+    ];
+
+    if (shiftLogId) {
+      try {
+        const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
+        if (rawShiftLog) {
+          if (rawShiftLog.status === 'COMPLETED') {
+            job.status = 'CANCELLED';
+            job.completedAt = new Date();
+            job.error = 'Đã hủy tự động do ca trực đã chốt (COMPLETED).';
+            job.logs.push(
+              `[${new Date().toISOString()}] Bỏ qua thực thi: Ca trực ${shiftLogId} đã chốt (COMPLETED).`,
+            );
+            await this.botJobModel.updateOne(
+              { _id: job._id },
+              {
+                $set: {
+                  status: 'CANCELLED',
+                  completedAt: job.completedAt,
+                  error: job.error,
+                  logs: job.logs,
+                },
+              },
+            );
+            this.logger.log(
+              `[QUEUE_GUARD] Đã hủy Job ${job.jobType} (${job._id}) do ca trực ${shiftLogId} đã chốt.`,
+            );
+            this.isProcessing = false;
+            return;
+          }
+
+          if (taskId) {
+            const task = (rawShiftLog.details || []).find((d: any) => d.taskId === taskId);
+            const isAuditJob = AUDIT_JOB_TYPES.includes(job.jobType);
+            if (task && task.isChecked && isAuditJob) {
+              job.status = 'CANCELLED';
+              job.completedAt = new Date();
+              job.error = 'Đã hủy tự động do tác vụ đã được thẩm định hoàn thành trước đó.';
+              job.logs.push(
+                `[${new Date().toISOString()}] Bỏ qua thực thi: Tác vụ [${taskId}] đã được tích hoàn thành thủ công.`,
+              );
+              await this.botJobModel.updateOne(
+                { _id: job._id },
+                {
+                  $set: {
+                    status: 'CANCELLED',
+                    completedAt: job.completedAt,
+                    error: job.error,
+                    logs: job.logs,
+                  },
+                },
+              );
+              this.logger.log(
+                `[QUEUE_GUARD] Đã hủy Job audit ${job.jobType} (${job._id}) do tác vụ [${taskId}] đã hoàn thành.`,
+              );
+              this.isProcessing = false;
+              return;
+            }
+          }
+        }
+      } catch (guardErr: any) {
+        this.logger.warn(`[QUEUE_GUARD] Lỗi kiểm tra ca trực: ${guardErr.message}`);
+      }
+    }
+
     job.attempts += 1;
     const startTime = new Date().toISOString();
     job.logs.push(
@@ -291,10 +374,46 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           },
         );
         await this.syncJobToChecklist(job, 'FAILED', errorMsg);
+        await this.logFailureToSystemLog(job, errorMsg).catch((logErr) => {
+          this.logger.error(`Lỗi ghi SystemLog thất bại: ${logErr.message}`);
+        });
       }
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  private async logFailureToSystemLog(job: any, errorMsg: string) {
+    const payload = parseJobPayload(job);
+    const dateStr = payload.sessionDay || new Date().toISOString().split('T')[0];
+    const message = `[Bot Đối Soát] Thất bại tác vụ ${job.jobType}: ${errorMsg}`;
+
+    await this.systemLogsService.logEvent({
+      eventType: 'BOT_JOB_FAILED',
+      source: 'SYSTEM',
+      status: 'FAILED',
+      message,
+      metadata: {
+        jobId: job._id?.toString(),
+        jobType: job.jobType,
+        attempts: job.attempts,
+        error: errorMsg,
+      },
+    });
+
+    this.shiftsGateway.emitEvent(
+      'DASHBOARD_UPDATED',
+      payload.shiftLogId || null,
+      null,
+      null,
+      dateStr,
+      {
+        type: 'BOT_FAILED',
+        message,
+        jobId: job._id?.toString(),
+        jobType: job.jobType,
+      },
+    );
   }
 
   /**
@@ -384,15 +503,68 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = `Đã xác minh ${payload.totalCount} email: 0 lỗi.`;
           }
 
+          let taskStatus: 'PASSED' | 'NEEDS_ATTENTION' | 'PENDING' = 'PASSED';
+          if (
+            [
+              'AUTO_CHECK_SOD',
+              'CHECK_PRE_EOD',
+              'CHECK_EOD_MM',
+              'CHECK_KLGD',
+            ].includes(job.jobType)
+          ) {
+            if (payload?.result?.isWaitingFiles) {
+              taskStatus = 'PENDING';
+            } else if (payload?.result?.passed === false) {
+              taskStatus = 'NEEDS_ATTENTION';
+            } else {
+              taskStatus = 'PASSED';
+            }
+          }
+
+          const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
+          if (rawShiftLog && rawShiftLog.status === 'COMPLETED') {
+            this.logger.log(
+              `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
+            );
+            return;
+          }
+
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,
-            'PASSED',
+            taskStatus,
             systemUser,
             message,
             true,
           );
         } else if (status === 'FAILED') {
+          // Human Override Guard: Nếu ca trực đã chốt hoặc tác vụ đã được người dùng duyệt hoàn thành,
+          // bot tuyệt đối không ghi đè trạng thái FAILED!
+          const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
+          if (rawShiftLog) {
+            if (rawShiftLog.status === 'COMPLETED') {
+              this.logger.log(
+                `[SYNC_GUARD] Bỏ qua cập nhật Checklist thất bại cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
+              );
+              return;
+            }
+            const existingTask = (rawShiftLog.details || []).find(
+              (d: any) => d.taskId === taskId,
+            );
+            const isHumanChecked =
+              existingTask &&
+              existingTask.isChecked &&
+              existingTask.updatedBy &&
+              existingTask.updatedBy.toString() !== '000000000000000000000000';
+
+            if (isHumanChecked) {
+              this.logger.warn(
+                `[HUMAN_OVERRIDE] Tác vụ [${taskId}] đã được nhân viên xác nhận hoàn thành trước đó. Bỏ qua ghi đè FAILED từ Bot.`,
+              );
+              return;
+            }
+          }
+
           let message = error || 'Lỗi không xác định khi chạy bot.';
           if (payload?.totalCount !== undefined) {
             message = `Đã xác minh ${payload.totalCount} email: Phát hiện ${payload.failedCount} lỗi. Danh sách: ${payload.failedList}`;
@@ -522,7 +694,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const subject = `[CẢNH BÁO VẬN HÀNH BOT] Tác vụ ${job.jobType} thất bại sau ${job.maxAttempts} lần thử`;
       const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <h2 style="color: #dc3545;">⚠️ Cảnh Báo Tác Vụ Bot Thất Bại Vĩnh Viễn</h2>
+          <h2 style="color: #dc3545;"> Cảnh Báo Tác Vụ Bot Thất Bại Vĩnh Viễn</h2>
           <p>Hệ thống MXV Shift Checklist ghi nhận một tác vụ tự động đã thất bại sau khi vượt quá số lần thử tối đa:</p>
           <ul>
             <li><strong>Mã Job:</strong> ${job._id}</li>

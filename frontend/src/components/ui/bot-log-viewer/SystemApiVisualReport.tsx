@@ -36,7 +36,7 @@ const summarizeLogText = (text: string): string => {
 
     if (
       cleanLine.startsWith('❌') ||
-      cleanLine.startsWith('⚠️') ||
+      cleanLine.startsWith('') ||
       cleanLine.startsWith('✅') ||
       cleanLine.startsWith('•')
     ) {
@@ -67,7 +67,7 @@ interface SystemApiVisualReportProps {
 
 export const SystemApiVisualReport: React.FC<SystemApiVisualReportProps> = ({ jsonResult, marginAccounts, rawText }) => {
   const hasEmailStats = jsonResult && (jsonResult.totalCount > 0 || jsonResult.failedCount > 0 || jsonResult.failedList);
-  
+
   const cleanText = (rawText || '').trim();
   const summaryText = summarizeLogText(cleanText);
 

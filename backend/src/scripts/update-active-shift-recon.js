@@ -29,13 +29,13 @@ async function main() {
     const totals = reconResult.totals || {};
     note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;
     note += `• Khớp lệnh thường (MS vs CQG): ${totals.totalCQG_MS || 0} vs ${totals.totalCQG_FR || 0} lot (Chênh lệch: ${totals.differCQG || 0} lot)\n`;
-    
+
     const mismatchedPositions = reconResult.mismatchedPositions || [];
     note += `• Chênh lệch vị thế net position (MS vs CQG): ${mismatchedPositions.length} tài khoản\n`;
 
     const mismatchedTrades = reconResult.mismatchedTrades || [];
     if (mismatchedTrades.length > 0) {
-      note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+      note += ` Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
       mismatchedTrades.slice(0, 10).forEach((m) => {
         note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
       });

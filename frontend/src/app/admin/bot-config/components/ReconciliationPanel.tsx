@@ -507,7 +507,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-primary)' }}>{r.cqgBalance?.toFixed(2)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444', fontWeight: 800 }}>{r.differ?.toFixed(2)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '0.65rem', color: '#f59e0b', fontWeight: 700 }}>
-                            {!r.inCQG ? '⚠️ Thiếu trên CQG' : !r.inMS ? '⚠️ Thiếu trên MS' : '⚠️ Lệch số dư'}
+                            {!r.inCQG ? ' Thiếu trên CQG' : !r.inMS ? ' Thiếu trên MS' : ' Lệch số dư'}
                           </td>
                         </tr>
                       ))}

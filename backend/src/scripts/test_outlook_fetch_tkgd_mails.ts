@@ -157,7 +157,7 @@ async function main() {
       console.log('-'.repeat(50));
     }
   } else {
-    console.log('\n⚠️ Không thấy email nào chứa từ khóa "mở TKGD" trong 30 thư gần nhất.');
+    console.log('\n Không thấy email nào chứa từ khóa "mở TKGD" trong 30 thư gần nhất.');
     console.log('📌 Top 5 email mới nhất trong hộp thư:');
     messages.slice(0, 5).forEach((m, i) => {
       console.log(`  [${i + 1}] ${m.subject} (Từ: ${m.from?.emailAddress?.address} lúc ${m.receivedDateTime})`);

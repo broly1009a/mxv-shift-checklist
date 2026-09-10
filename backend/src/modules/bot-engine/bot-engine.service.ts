@@ -249,7 +249,7 @@ export class BotEngineService {
                         const detailsList = allNegativeAccounts.map(a => `• Tài khoản: <b>${a.account}</b> | Số dư ký quỹ: <font color="red"><b>${a.margin.toLocaleString()}</b></font>`).join('\n');
                         
                         // Construct Telegram Alert
-                        const alertMsg = `⚠️ <b>[CẢNH BÁO KÝ QUỸ ĐẦU NGÀY - POST EOD]</b>\n` +
+                        const alertMsg = ` <b>[CẢNH BÁO KÝ QUỸ ĐẦU NGÀY - POST EOD]</b>\n` +
                           `Phát hiện <b>${count} tài khoản bị âm ký quỹ đầu ngày</b> sau phiên EOD:\n\n` +
                           `${detailsList}\n\n` +
                           `Đề nghị bộ phận trực ca vận hành kiểm tra và xử lý theo quy trình!`;
@@ -259,7 +259,7 @@ export class BotEngineService {
                         this.logger.warn(`[Post-EOD] Đã phát hiện ${count} tài khoản âm ký quỹ đầu ngày. Đã gửi cảnh báo Telegram.`);
 
                         // Append to checkResult message for Web UI representation
-                        checkResult.message += `. ⚠️ CẢNH BÁO: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}`;
+                        checkResult.message += `.  CẢNH BÁO: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}`;
                       } else {
                         checkResult.message += `. ✅ Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`;
                       }
@@ -489,7 +489,7 @@ export class BotEngineService {
                 note += `• Lượt quét: Lượt #${existingJob.attempts || 1}/${existingJob.maxAttempts || 3} (Lúc ${new Date().toLocaleTimeString('vi-VN')})\n`;
                 note += `• Số tài khoản chênh lệch (> 100 USD): ${Array.isArray(discrepancies) ? discrepancies.length : 0}\n`;
                 if (Array.isArray(discrepancies) && discrepancies.length > 0) {
-                  note += `⚠️ Danh sách tài khoản lệch:\n`;
+                  note += ` Danh sách tài khoản lệch:\n`;
                   discrepancies.slice(0, 10).forEach((r: any) => {
                     note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ?.toFixed(2)})\n`;
                   });
@@ -553,157 +553,157 @@ export class BotEngineService {
             }
           } else if (checkType === 'SCAN_NEGATIVE_MARGIN') {
             const msBackupBase = await this.settingsService.getSetting(
-                'bot_backup_path_ms',
-                'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-              );
-              const targetDate = new Date(log.shiftDate);
-              const year = targetDate.getFullYear().toString();
-              const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-              const day = String(targetDate.getDate()).padStart(2, '0');
-              const subFolder = path.join(
-                year,
-                `T${month}.${year}`,
-                `${day}.${month}`,
-              );
-              const dailyPath = path.join(msBackupBase, subFolder);
+              'bot_backup_path_ms',
+              'C:\\Users\\hiepth\\Downloads\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+            );
+            const targetDate = new Date(log.shiftDate);
+            const year = targetDate.getFullYear().toString();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const subFolder = path.join(
+              year,
+              `T${month}.${year}`,
+              `${day}.${month}`,
+            );
+            const dailyPath = path.join(msBackupBase, subFolder);
 
-              if (!fs.existsSync(dailyPath)) {
+            if (!fs.existsSync(dailyPath)) {
+              checkResult = {
+                success: false,
+                message:
+                  'Đang chờ thư mục backup ngày hiện tại được khởi tạo...',
+              };
+            } else {
+              const files = fs.readdirSync(dailyPath);
+              // Ưu tiên file âm ký quỹ chuyên biệt do M-System lọc sẵn (QLTKGDAmKQ.xlsx).
+              // Chỉ fallback sang file tổng QLTKGD.xlsx nếu không tìm thấy file âm ký quỹ.
+              // → Tránh dôi số liệu do quét 49.000+ tài khoản từ file tổng.
+              const allFiles = files.filter(
+                (f) =>
+                  f.toLowerCase().endsWith('.xlsx') ||
+                  f.toLowerCase().endsWith('.xls') ||
+                  f.toLowerCase().endsWith('.csv'),
+              );
+
+              const amkqFiles = allFiles.filter((f) =>
+                f.toLowerCase().includes('qltkgdamkq'),
+              );
+              const qltkgdFiles = amkqFiles.length === 0
+                ? allFiles.filter(
+                  (f) =>
+                    f.toLowerCase().includes('qltkgd') &&
+                    !f.toLowerCase().includes('qltkgdamkq'),
+                )
+                : [];
+              const cqgFiles = allFiles.filter(
+                (f) =>
+                  f.toLowerCase().includes('accounts_balances') ||
+                  f.toLowerCase().includes('balances'),
+              );
+
+              const marginFiles = [
+                ...amkqFiles,
+                ...qltkgdFiles,
+                ...cqgFiles,
+              ];
+
+              if (marginFiles.length === 0) {
                 checkResult = {
                   success: false,
                   message:
-                    'Đang chờ thư mục backup ngày hiện tại được khởi tạo...',
+                    'Đang chờ file báo cáo QLTKGDAmKQ.xlsx (hoặc QLTKGD.xlsx) được tải xuống...',
                 };
               } else {
-                const files = fs.readdirSync(dailyPath);
-                // Ưu tiên file âm ký quỹ chuyên biệt do M-System lọc sẵn (QLTKGDAmKQ.xlsx).
-                // Chỉ fallback sang file tổng QLTKGD.xlsx nếu không tìm thấy file âm ký quỹ.
-                // → Tránh dôi số liệu do quét 49.000+ tài khoản từ file tổng.
-                const allFiles = files.filter(
-                  (f) =>
-                    f.toLowerCase().endsWith('.xlsx') ||
-                    f.toLowerCase().endsWith('.xls') ||
-                    f.toLowerCase().endsWith('.csv'),
+                this.logger.log(
+                  `[Negative Margin Check] Quét file ${marginFiles.join(', ')} tại ${dailyPath} để tìm tài khoản âm ký quỹ...`,
                 );
+                let allNegativeAccounts: any[] = [];
+                const fileDetails: string[] = [];
+                for (const file of marginFiles) {
+                  const filePath = path.join(dailyPath, file);
+                  const negatives =
+                    await this.postEodHandlerService.scanNegativeMarginAccounts(
+                      filePath,
+                    );
+                  fileDetails.push(`${file} (phát hiện ${negatives.length} TK)`);
+                  allNegativeAccounts = [
+                    ...allNegativeAccounts,
+                    ...negatives,
+                  ];
+                }
 
-                const amkqFiles = allFiles.filter((f) =>
-                  f.toLowerCase().includes('qltkgdamkq'),
-                );
-                const qltkgdFiles = amkqFiles.length === 0
-                  ? allFiles.filter(
-                      (f) =>
-                        f.toLowerCase().includes('qltkgd') &&
-                        !f.toLowerCase().includes('qltkgdamkq'),
-                    )
-                  : [];
-                const cqgFiles = allFiles.filter(
-                  (f) =>
-                    f.toLowerCase().includes('accounts_balances') ||
-                    f.toLowerCase().includes('balances'),
-                );
-
-                const marginFiles = [
-                  ...amkqFiles,
-                  ...qltkgdFiles,
-                  ...cqgFiles,
-                ];
-
-                if (marginFiles.length === 0) {
+                if (allNegativeAccounts.length > 0) {
+                  const uniqueAccs = Array.from(
+                    new Set(allNegativeAccounts.map((a) => a.maTKGD || a.account))
+                  );
+                  const accNames = uniqueAccs.join(', ');
                   checkResult = {
-                    success: false,
-                    message:
-                      'Đang chờ file báo cáo QLTKGDAmKQ.xlsx (hoặc QLTKGD.xlsx) được tải xuống...',
+                    success: true,
+                    message: ` Phát hiện ${uniqueAccs.length} tài khoản âm ký quỹ (Đối chiếu từ các file: ${fileDetails.join(', ')}):\n${accNames}`,
                   };
                 } else {
-                  this.logger.log(
-                    `[Negative Margin Check] Quét file ${marginFiles.join(', ')} tại ${dailyPath} để tìm tài khoản âm ký quỹ...`,
-                  );
-                  let allNegativeAccounts: any[] = [];
-                  const fileDetails: string[] = [];
-                  for (const file of marginFiles) {
-                    const filePath = path.join(dailyPath, file);
-                    const negatives =
-                      await this.postEodHandlerService.scanNegativeMarginAccounts(
-                        filePath,
-                      );
-                    fileDetails.push(`${file} (phát hiện ${negatives.length} TK)`);
-                    allNegativeAccounts = [
-                      ...allNegativeAccounts,
-                      ...negatives,
-                    ];
-                  }
-
-                  if (allNegativeAccounts.length > 0) {
-                    const uniqueAccs = Array.from(
-                      new Set(allNegativeAccounts.map((a) => a.maTKGD || a.account))
-                    );
-                    const accNames = uniqueAccs.join(', ');
-                    checkResult = {
-                      success: true,
-                      message: `⚠️ Phát hiện ${uniqueAccs.length} tài khoản âm ký quỹ (Đối chiếu từ các file: ${fileDetails.join(', ')}):\n${accNames}`,
-                    };
-                  } else {
-                    checkResult = {
-                      success: true,
-                      message: `[Quét tự động]: Thành công (Đã đối chiếu các file: ${fileDetails.join(', ')}). Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`,
-                    };
-                  }
+                  checkResult = {
+                    success: true,
+                    message: `[Quét tự động]: Thành công (Đã đối chiếu các file: ${fileDetails.join(', ')}). Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`,
+                  };
                 }
               }
+            }
           } else if (
             checkType === 'CHECK_KLGD' ||
             checkType === 'CHECK_PRE_EOD'
           ) {
-              const existingJob = await this.botJobQueueService.getJobForTask(
-                task.taskId,
-                log._id.toString(),
-              );
-              const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
+            const existingJob = await this.botJobQueueService.getJobForTask(
+              task.taskId,
+              log._id.toString(),
+            );
+            const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
-              if (shouldEnqueueNewJob) {
-                const targetJobType =
-                  checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_PRE_EOD';
-                await this.botJobQueueService.enqueue(targetJobType, {
-                  taskId: task.taskId,
-                  shiftLogId: log._id.toString(),
-                  sessionDay: log.shiftDate,
-                });
-                checkResult = {
-                  success: false,
-                  message:
-                    'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...',
-                };
-              } else {
-                if (!existingJob) continue;
-                if (existingJob.status === 'COMPLETED') {
-                  const jobObj = existingJob.toObject();
-                  const payload = jobObj.payload || {};
-                  const result = payload.result || {};
-                  if (result.isWaitingFiles) {
-                    checkResult = {
-                      success: false,
-                      message: result.message || 'Đang chờ file đối chiếu...',
-                    };
-                  } else {
-                    const lastLog =
-                      existingJob.logs[existingJob.logs.length - 1] ||
-                      'Đối chiếu dữ liệu 3 bên thành công.';
-                    checkResult = { success: true, message: lastLog };
-                  }
-                } else if (existingJob.status === 'FAILED') {
-                  const logsSummary = existingJob.logs.join('\n');
+            if (shouldEnqueueNewJob) {
+              const targetJobType =
+                checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_PRE_EOD';
+              await this.botJobQueueService.enqueue(targetJobType, {
+                taskId: task.taskId,
+                shiftLogId: log._id.toString(),
+                sessionDay: log.shiftDate,
+              });
+              checkResult = {
+                success: false,
+                message:
+                  'Đang bắt đầu đối chiếu dữ liệu 3 bên (M-System vs CQG vs ACM)...',
+              };
+            } else {
+              if (!existingJob) continue;
+              if (existingJob.status === 'COMPLETED') {
+                const jobObj = existingJob.toObject();
+                const payload = jobObj.payload || {};
+                const result = payload.result || {};
+                if (result.isWaitingFiles) {
                   checkResult = {
                     success: false,
-                    message: `Đối chiếu 3 bên thất bại:\n${logsSummary}`,
+                    message: result.message || 'Đang chờ file đối chiếu...',
                   };
-                  (checkResult as any).forceFailed = true;
                 } else {
-                  const logsSummary =
-                    existingJob.logs.length > 0
-                      ? existingJob.logs.join('\n')
-                      : 'Đang tự động chạy đối chiếu dữ liệu 3 bên...';
-                  checkResult = { success: false, message: logsSummary };
+                  const lastLog =
+                    existingJob.logs[existingJob.logs.length - 1] ||
+                    'Đối chiếu dữ liệu 3 bên thành công.';
+                  checkResult = { success: true, message: lastLog };
                 }
+              } else if (existingJob.status === 'FAILED') {
+                const logsSummary = existingJob.logs.join('\n');
+                checkResult = {
+                  success: false,
+                  message: `Đối chiếu 3 bên thất bại:\n${logsSummary}`,
+                };
+                (checkResult as any).forceFailed = true;
+              } else {
+                const logsSummary =
+                  existingJob.logs.length > 0
+                    ? existingJob.logs.join('\n')
+                    : 'Đang tự động chạy đối chiếu dữ liệu 3 bên...';
+                checkResult = { success: false, message: logsSummary };
               }
+            }
           } else if (checkType === 'FILE_AUDIT_ACM') {
             const existingJob = await this.botJobQueueService.getJobForTask(
               task.taskId,
@@ -1653,8 +1653,8 @@ export class BotEngineService {
         const taskStartedAt = task.startedAt ? new Date(task.startedAt).getTime() : 0;
         const taskUpdatedAt = task.updatedAt ? new Date(task.updatedAt).getTime() : 0;
         const taskResetTime = Math.max(taskStartedAt, taskUpdatedAt);
-        const lastJobTime = existingJob.updatedAt 
-          ? new Date(existingJob.updatedAt).getTime() 
+        const lastJobTime = existingJob.updatedAt
+          ? new Date(existingJob.updatedAt).getTime()
           : new Date(existingJob.createdAt).getTime();
 
         if (taskResetTime > lastJobTime) {

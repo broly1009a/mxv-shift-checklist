@@ -144,9 +144,9 @@ export default function JobQueuePanel({
       case 'FILE_AUDIT_ACM':
         return ' Tải Báo Cáo Tự Doanh ACM';
       case 'RUN_LOT_MACRO':
-        return '📊 Chạy Excel Macro Số Lot';
+        return ' Chạy Excel Macro Số Lot';
       case 'RUN_VALUE_MACRO':
-        return '📊 Chạy Excel Macro Giá Trị';
+        return ' Chạy Excel Macro Giá Trị';
       default:
         return jobType;
     }

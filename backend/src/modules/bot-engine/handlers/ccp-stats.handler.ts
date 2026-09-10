@@ -19,7 +19,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly ccpStatisticsService: CcpStatisticsService,
     private readonly settingsService: SystemSettingsService,
     private readonly rpaDownloaderService: RpaDownloaderService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -105,7 +105,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
             throw new Error('Tải tệp tin không thành công không rõ lý do.');
           }
         } catch (err: any) {
-          log(`⚠️ Không tải được DSGD MM CCP tự động: ${err.message}`);
+          log(` Không tải được DSGD MM CCP tự động: ${err.message}`);
           dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
           log(
             `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,

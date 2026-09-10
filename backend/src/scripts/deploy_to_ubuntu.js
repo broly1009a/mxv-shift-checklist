@@ -61,7 +61,48 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'backend/src/scripts/python'),
     remoteDir: '/opt/mxv-checklist/backend/src/scripts/python',
   },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/reconciliation'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/reconciliation',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/dashboard'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/dashboard',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/telegram'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/telegram',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/system-settings'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/system-settings',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/margin-checker'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/margin-checker',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/notifications'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/notifications',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/trading-manager'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/trading-manager',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/trading-manager'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/trading-manager',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/bot-config'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/bot-config',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/dashboard'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/dashboard',
+  },
 ];
+
 
 let filesToUpload = [];
 
@@ -96,7 +137,12 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/tkgd_extractor_worker.py',
   },
   {
+    local: path.join(repoRoot, 'backend/src/scripts/python/recon_data_worker.py'),
+    remote: '/opt/mxv-checklist/backend/dist/scripts/python/recon_data_worker.py',
+  },
+  {
     local: path.join(repoRoot, 'backend/assets/templates/Auto Data mail.xlsm'),
+
     remote: '/opt/mxv-checklist/backend/assets/templates/Auto Data mail.xlsm',
   },
   {
@@ -118,6 +164,10 @@ const specificFiles = [
   {
     local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/components/NotificationDropdown.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/NotificationDropdown.tsx',
   },
   {
     local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),

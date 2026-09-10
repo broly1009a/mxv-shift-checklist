@@ -69,14 +69,23 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     {
       label: 'Ngày sinh',
       left: (() => {
-        const raw =
-          (inspectRecord.hopDong?.rawNgaySinh && formatDateStr(inspectRecord.hopDong.rawNgaySinh) !== '-')
-            ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
-            : (inspectRecord.hopDong?.ngaySinh && formatDateStr(inspectRecord.hopDong.ngaySinh) !== '-')
-              ? formatDateStr(inspectRecord.hopDong.ngaySinh)
-              : (inspectRecord.canCuoc?.rawNgaySinh && formatDateStr(inspectRecord.canCuoc.rawNgaySinh) !== '-')
-                ? formatDateStr(inspectRecord.canCuoc.rawNgaySinh)
-                : formatDateStr(inspectRecord.canCuoc?.ngaySinh);
+        const isSubAcc = (inspectRecord.maTKGD || '').includes('-');
+        const cccdDob = (inspectRecord.canCuoc?.rawNgaySinh && formatDateStr(inspectRecord.canCuoc.rawNgaySinh) !== '-')
+          ? formatDateStr(inspectRecord.canCuoc.rawNgaySinh)
+          : formatDateStr(inspectRecord.canCuoc?.ngaySinh);
+        const hdDob = (inspectRecord.hopDong?.rawNgaySinh && formatDateStr(inspectRecord.hopDong.rawNgaySinh) !== '-')
+          ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
+          : formatDateStr(inspectRecord.hopDong?.ngaySinh);
+        const msDob = (inspectRecord.ms?.rawNgaySinh && formatDateStr(inspectRecord.ms.rawNgaySinh) !== '-')
+          ? formatDateStr(inspectRecord.ms.rawNgaySinh)
+          : formatDateStr(inspectRecord.ms?.ngaySinh);
+
+        let raw = hdDob && hdDob !== '-' ? hdDob : cccdDob;
+        if (cccdDob && cccdDob !== '-' && msDob && cccdDob === msDob) {
+          raw = cccdDob;
+        } else if (isSubAcc && cccdDob && cccdDob !== '-') {
+          raw = cccdDob;
+        }
         if (raw && raw !== '-') return raw;
         // Tự suy luận năm sinh từ cấu trúc 12 chữ số CCCD chuẩn BCA
         const cccd = (inspectRecord.hopDong?.soCanCuoc || inspectRecord.canCuoc?.soCanCuoc || inspectRecord.ms?.soCMND_HoChieu || '').replace(/\D/g, '');

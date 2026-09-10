@@ -17,7 +17,7 @@ export class VerifyEmailJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly telegramService: TelegramService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -137,7 +137,7 @@ export class VerifyEmailJobHandler implements IBotJobHandler, OnModuleInit {
         await job.save();
 
         const alertMsg =
-          `⚠️ <b>[CẢNH BÁO LỖI GỬI EMAIL SAO KÊ]</b>\n` +
+          ` <b>[CẢNH BÁO LỖI GỬI EMAIL SAO KÊ]</b>\n` +
           `Hệ thống phát hiện lỗi gửi email sao kê giao dịch ngày <b>${checkDateStr}</b>:\n\n` +
           `• Tổng số email: <b>${matchingRows.length}</b>\n` +
           `• Số lượng lỗi: <b>${failedRows.length}</b>\n\n` +

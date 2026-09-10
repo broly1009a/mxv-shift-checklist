@@ -1,5 +1,7 @@
 // @ts-nocheck
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,6 +12,10 @@ import { decrypt } from '../bot-engine/utils/crypto';
 import { chromium } from 'playwright-core';
 import { TeamsNotifierService } from '../notifications/teams-notifier.service';
 import { EmailWatcherService } from '../bot-engine/email-watcher.service';
+import { BotJob } from '../../schemas/bot-job.schema';
+import { ShiftLog } from '../../schemas/shift-log.schema';
+import { BotJobQueueService } from '../bot-engine/bot-job-queue.service';
+import { ShiftsService } from '../shifts/shifts.service';
 
 export interface CheckKLGDResult {
   totals: {
@@ -61,7 +67,15 @@ export class ReconciliationService {
     private readonly teamsNotifierService: TeamsNotifierService,
     @Inject(forwardRef(() => EmailWatcherService))
     private readonly emailWatcherService: EmailWatcherService,
-  ) {}
+    @Optional() @InjectModel(BotJob.name)
+    private readonly botJobModel?: Model<BotJob>,
+    @Optional() @InjectModel(ShiftLog.name)
+    private readonly shiftLogModel?: Model<ShiftLog>,
+    @Optional() @Inject(forwardRef(() => BotJobQueueService))
+    private readonly botJobQueueService?: BotJobQueueService,
+    @Optional()
+    private readonly shiftsService?: ShiftsService,
+  ) { }
 
   private parseCqgNumber(val: any): number {
     if (val === undefined || val === null) return 0;
@@ -617,14 +631,14 @@ export class ReconciliationService {
 
           const maLenh =
             brokerTradeIdColIndex !== -1 &&
-            brokerTradeIdColIndex < values.length
+              brokerTradeIdColIndex < values.length
               ? values[brokerTradeIdColIndex].replace(/"/g, '').trim()
               : 'STRAITS';
           const maTKGD =
             subAccColIndex !== -1 && subAccColIndex < values.length
               ? this.getNormalizedAccount(
-                  values[subAccColIndex].replace(/"/g, '').trim(),
-                )
+                values[subAccColIndex].replace(/"/g, '').trim(),
+              )
               : 'Straits';
           const maHD =
             productCodeColIndex !== -1 && productCodeColIndex < values.length
@@ -636,7 +650,7 @@ export class ReconciliationService {
               : 0;
           const ngayGio =
             executionTimeColIndex !== -1 &&
-            executionTimeColIndex < values.length
+              executionTimeColIndex < values.length
               ? values[executionTimeColIndex].replace(/"/g, '').trim()
               : '';
           const maGD = maLenh;
@@ -985,6 +999,11 @@ export class ReconciliationService {
     tradingDate: Date,
     holidays: string[] = [],
     sessionStartStr: string = '05:00',
+    options?: {
+      checkKlgd?: boolean;
+      checkTtm?: boolean;
+      checkTttt?: boolean;
+    },
   ): Promise<CheckKLGDResult> {
     if (sessionStartStr) {
       await this.settingsService.setSetting(
@@ -1224,37 +1243,57 @@ export class ReconciliationService {
     });
 
     // --- II. TTM (Open Positions Matching) ---
+    let totalTTM = 0;
+    let totalACM_TTM = 0;
+    let totalOP = 0;
+    const ttmSummary: Record<string, number> = {};
+    const opSummary: Record<string, number> = {};
     const mismatchedTTM: Array<{
       maTKGD: string;
       ttmValue: number;
       opValue: number;
       differ: number;
     }> = [];
-    if (files.ttm && (files.op || files.op1 || files.op2)) {
+
+    // 1. Độc lập parse TTM (M-System)
+    if (files.ttm) {
       const ttmData = this.parseTTM(files.ttm);
+      ttmData.forEach((t) => {
+        const qty = t.tongMua + t.tongBan;
+        const cleanAcc = String(t.maTKGD || '').trim().toUpperCase();
+        if (cleanAcc.endsWith('A')) {
+          totalACM_TTM += qty;
+        } else {
+          totalTTM += qty;
+        }
+        ttmSummary[cleanAcc] = (ttmSummary[cleanAcc] || 0) + qty;
+      });
+    }
+
+    // 2. Độc lập parse OP (CQG)
+    if (files.op || files.op1 || files.op2) {
       const opData: any[] = [];
       if (files.op) opData.push(...this.parseOP(files.op));
       if (files.op1) opData.push(...this.parseOP(files.op1));
       if (files.op2) opData.push(...this.parseOP(files.op2));
 
-      // Group totals by Account
-      const ttmSummary: Record<string, number> = {};
-      ttmData.forEach((t) => {
-        ttmSummary[t.maTKGD] =
-          (ttmSummary[t.maTKGD] || 0) + t.tongMua + t.tongBan;
-      });
-
-      const opSummary: Record<string, number> = {};
       opData.forEach((o) => {
-        opSummary[o.account] =
-          (opSummary[o.account] || 0) + o.lValue + o.sValue;
+        const cleanAcc = String(o.account || '').trim().toUpperCase();
+        const qty = o.lValue + o.sValue;
+        if (!cleanAcc.endsWith('A')) {
+          totalOP += qty;
+        }
+        opSummary[cleanAcc] = (opSummary[cleanAcc] || 0) + qty;
       });
+    }
 
+    // 3. Đối chiếu chi tiết từng tài khoản khi có đủ cả 2 file
+    if (files.ttm && (files.op || files.op1 || files.op2)) {
       const allAccounts = Array.from(
         new Set([...Object.keys(ttmSummary), ...Object.keys(opSummary)]),
       );
       allAccounts.forEach((acc) => {
-        if (acc.toUpperCase().endsWith('A')) return; // Skip ACM
+        if (acc.endsWith('A')) return; // Bỏ qua tài khoản ACM
 
         const ttmVal = ttmSummary[acc] || 0;
         const opVal = opSummary[acc] || 0;
@@ -1272,7 +1311,10 @@ export class ReconciliationService {
 
     // --- III. TTTT vs PS (Closed Trades Matching) ---
     let totalTTTT = 0;
+    let totalACM_TTTT = 0;
     let totalPS = 0;
+    const ttttSummary: Record<string, number> = {};
+    const psSummary: Record<string, number> = {};
     const mismatchedTTTT: Array<{
       maTKGD: string;
       ttttValue: number;
@@ -1280,33 +1322,43 @@ export class ReconciliationService {
       differ: number;
     }> = [];
 
-    if (files.tttt && (files.ps || files.ps1 || files.ps2)) {
+    // 1. Độc lập parse TTTT (M-System)
+    if (files.tttt) {
       const ttttData = this.parseTTTTForVolume(files.tttt);
+      ttttData.forEach((t) => {
+        const cleanAcc = String(t.maTKGD || '').trim().toUpperCase();
+        if (cleanAcc.endsWith('A')) {
+          totalACM_TTTT += t.tongBan;
+        } else {
+          totalTTTT += t.tongBan;
+        }
+        ttttSummary[cleanAcc] = (ttttSummary[cleanAcc] || 0) + t.tongBan;
+      });
+    }
+
+    // 2. Độc lập parse PS (CQG)
+    if (files.ps || files.ps1 || files.ps2) {
       const psData: any[] = [];
       if (files.ps) psData.push(...this.parsePSForVolume(files.ps));
       if (files.ps1) psData.push(...this.parsePSForVolume(files.ps1));
       if (files.ps2) psData.push(...this.parsePSForVolume(files.ps2));
-      const filteredPsData = psData;
 
-      const ttttSummary: Record<string, number> = {};
-      ttttData.forEach((t) => {
-        if (!t.maTKGD.toUpperCase().endsWith('A')) {
-          totalTTTT += t.tongBan;
-          ttttSummary[t.maTKGD] = (ttttSummary[t.maTKGD] || 0) + t.tongBan;
+      psData.forEach((p) => {
+        const cleanAcc = String(p.account || '').trim().toUpperCase();
+        if (!cleanAcc.endsWith('A')) {
+          totalPS += p.sValue;
         }
+        psSummary[cleanAcc] = (psSummary[cleanAcc] || 0) + p.sValue;
       });
+    }
 
-      const psSummary: Record<string, number> = {};
-      filteredPsData.forEach((p) => {
-        totalPS += p.sValue;
-        psSummary[p.account] = (psSummary[p.account] || 0) + p.sValue;
-      });
-
+    // 3. Đối chiếu chi tiết từng tài khoản khi có đủ cả 2 file
+    if (files.tttt && (files.ps || files.ps1 || files.ps2)) {
       const allTtttAccounts = Array.from(
         new Set([...Object.keys(ttttSummary), ...Object.keys(psSummary)]),
       );
       allTtttAccounts.forEach((acc) => {
-        if (acc.toUpperCase().endsWith('A')) return; // Skip ACM
+        if (acc.endsWith('A')) return; // Bỏ qua tài khoản ACM
 
         const ttttVal = ttttSummary[acc] || 0;
         const psVal = psSummary[acc] || 0;
@@ -1322,13 +1374,21 @@ export class ReconciliationService {
       });
     }
 
+    const checkKlgdFlag = options?.checkKlgd !== false;
+    const checkTtmFlag = options?.checkTtm !== false;
+    const checkTtttFlag = options?.checkTttt !== false;
+
+    const finalMismatchedTrades = checkKlgdFlag ? mismatchedTrades : [];
+    const finalDiffer = checkKlgdFlag ? differ : 0;
+    const finalDifferACM = checkKlgdFlag ? differACM : 0;
+    const finalMismatchedTTM = checkTtmFlag ? mismatchedTTM : [];
+    const finalMismatchedTTTT = checkTtttFlag && files.tttt ? mismatchedTTTT : undefined;
+    const finalDifferTTTT = checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) ? Math.abs(totalTTTT - totalPS) : undefined;
+
     const hasDiscrepancy =
-      differ > 0 ||
-      differACM > 0 ||
-      mismatchedTrades.length > 0 ||
-      mismatchedTTM.length > 0 ||
-      (files.tttt &&
-        (Math.abs(totalTTTT - totalPS) > 0 || mismatchedTTTT.length > 0));
+      (checkKlgdFlag && (finalDiffer > 0 || finalDifferACM > 0 || finalMismatchedTrades.length > 0)) ||
+      (checkTtmFlag && finalMismatchedTTM.length > 0) ||
+      (checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) && ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
 
     return {
       totals: {
@@ -1336,15 +1396,39 @@ export class ReconciliationService {
         totalFR,
         totalACM,
         totalNano,
-        differ,
-        differACM,
-        totalTTTT: files.tttt ? totalTTTT : undefined,
-        totalPS: files.tttt ? totalPS : undefined,
-        differTTTT: files.tttt ? Math.abs(totalTTTT - totalPS) : undefined,
+        differ: finalDiffer,
+        differACM: finalDifferACM,
+        totalTTM: files.ttm ? totalTTM : 0,
+        totalTTM_MS: files.ttm ? totalTTM : 0,
+        totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
+        totalTTM_CQG: files.op || files.op1 || files.op2 ? totalOP : 0,
+        totalACM_TTM: files.ttm ? totalACM_TTM : 0,
+        totalTTM_ACM: files.ttm ? totalACM_TTM : 0,
+        differTTM: files.ttm && (files.op || files.op1 || files.op2) ? Math.abs(totalTTM - totalOP) : 0,
+        totalTTTT: files.tttt ? totalTTTT : 0,
+        totalTTTT_MS: files.tttt ? totalTTTT : 0,
+        totalPS: files.ps || files.ps1 || files.ps2 ? totalPS : 0,
+        totalPS_CQG: files.ps || files.ps1 || files.ps2 ? totalPS : 0,
+        totalACM_TTTT: files.tttt ? totalACM_TTTT : 0,
+        totalTTTT_ACM: files.tttt ? totalACM_TTTT : 0,
+        differTTTT: finalDifferTTTT,
       },
-      mismatchedTrades,
-      mismatchedTTM,
-      mismatchedTTTT: files.tttt ? mismatchedTTTT : undefined,
+      totalTTM: files.ttm ? totalTTM : 0,
+      totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
+      totalTtmAcm: files.ttm ? totalACM_TTM : 0,
+      totalDSGD,
+      totalFR,
+      totalACM,
+      totalNano,
+      differ: finalDiffer,
+      differACM: finalDifferACM,
+      totalTTTT: files.tttt ? totalTTTT : 0,
+      totalPS: files.ps || files.ps1 || files.ps2 ? totalPS : 0,
+      totalTtttAcm: files.tttt ? totalACM_TTTT : 0,
+      differTTTT: finalDifferTTTT,
+      mismatchedTrades: finalMismatchedTrades,
+      mismatchedTTM: finalMismatchedTTM,
+      mismatchedTTTT: finalMismatchedTTTT,
       sessionStart,
       checkTime,
       passed: !hasDiscrepancy,
@@ -1464,6 +1548,12 @@ export class ReconciliationService {
     }
 
     const negativeIMRAcc: string[] = [];
+    const mismatchedEOD: Array<{
+      maTKGD: string;
+      calculatedBalance: number;
+      eodBalance: number;
+      differ: number;
+    }> = [];
 
     // 2. Parse EOD CSV file (eod.csv) if provided
     if (files.eod) {
@@ -1517,11 +1607,26 @@ export class ReconciliationService {
             );
           }
 
+          const eodBalanceIdx = this.findHeaderIndex(eodHeader, 'eodBalance', [
+            'EOD Balance',
+            'EODBalance',
+            'eod_balance',
+          ]);
+
+          const eodMap = new Map<string, number>();
+
           for (let i = 1; i < eodRows.length; i++) {
             const row = eodRows[i];
             if (!row || row.length === 0) continue;
             const investorCode = String(row[investorCodeIdx] || '').trim();
             if (!investorCode) continue;
+
+            if (eodBalanceIdx !== -1) {
+              const eodBal = parseFloat(row[eodBalanceIdx]);
+              if (!isNaN(eodBal)) {
+                eodMap.set(investorCode, eodBal);
+              }
+            }
 
             const initialRequiredMargin =
               initialRequiredMarginIdx !== -1
@@ -1555,6 +1660,69 @@ export class ReconciliationService {
               additionalMargin > 0
             ) {
               negativeIMRAcc.push(investorCode);
+            }
+          }
+
+          // C# IT Tool: Đối chiếu công thức QLTKGD vs EOD Balance (ngưỡng lệch >= 1000)
+          if (eodMap.size > 0) {
+            const dynamicRates = await this.getCurrentExchangeRates();
+            const effectiveRates = {
+              usdLoss: exchangeRates?.usdLoss || dynamicRates.usdLoss,
+              usdGain: exchangeRates?.usdGain || dynamicRates.usdGain,
+              jpyLoss: exchangeRates?.jpyLoss || dynamicRates.jpyLoss,
+              jpyGain: exchangeRates?.jpyGain || dynamicRates.jpyGain,
+              myrLoss: exchangeRates?.myrLoss || dynamicRates.myrLoss,
+              myrGain: exchangeRates?.myrGain || dynamicRates.myrGain,
+            };
+
+            const soDuDauNgayIdx = this.findHeaderIndex(qltkgdHeader, 'Số dư TKKQ đầu ngày', ['Số dư đầu ngày', 'TKKQ đầu ngày']);
+            const nopRutIdx = this.findHeaderIndex(qltkgdHeader, 'Nộp rút trong phiên', ['Nộp rút']);
+            const phiGDIdx = this.findHeaderIndex(qltkgdHeader, 'Phí giao dịch', ['Phí GD']);
+            const phiQCIdx = this.findHeaderIndex(qltkgdHeader, 'Phí quyền chọn', ['Phí QC']);
+            const laiLoVNDIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (VND)', ['Lãi lỗ thực tế (VND)', 'Lãi lỗ Futures (VND)', 'Lãi lỗ VND']);
+            const laiLoUSDIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (USD)', ['Lãi lỗ USD', 'Lãi/lỗ USD', 'Lãi lỗ thực tế (USD)', 'Lãi lỗ Futures (USD)']);
+            const laiLoJPYIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ JPY', ['Lãi/lỗ JPY']);
+            const laiLoMYRIdx = this.findHeaderIndex(qltkgdHeader, 'Lãi lỗ MYR', ['Lãi/lỗ MYR']);
+            const phiDVIdx = this.findHeaderIndex(qltkgdHeader, 'Phí dịch vụ thanh toán (VND)', ['Phí DV thanh toán', 'Phí thanh toán']);
+
+            if (soDuDauNgayIdx !== -1) {
+              for (let i = 1; i < qltkgdRows.length; i++) {
+                const qRow = qltkgdRows[i];
+                if (!qRow || qRow.length === 0) continue;
+                const acc = String(qRow[maTKGDIdx] || '').trim();
+                if (!acc || !eodMap.has(acc)) continue;
+
+                const soDuDauNgay = parseFloat(qRow[soDuDauNgayIdx]) || 0;
+                const nopRut = nopRutIdx !== -1 ? parseFloat(qRow[nopRutIdx]) || 0 : 0;
+                const phiGD = phiGDIdx !== -1 ? parseFloat(qRow[phiGDIdx]) || 0 : 0;
+                const phiQC = phiQCIdx !== -1 ? parseFloat(qRow[phiQCIdx]) || 0 : 0;
+                const laiLoVND = laiLoVNDIdx !== -1 ? parseFloat(qRow[laiLoVNDIdx]) || 0 : 0;
+                const laiLoUSD = laiLoUSDIdx !== -1 ? parseFloat(qRow[laiLoUSDIdx]) || 0 : 0;
+                const laiLoJPY = laiLoJPYIdx !== -1 ? parseFloat(qRow[laiLoJPYIdx]) || 0 : 0;
+                const laiLoMYR = laiLoMYRIdx !== -1 ? parseFloat(qRow[laiLoMYRIdx]) || 0 : 0;
+                const phiDV = phiDVIdx !== -1 ? parseFloat(qRow[phiDVIdx]) || 0 : 0;
+
+                const tyGiaUSD = (phiQC + laiLoUSD < 0) ? effectiveRates.usdLoss : effectiveRates.usdGain;
+                const tyGiaJPY = (laiLoJPY < 0) ? effectiveRates.jpyLoss : effectiveRates.jpyGain;
+                const tyGiaMYR = (laiLoMYR < 0) ? effectiveRates.myrLoss : effectiveRates.myrGain;
+
+                const totalTradeProfit = laiLoVND !== 0
+                  ? (laiLoVND + phiQC * tyGiaUSD)
+                  : ((phiQC + laiLoUSD) * tyGiaUSD + laiLoJPY * tyGiaJPY + laiLoMYR * tyGiaMYR);
+
+                const calculated = soDuDauNgay + nopRut - phiGD - phiDV + totalTradeProfit;
+                const eodVal = eodMap.get(acc)!;
+                const differ = Math.abs(eodVal - calculated);
+
+                if (differ >= 1000) {
+                  mismatchedEOD.push({
+                    maTKGD: acc,
+                    calculatedBalance: Math.round(calculated),
+                    eodBalance: Math.round(eodVal),
+                    differ: Math.round(differ),
+                  });
+                }
+              }
             }
           }
         }
@@ -1650,7 +1818,7 @@ export class ReconciliationService {
     return {
       negativeIMRAcc,
       negativeBalanceAccs,
-      mismatchedEOD: [],
+      mismatchedEOD,
       excelBase64: excelBuffer.toString('base64'),
     };
   }
@@ -1665,7 +1833,7 @@ export class ReconciliationService {
       qltkgdName?: string;
       accountsBalancesName?: string;
     },
-    usdExchangeRate: number = 25220,
+    usdExchangeRate?: number,
   ): Promise<
     Array<{
       maTKGD: string;
@@ -1676,6 +1844,10 @@ export class ReconciliationService {
       inCQG: boolean;
     }>
   > {
+    let effectiveRate = usdExchangeRate;
+    if (!effectiveRate || effectiveRate === 25220) {
+      effectiveRate = await this.getCurrentUsdRate();
+    }
     // 1. Parse QLTKGD.xlsx
     const qltkgdWorkbook = XLSX.read(files.qltkgd, { type: 'buffer' });
     const qltkgdSheet = qltkgdWorkbook.Sheets[qltkgdWorkbook.SheetNames[0]];
@@ -1867,7 +2039,7 @@ export class ReconciliationService {
           (qltkgdRow.soDuTKKQHienTai +
             qltkgdRow.choDaoHan -
             qltkgdRow.laiLoVND) /
-          usdExchangeRate;
+          effectiveRate;
         const roundedCalc = Math.round(calculated * 100) / 100;
         const roundedCQG = Math.round(cqgBalance * 100) / 100;
         const differ = Math.abs(roundedCalc - roundedCQG);
@@ -2766,8 +2938,8 @@ export class ReconciliationService {
     const accountsBalancesPath =
       this.findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
       this.findLatestFile(dailyPath, /Accounts_Balances/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
+    // Fallback UAT (Commented out for Go-Live):
+    // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
 
     if (!accountsBalancesPath) {
       throw new Error(
@@ -2820,14 +2992,14 @@ export class ReconciliationService {
     const hasDiscrepancy = significantDiscrepancies.length > 0;
 
     // Soạn tin nhắn Telegram
-    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU SOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    let telegramMsg = ` <b>[ĐỐI CHIẾU SOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
     telegramMsg += `• Trạng thái: ${hasDiscrepancy ? '<b>PHÁT HIỆN LỆCH SỐ DƯ</b>' : `✓ Khớp hoàn toàn (sai số &lt; $${differThreshold})`}\n`;
     telegramMsg += `• File QLTKGD: <code>${path.basename(qltkgdPath)}</code>\n`;
     telegramMsg += `• File CQG CAST: <code>${path.basename(accountsBalancesPath)}</code>\n`;
     telegramMsg += `• Tỷ giá USD áp dụng: <code>${usdRate} VND</code>\n`;
 
     if (hasDiscrepancy) {
-      telegramMsg += `\n⚠️ <b>Danh sách tài khoản lệch (> $${differThreshold}):</b>\n`;
+      telegramMsg += `\n <b>Danh sách tài khoản lệch (> $${differThreshold}):</b>\n`;
       significantDiscrepancies.slice(0, 15).forEach((d) => {
         telegramMsg += `- <b>TK ${d.maTKGD}</b>: MS <code>$${d.calculatedBalance}</code> vs CQG <code>$${d.cqgBalance}</code> (Lệch: <b>$${d.differ.toFixed(2)}</b>)\n`;
       });
@@ -3324,42 +3496,53 @@ export class ReconciliationService {
       const f1 = files.find((f) => regex1.test(f) && !f.startsWith('~$'));
       const f2 = files.find((f) => regex2.test(f) && !f.startsWith('~$'));
 
-      if (!f1) return null;
+      if (!f1 && !f2) return null;
 
-      const p1 = path.join(dirPath, f1);
+      const p1 = f1 ? path.join(dirPath, f1) : null;
       const p2 = f2 ? path.join(dirPath, f2) : null;
       const destPath = path.join(dirPath, `${prefix}.xlsx`);
 
-      const wb1 = XLSX.readFile(p1);
-      const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], {
-        header: 1,
-      });
-      const headerRow = rows1[1] || rows1[0] || [];
-      const data1 =
-        rows1.length > 2
-          ? rows1.slice(2, rows1.length - (prefix === 'FR' ? 2 : 0))
-          : rows1.slice(1);
-      const mergedData = [headerRow, ...data1];
-
-      if (p2 && fs.existsSync(p2)) {
-        const wb2 = XLSX.readFile(p2);
-        const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], {
-          header: 1,
-        });
-        if (rows2.length > 2) {
-          const data2 = rows2.slice(
-            2,
-            rows2.length - (prefix === 'FR' ? 2 : 0),
-          );
-          mergedData.push(...data2);
-        }
+      let rows1: any[][] = [];
+      if (p1 && fs.existsSync(p1)) {
+        try {
+          const wb1 = XLSX.readFile(p1);
+          rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 });
+        } catch {}
       }
+
+      let rows2: any[][] = [];
+      if (p2 && fs.existsSync(p2)) {
+        try {
+          const wb2 = XLSX.readFile(p2);
+          rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 });
+        } catch {}
+      }
+
+      const headerRow = rows1[1] || rows1[0] || rows2[1] || rows2[0] || [];
+      const data1 =
+        rows1.length > 4
+          ? rows1.slice(2, rows1.length - (prefix === 'FR' ? 2 : 0))
+          : rows1.length > 2
+            ? rows1.slice(2)
+            : [];
+      const data2 =
+        rows2.length > 4
+          ? rows2.slice(2, rows2.length - (prefix === 'FR' ? 2 : 0))
+          : rows2.length > 2
+            ? rows2.slice(2)
+            : [];
+
+      const mergedData: any[] = [];
+      if (headerRow && headerRow.length > 0) {
+        mergedData.push(headerRow);
+      }
+      mergedData.push(...data1, ...data2);
 
       const nwb = XLSX.utils.book_new();
       const ns = XLSX.utils.aoa_to_sheet(mergedData);
       XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
       XLSX.writeFile(nwb, destPath, { compression: true });
-      this.logger.log(`Tự động ghép ${f1} + ${f2 || ''} -> ${destPath}`);
+      this.logger.log(`Tự động ghép ${f1 || ''} + ${f2 || ''} -> ${destPath} (${mergedData.length} dòng)`);
       return destPath;
     } catch (err: any) {
       this.logger.error(`Lỗi ghép file ${prefix}: ${err.message}`);
@@ -3367,7 +3550,53 @@ export class ReconciliationService {
     }
   }
 
-  async runAutoCheckKLGD(tradingDate: Date): Promise<any> {
+  private resolveCqgFile(
+    dirPath: string,
+    prefix: 'FR' | 'PS' | 'OP',
+  ): string | null {
+    if (!fs.existsSync(dirPath)) return null;
+
+    const mergedFile = this.findLatestFile(dirPath, new RegExp(`^${prefix}\\.xlsx$`, 'i'));
+    const f1 = this.findLatestFile(dirPath, new RegExp(`^${prefix}\\s*1.*\\.xlsx$`, 'i'));
+    const f2 = this.findLatestFile(dirPath, new RegExp(`^${prefix}\\s*2.*\\.xlsx$`, 'i'));
+
+    if (f1 || f2) {
+      if (!mergedFile) {
+        return this.mergeCqgRawFiles(dirPath, prefix);
+      }
+      try {
+        const mergedMtime = fs.statSync(mergedFile).mtimeMs;
+        const f1Mtime = f1 ? fs.statSync(f1).mtimeMs : 0;
+        const f2Mtime = f2 ? fs.statSync(f2).mtimeMs : 0;
+        const mergedSize = fs.statSync(mergedFile).size;
+
+        if (f1Mtime > mergedMtime || f2Mtime > mergedMtime || mergedSize < 2500) {
+          this.logger.log(
+            `[Recon] Raw files cho ${prefix} mới hơn hoặc file gộp quá nhỏ (${mergedSize}B). Tự động ghép lại...`,
+          );
+          const newMerged = this.mergeCqgRawFiles(dirPath, prefix);
+          if (newMerged) return newMerged;
+        }
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi kiểm tra mtime ${prefix}: ${err.message}`);
+      }
+    }
+
+    return (
+      mergedFile ||
+      this.mergeCqgRawFiles(dirPath, prefix) ||
+      this.findLatestFile(dirPath, new RegExp(`${prefix}`, 'i'))
+    );
+  }
+
+  async runAutoCheckKLGD(
+    tradingDate: Date,
+    options?: {
+      checkKlgd?: boolean;
+      checkTtm?: boolean;
+      checkTttt?: boolean;
+    },
+  ): Promise<any> {
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
@@ -3398,34 +3627,12 @@ export class ReconciliationService {
     const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
 
     const acmTradesPath =
+      this.findLatestFile(acmDailyPath, /Straits/i) ||
       this.findLatestFile(acmDailyPath, /Nano|Fill/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /Nano|Fill/i)
-      // || this.findLatestFile(userDownloadsDir, /Nano|Fill/i);
 
-    const cqgFrPath =
-      this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i) ||
-      this.mergeCqgRawFiles(cqgDailyPath, 'FR') ||
-      this.findLatestFile(cqgDailyPath, /FR/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
-      // || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
-      // || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
-      // || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
-      // || this.findLatestFile(castDownloadsDir, /FR/i)
-      // || this.findLatestFile(userDownloadsDir, /FR/i);
-
-    const cqgPsPath =
-      this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i) ||
-      this.mergeCqgRawFiles(cqgDailyPath, 'PS') ||
-      this.findLatestFile(cqgDailyPath, /Positions|PS/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
-      // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
-      // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
-      // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
-      // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
-      // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+    const cqgFrPath = this.resolveCqgFile(cqgDailyPath, 'FR');
+    const cqgPsPath = this.resolveCqgFile(cqgDailyPath, 'PS');
+    const cqgOpPath = this.resolveCqgFile(cqgDailyPath, 'OP');
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -3443,10 +3650,18 @@ export class ReconciliationService {
       sessionStart.setDate(sessionStart.getDate() - 1);
     }
 
+    const checkKlgdFlag = options?.checkKlgd !== false;
+    const checkTtmFlag = options?.checkTtm !== false;
+
     const missingFiles: string[] = [];
-    if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
-    if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
-    if (!cqgFrPath) missingFiles.push(`CQG FR`);
+    if (checkKlgdFlag) {
+      if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
+      if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
+      if (!cqgFrPath) missingFiles.push(`CQG FR`);
+    }
+    if (checkTtmFlag) {
+      if (!fs.existsSync(ttmPath)) missingFiles.push(`TTM.xlsx`);
+    }
 
     if (missingFiles.length > 0) {
       return {
@@ -3477,8 +3692,10 @@ export class ReconciliationService {
     if (fs.existsSync(ttttPath)) files.tttt = fs.readFileSync(ttttPath);
     if (cqgPsPath && fs.existsSync(cqgPsPath))
       files.ps = fs.readFileSync(cqgPsPath);
+    if (cqgOpPath && fs.existsSync(cqgOpPath))
+      files.op = fs.readFileSync(cqgOpPath);
 
-    return this.checkKLGD(files, tradingDate, [], sessionStartStr);
+    return this.checkKLGD(files, tradingDate, [], sessionStartStr, options);
   }
 
   async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
@@ -3517,33 +3734,19 @@ export class ReconciliationService {
 
     const acmTradesPath =
       this.findLatestFile(acmDailyPath, /Straits/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /Straits/i)
-      // || this.findLatestFile(userDownloadsDir, /Straits/i);
+    // Fallback UAT (Commented out for Go-Live):
+    // || this.findLatestFile(castDownloadsDir, /Straits/i)
+    // || this.findLatestFile(userDownloadsDir, /Straits/i);
 
-    const cqgFrPath =
-      this.findLatestFile(cqgDailyPath, /^FR\.xlsx$/i) ||
-      this.mergeCqgRawFiles(cqgDailyPath, 'FR') ||
-      this.findLatestFile(cqgDailyPath, /FR/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^FR\.xlsx$/i)
-      // || this.findLatestFile(userDownloadsDir, /^FR\.xlsx$/i)
-      // || this.mergeCqgRawFiles(castDownloadsDir, 'FR')
-      // || this.mergeCqgRawFiles(userDownloadsDir, 'FR')
-      // || this.findLatestFile(castDownloadsDir, /FR/i)
-      // || this.findLatestFile(userDownloadsDir, /FR/i);
-
-    const cqgPsPath =
-      this.findLatestFile(cqgDailyPath, /^PS\.xlsx$/i) ||
-      this.mergeCqgRawFiles(cqgDailyPath, 'PS') ||
-      this.findLatestFile(cqgDailyPath, /Positions|PS/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
-      // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
-      // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
-      // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
-      // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
-      // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
+    const cqgFrPath = this.resolveCqgFile(cqgDailyPath, 'FR');
+    const cqgPsPath = this.resolveCqgFile(cqgDailyPath, 'PS');
+    // Fallback UAT (Commented out for Go-Live):
+    // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
+    // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
+    // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
+    // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
+    // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
+    // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -3606,7 +3809,7 @@ export class ReconciliationService {
     );
 
     // Gửi Telegram alert
-    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    let telegramMsg = ` <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
     if (result.sessionStart && result.checkTime) {
       const startStr = result.sessionStart.toLocaleString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',
@@ -3653,14 +3856,14 @@ export class ReconciliationService {
     const castDownloadsDir = path.join(process.cwd(), 'temp', 'cast-downloads');
     const eodPath =
       this.findLatestFile(msDailyPath, /eod/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /eod/i);
+    // Fallback UAT (Commented out for Go-Live):
+    // || this.findLatestFile(castDownloadsDir, /eod/i);
 
     const accountsBalancesPath =
       this.findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
       this.findLatestFile(msDailyPath, /Accounts_Balances/i);
-      // Fallback UAT (Commented out for Go-Live):
-      // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
+    // Fallback UAT (Commented out for Go-Live):
+    // || this.findLatestFile(castDownloadsDir, /^Accounts_Balances_.*\.xlsx$/i);
 
     if (!fs.existsSync(qltkgdPath))
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
@@ -3678,9 +3881,9 @@ export class ReconciliationService {
       );
       const usdRateStr = await this.settingsService.getSetting(
         'usd_exchange_rate',
-        '25220',
+        '25920',
       );
-      usdRate = parseFloat(usdRateStr) || 25220;
+      usdRate = parseFloat(usdRateStr) || 25920;
     }
 
     // Chạy check EOD (Negative Margin)
@@ -3703,7 +3906,7 @@ export class ReconciliationService {
     const negativeIMRAcc = eodResult?.negativeIMRAcc || [];
     const totalNegative = negativeBalanceAccs.length + negativeIMRAcc.length;
     const totalMismatched = cqgResult ? cqgResult.length : 0;
-    let telegramMsg = `🔔 <b>[ĐỐI CHIẾU EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
+    let telegramMsg = ` <b>[ĐỐI CHIẾU EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
     telegramMsg += `• Trạng thái: ${totalNegative === 0 && totalMismatched === 0 ? '✓ Khớp hoàn toàn & Không có tài khoản âm' : '<b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
     telegramMsg += `• Tài khoản âm số dư hiện tại: <b>${negativeBalanceAccs.length}</b>\n`;
     telegramMsg += `• Tài khoản âm ký quỹ khả dụng (IMR): <b>${negativeIMRAcc.length}</b>\n`;
@@ -3711,7 +3914,21 @@ export class ReconciliationService {
 
     await this.telegramService.sendMessage(telegramMsg);
 
-    return { eodResult, cqgResult };
+    return {
+      eodResult,
+      cqgResult,
+      totals: {
+        totalACM_MS: 0,
+        totalACM_Straits: 0,
+        differACM: 0,
+        totalCQG_MS: 0,
+        totalCQG_FR: 0,
+        differCQG: 0,
+        totalMismatchedCQG: totalMismatched,
+        totalNegativeBalance: negativeBalanceAccs.length,
+        totalNegativeIMR: negativeIMRAcc.length,
+      },
+    };
   }
 
   /**
@@ -3818,7 +4035,7 @@ export class ReconciliationService {
         this.logger.warn(
           `Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
         );
-        await page.click('button.btn-primary').catch(() => {});
+        await page.click('button.btn-primary').catch(() => { });
         await page.waitForTimeout(2000);
       }
 
@@ -3838,7 +4055,7 @@ export class ReconciliationService {
       this.logger.log('Xác thực đăng nhập...');
       await page
         .waitForURL(/.*dashboard.*/, { timeout: 15000 })
-        .catch(() => {});
+        .catch(() => { });
       await page.waitForTimeout(3000);
       this.logger.log(
         '🎉 Đăng nhập M-System thành công! Đang chuyển hướng tới trang tỷ giá...',
@@ -3848,9 +4065,10 @@ export class ReconciliationService {
       await page.goto(exchangeRateUrl);
       await page.waitForTimeout(5000); // Đợi bảng tải dữ liệu
 
-      // Trích xuất tỷ giá USD/VND
-      const rateText = await page.evaluate(() => {
-        // 1. Thử tìm theo cấu trúc ag-Grid (M-System mới dùng ag-Grid)
+      // Trích xuất toàn bộ bảng tỷ giá quy đổi
+      const rates = await page.evaluate(() => {
+        const result: Record<string, number> = {};
+        // 1. Thử tìm theo cấu trúc ag-Grid (M-System dùng ag-Grid)
         const agRows = Array.from(document.querySelectorAll('[role="row"]'));
         for (const row of agRows) {
           const baseCell = row.querySelector('[col-id="monetaryBase"]');
@@ -3858,13 +4076,16 @@ export class ReconciliationService {
           const rateCell = row.querySelector('[col-id="exchangeRate"]');
 
           if (baseCell && counterCell && rateCell) {
-            const baseVal = (baseCell.textContent || '').trim();
-            const counterVal = (counterCell.textContent || '').trim();
-            if (baseVal === 'USD' && counterVal === 'VND') {
-              return (rateCell.textContent || '').trim();
+            const baseVal = (baseCell.textContent || '').trim().toUpperCase();
+            const counterVal = (counterCell.textContent || '').trim().toUpperCase();
+            const rateStr = (rateCell.textContent || '').trim().replace(/,/g, '');
+            const rateVal = parseFloat(rateStr);
+            if (counterVal === 'VND' && !isNaN(rateVal) && rateVal > 0) {
+              result[baseVal] = rateVal;
             }
           }
         }
+        if (Object.keys(result).length > 0) return result;
 
         // 2. Fallback sang cấu trúc table HTML thông thường
         const rows = Array.from(document.querySelectorAll('tr'));
@@ -3875,50 +4096,107 @@ export class ReconciliationService {
               cells[1].innerText ||
               cells[1].textContent ||
               ''
-            ).trim();
+            ).trim().toUpperCase();
             const quoteCurrency = (
               cells[2].innerText ||
               cells[2].textContent ||
               ''
-            ).trim();
-            if (baseCurrency === 'USD' && quoteCurrency === 'VND') {
-              return (cells[3].innerText || cells[3].textContent || '').trim();
+            ).trim().toUpperCase();
+            const rateStr = (
+              cells[3].innerText ||
+              cells[3].textContent ||
+              ''
+            ).trim().replace(/,/g, '');
+            const rateVal = parseFloat(rateStr);
+            if (quoteCurrency === 'VND' && !isNaN(rateVal) && rateVal > 0) {
+              result[baseCurrency] = rateVal;
             }
           }
         }
-        return null;
+        return result;
       });
 
-      if (!rateText) {
+      const usdRate = rates['USD'] || 0;
+      if (usdRate <= 0) {
         throw new Error(
           'Không tìm thấy dòng tỷ giá USD/VND trong bảng quản lý tỷ giá.',
         );
       }
 
-      const rate = parseFloat(rateText.replace(/,/g, ''));
-      if (isNaN(rate) || rate <= 0) {
-        throw new Error(`Giá trị tỷ giá tìm thấy không hợp lệ: ${rateText}`);
-      }
-
       this.logger.log(
-        `Tìm thấy tỷ giá USD/VND trên M-System: ${rate} VND. Đang cập nhật vào hệ thống...`,
+        `Tìm thấy tỷ giá từ M-System: USD=${usdRate}, MYR=${rates['MYR'] || 'N/A'}, RMB=${rates['RMB'] || 'N/A'}, JPY=${rates['JPY'] || 'N/A'}. Đang cập nhật hệ thống...`,
       );
+
       await this.settingsService.setSetting(
         'usd_exchange_rate',
-        rate.toString(),
+        usdRate.toString(),
       );
-      return rate;
+      if (rates['MYR']) {
+        await this.settingsService.setSetting('myr_exchange_rate', rates['MYR'].toString());
+      }
+      if (rates['JPY']) {
+        await this.settingsService.setSetting('jpy_exchange_rate', rates['JPY'].toString());
+      }
+      if (rates['RMB']) {
+        await this.settingsService.setSetting('rmb_exchange_rate', rates['RMB'].toString());
+      }
+      await this.settingsService.setSetting('exchange_rates_last_synced', new Date().toISOString());
+
+      return usdRate;
     } finally {
       await browser.close();
     }
   }
 
+  async syncAllExchangeRatesFromMSystem(): Promise<Record<string, number>> {
+    await this.syncUsdRateFromMSystem();
+    const rates = await this.getCurrentExchangeRates();
+    return {
+      USD: rates.usdGain,
+      MYR: rates.myrGain,
+      JPY: rates.jpyGain,
+      RMB: rates.rmbGain,
+    };
+  }
+
+  async getCurrentExchangeRates(): Promise<{
+    usdLoss: number;
+    usdGain: number;
+    myrLoss: number;
+    myrGain: number;
+    jpyLoss: number;
+    jpyGain: number;
+    rmbLoss: number;
+    rmbGain: number;
+  }> {
+    const usdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
+    const myrStr = await this.settingsService.getSetting('myr_exchange_rate', '6383');
+    const jpyStr = await this.settingsService.getSetting('jpy_exchange_rate', '170');
+    const rmbStr = await this.settingsService.getSetting('rmb_exchange_rate', '3871');
+
+    const usd = parseFloat(usdStr) || 25920;
+    const myr = parseFloat(myrStr) || 6383;
+    const jpy = parseFloat(jpyStr) || 170;
+    const rmb = parseFloat(rmbStr) || 3871;
+
+    return {
+      usdLoss: usd,
+      usdGain: usd,
+      myrLoss: myr,
+      myrGain: myr,
+      jpyLoss: jpy,
+      jpyGain: jpy,
+      rmbLoss: rmb,
+      rmbGain: rmb,
+    };
+  }
+
   async getCurrentUsdRate(): Promise<number> {
     const usdRateStr = await this.settingsService.getSetting(
       'usd_exchange_rate',
-      '25220',
+      '25920',
     );
-    return parseFloat(usdRateStr) || 25220;
+    return parseFloat(usdRateStr) || 25920;
   }
 
   async saveUsdRate(rate: number): Promise<void> {
@@ -3933,4 +4211,360 @@ export class ReconciliationService {
       );
     }
   }
+
+  /**
+   * Tổng hợp dữ liệu hiển thị toàn diện cho Màn hình Trading Operation Console
+   * Gom dữ liệu mới nhất từ bot_jobs (CHECK_KLGD, CHECK_PRE_EOD, SCAN_NEGATIVE_MARGIN)
+   */
+  async getConsoleSummary(dateStr?: string): Promise<any> {
+    const today = new Date();
+    let targetDate = dateStr;
+    if (!targetDate) {
+      const vnTime = new Date(today.getTime() + 7 * 3600 * 1000);
+      targetDate = vnTime.toISOString().split('T')[0];
+    }
+
+    const parts = targetDate.split('-');
+    const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];
+    const slashDate = parts.length === 3 ? `${d}/${m}/${y}` : targetDate;
+
+    // 1. Tìm ca trực đang hoạt động hoặc ca trực theo ngày
+    let shiftLog = null;
+    let taskKlgd = null;
+    let taskPreEod = null;
+    if (this.shiftLogModel) {
+      shiftLog = await this.shiftLogModel
+        .findOne({
+          $or: [
+            { shiftDate: targetDate },
+            { shiftDate: slashDate },
+            { status: 'ACTIVE' },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
+      if (shiftLog && shiftLog.details) {
+        taskKlgd = shiftLog.details.find(
+          (t: any) =>
+            t.taskId === 'TASK_CHECK_KLGD_s1' ||
+            t.botCheckTypeSnapshot === 'CHECK_KLGD',
+        );
+        taskPreEod = shiftLog.details.find(
+          (t: any) =>
+            t.taskId === 'TASK_CHECK_EOD_sb2' ||
+            t.botCheckTypeSnapshot === 'CHECK_PRE_EOD',
+        );
+      }
+    }
+
+    // 2. Lấy 3 job mới nhất từ collection bot_jobs
+    let klgdJob: any = null;
+    let preEodJob: any = null;
+    let marginJob: any = null;
+
+    if (this.botJobModel) {
+      [klgdJob, preEodJob, marginJob] = await Promise.all([
+        this.botJobModel
+          .findOne({ jobType: 'CHECK_KLGD' })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec(),
+        this.botJobModel
+          .findOne({ jobType: 'CHECK_PRE_EOD' })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec(),
+        this.botJobModel
+          .findOne({
+            jobType: {
+              $in: [
+                'SCAN_NEGATIVE_MARGIN',
+                'CHECK_MARGIN_DECISION',
+                'CHECK_EOD_MM',
+              ],
+            },
+          })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec(),
+      ]);
+    }
+
+    // 3. Xử lý Payload KLGD
+    const klgdPayload = klgdJob?.payload || {};
+    const klgdResult = klgdPayload.result || {};
+    const klgdTotals = klgdResult.totals || {
+      totalDSGD: 0,
+      totalFR: 0,
+      differ: 0,
+      totalACM: 0,
+      totalNano: 0,
+      differACM: 0,
+      totalTTM: 0,
+      totalTTM_MS: 0,
+      totalOP: 0,
+      totalTTM_CQG: 0,
+      totalACM_TTM: 0,
+      totalTTM_ACM: 0,
+      differTTM: 0,
+      totalTTTT: 0,
+      totalTTTT_MS: 0,
+      totalPS: 0,
+      totalPS_CQG: 0,
+      totalACM_TTTT: 0,
+      totalTTTT_ACM: 0,
+      differTTTT: 0,
+    };
+
+    // 4. Xử lý Payload Pre-EOD
+    const preEodPayload = preEodJob?.payload || {};
+    const preEodResult = preEodPayload.result || {};
+    const preEodTotals = preEodResult.totals || {
+      totalACM_MS: 0,
+      totalACM_Straits: 0,
+      differACM: 0,
+      totalCQG_MS: 0,
+      totalCQG_FR: 0,
+      differCQG: 0,
+    };
+
+    // 5. Xử lý Payload Margin
+    const marginPayload = marginJob?.payload || {};
+    const marginResult = marginPayload.result || {};
+
+    const rawNegativeIMR: string[] =
+      marginResult.negativeIMRAcc && marginResult.negativeIMRAcc.length > 0
+        ? marginResult.negativeIMRAcc
+        : marginResult.eodResult?.negativeIMRAcc && marginResult.eodResult.negativeIMRAcc.length > 0
+          ? marginResult.eodResult.negativeIMRAcc
+          : preEodResult.eodResult?.negativeIMRAcc || [];
+
+    const rawNegativeBalance: string[] =
+      marginResult.negativeBalanceAccs && marginResult.negativeBalanceAccs.length > 0
+        ? marginResult.negativeBalanceAccs
+        : marginResult.eodResult?.negativeBalanceAccs && marginResult.eodResult.negativeBalanceAccs.length > 0
+          ? marginResult.eodResult.negativeBalanceAccs
+          : preEodResult.eodResult?.negativeBalanceAccs || [];
+
+    // 6. Tính toán đếm ngược chu kỳ 60 phút
+    const frequencyMinutes = taskKlgd?.frequencyMinutesSnapshot || 60;
+    const lastCheckedTime =
+      taskKlgd?.checkedAt || taskKlgd?.updatedAt || klgdJob?.createdAt;
+    let nextScanInSeconds = 0;
+    if (lastCheckedTime) {
+      const elapsedSeconds = Math.floor(
+        (Date.now() - new Date(lastCheckedTime).getTime()) / 1000,
+      );
+      const totalFrequencySeconds = frequencyMinutes * 60;
+      nextScanInSeconds = Math.max(0, totalFrequencySeconds - elapsedSeconds);
+    } else {
+      nextScanInSeconds = frequencyMinutes * 60;
+    }
+
+    return {
+      success: true,
+      date: targetDate,
+      serverTime: new Date().toISOString(),
+      shiftInfo: {
+        shiftLogId: shiftLog?._id?.toString(),
+        shiftDate: shiftLog?.shiftDate || slashDate,
+        shiftName: shiftLog?.shiftSlotSnapshot?.name || 'Ca Trực Đang Hoạt Động',
+        status: shiftLog?.status || 'UNKNOWN',
+        taskKlgdStatus: taskKlgd?.status || 'PENDING',
+        taskPreEodStatus: taskPreEod?.status || 'PENDING',
+        frequencyMinutes,
+        lastCheckedAt: lastCheckedTime
+          ? new Date(lastCheckedTime).toISOString()
+          : null,
+        nextScanInSeconds,
+      },
+      botStatus: {
+        isOnline: true,
+        klgdJobStatus: klgdJob?.status || 'IDLE',
+        preEodJobStatus: preEodJob?.status || 'IDLE',
+      },
+      klgd: {
+        jobId: klgdJob?._id?.toString(),
+        executedAt: klgdJob?.createdAt
+          ? new Date(klgdJob.createdAt).toISOString()
+          : null,
+        status: klgdJob?.status || 'IDLE',
+        error: klgdJob?.error || null,
+        logs: klgdJob?.logs || [],
+        isWaitingFiles: !!klgdResult.isWaitingFiles,
+        waitingMessage: klgdResult.message,
+        totals: klgdTotals,
+        mismatchedTradesCount:
+          klgdResult.mismatchedTradesTotal ||
+          (klgdResult.mismatchedTrades || []).length,
+        mismatchedTradesTotal:
+          klgdResult.mismatchedTradesTotal ||
+          (klgdResult.mismatchedTrades || []).length,
+        mismatchedTrades: klgdResult.mismatchedTrades || [],
+        mismatchedTTMCount: (klgdResult.mismatchedTTM || []).length,
+        mismatchedTTM: klgdResult.mismatchedTTM || [],
+        mismatchedTTTTCount: (klgdResult.mismatchedTTTT || []).length,
+        mismatchedTTTT: klgdResult.mismatchedTTTT || [],
+        sessionStart: klgdResult.sessionStart,
+        checkTime: klgdResult.checkTime,
+      },
+      preEod: {
+        jobId: preEodJob?._id?.toString(),
+        executedAt: preEodJob?.createdAt
+          ? new Date(preEodJob.createdAt).toISOString()
+          : null,
+        status: preEodJob?.status || 'IDLE',
+        error: preEodJob?.error || null,
+        logs: preEodJob?.logs || [],
+        isWaitingFiles: !!preEodResult.isWaitingFiles,
+        passed: preEodResult.passed !== false,
+        totals: preEodTotals,
+        mismatchedTradesCount:
+          preEodResult.mismatchedTradesTotal ||
+          (preEodResult.mismatchedTrades || []).length,
+        mismatchedTradesTotal:
+          preEodResult.mismatchedTradesTotal ||
+          (preEodResult.mismatchedTrades || []).length,
+        mismatchedTrades: preEodResult.mismatchedTrades || [],
+        mismatchedPositionsCount:
+          preEodResult.mismatchedPositionsTotal ||
+          (preEodResult.mismatchedPositions || []).length,
+        mismatchedPositionsTotal:
+          preEodResult.mismatchedPositionsTotal ||
+          (preEodResult.mismatchedPositions || []).length,
+        mismatchedPositions: preEodResult.mismatchedPositions || [],
+        mismatchedEODCount: (
+          marginResult.eodResult?.mismatchedEOD ||
+          marginResult.mismatchedEOD ||
+          preEodResult.eodResult?.mismatchedEOD ||
+          preEodResult.mismatchedEOD ||
+          []
+        ).length,
+        mismatchedEOD:
+          marginResult.eodResult?.mismatchedEOD ||
+          marginResult.mismatchedEOD ||
+          preEodResult.eodResult?.mismatchedEOD ||
+          preEodResult.mismatchedEOD ||
+          [],
+        cqgResultCount: (
+          marginResult.cqgResult ||
+          preEodResult.cqgResult ||
+          []
+        ).length,
+        cqgResult:
+          marginResult.cqgResult ||
+          preEodResult.cqgResult ||
+          [],
+      },
+      negativeMargin: {
+        jobId: marginJob?._id?.toString() || preEodJob?._id?.toString(),
+        executedAt: (marginJob?.createdAt || preEodJob?.createdAt)
+          ? new Date(marginJob?.createdAt || preEodJob?.createdAt).toISOString()
+          : null,
+        negativeIMRAccCount: rawNegativeIMR.length,
+        negativeIMRAcc: rawNegativeIMR,
+        negativeBalanceCount: rawNegativeBalance.length,
+        negativeBalanceAccs: rawNegativeBalance,
+      },
+    };
+  }
+
+  /**
+   * Kích hoạt chạy lại đối chiếu ngay lập tức (Phá vỡ Cooldown 60 phút)
+   */
+  async triggerConsoleRun(
+    dateStr?: string,
+    jobType: string = 'CHECK_KLGD',
+    options?: {
+      checkKlgd?: boolean;
+      checkTtm?: boolean;
+      checkTttt?: boolean;
+    },
+  ): Promise<any> {
+    if (!this.shiftLogModel || !this.botJobQueueService || !this.shiftsService) {
+      throw new Error('Các phân hệ bot queue hoặc shift log chưa sẵn sàng');
+    }
+
+    let targetDate = dateStr;
+    if (!targetDate) {
+      const today = new Date();
+      const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
+      targetDate = vnTime.toISOString().split('T')[0];
+    }
+
+    const parts = targetDate.split('-');
+    const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];
+    const slashDate = parts.length === 3 ? `${d}/${m}/${y}` : targetDate;
+
+    // Tìm ca trực: ưu tiên ca ACTIVE, hoặc ca của ngày targetDate (dù ACTIVE hay PENDING)
+    const targetShift = await this.shiftLogModel
+      .findOne({
+        $or: [
+          { status: 'ACTIVE' },
+          { shiftDate: targetDate, status: { $in: ['ACTIVE', 'PENDING'] } },
+          { shiftDate: slashDate, status: { $in: ['ACTIVE', 'PENDING'] } },
+          { shiftDate: targetDate },
+          { shiftDate: slashDate },
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let targetTaskId = 'TASK_CHECK_KLGD_s1';
+    let targetJobType = 'CHECK_KLGD';
+
+    if (jobType === 'CHECK_PRE_EOD') {
+      targetTaskId = 'TASK_CHECK_EOD_sb2';
+      targetJobType = 'CHECK_PRE_EOD';
+    } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
+      // Ưu tiên task quét âm ký quỹ ops_open_04_s4 nếu có trong ca, fallback về TASK_CHECK_EOD_sb2
+      const hasOps04 = targetShift?.details?.some(
+        (t: any) => t.taskId === 'ops_open_04_s4',
+      );
+      targetTaskId = hasOps04 ? 'ops_open_04_s4' : 'TASK_CHECK_EOD_sb2';
+      targetJobType = 'CHECK_EOD_MM';
+    }
+
+    const systemUser = {
+      id: '000000000000000000000000',
+      fullName: 'Maker (Thao tác nhanh Console)',
+      username: 'maker_console',
+      role: 'ADMIN',
+    };
+
+    // 1. Nếu có ca trực, reset trạng thái task về PENDING
+    if (targetShift) {
+      try {
+        await this.shiftsService.updateTaskStatus(
+          targetShift._id.toString(),
+          targetTaskId,
+          'PENDING',
+          systemUser,
+          `[Maker] Kích hoạt chạy lại ${targetJobType} từ Trading Operation Console`,
+          true,
+        );
+      } catch (err: any) {
+        this.logger.warn(
+          `Không thể cập nhật trạng thái task trong ca trực: ${err.message}`,
+        );
+      }
+    }
+
+    // 2. Enqueue job trực tiếp vào Bot Job Queue
+    const job = await this.botJobQueueService.enqueue(targetJobType, {
+      taskId: targetTaskId,
+      shiftLogId: targetShift ? targetShift._id.toString() : null,
+      sessionDay: targetShift?.shiftDate || targetDate,
+      options,
+    });
+
+    return {
+      success: true,
+      message: `Đã kích hoạt job ${targetJobType} thành công! Hệ thống đang tiến hành đối chiếu.`,
+      jobId: job?._id?.toString(),
+    };
+  }
 }
+

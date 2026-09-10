@@ -359,7 +359,7 @@ export class ValueStatisticsService {
       payload?.updateCumulative === true ||
       payload?.updateCumulative === 'true' ||
       updateCumulativeStr === 'true';
-      
+
     if (updateCumulative) {
       this.logger.log(`Updating cumulative value tracker files...`);
       await updateAllValueCumulativeFiles(
@@ -569,7 +569,7 @@ export class ValueStatisticsService {
     const year = targetDate.getFullYear();
 
     const baseDir = path.join(targetRoot, 'Thong ke gia tri giao dich');
-    
+
     // 1. Kiểm tra các đường dẫn thư mục bản tin khả dụng
     const candidates = [
       path.join(baseDir, 'Gửi team bản tin'),
@@ -607,7 +607,7 @@ export class ValueStatisticsService {
     }
 
     if (!newsletterDir || !fs.existsSync(newsletterDir)) {
-      const msg = `[Bản Tin] ⚠️ Không thể truy cập thư mục bản tin tại ${targetRoot}. Bỏ qua xuất file bản tin.`;
+      const msg = `[Bản Tin]  Không thể truy cập thư mục bản tin tại ${targetRoot}. Bỏ qua xuất file bản tin.`;
       this.logger.warn(msg);
       jobLogs?.push(msg);
       return;
@@ -628,7 +628,7 @@ export class ValueStatisticsService {
     }
 
     if (!masterTemplatePath || !fs.existsSync(masterTemplatePath)) {
-      const msg = `[Bản Tin] ⚠️ Không tìm thấy file mẫu .xlsx nào trong thư mục "${newsletterDir}". Vui lòng đặt 1 file mẫu chính thức của MXV vào thư mục này để Bot tự động nhân bản báo cáo hàng ngày.`;
+      const msg = `[Bản Tin]  Không tìm thấy file mẫu .xlsx nào trong thư mục "${newsletterDir}". Vui lòng đặt 1 file mẫu chính thức của MXV vào thư mục này để Bot tự động nhân bản báo cáo hàng ngày.`;
       this.logger.warn(msg);
       jobLogs?.push(msg);
       return;

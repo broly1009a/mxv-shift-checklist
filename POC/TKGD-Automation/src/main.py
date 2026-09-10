@@ -306,7 +306,7 @@ def run_batch(mail_folder: str, output_excel: str = None,
     print(f"  🔴 LỆCH thông tin:   {lech}")
     print(f"  🟡 THIẾU hồ sơ:     {thieu}")
     print(f"  🟠 Chưa trên MS:     {chua_ms}")
-    print(f"\n  📁 File Excel: {output_excel}")
+    print(f"\n   File Excel: {output_excel}")
     
     return records
 

@@ -43,7 +43,7 @@ async function runCqgBackupTest() {
       );
     } catch (e) {
       console.warn(
-        '⚠️ Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.',
+        ' Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.',
       );
     }
   }

@@ -563,7 +563,7 @@ export default function BotLogViewerModal({
       }
 
       // Pattern 1: Scan result listing missing files
-      // e.g. "⚠️ Thiếu/cũ 9 file: DSQLKQ.xlsx(MISSING), DSTrader.xlsx(MISSING)..."
+      // e.g. " Thiếu/cũ 9 file: DSQLKQ.xlsx(MISSING), DSTrader.xlsx(MISSING)..."
       if ((trimmed.includes('Thiếu/cũ') || trimmed.includes('Thiếu file')) && (trimmed.includes('.xlsx') || trimmed.includes('.csv'))) {
         const fileStatusRegex = /([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\((MISSING|OUTDATED)\)/g;
         let match;

@@ -84,7 +84,7 @@ export class GttCheckerService {
           fs.readFileSync(this.reportJsonPath, 'utf8'),
         );
       }
-    } catch {}
+    } catch { }
   }
 
   getWorkDir() {
@@ -223,7 +223,7 @@ export class GttCheckerService {
     const contractIndex = headers.indexOf('Mã HĐ');
     if (contractIndex === -1) {
       this.logger.warn(
-        '⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel trang-thai-mo.xlsx!',
+        ' Không tìm thấy cột "Mã HĐ" trong file Excel trang-thai-mo.xlsx!',
       );
       return [];
     }
@@ -694,14 +694,14 @@ export class GttCheckerService {
     page: Page,
     batchNum: number,
   ): Promise<void> {
-    this.logger.log(`📊 Thêm cột S cho Batch ${batchNum}...`);
+    this.logger.log(` Thêm cột S cho Batch ${batchNum}...`);
 
     await page
       .waitForSelector('.ag-header-cell[col-id="symbol"]', {
         state: 'visible',
         timeout: 10000,
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const sColExists = await page
       .locator('[class*="column-header"]:has-text("S"), th:has-text("S")')
@@ -772,7 +772,7 @@ export class GttCheckerService {
     }
 
     if (!itemClicked) {
-      await page.dblclick('.wpfe-list-item-content').catch(() => {});
+      await page.dblclick('.wpfe-list-item-content').catch(() => { });
     }
 
     await page.waitForTimeout(500);
@@ -888,7 +888,7 @@ export class GttCheckerService {
           this.logger.warn(
             `Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
           );
-          await page.click('button.btn-primary').catch(() => {});
+          await page.click('button.btn-primary').catch(() => { });
           await page.waitForTimeout(2000);
         }
 
@@ -908,7 +908,7 @@ export class GttCheckerService {
         this.logger.log('Xác thực đăng nhập...');
         await page
           .waitForURL(/.*dashboard.*/, { timeout: 15000 })
-          .catch(() => {});
+          .catch(() => { });
         await page.waitForTimeout(3000);
         this.logger.log('🎉 ĐĂNG NHẬP M-SYSTEM THÀNH CÔNG!');
 

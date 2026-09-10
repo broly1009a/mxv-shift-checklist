@@ -117,7 +117,7 @@ async function main() {
     console.log('-'.repeat(75));
   }
 
-  console.log(`\n📊 KẾT QUẢ TỔNG THỂ: ${passCount}/${testCases.length} Testcases ĐẠT (Pass Rate: ${Math.round(passCount / testCases.length * 100)}%)`);
+  console.log(`\n KẾT QUẢ TỔNG THỂ: ${passCount}/${testCases.length} Testcases ĐẠT (Pass Rate: ${Math.round(passCount / testCases.length * 100)}%)`);
   console.log('='.repeat(75));
 }
 

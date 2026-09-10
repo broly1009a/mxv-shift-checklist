@@ -565,14 +565,16 @@ def verify_and_repair_mrz_field(field_text: str, check_char: str) -> Tuple[str, 
     if actual_cd == expected_cd:
         return field_text, True
 
-    # Heuristic OCR character repair: Thử thay thế các ký tự dễ nhầm lẫn
+    # Heuristic OCR character repair: Thay thế các chữ cái bị nhận diện nhầm thành chữ số (O->0, B->8, I->1, Z->2, S->5)
     confusion_map = {
-        'O': '0', '0': 'O',
-        'B': '8', '8': 'B',
-        'I': '1', '1': 'I',
-        'Z': '2', '2': 'Z',
-        'S': '5', '5': 'S',
-        'D': '0', 'Q': '0'
+        'O': '0',
+        'Q': '0',
+        'D': '0',
+        'B': '8',
+        'I': '1',
+        'L': '1',
+        'Z': '2',
+        'S': '5'
     }
     field_chars = list(field_text)
     for i, c in enumerate(field_chars):
@@ -793,19 +795,39 @@ def try_decode_qr(image_path: str) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
-        # 3. Thử OpenCV QRCodeDetector trên vùng góc hoặc toàn ảnh
+        # 3. Thử OpenCV QRCodeDetector trên toàn ảnh và các vùng ROI góc thẻ
         try:
             rot_cv = img_cv
             if angle == 90: rot_cv = cv2.rotate(img_cv, cv2.ROTATE_90_CLOCKWISE)
             elif angle == 180: rot_cv = cv2.rotate(img_cv, cv2.ROTATE_180)
             elif angle == 270: rot_cv = cv2.rotate(img_cv, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
+            h_cv, w_cv = rot_cv.shape[:2]
+            # Vị trí QR chuẩn trên CCCD: góc trên-phải mặt trước (chip 2021) hoặc nửa phải mặt sau (thẻ 2024)
+            candidate_rois = [
+                rot_cv,
+                rot_cv[:int(h_cv * 0.55), int(w_cv * 0.50):],
+                rot_cv[:int(h_cv * 0.60), :],
+                rot_cv[:, int(w_cv * 0.45):]
+            ]
+
             det = cv2.QRCodeDetector()
-            val, _, _ = det.detectAndDecode(rot_cv)
-            if val:
-                parsed = parse_qr_text(val.strip())
-                if parsed:
-                    return parsed
+            for roi in candidate_rois:
+                val, _, _ = det.detectAndDecode(roi)
+                if val:
+                    parsed = parse_qr_text(val.strip())
+                    if parsed:
+                        return parsed
+                # Thử thêm trên ảnh xám có tăng tương phản
+                try:
+                    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                    val_g, _, _ = det.detectAndDecode(gray_roi)
+                    if val_g:
+                        parsed = parse_qr_text(val_g.strip())
+                        if parsed:
+                            return parsed
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -854,8 +876,12 @@ def parse_qr_text(qr_text: str) -> Optional[Dict[str, Any]]:
     return res
 
 
-def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
-    """Đọc và giải mã 3 dòng MRZ ở mặt sau CCCD (chuẩn ICAO TD1)."""
+def try_decode_mrz(image_path: str, expected_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Đọc và giải mã 3 dòng MRZ ở mặt sau CCCD (chuẩn ICAO TD1).
+    Chiến lược tối ưu 2 tầng:
+    Tầng 1 (Ưu tiên cao nhất): Quét trực tiếp trên ảnh gốc nguyên bản, KHÔNG qua bộ lọc làm lem nét.
+    Tầng 2 (Fallback): Chỉ khi Tầng 1 không tìm thấy MRZ mới kích hoạt bộ lọc khử lóa Telea Inpainting.
+    """
     if not os.path.exists(image_path):
         return None
 
@@ -870,47 +896,50 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
     if img is None:
         return None
 
-    for angle in [0, 90, 180, 270]:
-        if angle == 0: rot = img
-        elif angle == 90: rot = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        elif angle == 180: rot = cv2.rotate(img, cv2.ROTATE_180)
-        elif angle == 270: rot = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
 
-        # Áp dụng bộ lọc khử lóa flash Telea Inpainting nếu có phản xạ ánh đèn
-        rot = suppress_specular_glare(rot)
+    # 2 Vòng quét: Pass 1 (ảnh gốc nguyên nét) -> Pass 2 (lọc lóa inpainting nếu ảnh bị lóa đèn)
+    for use_glare_suppression in [False, True]:
+        for angle in [0, 90, 180, 270]:
+            if angle == 0: rot = img
+            elif angle == 90: rot = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            elif angle == 180: rot = cv2.rotate(img, cv2.ROTATE_180)
+            elif angle == 270: rot = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        # Thử các vùng ROI thích ứng (Adaptive Multi-Region Scan):
-        # 1. rot[int(h * 0.50):, :] -> Cận cảnh (50% dưới)
-        # 2. rot[int(h * 0.35):, :] -> Góc rộng / thẻ nằm giữa bàn (65% dưới - chống cắt chém chữ)
-        # 3. rot -> Toàn khung hình (chống cắt viền triệt để)
-        h, w = rot.shape[:2]
-        candidate_regions = [
-            rot[int(h * 0.50):, :],
-            rot[int(h * 0.35):, :],
-            rot
-        ]
+            if use_glare_suppression:
+                rot = suppress_specular_glare(rot)
 
-        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
-        for mrz_region in candidate_regions:
-            gray = cv2.cvtColor(mrz_region, cv2.COLOR_BGR2GRAY)
-            text = pytesseract.image_to_string(gray, config=custom_config)
-            lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 10]
+            # Thử các vùng ROI thích ứng (Ưu tiên vùng rộng 35% và Toàn ảnh trước 50% để tránh lẹm mất nét số 8 thành 6):
+            # 1. rot[int(h * 0.35):, :] -> Góc rộng / thẻ nằm giữa bàn (65% dưới - chống cắt chém chữ)
+            # 2. rot -> Toàn khung hình (chống cắt viền triệt để)
+            # 3. rot[int(h * 0.50):, :] -> Cận cảnh (50% dưới - dự phòng)
+            h, w = rot.shape[:2]
+            candidate_regions = [
+                rot[int(h * 0.35):, :],
+                rot,
+                rot[int(h * 0.50):, :]
+            ]
 
-            for l in lines:
-                if re.search(r'[IDLT1]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
-                    parsed = parse_mrz_lines(lines)
-                    if parsed and (parsed.get('soCCCD') or parsed.get('ngaySinh')):
-                        parsed['source'] = 'MRZ'
-                        # Kiểm tra Nơi cấp từ mặt sau
-                        try:
-                            full_txt = pytesseract.image_to_string(rot, lang='vie+eng')
-                            if 'BỘ CÔNG AN' in full_txt.upper() or 'BO CONG AN' in full_txt.upper():
-                                parsed['noiCap'] = 'BỘ CÔNG AN'
-                            elif 'CỤC CẢNH SÁT' in full_txt.upper():
-                                parsed['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
-                        except Exception:
-                            pass
-                        return parsed
+            for mrz_region in candidate_regions:
+                gray = cv2.cvtColor(mrz_region, cv2.COLOR_BGR2GRAY)
+                text = pytesseract.image_to_string(gray, config=custom_config)
+                lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 10]
+
+                for l in lines:
+                    if re.search(r'[IDLT1]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
+                        parsed = parse_mrz_lines(lines, expected_name=expected_name)
+                        if parsed and (parsed.get('soCCCD') or parsed.get('ngaySinh')):
+                            parsed['source'] = 'MRZ' if not use_glare_suppression else 'MRZ_GLARE_FILTER'
+                            # Kiểm tra Nơi cấp từ mặt sau
+                            try:
+                                full_txt = pytesseract.image_to_string(rot, lang='vie+eng')
+                                if 'BỘ CÔNG AN' in full_txt.upper() or 'BO CONG AN' in full_txt.upper():
+                                    parsed['noiCap'] = 'BỘ CÔNG AN'
+                                elif 'CỤC CẢNH SÁT' in full_txt.upper():
+                                    parsed['noiCap'] = 'Cục Cảnh sát quản lý hành chính về trật tự xã hội'
+                            except Exception:
+                                pass
+                            return parsed
 
     # Fallback: Thử nắn thẳng phối cảnh 4 điểm nếu ảnh chụp bị xiên góc
     deskewed = auto_deskew_perspective_transform(img)
@@ -918,12 +947,11 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
         try:
             for angle in [0, 180]:
                 rot_d = deskewed if angle == 0 else cv2.rotate(deskewed, cv2.ROTATE_180)
-                rot_d = suppress_specular_glare(rot_d)
                 h_d, w_d = rot_d.shape[:2]
                 candidate_deskew_regions = [
-                    rot_d[int(h_d * 0.50):, :],
                     rot_d[int(h_d * 0.35):, :],
-                    rot_d
+                    rot_d,
+                    rot_d[int(h_d * 0.50):, :]
                 ]
                 custom_cfg = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
                 for mrz_reg in candidate_deskew_regions:
@@ -932,7 +960,7 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
                     lines_d = [l.strip() for l in txt_d.split('\n') if len(l.strip()) >= 10]
                     for l in lines_d:
                         if re.search(r'[IDLT1]DVNM', l) or re.search(r'\d{4,6}[0-9]?[FM]', l) or ('VNM' in l and re.search(r'\d{12}', l)):
-                            parsed_d = parse_mrz_lines(lines_d)
+                            parsed_d = parse_mrz_lines(lines_d, expected_name=expected_name)
                             if parsed_d and (parsed_d.get('soCCCD') or parsed_d.get('ngaySinh')):
                                 parsed_d['source'] = 'MRZ_DESKEW'
                                 return parsed_d
@@ -942,7 +970,7 @@ def try_decode_mrz(image_path: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
+def parse_mrz_lines(lines: List[str], expected_name: Optional[str] = None) -> Dict[str, Any]:
     res = {
         'soCCCD': None,
         'ngaySinh': None,
@@ -952,24 +980,6 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
     }
     line1 = next((l for l in lines if re.search(r'[IDLT1]DVNM', l) or l.startswith('ID') or l.startswith('LD') or l.startswith('TD') or l.startswith('1D') or ('VNM' in l and re.search(r'\d{12}', l))), None)
     line2 = next((l for l in lines if re.search(r'\d{4,6}[0-9]?[FM]', l)), None)
-
-    if line1:
-        # Trong CCCD Việt Nam, số CCCD 12 số luôn nằm ngay trước dấu << ở cuối dòng 1
-        m_end = re.search(r'(\d{12})<{1,2}', line1)
-        if m_end:
-            res['soCCCD'] = m_end.group(1)
-        else:
-            m_cands = re.findall(r'(0\d{11})', line1)
-            if m_cands:
-                res['soCCCD'] = m_cands[0]
-            else:
-                m_all12 = re.findall(r'(\d{12})', line1)
-                if m_all12:
-                    res['soCCCD'] = m_all12[-1]
-                else:
-                    m = re.search(r'[IDLT1]DVNM(\d{9,12})', line1)
-                    if m:
-                        res['soCCCD'] = m.group(1)
 
     if line2:
         # Chuẩn ICAO Doc 9303 Part 5 TD1 Dòng 2: YYMMDD(check)SexYYMMDD(check)
@@ -1000,11 +1010,63 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
                     year = 1900 + yy if yy > 30 else 2000 + yy
                 else:
                     year = 2000
-                    if res.get('soCCCD') and len(res['soCCCD']) == 12:
-                        c_digit = res['soCCCD'][3]
-                        yy = int(res['soCCCD'][4:6])
-                        year = 1900 + yy if c_digit in ['0', '1'] else 2000 + yy
                 res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{year}"
+
+    if line1:
+        # Xác định YY năm sinh kỳ vọng từ line 2 để kiểm tra tính hợp lệ của số CCCD (tránh ghép nhầm số ngẫu nhiên)
+        expected_yy = None
+        if res.get('ngaySinh'):
+            try:
+                dob_parts = res['ngaySinh'].split('/')
+                if len(dob_parts) == 3:
+                    expected_yy = f"{int(dob_parts[2]) % 100:02d}"
+            except Exception:
+                pass
+
+        # Trong CCCD Việt Nam, số CCCD 12 số luôn nằm ngay trước dấu << ở cuối dòng 1 hoặc sau IDVNM
+        m_end = re.search(r'(\d{12})<{1,2}', line1)
+        if m_end:
+            cand = m_end.group(1)
+            if not expected_yy or cand[4:6] == expected_yy:
+                res['soCCCD'] = cand
+
+        if not res.get('soCCCD'):
+            m_vnm = re.search(r'[IDLT1]DVNM\s*(\d{12})', line1)
+            if m_vnm:
+                cand = m_vnm.group(1)
+                if not expected_yy or cand[4:6] == expected_yy:
+                    res['soCCCD'] = cand
+
+        if not res.get('soCCCD'):
+            m_cands = re.findall(r'(0\d{11})', line1)
+            for cand in m_cands:
+                if not expected_yy or cand[4:6] == expected_yy:
+                    res['soCCCD'] = cand
+                    break
+
+        if not res.get('soCCCD'):
+            m_all12 = re.findall(r'(\d{12})', line1)
+            for cand in reversed(m_all12):
+                if not expected_yy or cand[4:6] == expected_yy:
+                    res['soCCCD'] = cand
+                    break
+
+    # Tự động đối soát và hiệu chỉnh năm sinh theo số CCCD 12 số chuẩn BCA (chống lẹm nét OCR số 8 thành 6)
+    if res.get('soCCCD') and len(res['soCCCD']) == 12 and res.get('ngaySinh'):
+        try:
+            c_digit = res['soCCCD'][3]
+            cccd_yy = int(res['soCCCD'][4:6])
+            expected_century = 1900 if c_digit in ['0', '1'] else 2000
+            expected_year = expected_century + cccd_yy
+
+            dob_parts = res['ngaySinh'].split('/')
+            if len(dob_parts) == 3:
+                mrz_yy = int(dob_parts[2]) % 100
+                if mrz_yy != cccd_yy:
+                    # Lẹm nét OCR (ví dụ 8 bị đọc thành 6): dùng năm sinh mã hóa theo số CCCD
+                    res['ngaySinh'] = f"{dob_parts[0]}/{dob_parts[1]}/{expected_year}"
+        except Exception:
+            pass
 
     # Tìm dòng tên: chứa <<, không có VNM, không phải dòng ngày tháng sinh
     name_lines = [l for l in lines if '<<' in l and 'VNM' not in l and not re.search(r'\d{4,6}[FM]', l)]
@@ -1018,8 +1080,35 @@ def parse_mrz_lines(lines: List[str]) -> Dict[str, Any]:
             res['hoTenKhongDau'] = f"{surname} {' '.join(given_words)}".strip()
         elif len(parts) == 1:
             cand = parts[0].replace('<', ' ').strip()
-            # Tên tiếng Việt từ MRZ không thể quá ngắn dưới 4 ký tự (loại bỏ chuỗi rác như UNN)
-            if len(cand) >= 4 and not cand.startswith('UNN'):
+            # Khử nhiễu khi dấu '<<' giữa họ và tên bị OCR đọc nhầm thành ký tự rác (SR, XS, SS, XX, CC...)
+            # Cấu trúc: [Họ phổ biến][Ký tự rác 2 chữ cái][Tên đệm / Tên] (ví dụ HOANGSRTHANH TUNG -> HOANG THANH TUNG)
+            vn_surnames = ['NGUYEN', 'TRAN', 'LE', 'PHAM', 'HOANG', 'HUYNH', 'PHAN', 'VU', 'VO', 'DANG', 'BUI', 'DO', 'HO', 'NGO', 'DUONG', 'LY', 'DINH', 'DAO', 'DOAN']
+            fixed_cand = None
+            words = cand.split()
+            if words:
+                first_w = words[0]
+                for s in vn_surnames:
+                    if first_w.startswith(s) and len(first_w) > len(s) + 2:
+                        rest = first_w[len(s):]
+                        m_noise = re.match(r'^[A-Z]{2}([A-Z]{2,})$', rest)
+                        if m_noise:
+                            middle_name = m_noise.group(1)
+                            rest_words = [middle_name] + words[1:]
+                            fixed_cand = f"{s} {' '.join(rest_words)}"
+                            break
+
+            # Đối chiếu thêm với expected_name nếu có
+            if expected_name and (not fixed_cand or len(cand.split()) < 2):
+                clean_exp = re.sub(r'[^A-Z\s]', '', expected_name.upper())
+                exp_words = clean_exp.split()
+                if len(exp_words) >= 2:
+                    matched_words = [w for w in exp_words if w in cand.replace(' ', '')]
+                    if len(matched_words) >= 2:
+                        fixed_cand = ' '.join(exp_words)
+
+            if fixed_cand:
+                res['hoTenKhongDau'] = fixed_cand
+            elif len(cand) >= 4 and not cand.startswith('UNN'):
                 res['hoTenKhongDau'] = cand
 
     return res
@@ -1148,7 +1237,7 @@ def extract_cccd_ocr_details(front_path: Optional[str], back_path: Optional[str]
 # ─────────────────────────────────────────────────────────────
 
 def extract_issue_date_with_clahe(back_path: Optional[str]) -> Optional[str]:
-    """Bóc tách ngày cấp nâng cao từ mặt sau CCCD bằng cách khoanh vùng ROI + CLAHE tối ưu siêu nhanh (< 3s)."""
+    """Bóc tách ngày cấp nâng cao từ mặt sau CCCD bằng cách khoanh vùng ROI + CLAHE đa góc xoay (0, 180, 90, 270)."""
     if not back_path or not os.path.exists(back_path):
         return None
     try:
@@ -1161,33 +1250,32 @@ def extract_issue_date_with_clahe(back_path: Optional[str]) -> Optional[str]:
             return None
 
         h, w = im.shape[:2]
-        # Chỉ kiểm tra góc 0 (ảnh ngang) hoặc 90/270 (ảnh dọc), không lặp thừa 4 góc
-        angles = [0]
-        if h > w:
-            angles = [90, 270]
+        # Hỗ trợ cả góc 0 và 180 cho ảnh ngang (thường bị chụp lộn ngược), và 90, 270 cho ảnh dọc
+        angles = [0, 180] if w >= h else [90, 270]
 
         for angle in angles:
-            rot = im if angle == 0 else (cv2.rotate(im, cv2.ROTATE_90_CLOCKWISE) if angle == 90 else cv2.rotate(im, cv2.ROTATE_90_COUNTERCLOCKWISE))
+            rot = im if angle == 0 else (cv2.rotate(im, cv2.ROTATE_180) if angle == 180 else (cv2.rotate(im, cv2.ROTATE_90_CLOCKWISE) if angle == 90 else cv2.rotate(im, cv2.ROTATE_90_COUNTERCLOCKWISE)))
             rh, rw = rot.shape[:2]
-            # Vùng ngày cấp trên mặt sau: Thường nằm ở 1/3 phía trên, bên phải chip (từ x=25% đến 98%, y=8% đến 60%)
-            roi = rot[int(rh * 0.08):int(rh * 0.60), int(rw * 0.25):int(rw * 0.98)]
+            # Vùng ngày cấp trên mặt sau: Thường nằm ở 1/3 phía trên, bên phải chip (từ x=25% đến 98%, y=8% đến 65%)
+            roi = rot[int(rh * 0.08):int(rh * 0.65), int(rw * 0.25):int(rw * 0.98)]
             if roi.shape[0] < 20 or roi.shape[1] < 20:
                 continue
 
-            # Chuyển xám và cân bằng tương phản cục bộ CLAHE trực tiếp trên ROI gốc (không resize x2 để tiết kiệm 80% CPU)
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-            enhanced = clahe.apply(gray)
+            for clip in [2.0, 1.5, 2.5]:
+                clahe = cv2.createCLAHE(clipLimit=clip, tileGridSize=(8, 8))
+                enhanced = clahe.apply(gray)
+                txt = pytesseract.image_to_string(enhanced, lang='vie+eng', config='--oem 3 --psm 6')
 
-            txt = pytesseract.image_to_string(enhanced, lang='vie+eng', config='--oem 3 --psm 6')
-            
-            # Tìm mẫu Ngày ... tháng ... năm ... hoặc DD/MM/YYYY
-            m_cap = re.search(r'(?:Ngày[,\s]+tháng[,\s]+năm|Date[,\s]+month[,\s]+year|ngày|Date)[\s:/]+(\d{1,2})[\s/-]+(\d{1,2})[\s/-]+(\d{4})', txt, re.IGNORECASE)
-            if not m_cap:
-                m_cap = re.search(r'\b(0[1-9]|[12]\d|3[01])[/-](0[1-9]|1[0-2])[/-](201[5-9]|202[0-9])\b', txt)
-            
-            if m_cap:
-                if len(m_cap.groups()) == 3 and m_cap.group(3):
+                # 1. Tìm mẫu Ngày ... tháng ... năm ... hoặc DD/MM/YYYY
+                m_cap = re.search(r'(?:Ngày[,\s]+tháng[,\s]+năm|Date[,\s]+month[,\s]+year|ngày|Date)[\s:/]+(\d{1,2})[\s/-]+(\d{1,2})[\s/-]+(\d{4})', txt, re.IGNORECASE)
+                if not m_cap:
+                    m_cap = re.search(r'\b(0[1-9]|[12]\d|3[01])[/-](0[1-9]|1[0-2])[/-](201[5-9]|202[0-9])\b', txt)
+                if not m_cap:
+                    # 2. Mẫu nhận diện khi OCR nuốt dấu gạch chéo giữa ngày và tháng (ví dụ 2711/2023)
+                    m_cap = re.search(r'\b(0[1-9]|[12]\d|3[01])(?:/|\s*)?(0[1-9]|1[0-2])(?:/|\s*)(201[5-9]|202[0-9])\b', txt)
+
+                if m_cap:
                     d, m, y = int(m_cap.group(1)), int(m_cap.group(2)), int(m_cap.group(3))
                     if 1 <= d <= 31 and 1 <= m <= 12 and 2015 <= y <= 2026:
                         return f"{d:02d}/{m:02d}/{y}"
@@ -1326,14 +1414,70 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
 # 4. TẦNG FALLBACK AI VISION (GEMINI VISION) KHI OFFLINE THIẾU TRƯỜNG
 # ─────────────────────────────────────────────────────────────
 
+def get_available_gemini_models(api_key: str) -> List[str]:
+    """Tự động truy vấn danh sách model public mới nhất từ Google Gemini API kèm cơ chế cache đĩa 1 giờ."""
+    default_fallback = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest', 'gemini-2.5-pro', 'gemini-1.5-pro']
+    if not api_key:
+        return default_fallback
+
+    import tempfile
+    import time
+    import urllib.request
+
+    cache_file = os.path.join(tempfile.gettempdir(), 'mxv_gemini_models_cache.json')
+    now = time.time()
+
+    # 1. Thử đọc từ Cache đĩa
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r', encoding='utf-8') as cf:
+                cache_data = json.load(cf)
+                if now - cache_data.get('fetchedAt', 0) < 3600 and cache_data.get('models'):
+                    return cache_data['models']
+    except Exception:
+        pass
+
+    # 2. Truy vấn trực tiếp từ Google Public API
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'MXV-TKGD-Worker/1.0'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                raw_models = data.get('models', [])
+                valid_models = []
+                for m in raw_models:
+                    methods = m.get('supportedGenerationMethods', [])
+                    name = m.get('name', '').replace('models/', '')
+                    if 'generateContent' in methods and not any(x in name for x in ['tts', 'transcribe', 'computer-use', 'embedding']):
+                        valid_models.append(name)
+
+                flash_models = [m for m in valid_models if 'flash' in m and 'image' not in m]
+                other_models = [m for m in valid_models if 'flash' not in m and m.startswith('gemini-')]
+                sorted_models = flash_models + other_models
+
+                if sorted_models:
+                    try:
+                        with open(cache_file, 'w', encoding='utf-8') as cf:
+                            json.dump({'models': sorted_models, 'fetchedAt': now}, cf)
+                    except Exception:
+                        pass
+                    return sorted_models
+    except Exception:
+        pass
+
+    return default_fallback
+
+
 def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[str], api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Gọi Gemini AI Vision (gemini-2.0-flash / gemini-1.5-flash) bóc tách ảnh CCCD/Căn cước khi offline bị thiếu trường."""
+    """Gọi Gemini AI Vision bóc tách ảnh CCCD/Căn cước khi offline bị thiếu trường (kèm dynamic model rotator)."""
     key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
     if not key:
         return None
 
     import base64
     import urllib.request
+    import urllib.error
     import json
 
     parts = []
@@ -1385,7 +1529,7 @@ def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[s
     )
     parts.append({'text': prompt_text})
 
-    models = ['gemini-2.0-flash', 'gemini-1.5-flash']
+    models = get_available_gemini_models(key)
     for model_name in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
         req_body = {
@@ -1398,7 +1542,7 @@ def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[s
         try:
             req_data = json.dumps(req_body).encode('utf-8')
             req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 if response.status == 200:
                     resp_json = json.loads(response.read().decode('utf-8'))
                     text_content = resp_json['candidates'][0]['content']['parts'][0]['text'].strip()
@@ -1406,6 +1550,9 @@ def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[s
                     parsed = json.loads(clean_text)
                     if parsed and parsed.get('soCCCD'):
                         return parsed
+        except urllib.error.HTTPError as e:
+            # Nếu gặp 429 Quota Exceeded hoặc 503 Overloaded -> xoay sang model kế tiếp
+            continue
         except Exception:
             continue
 
@@ -1419,6 +1566,7 @@ def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[s
 def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                            front: Optional[str], back: Optional[str],
                            code: str = '',
+                           name: Optional[str] = None,
                            gemini_key: Optional[str] = None) -> Dict[str, Any]:
     result = {
         'accountCode': code,
@@ -1435,6 +1583,8 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
     # 2. Bóc tách phụ lục
     if phuluc and os.path.exists(phuluc):
         result['phuLuc'] = extract_pdf_pl01(phuluc)
+
+    expected_name = name or result.get('hopDong', {}).get('hoTen') or result.get('phuLuc', {}).get('tenKH')
 
     # 0. Tự động nhận diện và phân tách ảnh ghép 2 mặt (Auto-Split Composite Dual-Card)
     auto_split_temps = []
@@ -1473,9 +1623,9 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         cccd_data['source'] = 'QR'
 
     # Thử MRZ mặt sau (hoặc phát hiện nếu ảnh bị đảo ngược giữa front và back)
-    mrz_data = try_decode_mrz(back) if back else None
+    mrz_data = try_decode_mrz(back, expected_name=expected_name) if back else None
     if not mrz_data and front:
-        mrz_data = try_decode_mrz(front)
+        mrz_data = try_decode_mrz(front, expected_name=expected_name)
         if mrz_data:
             # front thực chất chứa MRZ mặt sau -> hoán đổi vị trí ảnh
             front, back = back, front
@@ -1622,6 +1772,7 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
 def main():
     parser = argparse.ArgumentParser(description='TKGD Extractor Worker')
     parser.add_argument('--code', type=str, default='', help='Mã tài khoản')
+    parser.add_argument('--name', type=str, default=None, help='Họ và tên dự kiến')
     parser.add_argument('--hopdong', type=str, default=None, help='Đường dẫn file Hợp đồng PDF')
     parser.add_argument('--phuluc', type=str, default=None, help='Đường dẫn file Phụ lục 01 PDF')
     parser.add_argument('--front', type=str, default=None, help='Đường dẫn ảnh CCCD mặt trước')
@@ -1632,10 +1783,12 @@ def main():
     args = parser.parse_args()
 
     gemini_key = args.gemini_key
+    name = args.name
     if args.json_input:
         try:
             cfg = json.loads(args.json_input)
             code = cfg.get('code', '')
+            name = cfg.get('name') or name
             hopdong = cfg.get('hopdong')
             phuluc = cfg.get('phuluc')
             front = cfg.get('front')
@@ -1652,7 +1805,7 @@ def main():
         front = args.front
         back = args.back
 
-    res = process_account_files(hopdong, phuluc, front, back, code, gemini_key=gemini_key)
+    res = process_account_files(hopdong, phuluc, front, back, code, name=name, gemini_key=gemini_key)
     print(json.dumps(res, ensure_ascii=False, indent=2))
 
 

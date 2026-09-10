@@ -176,7 +176,7 @@ async function runMSPricesTest() {
         break;
       }
       console.log(
-        `⚠️ Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+        ` Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
       );
       await screenshot(page, `02-retry-login-click-attempt-${attempt}`);
       await page.click('button.btn-primary').catch(() => { });
@@ -267,7 +267,7 @@ async function runMSPricesTest() {
     }
 
     if (!marketCsvDownloaded) {
-      console.log('⚠️ Không tải được file market.csv từ M-System.');
+      console.log(' Không tải được file market.csv từ M-System.');
     }
 
     // ==========================================
@@ -320,7 +320,7 @@ async function runMSPricesTest() {
     }
 
     if (!openPositionDownloaded) {
-      console.log('⚠️ Không tải được file trang-thai-mo.xlsx từ M-System.');
+      console.log(' Không tải được file trang-thai-mo.xlsx từ M-System.');
     }
   } catch (err: any) {
     console.error('\n❌ Lỗi:', err.message);

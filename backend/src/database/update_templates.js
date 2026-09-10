@@ -77,7 +77,7 @@ async function main() {
             botSuccessCondition: 'SUCCESS',
             botFailureAction: 'ALERT_TELEGRAM',
             slaDeadline: '07:00',
-            actionDescription: 'Kiểm tra đối chiếu dữ liệu phiên T-1 giữa M-System, CQG và ACM; kiểm tra giá thanh toán; thực hiện chạy EOD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Nếu quá trình xử lý lỗi kết chuyển/đối chiếu kéo dài quá 07h30, thông báo lùi thời gian EOD và gửi Sao kê cho TVKD.',
+            actionDescription: 'Kiểm tra đối chiếu dữ liệu phiên T-1 giữa M-System, CQG và ACM; kiểm tra giá thanh toán; thực hiện chạy EOD thủ công.\n [KỊCH BẢN PHÁT SINH]: Nếu quá trình xử lý lỗi kết chuyển/đối chiếu kéo dài quá 07h30, thông báo lùi thời gian EOD và gửi Sao kê cho TVKD.',
           },
           {
             taskId: 'ops_open_04',
@@ -85,7 +85,7 @@ async function main() {
             priority: 'HIGH',
             sortOrder: 4,
             dependsOnTaskIds: ['TASK_CHECK_EOD'],
-            actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
+            actionDescription: 'Backup file kết quả EOD; kiểm tra EOD và thông báo các tài khoản bị âm ký quỹ đầu ngày. Nếu lỗi, phối hợp Newgen chỉnh sửa và chạy lại.\n [KỊCH BẢN PHÁT SINH]: Trong vòng 05 phút sau khi EOD thành công, gửi email thông báo kết quả sau khi chạy lại EOD thành công.',
           },
           {
             taskId: 'ops_open_05',
@@ -123,7 +123,7 @@ async function main() {
             botFailureAction: 'ALERT_TELEGRAM',
             slaDeadline: '08:00',
             dependsOnTaskIds: ['ops_open_05'],
-            actionDescription: 'Gửi email Sao kê TKGD thủ công.\n⚠️ [KỊCH BẢN PHÁT SINH]: Trong vòng 30 phút sau khi kết quả EOD được xác nhận chính xác, thực hiện thao tác gửi email Sao kê TKGD thủ công cho Khách hàng.',
+            actionDescription: 'Gửi email Sao kê TKGD thủ công.\n [KỊCH BẢN PHÁT SINH]: Trong vòng 30 phút sau khi kết quả EOD được xác nhận chính xác, thực hiện thao tác gửi email Sao kê TKGD thủ công cho Khách hàng.',
           },
         ]
       },
@@ -146,7 +146,7 @@ async function main() {
             taskName: 'Giám sát & Đối chiếu MS vs CQG (M-System, CQG Cast, Email)',
             priority: 'HIGH',
             sortOrder: 2,
-            actionDescription: 'Kiểm tra tính cân bằng dữ liệu giữa M-System và CQG. Xử lý các lỗi lệch do thiết lập tham số hoặc mất kết nối API.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 30 phút kể từ khi đối chiếu phát hiện không cân bằng: Xác định nguyên nhân và tài khoản bị lệch giao dịch.\n• Sau khi tìm ra nguyên nhân lệch giao dịch: Thông báo cho TVKD (qua room Hỗ trợ nghiệp vụ giao dịch) thực hiện thiết bổ sung các tham số còn thiếu của TKGD và báo cho Newgen kéo lệnh còn thiếu về MS.',
+            actionDescription: 'Kiểm tra tính cân bằng dữ liệu giữa M-System và CQG. Xử lý các lỗi lệch do thiết lập tham số hoặc mất kết nối API.\n [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 30 phút kể từ khi đối chiếu phát hiện không cân bằng: Xác định nguyên nhân và tài khoản bị lệch giao dịch.\n• Sau khi tìm ra nguyên nhân lệch giao dịch: Thông báo cho TVKD (qua room Hỗ trợ nghiệp vụ giao dịch) thực hiện thiết bổ sung các tham số còn thiếu của TKGD và báo cho Newgen kéo lệnh còn thiếu về MS.',
           },
           {
             taskId: 'ops_during_03',
@@ -160,7 +160,7 @@ async function main() {
             taskName: 'Hỗ trợ & Xử lý sự cố (M-System, CQG, ACM, Teams/Zalo)',
             priority: 'HIGH',
             sortOrder: 4,
-            actionDescription: 'Tiếp nhận thắc mắc của TVKD; thông báo lỗi hệ thống; sửa lỗi giao dịch; gán hàng hóa (mặt hàng có điều kiện/API); đình chỉ TVKD.\n⚠️ [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 05 phút kể từ khi phát hiện lỗi: Thông báo lỗi/sự cố hệ thống (mất kết nối, lỗi phần mềm M-System, CQG, ACM...) cho Newgen và Khối CNTT.\n• Trong vòng 10 phút kể từ khi phát hiện lỗi: Gửi email thông báo sự cố cho các ĐVNV và Thành viên Kinh doanh (TVKD).\n• Ngay sau khi hoàn tất kiểm tra hệ thống: Thông báo lỗi/sự cố đã được khắc phục sau khi kiểm tra dữ liệu chính xác giữa các nền tảng.\n• Trong phiên, sau khi hoàn thành xử lý lỗi / sự cố: Cập nhật vào Báo cáo ghi nhận lỗi giao dịch (Mẫu số: 01/QT/TVH).\n• Trong vòng 15 phút kể từ khi tiếp nhận thông tin qua Teams/Email: Tiếp nhận và tìm hiểu nguyên nhân khiếu nại/thắc mắc của TVKD.',
+            actionDescription: 'Tiếp nhận thắc mắc của TVKD; thông báo lỗi hệ thống; sửa lỗi giao dịch; gán hàng hóa (mặt hàng có điều kiện/API); đình chỉ TVKD.\n [KỊCH BẢN PHÁT SINH]:\n• Trong vòng 05 phút kể từ khi phát hiện lỗi: Thông báo lỗi/sự cố hệ thống (mất kết nối, lỗi phần mềm M-System, CQG, ACM...) cho Newgen và Khối CNTT.\n• Trong vòng 10 phút kể từ khi phát hiện lỗi: Gửi email thông báo sự cố cho các ĐVNV và Thành viên Kinh doanh (TVKD).\n• Ngay sau khi hoàn tất kiểm tra hệ thống: Thông báo lỗi/sự cố đã được khắc phục sau khi kiểm tra dữ liệu chính xác giữa các nền tảng.\n• Trong phiên, sau khi hoàn thành xử lý lỗi / sự cố: Cập nhật vào Báo cáo ghi nhận lỗi giao dịch (Mẫu số: 01/QT/TVH).\n• Trong vòng 15 phút kể từ khi tiếp nhận thông tin qua Teams/Email: Tiếp nhận và tìm hiểu nguyên nhân khiếu nại/thắc mắc của TVKD.',
           },
           {
             taskId: 'ops_during_05',

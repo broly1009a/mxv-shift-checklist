@@ -152,7 +152,7 @@ async function runModule2Test() {
       credentials = JSON.parse(decrypt((setting as any).value));
       console.log(`  ✅ Nạp thành công tài khoản M-System: ${credentials.username}`);
     } catch (e) {
-      console.warn('  ⚠️ Không thể giải mã cấu hình M-System. Cần kiểm tra lại khóa mã hóa.');
+      console.warn('   Không thể giải mã cấu hình M-System. Cần kiểm tra lại khóa mã hóa.');
     }
   }
 
@@ -169,7 +169,7 @@ async function runModule2Test() {
 
   // 3. Nếu chưa có credentials M-System thực tế, mô phỏng dữ liệu M-System theo ảnh chụp của anh
   if (!credentials || !credentials.username) {
-    console.log('\n⚠️ Chưa có tài khoản M-System thực tế được kích hoạt.');
+    console.log('\n Chưa có tài khoản M-System thực tế được kích hoạt.');
     console.log('👉 Chuyển sang chế độ MÔ PHỎNG DỮ LIỆU CÀO TỪ M-SYSTEM (theo đúng mẫu ảnh chụp thực tế).');
 
     // Tìm các record đã tạo từ Module 1
@@ -345,7 +345,7 @@ async function runModule2Test() {
 
   // 5. KIỂM CHỨNG DỮ LIỆU SAU KHI CẬP NHẬT
   console.log('\n' + '='.repeat(70));
-  console.log('📊 KIỂM CHỨNG KHỐI MS TRONG MONGODB ATLAS SAU KHI CẬP NHẬT:');
+  console.log(' KIỂM CHỨNG KHỐI MS TRONG MONGODB ATLAS SAU KHI CẬP NHẬT:');
   console.log('='.repeat(70));
 
   const updatedRecords = await CleanRecordModel.find({

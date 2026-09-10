@@ -119,7 +119,7 @@ export interface LotInputFiles {
 export class LotStatisticsService {
   private readonly logger = new Logger(LotStatisticsService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(private readonly settingsService: SystemSettingsService) { }
 
   /**
    * Quét thư mục trên server và đọc các file Excel tương ứng dưới dạng Buffer
@@ -469,7 +469,7 @@ export class LotStatisticsService {
       .filter((v) => !v.passed)
       .forEach((v) =>
         this.logger.warn(
-          `⚠️  [VALIDATION] ${v.field}: expected=${v.expected}, actual=${v.actual}`,
+          `  [VALIDATION] ${v.field}: expected=${v.expected}, actual=${v.actual}`,
         ),
       );
 

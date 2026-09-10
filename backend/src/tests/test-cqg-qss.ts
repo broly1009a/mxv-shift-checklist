@@ -170,7 +170,7 @@ async function screenshot(page: any, name: string) {
  * Only needed once per tab. If S column already visible, skip.
  */
 async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
-  console.log('\n📊 Thêm cột S (Settlement)...');
+  console.log('\n Thêm cột S (Settlement)...');
 
   // Wait for the grid header to be rendered and visible first
   await page
@@ -215,7 +215,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!headerClicked) {
     console.log(
-      '⚠️  Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
+      '  Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
     );
     await screenshot(page, `tab${batchNum}-settlement-header-not-found`);
     return;
@@ -265,7 +265,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   }
 
   if (!itemClicked) {
-    console.log('⚠️  Không tìm thấy item "S (Last settlement price)"');
+    console.log('  Không tìm thấy item "S (Last settlement price)"');
     await screenshot(page, `tab${batchNum}-settlement-item-not-found`);
     await page.keyboard.press('Escape');
     return;
@@ -368,7 +368,7 @@ async function openQSSTabWithSymbols(
     console.log('✅ Đã click OK!');
   } else {
     // Try pressing Enter as alternative
-    console.log('⚠️  OK button not found/visible, thử nhấn Enter...');
+    console.log('  OK button not found/visible, thử nhấn Enter...');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(3000);
     await screenshot(page, `tab${batchNum}-05-after-enter`);
@@ -540,7 +540,7 @@ async function scrapeQSSPrices(
     price,
   }));
   console.log(
-    `📊 Đã trích xuất ${finalData.length} mã hợp đồng từ Tab ${batchNum}`,
+    ` Đã trích xuất ${finalData.length} mã hợp đồng từ Tab ${batchNum}`,
   );
   return finalData;
 }
@@ -549,7 +549,7 @@ async function runCQGQSSTest() {
   console.log('\n' + '='.repeat(60));
   console.log('🚀 CQG QSS 2-BATCH TEST (HEADFUL)');
   console.log(
-    `📊 Tổng: ${ALL_SYMBOLS.length} symbols → ${Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE)} tab(s)`,
+    ` Tổng: ${ALL_SYMBOLS.length} symbols → ${Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE)} tab(s)`,
   );
   console.log('='.repeat(60) + '\n');
 
@@ -671,7 +671,7 @@ async function runCQGQSSTest() {
       `\n💾 Đã lưu thành công dữ liệu đối chiếu CQG vào file JSON: ${jsonPath}`,
     );
     console.log(
-      `📊 Tổng số mã lấy được: ${allExtractedPrices.length}/${ALL_SYMBOLS.length}`,
+      ` Tổng số mã lấy được: ${allExtractedPrices.length}/${ALL_SYMBOLS.length}`,
     );
 
     // Final state
@@ -679,7 +679,7 @@ async function runCQGQSSTest() {
     console.log('\n' + '='.repeat(60));
     console.log('✅ TEST 2 TAB & TRÍCH XUẤT GIÁ HOÀN TẤT!');
     console.log('='.repeat(60));
-    console.log(`📁 Screenshots & JSON: ${DEBUG_DIR}`);
+    console.log(` Screenshots & JSON: ${DEBUG_DIR}`);
     console.log('\n⏸ Chờ 15 giây để bạn kiểm tra kết quả trước khi đóng...');
     await page.waitForTimeout(15000);
   } catch (err: any) {

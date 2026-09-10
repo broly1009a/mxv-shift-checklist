@@ -306,14 +306,22 @@ export class DashboardService {
 
     systemLogs.forEach((log) => {
       const dept = log.departmentId as any;
+      const isBotFailed = log.eventType === 'BOT_JOB_FAILED' || log.status === 'FAILED';
       activities.push({
         id: log._id.toString(),
         type:
-          log.eventType === 'JOB_GENERATED' ? 'JOB_GENERATED' : 'SYSTEM_EVENT',
+          log.eventType === 'JOB_GENERATED'
+            ? 'JOB_GENERATED'
+            : isBotFailed
+            ? 'BOT_FAILED'
+            : 'SYSTEM_EVENT',
+        status: log.status,
         message: log.message,
         actorName: log.actorUserId
           ? (log.actorUserId as any).fullName
-          : 'System',
+          : isBotFailed
+          ? 'Bot Vận Hành'
+          : 'Hệ thống',
         departmentCode: dept ? dept.code : 'SYSTEM',
         jobId: log.jobId ? log.jobId.toString() : null,
         createdAt: log.createdAt,

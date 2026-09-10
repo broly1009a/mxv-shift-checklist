@@ -7,10 +7,12 @@ const execFileAsync = promisify(execFile);
 
 export interface PythonExtractorInput {
   accountCode: string;
+  accountName?: string;
   hopDongPath?: string;
   phuLucPath?: string;
   cccdFrontPath?: string;
   cccdBackPath?: string;
+  geminiKey?: string;
 }
 
 export interface PythonExtractorResult {
@@ -99,6 +101,10 @@ export async function runPythonExtractor(input: PythonExtractorInput): Promise<P
     '--code', input.accountCode || '',
   ];
 
+  if (input.accountName && input.accountName.trim()) {
+    args.push('--name', input.accountName.trim());
+  }
+
   if (input.hopDongPath && fs.existsSync(input.hopDongPath)) {
     args.push('--hopdong', input.hopDongPath);
   }
@@ -110,6 +116,9 @@ export async function runPythonExtractor(input: PythonExtractorInput): Promise<P
   }
   if (input.cccdBackPath && fs.existsSync(input.cccdBackPath)) {
     args.push('--back', input.cccdBackPath);
+  }
+  if (input.geminiKey && input.geminiKey.trim()) {
+    args.push('--gemini-key', input.geminiKey.trim());
   }
 
   // Timeout 60s / tài khoản: đủ cho ảnh CCCD phức tạp nhất.

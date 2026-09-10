@@ -642,7 +642,7 @@ async function main() {
     launchOptions.executablePath = msEdgePath;
     log('✅ Sử dụng trình duyệt Microsoft Edge');
   } else {
-    log('⚠️ Không tìm thấy Edge, sử dụng Chromium mặc định');
+    log(' Không tìm thấy Edge, sử dụng Chromium mặc định');
   }
 
   const browser = await chromium.launch(launchOptions);
@@ -922,7 +922,7 @@ async function main() {
     );
     if (!userIndexFrame) {
       log(
-        '⚠️ Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...',
+        ' Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...',
       );
       for (const f of allFrames) {
         const childFrames = f.childFrames();
@@ -1167,7 +1167,7 @@ async function main() {
                 log(`✅ ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
                 reportResponses.push(downloadPath);
               } catch (e: any) {
-                log(`⚠️ Không thể lấy body: ${e.message}`);
+                log(` Không thể lấy body: ${e.message}`);
               }
             }
           };
@@ -1491,7 +1491,7 @@ async function main() {
           } else {
             await page.waitForTimeout(5000);
             log(
-              `⚠️ Không có download event. Network responses: ${reportResponses.length}`,
+              ` Không có download event. Network responses: ${reportResponses.length}`,
             );
           }
 
@@ -1506,7 +1506,7 @@ async function main() {
           log(`📸 Screenshot sau Create Report: ${screenshotPath}`);
         }
       } else {
-        log(`⚠️ dataFrame chưa navigate tới ReportingTool`);
+        log(` dataFrame chưa navigate tới ReportingTool`);
         page
           .frames()
           .forEach((f, i) => log(`  [${i}] name=${f.name()} url=${f.url()}`));

@@ -128,7 +128,7 @@ export class PostEodHandlerService {
 
     // Default fallbacks if headers are not found
     this.logger.warn(
-      `[NegativeMargin][Excel] ⚠️ Không tìm thấy header phù hợp. Dùng fallback: cột 0 = Tài khoản, cột 1 = Ký quỹ.`,
+      `[NegativeMargin][Excel]  Không tìm thấy header phù hợp. Dùng fallback: cột 0 = Tài khoản, cột 1 = Ký quỹ.`,
     );
     return this.extractFromRows(data, 1, 0, 1);
   }

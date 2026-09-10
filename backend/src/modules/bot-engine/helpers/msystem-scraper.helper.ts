@@ -107,14 +107,14 @@ async function extractAndSaveImage(
           localPath = outFilePath;
         } else {
           // Fallback: Chụp ảnh trực tiếp element
-          await targetImg.screenshot({ path: outFilePath }).catch(() => {});
+          await targetImg.screenshot({ path: outFilePath }).catch(() => { });
           if (fs.existsSync(outFilePath)) {
             localPath = outFilePath;
           }
         }
       } else {
         // Fallback: Chụp ảnh trực tiếp element
-        await targetImg.screenshot({ path: outFilePath }).catch(() => {});
+        await targetImg.screenshot({ path: outFilePath }).catch(() => { });
         if (fs.existsSync(outFilePath)) {
           localPath = outFilePath;
         }
@@ -151,13 +151,13 @@ export async function scrapeInvestorDetailFromMSystem(
     console.log(`  🔄 Đang chuyển router tới chi tiết: ${investorCode}...`);
     await page.evaluate((targetUrl) => {
       window.location.href = targetUrl;
-    }, detailUrl).catch(() => {});
+    }, detailUrl).catch(() => { });
     await page.waitForTimeout(2500);
 
     // Nếu URL chưa đổi (vẫn ở dashboard hoặc khác), dùng page.goto với commit
     if (!page.url().includes(investorCode)) {
       console.log(`  🌐 Thử goto trực tiếp với domcontentloaded...`);
-      await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+      await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => { });
       await page.waitForTimeout(2000);
     }
 
@@ -172,7 +172,7 @@ export async function scrapeInvestorDetailFromMSystem(
       await page.evaluate((targetUrl) => {
         window.location.href = targetUrl;
         window.location.reload();
-      }, detailUrl).catch(() => {});
+      }, detailUrl).catch(() => { });
       await page.waitForTimeout(3000);
     }
 
@@ -186,7 +186,7 @@ export async function scrapeInvestorDetailFromMSystem(
       .catch(() => false);
 
     if (notFound) {
-      console.log(`  ⚠️ Không tìm thấy tài khoản ${investorCode} trên M-System.`);
+      console.log(`   Không tìm thấy tài khoản ${investorCode} trên M-System.`);
       return result;
     }
 
@@ -367,7 +367,7 @@ export async function scrapeInvestorDetailFromMSystem(
       console.log(`     - CCCD Sau:  ${backImg.exists ? (backImg.localPath ? ` Đã lưu (${backImg.localPath})` : ' Có ảnh') : ' Không có'}`);
       console.log(`     - Chữ ký:    ${signImg.exists ? (signImg.localPath ? ` Đã lưu (${signImg.localPath})` : ' Có ảnh') : ' Không có'}`);
     } else {
-      console.log(`  ⚠️ Không đọc được các trường dữ liệu của ${investorCode}.`);
+      console.log(`   Không đọc được các trường dữ liệu của ${investorCode}.`);
     }
 
     return result;

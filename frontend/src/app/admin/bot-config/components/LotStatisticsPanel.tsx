@@ -457,7 +457,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
       if (allPassed) {
         toast.success('Xử lý thống kê thành công! Tất cả chỉ số đối chiếu khớp.', { id: toastId, duration: 5000 });
       } else {
-        toast('Xử lý hoàn thành: Phát hiện chênh lệch đối chiếu.', { id: toastId, icon: '⚠️', duration: 5000 });
+        toast('Xử lý hoàn thành: Phát hiện chênh lệch đối chiếu.', { id: toastId, icon: '', duration: 5000 });
       }
     } catch (err: any) {
       setError(err.message || 'Lỗi khi xử lý');
@@ -1039,7 +1039,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           {/* Tabs bar */}
           <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', flexWrap: 'wrap' }}>
             {[
-              { id: 'summary', label: '📊 Bảng tổng hợp số lot' },
+              { id: 'summary', label: ' Bảng tổng hợp số lot' },
               { id: 'validations', label: `🔎 Kiểm tra đối chiếu validations (${result.validations?.length ?? 0})` },
               { id: 'product', label: `📦 Chi tiết theo sản phẩm (${result.byProduct?.length ?? 0})` },
               { id: 'tvkd', label: `🏢 Chi tiết theo TVKD (${result.byTvkd?.length ?? 0})` },
@@ -1068,7 +1068,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
           {/* Result content */}
           {resultTab === 'summary' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng đối chiếu số lot giữa các báo cáo</h5>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}> Bảng đối chiếu số lot giữa các báo cáo</h5>
 
               <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                 <table style={{ width: '100%', textAlign: 'left', fontSize: '0.75rem', borderCollapse: 'collapse' }}>

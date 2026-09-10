@@ -393,18 +393,30 @@ export class TkgdReconcileCoreService {
       if (!dir) return;
 
       const files = fs.readdirSync(dir);
-      const hopDong = files.find((f) => f.toLowerCase().endsWith('.pdf') && (f.toLowerCase().includes('mxv') || f.toLowerCase().includes('hopdong') || !f.toLowerCase().includes('pl01')));
-      let front = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('truoc') || f.toLowerCase().includes('front')));
-      let back = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('sau') || f.toLowerCase().includes('back')));
-      if (!front) front = files.find((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png'));
-      if (front && !back) back = files.filter((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')).find((f) => f !== front);
+      const isMsEvidence = (fn: string) =>
+        fn.toLowerCase().includes('_ms_') ||
+        fn.toLowerCase().includes('chuky') ||
+        fn.toLowerCase().includes('signature') ||
+        fn.toLowerCase().includes('sign') ||
+        fn.toLowerCase().startsWith(`${baseCode.toLowerCase()}_ms`);
+
+      const customerFiles = files.filter((f) => !isMsEvidence(f));
+      const pool = customerFiles.length > 0 ? customerFiles : files;
+
+      const hopDong = pool.find((f) => f.toLowerCase().endsWith('.pdf') && (f.toLowerCase().includes('mxv') || f.toLowerCase().includes('hopdong') || !f.toLowerCase().includes('pl01')));
+      let front = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign') && (f.toLowerCase().includes('truoc') || f.toLowerCase().includes('front')));
+      let back = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign') && (f.toLowerCase().includes('sau') || f.toLowerCase().includes('back')));
+      if (!front) front = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign'));
+      if (front && !back) back = pool.filter((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign')).find((f) => f !== front);
 
       if (front || back || hopDong) {
         const pyRes = await runPythonExtractor({
           accountCode: baseCode,
+          accountName: record.noiDungMail?.tenTaiKhoan || record.hopDong?.hoVaTen || record.ms?.hoVaTen,
           hopDongPath: hopDong ? path.join(dir, hopDong) : undefined,
           cccdFrontPath: front ? path.join(dir, front) : undefined,
           cccdBackPath: back ? path.join(dir, back) : undefined,
+          geminiKey: process.env.GEMINI_API_KEY,
         });
 
         if (pyRes) {
@@ -585,8 +597,16 @@ export class TkgdReconcileCoreService {
           criticalErrors.push(`Lệch số CCCD (Yêu cầu: ${targetCccd} != MS: ${msCccd})`);
         }
 
-        const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
+        // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
+        const cccdDob = record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : '');
+        const contractDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '');
         const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
+        let hdDob = contractDob || cccdDob;
+        if (cccdDob && msDob && normalizeDateStr(cccdDob) === normalizeDateStr(msDob)) {
+          hdDob = cccdDob;
+        } else if (!contractDob || targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S')) {
+          hdDob = cccdDob || contractDob;
+        }
         if (hdDob && msDob) {
           const normHd = normalizeDateStr(hdDob);
           const normMs = normalizeDateStr(msDob);

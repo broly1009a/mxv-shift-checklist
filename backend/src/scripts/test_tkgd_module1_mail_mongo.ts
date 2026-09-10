@@ -155,7 +155,7 @@ async function runModule1Test() {
 
   // 4. TRUY VẤN LẠI TỪ MONGODB ĐỂ KIỂM CHỨNG (VERIFICATION)
   console.log('\n' + '='.repeat(70));
-  console.log('📊 KIỂM CHỨNG DỮ LIỆU THỰC TẾ TRONG MONGODB ATLAS:');
+  console.log(' KIỂM CHỨNG DỮ LIỆU THỰC TẾ TRONG MONGODB ATLAS:');
   console.log('='.repeat(70));
 
   const cleanRecords = await CleanRecordModel.find({ batchDate: todayStr })

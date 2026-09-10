@@ -55,7 +55,7 @@ async function main() {
 
     const mismatchedTrades = result.mismatchedTrades || [];
     if (mismatchedTrades.length > 0) {
-      note += `⚠️ Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+      note += ` Phát hiện ${mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
       mismatchedTrades.slice(0, 10).forEach((m: any) => {
         note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
       });
@@ -67,7 +67,7 @@ async function main() {
     }
 
     if (mismatchedPositions.length > 0) {
-      note += `⚠️ Phát hiện ${mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+      note += ` Phát hiện ${mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
       mismatchedPositions.slice(0, 10).forEach((m: any) => {
         note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
       });

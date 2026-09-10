@@ -217,6 +217,23 @@ export class TkgdAutomationService {
   ) { }
 
   /**
+   * Lấy Gemini API Key từ biến môi trường hoặc cấu hình hệ thống (bot_credentials_acm)
+   */
+  private async getGeminiApiKey(): Promise<string> {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    try {
+      if (this.settingsService) {
+        const raw = await this.settingsService.getSetting('bot_credentials_acm', '');
+        if (raw) {
+          const cred = JSON.parse(decrypt(raw));
+          if (cred?.geminiApiKey) return cred.geminiApiKey;
+        }
+      }
+    } catch { }
+    return '';
+  }
+
+  /**
    * Ghi log tác vụ độc lập cho phân hệ TKGD (Thanh Toán Bù Trừ)
    */
   async logActivity(params: {
@@ -707,22 +724,27 @@ export class TkgdAutomationService {
     userEmail: string,
     tokenData: { refreshToken: string; authorizedEmail?: string },
   ) {
-    let config = await this.userConfigModel.findOne({ userEmail });
-    if (!config) {
-      config = new this.userConfigModel({
-        userEmail,
-        fullName: userEmail.split('@')[0],
-        department: 'Thanh toán bù trừ',
-      });
-    }
-    if (!config.outlook) (config as any).outlook = {};
-    config.outlook.refreshToken = tokenData.refreshToken;
+    const updateFields: any = {
+      'outlook.refreshToken': tokenData.refreshToken,
+      'outlook.tokenRenewedAt': new Date().toISOString(),
+    };
     if (tokenData.authorizedEmail) {
-      config.outlook.authorizedEmail = tokenData.authorizedEmail;
+      updateFields['outlook.authorizedEmail'] = tokenData.authorizedEmail;
     }
-    config.outlook.tokenRenewedAt = new Date().toISOString();
-    await config.save();
-    this.logger.log(`[TKGD-OUTLOOK] Đã lưu Refresh Token Outlook độc lập cho ${userEmail}`);
+
+    const config = await this.userConfigModel.findOneAndUpdate(
+      { userEmail },
+      {
+        $set: updateFields,
+        $setOnInsert: {
+          userEmail,
+          fullName: userEmail.split('@')[0],
+          department: 'Thanh toán bù trừ',
+        },
+      },
+      { new: true, upsert: true },
+    );
+    this.logger.log(`[TKGD-OUTLOOK] Đã lưu Refresh Token Outlook độc lập cho ${userEmail} (${tokenData.authorizedEmail || ''})`);
     return config;
   }
 
@@ -738,13 +760,17 @@ export class TkgdAutomationService {
    * Hủy kết nối / Đăng xuất tài khoản Outlook độc lập của TKGD
    */
   async disconnectOutlook(userEmail: string) {
-    const config = await this.userConfigModel.findOne({ userEmail });
-    if (config && config.outlook) {
-      config.outlook.refreshToken = '';
-      config.outlook.authorizedEmail = '';
-      config.outlook.tokenRenewedAt = '';
-      await config.save();
-    }
+    await this.userConfigModel.updateOne(
+      { userEmail },
+      {
+        $set: {
+          'outlook.refreshToken': '',
+          'outlook.authorizedEmail': '',
+          'outlook.tokenRenewedAt': '',
+        },
+      },
+    );
+    this.logger.log(`[TKGD-OUTLOOK] Đã xóa token Outlook độc lập cho ${userEmail}`);
     return { success: true, message: 'Đã hủy kết nối tài khoản Outlook độc lập thành công' };
   }
 
@@ -1143,7 +1169,11 @@ export class TkgdAutomationService {
     // Kiểm tra tính nhất quán giữa Hợp đồng và M-System
     const msCccd = (record.ms?.soCMND_HoChieu || record.ms?.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
     const hdCccd = (record.hopDong?.soCanCuoc || '').replace(/\D/g, '');
-    if (!msCccd || !hdCccd || msCccd !== hdCccd || msCccd.length !== 12) {
+    if (!msCccd || msCccd.length !== 12) {
+      return false;
+    }
+    const isSubAccount = record.accountType === 'SUB_ACCOUNT' || Boolean(record.noiDungMail?.maTKGD_ACM || record.phuLuc?.isPl01);
+    if (!isSubAccount && hdCccd && msCccd !== hdCccd) {
       return false;
     }
 
@@ -1217,24 +1247,35 @@ export class TkgdAutomationService {
         ...(record.canCuoc || {}),
         soCanCuoc: msCccd,
         hoVaTen: record.ms?.hoVaTen || record.hopDong?.hoVaTen,
-        ngaySinh: record.canCuoc?.ngaySinh || record.ms?.ngaySinh || record.hopDong?.ngaySinh,
-        rawNgaySinh: record.canCuoc?.rawNgaySinh || record.ms?.rawNgaySinh || record.hopDong?.rawNgaySinh,
-        ngayCap: record.canCuoc?.ngayCap || record.ms?.ngayCap || record.hopDong?.ngayCap,
-        rawNgayCap: record.canCuoc?.rawNgayCap || record.ms?.rawNgayCap || record.hopDong?.rawNgayCap,
-        noiCap: record.canCuoc?.noiCap || record.ms?.noiCap || record.hopDong?.noiCap || 'Cục Cảnh sát quản lý hành chính về trật tự xã hội',
-        gioiTinh: record.canCuoc?.gioiTinh || record.ms?.gioiTinh || record.hopDong?.gioiTinh,
+        ngaySinh: record.ms?.ngaySinh || record.canCuoc?.ngaySinh || record.hopDong?.ngaySinh,
+        rawNgaySinh: record.ms?.rawNgaySinh || record.canCuoc?.rawNgaySinh || record.hopDong?.rawNgaySinh,
+        ngayCap: record.ms?.ngayCap || record.canCuoc?.ngayCap || record.hopDong?.ngayCap,
+        rawNgayCap: record.ms?.rawNgayCap || record.canCuoc?.rawNgayCap || record.hopDong?.rawNgayCap,
+        noiCap: record.ms?.noiCap || record.canCuoc?.noiCap || record.hopDong?.noiCap || 'Cục Cảnh sát quản lý hành chính về trật tự xã hội',
+        gioiTinh: record.ms?.gioiTinh || record.canCuoc?.gioiTinh || record.hopDong?.gioiTinh,
         theGeneration: record.canCuoc?.theGeneration || 'CCCD_CHIP_2021',
         confidenceScore: 0.98,
         source: 'VERIFIED_MS_HASH',
-        canhBaoChatLuong: [],
+        canhBaoChatLuong: record.canCuoc?.canhBaoChatLuong || [],
       };
 
       record.canCuoc = updatedCanCuoc;
 
+      if (!record.hopDong?.soCanCuoc || isSubAccount) {
+        record.hopDong = {
+          ...(record.hopDong || {}),
+          soCanCuoc: msCccd,
+          hoVaTen: record.ms?.hoVaTen || record.hopDong?.hoVaTen,
+          ngaySinh: record.ms?.ngaySinh || record.canCuoc?.ngaySinh || record.hopDong?.ngaySinh,
+          rawNgaySinh: record.ms?.rawNgaySinh || record.canCuoc?.rawNgaySinh || record.hopDong?.rawNgaySinh,
+          gioiTinh: record.ms?.gioiTinh || record.canCuoc?.gioiTinh || record.hopDong?.gioiTinh,
+        };
+      }
+
       if (record._id) {
         await this.cleanRecordModel.updateMany(
           { $or: [{ _id: record._id }, { maTKGD: record.maTKGD }, { maTKGDBase: baseCode }] },
-          { $set: { canCuoc: updatedCanCuoc } },
+          { $set: { canCuoc: updatedCanCuoc, ...(record.hopDong ? { hopDong: record.hopDong } : {}) } },
         );
       }
 
@@ -1282,18 +1323,31 @@ export class TkgdAutomationService {
       if (!dir) return;
 
       const files = fs.readdirSync(dir);
-      const hopDong = files.find((f) => f.toLowerCase().endsWith('.pdf') && (f.toLowerCase().includes('mxv') || f.toLowerCase().includes('hopdong') || !f.toLowerCase().includes('pl01')));
-      let front = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('truoc') || f.toLowerCase().includes('front')));
-      let back = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('sau') || f.toLowerCase().includes('back')));
-      if (!front) front = files.find((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png'));
-      if (front && !back) back = files.filter((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')).find((f) => f !== front);
+      const isMsEvidence = (fn: string) =>
+        fn.toLowerCase().includes('_ms_') ||
+        fn.toLowerCase().includes('chuky') ||
+        fn.toLowerCase().includes('signature') ||
+        fn.toLowerCase().includes('sign') ||
+        fn.toLowerCase().startsWith(`${baseCode.toLowerCase()}_ms`);
+
+      const customerFiles = files.filter((f) => !isMsEvidence(f));
+      const pool = customerFiles.length > 0 ? customerFiles : files;
+
+      const hopDong = pool.find((f) => f.toLowerCase().endsWith('.pdf') && (f.toLowerCase().includes('mxv') || f.toLowerCase().includes('hopdong') || !f.toLowerCase().includes('pl01')));
+      let front = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign') && (f.toLowerCase().includes('truoc') || f.toLowerCase().includes('front')));
+      let back = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign') && (f.toLowerCase().includes('sau') || f.toLowerCase().includes('back')));
+      if (!front) front = pool.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign'));
+      if (front && !back) back = pool.filter((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && !f.toLowerCase().includes('chuky') && !f.toLowerCase().includes('sign')).find((f) => f !== front);
 
       if (front || back || hopDong) {
+        const geminiKey = await this.getGeminiApiKey();
         const pyRes = await runPythonExtractor({
           accountCode: baseCode,
+          accountName: record.noiDungMail?.tenTaiKhoan || record.hopDong?.hoVaTen || record.ms?.hoVaTen,
           hopDongPath: hopDong ? path.join(dir, hopDong) : undefined,
           cccdFrontPath: front ? path.join(dir, front) : undefined,
           cccdBackPath: back ? path.join(dir, back) : undefined,
+          geminiKey,
         });
 
         if (pyRes) {
@@ -1524,8 +1578,16 @@ export class TkgdAutomationService {
       }
 
       // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
-      const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
+      // Ưu tiên ngày sinh từ CCCD nếu có vì CCCD là giấy tờ định danh pháp lý chuẩn BCA có QR/MRZ
+      const cccdDob = record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : '');
+      const contractDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '');
       const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
+      let hdDob = contractDob || cccdDob;
+      if (cccdDob && msDob && normalizeDateStr(cccdDob) === normalizeDateStr(msDob)) {
+        hdDob = cccdDob;
+      } else if (!contractDob || targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S')) {
+        hdDob = cccdDob || contractDob;
+      }
       if (hdDob && msDob) {
         const normHd = normalizeDateStr(hdDob);
         const normMs = normalizeDateStr(msDob);
@@ -1614,7 +1676,15 @@ export class TkgdAutomationService {
   async runReconciliation(userEmail: string, batchDate?: string) {
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
     const query: any = {};
-    if (batchDate) query.batchDate = batchDate;
+    if (batchDate && batchDate.trim()) {
+      query.batchDate = batchDate.trim();
+    } else {
+      // Mặc định lấy theo đợt gần nhất (tránh gom tất cả các đợt cũ trong lịch sử)
+      const latestDoc = await this.cleanRecordModel.findOne({}).sort({ batchDate: -1, createdAt: -1 }).lean();
+      if (latestDoc?.batchDate) {
+        query.batchDate = latestDoc.batchDate;
+      }
+    }
     const records = await this.cleanRecordModel.find(query).sort({ createdAt: -1 }).limit(100);
 
     this.updateProgress(userEmail, {
@@ -2159,12 +2229,15 @@ export class TkgdAutomationService {
 
           // Gọi Python Worker trích xuất chính xác 100%
           try {
+            const geminiKey = await this.getGeminiApiKey();
             const pythonRes = await runPythonExtractor({
               accountCode: baseCode,
+              accountName: group.tenTaiKhoan,
               hopDongPath,
               phuLucPath,
               cccdFrontPath,
               cccdBackPath,
+              geminiKey,
             });
 
             if (pythonRes) {
@@ -2816,7 +2889,20 @@ export class TkgdAutomationService {
       if (!fs.existsSync(dir)) return;
       try {
         const files = fs.readdirSync(dir);
-        for (const f of files) {
+        // Tách riêng file đính kèm gốc của khách hàng và file bảo chứng tải về từ M-System (_MS_ / chuky)
+        const isMsEvidence = (fn: string) =>
+          fn.toLowerCase().includes('_ms_') ||
+          fn.toLowerCase().includes('chuky') ||
+          fn.toLowerCase().includes('signature') ||
+          fn.toLowerCase().includes('sign') ||
+          fn.toLowerCase().startsWith(`${baseCode.toLowerCase()}_ms`);
+
+        const customerFiles = files.filter((f) => !isMsEvidence(f));
+        const evidenceFiles = files.filter((f) => isMsEvidence(f));
+        // Ưu tiên cao nhất quét file gốc từ khách hàng, chỉ fallback sang ảnh MS nếu không có bất kỳ file ảnh gốc nào
+        const orderedFiles = customerFiles.length > 0 ? [...customerFiles, ...evidenceFiles] : evidenceFiles;
+
+        for (const f of orderedFiles) {
           const lower = f.toLowerCase();
           const full = path.join(dir, f);
           if (lower.endsWith('.pdf')) {
@@ -2826,6 +2912,10 @@ export class TkgdAutomationService {
               if (!hopDongPath) hopDongPath = full;
             }
           } else if (/\.(jpe?g|png|bmp|webp)$/i.test(lower)) {
+            // Tuyệt đối không chọn file chữ ký làm ảnh CCCD
+            if (lower.includes('chuky') || lower.includes('signature') || lower.includes('sign')) {
+              continue;
+            }
             if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('mat-sau')) {
               if (!cccdBackPath) cccdBackPath = full;
             } else if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('mat-truoc')) {
@@ -2865,12 +2955,15 @@ export class TkgdAutomationService {
     // 4. Chạy lại Python Extractor nếu có file đính kèm
     if (hopDongPath || phuLucPath || cccdFrontPath || cccdBackPath) {
       try {
+        const geminiKey = await this.getGeminiApiKey();
         const pyRes = await runPythonExtractor({
           accountCode: record.maTKGD || baseCode,
+          accountName: record.noiDungMail?.tenTaiKhoan || record.hopDong?.hoVaTen || record.ms?.hoVaTen,
           hopDongPath,
           phuLucPath,
           cccdFrontPath,
           cccdBackPath,
+          geminiKey,
         });
 
         if (pyRes) {
@@ -2891,6 +2984,22 @@ export class TkgdAutomationService {
               dinhDangLoi: pyRes.hopDong.dinhDangLoi || [],
               loaiHinhTaiKhoan: 'Cá nhân',
               chuKy: pyRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
+            } as any;
+          } else if (!hopDongPath && pyRes.canCuoc) {
+            // Khi không có file hợp đồng (như mở tài khoản ACM qua PL01): Đồng bộ hopDong từ CCCD mới nhất để xóa dữ liệu cũ kẹt
+            record.hopDong = {
+              maTKGD: baseCode,
+              hoVaTen: pyRes.canCuoc.hoTen || record.canCuoc?.hoVaTen || record.hopDong?.hoVaTen,
+              soCanCuoc: pyRes.canCuoc.soCCCD || record.canCuoc?.soCanCuoc,
+              ngaySinh: parseDate(pyRes.canCuoc.ngaySinh) || record.canCuoc?.ngaySinh,
+              rawNgaySinh: pyRes.canCuoc.rawNgaySinh || pyRes.canCuoc.ngaySinh || record.canCuoc?.rawNgaySinh,
+              ngayCap: parseDate(pyRes.canCuoc.ngayCap) || record.canCuoc?.ngayCap,
+              rawNgayCap: pyRes.canCuoc.rawNgayCap || pyRes.canCuoc.ngayCap || record.canCuoc?.rawNgayCap,
+              noiCap: pyRes.canCuoc.noiCap || record.canCuoc?.noiCap,
+              gioiTinh: pyRes.canCuoc.gioiTinh || record.canCuoc?.gioiTinh,
+              dinhDangLoi: [],
+              loaiHinhTaiKhoan: 'Cá nhân',
+              chuKy: 'Đã ký',
             } as any;
           }
 
@@ -2942,7 +3051,10 @@ export class TkgdAutomationService {
       }
     }
 
-    // 6. Thực hiện so sánh đối soát lại ngay cho hồ sơ này
+    // 6. Kích hoạt bảo chứng chéo ảnh nếu hash ảnh đính kèm trùng khớp với ảnh M-System
+    await this.verifyAndHealWithImageHash(record);
+
+    // 7. Thực hiện so sánh đối soát lại ngay cho hồ sơ này
     const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
     record.ketLuan = {
       trangThai: finalStatus,

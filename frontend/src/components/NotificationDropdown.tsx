@@ -6,7 +6,10 @@ import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 
+import { useRouter } from 'next/navigation';
+
 export default function NotificationDropdown() {
+  const router = useRouter();
   const { token } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifyRef = useRef<HTMLDivElement>(null);
@@ -157,6 +160,8 @@ export default function NotificationDropdown() {
               title = 'Cập nhật tác vụ';
             } else if (latest.type === 'JOB_GENERATED') {
               title = 'Khởi tạo ca trực';
+            } else if (latest.type === 'BOT_FAILED') {
+              title = ' Cảnh báo Bot Đối Soát';
             }
 
             // Play synthesized notification sound
@@ -188,11 +193,11 @@ export default function NotificationDropdown() {
             } catch (err) {
               console.warn('Failed to play synthesized sound:', err);
             }
-            
+
             toast.custom((t) => (
-              <div 
+              <div
                 onClick={() => toast.dismiss(t.id)}
-                style={{ 
+                style={{
                   opacity: t.visible ? 1 : 0,
                   transform: t.visible ? 'translateY(0)' : 'translateY(-10px)',
                   transition: 'all 0.25s ease-in-out',
@@ -202,7 +207,7 @@ export default function NotificationDropdown() {
                   borderRadius: '12px',
                   padding: '12px 16px',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-                  display: 'flex', 
+                  display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: '12px',
@@ -213,9 +218,9 @@ export default function NotificationDropdown() {
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', flex: 1 }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>🔔 {title}</span>
-                  <span style={{ 
-                    fontSize: '0.78rem', 
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}> {title}</span>
+                  <span style={{
+                    fontSize: '0.78rem',
                     color: 'var(--text-secondary)',
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
@@ -363,19 +368,19 @@ export default function NotificationDropdown() {
 
   return (
     <div ref={notifyRef} style={{ position: 'relative' }}>
-      <button 
+      <button
         onClick={() => {
           setShowNotifications(!showNotifications);
           if (!showNotifications) {
             handleMarkAsRead();
           }
         }}
-        style={{ 
-          background: 'var(--bg-card)', 
-          border: '1px solid var(--border-color)', 
-          color: 'var(--text-primary)', 
-          cursor: 'pointer', 
-          padding: '8px', 
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          color: 'var(--text-primary)',
+          cursor: 'pointer',
+          padding: '8px',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -440,14 +445,14 @@ export default function NotificationDropdown() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Thông báo mới</span>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <span 
-                onClick={handleMarkAsRead} 
+              <span
+                onClick={handleMarkAsRead}
                 style={{ fontSize: '0.75rem', color: 'var(--color-accent)', cursor: 'pointer' }}
               >
                 Đánh dấu đã đọc
               </span>
-              <span 
-                onClick={handleClearAll} 
+              <span
+                onClick={handleClearAll}
                 style={{ fontSize: '0.75rem', color: '#ef4444', cursor: 'pointer' }}
               >
                 Xóa tất cả
@@ -472,27 +477,42 @@ export default function NotificationDropdown() {
                   title = 'Cập nhật tác vụ';
                 } else if (act.type === 'JOB_GENERATED') {
                   title = 'Khởi tạo ca trực';
+                } else if (act.type === 'BOT_FAILED') {
+                  title = ' Cảnh báo Bot Đối Soát';
                 }
 
                 const isLast = idx === displayedActivities.length - 1;
                 const isUnread = !lastReadTime || new Date(act.createdAt).getTime() > new Date(lastReadTime).getTime();
+                const isBotFailure = act.type === 'BOT_FAILED';
 
                 return (
-                  <div 
-                    key={act.id || act._id || act.createdAt || idx} 
+                  <div
+                    key={act.id || act._id || act.createdAt || idx}
                     className="notification-item"
-                    style={{ 
-                      fontSize: '0.8rem', 
-                      paddingBottom: isLast ? '0' : '8px', 
-                      borderBottom: isLast ? 'none' : '1px dashed var(--border-color)',
-                      opacity: isUnread ? 1 : 0.75,
-                      transition: 'opacity 0.25s ease'
+                    onClick={() => {
+                      if (isBotFailure) {
+                        setShowNotifications(false);
+                        router.push('/trading-manager');
+                      }
                     }}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: isBotFailure ? '8px 10px' : '0 0 8px 0',
+                      marginBottom: isBotFailure ? '6px' : '0',
+                      borderRadius: isBotFailure ? '8px' : '0',
+                      background: isBotFailure ? 'rgba(239, 68, 68, 0.12)' : 'transparent',
+                      border: isBotFailure ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                      borderBottom: isBotFailure ? '1px solid rgba(239, 68, 68, 0.3)' : isLast ? 'none' : '1px dashed var(--border-color)',
+                      opacity: isUnread ? 1 : 0.75,
+                      cursor: isBotFailure ? 'pointer' : 'default',
+                      transition: 'all 0.2s ease'
+                    }}
+                    title={isBotFailure ? 'Bấm để mở Quản lý Vận hành (Trading Manager)' : undefined}
                   >
-                    <p style={{ 
-                      fontWeight: isUnread ? 700 : 600, 
-                      margin: '0 0 2px 0', 
-                      color: 'var(--text-primary)',
+                    <p style={{
+                      fontWeight: isUnread ? 700 : 600,
+                      margin: '0 0 2px 0',
+                      color: isBotFailure ? '#f87171' : 'var(--text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px'
@@ -503,15 +523,15 @@ export default function NotificationDropdown() {
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
-                          background: 'var(--color-accent, #3b82f6)',
+                          background: isBotFailure ? '#ef4444' : 'var(--color-accent, #3b82f6)',
                           flexShrink: 0
                         }} />
                       )}
                       {title}
                     </p>
-                    <p style={{ 
-                      color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)', 
-                      margin: '0 0 4px 0', 
+                    <p style={{
+                      color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      margin: '0 0 4px 0',
                       lineHeight: '1.3',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
@@ -522,7 +542,7 @@ export default function NotificationDropdown() {
                       {act.message}
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.7rem', color: isBotFailure ? '#fca5a5' : 'var(--text-muted)' }}>
                         {act.actorName || 'Hệ thống'}
                       </span>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>

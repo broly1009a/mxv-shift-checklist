@@ -85,7 +85,7 @@ function parseUniqueMSContracts(filePath: string): string[] {
   const headers = data[0];
   const contractIndex = headers.indexOf('Mã HĐ');
   if (contractIndex === -1) {
-    console.error('⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel!');
+    console.error(' Không tìm thấy cột "Mã HĐ" trong file Excel!');
     return [];
   }
 
@@ -103,7 +103,7 @@ function parseUniqueMSContracts(filePath: string): string[] {
  * Add column S (Last settlement price) to the Quote Spreadsheet grid
  */
 async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
-  console.log('\n📊 Thêm cột S (Settlement)...');
+  console.log('\n Thêm cột S (Settlement)...');
 
   // Wait for the grid header to be rendered and visible first
   await page
@@ -145,7 +145,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!headerClicked) {
     console.log(
-      '⚠️ Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
+      ' Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
     );
     await screenshot(page, `tab${batchNum}-settlement-header-not-found`);
     return;
@@ -192,7 +192,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!itemClicked) {
     console.log(
-      '⚠️ Không click được cột S trong list, thử double click dòng đầu tiên',
+      ' Không click được cột S trong list, thử double click dòng đầu tiên',
     );
     await page.dblclick('.wpfe-list-item-content').catch(() => { });
   }
@@ -467,7 +467,7 @@ async function runEndToEndReconciliation() {
         break;
       }
       console.log(
-        `⚠️ Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+        ` Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
       );
       await screenshot(page, `02-ms-retry-login-click-attempt-${attempt}`);
       await page.click('button.btn-primary').catch(() => { });
@@ -745,7 +745,7 @@ async function runEndToEndReconciliation() {
   // =========================================================================
   step('Đối chiếu giá thanh toán (MS vs CQG)');
   const msPricesMap = parseMSMarketCsv(marketCsvPath);
-  console.log(`📊 Đã đọc ${msPricesMap.size} mã giá thanh toán từ M-System.`);
+  console.log(` Đã đọc ${msPricesMap.size} mã giá thanh toán từ M-System.`);
 
   const report: {
     symbol: string;
@@ -812,7 +812,7 @@ async function runEndToEndReconciliation() {
   }
 
   console.log('\n' + '#'.repeat(60));
-  console.log('📊 BÁO CÁO ĐỐI CHIẾU GIÁ THANH TOÁN (GTT) HẰNG NGÀY');
+  console.log(' BÁO CÁO ĐỐI CHIẾU GIÁ THANH TOÁN (GTT) HẰNG NGÀY');
   console.log('#'.repeat(60));
   console.log(`- Tổng số mã vị thế mở cần check: ${symbols.length}`);
   console.log(`- Khớp chính xác (MATCH):         ${matchCount}`);
@@ -836,7 +836,7 @@ async function runEndToEndReconciliation() {
   }
 
   if (missingCount > 0) {
-    console.log('\n⚠️ DANH SÁCH MÃ THIẾU THÔNG TIN TRÊN 1 HỆ THỐNG:');
+    console.log('\n DANH SÁCH MÃ THIẾU THÔNG TIN TRÊN 1 HỆ THỐNG:');
     report
       .filter((r) => r.status.startsWith('MISSING'))
       .forEach((r) => {

@@ -12,6 +12,7 @@ import { Model, Types } from 'mongoose';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { ChecklistTemplate } from '../../schemas/template.schema';
 import { AuditLog } from '../../schemas/audit-log.schema';
+import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
@@ -30,6 +31,7 @@ export class ShiftsService {
     @InjectModel(ChecklistTemplate.name)
     private readonly templateModel: Model<ChecklistTemplate>,
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLog>,
+    @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     private readonly shiftsGateway: ShiftsGateway,
     private readonly telegramService: TelegramService,
     private readonly systemLogsService: SystemLogsService,
@@ -38,7 +40,22 @@ export class ShiftsService {
     private readonly accessControlService: AccessControlService,
     private readonly marginCheckerService: MarginCheckerService,
     private readonly workingCalendarService: WorkingCalendarService,
-  ) {}
+  ) { }
+
+  /**
+   * Truy vấn nhanh ShiftLog phục vụ Guard kiểm tra (Lean & No Overhead).
+   */
+  async findShiftLogRaw(shiftLogId: string): Promise<ShiftLog | null> {
+    try {
+      return await this.shiftLogModel
+        .findById(shiftLogId)
+        .select('status details')
+        .lean()
+        .exec();
+    } catch {
+      return null;
+    }
+  }
 
 
   private validateScope(
@@ -211,11 +228,11 @@ export class ShiftsService {
       const deptName =
         (result.templateId as any)?.departmentId?.name || 'Vận hành';
       await this.telegramService.sendMessage(
-        `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
-          `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
-          `• Ngày trực: <b>${result.shiftDate}</b>\n` +
-          `• Phòng ban: <b>${deptName}</b>\n` +
-          `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
+        ` <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
+        `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
+        `• Ngày trực: <b>${result.shiftDate}</b>\n` +
+        `• Phòng ban: <b>${deptName}</b>\n` +
+        `• Người trực chính: <b>${(result.userId as any)?.fullName}</b>`,
       );
 
       // Ghi nhận log hệ thống
@@ -612,6 +629,52 @@ export class ShiftsService {
       total > 0 ? parseFloat(((completed / total) * 100).toFixed(2)) : 0.0;
     await updatedLog.save();
 
+    // Nếu người dùng chủ động tích hoàn thành thủ công, hủy các Job Kiểm tra/Audit PENDING của tác vụ này
+    if (isChecked && !isInternal) {
+      const AUDIT_JOB_TYPES = [
+        'CHECK_KLGD',
+        'CHECK_PRE_EOD',
+        'CHECK_EOD_MM',
+        'FILE_AUDIT_ACM',
+        'FILE_AUDIT_CQG',
+        'FILE_AUDIT_MS',
+        'AUTO_CHECK_SOD',
+        'RUN_MACRO',
+        'RUN_LOT_MACRO',
+        'RUN_VALUE_MACRO',
+      ];
+      this.botJobModel
+        .updateMany(
+          {
+            'payload.shiftLogId': shiftLogId,
+            'payload.taskId': taskId,
+            status: 'PENDING',
+            jobType: { $in: AUDIT_JOB_TYPES },
+          },
+          {
+            $set: {
+              status: 'CANCELLED',
+              error: 'Đã hủy do người dùng đã thẩm định và tích hoàn thành thủ công.',
+              completedAt: new Date(),
+            },
+            $push: {
+              logs: `[${new Date().toISOString()}] Job đã được hủy tự động do người dùng đã tích hoàn thành thủ công.`,
+            },
+          },
+        )
+        .exec()
+        .then((res) => {
+          if (res.modifiedCount > 0) {
+            this.logger.log(
+              `[MANUAL_CHECK] Đã hủy ${res.modifiedCount} BotJob audit PENDING cho tác vụ [${taskId}].`,
+            );
+          }
+        })
+        .catch((err) => {
+          this.logger.error(`[MANUAL_CHECK] Lỗi hủy BotJob: ${err.message}`);
+        });
+    }
+
     const result = await this.shiftLogModel
       .findById(updatedLog._id)
       .populate('userId', 'fullName username')
@@ -713,10 +776,10 @@ export class ShiftsService {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
         `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
-          `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
-          `• Trạng thái: <b>${status}</b>\n` +
-          `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
-          `• Thực hiện bởi: <b>${actorName}</b>`,
+        `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
+        `• Trạng thái: <b>${status}</b>\n` +
+        `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
+        `• Thực hiện bởi: <b>${actorName}</b>`,
       );
     }
 
@@ -891,6 +954,35 @@ export class ShiftsService {
       log.handoverNote = handoverNote || null;
     }
     await log.save();
+
+    // Tự động hủy toàn bộ các BotJob còn đang PENDING thuộc ca trực này
+    try {
+      const cancelResult = await this.botJobModel.updateMany(
+        {
+          'payload.shiftLogId': shiftLogId,
+          status: 'PENDING',
+        },
+        {
+          $set: {
+            status: 'CANCELLED',
+            error: 'Đã hủy tự động do ca trực đã chốt (COMPLETED).',
+            completedAt: new Date(),
+          },
+          $push: {
+            logs: `[${new Date().toISOString()}] Job đã được hủy tự động do ca trực đã chốt lúc ${new Date().toLocaleTimeString('vi-VN')}.`,
+          },
+        },
+      );
+      if (cancelResult.modifiedCount > 0) {
+        this.logger.log(
+          `[CLOSE_SHIFT] Đã tự động hủy ${cancelResult.modifiedCount} BotJob PENDING thuộc ca trực ${shiftLogId}.`,
+        );
+      }
+    } catch (cancelErr: any) {
+      this.logger.error(
+        `[CLOSE_SHIFT] Lỗi khi hủy các BotJob PENDING: ${cancelErr.message}`,
+      );
+    }
 
     const result = await this.shiftLogModel
       .findById(log._id)
@@ -1195,8 +1287,8 @@ export class ShiftsService {
     const filter: any = shiftDate
       ? { shiftDate }
       : {
-          $or: [{ shiftDate: targetDate }, { status: 'PENDING' }],
-        };
+        $or: [{ shiftDate: targetDate }, { status: 'PENDING' }],
+      };
 
     if (
       user.role !== 'ADMIN' &&
@@ -1329,7 +1421,7 @@ export class ShiftsService {
     const scopeFilter = await this.accessControlService.getScopeFilter(user);
     console.log('[DEBUG] Generated scopeFilter:', JSON.stringify(scopeFilter));
     const regex = new RegExp(query, 'i');
-    
+
     // 1. Search Incidents via incidentsService
     const incidents = await this.incidentsService.searchIncidents(query, user);
 
@@ -1368,7 +1460,7 @@ export class ShiftsService {
 
       // Check tasks details
       for (const detail of log.details) {
-        const isTaskMatch = 
+        const isTaskMatch =
           regex.test(detail.taskId) ||
           regex.test(detail.taskNameSnapshot) ||
           (detail.note && regex.test(detail.note)) ||

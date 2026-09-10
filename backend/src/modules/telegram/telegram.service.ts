@@ -24,13 +24,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit() {
-    this.logger.log('Khởi chạy daemon giám sát deadline Telegram Bot...');
-    // Quét mỗi 60 giây để kiểm thử thời gian thực nhanh nhạy
-    this.intervalId = setInterval(() => {
-      this.scanDeadlines().catch((err) => {
-        this.logger.error('Lỗi khi quét hạn chót tác vụ:', err);
-      });
-    }, 60000);
+    this.logger.log('Tạm dừng daemon giám sát deadline Telegram Bot...');
+    // Tạm thời tắt daemon quét deadline chạy nền theo yêu cầu
   }
 
   onModuleDestroy() {
@@ -131,7 +126,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const userSettings = userObj?.settings;
       const threshold =
         userSettings?.alertThresholdMinutes !== undefined &&
-        userSettings?.alertThresholdMinutes !== null
+          userSettings?.alertThresholdMinutes !== null
           ? Number(userSettings.alertThresholdMinutes)
           : 15;
 

@@ -30,7 +30,7 @@ async function main() {
   let records = await CleanRecordModel.find().sort({ createdAt: -1 }).limit(10);
 
   if (records.length === 0) {
-    console.log('⚠️ Chưa có bản ghi nào trong DB, tạo 2 bản ghi mẫu để test xuất Excel...');
+    console.log(' Chưa có bản ghi nào trong DB, tạo 2 bản ghi mẫu để test xuất Excel...');
     const sampleRecord1 = await CleanRecordModel.create({
       noiDungMail: {
         maTKGD_Futures: '003C2333888',

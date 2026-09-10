@@ -309,7 +309,7 @@ export class OmsWatcherService {
             const tabExists = await ccpTab.isVisible().catch(() => false);
             if (tabExists) {
               this.logger.log('Main page EOD check on CCP was not successful/completed. Clicking "Lịch sử EOD" tab...');
-              await ccpTab.click({ force: true }).catch(() => {});
+              await ccpTab.click({ force: true }).catch(() => { });
               const historyResult = await this.scrapeEodHistory(page, false, ccpTodayStr, ccpTargetStr);
               if (historyResult.success || !ccpEodResult) {
                 ccpEodResult = historyResult;
@@ -364,7 +364,7 @@ export class OmsWatcherService {
             const tabExists = await ceTab.isVisible().catch(() => false);
             if (tabExists) {
               this.logger.log('Main page EOD check on CE was not successful/completed. Clicking "Lịch sử EOD" tab...');
-              await ceTab.click({ force: true }).catch(() => {});
+              await ceTab.click({ force: true }).catch(() => { });
               const historyResult = await this.scrapeEodHistory(page, true, ceTodayStr, ceTargetStr);
               if (historyResult.success || !ceEodResult) {
                 ceEodResult = historyResult;
@@ -396,7 +396,7 @@ export class OmsWatcherService {
           if (!ccpMmOk) failures.push('Lệnh MM CCP chưa lên');
           if (!ceEodOk) failures.push('EOD CE chưa xong');
           if (!ceMmOk) failures.push('Lệnh MM CE chưa lên');
-          message = `⚠️ Kiểm tra OMS phát hiện chưa hoàn tất: ${failures.join(', ')}`;
+          message = ` Kiểm tra OMS phát hiện chưa hoàn tất: ${failures.join(', ')}`;
         }
 
         return {

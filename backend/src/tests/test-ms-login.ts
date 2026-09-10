@@ -177,7 +177,7 @@ async function runMSystemLoginTest() {
         }
       }
       console.log(
-        `⚠️ Đã ghi nhận log lỗi và chụp màn hình debug tại: ${debugDir}`,
+        ` Đã ghi nhận log lỗi và chụp màn hình debug tại: ${debugDir}`,
       );
     } catch (logErr: any) {
       console.error('❌ Không thể lưu debug artifacts:', logErr.message);

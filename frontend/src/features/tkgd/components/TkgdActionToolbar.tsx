@@ -760,7 +760,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     >
                       <AlertCircle size={14} style={{ flexShrink: 0 }} />
                       <span>
-                        ⚠️ Bạn đang chọn <strong>Bóc tách lại từ đầu</strong>: Hệ thống sẽ gọi lại Python OCR cho toàn bộ hồ sơ trong khoảng thời gian này (mất từ 3 đến 5 phút).
+                        Bạn đang chọn <strong>Bóc tách lại từ đầu</strong>: Hệ thống sẽ gọi lại Python OCR cho toàn bộ hồ sơ trong khoảng thời gian này (mất từ 3 đến 5 phút).
                       </span>
                     </div>
                   )}

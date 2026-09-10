@@ -185,7 +185,7 @@ async function runHandlerSimulation() {
   check(rpaHandler.getReportFileName('Markettruoc6h') === 'market truoc 6h.csv', 'RPA Handler map đúng tên file Markettruoc6h -> market truoc 6h.csv');
 
   console.log('\n===============================================================');
-  console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed}/${total} TEST CASES PASS`);
+  console.log(` KẾT QUẢ KIỂM THỬ: ${passed}/${total} TEST CASES PASS`);
   console.log('===============================================================');
 
   if (passed === total) {

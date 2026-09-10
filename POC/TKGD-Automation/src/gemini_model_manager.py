@@ -424,4 +424,4 @@ if __name__ == "__main__":
     if args.test_prompt:
         print(f"\n🚀 Đang test prompt: '{args.test_prompt}' trên model: {manager.current_model_name}")
         ans = manager.generate_content_with_retry(args.test_prompt)
-        print(f"\n💡 Kết quả:\n{ans}")
+        print(f"\n Kết quả:\n{ans}")

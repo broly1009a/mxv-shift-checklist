@@ -182,7 +182,7 @@ export class ShiftsService {
     const deptName =
       (result.templateId as any)?.departmentId?.name || 'Vận hành';
     await this.telegramService.sendMessage(
-      `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
+      ` <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
       `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
       `• Ngày trực: <b>${result.shiftDate}</b>\n` +
       `• Phòng ban: <b>${deptName}</b>\n` +

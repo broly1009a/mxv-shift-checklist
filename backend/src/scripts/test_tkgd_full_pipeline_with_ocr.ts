@@ -112,7 +112,7 @@ async function runFullPipelineWithOcr() {
     fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `Mail_${s.cccdSau}`));
     fs.copyFileSync(path.join(samplePath, s.cccdTruoc), path.join(attachDir, `MS_CCCD_truoc.jpg`));
     fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `MS_CCCD_sau.jpg`));
-    console.log(`  📁 Đã lưu hồ sơ vào thư mục: ${attachDir}`);
+    console.log(`   Đã lưu hồ sơ vào thư mục: ${attachDir}`);
 
     // 5. Đối chiếu chéo 3 chiều: Mail CCCD vs M-System CCCD vs M-System Form
     const tripleCheck = compareCccdTripleCheck({

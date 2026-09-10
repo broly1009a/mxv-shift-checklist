@@ -58,7 +58,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -280,7 +280,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       .map((r) => `${r.filename}(${r.status})`)
       .join(', ');
     job.logs.push(
-      `[${new Date().toISOString()}] ⚠️ Thiếu/cũ ${missingOrOutdated.length} file: ${missingList}. Đang tải bổ sung...`,
+      `[${new Date().toISOString()}]  Thiếu/cũ ${missingOrOutdated.length} file: ${missingList}. Đang tải bổ sung...`,
     );
     await job.save();
 
@@ -307,7 +307,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
             );
           } else {
             job.logs.push(
-              `[${new Date().toISOString()}] ⚠️ Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`,
+              `[${new Date().toISOString()}]  Không có method tải tự động cho: ${item.filename}. Cần tải thủ công.`,
             );
             failedFiles.push(`${item.filename} (Chưa hỗ trợ tải tự động)`);
           }
@@ -537,7 +537,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     );
     if (webMissing) {
       await logAndSave(
-        `⚠️ Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`,
+        ` Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`,
       );
 
       const getCaptchaFromUI = (base64Img: string): Promise<string> => {
@@ -561,7 +561,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           };
 
           logAndSave(
-            `⚠️ Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
+            ` Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
           )
             .then(() => context.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
             .then(() => {
@@ -592,7 +592,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     );
     if (sftpMissing) {
       await logAndSave(
-        `⚠️ Thiếu file SFTP (CSV/XLS). Đang tiến hành kết nối SFTP Server để tải bổ sung...`,
+        ` Thiếu file SFTP (CSV/XLS). Đang tiến hành kết nối SFTP Server để tải bổ sung...`,
       );
       try {
         await this.rpaDownloaderService.downloadAcmSftpBackup(
@@ -602,7 +602,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
         );
         await logAndSave(`✅ Hoàn tất đồng bộ file từ SFTP.`);
       } catch (err: any) {
-        await logAndSave(`⚠️ Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
+        await logAndSave(` Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
 
         const currentScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
         const webReportsOk = currentScan

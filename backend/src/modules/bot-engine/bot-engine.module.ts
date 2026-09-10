@@ -22,6 +22,7 @@ import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 import { OmsWatcherService } from './oms-watcher.service';
 import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
+import { SystemLogsModule } from '../system-logs/system-logs.module';
 
 // Core Job Strategy Pattern Handlers & Registry
 import { BotJobHandlerRegistry } from './core/job-handler.registry';
@@ -47,6 +48,7 @@ import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
     LotStatisticsModule,
     CcpStatisticsModule,
     MarginCheckerModule,
+    SystemLogsModule,
   ],
   providers: [
     // Core Registry & Handlers

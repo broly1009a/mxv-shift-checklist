@@ -134,12 +134,13 @@ export class TkgdAutomationController {
   }
 
   /**
-   * Chạy quy trình đối soát chéo và xuất file Excel
+   * Chạy quy trình đối soát chéo và xuất file Excel (hỗ trợ lọc theo batchDate)
    */
   @Post('run')
-  async runReconciliation(@Req() req: any) {
+  async runReconciliation(@Req() req: any, @Body() body?: any, @Query('batchDate') qBatchDate?: string) {
     const email = this.getUserEmail(req);
-    return await this.tkgdService.runReconciliation(email);
+    const batchDate = body?.batchDate || qBatchDate;
+    return await this.tkgdService.runReconciliation(email, batchDate);
   }
 
   /**

@@ -258,7 +258,7 @@ async function runTests() {
 
       await shiftLogModel.deleteOne({ _id: closeShiftLog._id }).exec();
     } else {
-      console.log('⚠️ Checklist Đóng Cửa template not found, skipping Test 5.');
+      console.log(' Checklist Đóng Cửa template not found, skipping Test 5.');
     }
   } finally {
     console.log('Cleaning up test shift logs...');

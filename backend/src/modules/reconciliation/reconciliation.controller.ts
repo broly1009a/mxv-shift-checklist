@@ -31,7 +31,7 @@ export class ReconciliationController {
     private readonly shiftsService: ShiftsService,
     private readonly rpaService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   @Post('upload-klgd')
   @Permissions('ACCESS_AUTO_SHIFT')
@@ -146,7 +146,7 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedTrades.length > 0) {
-        noteText += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        noteText += ` Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach((m) => {
           noteText += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
@@ -158,14 +158,14 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedTTM.length > 0) {
-        noteText += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
+        noteText += ` Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
         result.mismatchedTTM.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
         });
       }
 
       if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
-        noteText += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
+        noteText += ` Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
         result.mismatchedTTTT.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
@@ -232,7 +232,9 @@ export class ReconciliationController {
       throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
     }
 
-    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    const usdRate = usdRateStr
+      ? parseFloat(usdRateStr)
+      : await this.reconciliationService.getCurrentUsdRate();
 
     const fileBuffers = {
       qltkgd: files?.qltkgd?.[0]?.buffer,
@@ -273,7 +275,7 @@ export class ReconciliationController {
         let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
         note += `• Số tài khoản chênh lệch (> 100 USD): ${result.length}\n`;
         if (result.length > 0) {
-          note += `⚠️ Danh sách tài khoản lệch:\n`;
+          note += ` Danh sách tài khoản lệch:\n`;
           result.slice(0, 10).forEach((r) => {
             note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ.toFixed(2)})\n`;
           });
@@ -527,7 +529,9 @@ export class ReconciliationController {
     }
 
     const nodePath = require('path');
-    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+    const usdRate = usdRateRaw
+      ? Number(usdRateRaw)
+      : await this.reconciliationService.getCurrentUsdRate();
 
     const readIfExists = (prefix: string, ext: string): Buffer | null => {
       const direct = nodePath.join(samplePath, `${prefix}.${ext}`);
@@ -892,7 +896,7 @@ export class ReconciliationController {
       note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;
 
       if (result.mismatchedTrades.length > 0) {
-        note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        note += ` Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach((m: any) => {
           note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
@@ -902,7 +906,7 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedPositions.length > 0) {
-        note += `⚠️ Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+        note += ` Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
         result.mismatchedPositions.slice(0, 10).forEach((m: any) => {
           note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
         });
@@ -950,6 +954,17 @@ export class ReconciliationController {
     }
   }
 
+  @Post('sync-exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async syncExchangeRates() {
+    try {
+      const rates = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
+      return { success: true, rates };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể đồng bộ tỷ giá đa tiền tệ: ${err.message}`);
+    }
+  }
+
   @Get('usd-rate')
   @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getUsdRate() {
@@ -958,6 +973,17 @@ export class ReconciliationController {
       return { success: true, rate };
     } catch (err: any) {
       throw new BadRequestException(`Không thể lấy tỷ giá: ${err.message}`);
+    }
+  }
+
+  @Get('exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
+  async getExchangeRates() {
+    try {
+      const rates = await this.reconciliationService.getCurrentExchangeRates();
+      return { success: true, rates };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể lấy tỷ giá đa tiền tệ: ${err.message}`);
     }
   }
 
@@ -1013,7 +1039,7 @@ export class ReconciliationController {
     if (fs.existsSync(dailyJsonPath)) {
       try {
         jsonContent = JSON.parse(fs.readFileSync(dailyJsonPath, 'utf8'));
-      } catch (e) {}
+      } catch (e) { }
     }
 
     return {
@@ -1131,5 +1157,33 @@ export class ReconciliationController {
       savedFiles,
     };
   }
+
+  /**
+   * Lấy dữ liệu tổng hợp cho Màn hình Trading Operation Console
+   */
+  @Get('console-summary')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getConsoleSummary(@Query('date') dateStr?: string) {
+    return this.reconciliationService.getConsoleSummary(dateStr);
+  }
+
+  /**
+   * Kích hoạt chạy lại đối chiếu ngay lập tức (Bypass Cooldown 60p)
+   */
+  @Post('trigger-console-run')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async triggerConsoleRun(
+    @Body('date') dateStr?: string,
+    @Body('jobType') jobType?: string,
+    @Body('options')
+    options?: {
+      checkKlgd?: boolean;
+      checkTtm?: boolean;
+      checkTttt?: boolean;
+    },
+  ) {
+    return this.reconciliationService.triggerConsoleRun(dateStr, jobType, options);
+  }
 }
+
 

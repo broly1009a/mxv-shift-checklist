@@ -25,6 +25,15 @@ export class BotJob extends Document {
   })
   payload: Record<string, any>;
 
+  @Prop({ type: Date, default: null })
+  completedAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  failedAt?: Date;
+
+  @Prop({ type: String, default: null })
+  error?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

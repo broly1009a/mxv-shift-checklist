@@ -66,7 +66,7 @@ Mở Menu chuột phải dưới Tray Icon → Chọn **`⚙ Cấu hình`**.
 - **Heartbeat interval:** Tần suất gửi tín hiệu sống liveness (khuyến nghị `30 giây`).
 - Click nút **`🔍 Kiểm tra kết nối`** để kiểm thử tức thì. Giao diện sẽ hiển thị báo kết nối thành công hoặc mã lỗi HTTP cụ thể.
 
-#### 2. Tab `📁 Đường dẫn` (Paths Settings)
+#### 2. Tab ` Đường dẫn` (Paths Settings)
 - **Thư mục Backend NestJS:** Đường dẫn đến thư mục chứa mã nguồn backend (để chạy ủy quyền Playwright/WinSCP).
   - *Ví dụ:* `D:\sontayweb\mxv-shift-checklist`
 - **Macro Số Lot / Macro Giá Trị:** Browse đến đúng file `.xlsm` trên máy.

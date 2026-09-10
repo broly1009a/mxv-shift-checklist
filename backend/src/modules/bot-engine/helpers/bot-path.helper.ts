@@ -108,3 +108,46 @@ export async function getAcmBackupBase(settingsService: { getSetting: (key: stri
   return acmBackupBase;
 }
 
+/**
+ * Chuẩn hóa đường dẫn lưu trữ chéo hệ điều hành (Windows vs Ubuntu):
+ * - Nếu chạy trên Linux: tự động ánh xạ M:\Tailieuchung\QLGD-IT (hoặc Quanlygiaodich/...) sang /mnt/qlgd-it/
+ * - Nếu chạy trên Windows: nếu nhận được /mnt/qlgd-it/..., tự động ánh xạ về M:\Tailieuchung\QLGD-IT\...
+ */
+export function resolveStoragePathCrossPlatform(rawPath: string): string {
+  if (!rawPath) return rawPath;
+
+  const linuxMountBase = (process.env.STORAGE_MOUNT_LINUX || '/mnt/qlgd-it')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
+  const windowsShareBase = (process.env.STORAGE_SHARE_WINDOWS || 'M:\\Tailieuchung\\QLGD-IT')
+    .replace(/[/\\]+$/, '');
+
+  if (process.platform === 'linux') {
+    const normalized = rawPath.replace(/\\/g, '/');
+    const qlgdMatch = normalized.match(/(?:^|\/)(quanlygiaodich\/.*)$/i);
+    if (qlgdMatch) {
+      return `${linuxMountBase}/${qlgdMatch[1]}`.replace(/\/+/g, '/');
+    }
+    if (/^[a-zA-Z]:\/tailieuchung\/qlgd-it\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/tailieuchung\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
+    }
+    if (/^[a-zA-Z]:\/qlgd-it\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
+    }
+    if (/^m:\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^m:\//i, '')}`.replace(/\/+/g, '/');
+    }
+    return rawPath.replace(/\\/g, '/');
+  } else {
+    // Windows
+    const normalizedSlash = rawPath.replace(/\\/g, '/');
+    const linuxBaseSlash = linuxMountBase.toLowerCase();
+    if (normalizedSlash.toLowerCase().startsWith(linuxBaseSlash)) {
+      const remainder = normalizedSlash.slice(linuxBaseSlash.length).replace(/^\/+/, '');
+      return path.join(windowsShareBase, remainder);
+    }
+    return path.normalize(rawPath);
+  }
+}
+
+

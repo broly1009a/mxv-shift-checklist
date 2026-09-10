@@ -667,7 +667,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {/* Tabs bar */}
           <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', flexWrap: 'wrap' }}>
             {[
-              { id: 'summary', label: '📊 Bảng tổng hợp giá trị' },
+              { id: 'summary', label: ' Bảng tổng hợp giá trị' },
               { id: 'normal', label: `💵 Chi tiết Normal GTGD (${normalItems.length})` },
               { id: 'spread', label: `🔀 Chi tiết Spread GTGD (${spreadItems.length})` },
               { id: 'tvkd', label: `🏢 Chi tiết theo TVKD (${tvkdItems.length})` },
@@ -696,7 +696,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           {/* Result content */}
           {resultTab === 'summary' && (
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>📊 Bảng tổng hợp tham số tỷ giá</h5>
+              <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}> Bảng tổng hợp tham số tỷ giá</h5>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
