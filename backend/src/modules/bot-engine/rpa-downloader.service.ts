@@ -388,7 +388,7 @@ export class RpaDownloaderService {
     }
 
     const cqgUrl =
-      credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+      credentials.urlPrice || credentials.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced';
     const { username, password } = credentials;
 
     if (!username || !password) {
@@ -405,7 +405,14 @@ export class RpaDownloaderService {
     const launchOptions: any = {
       headless: isHeadless,
       slowMo: isHeadless ? 0 : 200,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+      ],
     };
     if (executablePath) {
       launchOptions.executablePath = executablePath;
@@ -416,10 +423,17 @@ export class RpaDownloaderService {
     const context = await browser.newContext({
       acceptDownloads: true,
       viewport: { width: 1280, height: 800 },
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     });
 
     const page = await context.newPage();
-    page.setDefaultTimeout(30000); // 30s default timeout
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+    page.setDefaultTimeout(35000); // 35s default timeout
 
     // Lắng nghe console và lỗi từ trình duyệt để dễ dàng debug
     page.on('console', (msg) => {
@@ -432,24 +446,24 @@ export class RpaDownloaderService {
     try {
       this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
       try {
-        await page.goto(cqgUrl, { timeout: 20000 });
+        await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       } catch (navErr: any) {
         this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
-        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }));
       }
 
       // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
       let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 12000,
+        timeout: 15000,
       }).catch(() => null);
 
       if (!hasLoginForm) {
         this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
-        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }));
         await page.waitForSelector('input[name="userName"]', {
           state: 'visible',
-          timeout: 25000,
+          timeout: 30000,
         });
       }
       await page.fill('input[name="userName"]', username);
@@ -538,7 +552,7 @@ export class RpaDownloaderService {
       throw new Error('Không thể giải mã cấu hình tài khoản CQG.');
     }
 
-    const cqgUrl = creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+    const cqgUrl = creds.urlTrade || creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
 
     let username: string;
     let password: string;
@@ -567,7 +581,14 @@ export class RpaDownloaderService {
     const launchOptions: any = {
       headless: isHeadless,
       slowMo: isHeadless ? 0 : 200,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+      ],
     };
     if (executablePath) launchOptions.executablePath = executablePath;
 
@@ -576,31 +597,38 @@ export class RpaDownloaderService {
     const context = await browser.newContext({
       acceptDownloads: true,
       viewport: { width: 1280, height: 800 },
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     });
     const page = await context.newPage();
-    page.setDefaultTimeout(30000);
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+    page.setDefaultTimeout(35000);
 
     try {
       this.logger.log(`Navigating to CQG at ${cqgUrl}...`);
       try {
-        await page.goto(cqgUrl, { timeout: 20000 });
+        await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       } catch (navErr: any) {
         this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
-        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }));
       }
 
       // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
       let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 12000,
+        timeout: 15000,
       }).catch(() => null);
 
       if (!hasLoginForm) {
         this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
-        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }));
         await page.waitForSelector('input[name="userName"]', {
           state: 'visible',
-          timeout: 25000,
+          timeout: 30000,
         });
       }
       await page.fill('input[name="userName"]', username);
@@ -2104,6 +2132,7 @@ export class RpaDownloaderService {
         if (!response.ok) {
           const errText = await response.text();
           this.logger.warn(`Gemini model ${model} HTTP ${response.status}: ${errText}`);
+          await log(`Gemini model ${model} phản hồi HTTP ${response.status} (bận/quá tải). Đang thử model tiếp theo...`);
           continue;
         }
 
@@ -2203,33 +2232,71 @@ export class RpaDownloaderService {
 
     try {
       let response: any = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        await log(`Truy cập trang đăng nhập ACM (lần ${attempt}/3): ${acmUrl}`);
+      let formLoaded = false;
+      const maxNavAttempts = 5;
+
+      for (let attempt = 1; attempt <= maxNavAttempts; attempt++) {
+        await log(`Truy cập trang đăng nhập ACM (lần ${attempt}/${maxNavAttempts}): ${acmUrl}`);
         response = await page
-          .goto(acmUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
+          .goto(acmUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
           .catch((e: any) => {
             this.logger.warn(`Lần ${attempt} truy cập ACM thất bại: ${e.message}`);
             return null;
           });
 
-        if (response && response.status() >= 500) {
-          if (attempt < 3) {
+        // Kiểm tra xem trang có dính mã 502 / Bad Gateway của Cloudflare hay không
+        const isBadGateway =
+          (response && response.status() >= 500) ||
+          (await page
+            .evaluate(() => {
+              const text = document.body ? document.body.innerText : '';
+              return (
+                text.includes('Bad gateway') ||
+                text.includes('Error code 502') ||
+                text.includes('Host Error')
+              );
+            })
+            .catch(() => false));
+
+        if (isBadGateway) {
+          if (attempt < maxNavAttempts) {
             await log(
-              ` Máy chủ ACM phản hồi lỗi HTTP ${response.status()} (${response.statusText() || 'Bad Gateway'}). Tự động thử lại sau 3 giây...`,
+              `⚠️ Máy chủ ACM phản hồi lỗi (Cloudflare 502 Bad Gateway / Host Error, lần ${attempt}/${maxNavAttempts}). Tự động tải lại sau 2 giây...`,
             );
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(2000);
             continue;
           }
+          throw new Error(
+            'Máy chủ web ACM không phản hồi (Cloudflare 502 Bad Gateway kéo dài cả 5 lần thử). Vui lòng kiểm tra lại dịch vụ sàn ACM.',
+          );
         }
-        break;
+
+        // Chờ form đăng nhập xuất hiện trong tối đa 6 giây
+        const hasForm = await page
+          .waitForSelector(
+            'input[placeholder="Username"], input[name="username"], input[placeholder*="user" i], input[type="text"]',
+            { state: 'visible', timeout: 6000 },
+          )
+          .then(() => true)
+          .catch(() => false);
+
+        if (hasForm) {
+          formLoaded = true;
+          break;
+        }
+
+        if (attempt < maxNavAttempts) {
+          await log(
+            `⚠️ Chưa hiển thị form đăng nhập ACM (lần ${attempt}/${maxNavAttempts}). Đang tải lại trang...`,
+          );
+          await page.waitForTimeout(2000);
+        }
       }
 
-      if (response && response.status() >= 400) {
-        throw new Error(
-          `Máy chủ web ACM phản hồi mã lỗi HTTP ${response.status()} (${response.statusText() || 'Host Error / Bad Gateway'}). Vui lòng kiểm tra lại dịch vụ máy chủ web ACM.`,
-        );
+      if (!formLoaded) {
+        throw new Error('Không thể tải form đăng nhập ACM sau 5 lần thử.');
       }
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1000);
 
       // Định nghĩa các selector tìm kiếm thông minh
       const usernameSelectors = [
@@ -3689,9 +3756,21 @@ export class RpaDownloaderService {
     }
 
     const cqgUrl =
-      creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+      creds.urlTrade || creds.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
 
-    const loginCqgAccount = async (username: string, password: string) => {
+    const loginCqgAccount = async (
+      username: string,
+      password: string,
+      profileSuffix: string = '1',
+    ) => {
+      const profileDir = path.join(
+        process.cwd(),
+        'temp',
+        `cqg_profile_${profileSuffix}`,
+      );
+      if (!fs.existsSync(profileDir))
+        fs.mkdirSync(profileDir, { recursive: true });
+
       const executablePath = this.getChromeExecutablePath();
       const isHeadless =
         process.env.HEADLESS_BOT !== 'false' &&
@@ -3699,52 +3778,76 @@ export class RpaDownloaderService {
       const launchOptions: any = {
         headless: isHeadless,
         slowMo: isHeadless ? 0 : 200,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-infobars',
+          '--disable-extensions',
+          '--disk-cache-size=104857600',
+        ],
+        viewport: { width: 1280, height: 800 },
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       };
       if (executablePath) launchOptions.executablePath = executablePath;
 
-      const browser = await (
-        await import('playwright-core')
-      ).chromium.launch(launchOptions);
-      const context = await browser.newContext({
-        acceptDownloads: true,
-        viewport: { width: 1280, height: 800 },
-      });
-      const page = await context.newPage();
-      page.setDefaultTimeout(30000);
+      const playwrightCore = await import('playwright-core');
+      const context = await playwrightCore.chromium.launchPersistentContext(
+        profileDir,
+        launchOptions,
+      );
 
-      this.logger.log(`[CQG] Mở trang đăng nhập: ${cqgUrl}...`);
       try {
-        await page.goto(cqgUrl, { timeout: 20000 });
-      } catch (navErr: any) {
-        this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
-        await page.reload({ timeout: 25000 }).catch(() => page.goto(cqgUrl, { timeout: 25000 }));
-      }
-
-      // Đợi form đăng nhập, nếu quá 12s chưa xuất hiện (kẹt spinner bản demo), tự động reload lại trang
-      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
-        state: 'visible',
-        timeout: 12000,
-      }).catch(() => null);
-
-      if (!hasLoginForm) {
-        this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
-        await page.reload({ timeout: 20000 }).catch(() => page.goto(cqgUrl, { timeout: 20000 }));
-        await page.waitForSelector('input[name="userName"]', {
-          state: 'visible',
-          timeout: 25000,
+        const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+        await page.addInitScript(() => {
+          Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+          });
         });
-      }
-      await page.fill('input[name="userName"]', username);
-      await page.fill('input[name="password"]', password);
-      await page.click('button[type="submit"]');
+        page.setDefaultTimeout(60000);
 
-      await page.waitForSelector('div.wpfe-logo-image', {
-        state: 'visible',
-        timeout: 60000,
-      });
-      this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
-      return { browser, page };
+        this.logger.log(`[CQG] Mở trang đăng nhập: ${cqgUrl}...`);
+        try {
+          await page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 });
+        } catch (navErr: any) {
+          this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
+          await page.reload({ waitUntil: 'commit', timeout: 60000 }).catch(() =>
+            page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }),
+          );
+        }
+
+        // Đợi form đăng nhập xuất hiện (nhờ có persistent disk cache, Angular khởi chạy siêu tốc chỉ 4s)
+        let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 60000,
+        }).catch(() => null);
+
+        if (!hasLoginForm) {
+          this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
+          await page.reload({ waitUntil: 'commit', timeout: 60000 }).catch(() =>
+            page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }),
+          );
+          await page.waitForSelector('input[name="userName"]', {
+            state: 'visible',
+            timeout: 60000,
+          });
+        }
+        await page.fill('input[name="userName"]', username);
+        await page.fill('input[name="password"]', password);
+        await page.click('button[type="submit"]');
+
+        await page.waitForSelector('div.wpfe-logo-image', {
+          state: 'visible',
+          timeout: 60000,
+        });
+        this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
+        return { browser: context, page };
+      } catch (err: any) {
+        await context.close().catch(() => {});
+        throw err;
+      }
     };
 
     // ── CQG1: FR1, PS1, OP1, OD1, AS ──────────────────────────────────────────
@@ -3761,9 +3864,13 @@ export class RpaDownloaderService {
       } else {
         let browser1: any = null;
         try {
-          const { browser, page } = await loginCqgAccount(username1, password1);
+          const { browser, page } = await loginCqgAccount(
+            username1,
+            password1,
+            '1',
+          );
           browser1 = browser;
-          await page.waitForTimeout(10000);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
 
           if (reports.FR1) {
             try {
@@ -3808,8 +3915,10 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG1 login thất bại: ${e.message}`);
         } finally {
-          if (browser1) await browser1.close().catch(() => { });
+          if (browser1) await browser1.close().catch(() => {});
           this.logger.log('[CQG] Đóng phiên CQG1.');
+          // Khoảng nghỉ 3s để hệ điều hành và file lock profile được giải phóng hoàn toàn
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
       }
     }
@@ -3828,9 +3937,13 @@ export class RpaDownloaderService {
       } else {
         let browser2: any = null;
         try {
-          const { browser, page } = await loginCqgAccount(username2, password2);
+          const { browser, page } = await loginCqgAccount(
+            username2,
+            password2,
+            '2',
+          );
           browser2 = browser;
-          await page.waitForTimeout(10000);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
 
           if (reports.FR2) {
             try {
@@ -3875,8 +3988,9 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG2 login thất bại: ${e.message}`);
         } finally {
-          if (browser2) await browser2.close().catch(() => { });
+          if (browser2) await browser2.close().catch(() => {});
           this.logger.log('[CQG] Đóng phiên CQG2.');
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
     }

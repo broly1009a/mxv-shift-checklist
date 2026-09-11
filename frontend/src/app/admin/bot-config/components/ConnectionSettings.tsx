@@ -15,6 +15,9 @@ import {
   Settings,
   Mail,
   Link2,
+  TrendingUp,
+  DownloadCloud,
+  Folder,
 } from 'lucide-react';
 
 interface ConnectionSettingsProps {
@@ -36,6 +39,8 @@ export default function ConnectionSettings({
   const [msystemPin, setMsystemPin] = useState('');
 
   const [cqgUrl, setCqgUrl] = useState('https://m.cqg.com/cqg/desktop/logon?ref=forced');
+  const [cqgUrlPrice, setCqgUrlPrice] = useState('https://mdemo.cqg.com/cqg/desktop/logon?ref=forced');
+  const [cqgUrlTrade, setCqgUrlTrade] = useState('https://m.cqg.com/cqg/desktop/logon?ref=forced');
   const [cqgUsername, setCqgUsername] = useState('');   // CQG Price (mxvprice)
   const [cqgPassword, setCqgPassword] = useState('');
   const [cqgUsername1, setCqgUsername1] = useState(''); // CQG1 Trade
@@ -132,6 +137,8 @@ export default function ConnectionSettings({
         }
         if (data.cqg) {
           setCqgUrl(data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
+          setCqgUrlPrice(data.cqg.urlPrice || data.cqg.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced');
+          setCqgUrlTrade(data.cqg.urlTrade || data.cqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced');
           setCqgUsername(data.cqg.username || '');
           setCqgPassword(data.cqg.password || '');
           setCqgUsername1(data.cqg.username1 || '');
@@ -219,7 +226,9 @@ export default function ConnectionSettings({
             pin: msystemPin,
           },
           cqg: {
-            url: cqgUrl.trim(),
+            url: cqgUrlTrade.trim() || cqgUrl.trim(),
+            urlPrice: cqgUrlPrice.trim(),
+            urlTrade: cqgUrlTrade.trim(),
             username: cqgUsername.trim(),
             password: cqgPassword,
             username1: cqgUsername1.trim(),
@@ -612,38 +621,51 @@ export default function ConnectionSettings({
               <Cpu size={18} />
               Cấu hình CQG Desktop
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={labelStyle}>CQG Desktop URL</label>
-                <div style={{ position: 'relative' }}>
-                  <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="url"
-                    className="form-input"
-                    style={{ paddingLeft: '38px' }}
-                    placeholder="https://m.cqg.com/..."
-                    value={cqgUrl}
-                    onChange={(e) => setCqgUrl(e.target.value)}
-                    required
-                  />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              
+              {/* Phân vùng 1: CQG Price Account (mxvprice) — chỉ xem giá, KHÔNG tải file */}
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.05)',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                borderRadius: '8px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={16} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>
+                    Tài khoản CQG Price (mxvprice)
+                  </span>
                 </div>
-              </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Chỉ dùng xem giá thị trường & kiểm tra lệnh GTT. Không có quyền tải file báo cáo.
+                </span>
 
-              {/* CQG Price Account (mxvprice) — chỉ xem giá, KHÔNG tải file */}
-              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', display: 'block', marginBottom: '4px' }}>
-                  Tài khoản CQG Price (mxvprice)
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                  Chỉ dùng xem giá / hợp đồng. Không có quyền tải bất kỳ file backup nào.
-                </span>
+                <div>
+                  <label style={labelStyle}>CQG Price Desktop URL</label>
+                  <div style={{ position: 'relative' }}>
+                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="url"
+                      className="form-input"
+                      style={{ paddingLeft: '38px' }}
+                      placeholder="https://mdemo.cqg.com/cqg/desktop/logon?ref=forced"
+                      value={cqgUrlPrice}
+                      onChange={(e) => setCqgUrlPrice(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={labelStyle}>Username CQG Price</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="mà giá CQG (VD: mxvprice)..."
+                      placeholder="Mã giá CQG (VD: mxvprice)..."
                       value={cqgUsername}
                       onChange={(e) => setCqgUsername(e.target.value)}
                       required
@@ -680,135 +702,200 @@ export default function ConnectionSettings({
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* CQG1 Trade Account — tải FR1/PS1/OP1/OD1 */}
-              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '4px' }}>
-                  Tài khoản CQG1 Trade
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                  Tải báo cáo: FR1.xlsx / PS1.xlsx / OP1.xlsx / OD1.xlsx
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username CQG1</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="CQG1 Trade Username..."
-                      value={cqgUsername1}
-                      onChange={(e) => setCqgUsername1(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Mật khẩu CQG1</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showCqgPassword1 ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="CQG1 Trade Password..."
-                        value={cqgPassword1}
-                        onChange={(e) => setCqgPassword1(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCqgPassword1(!showCqgPassword1)}
-                        style={{
-                          position: 'absolute',
-                          right: '12px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {showCqgPassword1 ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {/* Test CQG1 Trade button */}
-                <div style={{ marginTop: '10px' }}>
+                {/* Test CQG Price button */}
+                <div style={{ marginTop: '4px' }}>
                   <button
                     type="button"
-                    onClick={handleTestCqg1Connection}
-                    disabled={testingCqg1Connection || !cqgUsername1 || !cqgPassword1}
+                    onClick={handleTestCqgConnection}
+                    disabled={testingCqgConnection || !cqgUsername || !cqgPassword}
                     className="btn btn-sm btn-outline"
                     style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <Play size={12} className={testingCqg1Connection ? 'animate-spin' : ''} />
-                    {testingCqg1Connection ? 'Đang kiểm tra...' : 'Test CQG1 Trade'}
+                    <Play size={12} className={testingCqgConnection ? 'animate-spin' : ''} />
+                    {testingCqgConnection ? 'Đang kiểm tra...' : 'Test CQG Price'}
                   </button>
                 </div>
               </div>
 
-              {/* CQG3 Account — QLGD gọi là CQG3, DB lưu field username2/password2 */}
-              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '4px' }}>
-                  Tài khoản CQG3 Trade
+              {/* Phân vùng 2: CQG Trade Accounts (CQG1 & CQG3) — Tải báo cáo FR, PS, OP, OD */}
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <DownloadCloud size={16} style={{ color: '#10b981' }} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10b981' }}>
+                    Tài khoản CQG Trade (Tải báo cáo đối chiếu)
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Áp dụng cho CQG1 & CQG3 tải các báo cáo FR, PS, OP, OD phục vụ đối chiếu giao dịch toàn sàn.
                 </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                  Tải báo cáo: FR2.xlsx / PS2.xlsx / OP2.xlsx / OD2.xlsx
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username CQG3</label>
+
+                <div>
+                  <label style={labelStyle}>CQG Trade Desktop URL (Áp dụng cho CQG1 & CQG3)</label>
+                  <div style={{ position: 'relative' }}>
+                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
-                      type="text"
+                      type="url"
                       className="form-input"
-                      placeholder="CQG3 Username..."
-                      value={cqgUsername2}
-                      onChange={(e) => setCqgUsername2(e.target.value)}
+                      style={{ paddingLeft: '38px' }}
+                      placeholder="https://m.cqg.com/cqg/desktop/logon?ref=forced"
+                      value={cqgUrlTrade}
+                      onChange={(e) => setCqgUrlTrade(e.target.value)}
+                      required
                     />
                   </div>
-                  <div>
-                    <label style={labelStyle}>Mật khẩu CQG3</label>
-                    <div style={{ position: 'relative' }}>
+                </div>
+
+                {/* Sub-block CQG1 */}
+                <div style={{
+                  border: '1px dashed rgba(16, 185, 129, 0.3)',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Folder size={14} style={{ color: '#10b981' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>
+                      Tài khoản CQG1 Trade (Tải: FR1.xlsx / PS1.xlsx / OP1.xlsx / OD1.xlsx)
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Username CQG1</label>
                       <input
-                        type={showCqgPassword2 ? 'text' : 'password'}
+                        type="text"
                         className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="CQG3 Password..."
-                        value={cqgPassword2}
-                        onChange={(e) => setCqgPassword2(e.target.value)}
+                        placeholder="CQG1 Trade Username..."
+                        value={cqgUsername1}
+                        onChange={(e) => setCqgUsername1(e.target.value)}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowCqgPassword2(!showCqgPassword2)}
-                        style={{
-                          position: 'absolute',
-                          right: '12px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {showCqgPassword2 ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu CQG1</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showCqgPassword1 ? 'text' : 'password'}
+                          className="form-input"
+                          style={{ paddingRight: '38px' }}
+                          placeholder="CQG1 Trade Password..."
+                          value={cqgPassword1}
+                          onChange={(e) => setCqgPassword1(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCqgPassword1(!showCqgPassword1)}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {showCqgPassword1 ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleTestCqg1Connection}
+                      disabled={testingCqg1Connection || !cqgUsername1 || !cqgPassword1}
+                      className="btn btn-sm btn-outline"
+                      style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Play size={12} className={testingCqg1Connection ? 'animate-spin' : ''} />
+                      {testingCqg1Connection ? 'Đang kiểm tra...' : 'Test CQG1 Trade'}
+                    </button>
+                  </div>
                 </div>
-                {/* Test CQG3 Trade button */}
-                <div style={{ marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={handleTestCqg3Connection}
-                    disabled={testingCqg3Connection || !cqgUsername2 || !cqgPassword2}
-                    className="btn btn-sm btn-outline"
-                    style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Play size={12} className={testingCqg3Connection ? 'animate-spin' : ''} />
-                    {testingCqg3Connection ? 'Đang kiểm tra...' : 'Test CQG3 Trade'}
-                  </button>
+
+                {/* Sub-block CQG3 */}
+                <div style={{
+                  border: '1px dashed rgba(16, 185, 129, 0.3)',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Folder size={14} style={{ color: '#10b981' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>
+                      Tài khoản CQG3 Trade (Tải: FR2.xlsx / PS2.xlsx / OP2.xlsx / OD2.xlsx)
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Username CQG3</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="CQG3 Username..."
+                        value={cqgUsername2}
+                        onChange={(e) => setCqgUsername2(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu CQG3</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showCqgPassword2 ? 'text' : 'password'}
+                          className="form-input"
+                          style={{ paddingRight: '38px' }}
+                          placeholder="CQG3 Password..."
+                          value={cqgPassword2}
+                          onChange={(e) => setCqgPassword2(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCqgPassword2(!showCqgPassword2)}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {showCqgPassword2 ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleTestCqg3Connection}
+                      disabled={testingCqg3Connection || !cqgUsername2 || !cqgPassword2}
+                      className="btn btn-sm btn-outline"
+                      style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Play size={12} className={testingCqg3Connection ? 'animate-spin' : ''} />
+                      {testingCqg3Connection ? 'Đang kiểm tra...' : 'Test CQG3 Trade'}
+                    </button>
+                  </div>
                 </div>
+
               </div>
+
             </div>
           </div>
 

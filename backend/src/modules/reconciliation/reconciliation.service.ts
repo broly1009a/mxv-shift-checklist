@@ -16,6 +16,7 @@ import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { BotJobQueueService } from '../bot-engine/bot-job-queue.service';
 import { ShiftsService } from '../shifts/shifts.service';
+import { BOT_TASK_REGISTRY, findBotTasksInShift } from '../bot-engine/constants/bot-task-registry';
 
 export interface CheckKLGDResult {
   totals: {
@@ -3605,9 +3606,11 @@ export class ReconciliationService {
       'bot_backup_path_cqg',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
-    const acmBackupBase = msBackupBase.replace(
-      /Backup MS\\Futures/i,
-      'Backup MS\\ACM',
+    const acmBackupBase = (
+      await this.settingsService.getSetting('bot_backup_path_acm', '')
+    ) || msBackupBase.replace(
+      /Backup MS[\\/]Futures/i,
+      (match) => match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM',
     );
 
     const year = tradingDate.getFullYear().toString();
@@ -3656,7 +3659,7 @@ export class ReconciliationService {
     const missingFiles: string[] = [];
     if (checkKlgdFlag) {
       if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
-      if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
+      if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx / Straits.csv)`);
       if (!cqgFrPath) missingFiles.push(`CQG FR`);
     }
     if (checkTtmFlag) {
@@ -3712,9 +3715,11 @@ export class ReconciliationService {
       'bot_backup_path_cqg',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
-    const acmBackupBase = msBackupBase.replace(
-      /Backup MS\\Futures/i,
-      'Backup MS\\ACM',
+    const acmBackupBase = (
+      await this.settingsService.getSetting('bot_backup_path_acm', '')
+    ) || msBackupBase.replace(
+      /Backup MS[\\/]Futures/i,
+      (match) => match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM',
     );
 
     const year = targetDate.getFullYear().toString();
@@ -3733,20 +3738,11 @@ export class ReconciliationService {
     const userDownloadsDir = 'C:\\Users\\hiepth\\Downloads';
 
     const acmTradesPath =
-      this.findLatestFile(acmDailyPath, /Straits/i);
-    // Fallback UAT (Commented out for Go-Live):
-    // || this.findLatestFile(castDownloadsDir, /Straits/i)
-    // || this.findLatestFile(userDownloadsDir, /Straits/i);
+      this.findLatestFile(acmDailyPath, /Straits/i) ||
+      this.findLatestFile(acmDailyPath, /Nano|Fill/i);
 
     const cqgFrPath = this.resolveCqgFile(cqgDailyPath, 'FR');
     const cqgPsPath = this.resolveCqgFile(cqgDailyPath, 'PS');
-    // Fallback UAT (Commented out for Go-Live):
-    // || this.findLatestFile(castDownloadsDir, /^PS\.xlsx$/i)
-    // || this.findLatestFile(userDownloadsDir, /^PS\.xlsx$/i)
-    // || this.mergeCqgRawFiles(castDownloadsDir, 'PS')
-    // || this.mergeCqgRawFiles(userDownloadsDir, 'PS')
-    // || this.findLatestFile(castDownloadsDir, /Positions|PS/i)
-    // || this.findLatestFile(userDownloadsDir, /Positions|PS/i);
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -3765,7 +3761,7 @@ export class ReconciliationService {
     const missingFiles: string[] = [];
     if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
     if (!fs.existsSync(ttttPath)) missingFiles.push(`TTTT.xlsx`);
-    if (!acmTradesPath) missingFiles.push(`ACM Trades/Straits (Straits.csv)`);
+    if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx / Straits.csv)`);
     if (!cqgFrPath) missingFiles.push(`CQG FR`);
     if (!cqgPsPath) missingFiles.push(`CQG Positions/PS`);
 
@@ -4246,16 +4242,17 @@ export class ReconciliationService {
         .exec();
 
       if (shiftLog && shiftLog.details) {
-        taskKlgd = shiftLog.details.find(
-          (t: any) =>
-            t.taskId === 'TASK_CHECK_KLGD_s1' ||
-            t.botCheckTypeSnapshot === 'CHECK_KLGD',
+        const { subTask: subKlgd, parentTask: parentKlgd } = findBotTasksInShift(
+          shiftLog.details,
+          'CHECK_KLGD',
         );
-        taskPreEod = shiftLog.details.find(
-          (t: any) =>
-            t.taskId === 'TASK_CHECK_EOD_sb2' ||
-            t.botCheckTypeSnapshot === 'CHECK_PRE_EOD',
+        taskKlgd = subKlgd || parentKlgd;
+
+        const { subTask: subPreEod, parentTask: parentPreEod } = findBotTasksInShift(
+          shiftLog.details,
+          'CHECK_PRE_EOD',
         );
+        taskPreEod = subPreEod || parentPreEod;
       }
     }
 
@@ -4512,20 +4509,20 @@ export class ReconciliationService {
       .sort({ createdAt: -1 })
       .exec();
 
-    let targetTaskId = 'TASK_CHECK_KLGD_s1';
-    let targetJobType = 'CHECK_KLGD';
+    const targetJobType = (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM')
+      ? 'CHECK_EOD_MM'
+      : (jobType || 'CHECK_KLGD');
 
-    if (jobType === 'CHECK_PRE_EOD') {
-      targetTaskId = 'TASK_CHECK_EOD_sb2';
-      targetJobType = 'CHECK_PRE_EOD';
-    } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
-      // Ưu tiên task quét âm ký quỹ ops_open_04_s4 nếu có trong ca, fallback về TASK_CHECK_EOD_sb2
-      const hasOps04 = targetShift?.details?.some(
-        (t: any) => t.taskId === 'ops_open_04_s4',
-      );
-      targetTaskId = hasOps04 ? 'ops_open_04_s4' : 'TASK_CHECK_EOD_sb2';
-      targetJobType = 'CHECK_EOD_MM';
-    }
+    const { subTask, parentTask } = findBotTasksInShift(
+      targetShift?.details || [],
+      targetJobType,
+    );
+
+    const targetTaskId =
+      subTask?.taskId ||
+      parentTask?.taskId ||
+      BOT_TASK_REGISTRY[targetJobType]?.subTaskIdPattern ||
+      'TASK_CHECK_KLGD_s1';
 
     const systemUser = {
       id: '000000000000000000000000',
@@ -4534,17 +4531,29 @@ export class ReconciliationService {
       role: 'ADMIN',
     };
 
-    // 1. Nếu có ca trực, reset trạng thái task về PENDING
+    // 1. Nếu có ca trực, reset trạng thái task về PENDING (cả task con và task cha)
     if (targetShift) {
       try {
-        await this.shiftsService.updateTaskStatus(
-          targetShift._id.toString(),
-          targetTaskId,
-          'PENDING',
-          systemUser,
-          `[Maker] Kích hoạt chạy lại ${targetJobType} từ Trading Operation Console`,
-          true,
-        );
+        if (subTask) {
+          await this.shiftsService.updateTaskStatus(
+            targetShift._id.toString(),
+            subTask.taskId,
+            'PENDING',
+            systemUser,
+            `[Maker] Kích hoạt chạy lại ${targetJobType} từ Trading Operation Console`,
+            true,
+          );
+        }
+        if (parentTask && parentTask.taskId !== subTask?.taskId) {
+          await this.shiftsService.updateTaskStatus(
+            targetShift._id.toString(),
+            parentTask.taskId,
+            'PENDING',
+            systemUser,
+            `[Maker] Kích hoạt chạy lại ${targetJobType} từ Trading Operation Console`,
+            true,
+          );
+        }
       } catch (err: any) {
         this.logger.warn(
           `Không thể cập nhật trạng thái task trong ca trực: ${err.message}`,
@@ -4566,5 +4575,183 @@ export class ReconciliationService {
       jobId: job?._id?.toString(),
     };
   }
+
+  /**
+   * Kiểm tra ký quỹ TKGD (IMR 4 nhóm vi phạm)
+   * Port 1:1 chuẩn xác từ C# BackupService.CheckIMR() & FIleUtils.GetIMRData()
+   */
+  async checkImr(sessionDateStr?: string) {
+    const tradingDate = sessionDateStr ? new Date(sessionDateStr) : new Date();
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const formattedDate = `${day}/${month}/${year}`;
+
+    const msBackupBase = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const msDailyPath = path.join(msBackupBase, subFolder);
+
+    const ttmPath = this.findLatestFile(msDailyPath, /^TTM.*\.xlsx$/i) || path.join(msDailyPath, 'TTM.xlsx');
+    const dslckPath = this.findLatestFile(msDailyPath, /^DSLCK.*\.xlsx$/i) || path.join(msDailyPath, 'DSLCK.xlsx');
+    const qltkgdPath = this.findLatestFile(msDailyPath, /^QLTKGD.*\.xlsx$/i) || path.join(msDailyPath, 'QLTKGD.xlsx');
+
+    const filesFound = {
+      ttm: fs.existsSync(ttmPath),
+      dslck: fs.existsSync(dslckPath),
+      qltkgd: fs.existsSync(qltkgdPath),
+    };
+
+    if (!filesFound.qltkgd) {
+      return {
+        sessionDate: formattedDate,
+        success: false,
+        message: `Không tìm thấy file QLTKGD.xlsx tại ${msDailyPath}. Vui lòng chạy Backup MS trước.`,
+        filesFound,
+        summary: { group1Count: 0, group2Count: 0, group3Count: 0, group4Count: 0 },
+        results: { group1: [], group2: [], group3: [], group4: [] },
+      };
+    }
+
+    // 1. Đọc danh sách tài khoản có TTM
+    const ttmSet = new Set<string>();
+    if (filesFound.ttm) {
+      try {
+        const wb = XLSX.readFile(ttmPath);
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (rows.length > 1) {
+          const headerRow = rows[0].map((c) => String(c || '').trim().toLowerCase());
+          const accIdx = headerRow.findIndex((c) => c === 'mã tkgd' || c.includes('mã tk') || c.includes('account'));
+          if (accIdx !== -1) {
+            for (let r = 1; r < rows.length; r++) {
+              const acc = String(rows[r]?.[accIdx] || '').trim();
+              if (acc) ttmSet.add(acc);
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi khi đọc file TTM.xlsx: ${err.message}`);
+      }
+    }
+
+    // 2. Đọc danh sách tài khoản có lệnh chờ khớp (DSLCK)
+    const dslckSet = new Set<string>();
+    if (filesFound.dslck) {
+      try {
+        const wb = XLSX.readFile(dslckPath);
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (rows.length > 1) {
+          const headerRow = rows[0].map((c) => String(c || '').trim().toLowerCase());
+          const accIdx = headerRow.findIndex((c) => c === 'mã tkgd' || c.includes('mã tk') || c.includes('account'));
+          if (accIdx !== -1) {
+            for (let r = 1; r < rows.length; r++) {
+              const acc = String(rows[r]?.[accIdx] || '').trim();
+              if (acc) dslckSet.add(acc);
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi khi đọc file DSLCK.xlsx: ${err.message}`);
+      }
+    }
+
+    // 3. Đọc dữ liệu QLTKGD và phân loại 4 nhóm
+    const group1: string[] = [];
+    const group2: string[] = [];
+    const group3: string[] = [];
+    const group4: string[] = [];
+
+    try {
+      const wb = XLSX.readFile(qltkgdPath);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      if (rows.length > 1) {
+        const headerRow = rows[0].map((c) => String(c || '').trim().toLowerCase());
+        const maTKGDIdx = headerRow.findIndex((c) => c === 'mã tkgd' || c.includes('mã tk'));
+        const laiLoFuturesIdx = headerRow.findIndex((c) => c.includes('lãi lỗ dự kiến futures'));
+        const laiLoOptionsIdx = headerRow.findIndex((c) => c.includes('lãi lỗ dự kiến options'));
+        const kyQuyTamTinhIdx = headerRow.findIndex((c) => c.includes('ký quỹ ban đầu yêu cầu tạm tính') || c.includes('kqyctt') || c.includes('kqtt'));
+        const kyQuyYeuCauIdx = headerRow.findIndex((c) => c.includes('ký quỹ ban đầu yêu cầu') && !c.includes('tạm tính'));
+        const kyQuyKhaDungIdx = headerRow.findIndex((c) => c.includes('ký quỹ khả dụng') && !c.includes('tạm tính'));
+        const kyQuyKhaDungTamTinhIdx = headerRow.findIndex((c) => c.includes('ký quỹ khả dụng tạm tính') || c.includes('kqkdtt'));
+
+        const parseNum = (val: any): number => {
+          if (val === undefined || val === null) return 0;
+          if (typeof val === 'number') return val;
+          const s = String(val).replace(/,/g, '').trim();
+          const n = parseFloat(s);
+          return isNaN(n) ? 0 : n;
+        };
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row) continue;
+          const maTKGD = String(row[maTKGDIdx] || '').trim();
+          if (!maTKGD) continue;
+
+          const laiLoFutures = parseNum(row[laiLoFuturesIdx]);
+          const laiLoOptions = parseNum(row[laiLoOptionsIdx]);
+          const kyQuyTamTinh = parseNum(row[kyQuyTamTinhIdx]);
+          const kyQuyYeuCau = parseNum(row[kyQuyYeuCauIdx]);
+          const kyQuyKhaDung = parseNum(row[kyQuyKhaDungIdx]);
+          const kyQuyKhaDungTamTinh = parseNum(row[kyQuyKhaDungTamTinhIdx]);
+
+          // Nhóm 1: Có lãi lỗ dự kiến nhưng không có TTM
+          if ((laiLoFutures !== 0 || laiLoOptions !== 0) && !ttmSet.has(maTKGD)) {
+            group1.push(maTKGD);
+          }
+
+          // Nhóm 2: Không có TTM và lệnh chờ nhưng có KQTT
+          if (kyQuyTamTinh !== 0 && !ttmSet.has(maTKGD) && !dslckSet.has(maTKGD)) {
+            group2.push(maTKGD);
+          }
+
+          // Nhóm 3: TKGD có TTM, không có lệnh chờ nhưng KQYCTT != KQYC
+          if (kyQuyTamTinh !== kyQuyYeuCau && ttmSet.has(maTKGD) && !dslckSet.has(maTKGD)) {
+            group3.push(maTKGD);
+          }
+
+          // Nhóm 4: TK không có lệnh chờ nhưng KQKĐTT != KQKĐ
+          if (kyQuyKhaDung !== kyQuyKhaDungTamTinh && !dslckSet.has(maTKGD)) {
+            group4.push(maTKGD);
+          }
+        }
+      }
+
+      return {
+        sessionDate: formattedDate,
+        success: true,
+        filesFound,
+        summary: {
+          group1Count: group1.length,
+          group2Count: group2.length,
+          group3Count: group3.length,
+          group4Count: group4.length,
+        },
+        results: {
+          group1,
+          group2,
+          group3,
+          group4,
+        },
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi phân tích QLTKGD.xlsx: ${err.message}`, err.stack);
+      return {
+        sessionDate: formattedDate,
+        success: false,
+        message: `Lỗi khi đọc file QLTKGD.xlsx: ${err.message}`,
+        filesFound,
+        summary: { group1Count: 0, group2Count: 0, group3Count: 0, group4Count: 0 },
+        results: { group1: [], group2: [], group3: [], group4: [] },
+      };
+    }
+  }
 }
+
 

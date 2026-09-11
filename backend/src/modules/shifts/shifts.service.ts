@@ -829,9 +829,15 @@ export class ShiftsService {
                   (s.updatedBy as any).fullName !== 'System Bot',
               );
 
-              const noteText = hasManualBotOverride
-                ? 'Hoàn thành theo các tác vụ con (Maker đã xác nhận thủ công thay cho Bot)'
-                : 'Tự động hoàn thành theo các tác vụ con';
+              const botSiblingWithNote = siblings.find(
+                (s) => s.resultNote && s.resultNote.includes('{'),
+              );
+
+              const noteText =
+                botSiblingWithNote?.resultNote ||
+                (hasManualBotOverride
+                  ? 'Hoàn thành theo các tác vụ con (Maker đã xác nhận thủ công thay cho Bot)'
+                  : 'Tự động hoàn thành theo các tác vụ con');
 
               const resLog = await this.updateTaskStatus(
                 shiftLogId,
@@ -866,14 +872,23 @@ export class ShiftsService {
               );
               const targetStatus = hasActiveWork ? 'WAITING' : 'PENDING';
               if (parentTask.status !== targetStatus) {
+                const botSiblingWithNote = siblings.find(
+                  (s) => s.resultNote && s.resultNote.includes('{'),
+                );
+                const noteText =
+                  botSiblingWithNote?.resultNote ||
+                  (parentTask.resultNote && parentTask.resultNote.includes('{')
+                    ? parentTask.resultNote
+                    : targetStatus === 'WAITING'
+                      ? 'Tự động chuyển trạng thái sang Đang kiểm tra/Đang thực hiện theo tiến trình các đầu việc con'
+                      : 'Chuyển về trạng thái Chưa thực hiện do chưa có tiến trình đầu việc con nào hoạt động');
+
                 const resLog = await this.updateTaskStatus(
                   shiftLogId,
                   parentId as string,
                   targetStatus,
                   user,
-                  targetStatus === 'WAITING'
-                    ? 'Tự động chuyển trạng thái sang Đang kiểm tra/Đang thực hiện theo tiến trình các đầu việc con'
-                    : 'Chuyển về trạng thái Chưa thực hiện do chưa có tiến trình đầu việc con nào hoạt động',
+                  noteText,
                   true,
                 );
                 return resLog;

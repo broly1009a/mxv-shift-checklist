@@ -10,9 +10,19 @@ Trích xuất và kiểm tra chính xác 100% hồ sơ mở TKGD:
 
 import sys
 import os
+
+# Khống chế tài nguyên CPU / RAM cho các thư viện C-level (OpenCV, Tesseract, OpenBLAS)
+# Tránh bão luồng gây nghẽn CPU máy chủ (2 vCPU)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import json
 import re
 import argparse
+import gc
 from typing import Dict, Any, List, Optional, Tuple
 
 # Reconfigure stdout to utf-8
@@ -21,6 +31,7 @@ try:
     sys.stderr.reconfigure(encoding='utf-8')
 except Exception:
     pass
+
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1763,6 +1774,7 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                 os.remove(tmp_f)
         except Exception:
             pass
+    gc.collect()
 
     result['canCuoc'] = cccd_data
 
@@ -1805,9 +1817,13 @@ def main():
         front = args.front
         back = args.back
 
-    res = process_account_files(hopdong, phuluc, front, back, code, name=name, gemini_key=gemini_key)
-    print(json.dumps(res, ensure_ascii=False, indent=2))
+    try:
+        res = process_account_files(hopdong, phuluc, front, back, code, name=name, gemini_key=gemini_key)
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    finally:
+        gc.collect()
 
 
 if __name__ == '__main__':
     main()
+

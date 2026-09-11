@@ -40,6 +40,7 @@ import {
 } from '../notifications/teams-notifier.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
+import { getRelatedTaskIds } from './constants/bot-task-registry';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -99,6 +100,8 @@ export class BotEngineController {
     };
     let cqg = {
       url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+      urlPrice: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+      urlTrade: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
       username: '',     // CQG Price (mxvprice) - chỉ xem giá
       password: '',
       username1: '',    // CQG1 Trade - tải FR1/PS1/OP1/OD1
@@ -153,6 +156,8 @@ export class BotEngineController {
         const decrypted = JSON.parse(decrypt(cqgRaw));
         cqg = {
           url: decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+          urlPrice: decrypted.urlPrice || decrypted.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+          urlTrade: decrypted.urlTrade || decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
           username:  decrypted.username  || '',            // CQG Price (mxvprice)
           password:  decrypted.password  ? '********' : '',
           username1: decrypted.username1 || '',            // CQG1 Trade
@@ -370,7 +375,9 @@ export class BotEngineController {
       }
 
       const mergedCqg = {
-        url: cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        url: cqg.urlTrade || cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        urlPrice: cqg.urlPrice !== undefined ? cqg.urlPrice : (currentCqg.urlPrice || currentCqg.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced'),
+        urlTrade: cqg.urlTrade !== undefined ? cqg.urlTrade : (currentCqg.urlTrade || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced'),
         // CQG Price (mxvprice) — chỉ xem giá, không tải file
         username: cqg.username !== undefined ? cqg.username : currentCqg.username,
         password: cqg.password && cqg.password !== '********' ? cqg.password : currentCqg.password,
@@ -574,7 +581,20 @@ export class BotEngineController {
       query['payload.shiftLogId'] = shiftLogId;
     }
     if (taskId) {
-      query['payload.taskId'] = taskId;
+      let relatedTaskIds = getRelatedTaskIds(taskId);
+      if (shiftLogId && this.shiftLogModel) {
+        try {
+          const shiftLog = await this.shiftLogModel
+            .findById(shiftLogId)
+            .select('details')
+            .lean()
+            .exec();
+          if (shiftLog?.details) {
+            relatedTaskIds = getRelatedTaskIds(taskId, shiftLog.details);
+          }
+        } catch (e) {}
+      }
+      query['payload.taskId'] = { $in: relatedTaskIds };
     }
 
     // Mặc định chỉ lấy jobs trong vòng 30 ngày gần nhất để giảm số bản ghi

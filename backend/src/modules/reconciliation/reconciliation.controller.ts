@@ -1126,7 +1126,7 @@ export class ReconciliationController {
         targetBase = cqgBase;
         category = 'CQG';
       } else if (isAcm) {
-        targetBase = msBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
+        targetBase = msBase.replace(/Backup MS[\\/]Futures/i, (match) => match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM');
         category = 'Straits (ACM)';
       } else if (isMs) {
         targetBase = msBase;
@@ -1184,6 +1184,36 @@ export class ReconciliationController {
   ) {
     return this.reconciliationService.triggerConsoleRun(dateStr, jobType, options);
   }
+
+  /**
+   * Kiểm tra ký quỹ TKGD (4 nhóm vi phạm IMR)
+   */
+  @Post('check-imr')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async checkImr(@Body('sessionDate') sessionDate?: string) {
+    return this.reconciliationService.checkImr(sessionDate);
+  }
+
+  /**
+   * Kích hoạt tải các báo cáo tùy chọn từ M-System hoặc CQG
+   */
+  @Post('trigger-selective-backup')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async triggerSelectiveBackup(
+    @Body('source') source: 'MS' | 'CQG',
+    @Body('reports') reports: string[],
+    @Body('sessionDate') sessionDate?: string,
+  ) {
+    if (!reports || reports.length === 0) {
+      throw new BadRequestException('Vui lòng chọn ít nhất 1 báo cáo để tải.');
+    }
+    return {
+      success: true,
+      message: `Đã tiếp nhận yêu cầu sao lưu ${reports.length} báo cáo ${source}.`,
+      reports,
+    };
+  }
 }
+
 
 

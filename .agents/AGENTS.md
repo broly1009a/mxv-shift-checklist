@@ -117,5 +117,68 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
    - **Thứ tự ưu tiên trường thông tin khi heal**: Luôn ưu tiên trường dữ liệu đã được M-System xác thực (`record.ms?.ngaySinh || record.canCuoc?.ngaySinh || record.hopDong?.ngaySinh`), tuyệt đối không để trường dữ liệu OCR lỗi đè lên trường của M-System.
    - Kích hoạt `verifyAndHealWithImageHash` cho cả tài khoản cơ sở và tiểu khoản (`-A`, `-L`, `-S` / PL01) trước khi gọi hàm thẩm định đối soát `evaluateRecordReconciliation`.
 
+---
+
+## 7. Zero Hardcoded Task IDs & Dynamic Bot Resolver Rule (Quy tắc Tuyệt đối Không Hardcode Task ID)
+
+Để đảm bảo hệ thống hoàn toàn linh hoạt khi người dùng tạo/sửa Template ca trực trên giao diện Web mà không cần can thiệp vào code:
+
+1. **Tuyệt đối KHÔNG hardcode Task ID, Alias hay Pattern ID vào mã nguồn**:
+   - Nghiêm cấm đưa các chuỗi Task ID cụ thể (như `TASK_CHECK_KLGD`, `TASK_CHECK_KLGD_s1`, `TASK_CHECK_EOD_sb2`, `ops_open_04_s4`, `TASK_CCP_STATISTICS_s1`...) vào constants, mảng alias (`aliasTaskIds`), pattern (`parentTaskIdPattern`, `subTaskIdPattern`) hoặc các câu lệnh `if/else` để định tuyến nghiệp vụ.
+   - Khi Admin tạo mới Template ca trực trong CSDL, Task ID có thể là bất kỳ chuỗi nào (UUID, `task_dem_01`, `task_1725...`). Code tuyệt đối không được phép phụ thuộc vào Task ID cụ thể.
+
+2. **Nhận diện Tác vụ Bot duy nhất qua `botCheckType` (Data-Driven 100%)**:
+   - Bot chỉ nhận diện tác vụ mục tiêu thông qua trường dữ liệu được cấu hình trên Template: `isBotCheck === true` (hoặc `isBotCheckSnapshot === true`) và `botCheckType === '<LOẠI_BOT>'`.
+   - Danh mục Bot (`BOT_TASK_REGISTRY`) chỉ được phép chứa thông tin năng lực (Capabilities/Enum) như: `botCheckType`, `jobType`, `displayName`, `description` và handler thực thi.
+
+3. **Cây Gia Phả Tác Vụ (Cha - Con - Anh em) Được Giải Quyết Động Qua CSDL**:
+   - Mối quan hệ giữa Task Cha và Task Con phải được giải quyết 100% động dựa trên trường `parentTaskIdSnapshot` trong mảng `details` của ca trực (`shift_log`):
+     - Đứng ở Task Cha $\rightarrow$ Tự động tìm tất cả Task Con có `parentTaskIdSnapshot === parentTask.taskId`.
+     - Đứng ở Task Con $\rightarrow$ Tự động tìm Task Cha có `taskId === subTask.parentTaskIdSnapshot` và các Task anh em cùng cha.
+   - Khi truy vấn `bot_jobs` trong MongoDB, danh sách `relatedTaskIds` phải được tính toán động từ cấu trúc cây này, nghiêm cấm dùng alias tĩnh trong code.
+
+---
+
+## 8. Universal Zero-Hardcoding & Data-Driven Architecture Standard (Quy Chuẩn Chung Về Thiết Kế Động & Chống Hardcode)
+
+Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các module phần mềm** (Checklist, Bot Engine, Reconciliation, TKGD, Trading Manager, Admin Config...) trong dự án hiện tại và tất cả các dự án phát triển về sau:
+
+### 1. Nhận Diện 4 Dạng Hardcode Nguy Hiểm Cần Tuyệt Đối Tránh
+
+1. **Entity ID Hardcoding (Gán cứng mã thực thể)**:
+   - *Biểu hiện*: Đưa các chuỗi ID cụ thể (`taskId: 'TASK_CHECK_KLGD'`, `roleId: 'ADMIN_01'`, `deptId: 'DEPT_IT'`, `userId: 'user_123'`) vào logic `if/else`, switch-case, constants hoặc mảng tĩnh.
+   - *Tác hại*: Khi người dùng tạo Template mới, ca mới, phòng ban mới hoặc CSDL dùng UUID tự sinh, code lập tức bị gãy và phát sinh bug ngầm.
+2. **Business Threshold Hardcoding (Gán cứng hằng số/ngưỡng nghiệp vụ)**:
+   - *Biểu hiện*: Gán cứng các giá trị tần suất chạy (`frequency = 60`), hạn mức cảnh báo (`threshold = 0.85`), số ngày hết hạn (`expireDays = 30`), tỷ lệ phí vào sâu trong hàm xử lý.
+   - *Tác hại*: Mỗi lần thay đổi quy định nghiệp vụ phải mở code sửa, chạy lại kiểm thử, build bundle và deploy lại toàn bộ hệ thống.
+3. **Infrastructure & Path Hardcoding (Gán cứng hạ tầng & đường dẫn)**:
+   - *Biểu hiện*: Gán cứng IP server (`10.0.0.26`), cổng (`3001`), đường dẫn ổ đĩa tuyệt đối (`C:\Trading\Backup\...`), URL dịch vụ bên ngoài vào code.
+   - *Tác hại*: Triệt tiêu khả năng portability; không thể chuyển đổi môi trường DEV/STAGING/PROD và gây sập hệ thống khi chuyển từ Windows sang Linux.
+4. **Pseudo-Constants / Alias Hiding (Hardcode trá hình dạng danh mục)**:
+   - *Biểu hiện*: Gom hàng loạt ID cụ thể vào một object dictionary (`aliasTaskIds`, `patternTaskIds`) rồi ngụy biện là "đã cấu hình tập trung". Bản chất đây vẫn là hardcode, chỉ dọn rác từ file này sang file khác.
+
+---
+
+### 2. 5 Nguyên Tắc Vàng Của Kiến Trúc Động (Data-Driven Architecture)
+
+1. **Nguyên Tắc 1: Quản Lý Năng Lực (Capabilities) Thay Vì Quản Lý Thực Thể (Entities)**:
+   - Code chỉ quản lý ENUM danh mục năng lực/loại nghiệp vụ mà hệ thống có thể thực thi (ví dụ: `BOT_TYPES`, `EXPORT_FORMATS`, `NOTIFICATION_CHANNELS`).
+   - Các bản ghi thực tế trong CSDL (Task, Template, User, Role) được gán liên kết tới Năng lực này bằng một trường định danh chuẩn (như `botCheckType`, `channelType`). Code chỉ tương tác với loại Năng lực, không bao giờ tương tác với ID của bản ghi.
+2. **Nguyên Tắc 2: Quan Hệ Cây/Đồ Thị Dữ Liệu Thay Vì Logic Rẽ Nhánh Trong Code**:
+   - Mọi quan hệ giữa các thực thể (Cha - Con, Phụ thuộc `dependsOn`, Nhóm phân quyền, Thứ tự hiển thị `sortOrder`) bắt buộc phải được giải quyết qua cây quan hệ trong CSDL (`parentTaskId`, `dependsOnTaskId`, `groupId`).
+   - Tuyệt đối không suy diễn quan hệ bằng quy tắc cắt/nối chuỗi string (ví dụ: cấm suy luận `subTask = parentId + '_s1'`).
+3. **Nguyên Tắc 3: Configuration-First & Runtime Adjustability (Cấu hình Động)**:
+   - Tất cả tham số vận hành (đường dẫn sao lưu, tần suất quét, tài khoản bot, URL kết nối, cờ bật/tắt tính năng) phải nằm trong bảng CSDL Cấu hình (`system_configs`, `bot_credentials`) hoặc biến môi trường (`.env`), có màn hình UI trực quan để Quản trị viên thay đổi trực tiếp lúc đang chạy (runtime) mà không cần can thiệp code.
+4. **Nguyên Tắc 4: Fail Fast & Graceful Dynamic Fallback (Không bao giờ Fallback về ID cụ thể)**:
+   - Khi không tìm thấy cấu hình hoặc quan hệ trong CSDL, hệ thống phải xử lý bằng cách: Báo lỗi có ý nghĩa (Meaningful Error), ghi log cảnh báo hoặc dùng giá trị mặc định theo loại hình (Default by Type).
+   - **Nghiêm cấm tuyệt đối** việc âm thầm fallback về một ID bản ghi cụ thể hoặc giả định một ID mặc định.
+5. **Nguyên Tắc 5: The "New Template / New Tenant" Acid Test (Bài Test Tự Kiểm Tra Bắt Buộc)**:
+   - Trước khi hoàn thành bất kỳ task chỉnh sửa nào, Lập trình viên / AI Assistant **bắt buộc phải tự trả lời 2 câu hỏi**:
+     - *Câu hỏi 1*: "Nếu Admin vào giao diện Web tạo một Template mới hoàn toàn với các ID sinh ngẫu nhiên (UUID), module này có tự động nhận diện và hoạt động trơn tru 100% không?"
+     - *Câu hỏi 2*: "Nếu người dùng đổi tên, đổi mã task, hoặc phân cấp lại cây cha - con trong Database, hệ thống có tự thích ứng mà không bị gãy không?"
+   - Nếu câu trả lời cho bất kỳ câu nào là **"KHÔNG (phải vào code thêm ID/sửa mảng)"** $\rightarrow$ Đoạn code đó **VI PHẠM NGUYÊN TẮC** và bắt buộc phải được tái cấu trúc lại ngay lập tức.
+
+
+
 
 

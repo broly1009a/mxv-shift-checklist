@@ -1019,7 +1019,7 @@ export class GttCheckerService {
     if (cqgCredentialsRaw) {
       try {
         const cqgCredentials = JSON.parse(decrypt(cqgCredentialsRaw));
-        if (cqgCredentials.url) cqgUrl = cqgCredentials.url;
+        if (cqgCredentials.urlPrice || cqgCredentials.url) cqgUrl = cqgCredentials.urlPrice || cqgCredentials.url;
         if (cqgCredentials.username) cqgUser = cqgCredentials.username;
         if (cqgCredentials.password) cqgPass = cqgCredentials.password;
       } catch (err) {
@@ -1038,23 +1038,39 @@ export class GttCheckerService {
     this.logger.log(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
     const launchOptions: any = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+      ],
     };
     if (chromePath) {
       launchOptions.executablePath = chromePath;
     }
 
     const browser = await chromium.launch(launchOptions);
-    const context = await browser.newContext({ viewport: null });
+    const context = await browser.newContext({
+      viewport: null,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    });
     const page = await context.newPage();
-    page.setDefaultTimeout(30000);
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+    page.setDefaultTimeout(35000);
 
     try {
       this.logger.log('Đăng nhập CQG...');
-      await page.goto(cqgUrl);
+      await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 20000,
+        timeout: 25000,
       });
       await page.fill('input[name="userName"]', cqgUser);
       await page.fill('input[name="password"]', cqgPass);

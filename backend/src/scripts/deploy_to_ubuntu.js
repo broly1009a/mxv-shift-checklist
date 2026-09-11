@@ -101,6 +101,10 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'frontend/src/app/dashboard'),
     remoteDir: '/opt/mxv-checklist/frontend/src/app/dashboard',
   },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/components/admin'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/components/admin',
+  },
 ];
 
 
@@ -200,51 +204,62 @@ const conn = new Client();
 conn.on('ready', () => {
   console.log('Da ket noi SSH toi Ubuntu 10.0.0.26');
 
-  // 1. Tạo tất cả thư mục cha từ xa
-  const remoteDirs = Array.from(
-    new Set(filesToUpload.map((item) => path.dirname(item.remote).replace(/\\/g, '/')))
-  );
-
-  const mkdirCmd = `mkdir -p ${remoteDirs.join(' ')}`;
-  conn.exec(mkdirCmd, (err, stream) => {
-    if (err) {
-      console.error('Loi mkdir:', err);
+  // Mở SFTP và upload trực tiếp
+  conn.sftp((sftpErr, sftp) => {
+    if (sftpErr) {
+      console.error('SFTP Error:', sftpErr);
       conn.end();
       return;
     }
-    stream.on('data', (d) => process.stdout.write(d.toString()));
-    stream.on('close', () => {
-      console.log('Cac thu muc tren Ubuntu da san sang.');
+    console.log('SFTP san sang. Bat dau upload...');
 
-      // 2. Mở SFTP và upload tuần tự
-      conn.sftp((sftpErr, sftp) => {
-        if (sftpErr) {
-          console.error('SFTP Error:', sftpErr);
-          conn.end();
-          return;
-        }
+    let completed = 0;
+    let cursor = 0;
+    let isDone = false;
+    const CONCURRENCY = 8;
 
-        let idx = 0;
-        function uploadNext() {
-          if (idx >= filesToUpload.length) {
-            console.log('\n=== TAT CA FILE DA DUOC DONG BO LEN UBUNTU THANH CONG! ===');
-            runBuildAndRestart();
+        function startWorker() {
+          if (cursor >= filesToUpload.length) {
+            if (completed >= filesToUpload.length && !isDone) {
+              isDone = true;
+              console.log('\n=== TAT CA FILE DA DUOC DONG BO LEN UBUNTU THANH CONG! ===');
+              runBuildAndRestart();
+            }
             return;
           }
-          const item = filesToUpload[idx++];
-          sftp.fastPut(item.local, item.remote, (putErr) => {
-            if (putErr) {
-              console.error(`  ❌ Loi upload ${item.remote}:`, putErr.message);
-            } else {
-              console.log(`  [${idx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)} -> ${item.remote}`);
-            }
-            uploadNext();
-          });
+          const item = filesToUpload[cursor++];
+          const currentIdx = cursor;
+
+          try {
+            const content = fs.readFileSync(item.local);
+            sftp.writeFile(item.remote, content, (writeErr) => {
+              if (writeErr) {
+                sftp.fastPut(item.local, item.remote, (putErr) => {
+                  if (putErr) {
+                    console.error(`  ❌ Loi upload ${item.remote}:`, putErr.message);
+                  } else {
+                    console.log(`  [${currentIdx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)}`);
+                  }
+                  completed++;
+                  startWorker();
+                });
+              } else {
+                console.log(`  [${currentIdx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)}`);
+                completed++;
+                startWorker();
+              }
+            });
+          } catch (readErr) {
+            console.error(`  ❌ Loi doc file ${item.local}:`, readErr.message);
+            completed++;
+            startWorker();
+          }
         }
-        uploadNext();
+
+        for (let i = 0; i < CONCURRENCY; i++) {
+          startWorker();
+        }
       });
-    });
-  });
 
   function runBuildAndRestart() {
     console.log('\n=== DANG BUILD BACKEND VA FRONTEND TREN UBUNTU ===');
@@ -282,5 +297,5 @@ conn.on('ready', () => {
   port: 22,
   username: 'mxvadmin',
   password: 'MxV!,#2o26',
-  readyTimeout: 15000,
+  readyTimeout: 30000,
 });

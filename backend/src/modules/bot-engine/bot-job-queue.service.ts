@@ -491,6 +491,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               jobId: job._id.toString(),
               status: 'COMPLETED',
               completedAt: job.completedAt,
+              result: payload?.result,
               data: {
                 totalCount: payload?.totalCount ?? 0,
                 failedCount: 0,
@@ -537,6 +538,30 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message,
             true,
           );
+
+          // Đồng bộ kết quả lên Task Cha nếu taskId hiện tại là task con
+          if (rawShiftLog?.details) {
+            const currentSubTask = rawShiftLog.details.find(
+              (d: any) => d.taskId === taskId,
+            );
+            const parentId = currentSubTask?.parentTaskIdSnapshot;
+            if (parentId && parentId !== taskId) {
+              await this.shiftsService
+                .updateTaskStatus(
+                  shiftLogId,
+                  parentId,
+                  taskStatus,
+                  systemUser,
+                  message,
+                  true,
+                )
+                .catch((e: any) =>
+                  this.logger.warn(
+                    `Không thể đồng bộ kết quả lên task cha ${parentId}: ${e.message}`,
+                  ),
+                );
+            }
+          }
         } else if (status === 'FAILED') {
           // Human Override Guard: Nếu ca trực đã chốt hoặc tác vụ đã được người dùng duyệt hoàn thành,
           // bot tuyệt đối không ghi đè trạng thái FAILED!

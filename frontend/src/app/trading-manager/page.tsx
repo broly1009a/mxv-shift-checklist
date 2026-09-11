@@ -363,7 +363,13 @@ export default function TradingManagerPage() {
     return Number(n).toLocaleString('en-US');
   };
 
-  const isDiffer = (totals.differ || 0) > 0;
+  const totalDifferLots = (totals.differ || 0) + (totals.differACM || 0);
+  const isDiffer =
+    totalDifferLots > 0 ||
+    (totals.differTTM || 0) > 0 ||
+    (totals.differTTTT || 0) > 0 ||
+    (mismatchedTrades?.length || 0) > 0 ||
+    (mismatchedTTM?.length || 0) > 0;
 
   return (
     <ProtectedRoute>
@@ -445,7 +451,7 @@ export default function TradingManagerPage() {
                   Hệ thống: Online
                 </span>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Độ lệch: {!isDiffer ? '0 lot (Khớp 100%)' : `${totals.differ} lot lệch`}
+                  Độ lệch: {!isDiffer ? '0 lot (Khớp 100%)' : `${totalDifferLots > 0 ? totalDifferLots : (mismatchedTrades.length || 1)} lot lệch`}
                 </span>
               </div>
             </div>
@@ -1732,7 +1738,7 @@ export default function TradingManagerPage() {
             <span>•</span>
             <span>
               Độ lệch: <strong style={{ color: isDiffer ? '#ef4444' : '#10b981', fontFamily: 'monospace', fontWeight: 800 }}>
-                {!isDiffer ? '0 lot (Khớp 100%)' : `${totals.differ} lot`}
+                {!isDiffer ? '0 lot (Khớp 100%)' : `${totalDifferLots > 0 ? totalDifferLots : (mismatchedTrades.length || 1)} lot`}
               </strong>
             </span>
           </div>

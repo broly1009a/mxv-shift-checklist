@@ -144,7 +144,9 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       'bot_backup_path_cqg',
       defaultCqgPath,
     );
-    const acmBackupBase = path.join(path.dirname(msBackupBase), 'ACM');
+    const acmBackupBase = (
+      await this.settingsService.getSetting('bot_backup_path_acm', '')
+    ) || path.join(path.dirname(msBackupBase), 'ACM');
 
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
@@ -171,8 +173,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return;
       }
       log('MS → Đăng nhập M-System...');
-      const { browser, page } = await this.rpaDownloaderService.loginMSystem(msDailyPath);
+      let browser: any = null;
       try {
+        const msSession = await this.rpaDownloaderService.loginMSystem(msDailyPath);
+        browser = msSession.browser;
+        const page = msSession.page;
+
         if (options.checkKlgd !== false) {
           log('MS → Đang tải DSGD.xlsx (Danh sách giao dịch)...');
           await this.rpaDownloaderService.downloadDSGD(
@@ -207,9 +213,9 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
-        log(`MS ❌ Lỗi tải file MS: ${err.message}`);
+        log(`MS ❌ Lỗi kết nối/tải file MS: ${err.message}. Tiếp tục với dữ liệu sẵn có.`);
       } finally {
-        await browser.close().catch(() => { });
+        if (browser) await browser.close().catch(() => { });
       }
     };
 
@@ -222,60 +228,65 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         log('CQG ⏭️ Bỏ qua tải CQG theo tùy chọn.');
         return;
       }
-      const filesToDownload: {
-        FR1?: boolean;
-        FR2?: boolean;
-        OP1?: boolean;
-        OP2?: boolean;
-        PS1?: boolean;
-        PS2?: boolean;
-        OD1?: boolean;
-        OD2?: boolean;
-      } = {};
-      if (options.checkKlgd !== false) {
-        filesToDownload.FR1 = true;
-        filesToDownload.FR2 = true;
-      }
-      if (options.checkTtm !== false) {
-        filesToDownload.OP1 = true;
-        filesToDownload.OP2 = true;
-      }
-      if (options.checkTttt !== false) {
-        filesToDownload.PS1 = true;
-        filesToDownload.PS2 = true;
-      }
-      log(`CQG → Tải các báo cáo: ${Object.keys(filesToDownload).join(', ')}...`);
-      const result = await this.rpaDownloaderService.downloadCqgBackup(
-        filesToDownload,
-        cqgDailyPath,
-      );
-      if (result.downloaded.length > 0) {
-        log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
-      }
-      if (result.errors.length > 0) {
-        errors.push(...result.errors.map((e) => `CQG: ${e}`));
-        log(`CQG  Lỗi: ${result.errors.join(' | ')}`);
-      }
-      const keysToMerge: Array<'FR' | 'OP' | 'PS'> = [];
-      if (options.checkKlgd !== false) keysToMerge.push('FR');
-      if (options.checkTtm !== false) keysToMerge.push('OP');
-      if (options.checkTttt !== false) keysToMerge.push('PS');
-
-      log(`CQG → Ghép nối các file thô (${keysToMerge.join(', ')})...`);
-      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(
-        targetDate,
-        keysToMerge,
-        true, // Luôn forceRemerge sau khi tải tươi file raw về
-      );
-      for (const l of mergeResult.logs) {
-        log(`CQG Merge: ${l}`);
-      }
-      if (!mergeResult.success) {
-        errors.push(
-          `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('❌')).join(' | ')}`,
+      try {
+        const filesToDownload: {
+          FR1?: boolean;
+          FR2?: boolean;
+          OP1?: boolean;
+          OP2?: boolean;
+          PS1?: boolean;
+          PS2?: boolean;
+          OD1?: boolean;
+          OD2?: boolean;
+        } = {};
+        if (options.checkKlgd !== false) {
+          filesToDownload.FR1 = true;
+          filesToDownload.FR2 = true;
+        }
+        if (options.checkTtm !== false) {
+          filesToDownload.OP1 = true;
+          filesToDownload.OP2 = true;
+        }
+        if (options.checkTttt !== false) {
+          filesToDownload.PS1 = true;
+          filesToDownload.PS2 = true;
+        }
+        log(`CQG → Tải các báo cáo: ${Object.keys(filesToDownload).join(', ')}...`);
+        const result = await this.rpaDownloaderService.downloadCqgBackup(
+          filesToDownload,
+          cqgDailyPath,
         );
-      } else {
-        log('CQG ✅ Ghép file CQG hoàn tất.');
+        if (result.downloaded.length > 0) {
+          log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
+        }
+        if (result.errors.length > 0) {
+          errors.push(...result.errors.map((e) => `CQG: ${e}`));
+          log(`CQG ⚠️ Lỗi: ${result.errors.join(' | ')}`);
+        }
+        const keysToMerge: Array<'FR' | 'OP' | 'PS'> = [];
+        if (options.checkKlgd !== false) keysToMerge.push('FR');
+        if (options.checkTtm !== false) keysToMerge.push('OP');
+        if (options.checkTttt !== false) keysToMerge.push('PS');
+
+        log(`CQG → Ghép nối các file thô (${keysToMerge.join(', ')})...`);
+        const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(
+          targetDate,
+          keysToMerge,
+          true, // Luôn forceRemerge sau khi tải tươi file raw về
+        );
+        for (const l of mergeResult.logs) {
+          log(`CQG Merge: ${l}`);
+        }
+        if (!mergeResult.success) {
+          errors.push(
+            `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('❌')).join(' | ')}`,
+          );
+        } else {
+          log('CQG ✅ Ghép file CQG hoàn tất.');
+        }
+      } catch (err: any) {
+        errors.push(`CQG: ${err.message}`);
+        log(`CQG ❌ Lỗi kết nối/tải file CQG: ${err.message}. Tiếp tục với dữ liệu sẵn có.`);
       }
     };
 
