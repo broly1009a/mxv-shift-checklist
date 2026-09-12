@@ -31,6 +31,7 @@ import {
   Loader2,
   Terminal,
   X,
+  Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -42,8 +43,8 @@ export default function TradingManagerPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Top Tabs (1:1 Khung C# Desktop)
-  const [topTab, setTopTab] = useState<'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN'>('CHECK_GD_EOD_SYNC');
+  // Top Tabs (1:1 Khung C# Desktop + Màn hình đối chiếu CoreCCP)
+  const [topTab, setTopTab] = useState<'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR'>('CHECK_GD_EOD_SYNC');
 
   // Checkbox selections in Table 1
   const [checkPeriodic, setCheckPeriodic] = useState<boolean>(true);
@@ -278,12 +279,20 @@ export default function TradingManagerPage() {
               const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
               const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
               if (misTrades === 0 && misPos === 0) {
-                toast.success('✅ Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
+                toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
               } else {
-                toast.error(`⚠️ Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+                toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+              }
+            } else if (jobType === 'CHECK_EOD_CCP') {
+              const totalMis = payloadResult?.mismatchedEOD?.length || 0;
+              const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
+              if (totalMis === 0 && totalNeg === 0) {
+                toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
+              } else {
+                toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
               }
             } else {
-              toast.success('✅ Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
+              toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
             }
 
             await fetchConsoleSummary(selectedDate, true);
@@ -292,7 +301,7 @@ export default function TradingManagerPage() {
             isDone = true;
             toast.dismiss('bot-job-progress');
             const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
-            toast.error(`❌ Bot thất bại: ${errDetail}`, { duration: 6000 });
+            toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
             await fetchConsoleSummary(selectedDate, true);
             break;
           }
@@ -309,6 +318,85 @@ export default function TradingManagerPage() {
     } catch (err: any) {
       toast.dismiss('bot-job-progress');
       toast.error(`Không thể kích hoạt đối chiếu: ${err.message}`);
+    } finally {
+      setTriggering(false);
+      setTriggeringSection(null);
+    }
+  };
+
+  // Trigger CoreCCP Playwright Download Job
+  const handleTriggerCcpDownload = async () => {
+    if (!token || triggering) return;
+    setTriggering(true);
+    setTriggeringSection('ccp-download');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ccp-download`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: selectedDate,
+          reports: ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Lỗi khởi chạy tải CoreCCP: ${res.status}`);
+      }
+
+      const result = await res.json();
+      const jobId = result.jobId;
+
+      if (!jobId) {
+        toast.success(result.message || 'Đã kích hoạt tải báo cáo CoreCCP!');
+        await fetchConsoleSummary(selectedDate, true);
+        return;
+      }
+
+      toast.loading('Robot Playwright đang tải báo cáo CoreCCP, vui lòng chờ...', { id: 'ccp-job-progress' });
+
+      const startTime = Date.now();
+      const MAX_WAIT_MS = 180000;
+      const POLL_INTERVAL_MS = 2500;
+      let isDone = false;
+
+      while (Date.now() - startTime < MAX_WAIT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        try {
+          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jobRes.ok) continue;
+          const job = await jobRes.json();
+
+          if (job.status === 'COMPLETED') {
+            isDone = true;
+            toast.dismiss('ccp-job-progress');
+            toast.success('Đã tải xong toàn bộ báo cáo CoreCCP về thư mục backup!', { duration: 5000 });
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          } else if (job.status === 'FAILED') {
+            isDone = true;
+            toast.dismiss('ccp-job-progress');
+            toast.error(`Tải báo cáo CoreCCP thất bại: ${job.error || 'Xem log để biết thêm'}`, { duration: 6000 });
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          }
+        } catch {
+          // Bỏ qua lỗi mạng chập chờn khi poll
+        }
+      }
+
+      if (!isDone) {
+        toast.dismiss('ccp-job-progress');
+        toast.success('Quá trình tải báo cáo CoreCCP đang tiếp tục chạy ngầm.');
+      }
+    } catch (err: any) {
+      toast.dismiss('ccp-job-progress');
+      toast.error(err.message || 'Lỗi khi kích hoạt tải báo cáo CoreCCP');
     } finally {
       setTriggering(false);
       setTriggeringSection(null);
@@ -568,6 +656,29 @@ export default function TradingManagerPage() {
           >
             <Sliders size={16} color={topTab === 'CAU_HINH_DUONG_DAN' ? '#10b981' : 'var(--text-muted)'} />
             <span>Cấu hình – Đường dẫn</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTopTab('CORE_CCP_VNCLEAR')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'CORE_CCP_VNCLEAR' ? '2px solid #10b981' : '2px solid transparent',
+              color: topTab === 'CORE_CCP_VNCLEAR' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'CORE_CCP_VNCLEAR' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <FileSpreadsheet size={16} color={topTab === 'CORE_CCP_VNCLEAR' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Báo Cáo & Đối Chiếu CoreCCP</span>
           </button>
         </div>
 
@@ -1341,7 +1452,7 @@ export default function TradingManagerPage() {
                   </h5>
                   <button
                     type="button"
-                    onClick={() => handleTriggerRun('SCAN_NEGATIVE_MARGIN', 'dsgd')}
+                    onClick={() => handleTriggerRun('CHECK_EOD_MM', 'dsgd')}
                     disabled={triggering}
                     className="btn btn-secondary"
                     style={{
@@ -1480,7 +1591,24 @@ export default function TradingManagerPage() {
                             fontFamily: 'monospace',
                             fontSize: '0.85rem',
                           }}>
-                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{p.maTKGD || p.account || '--'}</td>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
+                              {p.system && (
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800,
+                                  marginRight: '6px',
+                                  backgroundColor: p.system === 'CCP' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                  color: p.system === 'CCP' ? '#a855f7' : '#3b82f6',
+                                  border: `1px solid ${p.system === 'CCP' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                                }}>
+                                  [{p.system}]
+                                </span>
+                              )}
+                              {p.maTKGD || p.account || '--'}
+                            </td>
                             <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>{fmt(p.calculatedBalance ?? p.msPosition ?? 0)}</td>
                             <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(p.eodBalance ?? p.cqgPosition ?? 0)} {p.differ !== undefined ? `(Lệch: ${fmt(p.differ)})` : ''}</td>
                           </tr>
@@ -1491,7 +1619,7 @@ export default function TradingManagerPage() {
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                               <CheckCircle size={28} color="#10b981" />
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
-                                Tất cả vị thế và kết quả EOD khớp hoàn toàn
+                                Tất cả vị thế và kết quả EOD khớp hoàn toàn (MS & CCP)
                               </span>
                             </div>
                           </td>
@@ -1518,7 +1646,7 @@ export default function TradingManagerPage() {
                 </h5>
                 <button
                   type="button"
-                  onClick={() => handleTriggerRun('CHECK_EOD_MM', 'balance')}
+                  onClick={() => handleTriggerRun('CHECK_CQG_SYNC', 'balance')}
                   disabled={triggering}
                   className="btn btn-secondary"
                   style={{
@@ -1591,6 +1719,478 @@ export default function TradingManagerPage() {
               </div>
             </div>
           </div>
+        ) : topTab === 'CORE_CCP_VNCLEAR' ? (
+          /* TAB 4: BÁO CÁO & ĐỐI CHIẾU CORECCP (VNCLEAR) */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* CORECCP CONTROL & ACTION HEADER */}
+            <div className="glass-panel" style={{
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <span style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}>
+                    VNCLEAR Automation
+                  </span>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Đối Soát & Báo Cáo CoreCCP (VNCLEAR)
+                  </h3>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Thu thập tự động báo cáo QLTTTKGD, EOD, NR, TTTT qua Playwright và đối chiếu số dư EOD công thức 4 thành phần.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleTriggerCcpDownload}
+                  disabled={triggering}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    borderColor: 'rgba(59, 130, 246, 0.3)',
+                    color: '#60a5fa',
+                    cursor: triggering ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {triggering && triggeringSection === 'ccp-download' ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang tải báo cáo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={15} />
+                      <span>Tải Báo Cáo CoreCCP</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTriggerRun('CHECK_EOD_CCP', 'ccp-check')}
+                  disabled={triggering}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: triggering ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {triggering && triggeringSection === 'ccp-check' ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang đối chiếu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={15} />
+                      <span>Kiểm Tra Đối Chiếu CCP</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(true)}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                  title="Mở toàn màn hình xem nhật ký bot"
+                >
+                  <Terminal size={15} />
+                  <span>Log Modal</span>
+                </button>
+              </div>
+            </div>
+
+            {/* KPI STATS CARDS */}
+            {(() => {
+              const ccp = summaryData?.ccpSummary;
+              const filesPresent = ccp?.filesPresent;
+              const filesCount = [
+                filesPresent?.qltkgd,
+                filesPresent?.eod,
+                filesPresent?.nr,
+                filesPresent?.tttt,
+              ].filter(Boolean).length;
+              const totalAccounts = ccp?.totals?.totalAccounts || 0;
+              const totalNegative = ccp?.totals?.totalNegative || 0;
+              const totalMismatched = ccp?.totals?.totalMismatched || 0;
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  {/* Card 1 */}
+                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                        Tổng Tài Khoản CCP
+                      </span>
+                      <Database size={18} color="#3b82f6" />
+                    </div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+                      {fmt(totalAccounts)} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>TK</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Ghi nhận trong file EOD
+                    </span>
+                  </div>
+
+                  {/* Card 2 */}
+                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                        File Báo Cáo Sẵn Sàng
+                      </span>
+                      <FileSpreadsheet size={18} color={filesCount === 4 ? '#10b981' : '#f59e0b'} />
+                    </div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: filesCount === 4 ? '#10b981' : '#f59e0b' }}>
+                      {filesCount}/4 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tệp</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      QLTTTKGD, EOD, NR, TTTT
+                    </span>
+                  </div>
+
+                  {/* Card 3 */}
+                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                        Tài Khoản Âm Ký Quỹ
+                      </span>
+                      <AlertTriangle size={18} color={totalNegative > 0 ? '#ef4444' : '#10b981'} />
+                    </div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalNegative > 0 ? '#ef4444' : '#10b981' }}>
+                      {totalNegative} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {totalNegative > 0 ? 'Cần xử lý nộp ký quỹ gấp' : 'An toàn: Không có TK âm'}
+                    </span>
+                  </div>
+
+                  {/* Card 4 */}
+                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                        Lệch Công Thức EOD
+                      </span>
+                      <ShieldCheck size={18} color={totalMismatched > 0 ? '#ef4444' : '#10b981'} />
+                    </div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalMismatched > 0 ? '#ef4444' : '#10b981' }}>
+                      {totalMismatched} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {totalMismatched > 0 ? 'Phát hiện chênh lệch số dư' : 'Khớp 100% công thức chuẩn'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 2-COLUMN MAIN VIEW */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 45%) 1fr', gap: '20px' }}>
+              {/* CỘT TRÁI: DANH SÁCH FILE NGUỒN & TERMINAL LOGS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* File Status Box */}
+                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+                  <div style={{
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-input)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      File Báo Cáo Tại Thư Mục Backup
+                    </h5>
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                      {summaryData?.ccpSummary?.folderPath ? summaryData.ccpSummary.folderPath.split(/[\\/]/).pop() : 'CoreCCP'}
+                    </span>
+                  </div>
+
+                  <div style={{ padding: '16px' }}>
+                    {(() => {
+                      const files = summaryData?.ccpSummary?.filesPresent;
+                      const fileItems = [
+                        {
+                          code: 'QLTTTKGD',
+                          name: 'Báo cáo Quản lý Thông tin TKGD & Số dư',
+                          present: !!files?.qltkgd,
+                          filename: files?.qltkgdName || 'QLTTTKGD*.csv',
+                          size: files?.qltkgdSize || 0,
+                        },
+                        {
+                          code: 'EOD',
+                          name: 'Báo cáo Ký quỹ & Số dư cuối ngày',
+                          present: !!files?.eod,
+                          filename: files?.eodName || 'EOD*.csv',
+                          size: files?.eodSize || 0,
+                        },
+                        {
+                          code: 'NR',
+                          name: 'Báo cáo Nộp / Rút tiền ký quỹ trong phiên',
+                          present: !!files?.nr,
+                          filename: files?.nrName || 'NR*.csv',
+                          size: files?.nrSize || 0,
+                        },
+                        {
+                          code: 'TTTT',
+                          name: 'Báo cáo Thông tin Tiền Thanh toán',
+                          present: !!files?.tttt,
+                          filename: files?.ttttName || 'TTTT*.csv',
+                          size: files?.ttttSize || 0,
+                        },
+                      ];
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {fileItems.map((f, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: f.present ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                    {f.code}
+                                  </span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {f.name}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                                  {f.present ? `${f.filename} (${(f.size / 1024).toFixed(1)} KB)` : 'Chưa tải file'}
+                                </span>
+                              </div>
+
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                backgroundColor: f.present ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                color: f.present ? '#10b981' : '#ef4444',
+                              }}>
+                                {f.present ? 'ĐÃ CÓ' : 'CHƯA CÓ'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Live Terminal Log Box */}
+                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{
+                    padding: '12px 18px',
+                    borderBottom: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-input)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Terminal size={14} color="#10b981" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        Nhật Ký Tải & Đối Chiếu Robot CoreCCP
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      Live Output
+                    </span>
+                  </div>
+
+                  <div style={{
+                    padding: '14px 16px',
+                    backgroundColor: '#050b14',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    height: '240px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}>
+                    {(() => {
+                      const downloadLogs = summaryData?.ccpSummary?.downloadJob?.logs || [];
+                      const checkLogs = summaryData?.ccpSummary?.checkJob?.logs || [];
+                      const combinedLogs = [...downloadLogs, ...checkLogs];
+
+                      if (combinedLogs.length === 0) {
+                        return (
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
+                            Chưa có nhật ký ghi nhận. Bấm "Tải Báo Cáo CoreCCP" hoặc "Kiểm Tra Đối Chiếu CCP" để chạy.
+                          </div>
+                        );
+                      }
+
+                      return combinedLogs.map((log: string, idx: number) => {
+                        const isErr = log.includes('LỖI') || log.includes('Error') || log.includes('bất thường') || log.includes('failed');
+                        const isSuccess = log.includes('THÀNH CÔNG') || log.includes('Hoàn thành');
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              color: isErr ? '#f87171' : isSuccess ? '#34d399' : '#94a3b8',
+                              lineHeight: 1.5,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {log}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* CỘT PHẢI: BẢNG CHI TIẾT KẾT QUẢ ĐỐI CHIẾU EOD CORECCP */}
+              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                  padding: '14px 20px',
+                  borderBottom: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-input)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      Chi Tiết Chênh Lệch Công Thức EOD CoreCCP
+                    </h5>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      backgroundColor: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                      color: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? '#ef4444' : '#10b981',
+                    }}>
+                      {summaryData?.ccpSummary?.totals?.totalMismatched || 0} Tài Khoản
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ minHeight: '320px', maxHeight: '580px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                      <tr style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-input)',
+                      }}>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', width: '150px' }}>
+                          Mã TKGD
+                        </th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
+                          Số Dư Tính Toán (VND)
+                        </th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
+                          Số Dư Báo Cáo EOD (VND)
+                        </th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right', width: '180px' }}>
+                          Chênh Lệch (VND)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const mismatched = summaryData?.ccpSummary?.mismatchedAccounts || [];
+                        if (mismatched.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={4} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                  <ShieldCheck size={36} color="#10b981" />
+                                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
+                                    Số Dư Khớp Hoàn Toàn 100%
+                                  </span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    Không phát hiện bất kỳ sai lệch nào giữa công thức tính toán và số dư EOD CoreCCP
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return mismatched.map((item: any, idx: number) => (
+                          <tr
+                            key={idx}
+                            style={{
+                              borderBottom: '1px solid var(--border-color)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.04)',
+                              fontFamily: 'monospace',
+                              fontSize: '0.82rem',
+                            }}
+                          >
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800, color: '#f87171' }}>
+                              {item.maTKGD}
+                            </td>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
+                              {fmt(item.calculatedBalance)}
+                            </td>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
+                              {fmt(item.eodBalance)}
+                            </td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>
+                              {fmt(item.differ)}
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : topTab === 'BACKUP_THONG_KE_GTT' ? (
           /* TAB 2: BACKUP - THỐNG KÊ - GTT */
           <div className="glass-panel" style={{ padding: '40px 24px', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
@@ -1631,7 +2231,7 @@ export default function TradingManagerPage() {
               </Link>
             </div>
           </div>
-        ) : (
+        ) : topTab === 'CAU_HINH_DUONG_DAN' ? (
           /* TAB 3: CẤU HÌNH - ĐƯỜNG DẪN */
           <div className="glass-panel" style={{ padding: '32px', maxWidth: '800px', margin: '0 auto' }}>
             <h3 style={{
@@ -1712,7 +2312,7 @@ export default function TradingManagerPage() {
               </Link>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* STATUS FOOTER (Chuẩn hóa thanh trạng thái) */}
         <div style={{

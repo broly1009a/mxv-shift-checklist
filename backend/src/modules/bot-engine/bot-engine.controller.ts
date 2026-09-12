@@ -41,6 +41,7 @@ import {
 import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
+import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -60,6 +61,7 @@ export class BotEngineController {
     private readonly shiftsService: ShiftsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
+    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
   ) {}
 
   /**
@@ -110,7 +112,9 @@ export class BotEngineController {
       password2: '',
     };
     let acm = {
-      url: 'https://acm.member-url.vn/login',
+      url: '',
+      orderUrl: '',
+      fillUrl: '',
       username: '',
       password: '',
       geminiApiKey: '',
@@ -129,14 +133,16 @@ export class BotEngineController {
       password: '',
     };
     let ccp = {
-      url: 'https://uat-coreccp.mxv.com.vn/',
+      url: '',
       username: '',
       password: '',
+      outputDir: 'backupCCP',
     };
     let ce = {
-      url: 'https://uat-corece.mxv.com.vn/',
+      url: '',
       username: '',
       password: '',
+      outputDir: 'backupCE',
     };
 
     if (msystemRaw) {
@@ -172,7 +178,9 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(acmRaw));
         acm = {
-          url: decrypted.url || 'https://acm.member-url.vn/login',
+          url: decrypted.url || '',
+          orderUrl: decrypted.orderUrl || '',
+          fillUrl: decrypted.fillUrl || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
           geminiApiKey: decrypted.geminiApiKey ? '********' : '',
@@ -204,9 +212,10 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(ccpRaw));
         ccp = {
-          url: decrypted.url || 'https://uat-coreccp.mxv.com.vn/',
+          url: decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
+          outputDir: decrypted.outputDir || 'backupCCP',
         };
       } catch (err) {}
     }
@@ -215,9 +224,10 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(ceRaw));
         ce = {
-          url: decrypted.url || 'https://uat-corece.mxv.com.vn/',
+          url: decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
+          outputDir: decrypted.outputDir || 'backupCE',
         };
       } catch (err) {}
     }
@@ -408,7 +418,9 @@ export class BotEngineController {
       }
 
       const mergedAcm = {
-        url: acm.url || currentAcm.url || 'https://acm.member-url.vn/login',
+        url: acm.url !== undefined ? acm.url.trim() : (currentAcm.url || ''),
+        orderUrl: acm.orderUrl !== undefined ? acm.orderUrl.trim() : (currentAcm.orderUrl || ''),
+        fillUrl: acm.fillUrl !== undefined ? acm.fillUrl.trim() : (currentAcm.fillUrl || ''),
         username:
           acm.username !== undefined ? acm.username : currentAcm.username,
         password:
@@ -499,8 +511,7 @@ export class BotEngineController {
       }
 
       const mergedCcp = {
-        url:
-          targetCcp.url || currentCcp.url || 'https://uat-coreccp.mxv.com.vn/',
+        url: targetCcp.url || currentCcp.url || '',
         username:
           targetCcp.username !== undefined
             ? targetCcp.username
@@ -509,6 +520,10 @@ export class BotEngineController {
           targetCcp.password && targetCcp.password !== '********'
             ? targetCcp.password
             : currentCcp.password,
+        outputDir:
+          targetCcp.outputDir !== undefined
+            ? targetCcp.outputDir
+            : (currentCcp.outputDir || 'backupCCP'),
       };
 
       await this.settingsService.setSetting(
@@ -530,12 +545,16 @@ export class BotEngineController {
       }
 
       const mergedCe = {
-        url: ce.url || currentCe.url || 'https://uat-corece.mxv.com.vn/',
+        url: ce.url || currentCe.url || '',
         username: ce.username !== undefined ? ce.username : currentCe.username,
         password:
           ce.password && ce.password !== '********'
             ? ce.password
             : currentCe.password,
+        outputDir:
+          ce.outputDir !== undefined
+            ? ce.outputDir
+            : (currentCe.outputDir || 'backupCE'),
       };
 
       await this.settingsService.setSetting(
@@ -2343,6 +2362,147 @@ export class BotEngineController {
       lastSeen,
       lastSeenMs: diffMs,
       agents: activeAgents,
+    };
+  }
+
+  // ── CCP/CE Report Downloader ──────────────────────────────────────────────
+
+  /**
+   * Trigger thủ công tải báo cáo từ CoreCCP.
+   * POST /api/v1/bot-engine/download-ccp-report
+   * Body: { startDate, endDate, outputDir, reports?, options? }
+   */
+  @Post('download-ccp-report')
+  async downloadCcpReport(@Body() body: any) {
+    const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    if (!ccpRaw) {
+      throw new HttpException(
+        'Chưa cấu hình thông tin đăng nhập CoreCCP. Vào Admin -> Cấu hình kết nối để thiết lập.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    let creds: any = {};
+    try { creds = JSON.parse(decrypt(ccpRaw)); } catch {}
+
+    if (!creds.url || !creds.username || !creds.password) {
+      throw new HttpException(
+        'Cấu hình CoreCCP thiếu url/username/password.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const outputDir = body.outputDir ||
+      creds.outputDir ||
+      'backupCCP';
+
+    this.logger.log(`[CCP Downloader] Bat dau tai bao cao CoreCCP: ${body.startDate} -> ${body.endDate}`);
+
+    // Chạy bất đồng bộ — trả về ngay để không block HTTP
+    this.ccpCeDownloaderService
+      .run({
+        systemUrl: creds.url,
+        username: creds.username,
+        password: creds.password,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        outputDir,
+        reports: body.reports,
+        options: body.options,
+      })
+      .then((ok) => this.logger.log(`[CCP Downloader] Ket qua: ${ok ? 'Thanh cong' : 'That bai'}`)
+      )
+      .catch((e) => this.logger.error(`[CCP Downloader] Loi: ${e?.message}`));
+
+    return {
+      message: 'Da kich hoat tai bao cao CoreCCP. Kiem tra log de theo doi tien trinh.',
+      systemUrl: creds.url,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      outputDir,
+    };
+  }
+
+  /**
+   * Enqueue Background BotJob để tải báo cáo CoreCCP (hỗ trợ polling trạng thái & logs).
+   * POST /api/v1/bot-engine/trigger-ccp-download
+   */
+  @Post('trigger-ccp-download')
+  async triggerCcpDownload(
+    @Body('date') dateStr?: string,
+    @Body('startDate') startDate?: string,
+    @Body('endDate') endDate?: string,
+    @Body('reports') reports?: string[],
+    @Body('outputDir') outputDir?: string,
+  ) {
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const targetStart = startDate || dateStr || today;
+    const targetEnd = endDate || dateStr || targetStart;
+
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
+      startDate: targetStart,
+      endDate: targetEnd,
+      reports: reports && reports.length > 0 ? reports : ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
+      outputDir,
+      sessionDay: targetStart,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải báo cáo CoreCCP vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  /**
+   * Trigger thủ công tải báo cáo từ CoreEX.
+   * POST /api/v1/bot-engine/download-ce-report
+   * Body: { startDate, endDate, outputDir, reports?, options? }
+   */
+  @Post('download-ce-report')
+  async downloadCeReport(@Body() body: any) {
+    const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+    if (!ceRaw) {
+      throw new HttpException(
+        'Chưa cấu hình thông tin đăng nhập CoreEX. Vào Admin -> Cấu hình kết nối để thiết lập.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    let creds: any = {};
+    try { creds = JSON.parse(decrypt(ceRaw)); } catch {}
+
+    if (!creds.url || !creds.username || !creds.password) {
+      throw new HttpException(
+        'Cấu hình CoreEX thiếu url/username/password.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const outputDir = body.outputDir ||
+      creds.outputDir ||
+      'backupCE';
+
+    this.logger.log(`[CE Downloader] Bat dau tai bao cao CoreEX: ${body.startDate} -> ${body.endDate}`);
+
+    this.ccpCeDownloaderService
+      .run({
+        systemUrl: creds.url,
+        username: creds.username,
+        password: creds.password,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        outputDir,
+        reports: body.reports,
+        options: body.options,
+      })
+      .then((ok) => this.logger.log(`[CE Downloader] Ket qua: ${ok ? 'Thanh cong' : 'That bai'}`))
+      .catch((e) => this.logger.error(`[CE Downloader] Loi: ${e?.message}`));
+
+    return {
+      message: 'Da kich hoat tai bao cao CoreEX. Kiem tra log de theo doi tien trinh.',
+      systemUrl: creds.url,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      outputDir,
     };
   }
 }

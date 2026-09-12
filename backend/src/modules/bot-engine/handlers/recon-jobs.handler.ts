@@ -12,7 +12,7 @@ import { parseJobPayload } from '../helpers/bot-path.helper';
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(ReconJobsHandler.name);
-  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM'];
+  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
@@ -37,6 +37,10 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return this.handleCheckPreEodJob(job);
       case 'CHECK_EOD_MM':
         return this.handleCheckEodMmJob(job);
+      case 'CHECK_EOD_CCP':
+        return this.handleCheckEodCcpJob(job);
+      case 'CHECK_CQG_SYNC':
+        return this.handleCheckCqgSyncJob(job);
       default:
         throw new Error(`ReconJobsHandler không hỗ trợ jobType: ${job.jobType}`);
     }
@@ -612,13 +616,129 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     }
     const dateStr = targetDate.toISOString().split('T')[0];
     job.logs.push(
-      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD tự động ngày ${dateStr}...`,
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD M-System ngày ${dateStr}...`,
     );
     await job.save();
 
     try {
       const result = await this.reconciliationService.runAutoCheckEodMm(targetDate);
-      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD.`);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System.`);
+
+      const MAX_PREVIEW = 30;
+      const mismatchedEodAll = result.eodResult?.mismatchedEOD ?? [];
+      payload.result = result;
+      job.payload = payload;
+      job.markModified('payload');
+      await job.save();
+
+      const totalNegative =
+        (result.eodResult?.negativeBalanceAccs?.length || 0) +
+        (result.eodResult?.negativeIMRAcc?.length || 0);
+      const totalMismatchedEod = mismatchedEodAll.length;
+
+      if (totalNegative > 0 || totalMismatchedEod > 0) {
+        if (mismatchedEodAll.length > 0) {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch công thức EOD (QLTKGD vs EOD.csv):`);
+          mismatchedEodAll.slice(0, MAX_PREVIEW).forEach((d: any) => {
+            const sysTag = d.system ? `[${d.system}]` : '[MS]';
+            job.logs.push(
+              `- ${sysTag} TK ${d.maTKGD}: Tính toán ${d.calculatedBalance} vs EOD ${d.eodBalance} (Lệch: ${d.differ})`,
+            );
+          });
+        }
+        await job.save();
+        throw new Error(
+          `Phát hiện bất thường EOD MS: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+        );
+      }
+      return result;
+    } catch (err: any) {
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu EOD tự động: ${err.message}`,
+      );
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async handleCheckEodCcpJob(job: any) {
+    const payload = parseJobPayload(job);
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD CoreCCP ngày ${dateStr}...`,
+    );
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckEodCcp(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD CoreCCP.`);
+
+      const MAX_PREVIEW = 50;
+      const mismatchedEodAll = result.mismatchedEOD ?? [];
+      payload.result = result;
+      job.payload = payload;
+      job.markModified('payload');
+      await job.save();
+
+      const totalNegative =
+        (result.negativeBalanceAccs?.length || 0) +
+        (result.negativeIMRAcc?.length || 0);
+      const totalMismatchedEod = mismatchedEodAll.length;
+
+      job.logs.push(
+        `[${new Date().toISOString()}] Kết quả: ${result.totalAccounts || 0} tài khoản CoreCCP. ` +
+        `Khớp hoàn toàn: ${(result.totalAccounts || 0) - totalMismatchedEod} TK. ` +
+        `Lệch: ${totalMismatchedEod} TK. Âm ký quỹ: ${totalNegative} TK.`,
+      );
+
+      if (mismatchedEodAll.length > 0) {
+        job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch công thức EOD CoreCCP:`);
+        mismatchedEodAll.slice(0, MAX_PREVIEW).forEach((d: any) => {
+          job.logs.push(
+            `- [CCP] TK ${d.maTKGD}: Tính toán ${d.calculatedBalance} vs EOD ${d.eodBalance} (Lệch: ${d.differ})`,
+          );
+        });
+      }
+      await job.save();
+
+      if (totalNegative > 0 || totalMismatchedEod > 0) {
+        throw new Error(
+          `Phát hiện bất thường EOD CoreCCP: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+        );
+      }
+      return result;
+    } catch (err: any) {
+      job.logs.push(
+        `[${new Date().toISOString()}] Lỗi đối chiếu EOD CoreCCP: ${err.message}`,
+      );
+      await job.save();
+      throw err;
+    }
+  }
+
+  private async handleCheckCqgSyncJob(job: any) {
+    const payload = parseJobPayload(job);
+    let targetDate = new Date();
+    if (payload.sessionDay) {
+      targetDate = new Date(payload.sessionDay);
+    } else {
+      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+    job.logs.push(
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu đồng bộ số dư CQG ngày ${dateStr}...`,
+    );
+    await job.save();
+
+    try {
+      const result = await this.reconciliationService.runAutoCheckCQGSync(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu đồng bộ số dư CQG.`);
 
       const LOG_THRESHOLD = 50;
       const MAX_PREVIEW = 30;
@@ -637,49 +757,34 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       job.markModified('payload');
       await job.save();
 
-      const totalNegative =
-        (result.eodResult?.negativeBalanceAccs?.length || 0) +
-        (result.eodResult?.negativeIMRAcc?.length || 0);
       const totalMismatched = cqgResultAll.length;
-      const mismatchedEodAll = result.eodResult?.mismatchedEOD ?? [];
-      const totalMismatchedEod = mismatchedEodAll.length;
 
-      if (totalNegative > 0 || totalMismatched > 0 || totalMismatchedEod > 0) {
-        if (cqgResultAll.length > 0) {
-          if (cqgResultAll.length > LOG_THRESHOLD) {
-            const preview = cqgResultAll.slice(0, MAX_PREVIEW)
-              .map((d: any) => `TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)}`)
-              .join(' | ');
+      if (totalMismatched > 0) {
+        if (cqgResultAll.length > LOG_THRESHOLD) {
+          const preview = cqgResultAll.slice(0, MAX_PREVIEW)
+            .map((d: any) => `TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)}`)
+            .join(' | ');
+          job.logs.push(
+            `[${new Date().toISOString()}]  Phát hiện ${cqgResultAll.length} TK lệch số dư CQG (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+            `Chi tiết xem CSV email. Preview: ${preview}`,
+          );
+        } else {
+          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG:`);
+          cqgResultAll.forEach((d: any) => {
             job.logs.push(
-              `[${new Date().toISOString()}]  Phát hiện ${cqgResultAll.length} TK lệch số dư EOD (vượt ngưỡng ${LOG_THRESHOLD}). ` +
-              `Chi tiết xem CSV email. Preview: ${preview}`,
-            );
-          } else {
-            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch số dư CQG EOD:`);
-            cqgResultAll.forEach((d: any) => {
-              job.logs.push(
-                `- [EOD] TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
-              );
-            });
-          }
-        }
-        if (mismatchedEodAll.length > 0) {
-          job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch công thức EOD (QLTKGD vs EOD.csv):`);
-          mismatchedEodAll.slice(0, MAX_PREVIEW).forEach((d: any) => {
-            job.logs.push(
-              `- [EOD MS] TK ${d.maTKGD}: Tính toán ${d.calculatedBalance} vs EOD ${d.eodBalance} (Lệch: ${d.differ})`,
+              `- TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)} (Chênh lệch: $${d.differ.toFixed(2)})`,
             );
           });
         }
         await job.save();
         throw new Error(
-          `Phát hiện bất thường EOD: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatched} tài khoản lệch số dư EOD CQG, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+          `Phát hiện lệch số dư CQG: ${totalMismatched} tài khoản lệch vượt ngưỡng $100.`,
         );
       }
       return result;
     } catch (err: any) {
       job.logs.push(
-        `[${new Date().toISOString()}] Lỗi đối chiếu EOD tự động: ${err.message}`,
+        `[${new Date().toISOString()}] Lỗi đối chiếu số dư CQG: ${err.message}`,
       );
       await job.save();
       throw err;

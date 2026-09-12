@@ -37,8 +37,14 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
   CHECK_EOD_MM: {
     jobType: 'CHECK_EOD_MM',
     botCheckType: 'CHECK_EOD_MM',
-    displayName: 'Lọc Ký Quỹ Cuối Ngày MM',
-    description: 'Lọc tài khoản âm ký quỹ cuối ngày',
+    displayName: 'Đối Chiếu Kết Quả EOD (M-System)',
+    description: 'Đối chiếu kết quả chạy EOD & Ký quỹ âm M-System',
+  },
+  CHECK_CQG_SYNC: {
+    jobType: 'CHECK_CQG_SYNC',
+    botCheckType: 'CHECK_CQG_SYNC',
+    displayName: 'Đồng Bộ Số Dư CQG',
+    description: 'Đối chiếu và đồng bộ số dư tài khoản CQG vs M-System',
   },
   RUN_MACRO: {
     jobType: 'RUN_MACRO',
@@ -51,6 +57,24 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
     botCheckType: 'CHECK_MARGIN_DECISION',
     displayName: 'Quét Quyết Định Ký Quỹ',
     description: 'Quét thư mục Quyết định thay đổi ký quỹ',
+  },
+  DOWNLOAD_CCP_REPORT: {
+    jobType: 'DOWNLOAD_CCP_REPORT',
+    botCheckType: 'DOWNLOAD_CCP_REPORT',
+    displayName: 'Tải Báo Cáo CoreCCP (VNCLEAR)',
+    description: 'Tự động tải các báo cáo từ hệ thống VNCLEAR CoreCCP (NR, TTTT, DSL, DSGD...)',
+  },
+  DOWNLOAD_CE_REPORT: {
+    jobType: 'DOWNLOAD_CE_REPORT',
+    botCheckType: 'DOWNLOAD_CE_REPORT',
+    displayName: 'Tải Báo Cáo CoreEX (VNCLEAR)',
+    description: 'Tự động tải các báo cáo từ hệ thống VNCLEAR CoreEX (NR, TTTT, DSL, DSGD...)',
+  },
+  CHECK_EOD_CCP: {
+    jobType: 'CHECK_EOD_CCP',
+    botCheckType: 'CHECK_EOD_CCP',
+    displayName: 'Đối Chiếu EOD CoreCCP',
+    description: 'Đối chiếu số dư cuối ngày EOD CoreCCP (VNCLEAR)',
   },
 };
 

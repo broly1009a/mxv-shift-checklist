@@ -253,6 +253,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       'CHECK_KLGD',
       'CHECK_PRE_EOD',
       'CHECK_EOD_MM',
+      'CHECK_CQG_SYNC',
       'FILE_AUDIT_ACM',
       'FILE_AUDIT_CQG',
       'FILE_AUDIT_MS',
@@ -483,6 +484,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'AUTO_CHECK_SOD',
               'CHECK_PRE_EOD',
               'CHECK_EOD_MM',
+              'CHECK_CQG_SYNC',
               'CHECK_KLGD',
             ].includes(job.jobType)
           ) {
@@ -510,6 +512,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'AUTO_CHECK_SOD',
               'CHECK_PRE_EOD',
               'CHECK_EOD_MM',
+              'CHECK_CQG_SYNC',
               'CHECK_KLGD',
             ].includes(job.jobType)
           ) {
@@ -601,6 +604,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'AUTO_CHECK_SOD',
               'CHECK_PRE_EOD',
               'CHECK_EOD_MM',
+              'CHECK_CQG_SYNC',
               'CHECK_KLGD',
               'RUN_MACRO',
               'RUN_LOT_MACRO',
@@ -635,6 +639,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'AUTO_CHECK_SOD',
               'CHECK_PRE_EOD',
               'CHECK_EOD_MM',
+              'CHECK_CQG_SYNC',
               'CHECK_KLGD',
               'RUN_MACRO',
               'RUN_LOT_MACRO',

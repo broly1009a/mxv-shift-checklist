@@ -1,6 +1,357 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-11T19:43] HOTFIX: Chuẩn Hóa Toàn Diện Đường Dẫn Mạng M:\Tailieuchung\QLGD-IT (Ánh Xạ /mnt/qlgd-it Trên Ubuntu) & Sửa Date Parsing Cho CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Sửa lỗi date parsing mismatch trong `ccp-ce-downloader.service.ts`: Hàm `parseDmY` hỗ trợ đồng thời cả định dạng `YYYY-MM-DD` (ISO) và `DD/MM/YYYY`, khắc phục triệt để lỗi sinh mảng khoảng ngày rỗng khiến job tải CoreCCP kết thúc trong 0ms mà không thực sự tải file.
+- Loại bỏ hoàn toàn các đường dẫn fix cứng ổ `C:\Quanlygiaodich` theo phản ánh xác đáng của USER.
+- Chuẩn hóa 100% các đường dẫn backup mặc định về chuẩn chia sẻ mạng MXV:
+  `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\...` (tự động ánh xạ chéo sang `/mnt/qlgd-it/...` trên Ubuntu thông qua `resolveStoragePathCrossPlatform`).
+- Tự động điều hướng lưu file báo cáo về đúng cây thư mục ca trực theo ngày (`.../Backup CCP/Futures/YYYY/TMM.YYYY/DD.MM`) và copy bản phẳng `${code}.csv` ra thư mục ngày để phục vụ đối soát tức thì.
+- Bổ sung cơ chế quét đệ quy 1 cấp thư mục con trong `findLatestFile` và fallback kiểm tra thư mục `backupCCP` cục bộ.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts)
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts)
+
+### 3. Xác nhận Build & Deploy
+- **Backend Local & Ubuntu**: `nest build` thành công, exit code 0.
+- **Frontend Local & Ubuntu**: `next build` thành công, 26 routes generated, exit code 0.
+- **PM2 Production (Ubuntu 10.0.0.26)**: `mxv-backend` (PID 585210) & `mxv-frontend` (PID 585420) đã online ổn định.
+
+---
+
+## [2026-09-11T19:25] TASK: Tạo Màn Hình/Tab "Báo Cáo & Đối Chiếu CoreCCP" Trong Trading Manager (Giữ Nguyên Các Màn Hình Khác)
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu của USER ("HAY TẠO 1 MÀN HÌNH NỮA TƯƠNG TỰ TRONG https://10.0.0.26/trading-manager ĐỂ XEM KẾT QUẢ ĐỂ CÁC MÀN HÌNH CÒN LẠI GIỮ NGUYÊN"):
+  - Tạo thêm một Tab mới độc lập chuyên biệt cho **CoreCCP** trong `https://10.0.0.26/trading-manager`: **Tab "Báo Cáo & Đối Chiếu CoreCCP"** (Top Tab thứ 4).
+  - Giữ nguyên 100% bố cục, logic và chức năng của 3 tab cũ (`CHECK_GD_EOD_SYNC`, `BACKUP_THONG_KE_GTT`, `CAU_HINH_DUONG_DAN`).
+  - Giải quyết thắc mắc của USER về lý do không thấy log tải CCP khi ấn nút Check EOD:
+    - Bổ sung nút bấm trực quan **"Tải Báo Cáo CoreCCP"** kích hoạt robot Playwright đăng nhập UAT CoreCCP tải các file `QLTTTKGD`, `EOD`, `NR`, `TTTT`.
+    - Bổ sung nút **"Kiểm Tra Đối Chiếu CCP"** chạy công thức tính toán 4 thành phần cho toàn bộ tài khoản CoreCCP.
+    - Tích hợp khung **Live Terminal Output** hiển thị nhật ký tải và đối chiếu theo thời gian thực.
+    - Hiển thị 4 thẻ KPI tổng quan (Tổng số TK, File sẵn sàng, TK âm ký quỹ, TK lệch công thức) và bảng chi tiết từng tài khoản chênh lệch.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts): Thêm endpoint `POST /api/v1/bot-engine/trigger-ccp-download` đưa job `DOWNLOAD_CCP_REPORT` vào hàng đợi.
+- [backend/src/modules/bot-engine/constants/bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/constants/bot-task-registry.ts): Thêm định nghĩa năng lực `CHECK_EOD_CCP` vào `BOT_TASK_REGISTRY`.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Thêm xử lý `CHECK_EOD_CCP` qua hàm `handleCheckEodCcpJob`.
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts): Thêm `runAutoCheckEodCcp(tradingDate)`, nâng cấp `getConsoleSummary` quét tình trạng file CCP và trả về `ccpSummary`.
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx): Thêm Tab `CORE_CCP_VNCLEAR`, nút Tab thứ 4, hàm `handleTriggerCcpDownload`, hỗ trợ `CHECK_EOD_CCP` và toàn bộ giao diện bảng điều khiển CoreCCP.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build**: `nest build` thành công, exit code 0.
+- **Frontend Build**: `next build` thành công (Turbopack, TypeScript passed, 25 pages generated static), exit code 0.
+- **Tuân thủ quy tắc**:
+  - Không sử dụng Unicode emoji thô (dùng 100% SVG `lucide-react`).
+  - Zero hardcoded Task IDs.
+  - Các màn hình hiện tại (`CHECK_GD_EOD_SYNC`, `BACKUP_THONG_KE_GTT`, `CAU_HINH_DUONG_DAN`) được bảo toàn 100%.
+
+---
+
+### 1. Mục tiêu thay đổi & kiểm thử
+- Dựa trên ảnh chụp màn hình và file `ACCTMARGIN_ALL.mhtml` do USER cung cấp tại màn hình Quản lý trạng thái TKGD CoreCCP (`https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`):
+  - Bổ sung cấu hình báo cáo `QLTTTKGD` vào `DEFAULT_CCP_REPORTS` (Menu: "Quản lý rủi ro" -> "Quản lý trạng thái TKGD", Tab: "Danh sách trạng thái TKGD", URL: `/RISKMNG/ACCTMARGIN_ALL`).
+  - Viết method chuyên biệt `downloadQltkgdCcp()` trong `CcpCeDownloaderService` để tự động tải snapshot trạng thái tài khoản ký quỹ thời gian thực (trước 05:00) mà không cần nhập ngày.
+  - Tối ưu `setDateRangeAndSearch`: Tự động bỏ qua bộ lọc ngày DatePicker khi tải báo cáo `QLTTTKGD`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+
+### 3. Kết quả kiểm thử thực tế (Live Execution)
+- **Hệ thống mục tiêu**: `https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`.
+- **Thực thi tải**: Direct navigation thành công trong 19s $\rightarrow$ Click tab "Danh sách trạng thái TKGD" $\rightarrow$ Click Tìm kiếm $\rightarrow$ Bấm Xuất tất cả $\rightarrow$ Download hoàn tất sau 93s.
+- **File tải về**: `test_output_ccp/QLTTTKGD/QLTTTKGD0926.csv` dung lượng **3,957,855 bytes (~3.96 MB)**.
+- **Cấu trúc dữ liệu**: Gồm **2,317 dòng (1 dòng tiêu đề + đúng 2,316 bản ghi)**, khớp chính xác 100.000% với con số `1-20 trên 2.316` trên giao diện CoreCCP UAT mà USER gửi.
+
+---
+
+## [2026-09-11T18:48] TASK: Bổ Sung Kịch Bản Bot & Tải Thành Công Báo Cáo "Kết Quả EOD" Từ CoreCCP UAT (Playwright Live Test)
+
+### 1. Mục tiêu thay đổi & kiểm thử
+- Dựa trên ảnh chụp màn hình thực tế do USER cung cấp tại màn hình Kết quả EOD CoreCCP (`https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`):
+  - Bổ sung cấu hình báo cáo `EOD` vào danh mục `DEFAULT_CCP_REPORTS` (Menu: "Vận hành" -> "Kết quả EOD", URL: `/EOD/ACCTMARGIN_HIST`).
+  - Viết method chuyên biệt `downloadEodCcp()` trong `CcpCeDownloaderService` để phục vụ tải riêng file EOD CCP cho ca trực hoặc tự động hóa.
+  - Viết helper `resolveReportUrl()` hỗ trợ Direct Navigation nhanh và ổn định tới trang báo cáo.
+  - Tối ưu bộ lọc DatePicker bỏ qua các input ẩn `aria-hidden="true"`, loại bỏ hoàn toàn hiện tượng timeout 30s khi điền ngày.
+  - Bổ sung chính xác 4 alias cột ký quỹ tiếng Việt của CoreCCP (`KQ ban đầu yêu cầu`, `Ký quỹ khả dụng`, `Giá trị ròng ký quỹ`, `Mức bổ sung ký quỹ`) vào hàm `checkEODCCP()` trong `ReconciliationService`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js)
+
+### 3. Kết quả kiểm thử thực tế (Live Execution)
+- **Hệ thống mục tiêu**: `https://uat-coreccp.mxv.com.vn/login` $\rightarrow$ `https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`.
+- **Thực thi tải**: Direct navigation thành công trong 18s $\rightarrow$ Lọc ngày `08/09/2026 -> 11/09/2026` $\rightarrow$ Bấm Xuất tất cả $\rightarrow$ Download hoàn tất sau 90s.
+- **File tải về**: `test_output_ccp/EOD/EOD0926.csv` dung lượng **2,139,114 bytes (~2.14 MB)**.
+- **Cấu trúc dữ liệu**: Gồm **2,295 dòng dữ liệu thực tế** với 27 cột chuẩn (Khớp 100% với tài khoản `012C0000204-M - Lê Thị Trang` trong ảnh màn hình của USER).
+
+---
+
+## [2026-09-11T18:32] TASK-KIỂM THỬ: Tải Báo Cáo Thực Tế CoreCCP UAT Thành Công (Playwright Live Test)
+
+### 1. Mục tiêu thay đổi & kiểm thử
+- Thực thi kiểm thử end-to-end theo yêu cầu trực tiếp của USER: Kiểm tra robot Playwright đăng nhập UAT CoreCCP (`https://uat-coreccp.mxv.com.vn/login`) và tự động tải báo cáo thực tế.
+- Bổ sung cơ chế tự động tìm đường dẫn Chrome/Chromium portable (`it-tool-src/operate-transaction-app/Chrome/chrome-win/chrome.exe`) hoặc MS Edge trên môi trường Windows vào `CcpCeDownloaderService` để khắc phục lỗi thiếu browser binary của Playwright.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Bổ sung helper `getChromeExecutablePath()`: Tìm kiếm tuần tự binary Chrome portable của dự án, tiếp theo là Edge/Chrome hệ thống.
+  - Cập nhật hàm `run()`: Truyền `executablePath` vào `launchOptions` khi khởi chạy Chromium.
+- [backend/src/scripts/test_ccp_downloader_live.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_downloader_live.js):
+  - Script kiểm thử tự động nạp cấu hình (từ DB hoặc CLI), khởi chạy Playwright Robot tải báo cáo `NR` (Lịch sử nộp rút tiền).
+
+### 3. Kết quả kiểm thử thực tế (Live Execution Report)
+- **Hệ thống mục tiêu**: `https://uat-coreccp.mxv.com.vn/login` (Tài khoản: `hieptruong`).
+- **Binary thực thi**: `it-tool-src\operate-transaction-app\Chrome\chrome-win\chrome.exe` (Chrome v114+).
+- **Kết quả đăng nhập**: Đăng nhập CoreCCP thành công (`page.url()` chuyển hướng ra khỏi trang login).
+- **Kết quả xuất file**: Tải thành công báo cáo `NR0926.csv` (dung lượng: **35,879 bytes**).
+- **Kiểm định cấu trúc dữ liệu**: Đọc bằng thư viện `xlsx`, xác nhận file chứa 41 dòng dữ liệu với đầy đủ các trường nghiệp vụ:
+  `Trạng thái`, `Ngày giao dịch`, `Giờ giao dịch`, `Tên nghiệp vụ` (ví dụ: `CA06: Chấp nhận yêu cầu rút tiền`), `Người tạo`, `Người duyệt`, `Số tài khoản`, `Số tiền`, `Số chứng từ`.
+
+---
+
+## [2026-09-11T18:18] TASK-5: Triển Khai Logic Đối Chiếu EOD Song Song M-System & CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Triển khai logic đối chiếu số dư kết quả EOD song song giữa hai phân hệ M-System (MS) và CoreCCP (CCP) theo tài liệu thiết kế nghiệp vụ `docs/THIET_KE_DOI_CHIEU_EOD_MS_VA_CCP.md`.
+- Áp dụng công thức đối chiếu 4 thành phần cho cả hai phân hệ:
+  `Số dư EOD = Số dư đầu ngày + Nộp rút trong phiên - Phí GD - Phí DVTT + Lãi lỗ thực tế`
+- Hỗ trợ phát hiện chênh lệch EOD (ngưỡng >= 1,000 VND) và phân loại hệ thống phát hiện chênh lệch qua thuộc tính `system: 'MS' | 'CCP'`.
+- Hiển thị trực quan badge [MS] và [CCP] trên giao diện Trading Manager và Modal đối chiếu Checklist.
+
+### 2. Danh sách file chỉnh sửa
+
+#### Backend
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - Định nghĩa interface `EODMismatchedItem` xuất khẩu: `{ system?: 'MS' | 'CCP', maTKGD, calculatedBalance, eodBalance, differ }`.
+  - Mở rộng hàm `checkEOD()`: Nhận thêm các file của CoreCCP (`qltkgdCcp`, `eodCcp`, `ttttCcp`). Chạy song song và tổng hợp kết quả của cả hai phân hệ.
+  - Bổ sung hàm `checkEODCCP()`: Triển khai bóc tách file QLTTTKGD CCP, TTTT CCP, EOD CCP, tính toán số dư EOD theo công thức 4 thành phần và kiểm tra âm ký quỹ IMR CCP.
+  - Nâng cấp `runAutoCheckEodMm()`: Tự động quét thêm thư mục sao lưu CoreCCP (`bot_backup_path_ccp`), đối chiếu song song và gửi thông báo Telegram phân định rõ kết quả lệch MS vs CCP.
+
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  - Cập nhật log chi tiết lệch EOD: Hiển thị tag động `[${d.system || 'MS'}]` thay cho chuỗi tĩnh.
+
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.controller.ts):
+  - Endpoint `@Post('upload-eod')`: Thêm `qltkgdCcp`, `eodCcp`, `ttttCcp` vào `FileFieldsInterceptor`.
+  - Ghi nhận và trả về đầy đủ `mismatchedEOD` kèm chi tiết chênh lệch EOD (MS & CCP) trong Task note và JSON result.
+
+#### Frontend
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx):
+  - Bảng "Kết quả chạy EOD": Thêm badge `[MS]` (màu xanh) và `[CCP]` (màu tím) trước mã TKGD khi có lệch.
+  - Khi khớp: Cập nhật thông báo "Tất cả vị thế và kết quả EOD khớp hoàn toàn (MS & CCP)".
+  - Tuân thủ 100% AGENTS.md: Không dùng Unicode emoji, chỉ dùng SVG icon từ `lucide-react`.
+
+- [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/checklist/components/ReconciliationModal.tsx):
+  - Thêm state và dropzones upload file `qltkgdCcp`, `eodCcp` trong mode EOD.
+  - Thêm bảng trực quan hiển thị danh sách tài khoản lệch công thức EOD (MS & CCP) với badge hệ thống.
+
+- [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
+  - Khắc phục lỗi cấu trúc JSX (thẻ div mở thừa trong khối ACM) giúp toàn bộ frontend compile sạch sẽ.
+
+### 3. Xác nhận Build/Kiểm thử
+- Frontend `node node_modules/typescript/bin/tsc --noEmit`: **PASS 100% (0 errors)**.
+- Backend `tsc --noEmit` (`src/modules/`): **PASS 100% (0 errors)**.
+
+---
+## [2026-09-11T18:07] TASK-3 + TASK-4: outputDir UI cho CCP/CE & BotJob Queue Integration
+
+### 1. Muc tieu thay doi
+- **TASK-3**: Them truong outputDir vao UI Bot Config cho CoreCCP/CoreEX. Admin co the cau hinh thu muc luu bao cao tren giao dien.
+- **TASK-4**: Tich hop CcpCeDownloaderService vao BotJob Queue - co lich su job, retry, hien thi trang thai tren UI.
+
+### 2. Danh sach file chinh sua
+
+#### TASK-3: outputDir UI + Backend
+- `frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx`:
+  - Them state: `cppOutputDir` (mac dinh backupCCP), `ceOutputDir` (mac dinh backupCE)
+  - Them fetch: `setCppOutputDir(data.cpp.outputDir)`, `setCeOutputDir(data.ce.outputDir)`
+  - Them save: `outputDir: cppOutputDir.trim()` va `outputDir: ceOutputDir.trim()`
+  - Them UI: 2 o input "Thu muc luu bao cao CCP/CE" voi icon Folder o cuoi moi section
+
+- `backend/src/modules/bot-engine/bot-engine.controller.ts`:
+  - Default obj: them `outputDir: "backupCCP"` va `outputDir: "backupCE"`
+  - Decode block: them `outputDir: decrypted.outputDir || "backupCCP/CE"`
+  - mergedCcp/mergedCe: them `outputDir` trong save logic
+  - Endpoints: thay hardcode "/data/reports/ccp" bang `creds.outputDir || "backupCCP"`
+
+- `backend/src/modules/bot-engine/ccp-ce-downloader.service.ts`:
+  - Fix import: `playwright` -> `playwright-core` (nhat quan voi rpa-downloader.service.ts)
+
+#### TASK-4: BotJob Queue Integration
+- `backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts` **[NEW]**:
+  - Implement IBotJobHandler voi jobTypes: ["DOWNLOAD_CCP_REPORT", "DOWNLOAD_CE_REPORT"]
+  - Tu dong doc credentials tu DB (bot_credentials_ccp / bot_credentials_ce)
+  - Convert payload.reports tu string[] (codes) sang CcpReportConfig[] qua filter DEFAULT_*_REPORTS
+  - Ghi log chi tiet vao job.logs (bat dau, thu muc, ket qua, loi)
+  - tu dang ky vao BotJobHandlerRegistry qua OnModuleInit
+
+- `backend/src/modules/bot-engine/constants/bot-task-registry.ts`:
+  - Them 2 capability: DOWNLOAD_CCP_REPORT, DOWNLOAD_CE_REPORT
+
+- `backend/src/modules/bot-engine/bot-engine.module.ts`:
+  - Import + dang ky `CcpCeDownloadJobHandler` vao providers
+
+### 3. Xac nhan Build/Kiem thu
+- `tsc --noEmit` src/modules: **PASS**
+
+---
+## [2026-09-11T17:45] TASK-1 + TASK-2: Hoan Thien orderUrl/fillUrl ACM & Port CcpCeDownloaderService NestJS
+
+### 1. Muc tieu thay doi
+- **TASK-1**: Bo sung 2 truong `orderUrl` / `fillUrl` vao cau hinh ACM tren UI Admin va Backend API.
+- **TASK-2**: Port toan bo logic tai bao cao CCP/CE tu Python (`report_engine.py`) sang NestJS TypeScript (`CcpCeDownloaderService`).
+
+### 2. Danh sach file chinh sua
+
+#### TASK-1: orderUrl / fillUrl ACM
+
+- `frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx`:
+  - Them state: `acmOrderUrl`, `acmFillUrl` (dong 54-55)
+  - Them fetch mapping: setAcmOrderUrl(data.acm.orderUrl), setAcmFillUrl(data.acm.fillUrl) (dong 153-154)
+  - Them save: `orderUrl: acmOrderUrl.trim()`, `fillUrl: acmFillUrl.trim()` (dong 245-246)
+  - Them UI: 2 o input co icon Link2 trong grid 2 cot, ngay sau o ACM URL (dong 1188-1222)
+
+- `backend/src/modules/bot-engine/bot-engine.controller.ts`:
+  - Them `orderUrl: ""`, `fillUrl: ""` vao default ACM object
+  - Them decode: `orderUrl: decrypted.orderUrl || ""`, `fillUrl: decrypted.fillUrl || ""`
+  - Them vao mergedAcm khi saveConfig
+  - Xoa hardcode fallback URL: `decrypted.url || "https://acm.member-url.vn/login"` => `decrypted.url || ""`
+
+#### TASK-2: CcpCeDownloaderService
+
+- `backend/src/modules/bot-engine/ccp-ce-downloader.service.ts` **[NEW]**:
+  - Port hoan chinh tu `report_engine.py`
+  - Interfaces: CcpReportConfig, DateInterval, CcpFilterOptions, CcpDownloadOptions, CcpRunOptions
+  - Utility: generateMonthlyIntervals(), splitInterval(), mergeCsvFiles()
+  - Methods: loginVnclear(), navigateToReport(), setDateRangeAndSearch(), triggerExportDownload(), downloadReport(), downloadWithAdaptiveSplit(), run()
+  - Default configs: DEFAULT_CCP_REPORTS, DEFAULT_CE_REPORTS (capabilities only - khong hardcode URL DB)
+  - Zero hardcode: systemUrl, username, password, outputDir doc tu params (lay tu DB qua controller)
+
+- `backend/src/modules/bot-engine/bot-engine.module.ts`:
+  - Them import + dang ky CcpCeDownloaderService vao providers va exports
+
+- `backend/src/modules/bot-engine/bot-engine.controller.ts`:
+  - Inject CcpCeDownloaderService vao constructor
+  - Them endpoint POST /api/v1/bot-engine/download-ccp-report
+  - Them endpoint POST /api/v1/bot-engine/download-ce-report
+  - Doc credentials tu bot_credentials_ccp / bot_credentials_ce (DB), outputDir tu system_configs
+
+### 3. Tom tat so sanh truoc/sau
+
+| Diem | Truoc | Sau |
+|------|-------|-----|
+| ACM orderUrl/fillUrl | Khong co tren UI | Co 2 o input rieng, luu vao credentials |
+| Logic tai CCP/CE | Python script (report_engine.py) | NestJS CcpCeDownloaderService |
+| Fallback hardcode ACM URL | https://acm.member-url.vn/login | Chuoi rong - fail fast ro nghia |
+| Trigger tai bao cao | Chay CLI Python | POST API tu Frontend/Job Queue |
+
+### 4. Xac nhan Build/Kiem thu
+- `tsc --noEmit` Backend: **PASS** - chi loi cu o src/tests/ & src/scripts/, khong co loi moi trong src/modules/
+
+---
 Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa code (Frontend, Backend), cấu hình Bot và logic nghiệp vụ do AI Assistant thực hiện trong dự án.
+
+## [2026-09-11T17:15] Loại Bỏ Hoàn Toàn Hardcode ACM URL & Hỗ Trợ orderUrl/fillUrl Cấu Hình Động (USER tự thực hiện)
+
+### 1. Mục tiêu thay đổi
+- **Xóa bỏ 100% URL hardcode trong module ACM của `rpa-downloader.service.ts`** — Tuân thủ Mục 8 AGENTS.md: Zero Infrastructure Hardcoding.
+- **Thay đổi 1**: Hàm `loginAcm()` — Bắt buộc phải có `credentials.url` được cấu hình trên UI. Nếu thiếu, ném lỗi rõ ràng thay vì âm thầm fallback về domain `acm-etp.acmmex.com` cũ.
+- **Thay đổi 2**: Hàm `downloadAcmBackup()` — Hỗ trợ 2 trường cấu hình mới `orderUrl` và `fillUrl` trong `bot_credentials_acm`. Khi Admin đã cấu hình đường dẫn cụ thể cho từng loại báo cáo (Order/Fill), ưu tiên dùng trực tiếp thay vì tự ghép URL từ `baseUrl + hash fragment`. Xóa bỏ toàn bộ fallback về domain hardcode.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+
+**Thay đổi 1 — `loginAcm()` (khoảng dòng 2205–2210)**:
+```diff
+- const rawUrl =
+-   credentials.url ||
+-   'https://acm-etp.acmmex.com/exchange/index.html#/login';
++ const rawUrl = credentials.url?.trim();
++ if (!rawUrl) {
++   throw new Error(
++     'Chưa cấu hình ACM URL. Vui lòng vào màn hình Quản trị Bot -> Cấu hình kết nối để thiết lập URL đăng nhập ACM.',
++   );
++ }
+```
+
+**Thay đổi 2 — `downloadAcmBackup()` (khoảng dòng 2524–2549)**:
+```diff
+- // Tránh việc hardcode domain dẫn đến lệch domain
+  let baseUrl = page.url().split('#')[0];
+  if (!baseUrl || !baseUrl.startsWith('http')) {
+-   ... (đọc credentials)
+-   baseUrl = (creds.url || 'https://acm-etp.acmmex.com/...').split('#')[0];
++   baseUrl = (creds.url || '').split('#')[0];
+  }
++ if (!baseUrl) {
++   throw new Error('Không xác định được Base URL của ACM...');
++ }
+  try {
+    const urlObj = new URL(baseUrl);
+-   baseUrl = `${urlObj.origin}/exchange/index.html`;
++   if (!urlObj.pathname.includes('/exchange/index.html') && baseUrl.includes('/exchange')) {
++     baseUrl = `${urlObj.origin}/exchange/index.html`;
++   }
+  } catch {}
+- const orderUrl = `${baseUrl}#/business-tetporder`;
+- const fillUrl  = `${baseUrl}#/business-tetptrade`;
++ const orderUrl = creds.orderUrl || `${baseUrl}#/business-tetporder`;
++ const fillUrl  = creds.fillUrl  || `${baseUrl}#/business-tetptrade`;
+```
+
+### 3. Tóm tắt nội dung trước và sau khi sửa
+| Vấn đề trước | Sau khi sửa |
+| :--- | :--- |
+| Fallback cứng về `acm-etp.acmmex.com` khi `credentials.url` rỗng | Ném lỗi rõ ràng, yêu cầu Admin cấu hình URL trên UI |
+| URL Order/Fill luôn ghép cứng từ `baseUrl + #/business-tetporder` | Đọc `orderUrl` / `fillUrl` từ `bot_credentials_acm` nếu Admin đã cấu hình; chỉ fallback ghép tự động khi chưa cấu hình |
+| `baseUrl` normalize bất kể path | Chỉ normalize path khi chắc chắn path là `/exchange/*` |
+
+### 4. Schema cấu hình `bot_credentials_acm` (mới)
+```json
+{
+  "url":      "https://<domain-acm>/exchange/index.html#/login",
+  "username": "...",
+  "password": "...",
+  "geminiApiKey": "...",
+  "orderUrl": "https://<domain-acm>/exchange/index.html#/business-tetporder",  // Tuỳ chọn
+  "fillUrl":  "https://<domain-acm>/exchange/index.html#/business-tetptrade"   // Tuỳ chọn
+}
+```
+> Trường `orderUrl` và `fillUrl` là **tùy chọn** — nếu không cấu hình, hệ thống tự ghép từ `url`.
+
+### 5. Người thực hiện
+- **USER tự thực hiện** chỉnh sửa trực tiếp trên file `rpa-downloader.service.ts`. AI ghi vết và xác nhận build.
+
+### 6. Xác nhận Build & Kiểm thử
+- ✅ Backend: `tsc --noEmit` — Không có lỗi TypeScript mới trong module chính (`rpa-downloader.service.ts`). Các lỗi còn lại thuộc file test/inspect độc lập (`src/tests/*`, `src/scripts/*`) đã tồn tại từ trước, không liên quan đến thay đổi này.
+- ℹ️ Frontend: Không có thay đổi Frontend trong lần sửa này. `ConnectionSettings.tsx` chưa hiển thị thêm 2 trường `orderUrl`/`fillUrl` — cần bổ sung nếu muốn Admin cấu hình qua UI.
+
+---
+
+## [2026-09-11T16:00] Sửa Lỗi Truy Vấn Khi Tra Cứu Ca Lịch Sử Trên Bàn Giám Sát Trading Manager
+
+### 1. Mục tiêu thay đổi
+- **Khắc phục lỗi nhảy sai ca trực khi tra cứu ngày cũ**:
+  - Khi Maker chọn xem một ngày trong quá khứ trên ô lịch (`<input type="date">`) cạnh nút "Check thủ công" trên màn hình Trading Manager, nếu ngày hôm nay đang có một ca trực mở (`ACTIVE`), backend trước đây truy vấn `$or` chứa `{ status: 'ACTIVE' }` dẫn tới việc MongoDB bốc nhầm ca trực hôm nay thay vì ca của ngày được chọn.
+  - Sửa logic truy vấn tại 2 hàm: `getConsoleSummary` và `triggerConsoleRun` trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
+    - Khi `dateStr` được truyền cụ thể: Chỉ tìm theo `shiftDate: targetDate` / `slashDate`.
+    - Khi không truyền `dateStr` (mặc định hôm nay): Mới ưu tiên tìm theo ca `ACTIVE`.
+- **Dọn dẹp mã nguồn**: Xóa bỏ các khai báo biến đường dẫn cá nhân không sử dụng (`userDownloadsDir = 'C:\\Users\\hiepth\\Downloads'`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - `getConsoleSummary`: Phân tách rành mạch `shiftQuery` giữa có `dateStr` và không có `dateStr`.
+  - `triggerConsoleRun`: Phân tách rành mạch `shiftQuery` tương tự.
+  - Xóa biến chết `userDownloadsDir` ở 2 vị trí.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `nest build` thành công 100% (exit code 0).
+- ✅ Frontend: `npx tsc --noEmit` thành công 100% (exit code 0).
 
 ## [2026-09-11T15:45] Ban Hành Quy Tắc AGENTS.md Mục 7: Triệt Phá 100% Hardcoded Task IDs & Dynamic Resolver Hoàn Toàn Theo CSDL
 
@@ -10716,6 +11067,86 @@ export interface CheckKLGDResult {
 - `mxv-aml` (pid 2187): **online**
 - Toàn bộ 26/26 routes Next.js đã được render tĩnh và dynamic thành công.
 - Exit code tổng thể: **0**
+
+## [2026-09-11T16:15] - Cập Nhật Thứ Tự Ưu Tiên Gemini Model Đời Mới & Thêm Timeout 8s Chống Treo Bot
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- Người dùng phản ánh model Gemini bị treo 103s và trả về 503 khi dùng `gemini-flash-latest`, đồng thời yêu cầu gọi trực tiếp cụm API Google Gemini lấy danh sách models thế hệ mới thực tế đang hoạt động.
+- Khắc phục triệt để tình trạng treo kết nối và lỗi bận 503 bằng cách sắp xếp thông minh và đặt timeout ngắt sớm.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Gọi API trực tiếp từ Google**: Dùng API key thực tế đã giải mã từ CSDL MongoDB gọi tới `https://generativelanguage.googleapis.com/v1beta/models`, xác thực thành công 50 models đang mở trên tài khoản Google.
+- **Tối ưu hóa thứ tự ưu tiên (Dynamic Priority Sort)**:
+  - Tự động phân tích và đưa các model thế hệ mới nhất (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`) lên đầu danh sách xử lý Captcha.
+  - Đẩy các alias công cộng như `gemini-flash-latest` xuống cuối danh sách vì đây là điểm nóng nghẽn mạng toàn cầu dễ gặp 503.
+- **Bổ sung Hard Timeout 8 Giây (`AbortSignal.timeout(8000)`)**:
+  - Khống chế thời gian chờ mỗi model tối đa 8 giây, ngăn chặn triệt để tình trạng bot bị Google giữ kết nối ngâm tới 103 giây khi server có spike.
+  - Tự động chuyển model kế tiếp ngay khi model trước quá 8s hoặc phản hồi lỗi.
+- **Xóa cache cũ**: Xóa bản ghi `bot_gemini_models_cache` trong MongoDB để hệ thống cập nhật thứ tự mới ngay lập tức.
+
+### 4. Xác nhận Build
+- **Backend Build**: `npm run build` thành công 100% (**Exit code 0**).
+
+## [2026-09-11T16:50] - Tách Độc Lập Khối Check EOD (M-System) và Check CQG Sync (Đồng Bộ Số Dư CQG) Chuẩn Theo Tool C#
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- Người dùng chỉ rõ: Khối "Tài khoản âm ký quỹ mới (EOD)" và "Kết quả chạy EOD" dùng chung file `eod.csv` và `QLTTTKGD.xlsx`, trong khi "Kết quả đồng bộ số dư CQG" là tác vụ độc lập dùng file `Accounts_Balances.xlsx` và `QLTTTKGD.xlsx`.
+- Trước đó, hệ thống gom chung 3 khối vào cùng 1 lượt chạy và hiển thị đồng thời cả 3 mục khi ấn Check. Yêu cầu tách rời độc lập 100% chuẩn theo Tool C# IT gốc.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/constants/bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/constants/bot-task-registry.ts)
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Tách hàm thực thi Backend**:
+  - `runAutoCheckEodMm`: Chỉ kiểm tra `QLTTTKGD.xlsx` và `eod.csv` (M-System). Hoàn toàn không đòi hỏi file `Accounts_Balances.xlsx` của CQG.
+  - `runAutoCheckCQGSync`: Chỉ kiểm tra `QLTTTKGD.xlsx` và `Accounts_Balances.xlsx` (CQG). Hoàn toàn không đòi hỏi file `eod.csv` từ mail M-System.
+- **Đăng ký JobType mới `CHECK_CQG_SYNC`**:
+  - Thêm `CHECK_CQG_SYNC` vào `BOT_TASK_REGISTRY`, `ReconJobsHandler`, và `bot-job-queue.service.ts`.
+  - Tách 2 handler độc lập: `handleCheckEodMmJob` (chỉ xử lý EOD MS) và `handleCheckCqgSyncJob` (chỉ xử lý CQG Sync).
+- **Tách biệt truy vấn Console Summary**:
+  - `getConsoleSummary` truy vấn độc lập `cqgSyncJob` cho Khối 3, và `marginJob` / `CHECK_EOD_MM` cho Khối 1 & 2. Bấm Check EOD sẽ không ghi đè kết quả Khối 3, và bấm Check CQG sẽ không ghi đè kết quả Khối 1 & 2.
+- **Tách biệt nút bấm trên giao diện Trading Manager**:
+  - Nút Check Khối 1 & Khối 2: Kích hoạt `CHECK_EOD_MM`.
+  - Nút Check Khối 3: Kích hoạt riêng biệt `CHECK_CQG_SYNC`.
+  - Trạng thái quay vòng `triggeringSection` chạy độc lập từng khối.
+
+## [2026-09-11T17:15] - Xóa Bỏ Hoàn Toàn Hardcode URL ACM Theo Quy Chuẩn Zero-Hardcoding AGENTS.md Mục 8
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- Người dùng phát hiện khi bot đối chiếu khớp lệnh định kỳ trong phiên ngày 11/09/2026, log RPA tải file ACM vẫn xuất hiện đường dẫn cũ `https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetporder`.
+- Yêu cầu giải trình nguyên nhân dính bug lấy link cũ và xóa bỏ triệt để hardcode URL ACM trong toàn bộ mã nguồn.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.controller.ts)
+- [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Nguyên nhân dính link cũ `alphaliongroup.com`**:
+  1. *Lịch sử mã nguồn*: Trước đây, bot crawler ACM từng hardcode chuỗi tĩnh `https://acm.etp.alphaliongroup.com/exchange/index.html#/business-tetporder`. Mặc dù đã có commit chuyển sang sinh động qua `page.url()`, nhưng tiến trình PM2 chạy ngầm trên máy chủ lúc 10:06 ngày 11/09 chưa được build/restart lại mã mới nhất nên tiếp tục chạy bản bundle cũ.
+  2. *Cấu hình CSDL*: Bảng `system_settings` trường `bot_credentials_acm` hoặc các fallback ngầm trong code còn chứa placeholder URL hoặc link cũ.
+- **Tái cấu trúc triệt để theo Quy Chuẩn AGENTS.md Mục 8 (Universal Zero-Hardcoding)**:
+  - Tại `rpa-downloader.service.ts` (`loginACM` & `downloadAcmBackup`):
+    + Xóa bỏ 100% các chuỗi domain hardcode fallback (`acm.etp.alphaliongroup.com`, `acm-etp.acmmex.com`, `acm.member-url.vn`).
+    + Áp dụng Fail-Fast: Nếu Quản trị viên chưa cấu hình `url` cho ACM trong `bot_credentials_acm`, bot lập tức ném thông báo lỗi yêu cầu cấu hình trên giao diện Admin thay vì tự ý fallback về bất kỳ domain tĩnh nào.
+    + Báo cáo Order & Fill tự động trích xuất Base URL từ chính phiên đăng nhập đang hoạt động (`page.url().split('#')[0]`), hoặc cho phép cấu hình URL/Path tải file tùy biến (`creds.orderUrl`, `creds.fillUrl`).
+  - Tại `bot-engine.controller.ts`:
+    + Loại bỏ hoàn toàn fallback tĩnh `https://acm.member-url.vn/login` hoặc domain hardcode; chỉ lưu đúng URL người dùng cấu hình qua giao diện Web.
+  - Tại `ConnectionSettings.tsx`:
+    + Đưa trạng thái ban đầu của `acmUrl` về rỗng `''`, đọc 100% động từ CSDL qua API `getConfig`.
+
+### 4. Xác nhận Build
+- **Backend Build**: `cmd /c "npm run build"` thành công 100% (**Exit code 0**).
+- **Frontend TypeCheck**: `cmd /c "npx tsc --noEmit"` thành công 100% (**Exit code 0, 0 errors**).
+
+
 
 
 

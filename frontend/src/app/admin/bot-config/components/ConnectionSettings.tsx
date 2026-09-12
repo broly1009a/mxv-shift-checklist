@@ -50,7 +50,9 @@ export default function ConnectionSettings({
   const [cqgPassword2, setCqgPassword2] = useState('');
   const [showCqgPassword2, setShowCqgPassword2] = useState(false);
 
-  const [acmUrl, setAcmUrl] = useState('https://acm.member-url.vn/login');
+  const [acmUrl, setAcmUrl] = useState('');
+  const [acmOrderUrl, setAcmOrderUrl] = useState('');
+  const [acmFillUrl, setAcmFillUrl] = useState('');
   const [acmUsername, setAcmUsername] = useState('');
   const [acmPassword, setAcmPassword] = useState('');
   const [acmGeminiApiKey, setAcmGeminiApiKey] = useState('');
@@ -69,10 +71,12 @@ export default function ConnectionSettings({
   const [cppUrl, setCppUrl] = useState('');
   const [cppUsername, setCppUsername] = useState('');
   const [cppPassword, setCppPassword] = useState('');
+  const [cppOutputDir, setCppOutputDir] = useState('backupCCP');
 
   const [ceUrl, setCeUrl] = useState('');
   const [ceUsername, setCeUsername] = useState('');
   const [cePassword, setCePassword] = useState('');
+  const [ceOutputDir, setCeOutputDir] = useState('backupCE');
 
   // Scheduler state
   const [schedulerConfig, setSchedulerConfig] = useState<any[]>([]);
@@ -147,7 +151,9 @@ export default function ConnectionSettings({
           setCqgPassword2(data.cqg.password2 || '');
         }
         if (data.acm) {
-          setAcmUrl(data.acm.url || 'https://acm.member-url.vn/login');
+          setAcmUrl(data.acm.url || '');
+          setAcmOrderUrl(data.acm.orderUrl || '');
+          setAcmFillUrl(data.acm.fillUrl || '');
           setAcmUsername(data.acm.username || '');
           setAcmPassword(data.acm.password || '');
           setAcmGeminiApiKey(data.acm.geminiApiKey || '');
@@ -168,11 +174,13 @@ export default function ConnectionSettings({
           setCppUrl(data.cpp.url || '');
           setCppUsername(data.cpp.username || '');
           setCppPassword(data.cpp.password || '');
+          setCppOutputDir(data.cpp.outputDir || 'backupCCP');
         }
         if (data.ce) {
           setCeUrl(data.ce.url || '');
           setCeUsername(data.ce.username || '');
           setCePassword(data.ce.password || '');
+          setCeOutputDir(data.ce.outputDir || 'backupCE');
         }
         if (data.schedulerConfig) {
           setSchedulerConfig(data.schedulerConfig);
@@ -238,6 +246,8 @@ export default function ConnectionSettings({
           },
           acm: {
             url: acmUrl.trim(),
+            orderUrl: acmOrderUrl.trim(),
+            fillUrl: acmFillUrl.trim(),
             username: acmUsername.trim(),
             password: acmPassword,
             geminiApiKey: acmGeminiApiKey,
@@ -258,11 +268,13 @@ export default function ConnectionSettings({
             url: cppUrl.trim(),
             username: cppUsername.trim(),
             password: cppPassword,
+            outputDir: cppOutputDir.trim() || 'backupCCP',
           },
           ce: {
             url: ceUrl.trim(),
             username: ceUsername.trim(),
             password: cePassword,
+            outputDir: ceOutputDir.trim() || 'backupCE',
           },
           m365: {
             clientId: m365ClientId.trim(),
@@ -1059,6 +1071,25 @@ export default function ConnectionSettings({
                 </div>
               </div>
             </div>
+
+            {/* outputDir CCP */}
+            <div>
+              <label style={labelStyle}>Thư mục lưu báo cáo CCP</label>
+              <div style={{ position: 'relative' }}>
+                <Folder size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '38px' }}
+                  placeholder="backupCCP"
+                  value={cppOutputDir}
+                  onChange={(e) => setCppOutputDir(e.target.value)}
+                />
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Tên thư mục (tương đối) hoặc đường dẫn tuyệt đối để lưu file báo cáo tải về từ CoreCCP.
+              </p>
+            </div>
           </div>
 
           {/* CE Config */}
@@ -1138,6 +1169,25 @@ export default function ConnectionSettings({
                 </div>
               </div>
             </div>
+
+            {/* outputDir CE */}
+            <div>
+              <label style={labelStyle}>Thư mục lưu báo cáo CE</label>
+              <div style={{ position: 'relative' }}>
+                <Folder size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '38px' }}
+                  placeholder="backupCE"
+                  value={ceOutputDir}
+                  onChange={(e) => setCeOutputDir(e.target.value)}
+                />
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Tên thư mục (tương đối) hoặc đường dẫn tuyệt đối để lưu file báo cáo tải về từ CoreEX.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1170,11 +1220,44 @@ export default function ConnectionSettings({
                     type="url"
                     className="form-input"
                     style={{ paddingLeft: '38px' }}
-                    placeholder="https://acm.member-url.vn/login"
+                    placeholder="https://acm-etp.acmmex.com/exchange/index.html#/login"
                     value={acmUrl}
                     onChange={(e) => setAcmUrl(e.target.value)}
                     required
                   />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>URL Báo cáo Order <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(tùy chọn)</span></label>
+                  <div style={{ position: 'relative' }}>
+                    <Link2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      id="acm-order-url"
+                      type="url"
+                      className="form-input"
+                      style={{ paddingLeft: '38px' }}
+                      placeholder="Mặc định: ghép từ ACM URL + #/business-tetporder"
+                      value={acmOrderUrl}
+                      onChange={(e) => setAcmOrderUrl(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>URL Báo cáo Fill/Trade <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(tùy chọn)</span></label>
+                  <div style={{ position: 'relative' }}>
+                    <Link2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      id="acm-fill-url"
+                      type="url"
+                      className="form-input"
+                      style={{ paddingLeft: '38px' }}
+                      placeholder="Mặc định: ghép từ ACM URL + #/business-tetptrade"
+                      value={acmFillUrl}
+                      onChange={(e) => setAcmFillUrl(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 

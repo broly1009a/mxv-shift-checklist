@@ -2067,7 +2067,19 @@ export class RpaDownloaderService {
       const otherModels = contentModels.filter(
         (m: string) => !m.includes('flash') && m.startsWith('gemini-'),
       );
-      const sorted = [...flashModels, ...otherModels];
+      // Sắp xếp ưu tiên: Các model Flash đời mới nhất (3.8, 3.7, 3.6, 3.5, 3.1, 3.0, 2.5) -> Flash Lite -> Pro
+      // Đẩy alias công cộng như 'gemini-flash-latest' xuống cuối vì đây là điểm nóng nghẽn mạng toàn cầu
+      const prioritizeModels = (models: string[]) => {
+        return models.sort((a, b) => {
+          const isLatestAliasA = a.endsWith('-latest');
+          const isLatestAliasB = b.endsWith('-latest');
+          if (isLatestAliasA !== isLatestAliasB) return isLatestAliasA ? 1 : -1;
+          return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      };
+
+      const sortedFlash = prioritizeModels(flashModels);
+      const sorted = [...sortedFlash, ...otherModels];
       if (sorted.length > 0) {
         // Lưu đồng thời vào RAM L1 và MongoDB L2
         this.cachedGeminiModels = { list: sorted, fetchedAt: now };
@@ -2096,8 +2108,17 @@ export class RpaDownloaderService {
     const dynamicModels = await this.getAvailableGeminiModels(apiKey);
     const candidateModels =
       dynamicModels.length > 0
-        ? dynamicModels.slice(0, 6)
-        : ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+        ? dynamicModels.slice(0, 8)
+        : [
+            'gemini-3.8-flash',
+            'gemini-3.7-flash',
+            'gemini-3.5-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite',
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-2.5-pro',
+          ];
 
     for (const model of candidateModels) {
       try {
@@ -2106,6 +2127,7 @@ export class RpaDownloaderService {
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
             method: 'POST',
+            signal: AbortSignal.timeout(8000), // Khống chế timeout 8s tối đa, tránh treo bot 103s khi Google quá tải
             headers: {
               'Content-Type': 'application/json',
             },
@@ -2145,6 +2167,7 @@ export class RpaDownloaderService {
         }
       } catch (err: any) {
         this.logger.warn(`Model ${model} failed: ${err.message}`);
+        await log(`Gemini model ${model} lỗi (${err.message}). Đang chuyển model dự phòng...`);
       }
     }
     throw new Error('Các model Gemini đều phản hồi bận (503) hoặc không nhận diện được.');
@@ -2179,9 +2202,12 @@ export class RpaDownloaderService {
       );
     }
 
-    const rawUrl =
-      credentials.url ||
-      'https://acm-etp.acmmex.com/exchange/index.html#/login';
+    const rawUrl = credentials.url?.trim();
+    if (!rawUrl) {
+      throw new Error(
+        'Chưa cấu hình ACM URL. Vui lòng vào màn hình Quản trị Bot -> Cấu hình kết nối để thiết lập URL đăng nhập ACM.',
+      );
+    }
     const acmUrl = rawUrl.replace(/#\/home\/?$/i, '#/login');
     const { username, password, geminiApiKey } = credentials;
 
@@ -2495,30 +2521,32 @@ export class RpaDownloaderService {
     const fillFile = path.join(dailyPath, 'Fill.xlsx');
 
     // Xác định base URL từ chính trang ACM hiện tại đang đăng nhập thành công
-    // Tránh việc hardcode domain dẫn đến lệch domain giữa acm-etp.acmmex.com và alphaliongroup.com làm mất session đăng nhập
+    const credentialsRaw = await this.settingsService.getSetting(
+      'bot_credentials_acm',
+      '',
+    );
+    let creds: any = {};
+    try {
+      if (credentialsRaw) creds = JSON.parse(decrypt(credentialsRaw));
+    } catch { }
+
     let baseUrl = page.url().split('#')[0];
     if (!baseUrl || !baseUrl.startsWith('http')) {
-      const credentialsRaw = await this.settingsService.getSetting(
-        'bot_credentials_acm',
-        '',
-      );
-      let creds: any = {};
-      try {
-        if (credentialsRaw) creds = JSON.parse(decrypt(credentialsRaw));
-      } catch { }
-      baseUrl = (creds.url || 'https://acm-etp.acmmex.com/exchange/index.html#/login').split('#')[0];
+      baseUrl = (creds.url || '').split('#')[0];
     }
-    if (!baseUrl.includes('/exchange/index.html')) {
-      try {
-        const urlObj = new URL(baseUrl);
-        baseUrl = `${urlObj.origin}/exchange/index.html`;
-      } catch {
-        baseUrl = 'https://acm-etp.acmmex.com/exchange/index.html';
-      }
+    if (!baseUrl) {
+      throw new Error('Không xác định được Base URL của ACM từ phiên đăng nhập. Vui lòng kiểm tra lại cấu hình ACM.');
     }
 
-    const orderUrl = `${baseUrl}#/business-tetporder`;
-    const fillUrl = `${baseUrl}#/business-tetptrade`;
+    try {
+      const urlObj = new URL(baseUrl);
+      if (!urlObj.pathname.includes('/exchange/index.html') && baseUrl.includes('/exchange')) {
+        baseUrl = `${urlObj.origin}/exchange/index.html`;
+      }
+    } catch { }
+
+    const orderUrl = creds.orderUrl || `${baseUrl}#/business-tetporder`;
+    const fillUrl = creds.fillUrl || `${baseUrl}#/business-tetptrade`;
 
     await log(`Bắt đầu tải Báo cáo Order từ: ${orderUrl}...`);
     await this.downloadAcmReport(

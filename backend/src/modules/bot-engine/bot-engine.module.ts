@@ -20,6 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { LotStatisticsModule } from '../lot-statistics/lot-statistics.module';
 import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 import { OmsWatcherService } from './oms-watcher.service';
+import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
@@ -34,6 +35,7 @@ import { CastDownloadJobHandler } from './handlers/cast-download.handler';
 import { ReconJobsHandler } from './handlers/recon-jobs.handler';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
+import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
     ReconJobsHandler,
     FileAuditJobHandler,
     VerifyEmailJobHandler,
+    CcpCeDownloadJobHandler,
 
     // Services
     EmailWatcherService,
@@ -74,6 +77,7 @@ import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
     BotEngineService,
     SchedulerService,
     OmsWatcherService,
+    CcpCeDownloaderService,
   ],
   controllers: [BotEngineController, AgentController],
   exports: [
@@ -87,6 +91,7 @@ import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
     PostEodHandlerService,
     SchedulerService,
     OmsWatcherService,
+    CcpCeDownloaderService,
     FileAuditJobHandler,
   ],
 })

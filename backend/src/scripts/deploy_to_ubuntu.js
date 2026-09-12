@@ -105,6 +105,18 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'frontend/src/components/admin'),
     remoteDir: '/opt/mxv-checklist/frontend/src/components/admin',
   },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/checklist'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/checklist',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/templates'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/templates',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/upload-backup'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/upload-backup',
+  },
 ];
 
 
@@ -204,19 +216,35 @@ const conn = new Client();
 conn.on('ready', () => {
   console.log('Da ket noi SSH toi Ubuntu 10.0.0.26');
 
-  // Mở SFTP và upload trực tiếp
-  conn.sftp((sftpErr, sftp) => {
-    if (sftpErr) {
-      console.error('SFTP Error:', sftpErr);
+  // Tao toan bo thu muc cha tren Ubuntu truoc khi upload
+  const uniqueDirs = [...new Set(filesToUpload.map((f) => path.dirname(f.remote).replace(/\\/g, '/')))];
+  console.log(`Dang kiem tra & tao ${uniqueDirs.length} thu muc tren Ubuntu...`);
+  const mkdirCmd = uniqueDirs.map((d) => `mkdir -p "${d}"`).join(' && ');
+
+  conn.exec(mkdirCmd, (mkErr, mkStream) => {
+    if (mkErr) {
+      console.error('Mkdir error:', mkErr);
       conn.end();
       return;
     }
-    console.log('SFTP san sang. Bat dau upload...');
+    mkStream.resume();
+    mkStream.stderr.resume();
+    mkStream.on('close', () => {
+      console.log('Da tao/kiem tra toan bo thu muc con tren Ubuntu san sang.');
 
-    let completed = 0;
-    let cursor = 0;
-    let isDone = false;
-    const CONCURRENCY = 8;
+      // Mở SFTP và upload trực tiếp
+      conn.sftp((sftpErr, sftp) => {
+        if (sftpErr) {
+          console.error('SFTP Error:', sftpErr);
+          conn.end();
+          return;
+        }
+        console.log('SFTP san sang. Bat dau upload...');
+
+        let completed = 0;
+        let cursor = 0;
+        let isDone = false;
+        const CONCURRENCY = 8;
 
         function startWorker() {
           if (cursor >= filesToUpload.length) {
@@ -260,6 +288,8 @@ conn.on('ready', () => {
           startWorker();
         }
       });
+    });
+  });
 
   function runBuildAndRestart() {
     console.log('\n=== DANG BUILD BACKEND VA FRONTEND TREN UBUNTU ===');

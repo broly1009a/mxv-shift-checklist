@@ -20,6 +20,7 @@ import * as path from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['reconciliation', 'api/v1/reconciliation'])
@@ -214,6 +215,9 @@ export class ReconciliationController {
       { name: 'eod', maxCount: 1 },
       { name: 'tttt', maxCount: 1 },
       { name: 'accountsBalances', maxCount: 1 },
+      { name: 'qltkgdCcp', maxCount: 1 },
+      { name: 'eodCcp', maxCount: 1 },
+      { name: 'ttttCcp', maxCount: 1 },
     ]),
   )
   async uploadAndReconcileEOD(
@@ -223,6 +227,9 @@ export class ReconciliationController {
       eod?: any[];
       tttt?: any[];
       accountsBalances?: any[];
+      qltkgdCcp?: any[];
+      eodCcp?: any[];
+      ttttCcp?: any[];
     },
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
@@ -241,6 +248,9 @@ export class ReconciliationController {
       eod: files?.eod?.[0]?.buffer,
       tttt: files?.tttt?.[0]?.buffer,
       accountsBalances: files?.accountsBalances?.[0]?.buffer,
+      qltkgdCcp: files?.qltkgdCcp?.[0]?.buffer,
+      eodCcp: files?.eodCcp?.[0]?.buffer,
+      ttttCcp: files?.ttttCcp?.[0]?.buffer,
     };
 
     const systemUser = {
@@ -316,8 +326,8 @@ export class ReconciliationController {
         };
       }
 
-      // Case B: M-System EOD Check (if qltkgd is uploaded and accountsBalances is not)
-      if (fileBuffers.qltkgd && !fileBuffers.accountsBalances) {
+      // Case B: EOD Check song song MS & CCP (if qltkgd or qltkgdCcp is uploaded and accountsBalances is not)
+      if ((fileBuffers.qltkgd || fileBuffers.qltkgdCcp) && !fileBuffers.accountsBalances) {
         const result = await this.reconciliationService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
@@ -325,27 +335,45 @@ export class ReconciliationController {
           qltkgdName: files?.qltkgd?.[0]?.originalname,
           eodName: files?.eod?.[0]?.originalname,
           ttttName: files?.tttt?.[0]?.originalname,
+          qltkgdCcp: fileBuffers.qltkgdCcp,
+          eodCcp: fileBuffers.eodCcp,
+          ttttCcp: fileBuffers.ttttCcp,
+          qltkgdCcpName: files?.qltkgdCcp?.[0]?.originalname,
+          eodCcpName: files?.eodCcp?.[0]?.originalname,
+          ttttCcpName: files?.ttttCcp?.[0]?.originalname,
         });
 
         const negativeIMRAccCount = result.negativeIMRAcc.length;
         const negativeBalanceAccsCount =
           result.negativeBalanceAccs?.length || 0;
+        const mismatchedCount = result.mismatchedEOD?.length || 0;
         const hasDiscrepancy =
-          negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0;
+          negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0 || mismatchedCount > 0;
         const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
 
-        let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
-        note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
-        note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
+        let note = `[ĐỐI CHIẾU SỐ DƯ EOD (MS & CCP)]\n`;
+        note += `• Số tài khoản âm số dư hiện tại: ${negativeBalanceAccsCount}\n`;
+        note += `• Số tài khoản âm ký quỹ khả dụng (IMR): ${negativeIMRAccCount}\n`;
+        note += `• Số tài khoản lệch công thức EOD: ${mismatchedCount}\n`;
 
         if (negativeBalanceAccsCount > 0) {
-          note += `• Tài khoản âm số dư hiện tại: ${result.negativeBalanceAccs?.join(', ')}\n`;
+          note += `• Tài khoản âm số dư: ${result.negativeBalanceAccs?.join(', ')}\n`;
         }
         if (negativeIMRAccCount > 0) {
-          note += `• Tài khoản âm ký quỹ khả dụng: ${result.negativeIMRAcc.join(', ')}\n`;
+          note += `• Tài khoản âm ký quỹ: ${result.negativeIMRAcc.join(', ')}\n`;
+        }
+        if (mismatchedCount > 0) {
+          note += `• Chi tiết chênh lệch EOD:\n`;
+          result.mismatchedEOD.slice(0, 10).forEach((m) => {
+            const tag = m.system ? `[${m.system}]` : '[MS]';
+            note += `  - ${tag} TK ${m.maTKGD}: Tính toán ${m.calculatedBalance} vs EOD ${m.eodBalance} (Lệch: ${m.differ})\n`;
+          });
+          if (mismatchedCount > 10) {
+            note += `  ... và ${mismatchedCount - 10} tài khoản khác.\n`;
+          }
         }
         if (!hasDiscrepancy) {
-          note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
+          note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ / lệch công thức EOD.\n`;
         }
 
         const noteJson = JSON.stringify({
@@ -354,6 +382,7 @@ export class ReconciliationController {
           result: {
             negativeBalanceAccs: result.negativeBalanceAccs || [],
             negativeIMRAcc: result.negativeIMRAcc || [],
+            mismatchedEOD: result.mismatchedEOD || [],
             cqgResult: [],
           },
           type: 'EOD',
@@ -375,8 +404,8 @@ export class ReconciliationController {
           success: !hasDiscrepancy,
           type: 'EOD',
           message: hasDiscrepancy
-            ? 'Phát hiện tài khoản âm ký quỹ/âm số dư.'
-            : 'Không phát hiện tài khoản âm ký quỹ.',
+            ? 'Phát hiện bất thường kết quả chạy EOD (âm ký quỹ hoặc lệch công thức).'
+            : 'Đối chiếu kết quả chạy EOD khớp hoàn toàn.',
           result,
         };
       }
@@ -1074,14 +1103,14 @@ export class ReconciliationController {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     // Retrieve configured backup base paths
-    const cqgBase = await this.settingsService.getSetting(
+    const cqgBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-    );
-    const msBase = await this.settingsService.getSetting(
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    ));
+    const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-    );
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    ));
 
     const savedFiles: { filename: string; path: string; category: string }[] = [];
 
