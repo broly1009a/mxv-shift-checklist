@@ -3562,34 +3562,49 @@ export class RpaDownloaderService {
     await okBtn.waitFor({ state: 'visible', timeout: 10000 });
     await okBtn.click();
 
-    // Bước 8: Chờ dữ liệu load và đợi lớp loading spinner biến mất hoàn toàn
-    this.logger.log(`[CQG] Chờ dữ liệu load & chờ tắt loading spinner...`);
+    // Bước 8 (C#): Chờ 10s cho dữ liệu load ban đầu
+    this.logger.log(`[CQG] Chờ dữ liệu load ban đầu (10s)...`);
     await this.waitForCqgNotLoading(page, 30000);
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(10000);
 
     let downloaded = false;
     try {
-      // Bước 9 (C#): Click nút ba chấm (ellipsis-v)
       const ellipsisXPath =
         `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']` +
         ' | ' +
         `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`;
-      const ellipsisButton = page.locator(ellipsisXPath).first();
-      await ellipsisButton.waitFor({ state: 'visible', timeout: 5000 });
-      await ellipsisButton.click();
-      await page.waitForTimeout(1000);
-
-      // Bước 10 (C#): Bấm nút Download
       const downloadBtnXPath = `//div[contains(text(), "${downloadText}")]`;
-      const downloadBtn = page.locator(downloadBtnXPath).first();
-      await downloadBtn.waitFor({ state: 'visible', timeout: 5000 });
 
-      const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
-      await downloadBtn.click();
-      const download = await downloadPromise;
-      await download.saveAs(destFile);
-      this.logger.log(`[CQG] Đã lưu: ${destFile}`);
-      downloaded = true;
+      // Bước 9 & 10: Mở menu 3 chấm và bấm Download (thử lại tối đa 5 lần nếu đang load dở khiến nút tải chưa kịp hiện)
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        this.logger.log(`[CQG] Mở menu 3 chấm (lần ${attempt}/5)...`);
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(500);
+
+        const ellipsisButton = page.locator(ellipsisXPath).first();
+        await ellipsisButton.waitFor({ state: 'visible', timeout: 5000 });
+        await ellipsisButton.click();
+        await page.waitForTimeout(1500);
+
+        // Kiểm tra nút download có hiển thị trong menu không
+        const downloadBtn = page.locator(downloadBtnXPath).first();
+        const isReady = await downloadBtn.isVisible().catch(() => false);
+
+        if (isReady) {
+          this.logger.log(`[CQG] Đã thấy nút "${downloadText}", bấm tải xuống...`);
+          const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+          await downloadBtn.click();
+          const download = await downloadPromise;
+          await download.saveAs(destFile);
+          this.logger.log(`[CQG] Đã lưu: ${destFile}`);
+          downloaded = true;
+          break;
+        } else {
+          this.logger.log(`[CQG] Nút tải chưa xuất hiện do dữ liệu vẫn đang loading. Đóng menu và chờ 3s trước khi mở lại...`);
+          await page.keyboard.press('Escape').catch(() => {});
+          await page.waitForTimeout(3000);
+        }
+      }
     } catch (err: any) {
       this.logger.warn(`[CQG] Lỗi click nút download: ${err.message}`);
     } finally {

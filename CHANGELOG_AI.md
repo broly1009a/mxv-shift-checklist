@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T12:49] Bổ Sung Cơ Chế Tự Động Thử Lại (Retry) Menu 3 Chấm Khi Bảng Dữ Liệu CQG Chưa Tải Xong
+
+### 1. Mục tiêu thay đổi
+- Dựa trên phản ánh và hình ảnh thực tế từ USER ("bạn mở cái này hơi sớm trước khi loading kết thúc dẫn đến nút tải vẫn bị ẩn. tôi ấn lại thì mở lại 3 chấm thì mới hiện sau khi loading kết thúc"):
+  - Phát hiện hành vi của CQG Web: Khi widget vừa mở và đang load danh sách giao dịch lớn từ server về, nếu bấm menu 3 chấm quá sớm thì mục `Download ... in view` chưa được Angular render vào menu. Khi dữ liệu tải xong và người dùng mở lại menu 3 chấm thì nút tải mới hiển thị.
+  - Khắc phục: Khôi phục lại thời gian chờ ban đầu tối thiểu 10 giây (chuẩn C#), đồng thời bổ sung vòng lặp thử lại tối đa 5 lần: Mở menu 3 chấm $\rightarrow$ kiểm tra nút Download $\rightarrow$ nếu chưa có thì đóng menu bằng Escape, đợi 3 giây cho dữ liệu nạp tiếp rồi mở lại cho đến khi nút tải xuất hiện.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tăng thời gian chờ ban đầu lên 10s + vòng lặp mở lại menu 3 chấm (tối đa 5 lần x 3s).
+
+### 3. Tóm tắt nội dung code đã sửa
+- Chờ ban đầu: `await page.waitForTimeout(10000);` + `waitForCqgNotLoading(page)`.
+- Vòng lặp: Duyệt `for (let attempt = 1; attempt <= 5; attempt++)`, nếu `isReady` thì tải, nếu chưa thì `Escape` và chờ 3 giây rồi mở lại.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
 ## [2026-09-14T12:47] Triển Khai Đồng Bộ Toàn Diện Lên Máy Chủ Ubuntu Production (10.0.0.26)
 
 ### 1. Mục tiêu thay đổi
