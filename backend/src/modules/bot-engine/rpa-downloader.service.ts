@@ -3464,6 +3464,26 @@ export class RpaDownloaderService {
     } catch { }
   }
 
+  /**
+   * Chờ các lớp overlay loading (pre-bootstrap spinner container, app loading image...) biến mất hoàn toàn
+   * để tránh việc click bị đè hoặc nút download bị disabled.
+   */
+  private async waitForCqgNotLoading(page: Page, timeoutMs = 30000): Promise<void> {
+    try {
+      const spinnerSelectors = [
+        '.wpfe-pre-bootstrap-loading-spinner-container',
+        '.wpfe-app-loading-image',
+      ];
+      for (const sel of spinnerSelectors) {
+        const els = page.locator(sel);
+        const count = await els.count().catch(() => 0);
+        for (let i = 0; i < count; i++) {
+          await els.nth(i).waitFor({ state: 'hidden', timeout: timeoutMs }).catch(() => {});
+        }
+      }
+    } catch {}
+  }
+
   private async downloadCqgWidget(
     page: Page,
     searchTerm: string,
@@ -3476,63 +3496,36 @@ export class RpaDownloaderService {
       await ensureSession();
     }
 
+    // Chờ các con quay loading ban đầu biến mất
+    await this.waitForCqgNotLoading(page, 15000);
+
     // Tự động đóng/xóa popup Notifications của CQG nếu đang nổi trên màn hình
     await this.dismissCqgNotifications(page);
 
     // Dismiss open modals or menus
     await page.keyboard.press('Escape').catch(() => {});
     await page.keyboard.press('Escape').catch(() => {});
-    await page.waitForTimeout(500);
+    this.logger.log(`[CQG] Mở widget "${searchTerm}" theo quy trình C#...`);
 
-    this.logger.log(`[CQG] Mở widget mới "${searchTerm}"...`);
-
-    const addWidgetSelectors = [
-      "//div[contains(@class,'wpfe-add-widget-btn')]",
-      "//div[contains(@class,'wpfe-tab-header-add-button')]",
-      "//button[contains(@class,'wpfe-widget-tab-header-add-button')]",
-      "//mat-icon[@data-mat-icon-name='plus']",
-      "//div[contains(@class,'add-button')]",
-    ];
-    let addWidgetBtn = page.locator(addWidgetSelectors.join(' | ')).first();
-
-    let isAddVisible = await addWidgetBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!isAddVisible) {
-      // Click menu Home / Ho trước khi mở widget để đảm bảo đứng ở trang chính (giống C# tool)
-      const homeTabSelectors = [
-        "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-        "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-        "//div[text()='Home' or text()='Trang chủ' or text()='Ho']",
-      ];
-      for (const selector of homeTabSelectors) {
-        try {
-          const tab = page.locator(selector).first();
-          if (await tab.isVisible({ timeout: 1500 }).catch(() => false)) {
-            await tab.click({ timeout: 3000 });
-            await page.waitForTimeout(1000);
-            break;
-          }
-        } catch {}
-      }
-      isAddVisible = await addWidgetBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    }
-
-    if (!isAddVisible && ensureSession) {
-      this.logger.warn(`[CQG] Không thấy nút add-widget, kiểm tra lại phiên đăng nhập...`);
-      await ensureSession();
-    }
-
-    await addWidgetBtn.waitFor({ state: 'visible', timeout: 15000 });
-    await addWidgetBtn.click({ timeout: 8000 });
+    // Bước 1 (C#): Bấm menu Ho
+    const homeMenu = page.locator("//div[text()='Ho']").first();
+    await homeMenu.waitFor({ state: 'visible', timeout: 10000 });
+    await homeMenu.click();
     await page.waitForTimeout(1000);
 
-    // Tìm kiếm widget trong dialog
-    const searchInput = page
-      .locator("//input[@placeholder='Search...']")
-      .first();
-    await searchInput.waitFor({ state: 'visible', timeout: 10000 });
-    await searchInput.fill(searchTerm);
+    // Bước 2 (C#): Bấm nút dấu cộng add widget
+    const plusIcon = page.locator("//div[contains(@class, 'wpfe-add-widget-btn')]").first();
+    await plusIcon.waitFor({ state: 'visible', timeout: 10000 });
+    await plusIcon.click();
     await page.waitForTimeout(1000);
 
+    // Bước 3 (C#): Nhập từ khóa tìm kiếm
+    const searchField = page.locator("//input[@placeholder='Search...']").first();
+    await searchField.waitFor({ state: 'visible', timeout: 10000 });
+    await searchField.fill(searchTerm);
+    await page.waitForTimeout(1000);
+
+    // Bước 4 (C#): Chọn widget trong danh sách
     const itemText =
       searchTerm === 'P&S'
         ? 'Purchase & Sales'
@@ -3545,179 +3538,80 @@ export class RpaDownloaderService {
       .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
       .first();
     await widgetItem.waitFor({ state: 'visible', timeout: 10000 });
-    await widgetItem.click({ timeout: 8000 });
-    await page.waitForTimeout(1500);
+    await widgetItem.click();
+    await page.waitForTimeout(1000);
 
-    // Select accounts -> All accounts
-    await this.dismissCqgNotifications(page);
-    try {
-      const selectAccountBtn = page
-        .locator("//button[contains(@class,'wpfe-widget-account-selector-button')]")
-        .first();
-      await selectAccountBtn.waitFor({ state: 'visible', timeout: 10000 });
+    // Bước 5 (C#): Chọn account selector
+    const selectAccountBtn = page
+      .locator("//button[contains(@class, 'wpfe-widget-account-selector-button')]")
+      .first();
+    await selectAccountBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await selectAccountBtn.click();
+    await page.waitForTimeout(1000);
 
-      let btnText = (await selectAccountBtn.innerText().catch(() => '')) || '';
-      if (btnText.includes('All accounts') || btnText.includes('All')) {
-        this.logger.log(`[CQG] Widget đã ở All accounts (${btnText}).`);
-      } else {
-        this.logger.log(`[CQG] Widget đang ở "${btnText}", tiến hành chọn All accounts...`);
-        await selectAccountBtn.click({ timeout: 8000 });
-        await page.waitForTimeout(1000);
+    // Bước 6 (C#): Chọn All accounts
+    const allAccountsItem = page
+      .locator("//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]")
+      .first();
+    await allAccountsItem.waitFor({ state: 'visible', timeout: 10000 });
+    await allAccountsItem.click();
+    await page.waitForTimeout(1000);
 
-        const allAccountsItem = page
-          .locator(
-            "//div[contains(@class,'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]",
-          )
-          .first();
-        await allAccountsItem.waitFor({ state: 'visible', timeout: 10000 });
-        await allAccountsItem.click({ timeout: 8000 });
-        await page.waitForTimeout(800);
+    // Bước 7 (C#): Bấm OK
+    const okBtn = page.locator("//div[text()='OK']").first();
+    await okBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await okBtn.click();
 
-        const okBtn = page
-          .locator("//div[text()='OK' or text()='Ok']")
-          .first();
-        if (await okBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await okBtn.click({ timeout: 5000 });
-        }
-        await page.waitForTimeout(1500);
-      }
-    } catch (selectorErr: any) {
-      this.logger.warn(`[CQG] Cảnh báo khi chọn account (${selectorErr.message}), tiếp tục...`);
-    }
-
-    this.logger.log(`[CQG] Chờ data load (10s)...`);
-    await page.waitForTimeout(10000);
-
-    // Đảm bảo loại bỏ hoàn toàn popup Notifications trước khi click menu ba chấm
-    await this.dismissCqgNotifications(page);
-
-    const debugDir = path.join(process.cwd(), 'temp', 'debug');
-    if (!fs.existsSync(debugDir)) {
-      fs.mkdirSync(debugDir, { recursive: true });
-    }
+    // Bước 8: Chờ dữ liệu load và đợi lớp loading spinner biến mất hoàn toàn
+    this.logger.log(`[CQG] Chờ dữ liệu load & chờ tắt loading spinner...`);
+    await this.waitForCqgNotLoading(page, 30000);
+    await page.waitForTimeout(5000);
 
     let downloaded = false;
     try {
-      // 1. Click trực tiếp vào tab header để đảm bảo tab và panel này được focus/active
-      const targetTabSelector = [
-        `//div[contains(@class,'wpfe-widget-tab-header') and .//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]]`,
-        `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]`,
-      ].join(' | ');
+      // Bước 9 (C#): Click nút ba chấm (ellipsis-v)
+      const ellipsisXPath =
+        `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']` +
+        ' | ' +
+        `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`;
+      const ellipsisButton = page.locator(ellipsisXPath).first();
+      await ellipsisButton.waitFor({ state: 'visible', timeout: 5000 });
+      await ellipsisButton.click();
+      await page.waitForTimeout(1000);
 
-      const targetTab = page.locator(targetTabSelector).first();
-      const isTabVis = await targetTab.isVisible({ timeout: 5000 }).catch(() => false);
-      if (isTabVis) {
-        await targetTab.click({ timeout: 3000 }).catch(() => {});
-        await page.waitForTimeout(500);
-      }
+      // Bước 10 (C#): Bấm nút Download
+      const downloadBtnXPath = `//div[contains(text(), "${downloadText}")]`;
+      const downloadBtn = page.locator(downloadBtnXPath).first();
+      await downloadBtn.waitFor({ state: 'visible', timeout: 5000 });
 
-      // 2. Mở menu ngữ cảnh của đúng tab này bằng chuột phải (tránh bấm nhầm ellipsis của panel khác)
-      let menuOpened = false;
-      if (isTabVis) {
-        try {
-          this.logger.log(`[CQG] Chuột phải vào tab "${tabLabel || searchTerm}" để mở menu...`);
-          await targetTab.click({ button: 'right', timeout: 3000, force: true });
-          await page.waitForTimeout(800);
-          const testDownloadBtn = page.locator(`//div[contains(text(),"${downloadText}")]`).first();
-          if (await testDownloadBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            menuOpened = true;
-          }
-        } catch {}
-      }
-
-      // 3. Nếu chuột phải chưa mở được menu, fallback sang click nút menu ba chấm của tab control
-      if (!menuOpened) {
-        const ellipsisSelector = [
-          `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
-          `//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
-          `//mat-icon[@data-mat-icon-name='ellipsis-v']`,
-        ].join(' | ');
-
-        const ellipsisBtn = page.locator(ellipsisSelector).first();
-        const isEllipsisVis = await ellipsisBtn.isVisible({ timeout: 3000 }).catch(() => false);
-        if (!isEllipsisVis && ensureSession) {
-          await ensureSession();
-        }
-
-        await ellipsisBtn.waitFor({ state: 'visible', timeout: 8000 });
-        await ellipsisBtn.click({ timeout: 5000, force: true });
-        await page.waitForTimeout(1000);
-      }
-
-      await this.dismissCqgNotifications(page);
-      this.logger.log(`[CQG] Click Download menu: "${downloadText}"...`);
-
-      // CHỈ TÌM ĐÚNG downloadText CỦA LOẠI BÁO CÁO NÀY - TUYỆT ĐỐI KHÔNG FALLBACK SANG LOẠI KHÁC
-      const downloadBtn = page
-        .locator(`//div[contains(text(),"${downloadText}")]`)
-        .first();
-
-      await downloadBtn.waitFor({ state: 'visible', timeout: 8000 });
-
-      const isDisabled = await downloadBtn
-        .evaluate((el) => {
-          const menuItem = el.closest('wpfe-dropdown-menu-item');
-          return menuItem
-            ? menuItem.classList.contains('wpfe-dropdown-menu-item-disabled')
-            : false;
-        })
-        .catch(() => false);
-
-      if (isDisabled) {
-        if (fs.existsSync(destFile) && fs.statSync(destFile).size > 2500) {
-          this.logger.warn(
-            `[CQG] Nút download "${downloadText}" bị vô hiệu hóa nhưng file đích ${destFile} đã có dữ liệu (${fs.statSync(destFile).size} bytes). Giữ nguyên dữ liệu hiện có!`,
-          );
-          downloaded = true;
-        } else {
-          this.logger.warn(
-            `[CQG] Nút download "${downloadText}" đang bị vô hiệu hóa (không có dữ liệu). Tạo file Excel trống...`,
-          );
-          const workbook = new ExcelJS.Workbook();
-          workbook.addWorksheet('Sheet1');
-          await workbook.xlsx.writeFile(destFile);
-          this.logger.log(`[CQG] Đã lưu file trống thành công: ${destFile}`);
-          downloaded = true;
-        }
-      } else {
-        const downloadPromise = page.waitForEvent('download', {
-          timeout: 60000,
-        });
-        await downloadBtn.click({ timeout: 8000, force: true });
-
-        const download = await downloadPromise;
-        await download.saveAs(destFile);
-        this.logger.log(`[CQG] Đã lưu: ${destFile}`);
-        downloaded = true;
-      }
+      const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+      await downloadBtn.click();
+      const download = await downloadPromise;
+      await download.saveAs(destFile);
+      this.logger.log(`[CQG] Đã lưu: ${destFile}`);
+      downloaded = true;
     } catch (err: any) {
-      this.logger.warn(
-        `[CQG] Không click được ellipsis/download button: ${err.message}`,
-      );
-      await page
-        .screenshot({
-          path: path.join(debugDir, `cqg-3-error-${searchTerm}.png`),
-        })
-        .catch(() => {});
+      this.logger.warn(`[CQG] Lỗi click nút download: ${err.message}`);
     } finally {
-      // CHỈ ĐÓNG ĐÚNG TAB WIDGET VỪA ĐƯỢC THÊM VÀO Ở NỬA TRÊN (TUYỆT ĐỐI KHÔNG ĐÓNG CÁC TAB MẶC ĐỊNH Ở NỬA DƯỚI)
+      // Bước 11 (C#): Đóng tab widget vừa thêm
       try {
-        const specificCloseBtn = page
-          .locator(
-            `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
-          )
-          .first();
-        if (await specificCloseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await specificCloseBtn.click({ timeout: 4000 }).catch(() => {});
-        }
-      } catch {}
-      await page.waitForTimeout(1500);
+        await page.keyboard.press('Escape').catch(() => {});
+        const closeButtonXPath =
+          `//span[contains(text(), '${tabLabel}: All')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]` +
+          ' | ' +
+          `//div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`;
+        const closeBtn = page.locator(closeButtonXPath).first();
+        await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
+        await closeBtn.click({ force: true });
+        this.logger.log(`[CQG] Đã đóng tab widget: ${tabLabel}: All`);
+      } catch (err: any) {
+        this.logger.warn(`[CQG] Không thể đóng tab ${tabLabel}: ${err.message}`);
+      }
+      await page.waitForTimeout(2000);
     }
 
     if (!downloaded) {
-      throw new Error(
-        `[CQG] Không thể tải "${searchTerm}" — không tìm thấy nút download hoặc không nhận được file.`,
-      );
+      throw new Error(`Tải ${path.basename(destFile)} thất bại (không tìm thấy hoặc không click được nút tải)`);
     }
   }
 
@@ -3736,7 +3630,7 @@ export class RpaDownloaderService {
     await this.downloadCqgWidget(
       page,
       'P&S',
-      'Purchase & Sales',
+      'P&S',
       'Download Purchase and sales in view',
       destFile,
       ensureSession,
@@ -3747,7 +3641,7 @@ export class RpaDownloaderService {
     await this.downloadCqgWidget(
       page,
       'Pos',
-      'Positions',
+      'Pos',
       'Download open positions in view',
       destFile,
       ensureSession,
@@ -3972,6 +3866,8 @@ export class RpaDownloaderService {
           state: 'visible',
           timeout: 60000,
         });
+        // Chờ các lớp loading sau khi login biến mất hoàn toàn
+        await this.waitForCqgNotLoading(page, 30000);
         this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
         return { browser: context, page };
       } catch (err: any) {
@@ -3991,6 +3887,7 @@ export class RpaDownloaderService {
         errors.push(
           'Thiếu thông tin tài khoản CQG1 (username1/password1 trong bot_credentials_cqg).',
         );
+      } else {
         let browser1: any = null;
         let page1: Page | null = null;
         try {

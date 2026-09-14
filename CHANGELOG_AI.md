@@ -1,5 +1,161 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T12:43] Bổ Sung Cơ Chế waitForCqgNotLoading Xử Lý Pre-Bootstrap Spinner & App Loading Overlay
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu của USER ("được giúp tôi thêm logic xử lý phần này để tôi test"):
+  - Xử lý triệt để tình trạng các con quay tải dữ liệu (`.wpfe-pre-bootstrap-loading-spinner-container`, `.wpfe-app-loading-image`) của Angular SPA đè lên giao diện khi khởi tạo hoặc khi đang tải danh sách lệnh/giao dịch.
+  - Tránh tình trạng click trượt do bị con quay che khuất (element click intercepted) hoặc nút Download trong menu ba chấm bị rơi vào trạng thái disabled.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  - Viết helper `waitForCqgNotLoading(page, timeoutMs)` quét từng phần tử loading selector an toàn không vi phạm Playwright strict mode.
+  - Tích hợp `waitForCqgNotLoading` vào 3 vị trí then chốt: (1) Sau khi đăng nhập thành công vào màn hình chính; (2) Trước khi mở menu Home thêm widget; (3) Sau khi bấm `OK` chọn tài khoản trước khi click menu tải.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung hàm `waitForCqgNotLoading` chờ `state: 'hidden'` với timeout lên đến 30 giây.
+- Thay thế việc chỉ ngủ cứng (sleep mù) bằng việc đợi loading biến mất thực tế, giữ đệm 5 giây cho dữ liệu ổn định.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
+## [2026-09-14T12:40] Khắc Phục Lỗi Không Đóng Tab Widget Sau Khi Tải Xong & Đồng Bộ TabLabel Chuẩn 1:1 Với C#
+
+### 1. Mục tiêu thay đổi
+- Dựa trên DOM HTML thực tế do USER cung cấp (`wpfe-widget-tab-header-group` hiển thị dồn 3 tab `Orders: All`, `Orders: All`, `Fills: All` không được đóng):
+  1. Phát hiện lỗi nhãn `tabLabel`: Trong C# `ChromeBot.cs`, tab header của Purchase & Sales hiển thị dạng `P&S: All` và Positions hiển thị dạng `Pos: All`. Trước đó TypeScript truyền `Purchase & Sales` và `Positions`, khiến XPath tìm nút đóng tab theo tên không bao giờ khớp.
+  2. Phát hiện lỗi Playwright trong khối `finally`: Cú pháp `closeBtn.isVisible({ timeout: 3000 })` trong Playwright không hỗ trợ tham số timeout (chỉ trả về `boolean` tức thời trong 0ms), khiến việc kiểm tra bị trả về `false` ngay lúc menu tải đang biến mất và bỏ qua thao tác đóng tab.
+  3. Bổ sung `page.keyboard.press('Escape')` đóng triệt để dropdown menu ba chấm trước khi đóng tab, và dùng `closeBtn.waitFor({ state: 'visible', timeout: 5000 })` kèm `closeBtn.click({ force: true })` chuẩn xác như `WaitForElementToBeVisible` trong C#.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  - Chuẩn hóa `downloadCqgPS`: truyền `tabLabel: 'P&S'`.
+  - Chuẩn hóa `downloadCqgOP`: truyền `tabLabel: 'Pos'`.
+  - Sửa khối `finally` đóng tab: nhấn Escape, chờ `closeBtn` hiển thị và click đóng tab tin cậy 100%.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Thay đổi `tabLabel` từ `'Purchase & Sales'` $\rightarrow$ `'P&S'` và `'Positions'` $\rightarrow$ `'Pos'`.
+- Thay `isVisible()` tức thời bằng `await closeBtn.waitFor({ state: 'visible', timeout: 5000 })` và `await closeBtn.click({ force: true })`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
+## [2026-09-14T12:29] Sửa Cú Pháp XPath Nhập Từ Khóa Tìm Kiếm Widget (Playwright Selector Syntax)
+
+### 1. Mục tiêu thay đổi
+- Theo log báo lỗi của USER (`Unsupported token "@placeholder" while parsing css selector ".//input[@placeholder='Search...']"`):
+  - Trong Selenium C#, cú pháp `By.XPath(".//input...")` được chấp nhận.
+  - Trong Playwright, chuỗi bắt đầu bằng dấu chấm `.` bị hiểu nhầm là CSS selector (chứ không phải XPath), dẫn tới lỗi cú pháp CSS không hỗ trợ `@placeholder`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Sửa `page.locator(".//input[@placeholder='Search...']")` thành `page.locator("//input[@placeholder='Search...']")` chuẩn XPath tuyệt đối của Playwright.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bỏ dấu chấm `.` ở đầu chuỗi selector để Playwright nhận diện chính xác 100% là XPath.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
+## [2026-09-14T12:24] Đồng Bộ 1:1 Tuyệt Đối downloadCqgWidget Với ChromeBot.cs (C#) & Loại Bỏ 100% Code Thừa Tự Chế
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu nghiêm ngặt của USER ("giúp tôi so sánh thật kỹ lại lần nữa xem giống y hệt của tool C# chưa"):
+  - Đối chiếu từng dòng một với 4 hàm `DownloadFR`, `DownloadPS`, `DownloadOP`, `DownloadOD` trong [it-tool-src\operate-transaction-app\Services\ChromeBot.cs](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/ChromeBot.cs).
+  - Tái cấu trúc hàm `downloadCqgWidget` thành một bản clone 1:1 chính xác từng bước, từng selector, từng khoảng thời gian chờ (delay) và thông điệp ngoại lệ:
+    1. Click tab `Ho`: `//div[text()='Ho']`.
+    2. Click nút `+`: `//div[contains(@class, 'wpfe-add-widget-btn')]` (không dùng union phức tạp, không dùng filter).
+    3. Nhập từ khóa: `.//input[@placeholder='Search...']`.
+    4. Click item widget: `//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`.
+    5. Click chọn account: `//button[contains(@class, 'wpfe-widget-account-selector-button')]`.
+    6. Chọn All accounts: `//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]`.
+    7. Click OK: `//div[text()='OK']`.
+    8. Chờ tải dữ liệu: 10 giây (`10000ms`).
+    9. Click menu 3 chấm: `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v'] | //div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`.
+    10. Click nút Download: `//div[contains(text(), "${downloadText}")]`.
+    11. Đóng tab widget vừa mở: `//span[contains(text(), '${tabLabel}: All')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')] | //div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tái cấu trúc `downloadCqgWidget` giống hệt 100% quy trình 11 bước của C#.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bỏ hoàn toàn các fallback, filter, selector rác. Giữ nguyên 100% logic và selector chuẩn của C#.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
+## [2026-09-14T12:12] Loại Bỏ Thao Tác Chuột Phải Gây Bật Context Menu Của Trình Duyệt & Đồng Bộ Click Nút 3 Chấm Chuẩn C#
+
+### 1. Mục tiêu thay đổi
+- Theo phản hồi của USER ("tại sao tôi hay thấy nó nút chuột [phải] lên vậy. giúp tôi xem log xem có gì bất thường không"):
+  - Hình ảnh USER gửi là menu ngữ cảnh mặc định của trình duyệt Edge/Chrome ("Back, Refresh, Save as, Print, Inspect").
+  - Nguyên nhân: Trước đó code dùng `targetTab.click({ button: 'right' })` nhằm cố gắng mở context menu của tab, nhưng do trình duyệt xử lý sự kiện chuột phải mặc định nên đã làm bật menu chuột phải của trình duyệt, gây che khuất giao diện và có thể làm vô hiệu hóa các thao tác click tiếp theo.
+  - Đối chiếu C# tool: Tool C# **hoàn toàn không dùng chuột phải**, mà dùng click chuột trái thông thường vào icon ba chấm `ellipsis-v` (`//mat-icon[@data-mat-icon-name='ellipsis-v']`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Xóa bỏ hoàn toàn thao tác click chuột phải `button: 'right'`, chuyển sang click trực tiếp nút ba chấm `ellipsis-v` bằng chuột trái.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Chuyển sang tìm nút `ellipsis-v` của tab đang active và click chuột trái bình thường.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
+## [2026-09-14T12:06] Đồng Bộ Tuyệt Đối Logic Tìm Nút Thêm Widget Với Tool C# & Khắc Phục Lỗi Dính Element Ẩn
+
+### 1. Mục tiêu thay đổi
+- Theo phản hồi của USER ("giúp tôi so lại với tool C# xem tại sao giờ lại không tìm thấy nút add-widget C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-shift-checklist\it-tool-src trước tôi vẫn thấy được"):
+  - Đối chiếu trực tiếp với `ChromeBot.cs` trong `it-tool-src`:
+    1. Tool C# **luôn click menu Home/Ho trước tiên** (`//div[text()='Ho']`) để chuyển về trang chính trước khi tìm nút cộng widget.
+    2. Tool C# chỉ dùng selector `//div[contains(@class, 'wpfe-add-widget-btn')]`, tuyệt đối không dùng selector chung `//mat-icon[@data-mat-icon-name='plus']`.
+  - Khắc phục lỗi trong Playwright: Selector cũ chứa `//mat-icon[@data-mat-icon-name='plus']` kết hợp với `.first()` đã bắt nhầm một SVG icon `<mat-icon>` ẩn (`aria-hidden="true"`, `role="img"`) nằm ở đầu DOM, khiến Playwright chờ phần tử ẩn này hiển thị dẫn đến timeout 15000ms.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Click tab `Ho` trước, lọc các nút add widget với cờ `.locator('visible=true')`, loại bỏ selector icon ẩn gây kẹt timeout.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung click `//div[text()='Ho' or text()='Home']` trước khi mở widget.
+- Sử dụng `.locator('visible=true')` trên các class nút add widget (`wpfe-add-widget-btn`, `wpfe-tab-header-add-button`, `wpfe-widget-tab-header-add-button`).
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: AI chuẩn bị code hoàn chỉnh và hướng dẫn USER tự chạy test.
+
+---
+
+## [2026-09-14T11:54] Sửa Lỗi Bỏ Qua Khối Khởi Động Trình Duyệt Tải CQG1 Trong `downloadCqgBackup`
+
+### 1. Mục tiêu thay đổi
+- Theo phản hồi của USER khi chạy `test_cqg_pure.ts` nhưng không thấy trình duyệt mở lên và các file báo "FILE KHÔNG TỒN TẠI":
+  - Phát hiện nguyên nhân do thiếu từ khóa `else {` tại khối kiểm tra tài khoản `if (!username1 || !password1)` ở [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L3990-L3996).
+  - Khối lệnh khởi động Chrome và thực hiện chu trình tải 4 file CQG1 bị lồng sai vào trong nhánh "khi thiếu tài khoản", dẫn tới việc bỏ qua hoàn toàn chu trình tải khi có tài khoản hợp lệ.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Bổ sung `else {` để tách biệt rõ ràng giữa nhánh báo lỗi thiếu tài khoản và nhánh thực thi khởi động trình duyệt tải file.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung `else {` sau `errors.push('Thiếu thông tin tài khoản CQG1...');`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: AI chuẩn bị code hoàn chỉnh và để USER tự chạy test script trên terminal để quan sát trực tiếp.
+
+---
+
 ## [2026-09-14T11:41] Khắc Phục Lỗi TypeScript / Dependencies Trên Màn Hình Admin Bot Config (`page.tsx`)
 
 ### 1. Mục tiêu thay đổi
