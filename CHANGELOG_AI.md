@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T12:47] Triển Khai Đồng Bộ Toàn Diện Lên Máy Chủ Ubuntu Production (10.0.0.26)
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu trực tiếp của USER ("giúp tôi ủn phần logic tải cqg mới lên ubutun"):
+  - Đẩy toàn bộ các cập nhật mới nhất (chuẩn hóa 1:1 C# logic tải CQG, sửa đóng tab widget, bổ sung cơ chế chờ spinner `waitForCqgNotLoading`) lên máy chủ sản xuất Ubuntu `10.0.0.26`.
+
+### 2. Danh sách file chỉnh sửa & đồng bộ
+- Đồng bộ 208 tệp tin mã nguồn Frontend và Backend thông qua script triển khai [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js).
+- Thư mục đích trên Ubuntu: `/opt/mxv-checklist/`.
+
+### 3. Tóm tắt nội dung thực hiện
+- Upload SFTP thành công 208/208 files không có lỗi.
+- Chạy `nest build` trên Ubuntu: Biên dịch thành công 100%.
+- Restart dịch vụ PM2 `mxv-backend` (PID 1792500) $\rightarrow$ trạng thái `online`.
+- Chạy `next build` trên Ubuntu: Biên dịch thành công 26 static routes (Turbopack, TypeScript passed).
+- Restart dịch vụ PM2 `mxv-frontend` (PID 1792724) $\rightarrow$ trạng thái `online`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Exit Code**: 0 (Hoàn tất 100%).
+- **Trạng thái dịch vụ PM2 trên 10.0.0.26**:
+  - `mxv-backend`: `online` (CPU 0%, Mem ~358MB).
+  - `mxv-frontend`: `online` (CPU 0%, Mem ~58MB).
+  - `mock-sftp`: `online`.
+
+---
+
 ## [2026-09-14T12:43] Bổ Sung Cơ Chế waitForCqgNotLoading Xử Lý Pre-Bootstrap Spinner & App Loading Overlay
 
 ### 1. Mục tiêu thay đổi
