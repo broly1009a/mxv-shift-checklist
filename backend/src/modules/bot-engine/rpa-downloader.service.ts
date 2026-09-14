@@ -2134,15 +2134,15 @@ export class RpaDownloaderService {
       dynamicModels.length > 0
         ? dynamicModels.slice(0, 8)
         : [
-            'gemini-3.8-flash',
-            'gemini-3.7-flash',
-            'gemini-3.5-flash',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite',
-            'gemini-2.5-flash',
-            'gemini-flash-latest',
-            'gemini-2.5-pro',
-          ];
+          'gemini-3.8-flash',
+          'gemini-3.7-flash',
+          'gemini-3.5-flash',
+          'gemini-3.1-flash-lite',
+          'gemini-2.5-flash-lite',
+          'gemini-2.5-flash',
+          'gemini-flash-latest',
+          'gemini-2.5-pro',
+        ];
 
     for (const model of candidateModels) {
       try {
@@ -2618,9 +2618,9 @@ export class RpaDownloaderService {
     await page
       .goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
       .catch(async () => {
-        await page.goto(url).catch(() => {});
+        await page.goto(url).catch(() => { });
       });
-    await page.waitForTimeout(3000).catch(() => {}); // Đợi tải dữ liệu ban đầu
+    await page.waitForTimeout(3000).catch(() => { }); // Đợi tải dữ liệu ban đầu
 
     const exportBtnSelector =
       '.el-button--info:has-text("Export"), button:has-text("Export"), button:has-text("Download")';
@@ -2653,7 +2653,7 @@ export class RpaDownloaderService {
         const download = await downloadPromise;
         await download.saveAs(destFile);
         await log(`Tải file thành công: ${destFile}`);
-        await page.waitForTimeout(1500).catch(() => {});
+        await page.waitForTimeout(1500).catch(() => { });
         return;
       }
       throw new Error(
@@ -2667,7 +2667,7 @@ export class RpaDownloaderService {
     const download = await downloadPromise;
     await download.saveAs(destFile);
     await log(`Tải và lưu file thành công: ${destFile}`);
-    await page.waitForTimeout(1500).catch(() => {});
+    await page.waitForTimeout(1500).catch(() => { });
   }
 
   /**
@@ -3478,10 +3478,10 @@ export class RpaDownloaderService {
         const els = page.locator(sel);
         const count = await els.count().catch(() => 0);
         for (let i = 0; i < count; i++) {
-          await els.nth(i).waitFor({ state: 'hidden', timeout: timeoutMs }).catch(() => {});
+          await els.nth(i).waitFor({ state: 'hidden', timeout: timeoutMs }).catch(() => { });
         }
       }
-    } catch {}
+    } catch { }
   }
 
   private async downloadCqgWidget(
@@ -3503,9 +3503,9 @@ export class RpaDownloaderService {
     await this.dismissCqgNotifications(page);
 
     // Dismiss open modals or menus
-    await page.keyboard.press('Escape').catch(() => {});
-    await page.keyboard.press('Escape').catch(() => {});
-    this.logger.log(`[CQG] Mở widget "${searchTerm}" theo quy trình C#...`);
+    await page.keyboard.press('Escape').catch(() => { });
+    await page.keyboard.press('Escape').catch(() => { });
+    this.logger.log(`[CQG] Mở widget "${searchTerm}" theo quy trình...`);
 
     // Bước 1 (C#): Bấm menu Ho
     const homeMenu = page.locator("//div[text()='Ho']").first();
@@ -3575,10 +3575,10 @@ export class RpaDownloaderService {
         `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`;
       const downloadBtnXPath = `//div[contains(text(), "${downloadText}")]`;
 
-      // Bước 9 & 10: Mở menu 3 chấm và bấm Download (thử lại tối đa 5 lần nếu đang load dở khiến nút tải chưa kịp hiện)
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        this.logger.log(`[CQG] Mở menu 3 chấm (lần ${attempt}/5)...`);
-        await page.keyboard.press('Escape').catch(() => {});
+      // Bước 9 & 10: Mở menu 3 chấm và bấm Download (chờ đến khi nút tải HẾT BỊ LÀM MỜ/DISABLED)
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        this.logger.log(`[CQG] Mở menu 3 chấm (lần ${attempt}/10)...`);
+        await page.keyboard.press('Escape').catch(() => { });
         await page.waitForTimeout(500);
 
         const ellipsisButton = page.locator(ellipsisXPath).first();
@@ -3586,23 +3586,44 @@ export class RpaDownloaderService {
         await ellipsisButton.click();
         await page.waitForTimeout(1500);
 
-        // Kiểm tra nút download có hiển thị trong menu không
+        // Kiểm tra nút download có hiển thị và ĐÃ SẴN SÀNG (không bị disabled/làm mờ) chưa
         const downloadBtn = page.locator(downloadBtnXPath).first();
-        const isReady = await downloadBtn.isVisible().catch(() => false);
+        const isVisible = await downloadBtn.isVisible().catch(() => false);
 
-        if (isReady) {
-          this.logger.log(`[CQG] Đã thấy nút "${downloadText}", bấm tải xuống...`);
-          const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
-          await downloadBtn.click();
-          const download = await downloadPromise;
-          await download.saveAs(destFile);
-          this.logger.log(`[CQG] Đã lưu: ${destFile}`);
-          downloaded = true;
-          break;
+        let isClickable = false;
+        if (isVisible) {
+          isClickable = await downloadBtn.evaluate((el) => {
+            const item = el.closest('button, [role="menuitem"], .gpc-button, .mat-mdc-menu-item') || el;
+            const hasDisabledAttr = item.hasAttribute('disabled') || item.getAttribute('aria-disabled') === 'true';
+            const hasDisabledClass = item.classList.contains('disabled') ||
+              item.classList.contains('mat-mdc-menu-item-disabled') ||
+              item.classList.contains('gpc-button-disabled');
+            const style = window.getComputedStyle(item);
+            const isOpaque = parseFloat(style.opacity || '1') >= 0.7;
+            const hasPointerEvents = style.pointerEvents !== 'none';
+            return !hasDisabledAttr && !hasDisabledClass && isOpaque && hasPointerEvents;
+          }).catch(() => false);
+        }
+
+        if (isClickable) {
+          this.logger.log(`[CQG] Nút "${downloadText}" đã hết loading và sẵn sàng 100%! Bấm tải...`);
+          try {
+            const downloadPromise = page.waitForEvent('download', { timeout: 10000 });
+            await downloadBtn.click();
+            const download = await downloadPromise;
+            await download.saveAs(destFile);
+            this.logger.log(`[CQG] Đã lưu file thành công: ${destFile}`);
+            downloaded = true;
+            break;
+          } catch (dlErr: any) {
+            this.logger.warn(`[CQG] Bấm nút nhưng chưa kích hoạt tải (${dlErr.message}). Đóng menu chờ thử lại...`);
+            await page.keyboard.press('Escape').catch(() => { });
+            await page.waitForTimeout(3000);
+          }
         } else {
-          this.logger.log(`[CQG] Nút tải chưa xuất hiện do dữ liệu vẫn đang loading. Đóng menu và chờ 3s trước khi mở lại...`);
-          await page.keyboard.press('Escape').catch(() => {});
-          await page.waitForTimeout(3000);
+          this.logger.log(`[CQG] Bảng dữ liệu vẫn đang quay spinner loading (nút tải đang bị làm mờ/disabled). Đóng menu và chờ 4s...`);
+          await page.keyboard.press('Escape').catch(() => { });
+          await page.waitForTimeout(4000);
         }
       }
     } catch (err: any) {
@@ -3610,7 +3631,7 @@ export class RpaDownloaderService {
     } finally {
       // Bước 11 (C#): Đóng tab widget vừa thêm
       try {
-        await page.keyboard.press('Escape').catch(() => {});
+        await page.keyboard.press('Escape').catch(() => { });
         const closeButtonXPath =
           `//span[contains(text(), '${tabLabel}: All')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]` +
           ' | ' +
@@ -3691,8 +3712,8 @@ export class RpaDownloaderService {
     try {
       this.logger.log('[CQG] Đang thực hiện Log off để giải phóng phiên đăng nhập cho user khác...');
       // Dismiss các dialog/modal hoặc context menu nếu đang mở
-      await page.keyboard.press('Escape').catch(() => {});
-      await page.keyboard.press('Escape').catch(() => {});
+      await page.keyboard.press('Escape').catch(() => { });
+      await page.keyboard.press('Escape').catch(() => { });
       await page.waitForTimeout(500);
 
       // 1. Tìm icon Sign Out trên sidebar hoặc toolbar của CQG
@@ -3713,7 +3734,7 @@ export class RpaDownloaderService {
           )
           .first();
         if (await collapseIcon.isVisible({ timeout: 1500 }).catch(() => false)) {
-          await collapseIcon.click().catch(() => {});
+          await collapseIcon.click().catch(() => { });
           await page.waitForTimeout(500);
         }
         isVisible = await logoutIcon.isVisible({ timeout: 2000 }).catch(() => false);
@@ -3750,7 +3771,7 @@ export class RpaDownloaderService {
             "input[name='password'], span:has-text('Log on'), button:has-text('Log on')",
             { timeout: 8000 },
           )
-          .catch(() => {});
+          .catch(() => { });
         this.logger.log('[CQG] Đã hoàn tất Log off thành công.');
       } else {
         this.logger.log('[CQG] Không thấy icon Sign out (có thể đã ở màn hình đăng nhập hoặc phiên đã kết thúc).');
@@ -3886,7 +3907,7 @@ export class RpaDownloaderService {
         this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
         return { browser: context, page };
       } catch (err: any) {
-        await context.close().catch(() => {});
+        await context.close().catch(() => { });
         throw err;
       }
     };
@@ -3922,7 +3943,7 @@ export class RpaDownloaderService {
               .catch(() => false);
             if (isLoginScreen) {
               this.logger.warn(`[CQG1] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username1}...`);
-              await page.fill('input[name="userName"]', username1).catch(() => {});
+              await page.fill('input[name="userName"]', username1).catch(() => { });
               await page.fill('input[name="password"]', password1);
               await page.click('button[type="submit"]');
               await page.waitForSelector('div.wpfe-logo-image', {
@@ -3978,9 +3999,9 @@ export class RpaDownloaderService {
           errors.push(`CQG1 login thất bại: ${e.message}`);
         } finally {
           if (page1) {
-            await this.logoutCqg(page1).catch(() => {});
+            await this.logoutCqg(page1).catch(() => { });
           }
-          if (browser1) await browser1.close().catch(() => {});
+          if (browser1) await browser1.close().catch(() => { });
           this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG1.');
           // Khoảng nghỉ 3s để hệ điều hành và file lock profile được giải phóng hoàn toàn
           await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -4019,7 +4040,7 @@ export class RpaDownloaderService {
               .catch(() => false);
             if (isLoginScreen) {
               this.logger.warn(`[CQG2] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username2}...`);
-              await page.fill('input[name="userName"]', username2).catch(() => {});
+              await page.fill('input[name="userName"]', username2).catch(() => { });
               await page.fill('input[name="password"]', password2);
               await page.click('button[type="submit"]');
               await page.waitForSelector('div.wpfe-logo-image', {
@@ -4075,9 +4096,9 @@ export class RpaDownloaderService {
           errors.push(`CQG2 login thất bại: ${e.message}`);
         } finally {
           if (page2) {
-            await this.logoutCqg(page2).catch(() => {});
+            await this.logoutCqg(page2).catch(() => { });
           }
-          if (browser2) await browser2.close().catch(() => {});
+          if (browser2) await browser2.close().catch(() => { });
           this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG2.');
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }

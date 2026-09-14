@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T13:00] Bổ Sung Kiểm Tra Trạng Thái `isClickable` (Disabled/Opacity) & Tối Ưu Timeout Download CQG
+
+### 1. Mục tiêu thay đổi
+- Dựa trên ảnh chụp màn hình và phản ánh thực tế từ USER:
+  - Nút tải `Download today's fills in view` không bị ẩn (`display: none`) mà bị làm mờ (Disabled / Greyed out) khi con quay 8 chấm tròn ở giữa bảng widget vẫn đang quay.
+  - Lệnh cũ `isVisible()` trả về `true` dẫn đến việc bot click nhầm vào nút đang bị disable, gây treo timeout 30s.
+  - Khắc phục triệt để: Đánh giá trực tiếp trạng thái `isClickable` (kiểm tra `disabled`, `aria-disabled`, class `mat-mdc-menu-item-disabled`, độ mờ `opacity >= 0.7`, `pointerEvents !== 'none'`).
+  - Nếu nút đang bị disable, bot đóng menu bằng `Escape`, chờ 4 giây cho con quay nạp tiếp (tối đa 10 lần thử lại). Khi nút chuyển sang màu trắng sáng (sẵn sàng 100%), bot click tải với timeout bắt sự kiện tối ưu 10s.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tích hợp hàm evaluate `isClickable`, tăng số lần thử lại lên 10 lần x 4s, timeout download 10s.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Thay `isReady = isVisible` bằng logic đánh giá `isClickable` toàn diện theo chuẩn DOM của Angular Material.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+
+---
+
 ## [2026-09-14T12:49] Bổ Sung Cơ Chế Tự Động Thử Lại (Retry) Menu 3 Chấm Khi Bảng Dữ Liệu CQG Chưa Tải Xong
 
 ### 1. Mục tiêu thay đổi
