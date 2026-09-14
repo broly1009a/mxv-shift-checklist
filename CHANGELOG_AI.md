@@ -1,6 +1,50 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-# CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
+## [2026-09-14T12:00] FIX & FEAT: Chuẩn Hóa CSS Global Toàn Diện Cho Guide Modal & Bổ Sung Cấu Hình Thư Mục Quét CoreCCP Động
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi giao diện: Modal Hướng dẫn Vận hành & Thiết kế (`TradingManagerGuideModal.tsx`) bị hardcode nền tối `#0c1524` kết hợp chữ màu tối trong chế độ Sáng (Light Mode), làm mất khả năng tương thích với CSS Global (`[data-theme="light"]` / `[data-theme="dark"]`).
+- Giải quyết thắc mắc cấu hình thư mục: Loại bỏ hoàn toàn đường dẫn fallback giả định dev (`src/modules/lot-statistics/Example file ccp`), bổ sung tham số cấu hình động `bot_backup_path_ccp` trên giao diện UI và API để người dùng tùy chỉnh thư mục quét theo ý muốn.
+- Tự động đồng bộ và biên dịch lại toàn bộ Frontend / Backend lên máy chủ Ubuntu `10.0.0.26`.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingManagerGuideModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/components/TradingManagerGuideModal.tsx):
+  - Xóa bỏ hoàn toàn mã màu cứng `#0c1524`, thay thế bằng hệ biến CSS Global: `var(--bg-card)` cho thân modal, `var(--bg-input)` cho header, footer, tabs bar và step cards.
+  - Áp dụng các biến màu chữ `var(--text-primary)`, `var(--text-secondary)`, `var(--border-color)` đồng bộ trên cả 4 tab hướng dẫn.
+  - Chuẩn hóa màu chữ badge số bước sang `#ffffff` để hiển thị sắc nét trên nền màu nhận diện thương hiệu.
+- [CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx):
+  - Thay thế toàn bộ các khối màu nền `rgba(0, 0, 0, 0.15)` và `rgba(0, 0, 0, 0.25)` bằng `var(--bg-input)` để tránh bị vệt xám đục trong Light Theme.
+  - Bổ sung ô nhập `bot_backup_path_ccp` (Thư mục gốc quét báo cáo CCP) trong khối cấu hình.
+  - Bổ sung nút bấm nhanh `[Sửa / Đổi Thư Mục]` ngay cạnh dòng hiển thị "Thư mục quét:" để nhân sự ca trực có thể đổi đường dẫn runtime mà không cần can thiệp mã nguồn.
+- [ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  - Nhúng `bot_backup_path_ccp` vào phương thức `getConfig()` và `saveConfig()`.
+  - Tự động kiểm tra đồng thời cả 2 nguồn thư mục chuẩn `Backup CCP/Futures` và `Backup MS/Futures` (nơi RPA M-System tải `DSGD`, `TTM`, `TTTT`).
+- [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js):
+  - Đồng bộ 226 tệp mã nguồn mới nhất lên máy chủ `10.0.0.26`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build Local & Ubuntu**: `nest build` thành công, exit code 0.
+- **Frontend Build Local & Ubuntu**: `next build` (Turbopack) thành công 26/26 routes, exit code 0.
+- **Dịch vụ PM2 Ubuntu**: `mxv-backend` (PID 1776192) & `mxv-frontend` (PID 1776399) đều `online`.
+
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER ("giúp tôi ủn các thay đổi lên ubuntu"):
+- Đồng bộ toàn bộ các tệp mã nguồn mới nhất (Backend `ccp-statistics`, `bot-engine`, Frontend `trading-manager`, `bot-config`) lên máy chủ Ubuntu `10.0.0.26` tại `/opt/mxv-checklist/`.
+- Biên dịch lại cả Frontend và Backend, khởi động lại toàn bộ dịch vụ PM2 trên server.
+
+### 2. Quá trình thực hiện
+- Bổ sung `backend/src/modules/ccp-statistics` vào `syncDirs` của `backend/src/scripts/deploy_to_ubuntu.js`.
+- Chạy `deploy_to_ubuntu.js`:
+  - Upload toàn bộ file thay đổi qua SSH/SFTP tới `10.0.0.26`.
+  - Backend Build: `nest build` thành công (exit code 0).
+  - Restart PM2: `pm2 restart mxv-backend` (PID 1771466, trạng thái `online`).
+  - Frontend Build: `next build` thành công, biên dịch sạch 26/26 routes (exit code 0).
+  - Restart PM2: `pm2 restart mxv-frontend` (PID 1771735, trạng thái `online`).
+
+### 3. Trạng thái sau triển khai
+- Cả `mxv-backend` và `mxv-frontend` trên Ubuntu `10.0.0.26` đều hoạt động ổn định (`online`).
+- Màn hình Trading Manager (`https://10.0.0.26/trading-manager` hoặc `http://10.0.0.26:3001/trading-manager`) Tab 2 "Backup – Thống kê – GTT" đã hiển thị đầy đủ giao diện sản xuất thay thế placeholder cũ.
 
 ## [2026-09-14T11:30] DOCS & FEAT: Thiết Kế Hoàn Thiện Màn Hình Bot Config & RPA Pipeline Tự Động Theo Cấu Trúc Ngày
 

@@ -42,6 +42,7 @@ import {
 } from './helpers/ccp-accumulator.helper';
 import {
   getCcpBackupBase,
+  getMsBackupBase,
   resolveDailySubfolder,
   resolveBotTargetDate,
   resolveStoragePathCrossPlatform,
@@ -291,6 +292,10 @@ export class CcpLotStatisticsService {
 
   async getConfig(): Promise<Record<string, any>> {
     const raw = await this.settingsService.getSetting('ccp_lot_statistics_config', '{}');
+    const ccpBackupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ccp',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+    );
     try {
       const p = JSON.parse(raw);
       return {
@@ -303,6 +308,7 @@ export class CcpLotStatisticsService {
         pathGtgdNormal: p.pathGtgdNormal || '',
         ccpApiBaseUrl: p.ccpApiBaseUrl || '',
         updateCumulative: p.updateCumulative === true || p.updateCumulative === 'true',
+        bot_backup_path_ccp: ccpBackupPath,
       };
     } catch {
       return {
@@ -315,11 +321,18 @@ export class CcpLotStatisticsService {
         pathGtgdNormal: '',
         ccpApiBaseUrl: '',
         updateCumulative: false,
+        bot_backup_path_ccp: ccpBackupPath,
       };
     }
   }
 
   async saveConfig(config: Record<string, any>): Promise<{ success: boolean }> {
+    if (config.bot_backup_path_ccp !== undefined) {
+      await this.settingsService.setSetting(
+        'bot_backup_path_ccp',
+        String(config.bot_backup_path_ccp).trim(),
+      );
+    }
     await this.settingsService.setSetting(
       'ccp_lot_statistics_config',
       JSON.stringify(config),
@@ -572,29 +585,46 @@ export class CcpLotStatisticsService {
    *  - Tỷ giá (Tỷ giá*.xlsx / Ty_gia*.xlsx...)
    */
   async scanDailyFiles(dateStr: string): Promise<CcpDailyScanResult> {
-    const base = await getCcpBackupBase(this.settingsService);
+    const ccpBaseRaw = await getCcpBackupBase(this.settingsService);
+    const msBaseRaw = await getMsBackupBase(this.settingsService);
+
     let targetFolder = '';
+    let candidateFolders: string[] = [];
+
     try {
       const { dateObj } = resolveBotTargetDate({ targetDate: dateStr });
-      const { fullPath } = resolveDailySubfolder(base, dateObj);
-      targetFolder = resolveStoragePathCrossPlatform(fullPath);
+      const ccpSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(ccpBaseRaw), dateObj);
+      const msSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(msBaseRaw), dateObj);
+      candidateFolders = [ccpSub.fullPath, msSub.fullPath];
+      targetFolder = ccpSub.fullPath;
     } catch {
-      targetFolder = base;
+      targetFolder = resolveStoragePathCrossPlatform(ccpBaseRaw);
+      candidateFolders = [targetFolder, resolveStoragePathCrossPlatform(msBaseRaw)];
     }
 
-    let folderExists = fs.existsSync(targetFolder);
+    // Check which candidate folder exists and has DSGD file
     let folderToScan = targetFolder;
+    let folderExists = false;
 
-    // Fallback nếu thư mục mạng chính chưa có: kiểm tra thư mục mẫu nội bộ
-    if (!folderExists) {
-      const exampleDir = path.resolve(process.cwd(), 'src/modules/lot-statistics/Example file ccp');
-      const exampleDirDist = path.resolve(process.cwd(), 'dist/modules/lot-statistics/Example file ccp');
-      if (fs.existsSync(exampleDir)) {
-        folderToScan = exampleDir;
+    for (const folder of candidateFolders) {
+      if (fs.existsSync(folder)) {
         folderExists = true;
-      } else if (fs.existsSync(exampleDirDist)) {
-        folderToScan = exampleDirDist;
-        folderExists = true;
+        try {
+          const files = fs.readdirSync(folder);
+          const hasDsgd = files.some(
+            (f) =>
+              /^DSGD.*\.xlsx$/i.test(f) ||
+              /^DSGD.*\.xls$/i.test(f) ||
+              /^DSGD.*\.csv$/i.test(f),
+          );
+          if (hasDsgd) {
+            folderToScan = folder;
+            break;
+          }
+          folderToScan = folder;
+        } catch {
+          // ignore
+        }
       }
     }
 

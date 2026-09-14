@@ -122,6 +122,7 @@ export default function CcpLotStatisticsSection({
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
   const [pathAcmLot, setPathAcmLot] = useState<string>('');
   const [pathAcmGtgd, setPathAcmGtgd] = useState<string>('');
+  const [backupPathCcp, setBackupPathCcp] = useState<string>('');
 
   // Table filtering & view states
   const [searchTvkd, setSearchTvkd] = useState<string>('');
@@ -145,9 +146,11 @@ export default function CcpLotStatisticsSection({
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (data?.data) {
-        setPathAcmLot(data.data.pathAcmLot || '');
-        setPathAcmGtgd(data.data.pathAcmGtgd || '');
+      const cfg = data?.data || data;
+      if (cfg) {
+        setPathAcmLot(cfg.pathAcmLot || cfg.pathAcmCumulative || '');
+        setPathAcmGtgd(cfg.pathAcmGtgd || cfg.pathGtgdAcm || '');
+        setBackupPathCcp(cfg.bot_backup_path_ccp || '');
       }
     } catch (err) {
       console.warn('Lỗi tải cấu hình file lũy kế:', err);
@@ -196,12 +199,21 @@ export default function CcpLotStatisticsSection({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ pathAcmLot, pathAcmGtgd }),
+        body: JSON.stringify({
+          pathAcmLot,
+          pathAcmGtgd,
+          pathAcmCumulative: pathAcmLot,
+          pathGtgdAcm: pathAcmGtgd,
+          bot_backup_path_ccp: backupPathCcp,
+        }),
       });
       const data = await res.json();
       if (res.ok && data?.success) {
-        toast.success('Đã lưu cấu hình đường dẫn file lũy kế');
+        toast.success('Đã lưu cấu hình đường dẫn thành công');
         setShowConfig(false);
+        if (ngayGD) {
+          fetchDailyScan(ngayGD);
+        }
       } else {
         toast.error(data?.message || 'Không thể lưu cấu hình');
       }
@@ -646,9 +658,28 @@ export default function CcpLotStatisticsSection({
         {dataSourceMode === 'AUTO_DETECT' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                Thư mục quét: {scanResult?.folderPath || 'Đang xác định...'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  Thư mục quét: {scanResult?.folderPath || 'Đang xác định...'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowConfig(true)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-accent)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: 0,
+                  }}
+                  title="Mở cấu hình để sửa đường dẫn thư mục quét"
+                >
+                  [Sửa / Đổi Thư Mục]
+                </button>
+              </div>
               <span
                 style={{
                   fontSize: '0.72rem',
@@ -668,7 +699,7 @@ export default function CcpLotStatisticsSection({
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '14px',
-                backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                backgroundColor: 'var(--bg-input)',
                 padding: '16px',
                 borderRadius: '10px',
                 border: '1px solid var(--border-color)',
@@ -818,7 +849,7 @@ export default function CcpLotStatisticsSection({
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '14px',
-              backgroundColor: 'rgba(0, 0, 0, 0.15)',
+              backgroundColor: 'var(--bg-input)',
               padding: '16px',
               borderRadius: '10px',
               border: '1px solid var(--border-color)',
@@ -1009,7 +1040,7 @@ export default function CcpLotStatisticsSection({
             style={{
               padding: '16px 18px',
               borderRadius: '8px',
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              backgroundColor: 'var(--bg-input)',
               border: '1px solid var(--border-color)',
               display: 'flex',
               flexDirection: 'column',
@@ -1032,7 +1063,21 @@ export default function CcpLotStatisticsSection({
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Thư mục gốc quét báo cáo CCP (bot_backup_path_ccp):
+                </label>
+                <input
+                  type="text"
+                  value={backupPathCcp}
+                  onChange={(e) => setBackupPathCcp(e.target.value)}
+                  placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc /mnt/...)"
+                  className="form-input"
+                  style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}
+                />
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   File lũy kế Số Lot ACM:

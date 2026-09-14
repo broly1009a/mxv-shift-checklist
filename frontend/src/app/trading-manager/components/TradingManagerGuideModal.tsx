@@ -39,7 +39,7 @@ export default function TradingManagerGuideModal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
         backdropFilter: 'blur(6px)',
         zIndex: 9999,
         display: 'flex',
@@ -55,13 +55,14 @@ export default function TradingManagerGuideModal({
           width: '100%',
           maxWidth: '1050px',
           maxHeight: '90vh',
-          backgroundColor: '#0c1524',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
           borderRadius: '16px',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+          boxShadow: 'var(--shadow-lg)',
           overflow: 'hidden',
+          color: 'var(--text-primary)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -70,7 +71,7 @@ export default function TradingManagerGuideModal({
           style={{
             padding: '18px 24px',
             borderBottom: '1px solid var(--border-color)',
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            backgroundColor: 'var(--bg-input)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -122,21 +123,23 @@ export default function TradingManagerGuideModal({
           style={{
             display: 'flex',
             gap: '8px',
-            padding: '12px 24px 0 24px',
+            padding: '10px 24px 0 24px',
             borderBottom: '1px solid var(--border-color)',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: 'var(--bg-card)',
+            overflowX: 'auto',
           }}
         >
           <button
             type="button"
             onClick={() => setGuideTab('WORKFLOW')}
             style={{
-              padding: '8px 16px',
+              padding: '10px 16px',
               fontSize: '0.82rem',
               fontWeight: 700,
-              backgroundColor: 'transparent',
+              backgroundColor: guideTab === 'WORKFLOW' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
               border: 'none',
               borderBottom: guideTab === 'WORKFLOW' ? '2px solid #10b981' : '2px solid transparent',
+              borderRadius: '8px 8px 0 0',
               color: guideTab === 'WORKFLOW' ? '#10b981' : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
@@ -152,12 +155,13 @@ export default function TradingManagerGuideModal({
             type="button"
             onClick={() => setGuideTab('FORMULAS')}
             style={{
-              padding: '8px 16px',
+              padding: '10px 16px',
               fontSize: '0.82rem',
               fontWeight: 700,
-              backgroundColor: 'transparent',
+              backgroundColor: guideTab === 'FORMULAS' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
               border: 'none',
               borderBottom: guideTab === 'FORMULAS' ? '2px solid #10b981' : '2px solid transparent',
+              borderRadius: '8px 8px 0 0',
               color: guideTab === 'FORMULAS' ? '#10b981' : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
@@ -173,12 +177,13 @@ export default function TradingManagerGuideModal({
             type="button"
             onClick={() => setGuideTab('ORDER_TYPES')}
             style={{
-              padding: '8px 16px',
+              padding: '10px 16px',
               fontSize: '0.82rem',
               fontWeight: 700,
-              backgroundColor: 'transparent',
+              backgroundColor: guideTab === 'ORDER_TYPES' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
               border: 'none',
               borderBottom: guideTab === 'ORDER_TYPES' ? '2px solid #10b981' : '2px solid transparent',
+              borderRadius: '8px 8px 0 0',
               color: guideTab === 'ORDER_TYPES' ? '#10b981' : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
@@ -194,12 +199,13 @@ export default function TradingManagerGuideModal({
             type="button"
             onClick={() => setGuideTab('ALL_TABS')}
             style={{
-              padding: '8px 16px',
+              padding: '10px 16px',
               fontSize: '0.82rem',
               fontWeight: 700,
-              backgroundColor: 'transparent',
+              backgroundColor: guideTab === 'ALL_TABS' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
               border: 'none',
               borderBottom: guideTab === 'ALL_TABS' ? '2px solid #10b981' : '2px solid transparent',
+              borderRadius: '8px 8px 0 0',
               color: guideTab === 'ALL_TABS' ? '#10b981' : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
@@ -223,6 +229,8 @@ export default function TradingManagerGuideModal({
             gap: '20px',
             fontSize: '0.85rem',
             lineHeight: 1.6,
+            backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-primary)',
           }}
         >
           {/* TAB 1: QUY TRÌNH 4 BƯỚC */}
@@ -233,15 +241,19 @@ export default function TradingManagerGuideModal({
                   padding: '14px 18px',
                   borderRadius: '10px',
                   backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
+                  color: 'var(--text-primary)',
                 }}
               >
                 <Info size={20} color="#10b981" style={{ flexShrink: 0 }} />
                 <div>
-                  <strong style={{ color: '#10b981' }}>Mục tiêu thay thế Macro VBA:</strong> Tính năng này thay thế hoàn toàn file macro Excel thống kê cũ, tự động tổng hợp số lot và giá trị giao dịch của tài khoản ACM từ nguồn CoreCCP và ghi an toàn vào file Excel lũy kế năm.
+                  <strong style={{ color: '#10b981' }}>Mục tiêu thay thế Macro VBA:</strong>{' '}
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    Tính năng này thay thế hoàn toàn file macro Excel thống kê cũ, tự động tổng hợp số lot và giá trị giao dịch của tài khoản ACM từ nguồn CoreCCP và ghi an toàn vào file Excel lũy kế năm.
+                  </span>
                 </div>
               </div>
 
@@ -252,7 +264,7 @@ export default function TradingManagerGuideModal({
                   style={{
                     padding: '16px',
                     borderRadius: '12px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    backgroundColor: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -266,7 +278,7 @@ export default function TradingManagerGuideModal({
                         height: '24px',
                         borderRadius: '50%',
                         backgroundColor: '#10b981',
-                        color: '#000',
+                        color: '#fff',
                         fontWeight: 900,
                         fontSize: '0.75rem',
                         display: 'flex',
@@ -288,7 +300,7 @@ export default function TradingManagerGuideModal({
                   style={{
                     padding: '16px',
                     borderRadius: '12px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    backgroundColor: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -324,7 +336,7 @@ export default function TradingManagerGuideModal({
                   style={{
                     padding: '16px',
                     borderRadius: '12px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    backgroundColor: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -338,7 +350,7 @@ export default function TradingManagerGuideModal({
                         height: '24px',
                         borderRadius: '50%',
                         backgroundColor: '#f59e0b',
-                        color: '#000',
+                        color: '#fff',
                         fontWeight: 900,
                         fontSize: '0.75rem',
                         display: 'flex',
@@ -360,7 +372,7 @@ export default function TradingManagerGuideModal({
                   style={{
                     padding: '16px',
                     borderRadius: '12px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    backgroundColor: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -374,7 +386,7 @@ export default function TradingManagerGuideModal({
                         height: '24px',
                         borderRadius: '50%',
                         backgroundColor: '#10b981',
-                        color: '#000',
+                        color: '#fff',
                         fontWeight: 900,
                         fontSize: '0.75rem',
                         display: 'flex',
@@ -401,7 +413,7 @@ export default function TradingManagerGuideModal({
                 style={{
                   padding: '16px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                 }}
               >
@@ -411,13 +423,14 @@ export default function TradingManagerGuideModal({
                 <div
                   style={{
                     padding: '12px 16px',
-                    backgroundColor: '#050b14',
+                    backgroundColor: 'var(--bg-app)',
                     borderRadius: '8px',
                     fontFamily: 'monospace',
                     fontSize: '0.9rem',
-                    color: '#34d399',
+                    color: '#10b981',
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     marginBottom: '10px',
+                    fontWeight: 700,
                   }}
                 >
                   GTGD (VND) = Khối Lượng Khớp (Lot) × Giá Khớp TB × Hệ Số Quy Đổi × Tỷ Giá USD
@@ -427,44 +440,46 @@ export default function TradingManagerGuideModal({
                 </p>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    <th style={{ padding: '10px 14px' }}>Mã HĐ Mẫu</th>
-                    <th style={{ padding: '10px 14px' }}>Mã HH (5 ký tự đầu)</th>
-                    <th style={{ padding: '10px 14px' }}>Tên Hàng Hóa</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right' }}>Hệ Số Quy Cách</th>
-                    <th style={{ padding: '10px 14px' }}>Đơn Vị Ngoại Tệ</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right' }}>Ví Dụ Tính Toán (1 Lot)</th>
-                  </tr>
-                </thead>
-                <tbody style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>CP2COZ26</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>CP2CO</td>
-                    <td style={{ padding: '10px 14px', fontFamily: 'sans-serif' }}>Đồng Nano</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>1,000</td>
-                    <td style={{ padding: '10px 14px' }}>USD / lbs</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>6.49 × 1,000 × 25,920 = 168.220.800 đ</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>SI5COZ26</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>SI5CO</td>
-                    <td style={{ padding: '10px 14px', fontFamily: 'sans-serif' }}>Bạc Nano</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>100</td>
-                    <td style={{ padding: '10px 14px' }}>USD / oz</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>30.50 × 100 × 25,920 = 79.056.000 đ</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>PL1NYZ26</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>PL1NY</td>
-                    <td style={{ padding: '10px 14px', fontFamily: 'sans-serif' }}>Bạch Kim Nano</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>5</td>
-                    <td style={{ padding: '10px 14px' }}>USD / oz</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>980.0 × 5 × 25,920 = 127.008.000 đ</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 14px' }}>Mã HĐ Mẫu</th>
+                      <th style={{ padding: '10px 14px' }}>Mã HH (5 ký tự đầu)</th>
+                      <th style={{ padding: '10px 14px' }}>Tên Hàng Hóa</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Hệ Số Quy Cách</th>
+                      <th style={{ padding: '10px 14px' }}>Đơn Vị Ngoại Tệ</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Ví Dụ Tính Toán (1 Lot)</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>CP2COZ26</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>CP2CO</td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'sans-serif', color: 'var(--text-primary)' }}>Đồng Nano</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>1,000</td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>USD / lbs</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-primary)' }}>6.49 × 1,000 × 25,920 = 168.220.800 đ</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>SI5COZ26</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>SI5CO</td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'sans-serif', color: 'var(--text-primary)' }}>Bạc Nano</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>100</td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>USD / oz</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-primary)' }}>30.50 × 100 × 25,920 = 79.056.000 đ</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>PL1NYZ26</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#10b981' }}>PL1NY</td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'sans-serif', color: 'var(--text-primary)' }}>Bạch Kim Nano</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>5</td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>USD / oz</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-primary)' }}>980.0 × 5 × 25,920 = 127.008.000 đ</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -475,8 +490,8 @@ export default function TradingManagerGuideModal({
                 style={{
                   padding: '16px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
                 }}
               >
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ef4444', marginTop: 0 }}>
@@ -485,7 +500,7 @@ export default function TradingManagerGuideModal({
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Theo quy chuẩn kiểm soát giao dịch thị trường, mỗi Thành viên Kinh doanh (TVKD) có phát sinh giao dịch trong phiên bắt buộc phải phát sinh đầy đủ 4 loại lệnh:
                 </p>
-                <ul style={{ paddingLeft: '20px', marginTop: '8px', marginBottom: '8px', fontSize: '0.82rem' }}>
+                <ul style={{ paddingLeft: '20px', marginTop: '8px', marginBottom: '8px', fontSize: '0.82rem', color: 'var(--text-primary)' }}>
                   <li><strong>MKT</strong>: Lệnh thị trường (Market Order)</li>
                   <li><strong>LMT</strong>: Lệnh giới hạn (Limit Order)</li>
                   <li><strong>STP</strong>: Lệnh dừng (Stop Order)</li>
@@ -497,7 +512,7 @@ export default function TradingManagerGuideModal({
                 style={{
                   padding: '16px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -516,8 +531,8 @@ export default function TradingManagerGuideModal({
 
           {/* TAB 4: TỔNG QUAN 4 TAB */}
           {guideTab === 'ALL_TABS' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)' }}>
                 <strong style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Activity size={15} /> 1. Check GD – EOD – Sync
                 </strong>
@@ -526,7 +541,7 @@ export default function TradingManagerGuideModal({
                 </p>
               </div>
 
-              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)' }}>
                 <strong style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Database size={15} /> 2. Backup – Thống Kê – GTT
                 </strong>
@@ -535,7 +550,7 @@ export default function TradingManagerGuideModal({
                 </p>
               </div>
 
-              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)' }}>
                 <strong style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Sliders size={15} /> 3. Cấu Hình – Đường Dẫn
                 </strong>
@@ -544,7 +559,7 @@ export default function TradingManagerGuideModal({
                 </p>
               </div>
 
-              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+              <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)' }}>
                 <strong style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <FileSpreadsheet size={15} /> 4. Báo Cáo & CoreCCP
                 </strong>
@@ -561,7 +576,7 @@ export default function TradingManagerGuideModal({
           style={{
             padding: '14px 24px',
             borderTop: '1px solid var(--border-color)',
-            backgroundColor: 'rgba(0, 0, 0, 0.25)',
+            backgroundColor: 'var(--bg-input)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
