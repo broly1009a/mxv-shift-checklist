@@ -1,5 +1,36 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T15:35] FEAT: Tích Hợp Cột CoreCCP Vào Bảng Ma Trận Đối Chiếu KLGD (Table 1) & Tự Động Bóc Tách File CoreCCP Trong CheckKLGD
+
+### 1. Mục tiêu thay đổi
+Theo chỉ đạo của USER: *"ccp-ce-downloader.service.ts với sự update tuyệt vời tôi vừa cải thiện CHANGELOG_AI.md để tải ccp giúp tôi có thể thêm checkklgd cho CCP rồi"*:
+- **Bổ sung cột CoreCCP vào Bảng 1 (Ma trận KLGD, TTM, TTTT)** trên giao diện Giám sát Giao dịch (`frontend/src/app/trading-manager/page.tsx`):
+  - Hiển thị 5 cột dữ liệu: `M-System`, `CQG`, `ACM (Straits)`, `Nano`, `CoreCCP`.
+  - **KLGD**: Tổng khối lượng khớp lệnh từ báo cáo `DSGD` (Cột `KL khớp`).
+  - **TTM**: Tổng vị thế mở từ báo cáo `TTM` (`/ORDERS/OPEN_POSITION`, tổng `Khối lượng mua` + `Khối lượng bán`).
+  - **TTTT**: Tổng khối lượng tất toán từ báo cáo `TTTT` (Cột `Khối lượng bán`).
+  - Cơ chế **Non-blocking / Asynchronous**: Luồng đối soát M-System, CQG, ACM hiển thị số liệu tức thì; CoreCCP bổ sung cập nhật khi có file hoặc hiển thị trạng thái đang tải / rỗng một cách nhẹ nhàng.
+- **Tự động bóc tách & tải file CoreCCP trong luồng CheckKLGD**:
+  - Tạo bộ parser thuần [CcpExcelParser](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts) chuyên dụng cho các file CoreCCP (`DSGD`, `TTM`, `TTTT`).
+  - Bổ sung cấu hình báo cáo `TTM` (`/ORDERS/OPEN_POSITION`) vào [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts).
+  - Tích hợp tải file CoreCCP tự động trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts) khi bot chạy tác vụ `CHECK_KLGD`.
+  - Bổ sung trường `totalCCP_DSGD`, `totalCCP_TTM`, `totalCCP_TTTT`, `differCCP_...` trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts).
+  - Tuân thủ nghiêm ngặt **AGENTS.md Rule 5**: 100% icon SVG từ `lucide-react` (`ShieldCheck`, `Loader2`), không dùng Unicode emoji thô.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- [backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts): Module bóc tách Excel CoreCCP (parseDSGD, parseTTM, parseTTTT) dựa trên Header chuẩn của CoreCCP VNCLEAR.
+- [backend/src/modules/reconciliation/parsers/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/index.ts): Export `CcpExcelParser`.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts): Bổ sung cấu hình report `TTM` với direct URL `/ORDERS/OPEN_POSITION` và bộ từ khóa tìm kiếm menu.
+- [backend/src/scripts/test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_benchmark.js): Bổ sung `TTM` vào danh sách báo cáo benchmark.
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts): Thêm kết quả đối soát CoreCCP vào `CheckKLGDResult`, nạp file động từ thư mục CoreCCP ngày ca trực.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Tích hợp `CcpCeDownloaderService` tự động tải các file `DSGD`, `TTM`, `TTTT` trong Bước 4/4 của Job CheckKLGD.
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx): Thêm cột CoreCCP trong Table 1 (Header + 3 dòng KLGD, TTM, TTTT), hiển thị số lot hoặc spin loading.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
+- ✅ Frontend: `cmd.exe /c "npm run build"` (`next build` với Turbopack & TypeScript check) biên dịch thành công 100%, exit code 0.
+- ✅ Unit Test Parser: Đã xác thực thực nghiệm trên file thực tế `DSGD_14.6.xlsx` (2 lot), `TTM_14.06.xlsx` (1 lot), `TTTT_14.06.xlsx` (1 lot).
+
 ## [2026-09-14T15:20] FEAT & PERF: Tối Ưu Tải File CoreCCP Khi Bảng 0 Dòng - Hỗ Trợ Cả 2 Cơ Chế: Tải File Khung Mẫu (3.8KB) & Bắt Nhanh Toast "Không Có Dữ Liệu Để Xuất" (< 1s)
 
 ### 1. Mục tiêu thay đổi

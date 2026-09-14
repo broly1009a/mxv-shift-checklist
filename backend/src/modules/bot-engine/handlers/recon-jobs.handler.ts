@@ -7,7 +7,9 @@ import { ReconciliationService } from '../../reconciliation/reconciliation.servi
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
+import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
 import { parseJobPayload } from '../helpers/bot-path.helper';
+import { decrypt } from '../utils/crypto';
 
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
@@ -21,6 +23,8 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     private readonly settingsService: SystemSettingsService,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly cqgSyncService: CqgSyncService,
+    @Inject(forwardRef(() => CcpCeDownloaderService))
+    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
   ) { }
 
   onModuleInit() {
@@ -151,18 +155,23 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     const acmBackupBase = (
       await this.settingsService.getSetting('bot_backup_path_acm', '')
     ) || path.join(path.dirname(msBackupBase), 'ACM');
+    const defaultCcpPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures');
+    const ccpBackupBase = (
+      await this.settingsService.getSetting('bot_backup_path_ccp', '')
+    ) || defaultCcpPath;
 
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     const msDailyPath = path.join(msBackupBase, subFolder);
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);
     const acmDailyPath = path.join(acmBackupBase, subFolder);
+    const ccpDailyPath = path.join(ccpBackupBase, subFolder);
 
-    for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath]) {
+    for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath, ccpDailyPath]) {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     }
 
-    log('Bắt đầu tải dữ liệu tươi từ MS, CQG và ACM song song theo tùy chọn...');
+    log('Bắt đầu tải dữ liệu tươi từ MS, CQG, ACM và CoreCCP song song theo tùy chọn...');
     await job.save();
 
     const errors: string[] = [];
@@ -319,22 +328,77 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       }
     };
 
-    log('1/3 - Đang tải dữ liệu từ M-System (DSGD, TTM)...');
+    const downloadCcp = async () => {
+      log('CCP → Đăng nhập CoreCCP để tải báo cáo DSGD, TTM, TTTT...');
+      try {
+        const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+        if (!credRaw) {
+          log('CCP ⏭️ Chưa cấu hình thông tin đăng nhập CoreCCP trong Admin. Bỏ qua tải CoreCCP.');
+          return;
+        }
+        let creds: any = {};
+        try {
+          creds = JSON.parse(decrypt(credRaw));
+        } catch {
+          log('CCP ⚠️ Không thể giải mã cấu hình CoreCCP.');
+          return;
+        }
+        if (!creds.url || !creds.username || !creds.password) {
+          log('CCP ⏭️ Cấu hình CoreCCP thiếu url/username/password. Bỏ qua tải CoreCCP.');
+          return;
+        }
+        const reportsToDownload: CcpReportConfig[] = DEFAULT_CCP_REPORTS.filter((r) =>
+          ['DSGD', 'TTM', 'TTTT'].includes(r.code),
+        );
+        const dateFormatted = `${day}/${month}/${year}`;
+
+        log(`CCP → Bắt đầu tải ${reportsToDownload.map((r) => r.code).join(', ')} ngày ${dateFormatted}...`);
+        await this.ccpCeDownloaderService.run(
+          {
+            systemUrl: creds.url,
+            username: creds.username,
+            password: creds.password,
+            startDate: dateFormatted,
+            endDate: dateFormatted,
+            outputDir: ccpDailyPath,
+            reports: reportsToDownload,
+            options: {
+              headless: true,
+              overwriteExisting: true,
+            },
+          },
+          (msg: string) => log(`CCP: ${msg}`),
+        );
+        log('CCP ✅ Tải báo cáo CoreCCP hoàn tất.');
+      } catch (err: any) {
+        errors.push(`CCP: ${err.message}`);
+        log(`CCP ⚠️ Lỗi tải file CoreCCP: ${err.message}. Tiếp tục quy trình với file sẵn có.`);
+      }
+    };
+
+    log('1/4 - Đang tải dữ liệu từ M-System (DSGD, TTM)...');
     await downloadMs();
     await job.save();
 
     // Khoảng nghỉ 2.5s để hệ điều hành giải phóng hoàn toàn tiến trình Chrome và GPU trước khi mở CQG
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    log('2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...');
+    log('2/4 - Đang tải dữ liệu từ CQG (FR1, FR2)...');
     await downloadCqg();
     await job.save();
 
     // Khoảng nghỉ 2s trước khi mở ACM
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    log('3/3 - Đang tải dữ liệu từ ACM (Fill, Order)...');
+    log('3/4 - Đang tải dữ liệu từ ACM (Fill, Order)...');
     await downloadAcm();
+    await job.save();
+
+    // Khoảng nghỉ 2s trước khi mở CoreCCP
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    log('4/4 - Đang tải dữ liệu từ CoreCCP (DSGD, TTM, TTTT)...');
+    await downloadCcp();
     await job.save();
 
     if (errors.length > 0) {

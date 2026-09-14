@@ -701,6 +701,12 @@ export default function TradingManagerPage() {
   const acmTTTT = totals.totalTTTT_ACM || totals.totalACM_TTTT || 0;
   const nanoTTTT = 0;
 
+  // CoreCCP extractions
+  const ccpDSGD = totals.totalCCP_DSGD;
+  const ccpTTM = totals.totalCCP_TTM;
+  const ccpTTTT = totals.totalCCP_TTTT;
+  const ccpStatus = totals.ccpStatus || (ccpDSGD !== undefined ? 'COMPLETED' : 'IDLE');
+
   // Format last checked time (e.g., "08/09 14:00")
   const lastCheckedFormatted = useMemo(() => {
     const d = summaryData?.shiftInfo?.lastCheckedAt || summaryData?.klgd?.executedAt;
@@ -737,6 +743,9 @@ export default function TradingManagerPage() {
     totalDifferLots > 0 ||
     (totals.differTTM || 0) > 0 ||
     (totals.differTTTT || 0) > 0 ||
+    (totals.differCCP_KLGD !== undefined && totals.differCCP_KLGD > 0) ||
+    (totals.differCCP_TTM !== undefined && totals.differCCP_TTM > 0) ||
+    (totals.differCCP_TTTT !== undefined && totals.differCCP_TTTT > 0) ||
     (mismatchedTrades?.length || 0) > 0 ||
     (mismatchedTTM?.length || 0) > 0;
 
@@ -1340,26 +1349,31 @@ export default function TradingManagerPage() {
                         )}
                       </button>
                     </th>
-                    <th style={{ width: '180px', padding: '14px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <th style={{ width: '160px', padding: '14px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', textAlign: 'center' }}>
                       Dữ liệu
                     </th>
-                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0284c7', fontWeight: 800 }}>
                         <Server size={15} /> M-System
                       </span>
                     </th>
-                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 800 }}>
                         <Activity size={15} /> CQG
                       </span>
                     </th>
-                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 800 }}>
                         <FileSpreadsheet size={15} /> ACM (Straits)
                       </span>
                     </th>
-                    <th style={{ width: '23%', padding: '14px 20px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 800 }}>
+                    <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 800 }}>
                       Nano
+                    </th>
+                    <th style={{ width: '18%', padding: '14px 20px', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#8b5cf6', fontWeight: 800 }}>
+                        <ShieldCheck size={15} /> CoreCCP
+                      </span>
                     </th>
                   </tr>
                 </thead>
@@ -1394,8 +1408,19 @@ export default function TradingManagerPage() {
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#f59e0b' }}>
                       {fmt(acmStraits)}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
                       {fmt(nanoLots)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                      {ccpStatus === 'LOADING' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
+                          <Loader2 size={14} className="animate-spin" /> Đang tải...
+                        </span>
+                      ) : ccpDSGD !== undefined ? (
+                        fmt(ccpDSGD)
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>-</span>
+                      )}
                     </td>
                   </tr>
 
@@ -1429,8 +1454,19 @@ export default function TradingManagerPage() {
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                       {fmt(acmTTM)}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
                       {fmt(nanoTTM)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                      {ccpStatus === 'LOADING' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
+                          <Loader2 size={14} className="animate-spin" /> Đang tải...
+                        </span>
+                      ) : ccpTTM !== undefined ? (
+                        fmt(ccpTTM)
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>-</span>
+                      )}
                     </td>
                   </tr>
 
@@ -1464,8 +1500,19 @@ export default function TradingManagerPage() {
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                       {fmt(acmTTTT)}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
                       {fmt(nanoTTTT)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                      {ccpStatus === 'LOADING' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
+                          <Loader2 size={14} className="animate-spin" /> Đang tải...
+                        </span>
+                      ) : ccpTTTT !== undefined ? (
+                        fmt(ccpTTTT)
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>-</span>
+                      )}
                     </td>
                   </tr>
                 </tbody>

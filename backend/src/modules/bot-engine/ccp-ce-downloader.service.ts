@@ -122,6 +122,14 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     enabled: true,
   },
   {
+    code: 'TTM',
+    name: 'Trạng thái mở',
+    parentMenu: 'Lệnh và vị thế',
+    childMenu: 'Trạng thái mở',
+    cachedUrl: '/ORDERS/OPEN_POSITION',
+    enabled: true,
+  },
+  {
     code: 'LSGTT',
     name: 'Lịch sử giá thanh toán',
     parentMenu: 'Quản lý sản phẩm',
@@ -530,6 +538,8 @@ export class CcpCeDownloaderService {
         childCandidates.push('Lịch sử lệnh', 'Danh sách lệnh');
       } else if (report.childMenu === 'Lịch sử giao dịch' || report.childMenu === 'Danh sách giao dịch') {
         childCandidates.push('Lịch sử giao dịch', 'Danh sách giao dịch');
+      } else if (report.childMenu === 'Trạng thái mở' || report.childMenu === 'Vị thế mở') {
+        childCandidates.push('Trạng thái mở', 'Vị thế mở', 'Danh sách trạng thái mở');
       }
 
       let childElem: ReturnType<Page['locator']> | null = null;

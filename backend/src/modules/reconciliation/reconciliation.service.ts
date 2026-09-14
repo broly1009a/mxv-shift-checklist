@@ -18,6 +18,7 @@ import { BotJobQueueService } from '../bot-engine/bot-job-queue.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { BOT_TASK_REGISTRY, findBotTasksInShift } from '../bot-engine/constants/bot-task-registry';
 import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
+import { CcpExcelParser } from './parsers';
 
 export interface EODMismatchedItem {
   system?: 'MS' | 'CCP';
@@ -35,12 +36,28 @@ export interface CheckKLGDResult {
     totalNano: number;
     differ: number;
     differACM: number;
+    totalTTM?: number;
+    totalTTM_MS?: number;
+    totalOP?: number;
+    totalTTM_CQG?: number;
+    differTTM?: number;
     totalTTTT?: number;
+    totalTTTT_MS?: number;
     totalPS?: number;
+    totalPS_CQG?: number;
     differTTTT?: number;
+    // CoreCCP fields
+    totalCCP_DSGD?: number;
+    totalCCP_TTM?: number;
+    totalCCP_TTTT?: number;
+    differCCP_KLGD?: number;
+    differCCP_TTM?: number;
+    differCCP_TTTT?: number;
+    ccpStatus?: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+    ccpErrorMessage?: string;
   };
   mismatchedTrades: Array<{
-    source: 'MSystem' | 'CQG' | 'ACM' | 'Nano';
+    source: 'MSystem' | 'CQG' | 'ACM' | 'Nano' | 'CoreCCP';
     maLenh?: string;
     maTKGD: string;
     maHD: string;
@@ -1005,6 +1022,10 @@ export class ReconciliationService {
       ps?: Buffer;
       ps1?: Buffer;
       ps2?: Buffer;
+      dsgdCcp?: Buffer;
+      ttmCcp?: Buffer;
+      ttttCcp?: Buffer;
+      ccpStatus?: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
     },
     tradingDate: Date,
     holidays: string[] = [],
@@ -1400,6 +1421,44 @@ export class ReconciliationService {
       (checkTtmFlag && finalMismatchedTTM.length > 0) ||
       (checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) && ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
 
+    // 4. Bóc tách báo cáo CoreCCP (nếu có)
+    let totalCCP_DSGD: number | undefined;
+    let totalCCP_TTM: number | undefined;
+    let totalCCP_TTTT: number | undefined;
+    let ccpStatus: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED' = files.ccpStatus || 'IDLE';
+
+    if (files.dsgdCcp) {
+      try {
+        const parsed = CcpExcelParser.parseDSGD(files.dsgdCcp);
+        totalCCP_DSGD = parsed.totalKhop;
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+      }
+    }
+    if (files.ttmCcp) {
+      try {
+        const parsed = CcpExcelParser.parseTTM(files.ttmCcp);
+        totalCCP_TTM = parsed.totalTTM;
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse TTM CoreCCP: ${err.message}`);
+      }
+    }
+    if (files.ttttCcp) {
+      try {
+        const parsed = CcpExcelParser.parseTTTT(files.ttttCcp);
+        totalCCP_TTTT = parsed.totalTTTT;
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse TTTT CoreCCP: ${err.message}`);
+      }
+    }
+
+    const differCCP_KLGD = totalCCP_DSGD !== undefined ? Math.abs(totalDSGD - totalCCP_DSGD) : undefined;
+    const differCCP_TTM = totalCCP_TTM !== undefined && files.ttm ? Math.abs(totalTTM - totalCCP_TTM) : undefined;
+    const differCCP_TTTT = totalCCP_TTTT !== undefined && files.tttt ? Math.abs(totalTTTT - totalCCP_TTTT) : undefined;
+
     return {
       totals: {
         totalDSGD,
@@ -1422,6 +1481,13 @@ export class ReconciliationService {
         totalACM_TTTT: files.tttt ? totalACM_TTTT : 0,
         totalTTTT_ACM: files.tttt ? totalACM_TTTT : 0,
         differTTTT: finalDifferTTTT,
+        totalCCP_DSGD,
+        totalCCP_TTM,
+        totalCCP_TTTT,
+        differCCP_KLGD,
+        differCCP_TTM,
+        differCCP_TTTT,
+        ccpStatus: files.dsgdCcp || files.ttmCcp || files.ttttCcp ? 'COMPLETED' : ccpStatus,
       },
       totalTTM: files.ttm ? totalTTM : 0,
       totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
@@ -4050,6 +4116,22 @@ export class ReconciliationService {
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);
     const acmDailyPath = path.join(acmBackupBase, subFolder);
 
+    const rawCcpBase = await this.settingsService.getSetting(
+      'bot_backup_path_ccp',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+    );
+    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
+    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
+    if (!fs.existsSync(ccpDailyPath)) {
+      const localBackup = path.join(process.cwd(), 'backupCCP');
+      const localDaily = path.join(localBackup, subFolder);
+      if (fs.existsSync(localDaily)) {
+        ccpDailyPath = localDaily;
+      } else if (fs.existsSync(localBackup)) {
+        ccpDailyPath = localBackup;
+      }
+    }
+
     const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
     const ttmPath = path.join(msDailyPath, 'TTM.xlsx');
@@ -4063,6 +4145,10 @@ export class ReconciliationService {
     const cqgFrPath = this.resolveCqgFile(cqgDailyPath, 'FR');
     const cqgPsPath = this.resolveCqgFile(cqgDailyPath, 'PS');
     const cqgOpPath = this.resolveCqgFile(cqgDailyPath, 'OP');
+
+    const dsgdCcpPath = this.findLatestFile(ccpDailyPath, /dsgd/i);
+    const ttmCcpPath = this.findLatestFile(ccpDailyPath, /ttm/i);
+    const ttttCcpPath = this.findLatestFile(ccpDailyPath, /tttt/i);
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -4124,6 +4210,10 @@ export class ReconciliationService {
       files.ps = fs.readFileSync(cqgPsPath);
     if (cqgOpPath && fs.existsSync(cqgOpPath))
       files.op = fs.readFileSync(cqgOpPath);
+
+    if (dsgdCcpPath && fs.existsSync(dsgdCcpPath)) files.dsgdCcp = fs.readFileSync(dsgdCcpPath);
+    if (ttmCcpPath && fs.existsSync(ttmCcpPath)) files.ttmCcp = fs.readFileSync(ttmCcpPath);
+    if (ttttCcpPath && fs.existsSync(ttttCcpPath)) files.ttttCcp = fs.readFileSync(ttttCcpPath);
 
     return this.checkKLGD(files, tradingDate, [], sessionStartStr, options);
   }

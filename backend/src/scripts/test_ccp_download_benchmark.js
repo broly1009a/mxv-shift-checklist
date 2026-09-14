@@ -56,6 +56,14 @@ const ALL_CCP_REPORTS = [
     fileNamePrefix: 'TTTT',
   },
   {
+    code: 'TTM',
+    name: 'Trạng thái mở',
+    parentMenu: 'Lệnh và vị thế',
+    childMenu: 'Trạng thái mở',
+    cachedUrl: '/ORDERS/OPEN_POSITION',
+    fileNamePrefix: 'TTM',
+  },
+  {
     code: 'NR',
     name: 'Lịch sử nộp rút tiền',
     parentMenu: 'Quản lý tiền',
@@ -301,6 +309,8 @@ async function navigateToReport(page, reportCfg, systemUrl) {
       childCandidates.push('Lịch sử lệnh', 'Danh sách lệnh');
     } else if (childMenu === 'Lịch sử giao dịch' || childMenu === 'Danh sách giao dịch') {
       childCandidates.push('Lịch sử giao dịch', 'Danh sách giao dịch');
+    } else if (childMenu === 'Trạng thái mở' || childMenu === 'Vị thế mở') {
+      childCandidates.push('Trạng thái mở', 'Vị thế mở', 'Danh sách trạng thái mở');
     }
 
     let childElem = null;
