@@ -3,6 +3,8 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,10 +24,18 @@ import {
   getAcmBackupBase,
 } from './helpers/bot-path.helper';
 
+interface IActiveJobContext {
+  jobId: string;
+  abortController: AbortController;
+  cleanups: (() => Promise<void> | void)[];
+  startedAt: Date;
+}
+
 @Injectable()
 export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
   private isProcessing = false;
+  private activeJobs = new Map<string, IActiveJobContext>();
   private queueInterval: NodeJS.Timeout;
   private cleanupInterval: NodeJS.Timeout;
   private healthInterval: NodeJS.Timeout;
@@ -337,9 +347,21 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       `Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts}) via Registry`,
     );
 
+    const abortController = new AbortController();
+    const cleanups: (() => Promise<void> | void)[] = [];
+
+    this.activeJobs.set(job._id.toString(), {
+      jobId: job._id.toString(),
+      abortController,
+      cleanups,
+      startedAt: new Date(),
+    });
+
     const context: IJobExecutionContext = {
       syncJobToChecklist: this.syncJobToChecklist.bind(this),
       logger: this.logger,
+      abortSignal: abortController.signal,
+      registerCleanup: (cleanupFn) => cleanups.push(cleanupFn),
     };
 
     try {
@@ -350,11 +372,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       await handler.execute(job, context);
 
+      const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
+      if (freshJob?.status === 'CANCELLED') {
+        this.logger.log(`[QUEUE] Job ${job.jobType} (${job._id}) đã bị hủy giữa chừng, bỏ qua cập nhật COMPLETED.`);
+        return;
+      }
+
       await this.syncJobToChecklist(job, 'COMPLETED');
       this.logger.log(
         `Job ${job.jobType} (ID: ${job._id}) completed successfully.`,
       );
     } catch (err: any) {
+      const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
+      if (freshJob?.status === 'CANCELLED') {
+        this.logger.log(`[QUEUE] Job ${job.jobType} (${job._id}) đã bị hủy trong quá trình chạy, bỏ qua retry/failure.`);
+        return;
+      }
+
       const errorMsg = err.message || 'Lỗi không xác định';
       this.logger.error(
         `Job ${job.jobType} (ID: ${job._id}) failed: ${errorMsg}`,
@@ -380,8 +414,91 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         });
       }
     } finally {
+      this.activeJobs.delete(job._id.toString());
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Hủy hoặc Dừng khẩn cấp một Job bất kỳ (PENDING, AWAITING_CAPTCHA, hoặc PROCESSING)
+   */
+  public async cancelJob(jobId: string, reason?: string): Promise<any> {
+    const job = await this.botJobModel.findById(jobId).exec();
+    if (!job) {
+      throw new NotFoundException(`Không tìm thấy Job với ID: ${jobId}`);
+    }
+
+    if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) {
+      throw new BadRequestException(`Không thể hủy tác vụ đã ở trạng thái kết thúc (${job.status}).`);
+    }
+
+    const cancelReason = reason || 'Đã hủy thủ công bởi Quản trị viên';
+    const timestamp = new Date().toISOString();
+    const cancelLog = `[${timestamp}] Tác vụ đã bị HỦY / DỪNG THỦ CÔNG bởi Admin. Lý do: ${cancelReason}`;
+
+    // 1. Trường hợp Job PENDING: Hủy ngay trong DB
+    if (job.status === 'PENDING') {
+      job.status = 'CANCELLED';
+      job.completedAt = new Date();
+      job.error = cancelReason;
+      job.logs.push(cancelLog);
+      await this.botJobModel.updateOne(
+        { _id: job._id },
+        {
+          $set: {
+            status: 'CANCELLED',
+            completedAt: job.completedAt,
+            error: job.error,
+            logs: job.logs,
+          },
+        },
+      );
+      await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
+      this.logger.log(`[JOB_CANCEL] Đã hủy job PENDING: ${jobId}`);
+      return { success: true, message: 'Đã hủy tác vụ đang chờ trong hàng đợi.', job };
+    }
+
+    // 2. Trường hợp Job PROCESSING hoặc AWAITING_CAPTCHA: Kích hoạt abort & cleanup
+    const activeCtx = this.activeJobs.get(jobId);
+    if (activeCtx) {
+      this.logger.log(`[JOB_CANCEL] Đang kích hoạt Abort & Cleanup cho job đang chạy: ${jobId}...`);
+      try {
+        activeCtx.abortController.abort();
+      } catch (abortErr: any) {
+        this.logger.warn(`[JOB_CANCEL] Lỗi khi gọi abort(): ${abortErr.message}`);
+      }
+
+      for (const cleanup of activeCtx.cleanups) {
+        try {
+          await cleanup();
+        } catch (cleanupErr: any) {
+          this.logger.warn(`[JOB_CANCEL] Lỗi trong cleanup handler: ${cleanupErr.message}`);
+        }
+      }
+      this.activeJobs.delete(jobId);
+    }
+
+    job.status = 'CANCELLED';
+    job.completedAt = new Date();
+    job.error = cancelReason;
+    job.logs.push(cancelLog);
+
+    await this.botJobModel.updateOne(
+      { _id: job._id },
+      {
+        $set: {
+          status: 'CANCELLED',
+          completedAt: job.completedAt,
+          error: job.error,
+          logs: job.logs,
+        },
+      },
+    );
+
+    await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
+    this.isProcessing = false;
+    this.logger.log(`[JOB_CANCEL] Đã dừng khẩn cấp job ${jobId} thành công.`);
+    return { success: true, message: 'Đã dừng khẩn cấp tác vụ thành công.', job };
   }
 
   private async logFailureToSystemLog(job: any, errorMsg: string) {
@@ -422,7 +539,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    */
   public async syncJobToChecklist(
     job: any,
-    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA',
+    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED',
     error?: string,
   ) {
     const payload = parseJobPayload(job);
@@ -434,6 +551,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.completedAt = now;
     } else if (status === 'FAILED') {
       job.failedAt = now;
+      job.error = error;
+    } else if (status === 'CANCELLED') {
+      job.completedAt = now;
       job.error = error;
     }
 

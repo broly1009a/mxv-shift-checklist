@@ -651,6 +651,14 @@ export class BotEngineController {
     return job;
   }
 
+  @Post('jobs/:id/cancel')
+  async cancelJob(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.jobQueueService.cancelJob(id, body?.reason);
+  }
+
   /**
    * Manually triggers a task's RPA download.
    */

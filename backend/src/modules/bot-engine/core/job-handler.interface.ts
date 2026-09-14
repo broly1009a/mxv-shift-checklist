@@ -8,6 +8,8 @@ export interface IJobExecutionContext {
     error?: string,
   ) => Promise<void>;
   logger: Logger;
+  abortSignal?: AbortSignal;
+  registerCleanup?: (cleanupFn: () => Promise<void> | void) => void;
 }
 
 export interface IBotJobHandler {

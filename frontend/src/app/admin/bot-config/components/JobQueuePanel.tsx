@@ -9,12 +9,13 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  Square,
 } from 'lucide-react';
 
 interface BotJob {
   _id: string;
   jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED';
   attempts: number;
   maxAttempts: number;
   logs: string[];
@@ -56,6 +57,39 @@ export default function JobQueuePanel({
 
   const [selectedJobDetail, setSelectedJobDetail] = React.useState<BotJob | null>(null);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
+  const [cancellingJob, setCancellingJob] = React.useState(false);
+  const [showCancelModal, setShowCancelModal] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [jobToCancel, setJobToCancel] = React.useState<BotJob | null>(null);
+
+  const handleCancelJob = async () => {
+    if (!jobToCancel) return;
+    try {
+      setCancellingJob(true);
+      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/jobs/${jobToCancel._id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: cancelReason || 'Hủy thủ công bởi Admin qua giao diện' }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Không thể hủy tác vụ');
+      }
+
+      setShowCancelModal(false);
+      setJobToCancel(null);
+      setCancelReason('');
+      await fetchJobs();
+    } catch (err: any) {
+      alert(`Lỗi khi dừng/hủy tác vụ: ${err.message}`);
+    } finally {
+      setCancellingJob(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!selectedJobId) {
@@ -112,6 +146,12 @@ export default function JobQueuePanel({
             <XCircle size={10} /> Lỗi
           </span>
         );
+      case 'CANCELLED':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <XCircle size={10} /> Đã hủy
+          </span>
+        );
       case 'PROCESSING':
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }} className="animate-pulse">
@@ -165,11 +205,41 @@ export default function JobQueuePanel({
                   Console Output - Job {selectedJob._id.substring(0, 8)}
                 </h4>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {new Date(selectedJob.createdAt).toLocaleString('vi-VN')}
                 </span>
                 {getStatusBadge(selectedJob.status)}
+
+                {/* Nút Dừng Tác Vụ */}
+                {['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(selectedJob.status) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJobToCancel(selectedJob);
+                      setShowCancelModal(true);
+                    }}
+                    disabled={cancellingJob}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                      color: '#ef4444',
+                      border: '1px solid #ef4444',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    title="Dừng khẩn cấp hoặc hủy tác vụ này"
+                  >
+                    <Square size={10} fill="#ef4444" />
+                    {selectedJob.status === 'PENDING' ? 'Hủy Khỏi Hàng Đợi' : 'Dừng Tác Vụ'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -292,7 +362,31 @@ export default function JobQueuePanel({
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {getJobLabel(job.jobType)}
                     </span>
-                    {getStatusBadge(job.status)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {getStatusBadge(job.status)}
+                      {['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(job.status) && (
+                        <button
+                          type="button"
+                          title="Hủy/Dừng tác vụ này"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setJobToCancel(job);
+                            setShowCancelModal(true);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Square size={11} fill="#ef4444" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                     <span>Lần thử: {job.attempts}/{job.maxAttempts}</span>
@@ -304,6 +398,123 @@ export default function JobQueuePanel({
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showCancelModal && jobToCancel && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              backgroundColor: 'var(--bg-card, #1e293b)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ef4444',
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {jobToCancel.status === 'PENDING' ? 'Xác nhận hủy tác vụ' : 'Xác nhận dừng khẩn cấp'}
+                </h4>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Mã Job: {jobToCancel._id.substring(0, 8)} ({getJobLabel(jobToCancel.jobType)})
+                </span>
+              </div>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              {jobToCancel.status === 'PROCESSING'
+                ? 'Tác vụ đang chạy thực tế trên hệ thống. Nếu dừng ngay bây giờ, tiến trình cào dữ liệu sẽ bị ngắt, trình duyệt Playwright sẽ đóng lại và giải phóng phiên an toàn.'
+                : 'Tác vụ đang nằm trong hàng đợi. Thao tác này sẽ gạch bỏ tác vụ khỏi hàng đợi thực thi ngay lập tức.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                Lý do dừng / hủy:
+              </label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Kẹt phiên, user cần thao tác tay, trigger nhầm..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="form-input"
+                style={{ fontSize: '0.75rem', padding: '8px 12px' }}
+                disabled={cancellingJob}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setJobToCancel(null);
+                  setCancelReason('');
+                }}
+                disabled={cancellingJob}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.75rem', padding: '8px 16px' }}
+              >
+                Quay lại
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelJob}
+                disabled={cancellingJob}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {cancellingJob ? <RefreshCw size={13} className="animate-spin" /> : <Square size={13} fill="#ffffff" />}
+                {cancellingJob ? 'Đang xử lý...' : 'Xác nhận Dừng'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

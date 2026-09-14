@@ -32,7 +32,7 @@ import MarginCheckerModal from '@/app/checklist/components/MarginCheckerModal';
 interface BotJob {
   _id: string;
   jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED';
   attempts: number;
   maxAttempts: number;
   logs: string[];
@@ -211,7 +211,7 @@ export default function AdminBotConfigPage() {
     const terminatedJobs = jobs.filter(
       (job) =>
         trackedJobs.includes(job._id) &&
-        (job.status === 'FAILED' || job.status === ('CANCELLED' as any))
+        (job.status === 'FAILED' || job.status === 'CANCELLED')
     );
     if (terminatedJobs.length > 0) {
       setTrackedJobs((prev) => prev.filter((id) => !terminatedJobs.some((tj) => tj._id === id)));
