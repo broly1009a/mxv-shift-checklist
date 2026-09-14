@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T16:40] UI: Chuẩn Hóa Nhãn Cột Bảng 1 Thành "CCP" Thay Vì "CoreCCP"
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"bạn để chữ CCP thay vì CoreCCP"*:
+- Đổi nhãn tiêu đề cột trên Table 1 (`frontend/src/app/trading-manager/page.tsx`) từ `CoreCCP` sang `CCP`.
+- Giữ nguyên icon `<ShieldCheck size={15} />` và màu nhận diện tím `#8b5cf6`.
+- Đồng bộ màu chữ dòng 2 (TTM) và dòng 3 (TTTT) sang `var(--text-primary)` (font monospace đậm) khớp 100% với phong cách hiển thị của các cột M-System, CQG, ACM.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx): Cập nhật thẻ `<th>` đổi chữ `CoreCCP` thành `CCP`.
+
+### 3. Xác nhận Build
+- ✅ Frontend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+
 ## [2026-09-14T15:35] FEAT: Tích Hợp Cột CoreCCP Vào Bảng Ma Trận Đối Chiếu KLGD (Table 1) & Tự Động Bóc Tách File CoreCCP Trong CheckKLGD
 
 ### 1. Mục tiêu thay đổi

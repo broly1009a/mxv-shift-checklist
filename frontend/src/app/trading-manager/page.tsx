@@ -1372,7 +1372,7 @@ export default function TradingManagerPage() {
                     </th>
                     <th style={{ width: '18%', padding: '14px 20px', textAlign: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#8b5cf6', fontWeight: 800 }}>
-                        <ShieldCheck size={15} /> CoreCCP
+                        <ShieldCheck size={15} /> CCP
                       </span>
                     </th>
                   </tr>
@@ -1457,7 +1457,7 @@ export default function TradingManagerPage() {
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
                       {fmt(nanoTTM)}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                       {ccpStatus === 'LOADING' ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
                           <Loader2 size={14} className="animate-spin" /> Đang tải...
@@ -1503,7 +1503,7 @@ export default function TradingManagerPage() {
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
                       {fmt(nanoTTTT)}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                       {ccpStatus === 'LOADING' ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
                           <Loader2 size={14} className="animate-spin" /> Đang tải...
