@@ -42,6 +42,10 @@ const syncDirs = [
     remoteDir: '/opt/mxv-checklist/backend/src/modules/lot-statistics',
   },
   {
+    localDir: path.join(repoRoot, 'backend/src/modules/ccp-statistics'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/ccp-statistics',
+  },
+  {
     localDir: path.join(repoRoot, 'backend/src/schemas'),
     remoteDir: '/opt/mxv-checklist/backend/src/schemas',
   },

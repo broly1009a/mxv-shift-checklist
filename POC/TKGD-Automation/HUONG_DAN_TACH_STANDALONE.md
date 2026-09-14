@@ -83,9 +83,9 @@ MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/mxv_clearing_tkgd?retryW
 JWT_SECRET=mxv_clearing_tkgd_secret_key_2026
 
 # 4. Cấu hình Microsoft 365 OAuth (Hộp thư TTBT)
-MICROSOFT_CLIENT_ID=c35a8ea2-a975-4b22-bd22-f490f80931ce
-MICROSOFT_TENANT_ID=b83638b2-3312-4ed3-84dd-fcc24c5d76a2
-MICROSOFT_CLIENT_SECRET=vgq8Q~KG65lizTdASJOphg~06XRlVDZadMf_daD8
+MICROSOFT_CLIENT_ID=your_azure_client_id_here
+MICROSOFT_TENANT_ID=your_azure_tenant_id_here
+MICROSOFT_CLIENT_SECRET=your_azure_client_secret_here
 MICROSOFT_WATCHER_EMAIL=clearing.acc@mxv.vn
 
 # 5. Đường dẫn thư mục mạng lưu file Excel
