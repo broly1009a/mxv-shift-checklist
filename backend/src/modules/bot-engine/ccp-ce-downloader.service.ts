@@ -713,7 +713,7 @@ export class CcpCeDownloaderService {
   ): Promise<void> {
     try {
       const pickerInputs = page.locator(
-        "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input[not(@aria-hidden='true') and not(@type='hidden')] | //input[contains(@class, 'MuiPickersInputBase-input') and not(@aria-hidden='true') and not(@type='hidden')]",
+        "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input | //input[contains(@class, 'MuiPickersInputBase-input')]",
       );
       const count = await pickerInputs.count();
 
@@ -721,10 +721,10 @@ export class CcpCeDownloaderService {
       let toInp: ReturnType<Page['locator']> | null = null;
 
       const fromByLabel = page.locator(
-        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input[not(@aria-hidden='true') and not(@type='hidden')] | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input[not(@aria-hidden='true') and not(@type='hidden')]",
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input",
       ).first();
       const toByLabel = page.locator(
-        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input[not(@aria-hidden='true') and not(@type='hidden')] | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input[not(@aria-hidden='true') and not(@type='hidden')]",
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input",
       ).first();
 
       if (await fromByLabel.isVisible({ timeout: 800 }).catch(() => false)) fromInp = fromByLabel;
@@ -745,7 +745,7 @@ export class CcpCeDownloaderService {
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Backspace');
         await page.waitForTimeout(150);
-        await fromInp.pressSequentially(startDate, { delay: 30 });
+        await page.keyboard.type(startDate, { delay: 40 });
         await page.waitForTimeout(200);
         await page.keyboard.press('Tab');
 
@@ -754,7 +754,7 @@ export class CcpCeDownloaderService {
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Backspace');
         await page.waitForTimeout(150);
-        await toInp.pressSequentially(endDate, { delay: 30 });
+        await page.keyboard.type(endDate, { delay: 40 });
         await page.waitForTimeout(200);
         await page.keyboard.press('Tab');
       }

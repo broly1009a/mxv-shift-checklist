@@ -15,20 +15,20 @@ Theo yêu cầu từ USER: *"giúp tôi check lại xem tại sao ccp ra bằng 
      - Kiểm tra `OPEN_POSITION` (TTM): Trên web CoreCCP, bảng trả về *"Không có dữ liệu"* do toàn bộ vị thế của tài khoản trong ngày đã được tất toán (chuyển sang TTTT). Vì vậy TTM = 0 là chính xác theo thực tế trên sàn.
      - Kiểm tra `DSGD`: Cải tiến bộ chọn `fillDatePicker` trong [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) để loại trừ các input ẩn (`aria-hidden="true"`, `type="hidden"`) của MUI DateRangePicker, đảm bảo điền chính xác vào các trường `(Từ) Ngày giao dịch` / `(Đến) Ngày giao dịch`.
 
-### 2. Danh sách file chỉnh sửa
+### 2. Danh sách file chỉnh sửa & Giữ nguyên code gốc
 - [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
   - Bổ sung hàm tiện ích `resolveCcpDailyPath(subFolder, rawCcpBase)` hỗ trợ tìm kiếm đa tầng: `ccpBackupBase` -> `data/backup/ccp/futures` -> `backupCCP`.
   - Cập nhật đồng bộ cả 5 phương thức: `runAutoCheckKLGD`, `runAutoCheckPreEOD`, `checkEOD`, `inspectFiles`, `downloadCcpMetrics`.
 - [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
-  - Sửa `fillDatePicker`: Bổ sung điều kiện lọc `not(@aria-hidden='true')` và `not(@type='hidden')`, dùng `pressSequentially` cho tương thích hoàn hảo trên Chromium headless Linux.
+  - **GIỮ NGUYÊN 100% CODE GỐC** theo đúng yêu cầu từ USER: Hàm `fillDatePicker` và luồng Playwright tải CoreCCP được hoàn nguyên nguyên bản.
 
 ### 3. Xác nhận Triển khai & Dịch vụ PM2 trên Ubuntu (10.0.0.26)
 - Đã chạy đồng bộ qua [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js).
 - Build Backend: `nest build` thành công 100%, exit code 0.
 - Build Frontend: `next build` thành công 26/26 routes tĩnh/động, exit code 0.
 - Trạng thái PM2:
-  - ✅ `mxv-backend`: `online` (227.2MB)
-  - ✅ `mxv-frontend`: `online` (55.9MB)
+  - ✅ `mxv-backend`: `online` (PID 1904014, 224.4MB)
+  - ✅ `mxv-frontend`: `online` (PID 1904233, 55.1MB)
   - ✅ Thư mục CCP `defaultDataPath` tồn tại và nhận diện đầy đủ `[ 'DSGD.csv', 'TTM.csv', 'TTTT.csv' ]`.
 
 ---
