@@ -19,6 +19,7 @@ import { ShiftsService } from '../shifts/shifts.service';
 import { BOT_TASK_REGISTRY, findBotTasksInShift } from '../bot-engine/constants/bot-task-registry';
 import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
 import { CcpExcelParser } from './parsers';
+import { CcpCeDownloaderService } from '../bot-engine/ccp-ce-downloader.service';
 
 export interface EODMismatchedItem {
   system?: 'MS' | 'CCP';
@@ -102,6 +103,8 @@ export class ReconciliationService {
     private readonly botJobQueueService?: BotJobQueueService,
     @Optional() @Inject(forwardRef(() => ShiftsService))
     private readonly shiftsService?: ShiftsService,
+    @Optional() @Inject(forwardRef(() => CcpCeDownloaderService))
+    private readonly ccpCeDownloaderService?: CcpCeDownloaderService,
   ) { }
 
   private parseCqgNumber(val: any): number {
@@ -5578,6 +5581,88 @@ export class ReconciliationService {
         results: { group1: [], group2: [], group3: [], group4: [] },
       };
     }
+  }
+
+  /**
+   * Tải riêng 3 file CoreCCP (DSGD, TTM, TTTT) và bóc tách lấy ra các chỉ số KLGD, TTM, TTTT hiện tại.
+   * Chỉ chạy độc lập cho CoreCCP mà không ảnh hưởng tới luồng M-System, CQG hay ACM.
+   */
+  async downloadAndExtractCcpMetrics(dateStr?: string): Promise<{
+    success: boolean;
+    tradingDate: string;
+    metrics: {
+      klgd: number;
+      ttm: number;
+      tttt: number;
+    };
+    files: {
+      dsgd?: string;
+      ttm?: string;
+      tttt?: string;
+    };
+    error?: string;
+  }> {
+    if (!this.ccpCeDownloaderService) {
+      throw new Error('CcpCeDownloaderService chưa sẵn sàng trong hệ thống');
+    }
+
+    let tradingDate = new Date();
+    if (dateStr) {
+      if (dateStr.includes('/')) {
+        const [d, m, y] = dateStr.split('/');
+        tradingDate = new Date(`${y}-${m}-${d}`);
+      } else if (dateStr.includes('-')) {
+        tradingDate = new Date(dateStr);
+      }
+    }
+
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const year = tradingDate.getFullYear().toString();
+    const formattedDate = `${day}/${month}/${year}`;
+
+    // Lấy thông tin đăng nhập CoreCCP từ settings DB
+    const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    if (!credRaw) {
+      throw new Error('Chưa cấu hình tài khoản CoreCCP (bot_credentials_ccp) trong System Settings');
+    }
+
+    let creds: any;
+    try {
+      creds = JSON.parse(decrypt(credRaw));
+    } catch {
+      creds = JSON.parse(credRaw);
+    }
+
+    const rawCcpBase = await this.settingsService.getSetting(
+      'bot_backup_path_ccp',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+    );
+    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
+
+    try {
+      if (!fs.existsSync(ccpDailyPath)) {
+        fs.mkdirSync(ccpDailyPath, { recursive: true });
+      }
+    } catch {
+      ccpDailyPath = path.join(process.cwd(), 'backupCCP', subFolder);
+      if (!fs.existsSync(ccpDailyPath)) {
+        fs.mkdirSync(ccpDailyPath, { recursive: true });
+      }
+    }
+
+    this.logger.log(`[CCP Metrics] Bắt đầu tải riêng 3 file CoreCCP ngày ${formattedDate} vào: ${ccpDailyPath}`);
+
+    return this.ccpCeDownloaderService.downloadAndExtractKlgdMetrics({
+      systemUrl: creds.url,
+      username: creds.username,
+      password: creds.password,
+      tradingDate: formattedDate,
+      outputDir: ccpDailyPath,
+      options: { headless: true },
+    });
   }
 }
 

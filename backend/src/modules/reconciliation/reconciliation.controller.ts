@@ -1242,6 +1242,15 @@ export class ReconciliationController {
       reports,
     };
   }
+
+  /**
+   * Tải riêng 3 file CoreCCP (DSGD, TTM, TTTT) và bóc tách trực tiếp số liệu KLGD, TTM, TTTT
+   */
+  @Post('download-ccp-metrics')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async downloadCcpMetrics(@Body('date') dateStr?: string) {
+    return this.reconciliationService.downloadAndExtractCcpMetrics(dateStr);
+  }
 }
 
 

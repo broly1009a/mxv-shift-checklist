@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T16:50] FEAT: Thêm Hàm Tải Riêng 3 Báo Cáo CoreCCP (DSGD, TTM, TTTT) & Bóc Tách Số Liệu Độc Lập Cho Ca Trực
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"bạn có thể viết hàm dowload file cpp để lấy ra KLGD TTM TTTT hiện tại của CCP không. chỉ riêng ccp thôi vì luồng ms cqg và acm nano hoạt động ok rồi"*:
+- Xây dựng hàm chuyên biệt **`downloadAndExtractKlgdMetrics`** trong [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Chỉ tải đúng 3 file phục vụ CheckKLGD trong 1 phiên duy nhất: `DSGD` (Khớp lệnh), `TTM` (Trạng thái mở `/ORDERS/OPEN_POSITION`), `TTTT` (Trạng thái tất toán).
+  - Tự động bóc tách bằng [CcpExcelParser](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts) và trả về object: `{ klgd, ttm, tttt }`.
+  - Hoàn toàn độc lập, không kích hoạt hay động chạm tới luồng tải M-System, CQG hay ACM.
+- Tích hợp method **`downloadAndExtractCcpMetrics`** trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts) kèm API Endpoint `POST /api/v1/reconciliation/download-ccp-metrics` tại [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts).
+- Tạo file script test độc lập [test_download_ccp_klgd_metrics.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_download_ccp_klgd_metrics.js) tuân thủ **AGENTS.md Rule 4** để USER tự chạy test trên terminal với cờ `--headed`.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts): Bổ sung `downloadAndExtractKlgdMetrics`.
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts): Inject service và thêm method `downloadAndExtractCcpMetrics`.
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts): Expose API `POST /api/v1/reconciliation/download-ccp-metrics`.
+- [backend/src/scripts/test_download_ccp_klgd_metrics.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_download_ccp_klgd_metrics.js): Script độc lập tải và in kết quả KLGD, TTM, TTTT.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+- ✅ Script: `node --check src/scripts/test_download_ccp_klgd_metrics.js` hợp lệ 100%.
+
 ## [2026-09-14T16:40] UI: Chuẩn Hóa Nhãn Cột Bảng 1 Thành "CCP" Thay Vì "CoreCCP"
 
 ### 1. Mục tiêu thay đổi

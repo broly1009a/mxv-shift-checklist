@@ -11,6 +11,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, Browser, BrowserContext, Page, Download } from 'playwright-core';
+import { CcpExcelParser } from '../reconciliation/parsers';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Interfaces & Types
@@ -1473,5 +1474,192 @@ export class CcpCeDownloaderService {
       await context?.close();
       await browser?.close();
     }
+  }
+
+  /**
+   * Tải riêng 3 báo cáo CoreCCP phục vụ CheckKLGD (DSGD, TTM, TTTT) trong 1 phiên duy nhất,
+   * lưu file vào outputDir và bóc tách trực tiếp số liệu:
+   * - klgd: Tổng số lot khớp (DSGD)
+   * - ttm: Tổng số vị thế mở Mua + Bán (TTM - /ORDERS/OPEN_POSITION)
+   * - tttt: Tổng số lot tất toán Bán (TTTT)
+   */
+  async downloadAndExtractKlgdMetrics(params: {
+    systemUrl: string;
+    username: string;
+    password: string;
+    tradingDate: string; // dd/mm/yyyy
+    outputDir: string;
+    options?: CcpDownloadOptions;
+    logCallback?: (m: string) => void;
+  }): Promise<{
+    success: boolean;
+    tradingDate: string;
+    metrics: {
+      klgd: number;
+      ttm: number;
+      tttt: number;
+    };
+    files: {
+      dsgd?: string;
+      ttm?: string;
+      tttt?: string;
+    };
+    error?: string;
+  }> {
+    const {
+      systemUrl,
+      username,
+      password,
+      tradingDate,
+      outputDir,
+      options: runOpts = {},
+      logCallback: logCb,
+    } = params;
+
+    const opts: Required<CcpDownloadOptions> = {
+      headless: runOpts.headless ?? false,
+      overwriteExisting: runOpts.overwriteExisting ?? true,
+      exchange: runOpts.exchange ?? '',
+      memberCode: runOpts.memberCode ?? '',
+      acctNo: runOpts.acctNo ?? '',
+      downloadTimeoutMs: runOpts.downloadTimeoutMs ?? 60_000,
+      autoSplitOnTimeout: false,
+    };
+
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const cleanDate = tradingDate.replace(/\//g, '.');
+    const dsgdDestPath = path.join(outputDir, `DSGD_${cleanDate}.xlsx`);
+    const ttmDestPath = path.join(outputDir, `TTM_${cleanDate}.xlsx`);
+    const ttttDestPath = path.join(outputDir, `TTTT_${cleanDate}.xlsx`);
+
+    const resultFiles: { dsgd?: string; ttm?: string; tttt?: string } = {};
+    let browser: Browser | null = null;
+    let context: BrowserContext | null = null;
+
+    try {
+      const chromePath = this.getChromeExecutablePath();
+      const launchOptions: any = {
+        headless: opts.headless,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-infobars'],
+      };
+      if (chromePath) launchOptions.executablePath = chromePath;
+
+      browser = await chromium.launch(launchOptions);
+      context = await browser.newContext({
+        acceptDownloads: true,
+        viewport: { width: 1366, height: 768 },
+      });
+      const page = await context.newPage();
+
+      this.log(`[CCP KLGD] Đăng nhập CoreCCP: ${systemUrl}...`, logCb);
+      await this.loginVnclear(page, systemUrl, username, password, logCb);
+
+      const targetReports: CcpReportConfig[] = [
+        {
+          code: 'DSGD',
+          name: 'Lịch sử giao dịch',
+          parentMenu: 'Lệnh và vị thế',
+          childMenu: 'Lịch sử giao dịch',
+          cachedUrl: '',
+          enabled: true,
+        },
+        {
+          code: 'TTM',
+          name: 'Trạng thái mở',
+          parentMenu: 'Lệnh và vị thế',
+          childMenu: 'Trạng thái mở',
+          cachedUrl: '/ORDERS/OPEN_POSITION',
+          enabled: true,
+        },
+        {
+          code: 'TTTT',
+          name: 'Trạng thái tất toán',
+          parentMenu: 'Lệnh và vị thế',
+          childMenu: 'Trạng thái tất toán',
+          tabName: 'Lịch sử tất toán',
+          cachedUrl: '',
+          enabled: true,
+        },
+      ];
+
+      for (const rep of targetReports) {
+        this.log(`[CCP KLGD] Đang tải báo cáo ${rep.name} (${rep.code})...`, logCb);
+        try {
+          await this.navigateToReport(page, rep, systemUrl, logCb);
+          const searchRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
+          const isTableEmpty = searchRes === 'EMPTY_TABLE';
+
+          const dl = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
+          if (dl && dl !== 'NO_DATA') {
+            let targetDest = dsgdDestPath;
+            if (rep.code === 'TTM') targetDest = ttmDestPath;
+            if (rep.code === 'TTTT') targetDest = ttttDestPath;
+
+            await dl.saveAs(targetDest);
+            if (rep.code === 'DSGD') resultFiles.dsgd = targetDest;
+            if (rep.code === 'TTM') resultFiles.ttm = targetDest;
+            if (rep.code === 'TTTT') resultFiles.tttt = targetDest;
+            this.log(`[CCP KLGD] Tải thành công ${rep.code}: ${targetDest}`, logCb);
+          } else {
+            this.log(`[CCP KLGD] Báo cáo ${rep.code} không có dữ liệu để xuất hoặc bảng rỗng.`, logCb);
+          }
+        } catch (err: any) {
+          this.log(`[CCP KLGD] Cảnh báo khi tải ${rep.code}: ${err.message}`, logCb);
+        }
+      }
+    } catch (err: any) {
+      this.log(`[CCP KLGD] Lỗi phiên duyệt web CoreCCP: ${err.message}`, logCb);
+      return {
+        success: false,
+        tradingDate,
+        metrics: { klgd: 0, ttm: 0, tttt: 0 },
+        files: resultFiles,
+        error: err.message,
+      };
+    } finally {
+      await context?.close();
+      await browser?.close();
+    }
+
+    // Parse các file đã tải để lấy ra 3 chỉ số KLGD, TTM, TTTT
+    let klgd = 0;
+    let ttm = 0;
+    let tttt = 0;
+
+    if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
+      try {
+        const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+        klgd = parsed.totalKhop || 0;
+      } catch (e: any) {
+        this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
+      }
+    }
+    if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
+      try {
+        const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+        ttm = parsed.totalTTM || 0;
+      } catch (e: any) {
+        this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
+      }
+    }
+    if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
+      try {
+        const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+        tttt = parsed.totalTTTT || 0;
+      } catch (e: any) {
+        this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);
+      }
+    }
+
+    this.log(`[CCP KLGD] ✅ Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
+    return {
+      success: true,
+      tradingDate,
+      metrics: { klgd, ttm, tttt },
+      files: resultFiles,
+    };
   }
 }
