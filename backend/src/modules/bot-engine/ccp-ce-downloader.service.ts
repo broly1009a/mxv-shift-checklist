@@ -93,7 +93,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     name: 'Lịch sử nộp rút tiền',
     parentMenu: 'Quản lý tiền',
     childMenu: 'Lịch sử nộp rút tiền',
-    cachedUrl: '',
+    cachedUrl: '/CASHTRANFER/CASHTRANFER_HIST',
     enabled: true,
   },
   {
@@ -101,7 +101,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     name: 'Lịch sử lệnh',
     parentMenu: 'Lệnh và vị thế',
     childMenu: 'Lịch sử lệnh',
-    cachedUrl: '',
+    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
     enabled: true,
   },
   {
@@ -109,7 +109,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     name: 'Lịch sử giao dịch',
     parentMenu: 'Lệnh và vị thế',
     childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '',
+    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
     enabled: true,
   },
   {
@@ -118,7 +118,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     parentMenu: 'Lệnh và vị thế',
     childMenu: 'Trạng thái tất toán',
     tabName: 'Lịch sử tất toán',
-    cachedUrl: '',
+    cachedUrl: '/ORDERS/PNL_EXECUTED',
     enabled: true,
   },
   {
@@ -126,7 +126,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     name: 'Lịch sử giá thanh toán',
     parentMenu: 'Quản lý sản phẩm',
     childMenu: 'Quản lý lịch sử giá thanh toán',
-    cachedUrl: '',
+    cachedUrl: '/PRODUCT/SETTLEMENT_HIST',
     enabled: true,
   },
 ];
@@ -363,17 +363,46 @@ export class CcpCeDownloaderService {
     this.log('Dang nhap thanh cong.', logCb);
   }
 
-  // ── SIDEBAR ───────────────────────────────────────────────────────────────
+  // ── BACKDROP & SIDEBAR ────────────────────────────────────────────────────
 
-  /** Đảm bảo sidebar đã được mở rộng */
-  private async ensureSidebarExpanded(page: Page): Promise<void> {
+  /**
+   * Đóng các popup backdrop MUI che phủ giao diện nếu có.
+   * Port 1:1 từ BasePage.dismiss_modal_backdrop (base_page.py:L13-21).
+   */
+  private async dismissModalBackdrop(page: Page): Promise<void> {
     try {
-      const toggleBtn = page.locator(
-        "button[aria-label*='menu'], button[aria-label*='sidebar'], .MuiDrawer-root button[aria-label]",
-      );
-      if (await toggleBtn.first().isVisible({ timeout: 1_500 })) {
-        await toggleBtn.first().click();
-        await page.waitForTimeout(500);
+      const backdrop = page
+        .locator(
+          "xpath=//div[contains(@class, 'MuiBackdrop-root') and not(contains(@class, 'MuiBackdrop-invisible'))]",
+        )
+        .first();
+      if (await backdrop.isVisible({ timeout: 500 })) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+      }
+    } catch {}
+  }
+
+  /**
+   * Đảm bảo sidebar đã được mở rộng.
+   * Port 1:1 từ BasePage.ensure_sidebar_expanded (base_page.py:L23-43).
+   */
+  private async ensureSidebarExpanded(page: Page): Promise<void> {
+    await this.dismissModalBackdrop(page);
+    try {
+      const sidebarText = page
+        .locator("xpath=//span[text()='Trang chủ'] | //input[contains(@placeholder, 'Tìm kiếm')]")
+        .first();
+      if (await sidebarText.isVisible({ timeout: 1_000 })) return;
+
+      const toggleBtn = page
+        .locator(
+          "xpath=//div[contains(@class, 'mui-1rihtzt')] | //div[contains(@class, 'mui-12t1bub')] | //svg[@data-testid='ChevronRightIcon'] | //button[contains(@aria-label, 'open drawer') or contains(@aria-label, 'Mở rộng')]",
+        )
+        .first();
+      if (await toggleBtn.isVisible({ timeout: 1_500 })) {
+        await toggleBtn.click({ force: true });
+        await page.waitForTimeout(1_000);
       }
     } catch {}
   }
@@ -383,20 +412,47 @@ export class CcpCeDownloaderService {
   /**
    * Chờ bảng dữ liệu load xong (không còn spinner/skeleton).
    * Ổn định 2 tick 300ms liên tiếp mới return.
+   * Port 1:1 từ BaseReportPage.wait_for_table_loading_complete (base_report_page.py:L10-58).
    */
   private async waitForTableLoadingComplete(
     page: Page,
     maxTimeoutMs = 60_000,
   ): Promise<boolean> {
     const spinnerSel =
-      '.MuiCircularProgress-root, .MuiLinearProgress-root, .MuiBackdrop-root[aria-hidden="false"], [role=progressbar], .MuiSkeleton-root';
+      "xpath=//*[contains(@class, 'MuiCircularProgress-root') " +
+      "or contains(@class, 'MuiLinearProgress-root') " +
+      "or contains(@class, 'MuiBackdrop-root') " +
+      "or @role='progressbar' " +
+      "or contains(@id, 'mrt-progress') " +
+      "or contains(@class, 'MuiSkeleton-root')]";
+
     await page.waitForTimeout(800);
 
-    const deadline = Date.now() + maxTimeoutMs;
+    const startTime = Date.now();
+    const maxSec = maxTimeoutMs / 1000.0;
     let stableCount = 0;
-    while (Date.now() < deadline) {
-      const spinners = await page.locator(spinnerSel).count();
-      if (spinners === 0) {
+
+    while ((Date.now() - startTime) / 1000.0 < maxSec) {
+      // Kiểm tra sớm nếu bảng đã hiện chữ "Không có dữ liệu" -> dừng chờ ngay lập tức
+      try {
+        const noData = page.locator(
+          "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')] | //*[text()='Không có dữ liệu']",
+        ).first();
+        if (await noData.isVisible({ timeout: 150 })) {
+          return true;
+        }
+      } catch {}
+
+      // Đếm spinner THỰC SỰ HIỂN THỊ (is_visible)
+      const spinners = await page.locator(spinnerSel).all();
+      let visibleCount = 0;
+      for (const s of spinners) {
+        try {
+          if (await s.isVisible()) visibleCount++;
+        } catch {}
+      }
+
+      if (visibleCount === 0) {
         stableCount++;
         if (stableCount >= 2) return true;
       } else {
@@ -411,9 +467,9 @@ export class CcpCeDownloaderService {
 
   /**
    * Điều hướng đến trang báo cáo.
+   * Port 1:1 từ CoreCCPPage.navigate_to_report (core_ccp_page.py:L35-128).
    * Ưu tiên 1: cachedUrl (direct navigation).
-   * Ưu tiên 2: Click menu sidebar.
-   * Trả về URL thực tế sau khi điều hướng (để cập nhật cachedUrl cho lần sau).
+   * Ưu tiên 2: Click menu sidebar có danh sách ứng viên (candidates).
    */
   async navigateToReport(
     page: Page,
@@ -426,38 +482,82 @@ export class CcpCeDownloaderService {
     if (targetUrl) {
       try {
         this.log(`[Nav] Direct URL den trang bao cao: ${targetUrl}`, logCb);
-        await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 20_000 });
-        await this.waitForTableLoadingComplete(page, 15_000);
-        const currentUrl = page.url();
-        if (!currentUrl.toLowerCase().includes('/login')) {
-          this.log(`[Nav] Direct URL thanh cong: ${currentUrl}`, logCb);
-          return currentUrl;
+        await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 15_000 });
+        await page.waitForTimeout(1000);
+        await this.dismissModalBackdrop(page);
+
+        const checkElem = page.locator(
+          "xpath=//button[contains(., 'Tìm kiếm')] | //button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]",
+        ).first();
+        if (await checkElem.isVisible({ timeout: 3_000 })) {
+          return targetUrl;
+        } else {
+          this.log(`[Nav] Direct URL chua hien bang, fallback sang click Menu...`, logCb);
         }
       } catch {
         this.log(`[Nav] Direct URL that bai, chuyen sang click menu...`, logCb);
       }
     }
 
-    // Click menu sidebar
+    // Click menu sidebar (Chuẩn Candidates từ core_ccp_page.py:L60-125)
     try {
       await this.ensureSidebarExpanded(page);
 
-      // Click parent menu
-      const parentItem = page.locator(
-        `//li[contains(.,'${report.parentMenu}')] | //*[contains(text(),'${report.parentMenu}')]`,
-      );
-      if (await parentItem.first().isVisible({ timeout: 4_000 })) {
-        await parentItem.first().click({ timeout: 8_000 });
-        await page.waitForTimeout(400);
+      const parentCandidates = [report.parentMenu];
+      if (report.parentMenu === 'Quản lý tiền' || report.parentMenu === 'Nộp rút tiền') {
+        parentCandidates.push('Quản lý tiền', 'Nộp rút tiền');
       }
 
-      // Click child menu
-      const childItem = page.locator(
-        `//li[contains(.,'${report.childMenu}')] | //*[contains(text(),'${report.childMenu}')]`,
-      );
-      await childItem.first().click({ timeout: 8_000 });
-      await page.waitForLoadState('networkidle', { timeout: 15_000 });
-      await this.waitForTableLoadingComplete(page, 20_000);
+      let parentElem: ReturnType<Page['locator']> | null = null;
+      for (const pCand of parentCandidates) {
+        if (!pCand) continue;
+        const elem = page.locator(`xpath=//span[text()='${pCand}'] | //span[contains(text(), '${pCand}')]`).first();
+        if (await elem.isVisible({ timeout: 1_500 })) {
+          parentElem = elem;
+          break;
+        }
+      }
+
+      if (parentElem) {
+        await parentElem.click({ force: true });
+        await page.waitForTimeout(800);
+      }
+
+      const childCandidates = [report.childMenu];
+      if (report.childMenu === 'Lịch sử nộp rút tiền' || report.childMenu === 'Lịch sử Nộp/ Rút tiền') {
+        childCandidates.push('Lịch sử nộp rút tiền', 'Lịch sử Nộp/ Rút tiền');
+      } else if (report.childMenu === 'Lịch sử lệnh' || report.childMenu === 'Danh sách lệnh') {
+        childCandidates.push('Lịch sử lệnh', 'Danh sách lệnh');
+      } else if (report.childMenu === 'Lịch sử giao dịch' || report.childMenu === 'Danh sách giao dịch') {
+        childCandidates.push('Lịch sử giao dịch', 'Danh sách giao dịch');
+      }
+
+      let childElem: ReturnType<Page['locator']> | null = null;
+      for (const cand of childCandidates) {
+        if (!cand) continue;
+        const elem = page.locator(`xpath=//span[text()='${cand}'] | //span[contains(text(), '${cand}')]`).first();
+        if (await elem.isVisible({ timeout: 1_500 })) {
+          childElem = elem;
+          break;
+        }
+      }
+
+      if (childElem) {
+        await childElem.click({ force: true });
+        await page.waitForTimeout(2000);
+      } else if (parentElem) {
+        await parentElem.click({ force: true });
+        await page.waitForTimeout(800);
+        for (const cand of childCandidates) {
+          if (!cand) continue;
+          const elem = page.locator(`xpath=//span[text()='${cand}'] | //span[contains(text(), '${cand}')]`).first();
+          if (await elem.isVisible({ timeout: 1_500 })) {
+            await elem.click({ force: true });
+            await page.waitForTimeout(2000);
+            break;
+          }
+        }
+      }
 
       const learnedUrl = page.url();
       this.log(`[Nav] Menu click thanh cong -> URL: ${learnedUrl}`, logCb);
@@ -472,7 +572,9 @@ export class CcpCeDownloaderService {
 
   /**
    * Đặt bộ lọc ngày và các filter nghiệp vụ, rồi nhấn Tìm kiếm.
+   * Port 1:1 từ BaseReportPage.set_date_range_and_search (base_report_page.py:L59-231).
    * Xử lý đặc biệt: TTTT (click tab), DSGD (xóa "Ngày hệ thống").
+   * Trả về 'NO_DATA' nếu bảng hiển thị "Không có dữ liệu" ngay sau khi tìm kiếm.
    */
   async setDateRangeAndSearch(
     page: Page,
@@ -481,15 +583,18 @@ export class CcpCeDownloaderService {
     endDate: string,
     filters: CcpFilterOptions = {},
     logCb?: (m: string) => void,
-  ): Promise<void> {
-    // ── Nếu báo cáo có tabName (TTTT): click tab trước ────────────────────
-    if (report.tabName) {
+  ): Promise<'OK' | 'NO_DATA'> {
+    await this.dismissModalBackdrop(page);
+
+    // ── Nếu báo cáo có tabName hoặc là TTTT: click tab trước ────────────────
+    const url = page.url();
+    if (url.includes('PNL_EXECUTED') || report.tabName || report.code === 'TTTT') {
       try {
-        const tab = page.locator(`//*[contains(text(),'${report.tabName}')]`);
-        if (await tab.first().isVisible({ timeout: 3_000 })) {
-          await tab.first().click();
-          await page.waitForTimeout(600);
-          this.log(`[Filter] Da click tab: ${report.tabName}`, logCb);
+        const historyTab = page.locator("xpath=//*[self::button or self::div or self::span][contains(text(), 'Lịch sử tất toán')]").first();
+        if (await historyTab.isVisible({ timeout: 2_000 })) {
+          await historyTab.click({ force: true });
+          await page.waitForTimeout(1500);
+          this.log(`[Filter] Da click tab: Lich su tat toan`, logCb);
         }
       } catch {}
     }
@@ -498,19 +603,22 @@ export class CcpCeDownloaderService {
     if (report.code === 'DSGD') {
       try {
         const sysDateInput = page.locator(
-          "//label[contains(text(),'Ngày hệ thống')]/..//input | //label[contains(text(),'Ngay he thong')]/..//input",
-        );
-        if (await sysDateInput.first().isVisible({ timeout: 2_000 })) {
-          await sysDateInput.first().click();
+          "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Ngày hệ thống')]]//input" +
+          " | //label[contains(text(), 'Ngày hệ thống')]/following-sibling::div//input",
+        ).first();
+        if (await sysDateInput.isVisible({ timeout: 1_000 })) {
+          await sysDateInput.click({ force: true });
+          await page.waitForTimeout(150);
           await page.keyboard.press('Control+A');
           await page.keyboard.press('Backspace');
+          await page.waitForTimeout(150);
           await page.keyboard.press('Tab');
           this.log('[Filter] Da xoa o Ngay he thong (DSGD)', logCb);
         }
       } catch {}
     }
 
-    // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Bỏ qua với QLTTTKGD vì là snapshot thời gian thực) ─
+    // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Chuẩn count >= 3 từ Python) ─
     if (report.code !== 'QLTTTKGD') {
       await this.fillDatePicker(page, startDate, endDate, logCb);
     }
@@ -556,73 +664,91 @@ export class CcpCeDownloaderService {
     // ── Click Tìm kiếm ────────────────────────────────────────────────────
     try {
       const searchBtn = page.locator(
-        "//button[contains(text(),'Tìm kiếm') or contains(text(),'Tim kiem') or contains(text(),'Search')]",
-      );
-      await searchBtn.first().click({ timeout: 5_000 });
-      this.log(`[Filter] Da click Tim kiem: ${startDate} -> ${endDate}`, logCb);
+        "xpath=//button[contains(., 'Tìm kiếm') or contains(., 'Search')]",
+      ).first();
+      if (await searchBtn.isVisible({ timeout: 2_000 })) {
+        await searchBtn.click({ force: true });
+        this.log(`[Filter] Da click Tim kiem: ${startDate} -> ${endDate}`, logCb);
+        await this.waitForTableLoadingComplete(page, 60_000);
+        await this.dismissModalBackdrop(page);
+      }
     } catch {
       this.log('[Filter] Khong tim thay nut Tim kiem, bo qua...', logCb);
     }
 
-    await this.waitForTableLoadingComplete(page, 60_000);
+    // ── Kiểm tra bảng rỗng sau Tìm kiếm: bỏ qua lọc cột con nhưng vẫn tiếp tục kết xuất tải file
+    try {
+      const noDataInTable = page.locator(
+        "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]",
+      ).first();
+      if (await noDataInTable.isVisible({ timeout: 600 })) {
+        this.log('[Filter] Bang bao cao tra ve "Khong co du lieu" -> Bo qua loc cot va chuyen sang ket xuat tai file.', logCb);
+        return 'OK';
+      }
+    } catch {}
+
+    return 'OK';
   }
 
-  /** Điền ngày vào DatePicker MUI */
+  /**
+   * Điền ngày vào DatePicker MUI.
+   * Port 1:1 từ BaseReportPage.set_date_range_and_search (base_report_page.py:L88-142).
+   */
   private async fillDatePicker(
     page: Page,
     startDate: string,
     endDate: string,
     logCb?: (m: string) => void,
   ): Promise<void> {
-    // Tìm các DatePicker input theo label (loại bỏ hidden/aria-hidden)
-    const fromLabel = page.locator(
-      "//label[contains(text(),'Từ') or contains(text(),'From')]/..//input:not([type='hidden']):not([aria-hidden='true']):not([tabindex='-1']) | //input[contains(@placeholder,'Từ')]:not([type='hidden']):not([aria-hidden='true'])",
-    );
-    const toLabel = page.locator(
-      "//label[contains(text(),'Đến') or contains(text(),'To')]/..//input:not([type='hidden']):not([aria-hidden='true']):not([tabindex='-1']) | //input[contains(@placeholder,'Đến')]:not([type='hidden']):not([aria-hidden='true'])",
-    );
+    try {
+      const pickerInputs = page.locator(
+        "xpath=//div[contains(@class, 'MuiPickersInputBase-root') or contains(@class, 'MuiPickersOutlinedInput-root') or @role='group']//input | //input[contains(@class, 'MuiPickersInputBase-input')]",
+      );
+      const count = await pickerInputs.count();
 
-    const fillInput = async (loc: ReturnType<Page['locator']>, val: string): Promise<boolean> => {
-      try {
-        if (await loc.first().isVisible({ timeout: 2_000 })) {
-          await loc.first().click();
-          await page.keyboard.press('Control+A');
-          await page.keyboard.press('Backspace');
-          await loc.first().type(val, { delay: 40 });
-          await page.keyboard.press('Tab');
-          return true;
-        }
-      } catch {}
-      return false;
-    };
+      let fromInp: ReturnType<Page['locator']> | null = null;
+      let toInp: ReturnType<Page['locator']> | null = null;
 
-    const fromOk = await fillInput(fromLabel, startDate);
-    const toOk = await fillInput(toLabel, endDate);
+      const fromByLabel = page.locator(
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Từ') or contains(text(), '(Từ)')]]//input | //label[contains(text(), 'Từ') or contains(text(), '(Từ)')]/following-sibling::div//input",
+      ).first();
+      const toByLabel = page.locator(
+        "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Đến') or contains(text(), '(Đến)')]]//input | //label[contains(text(), 'Đến') or contains(text(), '(Đến)')]/following-sibling::div//input",
+      ).first();
 
-    if (!fromOk || !toOk) {
-      // Fallback: dùng index của tất cả picker inputs visible
-      try {
-        const allPickers = page.locator(
-          '.MuiPickersTextField-root input:not([type="hidden"]):not([aria-hidden="true"]):not([tabindex="-1"]), .MuiDatePicker-root input:not([type="hidden"]):not([aria-hidden="true"]):not([tabindex="-1"])',
-        );
-        const cnt = await allPickers.count();
-        if (cnt >= 2) {
-          const fromIdx = cnt >= 3 ? 1 : 0;
-          const toIdx = cnt >= 3 ? 2 : 1;
-          await allPickers.nth(fromIdx).click();
-          await page.keyboard.press('Control+A');
-          await page.keyboard.press('Backspace');
-          await allPickers.nth(fromIdx).type(startDate, { delay: 40 });
-          await page.keyboard.press('Tab');
-          await allPickers.nth(toIdx).click();
-          await page.keyboard.press('Control+A');
-          await page.keyboard.press('Backspace');
-          await allPickers.nth(toIdx).type(endDate, { delay: 40 });
-          await page.keyboard.press('Tab');
-        }
-      } catch (e: any) {
-        this.log(`[Filter] Fallback DatePicker loi: ${e?.message}`, logCb);
+      if (await fromByLabel.isVisible({ timeout: 800 }).catch(() => false)) fromInp = fromByLabel;
+      if (await toByLabel.isVisible({ timeout: 800 }).catch(() => false)) toInp = toByLabel;
+
+      if (count >= 3) {
+        if (!fromInp) fromInp = pickerInputs.nth(1);
+        if (!toInp) toInp = pickerInputs.nth(2);
+      } else if (count === 2) {
+        if (!fromInp) fromInp = pickerInputs.nth(0);
+        if (!toInp) toInp = pickerInputs.nth(1);
       }
+
+      if (fromInp && toInp) {
+        this.log(`[Filter] Dien DatePicker: ${startDate} -> ${endDate}`, logCb);
+        await fromInp.click({ force: true });
+        await page.waitForTimeout(200);
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.waitForTimeout(150);
+        await page.keyboard.type(startDate, { delay: 40 });
+        await page.waitForTimeout(200);
+        await page.keyboard.press('Tab');
+
+        await toInp.click({ force: true });
+        await page.waitForTimeout(200);
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.waitForTimeout(150);
+        await page.keyboard.type(endDate, { delay: 40 });
+        await page.waitForTimeout(200);
+        await page.keyboard.press('Tab');
+      }
+    } catch (e: any) {
+      this.log(`[Filter] Loi dien DatePicker: ${e?.message}`, logCb);
     }
   }
 
@@ -663,83 +789,88 @@ export class CcpCeDownloaderService {
 
   /**
    * Kích hoạt nút xuất file và bắt sự kiện download.
+   * Port 1:1 từ BaseReportPage.trigger_export_download (base_report_page.py:L324-429).
    * Trả về: Download object | 'NO_DATA' | null
-   *
-   * Phương án 1: Hover → dropdown "Xuất tất cả"
-   * Phương án 2: Double-click nút "Kết xuất"
    */
   async triggerExportDownload(
     page: Page,
     timeoutMs = 120_000,
     logCb?: (m: string) => void,
   ): Promise<Download | 'NO_DATA' | null> {
-    const exportBtnSel =
-      "//button[contains(text(),'Kết xuất') or contains(text(),'Ket xuat') or contains(text(),'Export') or contains(@aria-label,'export')]";
-    const noDataSel =
-      "//*[contains(@class,'notistack-Snackbar') or contains(@class,'MuiAlert-message')][contains(text(),'dữ liệu') or contains(text(),'Không') or contains(text(),'khong')]";
+    await this.dismissModalBackdrop(page);
+    await this.waitForTableLoadingComplete(page, 30_000);
 
-    // Kiểm tra fast-skip: bảng không có dữ liệu
-    try {
-      const emptyTable = page.locator(
-        "//*[contains(text(),'Không có dữ liệu') or contains(text(),'No data') or contains(text(),'Khong co du lieu')]",
-      );
-      if (await emptyTable.first().isVisible({ timeout: 1_500 })) {
-        this.log('[Export] Bang khong co du lieu — bo qua.', logCb);
-        return 'NO_DATA';
-      }
-    } catch {}
+    // Tìm nút 'Kết xuất' (Vẫn thực hiện kết xuất ngay cả khi bảng 0 dòng để lưu file mẫu/tiêu đề)
+    let exportBtn = page.locator(
+      "xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Xuất Excel') or contains(., 'Export')]" +
+      " | //button[contains(@aria-label, 'Export') or contains(@aria-label, 'Kết xuất')]",
+    ).first();
 
-    // Phương án 1: Hover → "Xuất tất cả"
-    try {
-      const exportBtn = page.locator(exportBtnSel).first();
-      await exportBtn.hover({ timeout: 5_000 });
-      await page.waitForTimeout(400);
+    if (!(await exportBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      exportBtn = page.locator("xpath=//button[.//svg[@data-testid='FileDownloadIcon' or @data-testid='DownloadIcon']]").first();
+    }
 
-      const exportAll = page.locator(
-        "//li[contains(text(),'Xuất tất cả') or contains(text(),'Xuat tat ca') or contains(text(),'Export all')]",
-      );
-      if (await exportAll.first().isVisible({ timeout: 1_500 })) {
-        const [download] = await Promise.all([
-          page.waitForEvent('download', { timeout: timeoutMs }),
-          exportAll.first().click(),
-        ]);
+    if (!(await exportBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      this.log("  ❌ [Export] Khong tim thay nut 'Ket xuat'", logCb);
+      return null;
+    }
 
-        // Kiểm tra toast NO_DATA ngay sau click
-        await page.waitForTimeout(400);
-        try {
-          const toastNoData = page.locator(noDataSel);
-          if (await toastNoData.first().isVisible({ timeout: 400 })) {
-            this.log('[Export] Toast NO_DATA bat sau khi click Xuat tat ca.', logCb);
+    const checkNoDataToast = async (): Promise<'NO_DATA' | null> => {
+      try {
+        const toastElem = page.locator(
+          "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không') or contains(text(), 'thành công') or contains(text(), 'Thành công')]",
+        ).first();
+        if (await toastElem.isVisible({ timeout: 400 })) {
+          const toastText = (await toastElem.textContent()) || '';
+          if (toastText.toLowerCase().includes('không có dữ liệu') || toastText.toLowerCase().includes('no data')) {
             return 'NO_DATA';
           }
-        } catch {}
-
-        this.log('[Export] Download bat dau (Xuat tat ca).', logCb);
-        return download;
-      }
-    } catch {}
-
-    // Phương án 2: Double-click nút Kết xuất
-    try {
-      const exportBtn = page.locator(exportBtnSel).first();
-      const [download] = await Promise.all([
-        page.waitForEvent('download', { timeout: timeoutMs }),
-        exportBtn.dblclick({ timeout: 5_000 }),
-      ]);
-
-      await page.waitForTimeout(400);
-      try {
-        const toastNoData = page.locator(noDataSel);
-        if (await toastNoData.first().isVisible({ timeout: 400 })) {
-          return 'NO_DATA';
         }
       } catch {}
+      return null;
+    };
 
-      this.log('[Export] Download bat dau (Double-click).', logCb);
+    // Phương án 1: Di chuột (Hover) -> "Xuất tất cả" (Python base_report_page.py:L375-406)
+    try {
+      await exportBtn.hover({ timeout: 5_000, force: true });
+      await page.waitForTimeout(400);
+
+      const exportAllOption = page.locator(
+        "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']" +
+        " | //*[self::li or self::div or self::span or self::p][contains(text(), 'Export all')]",
+      ).first();
+
+      if (await exportAllOption.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        const [download] = await Promise.all([
+          page.waitForEvent('download', { timeout: timeoutMs }),
+          exportAllOption.click({ force: true }),
+        ]);
+
+        const toastRes = await checkNoDataToast();
+        if (toastRes === 'NO_DATA') return 'NO_DATA';
+        return download;
+      }
+    } catch (e: any) {
+      const toastRes = await checkNoDataToast();
+      if (toastRes === 'NO_DATA') return 'NO_DATA';
+    }
+
+    // Phương án 2: Double-click nút Kết xuất (Python base_report_page.py:L407-425)
+    try {
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: timeoutMs }),
+        exportBtn.dblclick({ force: true }),
+      ]);
+
+      const toastRes = await checkNoDataToast();
+      if (toastRes === 'NO_DATA') return 'NO_DATA';
       return download;
-    } catch {}
+    } catch (e: any) {
+      const toastRes = await checkNoDataToast();
+      if (toastRes === 'NO_DATA') return 'NO_DATA';
+    }
 
-    this.log('[Export] Khong the kich hoat xuat file.', logCb);
+    await this.dismissModalBackdrop(page);
     return null;
   }
 
@@ -974,7 +1105,7 @@ export class CcpCeDownloaderService {
       logCb,
     );
 
-    // Retry 2 lần với Progressive Timeout
+    // Retry 2 lần với Progressive Timeout (Vẫn xuất file để lấy file mẫu ngay cả khi 0 dòng)
     for (let attempt = 1; attempt <= 2; attempt++) {
       const currentTimeout = opts.downloadTimeoutMs * attempt;
       if (attempt > 1) {

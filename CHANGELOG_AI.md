@@ -1,6 +1,79 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-14T12:00] FIX & FEAT: Chuẩn Hóa CSS Global Toàn Diện Cho Guide Modal & Bổ Sung Cấu Hình Thư Mục Quét CoreCCP Động
+## [2026-09-14T15:02] FIX: Đảm Bảo Tải Đủ File Ngay Cả Khi Bảng Không Có Dữ Liệu (Hệ Thống CoreCCP Vẫn Cho Xuất File Khung Tiêu Đề)
+
+### 1. Mục tiêu thay đổi
+Theo phản hồi trực tiếp từ USER: "không có dữ liệu vẫn tải được mà, tại sao bạn không tải mà bỏ":
+- **Lý giải nguyên nhân**:
+  - Trong logic cũ của Python tool `cpp-ce-downloader` (`base_report_page.py:L341-343` và `report_engine.py:L282-285`), tác giả cũ đã thêm cơ chế kiểm tra `no_data_elem.is_visible()` để trả về `"NO_DATA"` và bỏ qua việc tạo file rỗng.
+  - Khi port logic sang `test_ccp_download_benchmark.js` và `ccp-ce-downloader.service.ts`, bot đã áp dụng cơ chế này nên khi ngày 14/09/2026 không có phát sinh giao dịch, script đã bỏ qua 6/7 file.
+- **Thực tế nghiệp vụ CoreCCP**:
+  - Trên hệ thống CoreCCP, ngay cả khi bảng không có giao dịch ("Không có dữ liệu" / "0-0 trên 0"), nút **"Kết xuất" -> "Xuất tất cả"** VẪN HOẠT ĐỘNG HOÀN TOÀN BÌNH THƯỜNG và hệ thống vẫn sinh file Excel/CSV chứa hàng tiêu đề cột chuẩn (Template/Header).
+  - Đối với ca trực và đối soát kế toán, việc tải và lưu file này về thư mục là bắt buộc để chứng minh ngày đó không phát sinh lệnh/tiền và tránh lỗi thiếu file (`File Not Found`) khi chạy các tool phân tích/macro tiếp theo.
+- **Giải pháp**:
+  - Cập nhật cả `test_ccp_download_benchmark.js` và `ccp-ce-downloader.service.ts`:
+    + Khi bảng báo "Không có dữ liệu": Chỉ bỏ qua việc lọc cột con (đỡ tốn thời gian tìm cột), nhưng **VẪN TIẾP TỤC BẤM KẾT XUẤT -> XUẤT TẤT CẢ** để tải file về ổ đĩa.
+    + Chỉ coi là `NO_DATA` khi hệ thống CoreCCP xuất hiện thông báo Toast chặn không cho xuất file.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js):
+  - `setDateRangeAndSearch`: Trả về `'OK'` thay vì `'NO_DATA'` khi bảng rỗng.
+  - `triggerExportDownload`: Bỏ cơ chế Fast-Skip sớm; luôn thực hiện Hover -> Click "Xuất tất cả" hoặc Double-click.
+  - `downloadSingleReport`: Xóa bỏ đoạn return sớm `KHÔNG CÓ DỮ LIỆU` để luôn tải file.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Đồng bộ `setDateRangeAndSearch`, `triggerExportDownload`, `downloadReport`, `downloadSingleInterval` để luôn tải và lưu file về đĩa ngay cả khi bảng 0 bản ghi.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `nest build` thành công, exit code 0.
+- ✅ Benchmark script: `node --check` hợp lệ 100%.
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: "đối chiếu song song với cả test_ccp_download_benchmark.js và cả python":
+- Thực hiện rà soát từng dòng mã nguồn, đối chiếu song song giữa 3 phiên bản:
+  1. Python Tool gốc: `cpp-ce-downloader` (`base_report_page.py`, `core_ccp_page.py`, `report_engine.py`)
+  2. Test Benchmark Script: [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js) (đã kiểm thử thành công thực tế với USER)
+  3. Service lõi NestJS Backend: [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- Đồng bộ toàn diện các cải tiến và thuật toán cốt lõi:
+  - Cấu hình cachedUrl chuẩn xác (`/CASHTRANFER/CASHTRANFER_HIST`, `/ORDERS/PNL_EXECUTED`, `/PRODUCT/SETTLEMENT_HIST`). Các báo cáo `DSGD` và `DSL` không có direct URL trên CoreCCP được định tuyến click Menu.
+  - Bộ Candidate mở menu sidebar (`parentCandidates`, `childCandidates`) hỗ trợ đa nhãn tương đương.
+  - Thuật toán định vị DatePicker MUI theo số lượng input (`count >= 3` chọn nth(1) & nth(2); `count == 2` chọn nth(0) & nth(1)) kèm typing delay 40ms chuẩn Python.
+  - Cơ chế Fast-Skip 0.5s tức thì ngay khi bảng trả về "Không có dữ liệu" / "0-0 trên 0", bypass hoàn toàn bước lọc cột và nút kết xuất, tránh timeout 30-45s hoặc gây nghẽn/sập UAT server.
+  - Nút kết xuất có fallback icon SVG (`FileDownloadIcon` / `DownloadIcon`), kiểm tra toast text rõ nghĩa và hỗ trợ cả 2 phương án: Hover "Xuất tất cả" và Double-click.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Đồng bộ `DEFAULT_CCP_REPORTS` với cachedUrl đã học từ Python.
+  - Cập nhật `waitForTableLoadingComplete`: kiểm tra `.isVisible()` của spinner thay vì đếm DOM ẩn, nhận diện sớm bảng rỗng.
+  - Cập nhật `setDateRangeAndSearch`: trả về `'NO_DATA'` khi bảng rỗng ngay sau Tìm kiếm.
+  - Cập nhật `downloadReport`: kiểm tra `searchRes === 'NO_DATA'` để bỏ qua ngay lập tức mà không kích hoạt vòng lặp tải hoặc retry.
+  - Cập nhật `triggerExportDownload`: bổ sung `dismissModalBackdrop`, `waitForTableLoadingComplete(30000)`, Fast-skip bảng rỗng, SVG fallback selector, `checkNoDataToast`.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: Biên dịch TypeScript thành công (`nest build` exit code 0).
+- ✅ Script Benchmark: Đã kiểm thử trực quan với `--headed`, hoàn thành tải 7 báo cáo, lưu 3 file và bỏ qua chuẩn xác 4 báo cáo rỗng.
+
+## [2026-09-14T14:26] FEAT: Tạo File Test Batch Tải Đủ 7 Báo Cáo CoreCCP & Giữ Nguyên Vẹn 100% Code Service
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER ("tôi muốn có 1 file test tải đủ các file cơ"):
+- Xây dựng file test độc lập [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js) có khả năng tự động tải liên hoàn **ĐỦ TOÀN BỘ 7 BÁO CÁO CORECCP** chỉ với 1 phiên đăng nhập duy nhất (Single Session):
+  1. `DSGD`: Lịch sử giao dịch (Khớp lệnh CoreCCP)
+  2. `TTTT`: Trạng thái tất toán (Lịch sử tất toán)
+  3. `NR`: Lịch sử nộp rút tiền
+  4. `DSL`: Lịch sử lệnh
+  5. `EOD`: Kết quả EOD
+  6. `QLTTTKGD`: Quản lý trạng thái TKGD (Ký quỹ, Số dư)
+  7. `LSGTT`: Quản lý lịch sử giá thanh toán (GTT)
+- Giữ nguyên vẹn 100% file service lõi `ccp-ce-downloader.service.ts` theo đúng bản gốc của USER (đã revert sạch sẽ).
+- Tuân thủ **AGENTS.md Rule 4**: Chuẩn bị code hoàn chỉnh, kiểm tra cú pháp và để USER tự chạy test trên terminal.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js): Tự động nạp đủ 7 báo cáo, lưu vào `temp/test_ccp_downloads/`, đo thời gian tải từng file và in bảng tổng kết ASCII.
+
+### 3. Xác nhận Build & Kiểm tra Cú pháp
+- `node --check test_ccp_download_benchmark.js`: Cú pháp hợp lệ 100%, exit code 0.
+- `ccp-ce-downloader.service.ts`: `git diff` sạch 100%, không bị sửa đổi.
+
 
 ### 1. Mục tiêu thay đổi
 - Khắc phục triệt để lỗi giao diện: Modal Hướng dẫn Vận hành & Thiết kế (`TradingManagerGuideModal.tsx`) bị hardcode nền tối `#0c1524` kết hợp chữ màu tối trong chế độ Sáng (Light Mode), làm mất khả năng tương thích với CSS Global (`[data-theme="light"]` / `[data-theme="dark"]`).
