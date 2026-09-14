@@ -3505,70 +3505,70 @@ export class RpaDownloaderService {
     // Dismiss open modals or menus
     await page.keyboard.press('Escape').catch(() => { });
     await page.keyboard.press('Escape').catch(() => { });
-    this.logger.log(`[CQG] Mở widget "${searchTerm}" theo quy trình...`);
-
-    // Bước 1 (C#): Bấm menu Ho
-    const homeMenu = page.locator("//div[text()='Ho']").first();
-    await homeMenu.waitFor({ state: 'visible', timeout: 10000 });
-    await homeMenu.click();
-    await page.waitForTimeout(1000);
-
-    // Bước 2 (C#): Bấm nút dấu cộng add widget
-    const plusIcon = page.locator("//div[contains(@class, 'wpfe-add-widget-btn')]").first();
-    await plusIcon.waitFor({ state: 'visible', timeout: 10000 });
-    await plusIcon.click();
-    await page.waitForTimeout(1000);
-
-    // Bước 3 (C#): Nhập từ khóa tìm kiếm
-    const searchField = page.locator("//input[@placeholder='Search...']").first();
-    await searchField.waitFor({ state: 'visible', timeout: 10000 });
-    await searchField.fill(searchTerm);
-    await page.waitForTimeout(1000);
-
-    // Bước 4 (C#): Chọn widget trong danh sách
-    const itemText =
-      searchTerm === 'P&S'
-        ? 'Purchase & Sales'
-        : searchTerm === 'Pos'
-          ? 'Positions'
-          : searchTerm === 'Orders'
-            ? 'Orders'
-            : 'Fills';
-    const widgetItem = page
-      .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
-      .first();
-    await widgetItem.waitFor({ state: 'visible', timeout: 10000 });
-    await widgetItem.click();
-    await page.waitForTimeout(1000);
-
-    // Bước 5 (C#): Chọn account selector
-    const selectAccountBtn = page
-      .locator("//button[contains(@class, 'wpfe-widget-account-selector-button')]")
-      .first();
-    await selectAccountBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await selectAccountBtn.click();
-    await page.waitForTimeout(1000);
-
-    // Bước 6 (C#): Chọn All accounts
-    const allAccountsItem = page
-      .locator("//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]")
-      .first();
-    await allAccountsItem.waitFor({ state: 'visible', timeout: 10000 });
-    await allAccountsItem.click();
-    await page.waitForTimeout(1000);
-
-    // Bước 7 (C#): Bấm OK
-    const okBtn = page.locator("//div[text()='OK']").first();
-    await okBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await okBtn.click();
-
-    // Bước 8 (C#): Chờ 10s cho dữ liệu load ban đầu
-    this.logger.log(`[CQG] Chờ dữ liệu load ban đầu (10s)...`);
-    await this.waitForCqgNotLoading(page, 30000);
-    await page.waitForTimeout(10000);
-
     let downloaded = false;
     try {
+      this.logger.log(`[CQG] Mở widget "${searchTerm}" theo quy trình...`);
+
+      // Bước 1 (C#): Bấm menu Ho
+      const homeMenu = page.locator("//div[text()='Ho']").first();
+      await homeMenu.waitFor({ state: 'visible', timeout: 10000 });
+      await homeMenu.click();
+      await page.waitForTimeout(1000);
+
+      // Bước 2 (C#): Bấm nút dấu cộng add widget
+      const plusIcon = page.locator("//div[contains(@class, 'wpfe-add-widget-btn')]").first();
+      await plusIcon.waitFor({ state: 'visible', timeout: 10000 });
+      await plusIcon.click();
+      await page.waitForTimeout(1000);
+
+      // Bước 3 (C#): Nhập từ khóa tìm kiếm
+      const searchField = page.locator("//input[@placeholder='Search...']").first();
+      await searchField.waitFor({ state: 'visible', timeout: 10000 });
+      await searchField.fill(searchTerm);
+      await page.waitForTimeout(1000);
+
+      // Bước 4 (C#): Chọn widget trong danh sách
+      const itemText =
+        searchTerm === 'P&S'
+          ? 'Purchase & Sales'
+          : searchTerm === 'Pos'
+            ? 'Positions'
+            : searchTerm === 'Orders'
+              ? 'Orders'
+              : 'Fills';
+      const widgetItem = page
+        .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
+        .first();
+      await widgetItem.waitFor({ state: 'visible', timeout: 10000 });
+      await widgetItem.click();
+      await page.waitForTimeout(1000);
+
+      // Bước 5 (C#): Chọn account selector
+      const selectAccountBtn = page
+        .locator("//button[contains(@class, 'wpfe-widget-account-selector-button')]")
+        .first();
+      await selectAccountBtn.waitFor({ state: 'visible', timeout: 10000 });
+      await selectAccountBtn.click();
+      await page.waitForTimeout(1000);
+
+      // Bước 6 (C#): Chọn All accounts
+      const allAccountsItem = page
+        .locator("//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]")
+        .first();
+      await allAccountsItem.waitFor({ state: 'visible', timeout: 10000 });
+      await allAccountsItem.click();
+      await page.waitForTimeout(1000);
+
+      // Bước 7 (C#): Bấm OK
+      const okBtn = page.locator("//div[text()='OK']").first();
+      await okBtn.waitFor({ state: 'visible', timeout: 10000 });
+      await okBtn.click();
+
+      // Bước 8 (C#): Chờ 10s cho dữ liệu load ban đầu
+      this.logger.log(`[CQG] Chờ dữ liệu load ban đầu (10s)...`);
+      await this.waitForCqgNotLoading(page, 30000);
+      await page.waitForTimeout(10000);
+
       const ellipsisXPath =
         `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']` +
         ' | ' +
@@ -3627,9 +3627,9 @@ export class RpaDownloaderService {
         }
       }
     } catch (err: any) {
-      this.logger.warn(`[CQG] Lỗi click nút download: ${err.message}`);
+      this.logger.warn(`[CQG] Lỗi trong quá trình mở hoặc tải ${tabLabel}: ${err.message}`);
     } finally {
-      // Bước 11 (C#): Đóng tab widget vừa thêm
+      // Bước 11 (C#): Đóng tab widget vừa thêm để giữ màn hình luôn sạch sẽ (kể cả khi thành công hay bị lỗi)
       try {
         await page.keyboard.press('Escape').catch(() => { });
         const closeButtonXPath =
@@ -3637,9 +3637,11 @@ export class RpaDownloaderService {
           ' | ' +
           `//div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`;
         const closeBtn = page.locator(closeButtonXPath).first();
-        await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
-        await closeBtn.click({ force: true });
-        this.logger.log(`[CQG] Đã đóng tab widget: ${tabLabel}: All`);
+        const canClose = await closeBtn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+        if (canClose) {
+          await closeBtn.click({ force: true });
+          this.logger.log(`[CQG] Đã đóng tab widget: ${tabLabel}: All`);
+        }
       } catch (err: any) {
         this.logger.warn(`[CQG] Không thể đóng tab ${tabLabel}: ${err.message}`);
       }

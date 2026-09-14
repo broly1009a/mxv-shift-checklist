@@ -111,24 +111,51 @@ export class GttCheckerService {
    * Helper to retrieve Chrome executable path.
    */
   private getChromeExecutablePath(): string | null {
-    const bundledPath = path.join(
-      process.cwd(),
-      '..',
-      'it-tool-src',
-      'operate-transaction-app',
-      'Chrome',
-      'chrome-win',
-      'chrome.exe',
-    );
-
-    if (fs.existsSync(bundledPath)) {
-      this.logger.log(`Using bundled Chrome binary at: ${bundledPath}`);
-      return bundledPath;
+    if (process.platform === 'win32') {
+      const candidates = [
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(
+          process.cwd(),
+          '..',
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+        path.join(
+          process.cwd(),
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          this.logger.log(`Using Chrome/Edge binary at: ${p}`);
+          return p;
+        }
+      }
+      this.logger.warn('No system Edge/Chrome or bundled Chrome found on Windows.');
+    } else {
+      const linuxCandidates = [
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/snap/bin/chromium',
+      ];
+      for (const p of linuxCandidates) {
+        if (fs.existsSync(p)) {
+          return p;
+        }
+      }
     }
-
-    this.logger.warn(
-      `Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`,
-    );
     return null;
   }
 
@@ -1068,10 +1095,20 @@ export class GttCheckerService {
     try {
       this.logger.log('Đăng nhập CQG...');
       await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.waitForSelector('input[name="userName"]', {
+      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
         state: 'visible',
-        timeout: 25000,
-      });
+        timeout: 15000,
+      }).catch(() => null);
+
+      if (!hasLoginForm) {
+        this.logger.log(`[CQG] Trang đăng nhập đang nạp chậm, tự động reload lại trang...`);
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }));
+        await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 30000,
+        });
+      }
+
       await page.fill('input[name="userName"]', cqgUser);
       await page.fill('input[name="password"]', cqgPass);
       await page.click('button[type="submit"]');
@@ -1080,6 +1117,9 @@ export class GttCheckerService {
         state: 'visible',
         timeout: 60000,
       });
+      // Chờ các lớp loading và đóng thông báo nếu có
+      await this.rpaService['waitForCqgNotLoading']?.(page, 30000).catch(() => { });
+      await this.rpaService['dismissCqgNotifications']?.(page).catch(() => { });
       await page.waitForTimeout(3000);
       this.logger.log('✅ Đăng nhập CQG THÀNH CÔNG!');
 
@@ -1102,66 +1142,94 @@ export class GttCheckerService {
           `--- BẮT ĐẦU BATCH ${batchNum}/${batches.length} (${batchSymbols.length} mã) ---`,
         );
 
-        // Click Add Tab "+"
-        await page.waitForSelector('.wpfe-add-widget-btn', {
-          state: 'visible',
-          timeout: 15000,
-        });
-        await page.click('.wpfe-add-widget-btn');
-        await page.waitForTimeout(2000);
+        try {
+          // Xóa popup nếu có và dismiss menu cũ
+          await page.keyboard.press('Escape').catch(() => { });
+          await this.rpaService['dismissCqgNotifications']?.(page).catch(() => { });
 
-        // Click Quotes
-        await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', {
-          state: 'visible',
-          timeout: 10000,
-        });
-        await page.click('.wpfe-list-item:has-text("Quotes")');
-        await page.waitForTimeout(1000);
+          // Click Add Tab "+"
+          await page.waitForSelector('.wpfe-add-widget-btn', {
+            state: 'visible',
+            timeout: 15000,
+          });
+          await page.click('.wpfe-add-widget-btn');
+          await page.waitForTimeout(2000);
 
-        // Click Quote spreadsheet widget
-        await page.waitForSelector(
-          '[data-widgetclass="wpfe-QuoteSpreadSheet"]',
-          { state: 'visible', timeout: 10000 },
-        );
-        await page.click('[data-widgetclass="wpfe-QuoteSpreadSheet"]');
-        await page.waitForTimeout(3000);
+          // Click Quotes
+          await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', {
+            state: 'visible',
+            timeout: 10000,
+          });
+          await page.click('.wpfe-list-item:has-text("Quotes")');
+          await page.waitForTimeout(1000);
 
-        // Click New list
-        await page.waitForSelector('button:has-text("New list")', {
-          state: 'visible',
-          timeout: 10000,
-        });
-        await page.click('button:has-text("New list")');
-        await page.waitForTimeout(2000);
+          // Click Quote spreadsheet widget
+          await page.waitForSelector(
+            '[data-widgetclass="wpfe-QuoteSpreadSheet"]',
+            { state: 'visible', timeout: 10000 },
+          );
+          await page.click('[data-widgetclass="wpfe-QuoteSpreadSheet"]');
+          await page.waitForTimeout(3000);
 
-        // Fill Search input
-        const SEARCH_INPUT = 'input[placeholder="Search symbols"]';
-        await page.waitForSelector(SEARCH_INPUT, {
-          state: 'visible',
-          timeout: 15000,
-        });
-        await page.fill(SEARCH_INPUT, symbolStr);
-        await page.waitForTimeout(1500);
+          // Click New list
+          await page.waitForSelector('button:has-text("New list")', {
+            state: 'visible',
+            timeout: 10000,
+          });
+          await page.click('button:has-text("New list")');
+          await page.waitForTimeout(2000);
 
-        // Click OK to load list
-        const okBtn = page
-          .locator(
-            'button.wpfe-button-primary:has-text("OK"), button:has-text("OK")',
-          )
-          .first();
-        await okBtn.click();
-        await page.waitForTimeout(5000);
+          // Fill Search input
+          const SEARCH_INPUT = 'input[placeholder="Search symbols"]';
+          await page.waitForSelector(SEARCH_INPUT, {
+            state: 'visible',
+            timeout: 15000,
+          });
+          await page.fill(SEARCH_INPUT, symbolStr);
+          await page.waitForTimeout(1500);
 
-        // Add Column S (Settlement)
-        await this.addSettlementColumn(page, batchNum);
+          // Click OK to load list
+          const okBtn = page
+            .locator(
+              'button.wpfe-button-primary:has-text("OK"), button:has-text("OK")',
+            )
+            .first();
+          await okBtn.click();
+          await page.waitForTimeout(5000);
 
-        // Scrape prices
-        this.logger.log(`Đang quét giá CQG Batch ${batchNum}...`);
-        await this.scrapeQSSPrices(page, cqgPricesMap);
-        this.logger.log(`Lũy kế: Đã đọc được ${cqgPricesMap.size} giá từ CQG.`);
+          // Add Column S (Settlement)
+          await this.addSettlementColumn(page, batchNum);
+
+          // Scrape prices
+          this.logger.log(`Đang quét giá CQG Batch ${batchNum}...`);
+          await this.scrapeQSSPrices(page, cqgPricesMap);
+          this.logger.log(`Lũy kế: Đã đọc được ${cqgPricesMap.size} giá từ CQG.`);
+        } finally {
+          // Đóng tab Quote Spreadsheet của batch vừa quét để giải phóng bộ nhớ & tránh tích tụ tab thừa
+          try {
+            await page.keyboard.press('Escape').catch(() => { });
+            const closeBtnXPath =
+              `//div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]` +
+              ' | ' +
+              `//span[contains(text(), 'Quote') or contains(text(), 'Spreadsheet')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`;
+            const closeBtn = page.locator(closeBtnXPath).first();
+            const canClose = await closeBtn.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+            if (canClose) {
+              await closeBtn.click({ force: true });
+              this.logger.log(`[CQG GTT] Đã đóng tab Quote Spreadsheet Batch ${batchNum}`);
+            }
+          } catch (closeErr: any) {
+            this.logger.warn(`[CQG GTT] Không thể đóng tab Batch ${batchNum}: ${closeErr.message}`);
+          }
+          await page.waitForTimeout(1000).catch(() => { });
+        }
       }
     } finally {
-      await browser.close();
+      // Đăng xuất (Log off) để giải phóng phiên làm việc cho tài khoản CQG Price
+      try {
+        await this.rpaService.logoutCqg(page).catch(() => { });
+      } catch { }
+      await browser.close().catch(() => { });
     }
 
     // =========================================================================

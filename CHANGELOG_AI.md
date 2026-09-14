@@ -1,5 +1,44 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T13:56] Nâng Cấp Module Check Giá Thanh Toán (GTT / CQG Price) Theo Chuẩn Vận Hành Ổn Định
+
+### 1. Mục tiêu thay đổi
+- Áp dụng các bài học kinh nghiệm và chuẩn hóa quy trình automation CQG sang module **Check Giá Thanh Toán (GTT / Settlement Price)** trong `GttCheckerService`:
+  1. **Nhận diện trình duyệt đa nền tảng**: Cập nhật hàm `getChromeExecutablePath` hỗ trợ tìm kiếm cả MS Edge, Google Chrome tiêu chuẩn trên Windows và Linux thay vì chỉ tìm Chrome bundled.
+  2. **Tự động chờ Spinner & Dọn dẹp Notification**: Bổ sung `waitForCqgNotLoading` và `dismissCqgNotifications` khi đăng nhập và trước mỗi batch thêm widget để chống bị đè click / nút bị mờ. Bổ sung tự động reload nếu form đăng nhập tải chậm.
+  3. **Tự động đóng tab Quote Spreadsheet sau mỗi batch**: Bọc khối `finally` cho từng batch để đóng tab QSS ngay sau khi quét xong giá, chống tràn RAM và ngăn ngừa việc tích tụ tab rác vào layout workspace CQG.
+  4. **Tự động Đăng xuất (Log off)**: Gọi `logoutCqg` trước khi đóng browser để giải phóng phiên làm việc máy chủ CQG cho tài khoản `mxvprice`, tránh bị kẹt session khi chạy định kỳ.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/gtt-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts): Tích hợp xử lý đa nền tảng browser, chờ spinner, đóng tab theo batch, và Log off giải phóng session.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: Chạy `npm run build` kiểm tra biên dịch NestJS thành công.
+- Tuân thủ quy tắc 4 của AGENTS.md.
+
+---
+
+## [2026-09-14T13:38] Bọc Khối Try-Finally Bao Quát Toàn Bộ Quy Trình Mở & Tải Widget CQG Để Tự Động Đóng Tab Sạch Sẽ
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu từ USER về việc xử lý dứt điểm các "tab mở thừa" khi gặp tình huống mạng chập chờn hoặc timeout giữa chừng:
+  - Trước đây: Khối `finally` đóng tab chỉ nằm ở phân đoạn click nút download (sau bước 8). Nếu mạng lag, lỗi ở các bước mở widget (bước 1-7) hoặc timeout nạp dữ liệu (bước 8), tab mới tạo có thể bị kẹt lại trên giao diện CQG Desktop.
+  - Cải tiến: Mở rộng khối `try...finally` bao quát toàn bộ từ bước 1 (Bấm menu Ho, mở widget, chọn tài khoản) đến bước 10 (Tải file).
+  - Đảm bảo trong mọi kịch bản (kể cả tải thành công, mạng rớt, hay gặp lỗi ở bất kỳ bước nào), khối `finally` luôn được gọi để tìm và đóng tab widget đó ngay lập tức (`canClose` check với timeout 5s), giữ cho màn hình CQG luôn tinh gọn, không bị lưu lại tab rác vào layout workspace.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Mở rộng phạm vi khối `try...finally` bao bọc toàn bộ phương thức `downloadCqgWidget`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bọc toàn bộ các thao tác thêm widget (Menu Ho, `+`, Search, chọn widget, chọn All accounts, OK, chờ dữ liệu, mở menu 3 chấm, click download) vào khối `try`.
+- Khối `finally` gọi `Escape` và click nút đóng tab `closeBtn` với cơ chế kiểm tra `canClose` an toàn.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- Tuân thủ quy tắc 4 của AGENTS.md.
+
+---
+
 ## [2026-09-14T13:00] Bổ Sung Kiểm Tra Trạng Thái `isClickable` (Disabled/Opacity) & Tối Ưu Timeout Download CQG
 
 ### 1. Mục tiêu thay đổi
