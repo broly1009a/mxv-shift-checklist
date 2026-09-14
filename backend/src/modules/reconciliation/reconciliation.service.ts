@@ -4133,6 +4133,24 @@ export class ReconciliationService {
     );
   }
 
+  public resolveCcpDailyPath(subFolder: string, rawCcpBase?: string): string {
+    const defaultDataPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures');
+    const base = rawCcpBase ? resolveStoragePathCrossPlatform(rawCcpBase) : defaultDataPath;
+    const target = path.join(base, subFolder);
+    if (fs.existsSync(target)) return target;
+
+    const candidates = [
+      path.join(defaultDataPath, subFolder),
+      path.join(process.cwd(), 'backupCCP', subFolder),
+      defaultDataPath,
+      path.join(process.cwd(), 'backupCCP'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return target;
+  }
+
   async runAutoCheckKLGD(
     tradingDate: Date,
     options?: {
@@ -4169,17 +4187,7 @@ export class ReconciliationService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
-    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
-    if (!fs.existsSync(ccpDailyPath)) {
-      const localBackup = path.join(process.cwd(), 'backupCCP');
-      const localDaily = path.join(localBackup, subFolder);
-      if (fs.existsSync(localDaily)) {
-        ccpDailyPath = localDaily;
-      } else if (fs.existsSync(localBackup)) {
-        ccpDailyPath = localBackup;
-      }
-    }
+    const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 
     const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
@@ -4419,17 +4427,7 @@ export class ReconciliationService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
-    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
-    if (!fs.existsSync(ccpDailyPath)) {
-      const localBackup = path.join(process.cwd(), 'backupCCP');
-      const localDaily = path.join(localBackup, subFolder);
-      if (fs.existsSync(localDaily)) {
-        ccpDailyPath = localDaily;
-      } else if (fs.existsSync(localBackup)) {
-        ccpDailyPath = localBackup;
-      }
-    }
+    const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
     let qltkgdCcpBuffer: Buffer | undefined;
     let eodCcpBuffer: Buffer | undefined;
     let ttttCcpBuffer: Buffer | undefined;
@@ -4505,19 +4503,7 @@ export class ReconciliationService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
-    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
-
-    // Fallback: Nếu ccpDailyPath chưa có, kiểm tra thư mục tương đối backupCCP
-    if (!fs.existsSync(ccpDailyPath)) {
-      const localBackup = path.join(process.cwd(), 'backupCCP');
-      const localDaily = path.join(localBackup, subFolder);
-      if (fs.existsSync(localDaily)) {
-        ccpDailyPath = localDaily;
-      } else if (fs.existsSync(localBackup)) {
-        ccpDailyPath = localBackup;
-      }
-    }
+    const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 
     if (!fs.existsSync(ccpDailyPath)) {
       throw new Error(`Thư mục Backup CCP không tồn tại: ${ccpDailyPath}. Vui lòng tải báo cáo CCP trước.`);
@@ -5119,18 +5105,8 @@ export class ReconciliationService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
     const subFolder = path.join(y, `T${m}.${y}`, `${d}.${m}`);
-    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
-    if (!fs.existsSync(ccpDailyPath)) {
-      const localBackup = path.join(process.cwd(), 'backupCCP');
-      const localDaily = path.join(localBackup, subFolder);
-      if (fs.existsSync(localDaily)) {
-        ccpDailyPath = localDaily;
-      } else if (fs.existsSync(localBackup)) {
-        ccpDailyPath = localBackup;
-      }
-    }
+    const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
     const ccpFilesPresent = {
       qltkgd: false,
       qltkgdName: '',
@@ -5684,16 +5660,15 @@ export class ReconciliationService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(rawCcpBase);
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    let ccpDailyPath = path.join(ccpBackupBase, subFolder);
+    let ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 
     try {
       if (!fs.existsSync(ccpDailyPath)) {
         fs.mkdirSync(ccpDailyPath, { recursive: true });
       }
     } catch {
-      ccpDailyPath = path.join(process.cwd(), 'backupCCP', subFolder);
+      ccpDailyPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures', subFolder);
       if (!fs.existsSync(ccpDailyPath)) {
         fs.mkdirSync(ccpDailyPath, { recursive: true });
       }

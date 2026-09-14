@@ -1,6 +1,38 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-14T17:10] DEPLOY: Đồng Bộ Toàn Bộ Mã Nguồn Mới Lên Server Ubuntu 10.0.0.26, Build & Reload PM2 Thành Công
+## [2026-09-14T17:45] FIX & AUDIT: Khắc Phục Lỗi Cột CCP Hiển Thị Bằng 0 (Lệch Đường Dẫn & Lọc DatePicker) & Triển Khai Lên Ubuntu
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"giúp tôi check lại xem tại sao ccp ra bằng 0 hết"* (sau khi bot tải thành công cả 4 nguồn nhưng trên UI ma trận đối chiếu cả 3 chỉ số KLGD, TTM, TTTT của CCP đều trả về 0):
+- Thực hiện điều tra thực tế trực tiếp trên máy chủ Ubuntu `10.0.0.26`:
+  1. **Nguyên nhân gốc rễ 1 (Lệch đường dẫn lưu trữ giữa Downloader và Service Đối Soát)**:
+     - Trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts), khi cấu hình `bot_backup_path_ccp` chưa được thiết lập trong CSDL, bot tự động fallback tải file về:
+       `path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures', subFolder)` (`/opt/mxv-checklist/backend/data/backup/ccp/futures/2026/T09.2026/14.09/`).
+     - Tuy nhiên, trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts) (`runAutoCheckKLGD`, `runAutoCheckPreEOD`, `checkEOD`, `inspectFiles`, `downloadCcpMetrics`), code chỉ đọc `bot_backup_path_ccp` (default sang `M:\Tailieuchung\...` -> `/mnt/qlgd-it/...`) và fallback sang `process.cwd()/backupCCP`.
+     - Do cả 2 đường dẫn trên đều không tồn tại, `reconciliation.service.ts` **hoàn toàn không tìm thấy các file CCP vừa tải về**. Do đó `files.dsgdCcp`, `files.ttmCcp`, `files.ttttCcp` đều là `undefined`, khiến `totalCCP_DSGD`, `totalCCP_TTM`, `totalCCP_TTTT` đều trả về `undefined` và hiển thị mặc định `0` trên giao diện người dùng.
+  2. **Nguyên nhân 2 (Kiểm tra thực tế nội dung file CCP trên server)**:
+     - Chạy kiểm thử trực tiếp `CcpExcelParser.parseTTTT` trên file `TTTT.csv` thực tế đã tải về: File có 2 bản ghi tất toán (`SI5COZ26` volume 1 và `CP2COZ26` volume 1). Khi Service đọc được file, `totalCCP_TTTT` sẽ cho ra kết quả **2 lot**.
+     - Kiểm tra `OPEN_POSITION` (TTM): Trên web CoreCCP, bảng trả về *"Không có dữ liệu"* do toàn bộ vị thế của tài khoản trong ngày đã được tất toán (chuyển sang TTTT). Vì vậy TTM = 0 là chính xác theo thực tế trên sàn.
+     - Kiểm tra `DSGD`: Cải tiến bộ chọn `fillDatePicker` trong [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) để loại trừ các input ẩn (`aria-hidden="true"`, `type="hidden"`) của MUI DateRangePicker, đảm bảo điền chính xác vào các trường `(Từ) Ngày giao dịch` / `(Đến) Ngày giao dịch`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - Bổ sung hàm tiện ích `resolveCcpDailyPath(subFolder, rawCcpBase)` hỗ trợ tìm kiếm đa tầng: `ccpBackupBase` -> `data/backup/ccp/futures` -> `backupCCP`.
+  - Cập nhật đồng bộ cả 5 phương thức: `runAutoCheckKLGD`, `runAutoCheckPreEOD`, `checkEOD`, `inspectFiles`, `downloadCcpMetrics`.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Sửa `fillDatePicker`: Bổ sung điều kiện lọc `not(@aria-hidden='true')` và `not(@type='hidden')`, dùng `pressSequentially` cho tương thích hoàn hảo trên Chromium headless Linux.
+
+### 3. Xác nhận Triển khai & Dịch vụ PM2 trên Ubuntu (10.0.0.26)
+- Đã chạy đồng bộ qua [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js).
+- Build Backend: `nest build` thành công 100%, exit code 0.
+- Build Frontend: `next build` thành công 26/26 routes tĩnh/động, exit code 0.
+- Trạng thái PM2:
+  - ✅ `mxv-backend`: `online` (227.2MB)
+  - ✅ `mxv-frontend`: `online` (55.9MB)
+  - ✅ Thư mục CCP `defaultDataPath` tồn tại và nhận diện đầy đủ `[ 'DSGD.csv', 'TTM.csv', 'TTTT.csv' ]`.
+
+---
+
 
 ### 1. Mục tiêu thay đổi
 Theo yêu cầu từ USER: *"trước mắt tôi cần bạn ủn lên ubutun đã hiện tôi chưa thấy phần ccp đâu"*:
