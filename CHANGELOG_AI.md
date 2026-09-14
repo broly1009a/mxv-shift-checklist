@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T17:10] DEPLOY: Đồng Bộ Toàn Bộ Mã Nguồn Mới Lên Server Ubuntu 10.0.0.26, Build & Reload PM2 Thành Công
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"trước mắt tôi cần bạn ủn lên ubutun đã hiện tôi chưa thấy phần ccp đâu"*:
+- Chạy script đồng bộ toàn diện [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js):
+  - Đồng bộ thành công **224 files** (toàn bộ module `reconciliation`, `bot-engine`, `ccp-statistics`, `margin-checker`, `trading-manager` frontend...).
+  - Biên dịch Backend trên Ubuntu (`nest build` thành công, exit code 0).
+  - Biên dịch Frontend Next.js Turbopack trên Ubuntu (`next build` thành công 26/26 routes, exit code 0).
+  - Khởi động lại dịch vụ PM2: `mxv-backend` (PID 1886163) & `mxv-frontend` (PID 1886396) đều ở trạng thái `online`.
+  - Cột `CCP` màu tím `#8b5cf6` và tính năng bóc tách mới đã sẵn sàng hoạt động trên máy chủ Ubuntu.
+
+### 2. Xác nhận Dịch vụ trên Ubuntu (10.0.0.26)
+- ✅ `mxv-backend`: `online` (0.0.1)
+- ✅ `mxv-frontend`: `online`
+- ✅ `mock-sftp`: `online` (1.0.0)
+
 ## [2026-09-14T17:15] AUDIT & FIX: Rà Soát Toàn Diện & Xử Lý Triệt Để Các Bug Phân Tách Ngày Tháng / Dấu Phân Cách Tương Tự
 
 ### 1. Mục tiêu thay đổi
