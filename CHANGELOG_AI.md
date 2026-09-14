@@ -1,5 +1,253 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T11:30] DOCS & FEAT: Thiết Kế Hoàn Thiện Màn Hình Bot Config & RPA Pipeline Tự Động Theo Cấu Trúc Ngày
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER: Lên tài liệu thiết kế hoàn thiện màn hình Cấu hình hệ thống RPA & Robot (`/admin/bot-config`), giải quyết toàn diện bài toán:
+- Tự động nạp và kiểm tra file theo cấu trúc thư mục ngày `YYYY/TMM.YYYY/DD.MM` (`DSGD`, `TTM`, `TTTT`, `Tỷ giá`, CQG `OD/FR/PS/OP`).
+- Cơ chế nạp file 3-trong-1 linh hoạt: Bot RPA tự động tải $\rightarrow$ Tự động nhận diện thư mục mạng chung $\rightarrow$ Upload kéo thả trực tiếp trên Web.
+- Ma trận sẵn sàng của file (Daily File Readiness Matrix): Báo đèn xanh/đỏ trực quan cho từng file.
+- Nút kích hoạt liên hoàn 1-Click Pipeline: Tải file $\rightarrow$ Tự động chạy thống kê CoreCCP Lot & GTGD mà không cần can thiệp thủ công.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+
+| File | Thao tác | Mô tả |
+|---|---|---|
+| [`THIET_KE_HOAN_THIEN_MAN_HINH_BOT_CONFIG_RPA.md`](docs/THIET_KE_HOAN_THIEN_MAN_HINH_BOT_CONFIG_RPA.md) | **[NEW]** | Tài liệu thiết kế kỹ thuật & UI/UX hoàn thiện: Bối cảnh, Wireframe trực quan, Ma trận file ngày, Cơ chế 3-trong-1, API Contracts, Kế hoạch kiểm thử. |
+| [`screen_design_bot_config_rpa.md`](screen_design_bot_config_rpa.md) | **[NEW]** | Artifact tài liệu thiết kế hoàn thiện màn hình Bot Config & RPA Pipeline. |
+| [`bot-engine.controller.ts`](backend/src/modules/bot-engine/bot-engine.controller.ts) | **[MOD]** | Bổ sung API `GET /api/v1/bot-engine/files/readiness-matrix` quét ma trận file ngày MS & CQG, API `POST /api/v1/bot-engine/files/upload-daily` upload file trực tiếp vào thư mục ngày, và tham số `sessionDay` cho `trigger-download`. |
+| [`ReportDownloader.tsx`](frontend/src/app/admin/bot-config/components/ReportDownloader.tsx) | **[MOD]** | Tích hợp Date Picker chọn ngày phiên, Ma trận sẵn sàng của File (xanh/đỏ/dung lượng/thời gian), Nút upload bổ sung trực tiếp từng file, 4 Preset chọn nhanh và Nút 1-Click Pipeline `[Tải Báo Cáo & Thống Kê CoreCCP]`. |
+| [`CcpLotStatisticsSection.tsx`](frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx) | **[MOD]** | Hoàn tất chế độ Auto-Detect Folder từ `YYYY/TMM.YYYY/DD.MM` và sửa lỗi đóng ternary expression. |
+
+### 3. Tóm tắt nội dung
+- **Backend**:
+  - `GET /api/v1/bot-engine/files/readiness-matrix?date=YYYY-MM-DD`: Quét tự động thư mục ngày `YYYY/TMM.YYYY/DD.MM` của cả MS và CQG, kiểm tra tính hiện diện của 4 file CoreCCP (`DSGD`, `TTM`, `TTTT`, `Tỷ giá`), file CQG (`FR`, `PS`, `OP`, `OD`), file MS và tính toán cờ sẵn sàng `isReadyForLotStatistics`, `isReadyForPreEod`.
+  - `POST /api/v1/bot-engine/files/upload-daily`: Lưu trữ file kéo thả upload trực tiếp vào thư mục ngày trên máy chủ với tên quy chuẩn.
+  - `triggerDownload`: Hỗ trợ tham số `sessionDay` để bot RPA tải trực tiếp vào thư mục ngày tương ứng.
+- **Frontend**:
+  - `ReportDownloader`: Nâng cấp giao diện trực quan, hiển thị Ma trận file ngày thời gian thực, nút upload trực tiếp cho từng file thiếu, preset chọn gói báo cáo, và nút 1-Click Pipeline.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Frontend Next.js Build (`next build`)**: Exit code 0, biên dịch 25/25 routes thành công 100% không lỗi.
+- **Backend NestJS Build (`nest build`)**: Exit code 0, biên dịch hoàn tất không lỗi.
+
+## [2026-09-14T11:00] DOCS & FEAT: Tài Liệu Thiết Kế Màn Hình & In-App Guide Modal Cho Trading Manager & CoreCCP
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER: Viết tài liệu thiết kế màn hình trực quan và tích hợp trực tiếp vào màn hình Trading Manager để nhân sự ca trực có thể dễ dàng hiểu rõ quy trình, công thức tính toán và thao tác sử dụng các tính năng đối soát & thống kê CoreCCP.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+
+| File | Thao tác | Mô tả |
+|---|---|---|
+| [`THIET_KE_MAN_HINH_TRADING_MANAGER_VA_CORECCP.md`](docs/THIET_KE_MAN_HINH_TRADING_MANAGER_VA_CORECCP.md) | **[NEW]** | Tài liệu thiết kế màn hình chi tiết: Sơ đồ kiến trúc 4 tab, Bảng ánh xạ đối chiếu 1:1 C# Desktop ↔ NestJS Bot Registry, Quy trình 4 bước vận hành cho ca trực, Bảng quy cách hàng hóa & công thức toán học GTGD, và Hướng dẫn khắc phục sự cố ngoại lệ. |
+| [`TradingManagerGuideModal.tsx`](frontend/src/app/trading-manager/components/TradingManagerGuideModal.tsx) | **[NEW]** | Modal hướng dẫn nghiệp vụ tương tác trực quan ngay trên trang Web: 4 tab chuyên sâu (Quy trình 4 bước, Công thức & Quy cách hàng hóa, Giám sát 4 loại lệnh, và Bản đồ 4 tab Trading Manager). |
+| [`CcpLotStatisticsSection.tsx`](frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx) | **[MOD]** | Bổ sung nút bấm `[Hướng Dẫn & Công Thức]` trực tiếp trên header panel của phân hệ Thống kê CoreCCP. |
+| [`page.tsx`](frontend/src/app/trading-manager/page.tsx) | **[MOD]** | Bổ sung nút bấm `[Hướng Dẫn Nghiệp Vụ]` ở thanh Header trên cùng (bên cạnh nút Dashboard) và tích hợp modal hướng dẫn. |
+
+### 3. Tóm tắt nội dung code đã sửa / tạo mới
+- **Tài liệu Markdown**: Trình bày rõ ràng công thức GTGD: `Số_lot × Giá_khớp_TB × Hệ_số × Tỷ_giá_USD` (SI5CO=100, CP2CO=1000, PL1NY=5), ý nghĩa từng cột dữ liệu và hướng dẫn ghi file lũy kế an toàn.
+- **In-App Modal**: Tích hợp trực tiếp vào trang `/trading-manager` với giao diện Dark Mode Enterprise, 100% SVG `lucide-react`, không dùng Unicode emoji thô, có tab chuyển đổi trực quan.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Frontend Next.js Build (`next build`)**: Exit code 0, biên dịch 25/25 routes thành công 100%.
+- **Backend Build (`nest build`)**: Exit code 0, hoàn tất không lỗi.
+
+## [2026-09-14T10:12] FEAT: Phase 2 - CCP Lot & GTGD Accumulator Helper & Trading Manager Frontend Integration
+
+### 1. Mục tiêu thay đổi
+Hoàn thiện Phase 2 trong lộ trình chuyển đổi Thống Kê Số Lot & GTGD từ MS/CQG sang CoreCCP:
+- Bổ sung helper và endpoint ghi kết quả thống kê CCP trực tiếp vào các file lũy kế ACM Excel (`Thong ke so lot giao dich ACM 2025.xlsx` và `Thong ke gia tri giao dich ACM 2025.xlsx`).
+- Xây dựng giao diện Frontend tương tác đầy đủ trên trang Trading Manager (`/trading-manager`), thay thế hoàn toàn macro VBA Excel truyền thống.
+- Cung cấp tính năng kiểm tra đủ 4 loại lệnh (MKT, LMT, STP, STL), tổng hợp vị thế mở (TTM) và tất toán (TTTT).
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+
+| File | Thao tác | Mô tả |
+|---|---|---|
+| [`ccp-accumulator.helper.ts`](backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts) | **[MOD]** | Fix type `CcpTvkdStat`, loại bỏ duplicate `ensureBaseFileExists`, sửa `item.tvkd`. Đảm bảo ghi số lot và GTGD vào đúng cột ACM theo chuẩn ExcelJS. |
+| [`ccp-statistics.controller.ts`](backend/src/modules/ccp-statistics/ccp-statistics.controller.ts) | **[MOD]** | Bổ sung endpoint `POST /api/v1/ccp-statistics/lot-statistics/write-accumulator` để lưu kết quả vào file lũy kế. |
+| [`CcpLotStatisticsSection.tsx`](frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx) | **[NEW]** | Component chuyên biệt cho thống kê số lot & GTGD CCP: file pickers (DSGD, TTM, TTTT, Tỷ giá), KPI cards, bảng TVKD, bảng Hàng hóa, cấu hình file lũy kế. |
+| [`page.tsx`](frontend/src/app/trading-manager/page.tsx) | **[MOD]** | Tích hợp sub-tab navigation trong tab `CORE_CCP_VNCLEAR`: "1. Đối Soát Ký Quỹ & EOD" và "2. Thống Kê Số Lot & GTGD (Thay Thế Macro)". |
+
+### 3. Tóm tắt nội dung code đã sửa / tạo mới
+- **Backend**:
+  - Endpoint `POST /api/v1/ccp-statistics/lot-statistics/write-accumulator`: Nhận `result: CcpLotResult`, đọc đường dẫn từ `system_settings`, backup file cũ vào `Backup_Snapshots/`, ghi block số lot ACM (cols 6-8, TVKD cols 11-67, HH cols 70-72) và ghi file GTGD lũy kế theo tháng.
+- **Frontend**:
+  - `CcpLotStatisticsSection`: Thiết kế chuẩn Enterprise Dark Mode, 100% SVG icon `lucide-react`, không dùng Unicode emoji, chuẩn hóa tiền tố `/api/v1`.
+  - Hỗ trợ tải file và xem kết quả tính toán tức thì, lọc TVKD theo mã/tên, lọc TVKD thiếu loại lệnh, phân bổ theo Hàng hóa (SI5CO, PL1NY, CP2CO).
+  - Tích hợp 1-click ghi file lũy kế kèm hiển thị log thời gian thực.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit code 0, hoàn tất không lỗi.
+- **Frontend Next.js Build (`next build`)**: Exit code 0, biên dịch 25/25 static & dynamic routes thành công 100%.
+
+## [2026-09-14T09:51] FEAT: Implement CCP Lot & Value Statistics Service (Migration MS → CCP)
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER: Chuyển hệ thống thống kê số lot và giá trị giao dịch từ nguồn MS/CQG sang nguồn CCP (CoreCCP).
+- Hiện tại CCP chỉ có tài khoản ACM (-A), nhưng thiết kế future-ready cho Spread (-S), LME (L).
+- Tỷ giá lấy từ file xuất CCP (`Tỷ giá.xlsx`) hoặc API `CURRENCYEXCHANGERATE`.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+
+| File | Thao tác | Mô tả |
+|---|---|---|
+| [`ccp-classifier.helper.ts`](backend/src/modules/ccp-statistics/helpers/ccp-classifier.helper.ts) | **[NEW]** | Parser row DSGD/TTM/TTTT, classifier ACM/Spread/LME, `getMaHHFromCcpMaHD` (5 ký tự đầu), `CCP_HH_DEFAULTS` (SI5CO/CP2CO/PL1NY) |
+| [`ccp-lot-statistics.service.ts`](backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts) | **[NEW]** | Service chính: tính lot/GTGD/TTM/TTTT per TVKD, kiểm tra 4 loại lệnh MKT/LMT/STP/STL, parse tỷ giá từ file |
+| [`ccp-statistics.module.ts`](backend/src/modules/ccp-statistics/ccp-statistics.module.ts) | **[MOD]** | Đăng ký `CcpLotStatisticsService` vào providers + exports |
+| [`ccp-statistics.controller.ts`](backend/src/modules/ccp-statistics/ccp-statistics.controller.ts) | **[MOD]** | Inject `CcpLotStatisticsService`, thêm 3 endpoints: `GET lot-statistics/config`, `POST lot-statistics/config`, `POST lot-statistics` |
+| [`ccp_migration_mapping.md`](backend/docs/ccp_migration_mapping.md) | **[MOD]** | Append Section 10: tất cả GAPs đã resolved, mapping chính xác, bảng HH, công thức GTGD, trạng thái implementation |
+
+### 3. Tóm tắt code đã thay đổi / tạo mới
+
+#### ccp-classifier.helper.ts (NEW)
+- `parseCcpDsgdRow(raw[])`: map 25 cột CCP DSGD → `{maTKGD, maTvkd, maHD, muaBan, loaiLenh, klKhop, giaKhop}`
+- `parseCcpTtmRow(raw[])`: map 24 cột CCP TTM → `{maTvkd, maTKGD, maHD, klMua, klBan, laiLoDuKienVnd}`
+- `parseCcpTtttRow(raw[])`: map 31 cột CCP TTTT → `{maTvkd, maTKGD, maHD, laiLoThucTeVnd, klMua, klBan}`
+- `isCcpAcm/Spread/Lme/Options()`: Classifier future-ready theo suffix mã TKGD
+- `classifyCcpDsgd(rows)`: Phân loại → `{all, acm, spread, lme, options, normal}`
+- `getMaHHFromCcpMaHD(maHD, _)`: **5 ký tự đầu** (SI5COZ26→SI5CO) — đã xác nhận từ file thực tế
+- `CCP_HH_DEFAULTS`: SI5CO(100 Pound USD), CP2CO(1000 Pound USD), PL1NY(5 Pound USD)
+- `getCcpHhSpec(maHH, overrides?)`: Tra spec HH theo mã
+
+#### ccp-lot-statistics.service.ts (NEW)
+- `processCcpLotStatistics(files, params)`: Orchestrator chính → trả `CcpLotResult`
+- `calcPerTvkd(dsgd, ttm, tttt, tyGia, params)`: Tính per TVKD:
+  - `soLot = sum(col[10])` per TVKD
+  - `giaTri = sum(KL × Giá × doCao × tyGia)` per TVKD
+  - `isFull4Types`: kiểm tra MKT/LMT/STP/STL
+  - TTM: `col[8] + col[9]`, TTTT: `col[9] + col[10]`
+- **Công thức GTGD (đã xác nhận)**: `KL × Giá_khớp_TB × doCao × tyGia`
+  - Ví dụ: SI5CO, KL=1, Giá=6.485, doCao=100, tyGia(USD)=25920 → **16,806,720 VND**
+- `parseTyGiaFile(buffer)`: Parse `Tỷ giá.xlsx` col[0]=currency, col[1]=rate
+- `fetchTyGiaFromApi()`: Placeholder cho API CCP (cần auth token, implement sau)
+
+#### ccp-statistics.controller.ts (MOD)
+```
+BEFORE: constructor(private ccpStatisticsService) — 3 endpoints cũ
+AFTER:  constructor(private ccpStatisticsService, private ccpLotStatisticsService)
+        + GET  lot-statistics/config
+        + POST lot-statistics/config
+        + POST lot-statistics (upload DSGD+TTM+TTTT+TyGia → JSON CcpLotResult)
+```
+
+### 4. Xác nhận Build / Kiểm thử
+- `node node_modules/typescript/bin/tsc --noEmit` → **0 lỗi** trong các file mới
+- Các lỗi hiện có (`detailed-match.ts`, `run_tkgd_pipeline.ts`...) là lỗi cũ không liên quan đến task này
+
+### 5. Điểm cần tiếp tục (Phase 2)
+- [ ] Ghi kết quả vào file lũy kế Excel ACM (sử dụng lại `excel-accumulator.helper.ts`)
+- [ ] Implement `fetchTyGiaFromApi()` khi có JWT token CCP
+- [ ] Mở rộng `CCP_HH_DEFAULTS` khi CCP thêm Spread/LME/Options
+- [ ] Frontend: Tab "Thống kê Lot CCP" trong Trading Manager
+
+## [2026-09-14T08:45] REFACTOR: Hoàn Thiện Chuẩn Hóa 1:1 Giao Diện Tab "Backup – Thống kê – GTT" Theo C# FormMain Desktop
+
+### 1. Mục tiêu thay đổi
+- Đối chiếu trực tiếp với ảnh chụp thực tế màn hình C# `FormMain.cs` (Tab "Backup - Thống kê - GTT") do USER cung cấp.
+- Giải thích nguyên nhân màn hình trình duyệt của USER vẫn đang hiển thị placeholder cũ (chưa build & deploy lên máy chủ Ubuntu 10.0.0.26).
+- Tinh chỉnh giao diện Web để đạt độ tương đồng 1:1 tuyệt đối về mặt chức năng và bố cục với bản C# Desktop:
+  1. Thêm thanh Header: "Ngày phiên hiện tại", checkbox "Backup định kỳ (phút) [240]", checkbox "Thời điểm backup [04:30]", checkbox "Thời điểm tạo thống kê [04:45]".
+  2. Bố cục Backup MS: 3 cột checkbox (Cột 1: 9 báo cáo, Cột 2: 9 báo cáo, Cột 3: 2 báo cáo QLTKGD) + checkbox `All` + nút `[Backup]`.
+  3. Bố cục Backup CQG: 9 báo cáo + checkbox `All` + nút `[Backup]`.
+  4. Bảng Giá thanh toán (GTT): 3 nút `[Tạo file]`, `[Check]`, `[Tạo file nhập]` và bảng 3 cột `Mã HĐ | GTT MS | GTT CQG` hỗ trợ hiển thị dữ liệu đối chiếu giá thanh toán live.
+  5. Kiểm tra ký quỹ TKGD: Nút `[Check]` và 4 khung tương ứng 4 nhóm điều kiện của `CheckIMR()`.
+  6. Thống kê giao dịch: 2 khối độc lập cho "Thống kê số lot giao dịch" và "Thống kê giá trị giao dịch".
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx): Bổ sung state, handlers và JSX 1:1 C# WinForms.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **State mới**: `backupPeriodic`, `backupPeriodicMinutes`, `enableBackupTime`, `backupTime`, `enableStatTime`, `statTime`, `gttRows`, `gttLoading`, `gttExporting`.
+- **Handlers**:
+  - `handleCheckGtt()`: Gọi `POST /api/v1/bot-engine/run-gtt-check` và đổ dữ liệu vào bảng `gttRows`.
+  - `handleExportGttCorrection()`: Gọi `GET /api/v1/bot-engine/gtt-report/export-correction?type=settlement` tải file Excel sửa giá thanh toán.
+  - Sửa `handleCheckIMR()`: Gọi chuẩn xác `/api/v1/reconciliation/trigger-console-run` với `jobType: 'SCAN_NEGATIVE_MARGIN'`.
+- **UI Tab 2**: Thiết kế lại toàn bộ thẻ giao diện để phản ánh đúng cấu trúc 5 section của C# FormMain.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript (`tsc --noEmit`)**: Hoàn tất với exit code 0.
+- **Frontend Next.js Build (`npm run build`)**: Biên dịch production bundle thành công 100% không cảnh báo lỗi.
+- **Backend Build (`nest build`)**: Hoàn tất với exit code 0.
+
+### 1. Mục tiêu thay đổi
+- Yêu cầu từ USER: "triển khai màn hình này tham chiếu tới cấu hình và task vụ tương tự như bên Check GD - EOD - Sync".
+- Thay thế placeholder đơn giản của tab `BACKUP_THONG_KE_GTT` (chỉ hiển thị icon Database + 2 link) bằng màn hình nghiệp vụ đầy đủ, đối chiếu 1:1 với C# IT Tool (`BackupService.cs` + `FormMain.cs`).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx): Bổ sung state mới, handler functions mới, và toàn bộ JSX cho tab Backup.
+
+### 3. Tóm tắt nội dung code đã sửa
+
+**State mới thêm (dòng 72–96):**
+- `msReports`: Checkbox state cho 20 báo cáo MS (NKTTHT, DSTKGD-Futures/Spread/LME/ACM, TTM, DSGD, QLTKGD,...) — mirror `BackupService.RunBackup(MSReports, ...)`
+- `cqgReports`: Checkbox state cho 9 file CQG (FR1/2, PS1/2, OP1/2, OD1/2, AS) — mirror ghép cặp CQG Raw Files
+- `imrResult`: Kết quả 4 nhóm từ `CheckIMR()` (`g1..g4`)
+- `imrLoading`, `auditMsResult`, `auditCqgResult`, `lotMacroDate`, `valueMacroDate`, `macroRunning`
+
+**Handler functions mới thêm:**
+- `triggerBotJobAndPoll(endpoint, body, toastId, ...)`: Generic function polling job — cùng pattern với `handleTriggerRun` ở tab Check GD; tránh code duplicate
+- `handleCheckIMR()`: Gọi `SCAN_NEGATIVE_MARGIN` qua reconciliation endpoint, map kết quả vào 4 nhóm IMR
+- `handleAuditMsBackup()`: Gọi `POST /api/v1/bot-engine/audit-ms-backup`
+- `handleAuditCqgBackup()`: Gọi `POST /api/v1/bot-engine/audit-cqg-backup`
+- `handleLotMacro()`: Gọi `POST /api/v1/bot-engine/trigger-lot-macro` — mirror `BackupService.ValueStatics()`
+- `handleValueMacro()`: Gọi `POST /api/v1/bot-engine/trigger-value-macro` — mirror `BackupService.NewsTradingStatics()`
+
+**UI tab `BACKUP_THONG_KE_GTT` (thay toàn bộ placeholder):**
+- **Section 1 – Backup Báo Cáo Ngày**: Grid 2 cột (MS bên trái, CQG bên phải), checkbox từng loại báo cáo, toggle "Chọn tất cả/Bỏ chọn tất cả", nút kiểm tra Backup + hiển thị kết quả audit.
+- **Section 2 – Kiểm Tra Ký Quỹ TKGD**: 4 panel màu sắc riêng biệt hiển thị 4 nhóm từ `BackupService.CheckIMR()` (vàng/đỏ/tím/xanh), trạng thái "Chưa quét" / "Không có tài khoản" / danh sách tài khoản vi phạm + badge đếm số.
+- **Section 3 – GTT (Giá Thanh Toán)**: Link trực tiếp đến `/admin/bot-config?tab=gtt` và `/admin/bot-config?tab=gtt-report`, mô tả nghiệp vụ GTT.
+- **Section 4 – Thống Kê Macro**: Grid 2 cột (Số Lô và Giá Trị), mỗi ô có date picker + nút "Chạy Thống Kê" + label mapping C# Method → NestJS endpoint, trạng thái spinner khi đang chạy.
+- **Section 5 – Link tắt**: 3 nút điều hướng nhanh (Thư mục Backup / Lịch sử Ca / Cấu hình Bot).
+
+**Trước khi sửa (placeholder):**
+```tsx
+) : topTab === 'BACKUP_THONG_KE_GTT' ? (
+  <div className="glass-panel" style={{ padding: '40px 24px', textAlign: 'center', maxWidth: '640px' }}>
+    <Database size={32} />
+    <h3>Hệ Thống Sao Lưu & Thống Kê Giao Dịch Tập Trung</h3>
+    ...2 link buttons...
+  </div>
+```
+
+**Sau khi sửa (production UI):**
+```tsx
+) : topTab === 'BACKUP_THONG_KE_GTT' ? (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    {/* Section 1: Backup MS + CQG với checkboxes 20+9 loại báo cáo */}
+    {/* Section 2: Kiểm tra ký quỹ 4 nhóm CheckIMR */}
+    {/* Section 3: GTT links */}
+    {/* Section 4: Macro Số Lô + Giá Trị */}
+    {/* Section 5: Quick links */}
+  </div>
+```
+
+### 4. Xác nhận Build / Kiểm thử
+- **TypeScript `tsc --noEmit`**: Hoàn tất với **exit code 0** — không có lỗi type nào.
+- **Tổng dòng sau khi sửa**: 2554 → 2997 dòng (+443 dòng JSX/logic mới).
+- **Không can thiệp Database**: Toàn bộ thay đổi chỉ là Frontend UI + handler function gọi API.
+
+---
+
+## [2026-09-12T11:07] HOTFIX: Loại Bỏ Hoàn Toàn Việc Lưu Thừa / Duplicate Thư Mục Con Khi Tải Báo Cáo CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Khắc phục hiện tượng robot vừa tạo thư mục con (`EOD/`, `NR/`, `QLTTTKGD/`, `TTTT/`) vừa lưu file phẳng ra ngoài làm nhân đôi dung lượng lưu trữ (đặc biệt file `TTTT.csv` gần 80MB dẫn đến chiếm 160MB).
+- Chuẩn hóa: Khi tải báo cáo cho ca trực ngày (`isDailyShiftFolder`), robot lưu duy nhất 1 bộ file phẳng trực tiếp vào thư mục ngày: `EOD.csv`, `NR.csv`, `QLTTTKGD.csv`, `TTTT.csv`.
+- Tự động phát hiện và xóa sạch các thư mục con rác (`EOD`, `NR`, `QLTTTKGD`, `TTTT`), giảm 50% dung lượng chiếm dụng trên ổ mạng chia sẻ.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts): Sửa `targetFolder` và `fileName` trỏ trực tiếp vào thư mục ngày nếu là ca trực; dọn dẹp subfolder thừa.
+- [backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts): Thêm cơ chế quét dọn dẹp các thư mục con cũ.
+
+### 3. Xác nhận Build & Deploy
+- **Backend & Frontend Build**: Đạt chuẩn `exit code 0`.
+- **Dọn dẹp thực tế trên máy chủ**: Đã xóa thành công 4 thư mục con thừa trong `11.09/`, chỉ giữ lại đúng 4 file `.csv` chuẩn với tổng dung lượng 88MB.
+- **PM2 Production (Ubuntu 10.0.0.26)**: `mxv-backend` (PID 876081) & `mxv-frontend` (PID 876322) đã online ổn định.
+
+---
+
 ## [2026-09-11T19:43] HOTFIX: Chuẩn Hóa Toàn Diện Đường Dẫn Mạng M:\Tailieuchung\QLGD-IT (Ánh Xạ /mnt/qlgd-it Trên Ubuntu) & Sửa Date Parsing Cho CoreCCP
 
 ### 1. Mục tiêu thay đổi

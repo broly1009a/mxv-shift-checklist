@@ -32,9 +32,12 @@ import {
   Terminal,
   X,
   Download,
+  BookOpen,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import CcpLotStatisticsSection from './components/CcpLotStatisticsSection';
+import TradingManagerGuideModal from './components/TradingManagerGuideModal';
 
 export default function TradingManagerPage() {
   const { token } = useAuth();
@@ -45,6 +48,7 @@ export default function TradingManagerPage() {
 
   // Top Tabs (1:1 Khung C# Desktop + Màn hình đối chiếu CoreCCP)
   const [topTab, setTopTab] = useState<'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR'>('CHECK_GD_EOD_SYNC');
+  const [ccpSubTab, setCcpSubTab] = useState<'EOD_RECON' | 'LOT_STATS'>('EOD_RECON');
 
   // Checkbox selections in Table 1
   const [checkPeriodic, setCheckPeriodic] = useState<boolean>(true);
@@ -67,7 +71,48 @@ export default function TradingManagerPage() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
+  const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
+
+  // ========= BACKUP TAB STATE =========
+  // MS Report checkboxes (mirror BackupService.RunBackup MSReports)
+  const [msReports, setMsReports] = useState<Record<string, boolean>>({
+    NKTTHT: true, 'DSTKGD-Futures': true, 'DSTKGD-Spread': true,
+    'DSTKGD-LME': true, 'DSTKGD-ACM': true, TLQHSKQ: true,
+    NR: true, DSTrader: true, 'market-truoc-6h': true,
+    DSLDK: true, DSLCK: true, DSLH: true, DSLK: true,
+    DSGD: true, TTM: true, TTTT: true, TTCDH: true,
+    DSQLKQ: true, QLTKGD: true, 'QLTKGD-am-KQ': true,
+  });
+  // CQG Report checkboxes
+  const [cqgReports, setCqgReports] = useState<Record<string, boolean>>({
+    FR1: true, FR2: true, PS1: true, PS2: true,
+    OP1: true, OP2: true, OD1: true, OD2: true, AS: true,
+  });
+  // IMR check result (4 groups from CheckIMR)
+  // IMR check result (4 groups from CheckIMR)
+  const [imrResult, setImrResult] = useState<{ g1: string[]; g2: string[]; g3: string[]; g4: string[] } | null>(null);
+  const [imrLoading, setImrLoading] = useState<boolean>(false);
+  // Audit results
+  const [auditMsResult, setAuditMsResult] = useState<any>(null);
+  const [auditCqgResult, setAuditCqgResult] = useState<any>(null);
+  // Macro dates
+  const [lotMacroDate, setLotMacroDate] = useState<string>('');
+  const [valueMacroDate, setValueMacroDate] = useState<string>('');
+  const [macroRunning, setMacroRunning] = useState<'LOT' | 'VALUE' | null>(null);
+
+  // Backup periodic & timing settings (1:1 C# FormMain)
+  const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
+  const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(240);
+  const [enableBackupTime, setEnableBackupTime] = useState<boolean>(false);
+  const [backupTime, setBackupTime] = useState<string>('04:30');
+  const [enableStatTime, setEnableStatTime] = useState<boolean>(false);
+  const [statTime, setStatTime] = useState<string>('04:45');
+
+  // GTT states & rows (1:1 C# FormMain Table)
+  const [gttRows, setGttRows] = useState<Array<{ symbol: string; gttMs: number | null; gttCqg: number | null; diff?: number | null }>>([]);
+  const [gttLoading, setGttLoading] = useState<boolean>(false);
+  const [gttExporting, setGttExporting] = useState<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
@@ -403,6 +448,242 @@ export default function TradingManagerPage() {
     }
   };
 
+  // ========= BACKUP TAB HANDLERS =========
+
+  // Generic bot job trigger + polling (shared pattern identical to handleTriggerRun)
+  const triggerBotJobAndPoll = async (
+    endpoint: string,
+    body: Record<string, any>,
+    toastId: string,
+    loadingMsg: string,
+    onCompleted: (job: any) => void,
+    onFailed: (job: any) => void,
+    maxWaitMs = 180000,
+  ) => {
+    const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/${endpoint}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+    const jobId = result.jobId;
+    if (!jobId) { onCompleted(result); return; }
+    toast.loading(loadingMsg, { id: toastId });
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      await new Promise((r) => setTimeout(r, 2500));
+      try {
+        const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!jr.ok) continue;
+        const job = await jr.json();
+        if (job.status === 'COMPLETED') { toast.dismiss(toastId); onCompleted(job); return; }
+        if (job.status === 'FAILED') { toast.dismiss(toastId); onFailed(job); return; }
+      } catch { /* bỏ qua lỗi mạng chập chờn */ }
+    }
+    toast.dismiss(toastId);
+    toast.success('Tác vụ đang chạy ngầm, sẽ hoàn thành sau.');
+  };
+
+  // Kiểm tra ký quỹ (CheckIMR – BackupService.cs:150)
+  const handleCheckIMR = async () => {
+    if (!token || imrLoading) return;
+    setImrLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate, bypassCooldown: true, jobType: 'SCAN_NEGATIVE_MARGIN' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      const jobId = result.jobId;
+
+      if (!jobId) {
+        toast.success(result.message || 'Đã kích hoạt quét ký quỹ!');
+        return;
+      }
+      toast.loading('Bot đang quét tài khoản âm ký quỹ TKGD...', { id: 'imr-check' });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jr.ok) continue;
+          const job = await jr.json();
+          if (job.status === 'COMPLETED') {
+            toast.dismiss('imr-check');
+            const r = job.payload?.result || job;
+            setImrResult({
+              g1: r.imrGroup1 || r.laiLoCoTTM || [],
+              g2: r.imrGroup2 || r.kyQuyKhongTTM || [],
+              g3: r.imrGroup3 || r.kqycttNeKqyc || [],
+              g4: r.imrGroup4 || r.kqkdttNeKqkd || [],
+            });
+            toast.success('Quét ký quỹ TKGD hoàn tất!', { duration: 5000 });
+            return;
+          }
+          if (job.status === 'FAILED') {
+            toast.dismiss('imr-check');
+            toast.error(`Quét ký quỹ thất bại: ${job.error || 'Lỗi không xác định'}`, { duration: 6000 });
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.dismiss('imr-check');
+      toast.success('Tác vụ đang chạy ngầm, sẽ hoàn thành sau.');
+    } catch (err: any) {
+      toast.error(`Lỗi quét ký quỹ: ${err.message}`);
+    } finally {
+      setImrLoading(false);
+    }
+  };
+
+  // Check GTT (Giá thanh toán - C# BackupService.CreateGTT & RunGttCheck)
+  const handleCheckGtt = async () => {
+    if (!token || gttLoading) return;
+    setGttLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/run-gtt-check`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ downloadMarketCsv: true }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.report?.rows) {
+        setGttRows(data.report.rows);
+        toast.success(`Đối chiếu GTT hoàn tất: ${data.report.rows.length} mã hợp đồng`, { duration: 5000 });
+      } else {
+        toast.success('Đã chạy kiểm tra GTT!');
+      }
+    } catch (err: any) {
+      toast.error(`Kiểm tra GTT thất bại: ${err.message}`);
+    } finally {
+      setGttLoading(false);
+    }
+  };
+
+  // Tạo file nhập GTT (Export Correction Excel)
+  const handleExportGttCorrection = async () => {
+    if (!token || gttExporting) return;
+    setGttExporting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-report/export-correction?type=settlement`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GTT_Nhap_${selectedDate || 'today'}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Đã xuất và tải xuống file nhập GTT!');
+    } catch (err: any) {
+      toast.error(`Tải file nhập GTT thất bại: ${err.message}`);
+    } finally {
+      setGttExporting(false);
+    }
+  };
+
+  // Audit Backup MS (kiểm tra thư mục backup MS)
+  const handleAuditMsBackup = async () => {
+    if (!token || triggeringSection === 'audit-ms') return;
+    setTriggeringSection('audit-ms');
+    try {
+      await triggerBotJobAndPoll(
+        'audit-ms-backup',
+        { date: selectedDate, reports: Object.entries(msReports).filter(([, v]) => v).map(([k]) => k) },
+        'audit-ms',
+        'Đang kiểm tra thư mục Backup MS...',
+        (job) => {
+          setAuditMsResult(job.payload?.result || job);
+          toast.success('Kiểm tra Backup MS hoàn tất!', { duration: 5000 });
+        },
+        (job) => { toast.error(`Kiểm tra Backup MS thất bại: ${job.error || ''}`, { duration: 6000 }); },
+        60000,
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTriggeringSection(null);
+    }
+  };
+
+  // Audit Backup CQG
+  const handleAuditCqgBackup = async () => {
+    if (!token || triggeringSection === 'audit-cqg') return;
+    setTriggeringSection('audit-cqg');
+    try {
+      await triggerBotJobAndPoll(
+        'audit-cqg-backup',
+        { date: selectedDate, reports: Object.entries(cqgReports).filter(([, v]) => v).map(([k]) => k) },
+        'audit-cqg',
+        'Đang kiểm tra thư mục Backup CQG...',
+        (job) => {
+          setAuditCqgResult(job.payload?.result || job);
+          toast.success('Kiểm tra Backup CQG hoàn tất!', { duration: 5000 });
+        },
+        (job) => { toast.error(`Kiểm tra Backup CQG thất bại: ${job.error || ''}`, { duration: 6000 }); },
+        60000,
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTriggeringSection(null);
+    }
+  };
+
+  // Thống kê số lô (RUN_LOT_MACRO – BackupService.cs ValueStatics)
+  const handleLotMacro = async () => {
+    if (!token || macroRunning) return;
+    setMacroRunning('LOT');
+    try {
+      await triggerBotJobAndPoll(
+        'trigger-lot-macro',
+        { targetDate: lotMacroDate || selectedDate },
+        'lot-macro',
+        'Đang chạy macro thống kê số lô giao dịch...',
+        (_job) => { toast.success('Thống kê số lô hoàn tất! Kiểm tra file Excel kết quả.', { duration: 5000 }); },
+        (job) => { toast.error(`Macro số lô thất bại: ${job.error || ''}`, { duration: 6000 }); },
+        300000,
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setMacroRunning(null);
+    }
+  };
+
+  // Thống kê giá trị (RUN_VALUE_MACRO – BackupService.cs NewsTradingStatics)
+  const handleValueMacro = async () => {
+    if (!token || macroRunning) return;
+    setMacroRunning('VALUE');
+    try {
+      await triggerBotJobAndPoll(
+        'trigger-value-macro',
+        { targetDate: valueMacroDate || selectedDate },
+        'value-macro',
+        'Đang chạy macro thống kê giá trị giao dịch...',
+        (_job) => { toast.success('Thống kê giá trị hoàn tất! Kiểm tra file Excel kết quả.', { duration: 5000 }); },
+        (job) => { toast.error(`Macro giá trị thất bại: ${job.error || ''}`, { duration: 6000 }); },
+        300000,
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setMacroRunning(null);
+    }
+  };
+
   // Extract totals for Table 1 Matrix
   const totals = summaryData?.klgd?.totals || {};
   const msDSGD = totals.totalDSGD || 0;
@@ -563,6 +844,28 @@ export default function TradingManagerPage() {
               }}
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* In-App Guide Button */}
+            <button
+              type="button"
+              onClick={() => setShowGuideModal(true)}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.8rem',
+                padding: '9px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+                color: '#10b981',
+                cursor: 'pointer',
+              }}
+              title="Xem tài liệu hướng dẫn thiết kế & quy trình vận hành"
+            >
+              <BookOpen size={15} />
+              <span>Hướng Dẫn Nghiệp Vụ</span>
             </button>
 
             {/* Back to Dashboard */}
@@ -1722,8 +2025,53 @@ export default function TradingManagerPage() {
         ) : topTab === 'CORE_CCP_VNCLEAR' ? (
           /* TAB 4: BÁO CÁO & ĐỐI CHIẾU CORECCP (VNCLEAR) */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* CORECCP CONTROL & ACTION HEADER */}
-            <div className="glass-panel" style={{
+            {/* SUB-TABS NAVIGATION: EOD RECONCILIATION vs LOT & GTGD STATISTICS */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setCcpSubTab('EOD_RECON')}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  padding: '8px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderBottom: ccpSubTab === 'EOD_RECON' ? '2px solid #10b981' : '2px solid transparent',
+                  color: ccpSubTab === 'EOD_RECON' ? '#10b981' : 'var(--text-secondary)',
+                  backgroundColor: ccpSubTab === 'EOD_RECON' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                }}
+              >
+                <ShieldCheck size={16} color={ccpSubTab === 'EOD_RECON' ? '#10b981' : 'var(--text-muted)'} />
+                <span>1. Đối Soát Ký Quỹ & EOD (VNCLEAR)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCcpSubTab('LOT_STATS')}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  padding: '8px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderBottom: ccpSubTab === 'LOT_STATS' ? '2px solid #10b981' : '2px solid transparent',
+                  color: ccpSubTab === 'LOT_STATS' ? '#10b981' : 'var(--text-secondary)',
+                  backgroundColor: ccpSubTab === 'LOT_STATS' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                }}
+              >
+                <FileSpreadsheet size={16} color={ccpSubTab === 'LOT_STATS' ? '#10b981' : 'var(--text-muted)'} />
+                <span>2. Thống Kê Số Lot & GTGD (Thay Thế Macro)</span>
+              </button>
+            </div>
+
+            {ccpSubTab === 'EOD_RECON' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* CORECCP CONTROL & ACTION HEADER */}
+                <div className="glass-panel" style={{
               padding: '20px 24px',
               display: 'flex',
               alignItems: 'center',
@@ -2190,44 +2538,524 @@ export default function TradingManagerPage() {
                 </div>
               </div>
             </div>
+              </div>
+            ) : (
+              <CcpLotStatisticsSection
+                token={token}
+                selectedDate={selectedDate}
+                onOpenGuide={() => setShowGuideModal(true)}
+              />
+            )}
           </div>
         ) : topTab === 'BACKUP_THONG_KE_GTT' ? (
-          /* TAB 2: BACKUP - THỐNG KÊ - GTT */
-          <div className="glass-panel" style={{ padding: '40px 24px', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto',
-              color: '#10b981',
-            }}>
-              <Database size={32} />
+          /* TAB 2: BACKUP – THỐNG KÊ – GTT (Khớp 1:1 FormMain.cs của C# Desktop App) */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ===== HEADER BAR: NGÀY PHIÊN & THỜI ĐIỂM BACKUP (1:1 C# FormMain Top Row) ===== */}
+            <div className="glass-panel" style={{ padding: '14px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                {/* Ngày phiên hiện tại */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Calendar size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Ngày phiên hiện tại:
+                  </span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="form-input"
+                    style={{ width: '150px', height: '34px', fontSize: '0.82rem', fontFamily: 'monospace', fontWeight: 700 }}
+                  />
+                </div>
+
+                {/* Backup định kỳ (phút) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={backupPeriodic}
+                      onChange={(e) => setBackupPeriodic(e.target.checked)}
+                      style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
+                    />
+                    <span>Backup định kỳ (phút)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={backupPeriodicMinutes}
+                    onChange={(e) => setBackupPeriodicMinutes(Number(e.target.value))}
+                    disabled={!backupPeriodic}
+                    className="form-input"
+                    style={{ width: '75px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center', fontWeight: 700 }}
+                  />
+                </div>
+
+                {/* Thời điểm backup */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={enableBackupTime}
+                      onChange={(e) => setEnableBackupTime(e.target.checked)}
+                      style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
+                    />
+                    <span>Thời điểm backup</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={backupTime}
+                    onChange={(e) => setBackupTime(e.target.value)}
+                    disabled={!enableBackupTime}
+                    className="form-input"
+                    style={{ width: '95px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center' }}
+                  />
+                </div>
+
+                {/* Thời điểm tạo thống kê */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={enableStatTime}
+                      onChange={(e) => setEnableStatTime(e.target.checked)}
+                      style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
+                    />
+                    <span>Thời điểm tạo thống kê</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={statTime}
+                    onChange={(e) => setStatTime(e.target.value)}
+                    disabled={!enableStatTime}
+                    className="form-input"
+                    style={{ width: '95px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center' }}
+                  />
+                </div>
+              </div>
             </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-              Hệ Thống Sao Lưu & Thống Kê Giao Dịch Tập Trung
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 24px 0' }}>
-              Tất cả các tệp tin báo cáo ngày (DSGD, TTM, TTTT, QLTKGD, FR, PS, Straits) được tải tự động và lưu trữ an toàn tại đường dẫn chia sẻ mạng nội bộ trên máy chủ Ubuntu.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+
+            {/* ===== SECTION 1: BACKUP MS & BACKUP CQG (1:1 Layout C# FormMain) ===== */}
+            <div className="glass-panel" style={{ padding: '18px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '24px' }}>
+                
+                {/* --- BACKUP MS (3 CỘT) --- */}
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup MS</span>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={Object.values(msReports).every(Boolean)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setMsReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                            }}
+                            style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
+                          />
+                          <span>All</span>
+                        </label>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>20 báo cáo</span>
+                    </div>
+
+                    {/* 3 Cột Checkbox chuẩn C# */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 12px' }}>
+                      {/* Cột 1 */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {['NKTTHT', 'DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM', 'TLQHSKQ', 'NR', 'DSTrader', 'market-truoc-6h'].map((key) => (
+                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!msReports[key]}
+                              onChange={() => setMsReports((prev) => ({ ...prev, [key]: !prev[key] }))}
+                              style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                            />
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{key === 'market-truoc-6h' ? 'market truoc 6h' : key}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Cột 2 */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {['DSLDK', 'DSLCK', 'DSLH', 'DSLK', 'DSGD', 'TTM', 'TTTT', 'TTCDH', 'DSQLKQ'].map((key) => (
+                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!msReports[key]}
+                              onChange={() => setMsReports((prev) => ({ ...prev, [key]: !prev[key] }))}
+                              style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                            />
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{key}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Cột 3 */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {['QLTKGD', 'QLTKGD-am-KQ'].map((key) => (
+                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!msReports[key]}
+                              onChange={() => setMsReports((prev) => ({ ...prev, [key]: !prev[key] }))}
+                              style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                            />
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{key === 'QLTKGD-am-KQ' ? 'QLTKGD âm KQ' : key}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nút Backup MS */}
+                  <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={handleAuditMsBackup}
+                      disabled={triggeringSection === 'audit-ms'}
+                      className="btn btn-primary"
+                      style={{ width: '180px', fontSize: '0.84rem', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      {triggeringSection === 'audit-ms' ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                      {triggeringSection === 'audit-ms' ? 'Đang backup...' : 'Backup'}
+                    </button>
+                    {auditMsResult && (
+                      <div style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.76rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                        {auditMsResult.message || 'Kiểm tra hoàn tất'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- BACKUP CQG (1 CỘT) --- */}
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup CQG</span>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={Object.values(cqgReports).every(Boolean)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setCqgReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                            }}
+                            style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
+                          />
+                          <span>All</span>
+                        </label>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>9 file</span>
+                    </div>
+
+                    {/* Danh sách 9 file CQG */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 12px' }}>
+                      {['FR1', 'FR2', 'PS1', 'PS2', 'OP1', 'OP2', 'OD1', 'OD2', 'AS'].map((key) => (
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!cqgReports[key]}
+                            onChange={() => setCqgReports((prev) => ({ ...prev, [key]: !prev[key] }))}
+                            style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                          />
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{key}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Nút Backup CQG */}
+                  <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={handleAuditCqgBackup}
+                      disabled={triggeringSection === 'audit-cqg'}
+                      className="btn btn-primary"
+                      style={{ width: '180px', fontSize: '0.84rem', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      {triggeringSection === 'audit-cqg' ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                      {triggeringSection === 'audit-cqg' ? 'Đang backup...' : 'Backup'}
+                    </button>
+                    {auditCqgResult && (
+                      <div style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.76rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                        {auditCqgResult.message || 'Kiểm tra hoàn tất'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ===== SECTION 2: GIÁ THANH TOÁN (GTT) (1:1 C# FormMain Middle Section) ===== */}
+            <div className="glass-panel" style={{ padding: '18px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Giá thanh toán
+                  </span>
+                  <Link
+                    href="/admin/bot-config?tab=gtt"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Sliders size={13} />
+                    <span>Tạo file</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleCheckGtt}
+                    disabled={gttLoading}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.78rem', padding: '6px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {gttLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                    <span>{gttLoading ? 'Đang check...' : 'Check'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportGttCorrection}
+                    disabled={gttExporting}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {gttExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                    <span>{gttExporting ? 'Đang xuất file...' : 'Tạo file nhập'}</span>
+                  </button>
+                </div>
+                {gttRows.length > 0 && (
+                  <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: '#10b981', fontWeight: 700 }}>
+                    Đã tải {gttRows.length} mã hợp đồng
+                  </span>
+                )}
+              </div>
+
+              {/* Bảng GTT: Mã HĐ | GTT MS | GTT CQG */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>
+                      <th style={{ padding: '8px 16px', borderRight: '1px solid var(--border-color)', width: '30%' }}>Mã HĐ</th>
+                      <th style={{ padding: '8px 16px', borderRight: '1px solid var(--border-color)', width: '35%', textAlign: 'right' }}>GTT MS</th>
+                      <th style={{ padding: '8px 16px', width: '35%', textAlign: 'right' }}>GTT CQG</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gttRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          Chưa có dữ liệu đối chiếu giá thanh toán. Bấm &ldquo;Check&rdquo; để chạy hoặc vào &ldquo;Tạo file&rdquo; để cấu hình GTT.
+                        </td>
+                      </tr>
+                    ) : (
+                      gttRows.map((row, idx) => {
+                        const isDiff = row.gttMs !== null && row.gttCqg !== null && row.gttMs !== row.gttCqg;
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: isDiff ? 'rgba(239, 68, 68, 0.06)' : 'transparent', fontFamily: 'monospace' }}>
+                            <td style={{ padding: '7px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 700, color: isDiff ? '#ef4444' : 'var(--text-primary)' }}>
+                              {row.symbol}
+                            </td>
+                            <td style={{ padding: '7px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
+                              {row.gttMs !== null ? row.gttMs.toLocaleString('vi-VN') : '—'}
+                            </td>
+                            <td style={{ padding: '7px 16px', textAlign: 'right', fontWeight: isDiff ? 800 : 400, color: isDiff ? '#ef4444' : 'inherit' }}>
+                              {row.gttCqg !== null ? row.gttCqg.toLocaleString('vi-VN') : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ===== SECTION 3: KIỂM TRA KÝ QUỸ TKGD (1:1 C# CheckIMR 4 boxes) ===== */}
+            <div className="glass-panel" style={{ padding: '18px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Kiểm tra ký quỹ TKGD
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCheckIMR}
+                  disabled={imrLoading}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '6px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {imrLoading ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                  <span>{imrLoading ? 'Đang check...' : 'Check'}</span>
+                </button>
+              </div>
+
+              {/* 4 Nhóm IMR chuẩn 1:1 C# */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {[
+                  {
+                    key: 'g1',
+                    title: 'TK có lãi lỗ dự kiến nhưng không có TTM',
+                    color: '#f59e0b',
+                    bg: 'rgba(245, 158, 11, 0.05)',
+                  },
+                  {
+                    key: 'g2',
+                    title: 'TK không có TTM và lệnh chờ nhưng có KQTT',
+                    color: '#ef4444',
+                    bg: 'rgba(239, 68, 68, 0.05)',
+                  },
+                  {
+                    key: 'g3',
+                    title: 'TKGD có TTM, không có lệnh chờ nhưng KQYCTT = KQYC',
+                    color: '#8b5cf6',
+                    bg: 'rgba(139, 92, 246, 0.05)',
+                  },
+                  {
+                    key: 'g4',
+                    title: 'TK không có lệnh chờ nhưng KQKĐTT = KQKĐ',
+                    color: '#3b82f6',
+                    bg: 'rgba(59, 130, 246, 0.05)',
+                  },
+                ].map(({ key, title, color, bg }) => {
+                  const group = imrResult?.[key as keyof typeof imrResult] || [];
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        border: `1px solid ${color}35`,
+                        borderRadius: '8px',
+                        padding: '12px',
+                        backgroundColor: bg,
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color, marginBottom: '8px', minHeight: '36px', lineHeight: 1.35, textAlign: 'center' }}>
+                        {title}
+                      </div>
+                      <div
+                        style={{
+                          borderTop: `1px solid ${color}20`,
+                          paddingTop: '8px',
+                          minHeight: '70px',
+                          maxHeight: '120px',
+                          overflowY: 'auto',
+                          fontSize: '0.78rem',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'monospace',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {imrResult === null ? (
+                          <div style={{ color: 'var(--text-muted)', textAlign: 'center', paddingTop: '16px' }}>— Chưa check —</div>
+                        ) : group.length === 0 ? (
+                          <div style={{ color: '#10b981', fontWeight: 700, textAlign: 'center', paddingTop: '16px' }}>Không có tài khoản</div>
+                        ) : (
+                          group.map((acc: string, i: number) => (
+                            <div key={i} style={{ padding: '2px 0' }}>{acc}</div>
+                          ))
+                        )}
+                      </div>
+                      {group.length > 0 && (
+                        <div style={{ marginTop: '8px', padding: '3px 8px', borderRadius: '4px', backgroundColor: `${color}20`, fontSize: '0.72rem', fontWeight: 800, color, textAlign: 'center' }}>
+                          Phát hiện {group.length} tài khoản
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ===== SECTION 4: THỐNG KÊ GIAO DỊCH (1:1 C# FormMain Bottom) ===== */}
+            <div className="glass-panel" style={{ padding: '18px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                
+                {/* Thống kê số lot giao dịch */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Thống kê số lot giao dịch
+                    </span>
+                    <input
+                      type="date"
+                      value={lotMacroDate || selectedDate}
+                      onChange={(e) => setLotMacroDate(e.target.value)}
+                      className="form-input"
+                      style={{ width: '145px', height: '32px', fontSize: '0.8rem', fontFamily: 'monospace' }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLotMacro}
+                    disabled={!!macroRunning}
+                    className="btn btn-primary"
+                    style={{ width: '160px', fontSize: '0.8rem', padding: '7px 16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                    {macroRunning === 'LOT' ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                    <span>{macroRunning === 'LOT' ? 'Đang chạy...' : 'Chạy thống kê'}</span>
+                  </button>
+                </div>
+
+                {/* Thống kê giá trị giao dịch */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Thống kê giá trị giao dịch
+                    </span>
+                    <input
+                      type="date"
+                      value={valueMacroDate || selectedDate}
+                      onChange={(e) => setValueMacroDate(e.target.value)}
+                      className="form-input"
+                      style={{ width: '145px', height: '32px', fontSize: '0.8rem', fontFamily: 'monospace' }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleValueMacro}
+                    disabled={!!macroRunning}
+                    className="btn btn-primary"
+                    style={{ width: '100%', fontSize: '0.83rem', padding: '9px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    {macroRunning === 'VALUE' ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                    {macroRunning === 'VALUE' ? 'Đang chạy Macro Giá Trị...' : 'Chạy Thống Kê Giá Trị'}
+                  </button>
+                  <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Tương ứng: <code style={{ color: '#6366f1' }}>BackupService.NewsTradingStatics()</code> /
+                    NestJS: <code style={{ color: '#6366f1' }}>trigger-value-macro</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ===== SECTION 5: LINK TẮT ===== */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Link
                 href="/admin/upload-backup"
-                className="btn btn-primary"
-                style={{ fontSize: '0.85rem', padding: '10px 20px', textDecoration: 'none' }}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
               >
+                <Server size={15} />
                 Mở Thư Mục Backup
               </Link>
               <Link
                 href="/history"
                 className="btn btn-secondary"
-                style={{ fontSize: '0.85rem', padding: '10px 20px', textDecoration: 'none' }}
+                style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
               >
-                Tra Cứu Lịch Sử Ca
+                <Clock size={15} />
+                Lịch Sử Ca Trực
+              </Link>
+              <Link
+                href="/admin/bot-config"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
+              >
+                <Sliders size={15} />
+                Cấu Hình Bot Toàn Diện
               </Link>
             </div>
           </div>
@@ -2346,6 +3174,12 @@ export default function TradingManagerPage() {
             Server: 10.0.0.26:3001
           </div>
         </div>
+
+        {/* IN-APP GUIDE MODAL */}
+        <TradingManagerGuideModal
+          isOpen={showGuideModal}
+          onClose={() => setShowGuideModal(false)}
+        />
 
         {/* LOG VIEWER MODAL (Adaptive Theme via CSS Variables & createPortal) */}
         {showLogModal && mounted && typeof document !== 'undefined' && createPortal(

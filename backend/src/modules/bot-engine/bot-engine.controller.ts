@@ -42,6 +42,13 @@ import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
 import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  getMsBackupBase,
+  getCqgBackupBase,
+  resolveDailySubfolder,
+  resolveStoragePathCrossPlatform,
+} from './helpers/bot-path.helper';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -1588,7 +1595,10 @@ export class BotEngineController {
    * Triggers an on-demand RPA report download job.
    */
   @Post('trigger-download')
-  async triggerDownload(@Body('targets') targets?: string[]) {
+  async triggerDownload(
+    @Body('targets') targets?: string[],
+    @Body('sessionDay') sessionDay?: string,
+  ) {
     const defaultTargets = [
       'NKTTHT',
       'DSTKGD-Futures',
@@ -1604,11 +1614,15 @@ export class BotEngineController {
     const actualTargets =
       targets && targets.length > 0 ? targets : defaultTargets;
 
+    const actualSessionDay =
+      sessionDay ||
+      new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
     const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
       targets: actualTargets,
-      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0],
+      sessionDay: actualSessionDay,
       maxAttempts: 1, // Only 1 attempt for manual triggers
     });
 
@@ -1616,6 +1630,197 @@ export class BotEngineController {
       success: true,
       message: 'Đã đưa yêu cầu chạy RPA tải báo cáo vào hàng đợi.',
       jobId: job._id,
+      sessionDay: actualSessionDay,
+    };
+  }
+
+  /**
+   * Synchronously checks and returns the File Readiness Matrix for a given session date.
+   * Scans both MS and CQG daily folders (YYYY\TMM.YYYY\DD.MM) for presence of all required files.
+   */
+  @Get('files/readiness-matrix')
+  async getFileReadinessMatrix(@Query('date') dateStr?: string) {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const msBaseRaw = await getMsBackupBase(this.settingsService);
+    const msBase = resolveStoragePathCrossPlatform(msBaseRaw);
+    const cqgBaseRaw = await getCqgBackupBase(this.settingsService);
+    const cqgBase = resolveStoragePathCrossPlatform(cqgBaseRaw);
+
+    const msSub = resolveDailySubfolder(msBase, targetDate);
+    const cqgSub = resolveDailySubfolder(cqgBase, targetDate);
+
+    // Scan MS daily directory
+    let msFiles: Array<{ name: string; size: number; mtime: Date }> = [];
+    if (fs.existsSync(msSub.fullPath)) {
+      try {
+        const entries = fs.readdirSync(msSub.fullPath);
+        msFiles = entries.map((name) => {
+          try {
+            const stat = fs.statSync(path.join(msSub.fullPath, name));
+            return { name, size: stat.size, mtime: stat.mtime };
+          } catch {
+            return { name, size: 0, mtime: new Date() };
+          }
+        });
+      } catch (err: any) {
+        this.logger.warn(`Error reading MS daily folder ${msSub.fullPath}: ${err.message}`);
+      }
+    }
+
+    // Scan CQG daily directory
+    let cqgFiles: Array<{ name: string; size: number; mtime: Date }> = [];
+    if (fs.existsSync(cqgSub.fullPath)) {
+      try {
+        const entries = fs.readdirSync(cqgSub.fullPath);
+        cqgFiles = entries.map((name) => {
+          try {
+            const stat = fs.statSync(path.join(cqgSub.fullPath, name));
+            return { name, size: stat.size, mtime: stat.mtime };
+          } catch {
+            return { name, size: 0, mtime: new Date() };
+          }
+        });
+      } catch (err: any) {
+        this.logger.warn(`Error reading CQG daily folder ${cqgSub.fullPath}: ${err.message}`);
+      }
+    }
+
+    const findMsFile = (regex: RegExp) => {
+      const match = msFiles.find((f) => regex.test(f.name));
+      if (!match) return { exists: false, filename: null, sizeBytes: 0, updatedAt: null };
+      return { exists: true, filename: match.name, sizeBytes: match.size, updatedAt: match.mtime };
+    };
+
+    const findCqgFile = (regex: RegExp) => {
+      const match = cqgFiles.find((f) => regex.test(f.name));
+      if (!match) return { exists: false, filename: null, sizeBytes: 0, updatedAt: null };
+      return { exists: true, filename: match.name, sizeBytes: match.size, updatedAt: match.mtime };
+    };
+
+    // Check CoreCCP reports
+    const ccpDsgd = findMsFile(/^DSGD.*\.xlsx$/i);
+    const ccpTtm = findMsFile(/^TTM.*\.xlsx$/i);
+    const ccpTttt = findMsFile(/^TTTT.*\.xlsx$/i);
+    const ccpTyGia = findMsFile(/^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i);
+
+    // Check CQG reports
+    const cqgFr = findCqgFile(/^FR\.(?:xlsx|xls)$/i);
+    const cqgFr1 = findCqgFile(/^FR1\.(?:xlsx|xls)$/i);
+    const cqgFr2 = findCqgFile(/^FR2\.(?:xlsx|xls)$/i);
+    const cqgPs = findCqgFile(/^PS\.(?:xlsx|xls)$/i);
+    const cqgPs1 = findCqgFile(/^PS1\.(?:xlsx|xls)$/i);
+    const cqgPs2 = findCqgFile(/^PS2\.(?:xlsx|xls)$/i);
+    const cqgOp = findCqgFile(/^OP\.(?:xlsx|xls)$/i);
+    const cqgOd = findCqgFile(/^Od\.(?:xlsx|xls)$/i);
+
+    // Check M-System standard reports
+    const msQltkgd = findMsFile(/^QLTKGD.*\.xlsx$/i);
+    const msNr = findMsFile(/^NR.*\.xlsx$/i);
+    const msNkttht = findMsFile(/^NKTTHT.*\.xlsx$/i);
+    const msTlkqhskq = findMsFile(/^TLKQHSKQ.*\.xlsx$/i);
+    const msMarket6h = findMsFile(/^market.*(?:csv|xlsx)$/i);
+    const msDstrader = findMsFile(/^DSTrader.*\.xlsx$/i);
+    const msDslk = findMsFile(/^DSLK.*\.xlsx$/i);
+    const msDslck = findMsFile(/^DSLCK.*\.xlsx$/i);
+    const msDslh = findMsFile(/^DSLH.*\.xlsx$/i);
+    const msDsldk = findMsFile(/^DSLDK.*\.xlsx$/i);
+
+    const isReadyForLotStatistics = ccpDsgd.exists;
+    const isReadyForPreEod = (ccpDsgd.exists || msQltkgd.exists) && (cqgFr.exists || (cqgFr1.exists && cqgFr2.exists));
+
+    return {
+      success: true,
+      date: dateStr || targetDate.toISOString().split('T')[0],
+      msDailyFolder: msSub.fullPath,
+      cqgDailyFolder: cqgSub.fullPath,
+      msFolderExists: fs.existsSync(msSub.fullPath),
+      cqgFolderExists: fs.existsSync(cqgSub.fullPath),
+      matrix: {
+        ccp: {
+          dsgd: ccpDsgd,
+          ttm: ccpTtm,
+          tttt: ccpTttt,
+          tyGia: ccpTyGia,
+        },
+        cqg: {
+          fr: cqgFr.exists ? cqgFr : { ...cqgFr, exists: cqgFr1.exists && cqgFr2.exists, isMerged: false, rawParts: { fr1: cqgFr1.exists, fr2: cqgFr2.exists } },
+          ps: cqgPs.exists ? cqgPs : { ...cqgPs, exists: cqgPs1.exists && cqgPs2.exists, isMerged: false, rawParts: { ps1: cqgPs1.exists, ps2: cqgPs2.exists } },
+          op: cqgOp,
+          od: cqgOd,
+        },
+        ms: {
+          qltkgd: msQltkgd,
+          nr: msNr,
+          nkttht: msNkttht,
+          tlkqhskq: msTlkqhskq,
+          market6h: msMarket6h,
+          dstrader: msDstrader,
+          dslk: msDslk,
+          dslck: msDslck,
+          dslh: msDslh,
+          dsldk: msDsldk,
+        },
+      },
+      readiness: {
+        lotStatistics: isReadyForLotStatistics,
+        preEod: isReadyForPreEod,
+      },
+    };
+  }
+
+  /**
+   * Upload a missing report file directly into the daily backup folder on the server.
+   */
+  @Post('files/upload-daily')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDailyFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('date') dateStr: string,
+    @Body('targetType') targetType?: string,
+  ) {
+    if (!file) {
+      throw new HttpException('Không có file nào được tải lên.', HttpStatus.BAD_REQUEST);
+    }
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const msBaseRaw = await getMsBackupBase(this.settingsService);
+    const msBase = resolveStoragePathCrossPlatform(msBaseRaw);
+    const msSub = resolveDailySubfolder(msBase, targetDate);
+
+    if (!fs.existsSync(msSub.fullPath)) {
+      fs.mkdirSync(msSub.fullPath, { recursive: true });
+    }
+
+    // Determine normalized file name
+    let finalName = file.originalname;
+    const lowerName = file.originalname.toLowerCase();
+
+    if (targetType === 'DSGD' || lowerName.includes('dsgd')) {
+      finalName = 'DSGD.xlsx';
+    } else if (targetType === 'TTM' || lowerName.includes('ttm')) {
+      finalName = 'TTM.xlsx';
+    } else if (targetType === 'TTTT' || lowerName.includes('tttt')) {
+      finalName = 'TTTT.xlsx';
+    } else if (
+      targetType === 'EXCHANGE_RATE' ||
+      lowerName.includes('tỷ giá') ||
+      lowerName.includes('ty_gia') ||
+      lowerName.includes('exchangerate')
+    ) {
+      const d = targetDate.getDate().toString().padStart(2, '0');
+      const m = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+      const y = targetDate.getFullYear();
+      finalName = `Tỷ giá ${d}.${m}.${y}.xlsx`;
+    }
+
+    const destPath = path.join(msSub.fullPath, finalName);
+    fs.writeFileSync(destPath, file.buffer);
+
+    return {
+      success: true,
+      message: `Đã nạp file ${finalName} vào thư mục ngày: ${msSub.fullPath}`,
+      filename: finalName,
+      sizeBytes: file.size,
+      destPath,
     };
   }
 

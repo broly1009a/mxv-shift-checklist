@@ -108,6 +108,14 @@ export async function getAcmBackupBase(settingsService: { getSetting: (key: stri
   return acmBackupBase;
 }
 
+export async function getCcpBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  return settingsService.getSetting(
+    'bot_backup_path_ccp',
+    process.env.DEFAULT_BACKUP_PATH_CCP ||
+    'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+  );
+}
+
 /**
  * Chuẩn hóa đường dẫn lưu trữ chéo hệ điều hành (Windows vs Ubuntu):
  * - Nếu chạy trên Linux: tự động ánh xạ M:\Tailieuchung\QLGD-IT (hoặc Quanlygiaodich/...) sang /mnt/qlgd-it/
