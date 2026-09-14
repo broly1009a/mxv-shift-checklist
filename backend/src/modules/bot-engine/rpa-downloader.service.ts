@@ -20,28 +20,52 @@ export class RpaDownloaderService {
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
    */
   private getChromeExecutablePath(): string | null {
-    if (process.platform !== 'win32') {
-      return null;
+    if (process.platform === 'win32') {
+      const candidates = [
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(
+          process.cwd(),
+          '..',
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+        path.join(
+          process.cwd(),
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+        'C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\it-tool-src\\operate-transaction-app\\Chrome\\chrome-win\\chrome.exe',
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          this.logger.log(`Using Chrome/Edge binary at: ${p}`);
+          return p;
+        }
+      }
+      this.logger.warn('No system Edge/Chrome or bundled Chrome found on Windows.');
+    } else {
+      const linuxCandidates = [
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/snap/bin/chromium',
+      ];
+      for (const p of linuxCandidates) {
+        if (fs.existsSync(p)) {
+          return p;
+        }
+      }
     }
-    // Relative to backend working directory: ../it-tool-src/operate-transaction-app/Chrome/chrome-win/chrome.exe
-    const bundledPath = path.join(
-      process.cwd(),
-      '..',
-      'it-tool-src',
-      'operate-transaction-app',
-      'Chrome',
-      'chrome-win',
-      'chrome.exe',
-    );
-
-    if (fs.existsSync(bundledPath)) {
-      this.logger.log(`Using bundled Chrome binary at: ${bundledPath}`);
-      return bundledPath;
-    }
-
-    this.logger.warn(
-      `Bundled Chrome binary not found at ${bundledPath}. Falling back to default playwright launch.`,
-    );
     return null;
   }
 
@@ -3446,124 +3470,98 @@ export class RpaDownloaderService {
     tabLabel: string,
     downloadText: string,
     destFile: string,
+    ensureSession?: () => Promise<void>,
   ): Promise<void> {
+    if (ensureSession) {
+      await ensureSession();
+    }
+
     // Tự động đóng/xóa popup Notifications của CQG nếu đang nổi trên màn hình
     await this.dismissCqgNotifications(page);
 
-    // Press Escape to dismiss any open modals or menus
-    await page.keyboard.press('Escape').catch(() => { });
+    // Dismiss open modals or menus
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.keyboard.press('Escape').catch(() => {});
     await page.waitForTimeout(500);
 
-    // Kiểm tra xem tab có sẵn trong workspace hay chưa (ví dụ: 'Fills: All', 'Positions', 'Orders')
-    const existingTab = page
-      .locator(
-        `//div[contains(@class,'wpfe-tab-header') and (.//span[contains(text(),'${tabLabel}')] or .//span[text()='${searchTerm}'])]`,
-      )
-      .first();
-    let isExistingTab = false;
-    if (await existingTab.isVisible().catch(() => false)) {
-      this.logger.log(`[CQG] Tìm thấy tab có sẵn "${tabLabel || searchTerm}", kích hoạt tab...`);
-      await existingTab.click({ timeout: 5000 });
-      await page.waitForTimeout(1000);
-      isExistingTab = true;
-    } else {
-      this.logger.log(`[CQG] Mở widget mới "${searchTerm}"...`);
+    this.logger.log(`[CQG] Mở widget mới "${searchTerm}"...`);
 
-      // Click plus icon to add widget directly if visible
-      let clickedPlus = false;
-      try {
-        await page
-          .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
-          .first()
-          .click({ timeout: 4000 });
-        clickedPlus = true;
-      } catch (e) {
-        this.logger.log(`[CQG] Nút add-widget không trực tiếp click được, thử reset state...`);
+    const addWidgetSelectors = [
+      "//div[contains(@class,'wpfe-add-widget-btn')]",
+      "//div[contains(@class,'wpfe-tab-header-add-button')]",
+      "//button[contains(@class,'wpfe-widget-tab-header-add-button')]",
+      "//mat-icon[@data-mat-icon-name='plus']",
+      "//div[contains(@class,'add-button')]",
+    ];
+    let addWidgetBtn = page.locator(addWidgetSelectors.join(' | ')).first();
+
+    let isAddVisible = await addWidgetBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    if (!isAddVisible) {
+      // Click menu Home / Ho trước khi mở widget để đảm bảo đứng ở trang chính (giống C# tool)
+      const homeTabSelectors = [
+        "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+        "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
+        "//div[text()='Home' or text()='Trang chủ' or text()='Ho']",
+      ];
+      for (const selector of homeTabSelectors) {
+        try {
+          const tab = page.locator(selector).first();
+          if (await tab.isVisible({ timeout: 1500 }).catch(() => false)) {
+            await tab.click({ timeout: 3000 });
+            await page.waitForTimeout(1000);
+            break;
+          }
+        } catch {}
       }
-
-      if (!clickedPlus) {
-        // Dismiss any open menus/popups
-        await page.keyboard.press('Escape').catch(() => { });
-        await page.waitForTimeout(500);
-
-        // Thử tìm tab Home / Trang chủ / Ho để click (ưu tiên class tab/page để tránh click nhầm avatar/profile menu)
-        const homeTabSelectors = [
-          "//div[contains(@class,'tab') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-          "//div[contains(@class,'page') and (text()='Home' or text()='Trang chủ' or text()='Ho')]",
-          "//div[text()='Home' or text()='Trang chủ']",
-        ];
-        for (const selector of homeTabSelectors) {
-          try {
-            const tab = page.locator(selector).first();
-            if (await tab.isVisible()) {
-              await tab.click({ timeout: 3000 });
-              await page.waitForTimeout(1000);
-              break;
-            }
-          } catch { }
-        }
-
-        // Thử click lại plus icon lần nữa với timeout đầy đủ
-        await page
-          .locator("//div[contains(@class,'wpfe-add-widget-btn')]")
-          .first()
-          .click({ timeout: 15000 });
-      }
-      await page.waitForTimeout(1000);
-
-      // Fill search input
-      await page
-        .locator("//input[@placeholder='Search...']")
-        .first()
-        .fill(searchTerm, { timeout: 10000 });
-      await page.waitForTimeout(1000);
-
-      // Click target widget item
-      const itemText =
-        searchTerm === 'P&S'
-          ? 'Purchase & Sales'
-          : searchTerm === 'Pos'
-            ? 'Positions'
-            : searchTerm === 'Orders'
-              ? 'Orders'
-              : 'Fills';
-      const widgetItem = page
-        .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
-        .first();
-      await widgetItem.click({ timeout: 15000 });
-      await page.waitForTimeout(1000);
+      isAddVisible = await addWidgetBtn.isVisible({ timeout: 3000 }).catch(() => false);
     }
+
+    if (!isAddVisible && ensureSession) {
+      this.logger.warn(`[CQG] Không thấy nút add-widget, kiểm tra lại phiên đăng nhập...`);
+      await ensureSession();
+    }
+
+    await addWidgetBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await addWidgetBtn.click({ timeout: 8000 });
+    await page.waitForTimeout(1000);
+
+    // Tìm kiếm widget trong dialog
+    const searchInput = page
+      .locator("//input[@placeholder='Search...']")
+      .first();
+    await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+    await searchInput.fill(searchTerm);
+    await page.waitForTimeout(1000);
+
+    const itemText =
+      searchTerm === 'P&S'
+        ? 'Purchase & Sales'
+        : searchTerm === 'Pos'
+          ? 'Positions'
+          : searchTerm === 'Orders'
+            ? 'Orders'
+            : 'Fills';
+    const widgetItem = page
+      .locator(`//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`)
+      .first();
+    await widgetItem.waitFor({ state: 'visible', timeout: 10000 });
+    await widgetItem.click({ timeout: 8000 });
+    await page.waitForTimeout(1500);
 
     // Select accounts -> All accounts
     await this.dismissCqgNotifications(page);
     try {
-      // Định vị account button thuộc widget đang active
-      const activeAccountBtn = page
-        .locator(
-          [
-            "//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//button[contains(@class,'wpfe-widget-account-selector-button') or contains(@class,'account-selector')]",
-            "//button[contains(@class,'wpfe-widget-account-selector-button') and not(ancestor::div[contains(@style,'display: none')])]",
-          ].join(' | '),
-        )
+      const selectAccountBtn = page
+        .locator("//button[contains(@class,'wpfe-widget-account-selector-button')]")
         .first();
+      await selectAccountBtn.waitFor({ state: 'visible', timeout: 10000 });
 
-      let btnText = '';
-      if (await activeAccountBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
-        btnText = (await activeAccountBtn.innerText().catch(() => '')) || '';
-      }
-
+      let btnText = (await selectAccountBtn.innerText().catch(() => '')) || '';
       if (btnText.includes('All accounts') || btnText.includes('All')) {
         this.logger.log(`[CQG] Widget đã ở All accounts (${btnText}).`);
       } else {
         this.logger.log(`[CQG] Widget đang ở "${btnText}", tiến hành chọn All accounts...`);
-        if (await activeAccountBtn.isVisible().catch(() => false)) {
-          await activeAccountBtn.click({ timeout: 8000 });
-        } else {
-          await page
-            .locator("//button[contains(@class,'wpfe-widget-account-selector-button')]")
-            .first()
-            .click({ timeout: 8000 });
-        }
+        await selectAccountBtn.click({ timeout: 8000 });
         await page.waitForTimeout(1000);
 
         const allAccountsItem = page
@@ -3571,33 +3569,27 @@ export class RpaDownloaderService {
             "//div[contains(@class,'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]",
           )
           .first();
-        await allAccountsItem.click({ timeout: 10000 });
+        await allAccountsItem.waitFor({ state: 'visible', timeout: 10000 });
+        await allAccountsItem.click({ timeout: 8000 });
         await page.waitForTimeout(800);
 
-        await page
+        const okBtn = page
           .locator("//div[text()='OK' or text()='Ok']")
-          .first()
-          .click({ timeout: 5000 })
-          .catch(() => { });
+          .first();
+        if (await okBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await okBtn.click({ timeout: 5000 });
+        }
         await page.waitForTimeout(1500);
       }
     } catch (selectorErr: any) {
-      this.logger.warn(
-        `[CQG] Cảnh báo khi chọn account (${selectorErr.message}), tiếp tục...`,
-      );
+      this.logger.warn(`[CQG] Cảnh báo khi chọn account (${selectorErr.message}), tiếp tục...`);
     }
 
-    this.logger.log(`[CQG] Chờ data load (8s)...`);
-    await page.waitForTimeout(8000);
+    this.logger.log(`[CQG] Chờ data load (10s)...`);
+    await page.waitForTimeout(10000);
 
     // Đảm bảo loại bỏ hoàn toàn popup Notifications trước khi click menu ba chấm
     await this.dismissCqgNotifications(page);
-
-    // Click ellipsis menu button (Chuẩn Ubuntu)
-    const ellipsisSelector = [
-      `//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
-      `//span[contains(text(),'${tabLabel}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
-    ].join(' | ');
 
     const debugDir = path.join(process.cwd(), 'temp', 'debug');
     if (!fs.existsSync(debugDir)) {
@@ -3606,32 +3598,61 @@ export class RpaDownloaderService {
 
     let downloaded = false;
     try {
-      await page
-        .screenshot({
-          path: path.join(debugDir, `cqg-1-before-ellipsis-${searchTerm}.png`),
-        })
-        .catch(() => { });
-      await page.locator(ellipsisSelector).first().click({ timeout: 5000, force: true });
-      await page.waitForTimeout(1000);
-      await page
-        .screenshot({
-          path: path.join(debugDir, `cqg-2-after-ellipsis-${searchTerm}.png`),
-        })
-        .catch(() => { });
+      // 1. Click trực tiếp vào tab header để đảm bảo tab và panel này được focus/active
+      const targetTabSelector = [
+        `//div[contains(@class,'wpfe-widget-tab-header') and .//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]]`,
+        `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]`,
+      ].join(' | ');
+
+      const targetTab = page.locator(targetTabSelector).first();
+      const isTabVis = await targetTab.isVisible({ timeout: 5000 }).catch(() => false);
+      if (isTabVis) {
+        await targetTab.click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(500);
+      }
+
+      // 2. Mở menu ngữ cảnh của đúng tab này bằng chuột phải (tránh bấm nhầm ellipsis của panel khác)
+      let menuOpened = false;
+      if (isTabVis) {
+        try {
+          this.logger.log(`[CQG] Chuột phải vào tab "${tabLabel || searchTerm}" để mở menu...`);
+          await targetTab.click({ button: 'right', timeout: 3000, force: true });
+          await page.waitForTimeout(800);
+          const testDownloadBtn = page.locator(`//div[contains(text(),"${downloadText}")]`).first();
+          if (await testDownloadBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            menuOpened = true;
+          }
+        } catch {}
+      }
+
+      // 3. Nếu chuột phải chưa mở được menu, fallback sang click nút menu ba chấm của tab control
+      if (!menuOpened) {
+        const ellipsisSelector = [
+          `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+          `//div[contains(@class,'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+          `//mat-icon[@data-mat-icon-name='ellipsis-v']`,
+        ].join(' | ');
+
+        const ellipsisBtn = page.locator(ellipsisSelector).first();
+        const isEllipsisVis = await ellipsisBtn.isVisible({ timeout: 3000 }).catch(() => false);
+        if (!isEllipsisVis && ensureSession) {
+          await ensureSession();
+        }
+
+        await ellipsisBtn.waitFor({ state: 'visible', timeout: 8000 });
+        await ellipsisBtn.click({ timeout: 5000, force: true });
+        await page.waitForTimeout(1000);
+      }
 
       await this.dismissCqgNotifications(page);
       this.logger.log(`[CQG] Click Download menu: "${downloadText}"...`);
+
+      // CHỈ TÌM ĐÚNG downloadText CỦA LOẠI BÁO CÁO NÀY - TUYỆT ĐỐI KHÔNG FALLBACK SANG LOẠI KHÁC
       const downloadBtn = page
-        .locator(
-          [
-            `//div[contains(text(),"${downloadText}")]`,
-            `//div[contains(text(),"Download") and (contains(text(),"orders") or contains(text(),"Orders") or contains(text(),"order") or contains(text(),"Order"))]`,
-            `//div[contains(text(),"Download") and (contains(text(),"fills") or contains(text(),"Fills"))]`,
-            `//div[contains(text(),"Download") and (contains(text(),"positions") or contains(text(),"Positions"))]`,
-            `//div[contains(text(),"Download") and (contains(text(),"sales") or contains(text(),"Sales"))]`,
-          ].join(' | '),
-        )
+        .locator(`//div[contains(text(),"${downloadText}")]`)
         .first();
+
+      await downloadBtn.waitFor({ state: 'visible', timeout: 8000 });
 
       const isDisabled = await downloadBtn
         .evaluate((el) => {
@@ -3643,7 +3664,6 @@ export class RpaDownloaderService {
         .catch(() => false);
 
       if (isDisabled) {
-        // Kiểm tra xem destFile đã tồn tại và có dữ liệu (>2.5KB) hay không
         if (fs.existsSync(destFile) && fs.statSync(destFile).size > 2500) {
           this.logger.warn(
             `[CQG] Nút download "${downloadText}" bị vô hiệu hóa nhưng file đích ${destFile} đã có dữ liệu (${fs.statSync(destFile).size} bytes). Giữ nguyên dữ liệu hiện có!`,
@@ -3678,23 +3698,21 @@ export class RpaDownloaderService {
         .screenshot({
           path: path.join(debugDir, `cqg-3-error-${searchTerm}.png`),
         })
-        .catch(() => { });
+        .catch(() => {});
     } finally {
-      // Chỉ đóng widget tab nếu nó do bot tự mở mới (không đóng tab có sẵn của workspace)
-      if (!isExistingTab) {
-        const closeSelector = [
-          `//div[contains(@class,'wpfe-tab-header-active')]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
-          `//span[contains(text(),'${tabLabel}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
-        ].join(' | ');
-        await page
-          .locator(closeSelector)
-          .first()
-          .click({ timeout: 5000 })
-          .catch(() => { });
-      }
+      // CHỈ ĐÓNG ĐÚNG TAB WIDGET VỪA ĐƯỢC THÊM VÀO Ở NỬA TRÊN (TUYỆT ĐỐI KHÔNG ĐÓNG CÁC TAB MẶC ĐỊNH Ở NỬA DƯỚI)
+      try {
+        const specificCloseBtn = page
+          .locator(
+            `//span[contains(text(),'${tabLabel}') or contains(text(),'${searchTerm}')]/ancestor::div[contains(@class,'wpfe-widget-tab-header-content')][1]//button[contains(@class,'wpfe-widget-tab-header-close-button')]`,
+          )
+          .first();
+        if (await specificCloseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await specificCloseBtn.click({ timeout: 4000 }).catch(() => {});
+        }
+      } catch {}
+      await page.waitForTimeout(1500);
     }
-
-    await page.waitForTimeout(2000);
 
     if (!downloaded) {
       throw new Error(
@@ -3703,43 +3721,47 @@ export class RpaDownloaderService {
     }
   }
 
-  async downloadCqgFR(page: Page, destFile: string): Promise<void> {
+  async downloadCqgFR(page: Page, destFile: string, ensureSession?: () => Promise<void>): Promise<void> {
     await this.downloadCqgWidget(
       page,
       'Fills',
-      'Fills: All',
+      'Fills',
       "Download today's fills in view",
       destFile,
+      ensureSession,
     );
   }
 
-  async downloadCqgPS(page: Page, destFile: string): Promise<void> {
+  async downloadCqgPS(page: Page, destFile: string, ensureSession?: () => Promise<void>): Promise<void> {
     await this.downloadCqgWidget(
       page,
       'P&S',
-      'P&S: All',
+      'Purchase & Sales',
       'Download Purchase and sales in view',
       destFile,
+      ensureSession,
     );
   }
 
-  async downloadCqgOP(page: Page, destFile: string): Promise<void> {
+  async downloadCqgOP(page: Page, destFile: string, ensureSession?: () => Promise<void>): Promise<void> {
     await this.downloadCqgWidget(
       page,
       'Pos',
       'Positions',
       'Download open positions in view',
       destFile,
+      ensureSession,
     );
   }
 
-  async downloadCqgOD(page: Page, destFile: string): Promise<void> {
+  async downloadCqgOD(page: Page, destFile: string, ensureSession?: () => Promise<void>): Promise<void> {
     await this.downloadCqgWidget(
       page,
       'Orders',
       'Orders',
       'Download orders in view',
       destFile,
+      ensureSession,
     );
   }
 
@@ -3748,6 +3770,85 @@ export class RpaDownloaderService {
       '[CQG] Giả lập tải báo cáo AS (Account Summary) trong 2 giây...',
     );
     await page.waitForTimeout(2000);
+  }
+
+  /**
+   * Thực hiện Đăng xuất (Log off) trên giao diện CQG Desktop Web
+   * Giúp giải phóng hoàn toàn phiên làm việc (Session) trên máy chủ CQG,
+   * tránh tình trạng tài khoản bị treo khiến người dùng khác bị cảnh báo
+   * hoặc không vào xem được.
+   */
+  async logoutCqg(page: Page): Promise<void> {
+    try {
+      this.logger.log('[CQG] Đang thực hiện Log off để giải phóng phiên đăng nhập cho user khác...');
+      // Dismiss các dialog/modal hoặc context menu nếu đang mở
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+
+      // 1. Tìm icon Sign Out trên sidebar hoặc toolbar của CQG
+      const logoutIconSelectors = [
+        "//mat-icon[@data-mat-icon-name='sign-out']",
+        "//mat-icon[contains(@class, 'sign-out')]",
+        "//div[contains(@class, 'wpfe-desktop-sidebar-toolbar-item')]//mat-icon[@data-mat-icon-name='sign-out']",
+        "//button[contains(@aria-label, 'Sign out') or contains(@aria-label, 'Log off')]",
+      ];
+      const logoutIcon = page.locator(logoutIconSelectors.join(' | ')).first();
+      let isVisible = await logoutIcon.isVisible({ timeout: 2000 }).catch(() => false);
+
+      if (!isVisible) {
+        // Thử click nút thu gọn/mở rộng sidebar nếu sidebar đang đóng
+        const collapseIcon = page
+          .locator(
+            "//*[contains(@class, 'gpc-icon wpfe-desktop-sidebar-toolbar-item-header-icon gpc-icon-size-big gpc-icon-name-wpfe-chevron-up')]",
+          )
+          .first();
+        if (await collapseIcon.isVisible({ timeout: 1500 }).catch(() => false)) {
+          await collapseIcon.click().catch(() => {});
+          await page.waitForTimeout(500);
+        }
+        isVisible = await logoutIcon.isVisible({ timeout: 2000 }).catch(() => false);
+      }
+
+      if (isVisible) {
+        await logoutIcon.click({ timeout: 3000 });
+        await page.waitForTimeout(500);
+
+        // 2. Click menu item "Log off" trong dropdown menu
+        const logoffMenuItem = page
+          .locator(
+            "//div[contains(@class, 'wpfe-dropdown-menu-item-text-content') and (text()='Log off' or text()='Log out' or text()='Đăng xuất')] | //span[text()='Log off' or text()='Log out']",
+          )
+          .first();
+        if (await logoffMenuItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await logoffMenuItem.click({ timeout: 3000 });
+          await page.waitForTimeout(500);
+        }
+
+        // 3. Click nút xác nhận "Log off" trong modal xác nhận
+        const confirmBtn = page
+          .locator(
+            "//div[contains(@class, 'gpc-button-wrapper-content') and (text()='Log off' or text()='Log out')] | //button[contains(., 'Log off') or contains(., 'Log out')]",
+          )
+          .first();
+        if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await confirmBtn.click({ timeout: 3000 });
+        }
+
+        // 4. Chờ màn hình đăng nhập xuất hiện lại để đảm bảo server CQG đã invalidate session
+        await page
+          .waitForSelector(
+            "input[name='password'], span:has-text('Log on'), button:has-text('Log on')",
+            { timeout: 8000 },
+          )
+          .catch(() => {});
+        this.logger.log('[CQG] Đã hoàn tất Log off thành công.');
+      } else {
+        this.logger.log('[CQG] Không thấy icon Sign out (có thể đã ở màn hình đăng nhập hoặc phiên đã kết thúc).');
+      }
+    } catch (err: any) {
+      this.logger.warn(`[CQG] Không thể hoàn tất Log off qua UI: ${err?.message || err}`);
+    }
   }
 
   async downloadCqgBackup(
@@ -3813,9 +3914,10 @@ export class RpaDownloaderService {
           '--disable-blink-features=AutomationControlled',
           '--disable-infobars',
           '--disable-extensions',
+          '--start-maximized',
           '--disk-cache-size=104857600',
         ],
-        viewport: { width: 1280, height: 800 },
+        viewport: null,
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       };
@@ -3889,8 +3991,8 @@ export class RpaDownloaderService {
         errors.push(
           'Thiếu thông tin tài khoản CQG1 (username1/password1 trong bot_credentials_cqg).',
         );
-      } else {
         let browser1: any = null;
+        let page1: Page | null = null;
         try {
           const { browser, page } = await loginCqgAccount(
             username1,
@@ -3898,11 +4000,30 @@ export class RpaDownloaderService {
             '1',
           );
           browser1 = browser;
+          page1 = page;
           await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          const ensureSessionActive1 = async () => {
+            const isLoginScreen = await page
+              .locator('input[name="password"]')
+              .isVisible({ timeout: 2000 })
+              .catch(() => false);
+            if (isLoginScreen) {
+              this.logger.warn(`[CQG1] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username1}...`);
+              await page.fill('input[name="userName"]', username1).catch(() => {});
+              await page.fill('input[name="password"]', password1);
+              await page.click('button[type="submit"]');
+              await page.waitForSelector('div.wpfe-logo-image', {
+                state: 'visible',
+                timeout: 60000,
+              });
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+            }
+          };
 
           if (reports.FR1) {
             try {
-              await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'));
+              await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'), ensureSessionActive1);
               downloaded.push('FR1.xlsx');
             } catch (e: any) {
               errors.push(`FR1: ${e.message}`);
@@ -3910,7 +4031,7 @@ export class RpaDownloaderService {
           }
           if (reports.PS1) {
             try {
-              await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'));
+              await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'), ensureSessionActive1);
               downloaded.push('PS1.xlsx');
             } catch (e: any) {
               errors.push(`PS1: ${e.message}`);
@@ -3918,7 +4039,7 @@ export class RpaDownloaderService {
           }
           if (reports.OP1) {
             try {
-              await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'));
+              await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'), ensureSessionActive1);
               downloaded.push('OP1.xlsx');
             } catch (e: any) {
               errors.push(`OP1: ${e.message}`);
@@ -3926,7 +4047,7 @@ export class RpaDownloaderService {
           }
           if (reports.OD1) {
             try {
-              await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'));
+              await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'), ensureSessionActive1);
               downloaded.push('OD1.xlsx');
             } catch (e: any) {
               errors.push(`OD1: ${e.message}`);
@@ -3934,6 +4055,7 @@ export class RpaDownloaderService {
           }
           if (reports.AS) {
             try {
+              await ensureSessionActive1();
               await this.downloadCqgAS(page, path.join(destDir, 'AS1.xlsx'));
               downloaded.push('AS1.xlsx');
             } catch (e: any) {
@@ -3943,8 +4065,11 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG1 login thất bại: ${e.message}`);
         } finally {
+          if (page1) {
+            await this.logoutCqg(page1).catch(() => {});
+          }
           if (browser1) await browser1.close().catch(() => {});
-          this.logger.log('[CQG] Đóng phiên CQG1.');
+          this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG1.');
           // Khoảng nghỉ 3s để hệ điều hành và file lock profile được giải phóng hoàn toàn
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
@@ -3964,6 +4089,7 @@ export class RpaDownloaderService {
         );
       } else {
         let browser2: any = null;
+        let page2: Page | null = null;
         try {
           const { browser, page } = await loginCqgAccount(
             username2,
@@ -3971,11 +4097,30 @@ export class RpaDownloaderService {
             '2',
           );
           browser2 = browser;
+          page2 = page;
           await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          const ensureSessionActive2 = async () => {
+            const isLoginScreen = await page
+              .locator('input[name="password"]')
+              .isVisible({ timeout: 2000 })
+              .catch(() => false);
+            if (isLoginScreen) {
+              this.logger.warn(`[CQG2] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username2}...`);
+              await page.fill('input[name="userName"]', username2).catch(() => {});
+              await page.fill('input[name="password"]', password2);
+              await page.click('button[type="submit"]');
+              await page.waitForSelector('div.wpfe-logo-image', {
+                state: 'visible',
+                timeout: 60000,
+              });
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+            }
+          };
 
           if (reports.FR2) {
             try {
-              await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'));
+              await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'), ensureSessionActive2);
               downloaded.push('FR2.xlsx');
             } catch (e: any) {
               errors.push(`FR2: ${e.message}`);
@@ -3983,7 +4128,7 @@ export class RpaDownloaderService {
           }
           if (reports.PS2) {
             try {
-              await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'));
+              await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'), ensureSessionActive2);
               downloaded.push('PS2.xlsx');
             } catch (e: any) {
               errors.push(`PS2: ${e.message}`);
@@ -3991,7 +4136,7 @@ export class RpaDownloaderService {
           }
           if (reports.OP2) {
             try {
-              await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'));
+              await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'), ensureSessionActive2);
               downloaded.push('OP2.xlsx');
             } catch (e: any) {
               errors.push(`OP2: ${e.message}`);
@@ -3999,7 +4144,7 @@ export class RpaDownloaderService {
           }
           if (reports.OD2) {
             try {
-              await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'));
+              await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'), ensureSessionActive2);
               downloaded.push('OD2.xlsx');
             } catch (e: any) {
               errors.push(`OD2: ${e.message}`);
@@ -4007,6 +4152,7 @@ export class RpaDownloaderService {
           }
           if (reports.AS) {
             try {
+              await ensureSessionActive2();
               await this.downloadCqgAS(page, path.join(destDir, 'AS2.xlsx'));
               downloaded.push('AS2.xlsx');
             } catch (e: any) {
@@ -4016,8 +4162,11 @@ export class RpaDownloaderService {
         } catch (e: any) {
           errors.push(`CQG2 login thất bại: ${e.message}`);
         } finally {
+          if (page2) {
+            await this.logoutCqg(page2).catch(() => {});
+          }
           if (browser2) await browser2.close().catch(() => {});
-          this.logger.log('[CQG] Đóng phiên CQG2.');
+          this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG2.');
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }

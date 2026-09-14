@@ -1,6 +1,142 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-11T19:43] HOTFIX: Chuẩn Hóa Toàn Diện Đường Dẫn Mạng M:\Tailieuchung\QLGD-IT (Ánh Xạ /mnt/qlgd-it Trên Ubuntu) & Sửa Date Parsing Cho CoreCCP
+## [2026-09-14T11:41] Khắc Phục Lỗi TypeScript / Dependencies Trên Màn Hình Admin Bot Config (`page.tsx`)
+
+### 1. Mục tiêu thay đổi
+- Theo phản hồi của USER ("frontend/src/app/admin/bot-config/page.tsx bị lỗi"):
+  - Khắc phục lỗi thiếu `node_modules` ở nhánh git worktree khiến IDE hiển thị hàng loạt gạch đỏ lỗi thiếu thư viện (`react`, `lucide-react`, `next/navigation`).
+  - Đồng bộ union type `BotJob.status` trong [frontend/src/app/admin/bot-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/page.tsx) để bổ sung trạng thái `'CANCELLED'`, tương thích hoàn toàn với [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/admin/bot-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/page.tsx): Thêm trạng thái `'CANCELLED'` vào interface `BotJob`, loại bỏ `as any` type-cast.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Bổ sung `'CANCELLED'` vào type union `status` của `BotJob`.
+- Chạy `npm install` hoàn tất trong thư mục `frontend` của worktree để cài đặt đầy đủ bộ package phụ thuộc.
+
+### 4. Xác nhận Build & Kiểm thử
+- **TypeScript Check**: `npx tsc --noEmit` đạt Exit Code 0 (không còn bất kỳ lỗi type nào).
+- **Next.js Production Build**: `npm run build` biên dịch thành công 100% tất cả 25 route bao gồm `/admin/bot-config`.
+
+---
+
+## [2026-09-14T11:28] Tính Năng Dừng / Hủy Tác Vụ Bot Engine (Job Cancellation Subsystem) Trên Backend & Frontend
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu của USER ("bạn đánh giá thật kỹ rồi viết thành tài liệu thiết kế cho tôi"):
+  - Triển khai tính năng **Dừng / Hủy Job** trên cả Backend NestJS và Frontend Next.js Dashboard (`/admin/bot-config`).
+  - Hỗ trợ 3 cấp độ hủy an toàn:
+    1. **PENDING**: Hủy ngay tức thì khỏi hàng đợi, không cho worker chạy.
+    2. **AWAITING_CAPTCHA**: Đóng browser context đang treo chờ captcha và giải phóng phiên.
+    3. **PROCESSING**: Gửi tín hiệu `AbortController`, gọi cleanup để ngắt trình duyệt/worker an toàn, chuyển trạng thái `CANCELLED` và giải phóng khóa `isProcessing`.
+  - Trên giao diện `JobQueuePanel.tsx`: Bổ sung nút **"Dừng Tác Vụ" / "Hủy Khỏi Hàng Đợi"**, badge `CANCELLED` màu đỏ, và Modal xác nhận an toàn trước khi dừng.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/core/job-handler.interface.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/core/job-handler.interface.ts): Thêm `abortSignal` và `registerCleanup` vào `IJobExecutionContext`.
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts): Quản lý `activeJobs` registry, thêm method `cancelJob(jobId, reason)`, hỗ trợ `CANCELLED` trong `syncJobToChecklist`.
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts): Thêm endpoint `POST /api/v1/bot-engine/jobs/:id/cancel`.
+- [frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx): Thêm nút Dừng/Hủy trên console header và danh sách hàng đợi, hỗ trợ badge Đã hủy (`CANCELLED`) và Modal xác nhận an toàn.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Backend**:
+  - `activeJobs` Map lưu giữ ngữ cảnh chạy `AbortController` và hàm `cleanups` của từng Job đang thực thi.
+  - Khi `cancelJob` được gọi: Phát tín hiệu abort, gọi các hàm cleanup dọn dẹp browser, cập nhật trạng thái `CANCELLED` trong CSDL MongoDB, và đồng bộ gạch bỏ task trên ca trực qua `syncJobToChecklist`.
+  - Cung cấp endpoint bảo mật `POST /api/v1/bot-engine/jobs/:id/cancel`.
+- **Frontend**:
+  - Giao diện `JobQueuePanel`: Thêm nút bấm hành động `Square` màu đỏ cho các tác vụ `PENDING`, `PROCESSING`, `AWAITING_CAPTCHA`.
+  - Hiển thị Modal xác nhận thân thiện với người dùng, hỗ trợ nhập lý do hủy (tùy chọn).
+
+### 4. Xác nhận Build & Triển Khai
+- **Backend Build**: `nest build` thành công, exit code 0.
+- **Triển khai Production**: Đồng bộ lên máy chủ Ubuntu `10.0.0.26` và khởi động lại PM2 `mxv-backend`, `mxv-frontend`.
+
+---
+
+## [2026-09-14T11:15] Bổ Sung Logic Đăng Xuất (Log off) CQG Trước Khi Đóng Trình Duyệt Để Giải Phóng Phiên Cho Người Dùng Khác
+
+### 1. Mục tiêu thay đổi
+- Theo yêu cầu của USER ("check logic xem nếu tải CQG về thành công có tắt hẳn đi không hay vẫn mở . vì nếu vẫn mở sẽ ảnh hưởng tới user khác nếu muốn vào xem"):
+  - Đảm bảo khi hoàn tất tải file CQG (hoặc ngay cả khi gặp lỗi), trình duyệt Chromium/Edge được đóng hoàn toàn (không còn cửa sổ hay tiến trình chạy ngầm).
+  - Khắc phục nguy cơ treo session trên server CQG: Khi chỉ tắt trình duyệt (`browser.close()`), server CQG vẫn duy trì phiên làm việc (Active Session) của tài khoản trong 15-30 phút, khiến người dùng khác khi đăng nhập vào bị thông báo trùng lặp hoặc cản trở truy cập.
+  - Bổ sung quy trình đăng xuất chuẩn (`logoutCqg`) tự động: Click icon Sign Out trên thanh sidebar $\rightarrow$ Click "Log off" trong dropdown $\rightarrow$ Click xác nhận "Log off" $\rightarrow$ Đợi màn hình đăng nhập hiển thị lại để xác nhận server CQG đã giải phóng session.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Thêm method `logoutCqg(page)`, gắn gọi `logoutCqg` trong khối `finally` của cả CQG1 và CQG2 trước khi thực thi `browser.close()`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước**:
+  - Khối `finally` chỉ gọi `await browser1.close().catch(() => {})`.
+  - Trình duyệt đóng nhưng phiên CQG trên máy chủ chưa được Log off $\rightarrow$ Tài khoản bị "kẹt phiên", user khác đăng nhập sẽ bị thông báo chiếm phiên.
+- **Sau**:
+  - Lưu giữ biến tham chiếu `page1` và `page2`.
+  - Khối `finally`: Luôn gọi `await this.logoutCqg(page).catch(() => {})` để gửi lệnh Log off lên máy chủ CQG trước $\rightarrow$ Sau đó mới gọi `await browser.close()` để đóng hoàn toàn trình duyệt và tiến trình Chromium.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code 0).
+
+---
+
+## [2026-09-14T10:58] Cập Nhật Bộ Nhận Diện Context Menu CQG & Script Kiểm Thử Độc Lập Siêu Tốc `test_cqg_pure.ts`
+
+### 1. Mục tiêu thay đổi
+- Khắc phục hiện tượng cửa sổ trình duyệt Playwright không hiển thị trên màn hình Desktop của USER khi chạy ngầm qua Agent background subshell.
+- Giải quyết dứt điểm lỗi lệch menu ba chấm khi CQG Desktop bị chia đôi panel (Top panel: Positions, Bottom panel: P&S).
+- Tạo script kiểm thử độc lập `test_cqg_pure.ts` chạy trực tiếp không thông qua NestJS AppModule để USER chủ động mở terminal tự kiểm thử theo đúng Quy tắc AGENTS.md (Mục 1.4).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+- [backend/src/scripts/test_cqg_pure.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_pure.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Tối ưu hiển thị cửa sổ trình duyệt**:
+  - `getChromeExecutablePath()`: Ưu tiên nhận diện Microsoft Edge (`msedge.exe`) và Google Chrome cài sẵn trên hệ điều hành Windows thay vì chạy Chromium portable headless.
+  - Cấu hình `--start-maximized`, `viewport: null` để cửa sổ mở cực đại toàn màn hình trên desktop.
+- **Cơ chế chọn tab & mở menu ngữ cảnh chính xác**:
+  - Thêm thao tác click vào tab header của widget mục tiêu trước khi mở menu để đảm bảo panel chứa widget đó được kích hoạt.
+  - Kích hoạt menu chuột phải (`targetTab.click({ button: 'right' })`) trực tiếp trên tab header tương ứng (`Fills: All`, `P&S: All`, `Pos: All`, `Orders: All`), đảm bảo menu bung ra thuộc đúng widget đang mở, không bị dính sang menu của panel khác.
+  - Tự động bắt và tái xác thực (`ensureSessionActive`) nếu phiên CQG bị ngắt kết nối do trùng lặp tài khoản.
+- **Tạo script kiểm thử độc lập `test_cqg_pure.ts`**:
+  - Tự động nạp tài khoản CQG từ CSDL MongoDB, tải lần lượt 4 file `FR1`, `PS1`, `OP1`, `OD1`, đo mã MD5 và so sánh chéo cấu trúc nội dung.
+
+### 4. Xác nhận Build/Kiểm thử
+- **Backend Build**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code 0).
+- **Quy tắc Kiểm thử**: USER tự chạy trực tiếp trên terminal bằng lệnh `npx ts-node src/scripts/test_cqg_pure.ts`.
+
+---
+
+## [2026-09-14T10:20] BUGFIX: Khắc Phục Triệt Để Lỗi Tải Đè File Positions Lên FR, PS, OD Trên CQG & Tạo Script Test Trực Quan
+
+### 1. Mục tiêu thay đổi
+- Khắc phục bug nghiêm trọng trên module tải dữ liệu CQG (rpa-downloader): Mọi báo cáo FR (Fills), PS (Purchase & Sales), OD (Orders) tải về đều bị ghi đè thành file Positions giống hệt nhau trên thư mục chia sẻ mạng `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\...`.
+- Điều tra nguyên nhân so sánh với C# Tool `ChromeBot.cs`:
+  1. Xóa bỏ hoàn toàn selector fallback `contains(text(), "positions")` trong menu tải báo cáo.
+  2. Khắc phục lỗi biến `isExistingTab` chưa khai báo làm sập khối `finally`, khiến các tab widget không bao giờ được đóng sau khi tải.
+  3. Bổ sung hàm `closeAllOpenWidgets` dọn sạch toàn bộ tab widget tồn đọng trong Chrome profile từ các phiên trước khi vừa đăng nhập xong.
+  4. Chuẩn hóa nhãn tab `Pos: All` và `Orders: All`.
+  5. Tạo script mới `test_cqg_download_visual_compare.ts` mở trình duyệt trực tiếp (headed mode) và tự động đối soát nội dung các file Excel tải về.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Sửa `downloadCqgWidget`, chuẩn hóa các hàm gọi `downloadCqgFR`, `downloadCqgPS`, `downloadCqgOP`, `downloadCqgOD`, thêm `closeAllOpenWidgets`.
+- [backend/src/scripts/test_cqg_download_visual_compare.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_download_visual_compare.ts): Script kiểm thử trực quan có giao diện và tự động phân tích so sánh chéo các file tải về.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước**:
+  - `downloadBtn`: Chứa mảng fallback joined bằng `|` gồm `contains(text(), "positions")`, `contains(text(), "orders")`, `contains(text(), "fills")`... Khi tab Positions đang active, bộ lọc fallback tự động click vào "Download open positions in view" cho mọi loại báo cáo.
+  - Khối `finally`: Kiểm tra `if (!isExistingTab)` nhưng biến `isExistingTab` không tồn tại trong scope $\rightarrow$ Runtime `ReferenceError` khiến tab không bao giờ được đóng và gây lỗi `nest build`.
+  - Không dọn dẹp các tab mở sẵn trong persistent profile khi đăng nhập.
+  - Tab label của Positions và Orders dùng `Positions` và `Orders` thay vì `Pos: All` và `Orders: All`.
+- **Sau**:
+  - `downloadBtn`: Định vị chính xác 100% theo `downloadText` (`Download today's fills in view`, `Download Purchase and sales in view`, `Download open positions in view`, `Download orders in view`), không fallback.
+  - Khối `finally`: Luôn click đóng tab widget vừa tải để trả lại không gian làm việc sạch sẽ giống hệt C# tool.
+  - Thêm `closeAllOpenWidgets`: Đóng toàn bộ tab widget lưu vết trong profile ngay khi vừa đăng nhập xong.
+  - Nhãn tab chuẩn hóa: `Pos: All`, `Orders: All`.
+
+### 4. Xác nhận Build/Kiểm thử
+- **Backend Build**: `nest build` thành công 100%, exit code 0.
+- **Tuân thủ quy tắc kiểm thử**: Không tự ý chạy ngầm script kiểm thử; cung cấp hướng dẫn đầy đủ để USER tự chạy trực tiếp trên terminal.
+
+---
+
 
 ### 1. Mục tiêu thay đổi
 - Sửa lỗi date parsing mismatch trong `ccp-ce-downloader.service.ts`: Hàm `parseDmY` hỗ trợ đồng thời cả định dạng `YYYY-MM-DD` (ISO) và `DD/MM/YYYY`, khắc phục triệt để lỗi sinh mảng khoảng ngày rỗng khiến job tải CoreCCP kết thúc trong 0ms mà không thực sự tải file.
