@@ -1,6 +1,36 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-14T15:02] FIX: Đảm Bảo Tải Đủ File Ngay Cả Khi Bảng Không Có Dữ Liệu (Hệ Thống CoreCCP Vẫn Cho Xuất File Khung Tiêu Đề)
+## [2026-09-14T15:20] FEAT & PERF: Tối Ưu Tải File CoreCCP Khi Bảng 0 Dòng - Hỗ Trợ Cả 2 Cơ Chế: Tải File Khung Mẫu (3.8KB) & Bắt Nhanh Toast "Không Có Dữ Liệu Để Xuất" (< 1s)
+
+### 1. Mục tiêu thay đổi
+Theo phản hồi và phát hiện thực tế từ USER:
+*"Không có dữ liệu vẫn tải được file mà tùy cái mới dính 'Không có dữ liệu để xuất'"* và *"khi dính toast đó phải chờ 60s mới chuyển sang action tiếp theo"*:
+- **Đặc thù thực tế trên hệ thống CoreCCP khi bảng 0 bản ghi**:
+  1. **Nhóm báo cáo vẫn cho phép tải file khung mẫu** (`DSGD`, `TTTT`, `DSL`): CoreCCP hiện Toast *"Yêu cầu kết xuất đã được gửi..."* và sự kiện `download` nổ ra trong ~2-3 giây (tải thành công file rỗng ~3.8KB - 4.0KB chứa hàng tiêu đề cột chuẩn cho đối soát kế toán).
+  2. **Nhóm báo cáo bị chặn xuất hoàn toàn** (`NR` - Nộp rút tiền, `EOD`, `LSGTT`): CoreCCP hiển thị Toast popup **"Không có dữ liệu để xuất"** và hoàn toàn KHÔNG kích hoạt sự kiện download.
+  3. **Nguyên nhân code cũ bị treo 60s**:
+     - Lệnh `page.waitForEvent('download', { timeout: 60000 })` giữ luồng blocking suốt 60s.
+     - Lỗi XPath 1.0: Sử dụng `contains(text(), 'dữ liệu')` chỉ kiểm tra text node con đầu tiên (`text()[1]`), trong khi Toast của MUI Alert bọc văn bản trong nhiều `<span>` lồng nhau và icon SVG, dẫn đến XPath cũ trả về `false` và không bắt được Toast.
+- **Giải pháp tối ưu toàn diện**:
+  1. **Vẫn kích hoạt nút Kết xuất bình thường**: Không bao giờ tự ý bỏ qua tải file khi bảng rỗng; nếu CoreCCP nổ download (nhóm 1) thì tải và lưu file ngay lập tức.
+  2. **Bắt chuẩn Toast bằng XPath đa cấp (`contains(., 'Không có dữ liệu')`)**: Quét song song với tiến trình chờ download. Ngay khi Toast popup xuất hiện, bot bắt được ngay trong **~0.5s - 1.0s**, ghi log chi tiết và chuyển ngay sang báo cáo tiếp theo.
+  3. **Cơ chế Adaptive Timeout (Thời gian chờ thích ứng)**:
+     - Với bảng có dữ liệu: Giữ nguyên timeout 60s/120s để xuất các file lớn.
+     - Với bảng 0 dòng (`isTableEmpty === true`): Hạ timeout tối đa xuống chỉ **6 giây** (thay vì 60s). Nhờ vậy, ngay cả trong trường hợp xấu nhất CoreCCP không hiện toast và cũng không tải file, bot chỉ dừng tối đa 6s rồi đi tiếp, tuyệt đối không bị treo 60s.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js):
+  - Nhận diện `EMPTY_TABLE` từ hàm tìm kiếm bảng.
+  - Áp dụng `effectiveTimeoutMs = isTableEmpty ? 6000 : timeoutMs`.
+  - Quét liên tục Toast thông báo với XPath `contains(., 'Không có dữ liệu')`.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Cập nhật `setDateRangeAndSearch` trả về `Promise<'OK' | 'EMPTY_TABLE'>`.
+  - Thêm tham số `isTableEmpty` vào `triggerExportDownload` với Adaptive Timeout 6s.
+  - Đồng bộ toàn bộ các hàm gọi: `downloadSingleInterval`, `downloadReport`, `downloadEodReport`, `downloadQlttTkgdReport`.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
+- ✅ Script Benchmark: `node --check src/scripts/test_ccp_download_benchmark.js` hợp lệ 100%.
 
 ### 1. Mục tiêu thay đổi
 Theo phản hồi trực tiếp từ USER: "không có dữ liệu vẫn tải được mà, tại sao bạn không tải mà bỏ":

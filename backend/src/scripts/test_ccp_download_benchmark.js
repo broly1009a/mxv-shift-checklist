@@ -430,24 +430,26 @@ async function setDateRangeAndSearch(page, startDate, endDate, reportCode) {
     await dismissModalBackdrop(page);
   }
 
-  // Kiểm tra nhanh: Nếu bảng vừa nạp xong đã báo 'Không có dữ liệu', bỏ qua bước lọc cột và chuyển thẳng sang kết xuất
+  // Kiểm tra nhanh xem bảng có 0 bản ghi không
+  let isTableEmpty = false;
   const noDataInTable = page.locator(
     "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
   ).first();
   if (await noDataInTable.isVisible({ timeout: 600 }).catch(() => false)) {
-    console.log("  ℹ️ [Search Result] Bảng đã trả về 'Không có dữ liệu' -> Bỏ qua bước lọc cột và chuyển thẳng sang Kết xuất tải file.");
-    return 'OK';
+    console.log("  ℹ️ [Search Result] Bảng hiển thị 0 bản ghi -> Bỏ qua lọc cột, tiến hành kết xuất...");
+    isTableEmpty = true;
   }
 
-  return 'OK';
+  return isTableEmpty ? 'EMPTY_TABLE' : 'OK';
 }
 
 // 6. trigger_export_download (Python base_report_page.py:L324-429)
-async function triggerExportDownload(page, timeoutMs = 120000) {
+async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = false) {
   await dismissModalBackdrop(page);
   await waitForTableLoadingComplete(page, 30000);
 
-  // Tìm nút 'Kết xuất' (Vẫn tiến hành kết xuất ngay cả khi bảng 0 dòng để lấy file mẫu/tiêu đề)
+  // Nếu bảng 0 bản ghi: Nếu sàn cho xuất thì file mẫu (4KB) chỉ mất 2-3s; nếu sàn chặn, chỉ chờ tối đa 6s thay vì 60s!
+  const effectiveTimeoutMs = isTableEmpty ? 6000 : timeoutMs;
 
   // Tìm nút 'Kết xuất'
   let exportBtn = page.locator(
@@ -466,19 +468,40 @@ async function triggerExportDownload(page, timeoutMs = 120000) {
 
   let downloadObj = null;
 
-  async function checkNoDataToast() {
-    try {
-      const toastElem = page.locator(
-        "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không') or contains(text(), 'thành công') or contains(text(), 'Thành công')]"
-      ).first();
-      if (await toastElem.isVisible({ timeout: 400 })) {
-        const toastText = (await toastElem.textContent()) || '';
-        console.log(`  [Toast Notification] ${toastText.trim()}`);
-        if (toastText.toLowerCase().includes('không có dữ liệu') || toastText.toLowerCase().includes('no data')) {
+  async function triggerExportWithToastCheck(actionFn) {
+    const downloadPromise = page.waitForEvent('download', { timeout: effectiveTimeoutMs })
+      .then((d) => { downloadObj = d; return d; })
+      .catch(() => null);
+
+    await actionFn();
+
+    // Quét Toast song song bằng page.locator() XPath contains(., ...)
+    const startTime = Date.now();
+    while (Date.now() - startTime < effectiveTimeoutMs) {
+      if (downloadObj) return downloadObj;
+
+      try {
+        const toastLocator = page.locator(
+          "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@class, 'Toastify') or contains(@role, 'alert') or contains(@class, 'MuiSnackbar-root')]" +
+          "[contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu') or contains(., 'No data') or contains(., 'No records')]"
+        ).first();
+
+        if (await toastLocator.isVisible({ timeout: 150 })) {
+          const text = (await toastLocator.textContent()) || '';
+          console.log(`  ℹ️ [Toast Thông Báo] "${text.trim()}" -> Hệ thống từ chối xuất file!`);
           return 'NO_DATA';
         }
-      }
-    } catch {}
+      } catch {}
+
+      await page.waitForTimeout(200);
+    }
+
+    const res = await downloadPromise;
+    if (res) return res;
+    if (isTableEmpty) {
+      console.log('  ℹ️ Không có file tải về sau 6s trên bảng rỗng -> Coi như Không có dữ liệu.');
+      return 'NO_DATA';
+    }
     return null;
   }
 
@@ -494,34 +517,12 @@ async function triggerExportDownload(page, timeoutMs = 120000) {
   ).first();
 
   if (await exportAllOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log(`  [Xuất Báo Cáo] Chọn 'Xuất tất cả' (Đang tạo file CSV, chờ tối đa ${(timeoutMs / 1000).toFixed(0)}s)...`);
-    try {
-      const downloadPromise = page.waitForEvent('download', { timeout: timeoutMs });
-      await exportAllOption.click({ force: true });
-      await page.waitForTimeout(300);
-      const toastRes = await checkNoDataToast();
-      if (toastRes === 'NO_DATA') return 'NO_DATA';
-      downloadObj = await downloadPromise;
-    } catch (e) {
-      if ((await checkNoDataToast()) === 'NO_DATA') return 'NO_DATA';
-      console.log(`  ⚠️ Lỗi khi chọn 'Xuất tất cả' hoặc timeout: ${e.message}`);
-      downloadObj = null;
-    }
+    console.log(`  [Xuất Báo Cáo] Chọn 'Xuất tất cả' (Đang tạo file, chờ tối đa ${(effectiveTimeoutMs / 1000).toFixed(0)}s)...`);
+    downloadObj = await triggerExportWithToastCheck(() => exportAllOption.click({ force: true }));
   } else {
     // PHƯƠNG ÁN 2 (FALLBACK): Kích đúp 2 lần vào nút Kết xuất (Python base_report_page.py:L407-425)
-    console.log(`  [Export Mode: Fallback Double-click] Kích đúp nút 'Kết xuất' (Chờ download tối đa ${(timeoutMs / 1000).toFixed(0)}s)...`);
-    try {
-      const downloadPromise = page.waitForEvent('download', { timeout: timeoutMs });
-      await exportBtn.dblclick({ force: true });
-      await page.waitForTimeout(300);
-      const toastRes = await checkNoDataToast();
-      if (toastRes === 'NO_DATA') return 'NO_DATA';
-      downloadObj = await downloadPromise;
-    } catch (e) {
-      if ((await checkNoDataToast()) === 'NO_DATA') return 'NO_DATA';
-      console.log(`  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': ${e.message}`);
-      downloadObj = null;
-    }
+    console.log(`  [Export Mode: Fallback Double-click] Kích đúp nút 'Kết xuất' (Chờ download tối đa ${(effectiveTimeoutMs / 1000).toFixed(0)}s)...`);
+    downloadObj = await triggerExportWithToastCheck(() => exportBtn.dblclick({ force: true }));
   }
 
   await dismissModalBackdrop(page);
@@ -541,14 +542,15 @@ async function downloadSingleReport(page, report, startDateStr, endDateStr, outp
 
   // 2. Lọc thời gian và bấm Tìm kiếm (Python: page_obj.set_date_range_and_search)
   const searchResult = await setDateRangeAndSearch(page, startDateStr, endDateStr, report.code);
+  const isTableEmpty = searchResult === 'EMPTY_TABLE';
 
   const cleanStart = startDateStr.replace(/\//g, '');
   const cleanEnd = endDateStr.replace(/\//g, '');
   const targetFileName = `${report.fileNamePrefix}_${cleanStart}_${cleanEnd}.xlsx`;
   const destFilePath = path.join(outputDir, targetFileName);
 
-  // 3. Kích hoạt tải file (CoreCCP vẫn cho phép kết xuất tải file template ngay cả khi bảng 0 bản ghi)
-  const downloadResult = await triggerExportDownload(page, 60000);
+  // 3. Kích hoạt tải file (Truyền isTableEmpty vào để dùng adaptive timeout 6s thay vì 60s)
+  const downloadResult = await triggerExportDownload(page, 60000, isTableEmpty);
   const durationSec = ((Date.now() - itemStart) / 1000).toFixed(1);
 
   if (downloadResult === 'NO_DATA') {

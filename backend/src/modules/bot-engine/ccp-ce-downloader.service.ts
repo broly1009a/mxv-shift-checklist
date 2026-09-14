@@ -583,7 +583,7 @@ export class CcpCeDownloaderService {
     endDate: string,
     filters: CcpFilterOptions = {},
     logCb?: (m: string) => void,
-  ): Promise<'OK' | 'NO_DATA'> {
+  ): Promise<'OK' | 'EMPTY_TABLE'> {
     await this.dismissModalBackdrop(page);
 
     // ── Nếu báo cáo có tabName hoặc là TTTT: click tab trước ────────────────
@@ -683,7 +683,7 @@ export class CcpCeDownloaderService {
       ).first();
       if (await noDataInTable.isVisible({ timeout: 600 })) {
         this.log('[Filter] Bang bao cao tra ve "Khong co du lieu" -> Bo qua loc cot va chuyen sang ket xuat tai file.', logCb);
-        return 'OK';
+        return 'EMPTY_TABLE';
       }
     } catch {}
 
@@ -795,10 +795,14 @@ export class CcpCeDownloaderService {
   async triggerExportDownload(
     page: Page,
     timeoutMs = 120_000,
+    isTableEmpty = false,
     logCb?: (m: string) => void,
   ): Promise<Download | 'NO_DATA' | null> {
     await this.dismissModalBackdrop(page);
     await this.waitForTableLoadingComplete(page, 30_000);
+
+    // Nếu bảng 0 bản ghi: Nếu sàn cho xuất thì file mẫu (4KB) chỉ mất 2-3s; nếu sàn chặn, chỉ chờ tối đa 6s thay vì 60s/120s!
+    const effectiveTimeoutMs = isTableEmpty ? 6_000 : timeoutMs;
 
     // Tìm nút 'Kết xuất' (Vẫn thực hiện kết xuất ngay cả khi bảng 0 dòng để lưu file mẫu/tiêu đề)
     let exportBtn = page.locator(
@@ -815,18 +819,44 @@ export class CcpCeDownloaderService {
       return null;
     }
 
-    const checkNoDataToast = async (): Promise<'NO_DATA' | null> => {
-      try {
-        const toastElem = page.locator(
-          "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message')][contains(text(), 'dữ liệu') or contains(text(), 'Không') or contains(text(), 'thành công') or contains(text(), 'Thành công')]",
-        ).first();
-        if (await toastElem.isVisible({ timeout: 400 })) {
-          const toastText = (await toastElem.textContent()) || '';
-          if (toastText.toLowerCase().includes('không có dữ liệu') || toastText.toLowerCase().includes('no data')) {
+    let downloadObj: Download | null = null;
+
+    const triggerExportWithToastCheck = async (
+      actionFn: () => Promise<void>,
+    ): Promise<Download | 'NO_DATA' | null> => {
+      const downloadPromise = page.waitForEvent('download', { timeout: effectiveTimeoutMs })
+        .then((d) => { downloadObj = d; return d; })
+        .catch(() => null);
+
+      await actionFn();
+
+      // Quét Toast song song bằng XPath contains(., ...)
+      const startTime = Date.now();
+      while (Date.now() - startTime < effectiveTimeoutMs) {
+        if (downloadObj) return downloadObj;
+
+        try {
+          const toastLocator = page.locator(
+            "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@class, 'Toastify') or contains(@role, 'alert') or contains(@class, 'MuiSnackbar-root')]" +
+            "[contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu') or contains(., 'No data') or contains(., 'No records')]",
+          ).first();
+
+          if (await toastLocator.isVisible({ timeout: 150 })) {
+            const text = (await toastLocator.textContent()) || '';
+            this.log(`  [Toast Notification] "${text.trim()}" -> Hệ thống xác nhận không có dữ liệu để xuất!`, logCb);
             return 'NO_DATA';
           }
-        }
-      } catch {}
+        } catch {}
+
+        await page.waitForTimeout(200);
+      }
+
+      const res = await downloadPromise;
+      if (res) return res;
+      if (isTableEmpty) {
+        this.log('  [Export] Khong co file tai ve sau 6s tren bang rong -> Coi nhu Khong co du lieu.', logCb);
+        return 'NO_DATA';
+      }
       return null;
     };
 
@@ -841,34 +871,18 @@ export class CcpCeDownloaderService {
       ).first();
 
       if (await exportAllOption.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        const [download] = await Promise.all([
-          page.waitForEvent('download', { timeout: timeoutMs }),
-          exportAllOption.click({ force: true }),
-        ]);
-
-        const toastRes = await checkNoDataToast();
-        if (toastRes === 'NO_DATA') return 'NO_DATA';
-        return download;
+        const res = await triggerExportWithToastCheck(() => exportAllOption.click({ force: true }));
+        await this.dismissModalBackdrop(page);
+        return res;
       }
-    } catch (e: any) {
-      const toastRes = await checkNoDataToast();
-      if (toastRes === 'NO_DATA') return 'NO_DATA';
-    }
+    } catch {}
 
     // Phương án 2: Double-click nút Kết xuất (Python base_report_page.py:L407-425)
     try {
-      const [download] = await Promise.all([
-        page.waitForEvent('download', { timeout: timeoutMs }),
-        exportBtn.dblclick({ force: true }),
-      ]);
-
-      const toastRes = await checkNoDataToast();
-      if (toastRes === 'NO_DATA') return 'NO_DATA';
-      return download;
-    } catch (e: any) {
-      const toastRes = await checkNoDataToast();
-      if (toastRes === 'NO_DATA') return 'NO_DATA';
-    }
+      const res = await triggerExportWithToastCheck(() => exportBtn.dblclick({ force: true }));
+      await this.dismissModalBackdrop(page);
+      return res;
+    } catch {}
 
     await this.dismissModalBackdrop(page);
     return null;
@@ -887,7 +901,7 @@ export class CcpCeDownloaderService {
     logCb?: (m: string) => void,
   ): Promise<boolean> {
     await this.navigateToReport(page, report, systemUrl, logCb);
-    await this.setDateRangeAndSearch(
+    const searchRes = await this.setDateRangeAndSearch(
       page,
       report,
       interval.startStr,
@@ -895,9 +909,10 @@ export class CcpCeDownloaderService {
       { exchange: opts.exchange, memberCode: opts.memberCode, acctNo: opts.acctNo },
       logCb,
     );
+    const isTableEmpty = searchRes === 'EMPTY_TABLE';
 
     try {
-      const result = await this.triggerExportDownload(page, opts.downloadTimeoutMs, logCb);
+      const result = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
       if (result === 'NO_DATA') {
         this.log(
           `  [Info] Khoang ${interval.startStr} -> ${interval.endStr} khong co du lieu.`,
@@ -1096,7 +1111,7 @@ export class CcpCeDownloaderService {
     const learnedUrl = await this.navigateToReport(page, report, systemUrl, logCb);
     report.cachedUrl = learnedUrl;
 
-    await this.setDateRangeAndSearch(
+    const searchRes = await this.setDateRangeAndSearch(
       page,
       report,
       startStr,
@@ -1104,6 +1119,7 @@ export class CcpCeDownloaderService {
       { exchange: opts.exchange, memberCode: opts.memberCode, acctNo: opts.acctNo },
       logCb,
     );
+    const isTableEmpty = searchRes === 'EMPTY_TABLE';
 
     // Retry 2 lần với Progressive Timeout (Vẫn xuất file để lấy file mẫu ngay cả khi 0 dòng)
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -1117,7 +1133,7 @@ export class CcpCeDownloaderService {
       }
 
       try {
-        const result = await this.triggerExportDownload(page, currentTimeout, logCb);
+        const result = await this.triggerExportDownload(page, currentTimeout, isTableEmpty, logCb);
         if (result === 'NO_DATA') {
           this.log(`  [Info] ${fileName} khong co du lieu.`, logCb);
           return true;
@@ -1323,9 +1339,10 @@ export class CcpCeDownloaderService {
       };
 
       await this.navigateToReport(page, eodReport, systemUrl, logCb);
-      await this.setDateRangeAndSearch(page, eodReport, tradingDate, tradingDate, {}, logCb);
+      const searchRes = await this.setDateRangeAndSearch(page, eodReport, tradingDate, tradingDate, {}, logCb);
+      const isTableEmpty = searchRes === 'EMPTY_TABLE';
 
-      const downloadResult = await this.triggerExportDownload(page, opts.downloadTimeoutMs, logCb);
+      const downloadResult = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
       if (downloadResult === 'NO_DATA') {
         this.log(`[EOD] Ngay ${tradingDate} khong co du lieu EOD.`, logCb);
         return { success: false, error: 'NO_DATA' };
@@ -1421,9 +1438,10 @@ export class CcpCeDownloaderService {
       };
 
       await this.navigateToReport(page, qlReport, systemUrl, logCb);
-      await this.setDateRangeAndSearch(page, qlReport, '', '', {}, logCb);
+      const searchRes = await this.setDateRangeAndSearch(page, qlReport, '', '', {}, logCb);
+      const isTableEmpty = searchRes === 'EMPTY_TABLE';
 
-      const downloadResult = await this.triggerExportDownload(page, opts.downloadTimeoutMs, logCb);
+      const downloadResult = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
       if (downloadResult === 'NO_DATA') {
         this.log(`[QLTTTKGD] Khong co du lieu trang thai TKGD.`, logCb);
         return { success: false, error: 'NO_DATA' };
