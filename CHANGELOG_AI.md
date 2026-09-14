@@ -1,5 +1,27 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T17:00] FIX: Sửa Bug Lọc Thời Gian Khớp Lệnh DSGD (M-System) & Nano (Straits) - Đảm Bảo ACM Luôn <= Nano
+
+### 1. Mục tiêu thay đổi
+Theo phản hồi và phát hiện từ USER:
+- *"hình như tôi thấy bug rồi khi lọc ra các tài khoản ACM(straits) là lọc ra từ MS DSGD đúng không"*
+- *"vấn đề khi tải bạn có filter thêm khoảng thời gian check không giống tool C# ấy vì lẽ ra cột ACM luôn <= Nano"*
+- **Phân tích nguyên nhân gốc rễ (Root Cause)**:
+  1. Trên web M-System, trang "Danh sách giao dịch" chỉ cho chọn ngày (không hỗ trợ lọc giờ/phút). Do đó file `DSGD.xlsx` luôn chứa toàn bộ giao dịch từ `00:00:00` sáng đến thời điểm xuất file.
+  2. Ở tool C# cũ: File `DSGD.xlsx` và file `Nano/Straits` bắt buộc phải được filter bằng code trong khoảng `[sessionStart, checkTime]` (từ 05:00 sáng đến thời điểm check). Các giao dịch từ `00:00` đến `05:00` sáng thuộc phiên trước phải bị loại bỏ.
+  3. Tại `reconciliation.service.ts`: Đoạn code filter cũ dùng `parts[0].split('-')`. Tuy nhiên, ngày tháng trong file M-System `DSGD.xlsx` xuất ra định dạng dấu gạch chéo `/` (ví dụ `14/09/2026 08:30:00`). Khi `split('-')`, mảng chỉ có 1 phần tử nên điều kiện `if (dateParts.length < 3) return true;` đã kích hoạt và **return true cho 100% dòng**.
+  4. Hậu quả: Toàn bộ giao dịch sáng sớm trước 05:00 AM đều bị tính vào `totalACM` (tài khoản đuôi `A`), khiến `ACM` vọt lên 813 lot, trong khi file sàn Straits (`Nano`) chỉ có 705 lot, gây ra hiện tượng sai logic: `ACM (813) > Nano (705)`.
+  5. Đồng thời, bộ lọc `nanoData` cũ cũng parse sai năm khi gặp định dạng `DD-MM-YYYY` (gán `y = bits[0]`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - Xây dựng hàm chuẩn hóa đa định dạng `parseTradeDateTime`: nhận diện chính xác `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, `YYYYMMDD`, ISO 8601 và giờ phút giây.
+  - Áp dụng `parseTradeDateTime` cho cả `dsgdData` và `nanoData` trong `checkKLGD` và `checkPreEOD`, đảm bảo chỉ giữ lại các giao dịch trong khung `[sessionStart, checkTime]` (sau 05:00 AM).
+  - Bổ sung fallback `tradeDate` cho Straits CSV khi cột `execution date-time` rỗng.
+
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+
 ## [2026-09-14T16:50] FEAT: Thêm Hàm Tải Riêng 3 Báo Cáo CoreCCP (DSGD, TTM, TTTT) & Bóc Tách Số Liệu Độc Lập Cho Ca Trực
 
 ### 1. Mục tiêu thay đổi

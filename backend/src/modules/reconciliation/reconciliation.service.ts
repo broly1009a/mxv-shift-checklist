@@ -215,6 +215,89 @@ export class ReconciliationService {
     }
   }
 
+  /**
+   * Universal Date-Time parser for M-System DSGD and Straits/Nano records.
+   * Handles formats:
+   * - DD/MM/YYYY HH:mm:ss or DD-MM-YYYY HH:mm:ss
+   * - YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss
+   * - YYYYMMDD HH:mm:ss
+   * - ISO 8601 (contains 'T')
+   * - Time only (HH:mm:ss with defaultDate)
+   */
+  private parseTradeDateTime(
+    dateTimeStr: string,
+    defaultDate?: Date,
+  ): Date | null {
+    if (!dateTimeStr) return null;
+    const str = String(dateTimeStr).trim();
+    if (!str) return null;
+
+    if (str.includes('T')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    const parts = str.split(/\s+/);
+    const datePart = parts[0];
+    const timePart = parts[1] || '00:00:00';
+
+    let year = 0;
+    let month = 0;
+    let day = 0;
+
+    if (/^\d{8}$/.test(datePart)) {
+      year = Number(datePart.substring(0, 4));
+      month = Number(datePart.substring(4, 6));
+      day = Number(datePart.substring(6, 8));
+    } else if (datePart.includes('/') || datePart.includes('-')) {
+      const sep = datePart.includes('/') ? '/' : '-';
+      const bits = datePart.split(sep).map(Number);
+      if (bits.length >= 3) {
+        if (bits[0] > 31) {
+          // YYYY-MM-DD or YYYY/MM/DD
+          year = bits[0];
+          month = bits[1];
+          day = bits[2];
+        } else {
+          // DD/MM/YYYY or DD-MM-YYYY
+          day = bits[0];
+          month = bits[1];
+          year = bits[2];
+        }
+        if (year < 100) year += 2000;
+      } else if (defaultDate) {
+        year = defaultDate.getFullYear();
+        month = defaultDate.getMonth() + 1;
+        day = defaultDate.getDate();
+      } else {
+        return null;
+      }
+    } else if (parts.length === 1 && str.includes(':')) {
+      // Time only: HH:mm:ss
+      if (defaultDate) {
+        year = defaultDate.getFullYear();
+        month = defaultDate.getMonth() + 1;
+        day = defaultDate.getDate();
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
+
+    const timeBits = (
+      parts.length === 1 && str.includes(':') ? str : timePart
+    ).split(':');
+    const hr = Number(timeBits[0]) || 0;
+    const min = Number(timeBits[1]) || 0;
+    const secVal = parseFloat(timeBits[2] || '0') || 0;
+    const sec = Math.floor(secVal);
+    const ms = Math.round((secVal - sec) * 1000);
+
+    const result = new Date(year, month - 1, day, hr, min, sec, ms);
+    return isNaN(result.getTime()) ? null : result;
+  }
+
   // Mappings for LME symbols (from statics.json)
   private readonly LME_CODE_MAP: Record<string, string> = {
     LALZ: 'AHD',
@@ -678,11 +761,18 @@ export class ReconciliationService {
             priceColIndex !== -1 && priceColIndex < values.length
               ? parseFloat(values[priceColIndex].replace(/"/g, '').trim()) || 0
               : 0;
-          const ngayGio =
+          let ngayGio =
             executionTimeColIndex !== -1 &&
-              executionTimeColIndex < values.length
+            executionTimeColIndex < values.length
               ? values[executionTimeColIndex].replace(/"/g, '').trim()
               : '';
+          if (
+            !ngayGio &&
+            tradeDateColIndex !== -1 &&
+            tradeDateColIndex < values.length
+          ) {
+            ngayGio = values[tradeDateColIndex].replace(/"/g, '').trim();
+          }
           const maGD = maLenh;
 
           result.push({
@@ -1100,19 +1190,8 @@ export class ReconciliationService {
 
     const dsgdData = rawDsgdData.filter((gd) => {
       if (!gd.ngayGio) return true;
-      const parts = gd.ngayGio.split(/\s+/);
-      const dateParts = parts[0].split('-');
-      const timeParts = (parts[1] || '00:00:00').split(':');
-      if (dateParts.length < 3) return true;
-      const d = Number(dateParts[0]);
-      const m = Number(dateParts[1]);
-      const y = Number(dateParts[2]);
-      const hr = Number(timeParts[0]) || 0;
-      const min = Number(timeParts[1]) || 0;
-      const secVal = parseFloat(timeParts[2] || '0') || 0;
-      const sec = Math.floor(secVal);
-      const ms = Math.round((secVal - sec) * 1000);
-      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      const tradeTime = this.parseTradeDateTime(gd.ngayGio, tradingDate);
+      if (!tradeTime) return true;
       return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
@@ -1120,30 +1199,8 @@ export class ReconciliationService {
     const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter((gd) => {
       if (!gd.ngayGio) return true;
-      const parts = gd.ngayGio.split(/\s+/);
-      const dateStr = parts[0];
-      let y = 0,
-        m = 0,
-        d = 0;
-      if (dateStr.includes('-')) {
-        const bits = dateStr.split('-');
-        y = Number(bits[0]);
-        m = Number(bits[1]);
-        d = Number(bits[2]);
-      } else if (dateStr.length === 8) {
-        y = Number(dateStr.substring(0, 4));
-        m = Number(dateStr.substring(4, 6));
-        d = Number(dateStr.substring(6, 8));
-      } else {
-        return true;
-      }
-      const timeParts = (parts[1] || '00:00:00').split(':');
-      const hr = Number(timeParts[0]) || 0;
-      const min = Number(timeParts[1]) || 0;
-      const secVal = parseFloat(timeParts[2] || '0') || 0;
-      const sec = Math.floor(secVal);
-      const ms = Math.round((secVal - sec) * 1000);
-      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      const tradeTime = this.parseTradeDateTime(gd.ngayGio, tradingDate);
+      if (!tradeTime) return true;
       return tradeTime >= sessionStart && tradeTime <= nanoUpperBound;
     });
 
@@ -3118,19 +3175,8 @@ export class ReconciliationService {
     const dsgdUpperBound = checkTime;
     const dsgdData = rawDsgdData.filter((gd) => {
       if (!gd.ngayGio) return true;
-      const parts = gd.ngayGio.split(/\s+/);
-      const dateParts = parts[0].split('-');
-      const timeParts = (parts[1] || '00:00:00').split(':');
-      if (dateParts.length < 3) return true;
-      const d = Number(dateParts[0]);
-      const m = Number(dateParts[1]);
-      const y = Number(dateParts[2]);
-      const hr = Number(timeParts[0]) || 0;
-      const min = Number(timeParts[1]) || 0;
-      const secVal = parseFloat(timeParts[2] || '0') || 0;
-      const sec = Math.floor(secVal);
-      const ms = Math.round((secVal - sec) * 1000);
-      const tradeTime = new Date(y, m - 1, d, hr, min, sec, ms);
+      const tradeTime = this.parseTradeDateTime(gd.ngayGio, tradingDate);
+      if (!tradeTime) return true;
       return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
