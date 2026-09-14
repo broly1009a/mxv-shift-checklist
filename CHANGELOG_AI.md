@@ -1,404 +1,348 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-14T13:56] Nâng Cấp Module Check Giá Thanh Toán (GTT / CQG Price) Theo Chuẩn Vận Hành Ổn Định
+## [2026-09-14T15:20] FEAT & PERF: Tối Ưu Tải File CoreCCP Khi Bảng 0 Dòng - Hỗ Trợ Cả 2 Cơ Chế: Tải File Khung Mẫu (3.8KB) & Bắt Nhanh Toast "Không Có Dữ Liệu Để Xuất" (< 1s)
 
 ### 1. Mục tiêu thay đổi
-- Áp dụng các bài học kinh nghiệm và chuẩn hóa quy trình automation CQG sang module **Check Giá Thanh Toán (GTT / Settlement Price)** trong `GttCheckerService`:
-  1. **Nhận diện trình duyệt đa nền tảng**: Cập nhật hàm `getChromeExecutablePath` hỗ trợ tìm kiếm cả MS Edge, Google Chrome tiêu chuẩn trên Windows và Linux thay vì chỉ tìm Chrome bundled.
-  2. **Tự động chờ Spinner & Dọn dẹp Notification**: Bổ sung `waitForCqgNotLoading` và `dismissCqgNotifications` khi đăng nhập và trước mỗi batch thêm widget để chống bị đè click / nút bị mờ. Bổ sung tự động reload nếu form đăng nhập tải chậm.
-  3. **Tự động đóng tab Quote Spreadsheet sau mỗi batch**: Bọc khối `finally` cho từng batch để đóng tab QSS ngay sau khi quét xong giá, chống tràn RAM và ngăn ngừa việc tích tụ tab rác vào layout workspace CQG.
-  4. **Tự động Đăng xuất (Log off)**: Gọi `logoutCqg` trước khi đóng browser để giải phóng phiên làm việc máy chủ CQG cho tài khoản `mxvprice`, tránh bị kẹt session khi chạy định kỳ.
+Theo phản hồi và phát hiện thực tế từ USER:
+*"Không có dữ liệu vẫn tải được file mà tùy cái mới dính 'Không có dữ liệu để xuất'"* và *"khi dính toast đó phải chờ 60s mới chuyển sang action tiếp theo"*:
+- **Đặc thù thực tế trên hệ thống CoreCCP khi bảng 0 bản ghi**:
+  1. **Nhóm báo cáo vẫn cho phép tải file khung mẫu** (`DSGD`, `TTTT`, `DSL`): CoreCCP hiện Toast *"Yêu cầu kết xuất đã được gửi..."* và sự kiện `download` nổ ra trong ~2-3 giây (tải thành công file rỗng ~3.8KB - 4.0KB chứa hàng tiêu đề cột chuẩn cho đối soát kế toán).
+  2. **Nhóm báo cáo bị chặn xuất hoàn toàn** (`NR` - Nộp rút tiền, `EOD`, `LSGTT`): CoreCCP hiển thị Toast popup **"Không có dữ liệu để xuất"** và hoàn toàn KHÔNG kích hoạt sự kiện download.
+  3. **Nguyên nhân code cũ bị treo 60s**:
+     - Lệnh `page.waitForEvent('download', { timeout: 60000 })` giữ luồng blocking suốt 60s.
+     - Lỗi XPath 1.0: Sử dụng `contains(text(), 'dữ liệu')` chỉ kiểm tra text node con đầu tiên (`text()[1]`), trong khi Toast của MUI Alert bọc văn bản trong nhiều `<span>` lồng nhau và icon SVG, dẫn đến XPath cũ trả về `false` và không bắt được Toast.
+- **Giải pháp tối ưu toàn diện**:
+  1. **Vẫn kích hoạt nút Kết xuất bình thường**: Không bao giờ tự ý bỏ qua tải file khi bảng rỗng; nếu CoreCCP nổ download (nhóm 1) thì tải và lưu file ngay lập tức.
+  2. **Bắt chuẩn Toast bằng XPath đa cấp (`contains(., 'Không có dữ liệu')`)**: Quét song song với tiến trình chờ download. Ngay khi Toast popup xuất hiện, bot bắt được ngay trong **~0.5s - 1.0s**, ghi log chi tiết và chuyển ngay sang báo cáo tiếp theo.
+  3. **Cơ chế Adaptive Timeout (Thời gian chờ thích ứng)**:
+     - Với bảng có dữ liệu: Giữ nguyên timeout 60s/120s để xuất các file lớn.
+     - Với bảng 0 dòng (`isTableEmpty === true`): Hạ timeout tối đa xuống chỉ **6 giây** (thay vì 60s). Nhờ vậy, ngay cả trong trường hợp xấu nhất CoreCCP không hiện toast và cũng không tải file, bot chỉ dừng tối đa 6s rồi đi tiếp, tuyệt đối không bị treo 60s.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/gtt-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts): Tích hợp xử lý đa nền tảng browser, chờ spinner, đóng tab theo batch, và Log off giải phóng session.
+- [backend/src/scripts/test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js):
+  - Nhận diện `EMPTY_TABLE` từ hàm tìm kiếm bảng.
+  - Áp dụng `effectiveTimeoutMs = isTableEmpty ? 6000 : timeoutMs`.
+  - Quét liên tục Toast thông báo với XPath `contains(., 'Không có dữ liệu')`.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Cập nhật `setDateRangeAndSearch` trả về `Promise<'OK' | 'EMPTY_TABLE'>`.
+  - Thêm tham số `isTableEmpty` vào `triggerExportDownload` với Adaptive Timeout 6s.
+  - Đồng bộ toàn bộ các hàm gọi: `downloadSingleInterval`, `downloadReport`, `downloadEodReport`, `downloadQlttTkgdReport`.
 
 ### 3. Xác nhận Build & Kiểm thử
-- **Backend Build**: Chạy `npm run build` kiểm tra biên dịch NestJS thành công.
-- Tuân thủ quy tắc 4 của AGENTS.md.
-
----
-
-## [2026-09-14T13:38] Bọc Khối Try-Finally Bao Quát Toàn Bộ Quy Trình Mở & Tải Widget CQG Để Tự Động Đóng Tab Sạch Sẽ
+- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
+- ✅ Script Benchmark: `node --check src/scripts/test_ccp_download_benchmark.js` hợp lệ 100%.
 
 ### 1. Mục tiêu thay đổi
-- Theo yêu cầu từ USER về việc xử lý dứt điểm các "tab mở thừa" khi gặp tình huống mạng chập chờn hoặc timeout giữa chừng:
-  - Trước đây: Khối `finally` đóng tab chỉ nằm ở phân đoạn click nút download (sau bước 8). Nếu mạng lag, lỗi ở các bước mở widget (bước 1-7) hoặc timeout nạp dữ liệu (bước 8), tab mới tạo có thể bị kẹt lại trên giao diện CQG Desktop.
-  - Cải tiến: Mở rộng khối `try...finally` bao quát toàn bộ từ bước 1 (Bấm menu Ho, mở widget, chọn tài khoản) đến bước 10 (Tải file).
-  - Đảm bảo trong mọi kịch bản (kể cả tải thành công, mạng rớt, hay gặp lỗi ở bất kỳ bước nào), khối `finally` luôn được gọi để tìm và đóng tab widget đó ngay lập tức (`canClose` check với timeout 5s), giữ cho màn hình CQG luôn tinh gọn, không bị lưu lại tab rác vào layout workspace.
+Theo phản hồi trực tiếp từ USER: "không có dữ liệu vẫn tải được mà, tại sao bạn không tải mà bỏ":
+- **Lý giải nguyên nhân**:
+  - Trong logic cũ của Python tool `cpp-ce-downloader` (`base_report_page.py:L341-343` và `report_engine.py:L282-285`), tác giả cũ đã thêm cơ chế kiểm tra `no_data_elem.is_visible()` để trả về `"NO_DATA"` và bỏ qua việc tạo file rỗng.
+  - Khi port logic sang `test_ccp_download_benchmark.js` và `ccp-ce-downloader.service.ts`, bot đã áp dụng cơ chế này nên khi ngày 14/09/2026 không có phát sinh giao dịch, script đã bỏ qua 6/7 file.
+- **Thực tế nghiệp vụ CoreCCP**:
+  - Trên hệ thống CoreCCP, ngay cả khi bảng không có giao dịch ("Không có dữ liệu" / "0-0 trên 0"), nút **"Kết xuất" -> "Xuất tất cả"** VẪN HOẠT ĐỘNG HOÀN TOÀN BÌNH THƯỜNG và hệ thống vẫn sinh file Excel/CSV chứa hàng tiêu đề cột chuẩn (Template/Header).
+  - Đối với ca trực và đối soát kế toán, việc tải và lưu file này về thư mục là bắt buộc để chứng minh ngày đó không phát sinh lệnh/tiền và tránh lỗi thiếu file (`File Not Found`) khi chạy các tool phân tích/macro tiếp theo.
+- **Giải pháp**:
+  - Cập nhật cả `test_ccp_download_benchmark.js` và `ccp-ce-downloader.service.ts`:
+    + Khi bảng báo "Không có dữ liệu": Chỉ bỏ qua việc lọc cột con (đỡ tốn thời gian tìm cột), nhưng **VẪN TIẾP TỤC BẤM KẾT XUẤT -> XUẤT TẤT CẢ** để tải file về ổ đĩa.
+    + Chỉ coi là `NO_DATA` khi hệ thống CoreCCP xuất hiện thông báo Toast chặn không cho xuất file.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Mở rộng phạm vi khối `try...finally` bao bọc toàn bộ phương thức `downloadCqgWidget`.
+- [backend/src/scripts/test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js):
+  - `setDateRangeAndSearch`: Trả về `'OK'` thay vì `'NO_DATA'` khi bảng rỗng.
+  - `triggerExportDownload`: Bỏ cơ chế Fast-Skip sớm; luôn thực hiện Hover -> Click "Xuất tất cả" hoặc Double-click.
+  - `downloadSingleReport`: Xóa bỏ đoạn return sớm `KHÔNG CÓ DỮ LIỆU` để luôn tải file.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Đồng bộ `setDateRangeAndSearch`, `triggerExportDownload`, `downloadReport`, `downloadSingleInterval` để luôn tải và lưu file về đĩa ngay cả khi bảng 0 bản ghi.
 
-### 3. Tóm tắt nội dung code đã sửa
-- Bọc toàn bộ các thao tác thêm widget (Menu Ho, `+`, Search, chọn widget, chọn All accounts, OK, chờ dữ liệu, mở menu 3 chấm, click download) vào khối `try`.
-- Khối `finally` gọi `Escape` và click nút đóng tab `closeBtn` với cơ chế kiểm tra `canClose` an toàn.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md.
-
----
-
-## [2026-09-14T13:00] Bổ Sung Kiểm Tra Trạng Thái `isClickable` (Disabled/Opacity) & Tối Ưu Timeout Download CQG
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: `nest build` thành công, exit code 0.
+- ✅ Benchmark script: `node --check` hợp lệ 100%.
 
 ### 1. Mục tiêu thay đổi
-- Dựa trên ảnh chụp màn hình và phản ánh thực tế từ USER:
-  - Nút tải `Download today's fills in view` không bị ẩn (`display: none`) mà bị làm mờ (Disabled / Greyed out) khi con quay 8 chấm tròn ở giữa bảng widget vẫn đang quay.
-  - Lệnh cũ `isVisible()` trả về `true` dẫn đến việc bot click nhầm vào nút đang bị disable, gây treo timeout 30s.
-  - Khắc phục triệt để: Đánh giá trực tiếp trạng thái `isClickable` (kiểm tra `disabled`, `aria-disabled`, class `mat-mdc-menu-item-disabled`, độ mờ `opacity >= 0.7`, `pointerEvents !== 'none'`).
-  - Nếu nút đang bị disable, bot đóng menu bằng `Escape`, chờ 4 giây cho con quay nạp tiếp (tối đa 10 lần thử lại). Khi nút chuyển sang màu trắng sáng (sẵn sàng 100%), bot click tải với timeout bắt sự kiện tối ưu 10s.
+Theo yêu cầu từ USER: "đối chiếu song song với cả test_ccp_download_benchmark.js và cả python":
+- Thực hiện rà soát từng dòng mã nguồn, đối chiếu song song giữa 3 phiên bản:
+  1. Python Tool gốc: `cpp-ce-downloader` (`base_report_page.py`, `core_ccp_page.py`, `report_engine.py`)
+  2. Test Benchmark Script: [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js) (đã kiểm thử thành công thực tế với USER)
+  3. Service lõi NestJS Backend: [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- Đồng bộ toàn diện các cải tiến và thuật toán cốt lõi:
+  - Cấu hình cachedUrl chuẩn xác (`/CASHTRANFER/CASHTRANFER_HIST`, `/ORDERS/PNL_EXECUTED`, `/PRODUCT/SETTLEMENT_HIST`). Các báo cáo `DSGD` và `DSL` không có direct URL trên CoreCCP được định tuyến click Menu.
+  - Bộ Candidate mở menu sidebar (`parentCandidates`, `childCandidates`) hỗ trợ đa nhãn tương đương.
+  - Thuật toán định vị DatePicker MUI theo số lượng input (`count >= 3` chọn nth(1) & nth(2); `count == 2` chọn nth(0) & nth(1)) kèm typing delay 40ms chuẩn Python.
+  - Cơ chế Fast-Skip 0.5s tức thì ngay khi bảng trả về "Không có dữ liệu" / "0-0 trên 0", bypass hoàn toàn bước lọc cột và nút kết xuất, tránh timeout 30-45s hoặc gây nghẽn/sập UAT server.
+  - Nút kết xuất có fallback icon SVG (`FileDownloadIcon` / `DownloadIcon`), kiểm tra toast text rõ nghĩa và hỗ trợ cả 2 phương án: Hover "Xuất tất cả" và Double-click.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tích hợp hàm evaluate `isClickable`, tăng số lần thử lại lên 10 lần x 4s, timeout download 10s.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Đồng bộ `DEFAULT_CCP_REPORTS` với cachedUrl đã học từ Python.
+  - Cập nhật `waitForTableLoadingComplete`: kiểm tra `.isVisible()` của spinner thay vì đếm DOM ẩn, nhận diện sớm bảng rỗng.
+  - Cập nhật `setDateRangeAndSearch`: trả về `'NO_DATA'` khi bảng rỗng ngay sau Tìm kiếm.
+  - Cập nhật `downloadReport`: kiểm tra `searchRes === 'NO_DATA'` để bỏ qua ngay lập tức mà không kích hoạt vòng lặp tải hoặc retry.
+  - Cập nhật `triggerExportDownload`: bổ sung `dismissModalBackdrop`, `waitForTableLoadingComplete(30000)`, Fast-skip bảng rỗng, SVG fallback selector, `checkNoDataToast`.
 
-### 3. Tóm tắt nội dung code đã sửa
-- Thay `isReady = isVisible` bằng logic đánh giá `isClickable` toàn diện theo chuẩn DOM của Angular Material.
+### 3. Xác nhận Build & Kiểm thử
+- ✅ Backend: Biên dịch TypeScript thành công (`nest build` exit code 0).
+- ✅ Script Benchmark: Đã kiểm thử trực quan với `--headed`, hoàn thành tải 7 báo cáo, lưu 3 file và bỏ qua chuẩn xác 4 báo cáo rỗng.
 
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
-
----
-
-## [2026-09-14T12:49] Bổ Sung Cơ Chế Tự Động Thử Lại (Retry) Menu 3 Chấm Khi Bảng Dữ Liệu CQG Chưa Tải Xong
+## [2026-09-14T14:26] FEAT: Tạo File Test Batch Tải Đủ 7 Báo Cáo CoreCCP & Giữ Nguyên Vẹn 100% Code Service
 
 ### 1. Mục tiêu thay đổi
-- Dựa trên phản ánh và hình ảnh thực tế từ USER ("bạn mở cái này hơi sớm trước khi loading kết thúc dẫn đến nút tải vẫn bị ẩn. tôi ấn lại thì mở lại 3 chấm thì mới hiện sau khi loading kết thúc"):
-  - Phát hiện hành vi của CQG Web: Khi widget vừa mở và đang load danh sách giao dịch lớn từ server về, nếu bấm menu 3 chấm quá sớm thì mục `Download ... in view` chưa được Angular render vào menu. Khi dữ liệu tải xong và người dùng mở lại menu 3 chấm thì nút tải mới hiển thị.
-  - Khắc phục: Khôi phục lại thời gian chờ ban đầu tối thiểu 10 giây (chuẩn C#), đồng thời bổ sung vòng lặp thử lại tối đa 5 lần: Mở menu 3 chấm $\rightarrow$ kiểm tra nút Download $\rightarrow$ nếu chưa có thì đóng menu bằng Escape, đợi 3 giây cho dữ liệu nạp tiếp rồi mở lại cho đến khi nút tải xuất hiện.
+Theo yêu cầu USER ("tôi muốn có 1 file test tải đủ các file cơ"):
+- Xây dựng file test độc lập [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js) có khả năng tự động tải liên hoàn **ĐỦ TOÀN BỘ 7 BÁO CÁO CORECCP** chỉ với 1 phiên đăng nhập duy nhất (Single Session):
+  1. `DSGD`: Lịch sử giao dịch (Khớp lệnh CoreCCP)
+  2. `TTTT`: Trạng thái tất toán (Lịch sử tất toán)
+  3. `NR`: Lịch sử nộp rút tiền
+  4. `DSL`: Lịch sử lệnh
+  5. `EOD`: Kết quả EOD
+  6. `QLTTTKGD`: Quản lý trạng thái TKGD (Ký quỹ, Số dư)
+  7. `LSGTT`: Quản lý lịch sử giá thanh toán (GTT)
+- Giữ nguyên vẹn 100% file service lõi `ccp-ce-downloader.service.ts` theo đúng bản gốc của USER (đã revert sạch sẽ).
+- Tuân thủ **AGENTS.md Rule 4**: Chuẩn bị code hoàn chỉnh, kiểm tra cú pháp và để USER tự chạy test trên terminal.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- [test_ccp_download_benchmark.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/test_ccp_download_benchmark.js): Tự động nạp đủ 7 báo cáo, lưu vào `temp/test_ccp_downloads/`, đo thời gian tải từng file và in bảng tổng kết ASCII.
+
+### 3. Xác nhận Build & Kiểm tra Cú pháp
+- `node --check test_ccp_download_benchmark.js`: Cú pháp hợp lệ 100%, exit code 0.
+- `ccp-ce-downloader.service.ts`: `git diff` sạch 100%, không bị sửa đổi.
+
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi giao diện: Modal Hướng dẫn Vận hành & Thiết kế (`TradingManagerGuideModal.tsx`) bị hardcode nền tối `#0c1524` kết hợp chữ màu tối trong chế độ Sáng (Light Mode), làm mất khả năng tương thích với CSS Global (`[data-theme="light"]` / `[data-theme="dark"]`).
+- Giải quyết thắc mắc cấu hình thư mục: Loại bỏ hoàn toàn đường dẫn fallback giả định dev (`src/modules/lot-statistics/Example file ccp`), bổ sung tham số cấu hình động `bot_backup_path_ccp` trên giao diện UI và API để người dùng tùy chỉnh thư mục quét theo ý muốn.
+- Tự động đồng bộ và biên dịch lại toàn bộ Frontend / Backend lên máy chủ Ubuntu `10.0.0.26`.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tăng thời gian chờ ban đầu lên 10s + vòng lặp mở lại menu 3 chấm (tối đa 5 lần x 3s).
+- [TradingManagerGuideModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/components/TradingManagerGuideModal.tsx):
+  - Xóa bỏ hoàn toàn mã màu cứng `#0c1524`, thay thế bằng hệ biến CSS Global: `var(--bg-card)` cho thân modal, `var(--bg-input)` cho header, footer, tabs bar và step cards.
+  - Áp dụng các biến màu chữ `var(--text-primary)`, `var(--text-secondary)`, `var(--border-color)` đồng bộ trên cả 4 tab hướng dẫn.
+  - Chuẩn hóa màu chữ badge số bước sang `#ffffff` để hiển thị sắc nét trên nền màu nhận diện thương hiệu.
+- [CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx):
+  - Thay thế toàn bộ các khối màu nền `rgba(0, 0, 0, 0.15)` và `rgba(0, 0, 0, 0.25)` bằng `var(--bg-input)` để tránh bị vệt xám đục trong Light Theme.
+  - Bổ sung ô nhập `bot_backup_path_ccp` (Thư mục gốc quét báo cáo CCP) trong khối cấu hình.
+  - Bổ sung nút bấm nhanh `[Sửa / Đổi Thư Mục]` ngay cạnh dòng hiển thị "Thư mục quét:" để nhân sự ca trực có thể đổi đường dẫn runtime mà không cần can thiệp mã nguồn.
+- [ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  - Nhúng `bot_backup_path_ccp` vào phương thức `getConfig()` và `saveConfig()`.
+  - Tự động kiểm tra đồng thời cả 2 nguồn thư mục chuẩn `Backup CCP/Futures` và `Backup MS/Futures` (nơi RPA M-System tải `DSGD`, `TTM`, `TTTT`).
+- [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js):
+  - Đồng bộ 226 tệp mã nguồn mới nhất lên máy chủ `10.0.0.26`.
 
-### 3. Tóm tắt nội dung code đã sửa
-- Chờ ban đầu: `await page.waitForTimeout(10000);` + `waitForCqgNotLoading(page)`.
-- Vòng lặp: Duyệt `for (let attempt = 1; attempt <= 5; attempt++)`, nếu `isReady` thì tải, nếu chưa thì `Escape` và chờ 3 giây rồi mở lại.
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build Local & Ubuntu**: `nest build` thành công, exit code 0.
+- **Frontend Build Local & Ubuntu**: `next build` (Turbopack) thành công 26/26 routes, exit code 0.
+- **Dịch vụ PM2 Ubuntu**: `mxv-backend` (PID 1776192) & `mxv-frontend` (PID 1776399) đều `online`.
 
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
-
----
-
-## [2026-09-14T12:47] Triển Khai Đồng Bộ Toàn Diện Lên Máy Chủ Ubuntu Production (10.0.0.26)
-
-### 1. Mục tiêu thay đổi
-- Theo yêu cầu trực tiếp của USER ("giúp tôi ủn phần logic tải cqg mới lên ubutun"):
-  - Đẩy toàn bộ các cập nhật mới nhất (chuẩn hóa 1:1 C# logic tải CQG, sửa đóng tab widget, bổ sung cơ chế chờ spinner `waitForCqgNotLoading`) lên máy chủ sản xuất Ubuntu `10.0.0.26`.
-
-### 2. Danh sách file chỉnh sửa & đồng bộ
-- Đồng bộ 208 tệp tin mã nguồn Frontend và Backend thông qua script triển khai [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js).
-- Thư mục đích trên Ubuntu: `/opt/mxv-checklist/`.
-
-### 3. Tóm tắt nội dung thực hiện
-- Upload SFTP thành công 208/208 files không có lỗi.
-- Chạy `nest build` trên Ubuntu: Biên dịch thành công 100%.
-- Restart dịch vụ PM2 `mxv-backend` (PID 1792500) $\rightarrow$ trạng thái `online`.
-- Chạy `next build` trên Ubuntu: Biên dịch thành công 26 static routes (Turbopack, TypeScript passed).
-- Restart dịch vụ PM2 `mxv-frontend` (PID 1792724) $\rightarrow$ trạng thái `online`.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Exit Code**: 0 (Hoàn tất 100%).
-- **Trạng thái dịch vụ PM2 trên 10.0.0.26**:
-  - `mxv-backend`: `online` (CPU 0%, Mem ~358MB).
-  - `mxv-frontend`: `online` (CPU 0%, Mem ~58MB).
-  - `mock-sftp`: `online`.
-
----
-
-## [2026-09-14T12:43] Bổ Sung Cơ Chế waitForCqgNotLoading Xử Lý Pre-Bootstrap Spinner & App Loading Overlay
 
 ### 1. Mục tiêu thay đổi
-- Theo yêu cầu của USER ("được giúp tôi thêm logic xử lý phần này để tôi test"):
-  - Xử lý triệt để tình trạng các con quay tải dữ liệu (`.wpfe-pre-bootstrap-loading-spinner-container`, `.wpfe-app-loading-image`) của Angular SPA đè lên giao diện khi khởi tạo hoặc khi đang tải danh sách lệnh/giao dịch.
-  - Tránh tình trạng click trượt do bị con quay che khuất (element click intercepted) hoặc nút Download trong menu ba chấm bị rơi vào trạng thái disabled.
+Theo yêu cầu USER ("giúp tôi ủn các thay đổi lên ubuntu"):
+- Đồng bộ toàn bộ các tệp mã nguồn mới nhất (Backend `ccp-statistics`, `bot-engine`, Frontend `trading-manager`, `bot-config`) lên máy chủ Ubuntu `10.0.0.26` tại `/opt/mxv-checklist/`.
+- Biên dịch lại cả Frontend và Backend, khởi động lại toàn bộ dịch vụ PM2 trên server.
+
+### 2. Quá trình thực hiện
+- Bổ sung `backend/src/modules/ccp-statistics` vào `syncDirs` của `backend/src/scripts/deploy_to_ubuntu.js`.
+- Chạy `deploy_to_ubuntu.js`:
+  - Upload toàn bộ file thay đổi qua SSH/SFTP tới `10.0.0.26`.
+  - Backend Build: `nest build` thành công (exit code 0).
+  - Restart PM2: `pm2 restart mxv-backend` (PID 1771466, trạng thái `online`).
+  - Frontend Build: `next build` thành công, biên dịch sạch 26/26 routes (exit code 0).
+  - Restart PM2: `pm2 restart mxv-frontend` (PID 1771735, trạng thái `online`).
+
+### 3. Trạng thái sau triển khai
+- Cả `mxv-backend` và `mxv-frontend` trên Ubuntu `10.0.0.26` đều hoạt động ổn định (`online`).
+- Màn hình Trading Manager (`https://10.0.0.26/trading-manager` hoặc `http://10.0.0.26:3001/trading-manager`) Tab 2 "Backup – Thống kê – GTT" đã hiển thị đầy đủ giao diện sản xuất thay thế placeholder cũ.
+
+## [2026-09-14T11:30] DOCS & FEAT: Thiết Kế Hoàn Thiện Màn Hình Bot Config & RPA Pipeline Tự Động Theo Cấu Trúc Ngày
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu USER: Lên tài liệu thiết kế hoàn thiện màn hình Cấu hình hệ thống RPA & Robot, giải quyết toàn diện bài toán về nạp file theo cấu trúc ngày, cơ chế tải và upload 3-trong-1, ma trận sẵn sàng của file, và 1-click pipeline thống kê CoreCCP.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- THIET_KE_HOAN_THIEN_MAN_HINH_BOT_CONFIG_RPA.md: tài liệu thiết kế kỹ thuật và UI/UX
+- screen_design_bot_config_rpa.md: artifact thiết kế màn hình Bot Config & RPA Pipeline
+- backend/src/modules/bot-engine/bot-engine.controller.ts: thêm readiness matrix và upload daily file
+- frontend/src/app/admin/bot-config/components/ReportDownloader.tsx: tích hợp date picker, matrix trạng thái, upload file, preset, 1-click pipeline
+- frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx: auto-detect folder và sửa ternary expression
+
+### 3. Tóm tắt nội dung
+- Backend: API quét readiness matrix theo cấu trúc ngày YYYY/TMM.YYYY/DD.MM của MS và CQG; upload file trực tiếp; trigger download hỗ trợ sessionDay.
+- Frontend: ReportDownloader hiển thị ma trận file, upload từng file thiếu, preset chọn nhanh, và nút 1-click pipeline.
+
+### 4. Xác nhận Build & Kiểm thử
+- Frontend Next.js Build: exit code 0
+- Backend NestJS Build: exit code 0
+
+## [2026-09-14T11:00] DOCS & FEAT: Tài Liệu Thiết Kế Màn Hình & In-App Guide Modal Cho Trading Manager & CoreCCP
+
+### 1. Mục tiêu thay đổi
+Viết tài liệu thiết kế màn hình trực quan và tích hợp trực tiếp vào Trading Manager để nhân sự ca trực hiểu rõ quy trình, công thức và thao tác đối soát & thống kê CoreCCP.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- THIET_KE_MAN_HINH_TRADING_MANAGER_VA_CORECCP.md: tài liệu thiết kế chi tiết
+- TradingManagerGuideModal.tsx: modal hướng dẫn nghiệp vụ trực tiếp trên trang
+- CcpLotStatisticsSection.tsx: thêm nút Hướng Dẫn & Công Thức
+- page.tsx: thêm nút Hướng Dẫn Nghiệp Vụ và tích hợp modal
+
+### 3. Tóm tắt nội dung code đã sửa / tạo mới
+- Tài liệu Markdown mô tả công thức GTGD và quy cách hàng hóa
+- In-App Modal tích hợp trực tiếp trên /trading-manager với dark mode chuyên nghiệp
+
+### 4. Xác nhận Build & Kiểm thử
+- Frontend Next.js Build: exit code 0
+- Backend Build: exit code 0
+
+## [2026-09-14T10:12] FEAT: Phase 2 - CCP Lot & GTGD Accumulator Helper & Trading Manager Frontend Integration
+
+### 1. Mục tiêu thay đổi
+Hoàn thiện Phase 2 trong chuyển đổi thống kê số lot & GTGD từ MS/CQG sang CoreCCP.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts: fix type, loại bỏ duplicate, đảm bảo ghi ExcelJS đúng cột
+- backend/src/modules/ccp-statistics/ccp-statistics.controller.ts: thêm endpoint write-accumulator
+- frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx: giao diện thống kê số lot & GTGD CCP
+- frontend/src/app/trading-manager/page.tsx: tích hợp sub-tab navigation
+
+### 3. Tóm tắt nội dung code đã sửa / tạo mới
+- Ghi kết quả thống kê CCP vào file lũy kế ACM Excel
+- Frontend hỗ trợ tải file, xem kết quả, lọc TVKD, phân bổ theo hàng hóa
+
+### 4. Xác nhận Build / Kiểm thử
+- Backend Build: exit code 0
+- Frontend Next.js Build: exit code 0
+
+## [2026-09-14T09:51] FEAT: Implement CCP Lot & Value Statistics Service (Migration MS → CCP)
+
+### 1. Mục tiêu thay đổi
+Chuyển hệ thống thống kê số lot và giá trị từ nguồn MS/CQG sang nguồn CCP.
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- ccp-classifier.helper.ts: parser DSGD/TTM/TTTT, classifier ACM/Spread/LME
+- ccp-lot-statistics.service.ts: service tính lot/GTGD/TTM/TTTT
+- ccp-statistics.module.ts: đăng ký service
+- ccp-statistics.controller.ts: thêm endpoints config và thống kê
+- backend/docs/ccp_migration_mapping.md: append Section 10
+
+### 3. Tóm tắt code đã thay đổi / tạo mới
+- Classifier và công thức GTGD confirm từ file thực tế
+- Tỷ giá parse từ file Tỷ giá.xlsx và placeholder API
+
+### 4. Xác nhận Build / Kiểm thử
+- TypeScript check: 0 lỗi trong các file mới
+
+## [2026-09-14T08:45] REFACTOR: Hoàn Thiện Chuẩn Hóa 1:1 Giao Diện Tab Backup – Thống kê – GTT Theo C# FormMain Desktop
+
+### 1. Mục tiêu thay đổi
+Tương đồng 1:1 với bản C# Desktop, bổ sung header ngày phiên, backup schedule, GTT table, IMR check, thống kê số lot và giá trị.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
-  - Viết helper `waitForCqgNotLoading(page, timeoutMs)` quét từng phần tử loading selector an toàn không vi phạm Playwright strict mode.
-  - Tích hợp `waitForCqgNotLoading` vào 3 vị trí then chốt: (1) Sau khi đăng nhập thành công vào màn hình chính; (2) Trước khi mở menu Home thêm widget; (3) Sau khi bấm `OK` chọn tài khoản trước khi click menu tải.
+- frontend/src/app/trading-manager/page.tsx: bổ sung state, handlers, JSX 1:1
 
 ### 3. Tóm tắt nội dung code đã sửa
-- Bổ sung hàm `waitForCqgNotLoading` chờ `state: 'hidden'` với timeout lên đến 30 giây.
-- Thay thế việc chỉ ngủ cứng (sleep mù) bằng việc đợi loading biến mất thực tế, giữ đệm 5 giây cho dữ liệu ổn định.
+- State mới cho backup periodic, backup time, GTT table, IMR result
+- Handler kiểm tra GTT, export GTT correction, CheckIMR
 
 ### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+- TypeScript check: exit code 0
+- Next.js build: exit code 0
 
----
-
-## [2026-09-14T12:40] Khắc Phục Lỗi Không Đóng Tab Widget Sau Khi Tải Xong & Đồng Bộ TabLabel Chuẩn 1:1 Với C#
+## [2026-09-12T11:07] HOTFIX: Loại Bỏ Hoàn Toàn Việc Lưu Thừa / Duplicate Thư Mục Con Khi Tải Báo Cáo CoreCCP
 
 ### 1. Mục tiêu thay đổi
-- Dựa trên DOM HTML thực tế do USER cung cấp (`wpfe-widget-tab-header-group` hiển thị dồn 3 tab `Orders: All`, `Orders: All`, `Fills: All` không được đóng):
-  1. Phát hiện lỗi nhãn `tabLabel`: Trong C# `ChromeBot.cs`, tab header của Purchase & Sales hiển thị dạng `P&S: All` và Positions hiển thị dạng `Pos: All`. Trước đó TypeScript truyền `Purchase & Sales` và `Positions`, khiến XPath tìm nút đóng tab theo tên không bao giờ khớp.
-  2. Phát hiện lỗi Playwright trong khối `finally`: Cú pháp `closeBtn.isVisible({ timeout: 3000 })` trong Playwright không hỗ trợ tham số timeout (chỉ trả về `boolean` tức thời trong 0ms), khiến việc kiểm tra bị trả về `false` ngay lúc menu tải đang biến mất và bỏ qua thao tác đóng tab.
-  3. Bổ sung `page.keyboard.press('Escape')` đóng triệt để dropdown menu ba chấm trước khi đóng tab, và dùng `closeBtn.waitFor({ state: 'visible', timeout: 5000 })` kèm `closeBtn.click({ force: true })` chuẩn xác như `WaitForElementToBeVisible` trong C#.
+Chuẩn hóa lưu trữ file báo cáo CoreCCP thành file phẳng trực tiếp trong thư mục ngày, bỏ thư mục con rác khi là daily shift folder.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
-  - Chuẩn hóa `downloadCqgPS`: truyền `tabLabel: 'P&S'`.
-  - Chuẩn hóa `downloadCqgOP`: truyền `tabLabel: 'Pos'`.
-  - Sửa khối `finally` đóng tab: nhấn Escape, chờ `closeBtn` hiển thị và click đóng tab tin cậy 100%.
+- backend/src/modules/bot-engine/ccp-ce-downloader.service.ts
+- backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts
+
+### 3. Xác nhận Build & Deploy
+- Backend & Frontend build: exit code 0
+- Dọn dẹp thực tế trên máy chủ: xóa 4 thư mục con thừa
+
+## [2026-09-11T19:43] HOTFIX: Chuẩn Hóa Toàn Diện Đường Dẫn Mạng M:\Tailieuchung\QLGD-IT và Sửa Date Parsing Cho CoreCCP
+
+## [2026-09-14T11:41] Khắc Phục Lỗi TypeScript / Dependencies Trên Màn Hình Admin Bot Config
+
+### 1. Mục tiêu thay đổi
+Khắc phục lỗi thiếu dependency và đồng bộ union type BotJob.status với trạng thái CANCELLED.
+
+### 2. Danh sách file chỉnh sửa
+- frontend/src/app/admin/bot-config/page.tsx: thêm trạng thái CANCELLED, bỏ cast as any
+- npm install trong worktree frontend
 
 ### 3. Tóm tắt nội dung code đã sửa
-- Thay đổi `tabLabel` từ `'Purchase & Sales'` $\rightarrow$ `'P&S'` và `'Positions'` $\rightarrow$ `'Pos'`.
-- Thay `isVisible()` tức thời bằng `await closeBtn.waitFor({ state: 'visible', timeout: 5000 })` và `await closeBtn.click({ force: true })`.
+- Bổ sung CANCELLED trong union type status
+- Cài đặt lại dependencies để IDE không còn báo thiếu thư viện
 
 ### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
+- TypeScript check: exit code 0
+- Next.js build: exit code 0
 
----
-
-## [2026-09-14T12:29] Sửa Cú Pháp XPath Nhập Từ Khóa Tìm Kiếm Widget (Playwright Selector Syntax)
+## [2026-09-14T11:28] Tính Năng Dừng / Hủy Tác Vụ Bot Engine (Job Cancellation Subsystem)
 
 ### 1. Mục tiêu thay đổi
-- Theo log báo lỗi của USER (`Unsupported token "@placeholder" while parsing css selector ".//input[@placeholder='Search...']"`):
-  - Trong Selenium C#, cú pháp `By.XPath(".//input...")` được chấp nhận.
-  - Trong Playwright, chuỗi bắt đầu bằng dấu chấm `.` bị hiểu nhầm là CSS selector (chứ không phải XPath), dẫn tới lỗi cú pháp CSS không hỗ trợ `@placeholder`.
+Triển khai hủy job trên backend và frontend, hỗ trợ PENDING, AWAITING_CAPTCHA và PROCESSING.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Sửa `page.locator(".//input[@placeholder='Search...']")` thành `page.locator("//input[@placeholder='Search...']")` chuẩn XPath tuyệt đối của Playwright.
+- backend/src/modules/bot-engine/core/job-handler.interface.ts
+- backend/src/modules/bot-engine/bot-job-queue.service.ts
+- backend/src/modules/bot-engine/bot-engine.controller.ts
+- frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx
 
 ### 3. Tóm tắt nội dung code đã sửa
-- Bỏ dấu chấm `.` ở đầu chuỗi selector để Playwright nhận diện chính xác 100% là XPath.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
-
----
-
-## [2026-09-14T12:24] Đồng Bộ 1:1 Tuyệt Đối downloadCqgWidget Với ChromeBot.cs (C#) & Loại Bỏ 100% Code Thừa Tự Chế
-
-### 1. Mục tiêu thay đổi
-- Theo yêu cầu nghiêm ngặt của USER ("giúp tôi so sánh thật kỹ lại lần nữa xem giống y hệt của tool C# chưa"):
-  - Đối chiếu từng dòng một với 4 hàm `DownloadFR`, `DownloadPS`, `DownloadOP`, `DownloadOD` trong [it-tool-src\operate-transaction-app\Services\ChromeBot.cs](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/ChromeBot.cs).
-  - Tái cấu trúc hàm `downloadCqgWidget` thành một bản clone 1:1 chính xác từng bước, từng selector, từng khoảng thời gian chờ (delay) và thông điệp ngoại lệ:
-    1. Click tab `Ho`: `//div[text()='Ho']`.
-    2. Click nút `+`: `//div[contains(@class, 'wpfe-add-widget-btn')]` (không dùng union phức tạp, không dùng filter).
-    3. Nhập từ khóa: `.//input[@placeholder='Search...']`.
-    4. Click item widget: `//div[@wpfefocuslistitem and .//span[text()='${itemText}']]`.
-    5. Click chọn account: `//button[contains(@class, 'wpfe-widget-account-selector-button')]`.
-    6. Chọn All accounts: `//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]`.
-    7. Click OK: `//div[text()='OK']`.
-    8. Chờ tải dữ liệu: 10 giây (`10000ms`).
-    9. Click menu 3 chấm: `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v'] | //div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`.
-    10. Click nút Download: `//div[contains(text(), "${downloadText}")]`.
-    11. Đóng tab widget vừa mở: `//span[contains(text(), '${tabLabel}: All')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')] | //div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`.
-
-### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Tái cấu trúc `downloadCqgWidget` giống hệt 100% quy trình 11 bước của C#.
-
-### 3. Tóm tắt nội dung code đã sửa
-- Bỏ hoàn toàn các fallback, filter, selector rác. Giữ nguyên 100% logic và selector chuẩn của C#.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
-
----
-
-## [2026-09-14T12:12] Loại Bỏ Thao Tác Chuột Phải Gây Bật Context Menu Của Trình Duyệt & Đồng Bộ Click Nút 3 Chấm Chuẩn C#
-
-### 1. Mục tiêu thay đổi
-- Theo phản hồi của USER ("tại sao tôi hay thấy nó nút chuột [phải] lên vậy. giúp tôi xem log xem có gì bất thường không"):
-  - Hình ảnh USER gửi là menu ngữ cảnh mặc định của trình duyệt Edge/Chrome ("Back, Refresh, Save as, Print, Inspect").
-  - Nguyên nhân: Trước đó code dùng `targetTab.click({ button: 'right' })` nhằm cố gắng mở context menu của tab, nhưng do trình duyệt xử lý sự kiện chuột phải mặc định nên đã làm bật menu chuột phải của trình duyệt, gây che khuất giao diện và có thể làm vô hiệu hóa các thao tác click tiếp theo.
-  - Đối chiếu C# tool: Tool C# **hoàn toàn không dùng chuột phải**, mà dùng click chuột trái thông thường vào icon ba chấm `ellipsis-v` (`//mat-icon[@data-mat-icon-name='ellipsis-v']`).
-
-### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Xóa bỏ hoàn toàn thao tác click chuột phải `button: 'right'`, chuyển sang click trực tiếp nút ba chấm `ellipsis-v` bằng chuột trái.
-
-### 3. Tóm tắt nội dung code đã sửa
-- Chuyển sang tìm nút `ellipsis-v` của tab đang active và click chuột trái bình thường.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: Hướng dẫn USER tự chạy test trên terminal.
-
----
-
-## [2026-09-14T12:06] Đồng Bộ Tuyệt Đối Logic Tìm Nút Thêm Widget Với Tool C# & Khắc Phục Lỗi Dính Element Ẩn
-
-### 1. Mục tiêu thay đổi
-- Theo phản hồi của USER ("giúp tôi so lại với tool C# xem tại sao giờ lại không tìm thấy nút add-widget C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-shift-checklist\it-tool-src trước tôi vẫn thấy được"):
-  - Đối chiếu trực tiếp với `ChromeBot.cs` trong `it-tool-src`:
-    1. Tool C# **luôn click menu Home/Ho trước tiên** (`//div[text()='Ho']`) để chuyển về trang chính trước khi tìm nút cộng widget.
-    2. Tool C# chỉ dùng selector `//div[contains(@class, 'wpfe-add-widget-btn')]`, tuyệt đối không dùng selector chung `//mat-icon[@data-mat-icon-name='plus']`.
-  - Khắc phục lỗi trong Playwright: Selector cũ chứa `//mat-icon[@data-mat-icon-name='plus']` kết hợp với `.first()` đã bắt nhầm một SVG icon `<mat-icon>` ẩn (`aria-hidden="true"`, `role="img"`) nằm ở đầu DOM, khiến Playwright chờ phần tử ẩn này hiển thị dẫn đến timeout 15000ms.
-
-### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Click tab `Ho` trước, lọc các nút add widget với cờ `.locator('visible=true')`, loại bỏ selector icon ẩn gây kẹt timeout.
-
-### 3. Tóm tắt nội dung code đã sửa
-- Bổ sung click `//div[text()='Ho' or text()='Home']` trước khi mở widget.
-- Sử dụng `.locator('visible=true')` trên các class nút add widget (`wpfe-add-widget-btn`, `wpfe-tab-header-add-button`, `wpfe-widget-tab-header-add-button`).
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: AI chuẩn bị code hoàn chỉnh và hướng dẫn USER tự chạy test.
-
----
-
-## [2026-09-14T11:54] Sửa Lỗi Bỏ Qua Khối Khởi Động Trình Duyệt Tải CQG1 Trong `downloadCqgBackup`
-
-### 1. Mục tiêu thay đổi
-- Theo phản hồi của USER khi chạy `test_cqg_pure.ts` nhưng không thấy trình duyệt mở lên và các file báo "FILE KHÔNG TỒN TẠI":
-  - Phát hiện nguyên nhân do thiếu từ khóa `else {` tại khối kiểm tra tài khoản `if (!username1 || !password1)` ở [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L3990-L3996).
-  - Khối lệnh khởi động Chrome và thực hiện chu trình tải 4 file CQG1 bị lồng sai vào trong nhánh "khi thiếu tài khoản", dẫn tới việc bỏ qua hoàn toàn chu trình tải khi có tài khoản hợp lệ.
-
-### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Bổ sung `else {` để tách biệt rõ ràng giữa nhánh báo lỗi thiếu tài khoản và nhánh thực thi khởi động trình duyệt tải file.
-
-### 3. Tóm tắt nội dung code đã sửa
-- Bổ sung `else {` sau `errors.push('Thiếu thông tin tài khoản CQG1...');`.
-
-### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `nest build` thành công, exit code 0.
-- Tuân thủ quy tắc 4 của AGENTS.md: AI chuẩn bị code hoàn chỉnh và để USER tự chạy test script trên terminal để quan sát trực tiếp.
-
----
-
-## [2026-09-14T11:41] Khắc Phục Lỗi TypeScript / Dependencies Trên Màn Hình Admin Bot Config (`page.tsx`)
-
-### 1. Mục tiêu thay đổi
-- Theo phản hồi của USER ("frontend/src/app/admin/bot-config/page.tsx bị lỗi"):
-  - Khắc phục lỗi thiếu `node_modules` ở nhánh git worktree khiến IDE hiển thị hàng loạt gạch đỏ lỗi thiếu thư viện (`react`, `lucide-react`, `next/navigation`).
-  - Đồng bộ union type `BotJob.status` trong [frontend/src/app/admin/bot-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/page.tsx) để bổ sung trạng thái `'CANCELLED'`, tương thích hoàn toàn với [JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx).
-
-### 2. Danh sách file chỉnh sửa
-- [frontend/src/app/admin/bot-config/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/page.tsx): Thêm trạng thái `'CANCELLED'` vào interface `BotJob`, loại bỏ `as any` type-cast.
-
-### 3. Tóm tắt nội dung code đã sửa
-- Bổ sung `'CANCELLED'` vào type union `status` của `BotJob`.
-- Chạy `npm install` hoàn tất trong thư mục `frontend` của worktree để cài đặt đầy đủ bộ package phụ thuộc.
-
-### 4. Xác nhận Build & Kiểm thử
-- **TypeScript Check**: `npx tsc --noEmit` đạt Exit Code 0 (không còn bất kỳ lỗi type nào).
-- **Next.js Production Build**: `npm run build` biên dịch thành công 100% tất cả 25 route bao gồm `/admin/bot-config`.
-
----
-
-## [2026-09-14T11:28] Tính Năng Dừng / Hủy Tác Vụ Bot Engine (Job Cancellation Subsystem) Trên Backend & Frontend
-
-### 1. Mục tiêu thay đổi
-- Theo yêu cầu của USER ("bạn đánh giá thật kỹ rồi viết thành tài liệu thiết kế cho tôi"):
-  - Triển khai tính năng **Dừng / Hủy Job** trên cả Backend NestJS và Frontend Next.js Dashboard (`/admin/bot-config`).
-  - Hỗ trợ 3 cấp độ hủy an toàn:
-    1. **PENDING**: Hủy ngay tức thì khỏi hàng đợi, không cho worker chạy.
-    2. **AWAITING_CAPTCHA**: Đóng browser context đang treo chờ captcha và giải phóng phiên.
-    3. **PROCESSING**: Gửi tín hiệu `AbortController`, gọi cleanup để ngắt trình duyệt/worker an toàn, chuyển trạng thái `CANCELLED` và giải phóng khóa `isProcessing`.
-  - Trên giao diện `JobQueuePanel.tsx`: Bổ sung nút **"Dừng Tác Vụ" / "Hủy Khỏi Hàng Đợi"**, badge `CANCELLED` màu đỏ, và Modal xác nhận an toàn trước khi dừng.
-
-### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/core/job-handler.interface.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/core/job-handler.interface.ts): Thêm `abortSignal` và `registerCleanup` vào `IJobExecutionContext`.
-- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts): Quản lý `activeJobs` registry, thêm method `cancelJob(jobId, reason)`, hỗ trợ `CANCELLED` trong `syncJobToChecklist`.
-- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts): Thêm endpoint `POST /api/v1/bot-engine/jobs/:id/cancel`.
-- [frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx): Thêm nút Dừng/Hủy trên console header và danh sách hàng đợi, hỗ trợ badge Đã hủy (`CANCELLED`) và Modal xác nhận an toàn.
-
-### 3. Tóm tắt nội dung code đã sửa
-- **Backend**:
-  - `activeJobs` Map lưu giữ ngữ cảnh chạy `AbortController` và hàm `cleanups` của từng Job đang thực thi.
-  - Khi `cancelJob` được gọi: Phát tín hiệu abort, gọi các hàm cleanup dọn dẹp browser, cập nhật trạng thái `CANCELLED` trong CSDL MongoDB, và đồng bộ gạch bỏ task trên ca trực qua `syncJobToChecklist`.
-  - Cung cấp endpoint bảo mật `POST /api/v1/bot-engine/jobs/:id/cancel`.
-- **Frontend**:
-  - Giao diện `JobQueuePanel`: Thêm nút bấm hành động `Square` màu đỏ cho các tác vụ `PENDING`, `PROCESSING`, `AWAITING_CAPTCHA`.
-  - Hiển thị Modal xác nhận thân thiện với người dùng, hỗ trợ nhập lý do hủy (tùy chọn).
+- activeJobs registry với AbortController và cleanup
+- cancelJob cập nhật trạng thái CANCELLED và giải phóng phiên browser
+- frontend thêm modal xác nhận và badge hủy
 
 ### 4. Xác nhận Build & Triển Khai
-- **Backend Build**: `nest build` thành công, exit code 0.
-- **Triển khai Production**: Đồng bộ lên máy chủ Ubuntu `10.0.0.26` và khởi động lại PM2 `mxv-backend`, `mxv-frontend`.
+- Backend build: exit code 0
+- Production deploy: PM2 online
 
----
-
-## [2026-09-14T11:15] Bổ Sung Logic Đăng Xuất (Log off) CQG Trước Khi Đóng Trình Duyệt Để Giải Phóng Phiên Cho Người Dùng Khác
+## [2026-09-14T11:15] Bổ Sung Logic Đăng Xuất CQG Trước Khi Đóng Trình Duyệt
 
 ### 1. Mục tiêu thay đổi
-- Theo yêu cầu của USER ("check logic xem nếu tải CQG về thành công có tắt hẳn đi không hay vẫn mở . vì nếu vẫn mở sẽ ảnh hưởng tới user khác nếu muốn vào xem"):
-  - Đảm bảo khi hoàn tất tải file CQG (hoặc ngay cả khi gặp lỗi), trình duyệt Chromium/Edge được đóng hoàn toàn (không còn cửa sổ hay tiến trình chạy ngầm).
-  - Khắc phục nguy cơ treo session trên server CQG: Khi chỉ tắt trình duyệt (`browser.close()`), server CQG vẫn duy trì phiên làm việc (Active Session) của tài khoản trong 15-30 phút, khiến người dùng khác khi đăng nhập vào bị thông báo trùng lặp hoặc cản trở truy cập.
-  - Bổ sung quy trình đăng xuất chuẩn (`logoutCqg`) tự động: Click icon Sign Out trên thanh sidebar $\rightarrow$ Click "Log off" trong dropdown $\rightarrow$ Click xác nhận "Log off" $\rightarrow$ Đợi màn hình đăng nhập hiển thị lại để xác nhận server CQG đã giải phóng session.
+Đảm bảo logout CQG được gọi trước khi đóng browser để giải phóng session cho người dùng khác.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Thêm method `logoutCqg(page)`, gắn gọi `logoutCqg` trong khối `finally` của cả CQG1 và CQG2 trước khi thực thi `browser.close()`.
+- backend/src/modules/bot-engine/rpa-downloader.service.ts
 
 ### 3. Tóm tắt nội dung code đã sửa
-- **Trước**:
-  - Khối `finally` chỉ gọi `await browser1.close().catch(() => {})`.
-  - Trình duyệt đóng nhưng phiên CQG trên máy chủ chưa được Log off $\rightarrow$ Tài khoản bị "kẹt phiên", user khác đăng nhập sẽ bị thông báo chiếm phiên.
-- **Sau**:
-  - Lưu giữ biến tham chiếu `page1` và `page2`.
-  - Khối `finally`: Luôn gọi `await this.logoutCqg(page).catch(() => {})` để gửi lệnh Log off lên máy chủ CQG trước $\rightarrow$ Sau đó mới gọi `await browser.close()` để đóng hoàn toàn trình duyệt và tiến trình Chromium.
+- Thêm method logoutCqg và gọi trong finally trước khi browser.close
 
 ### 4. Xác nhận Build & Kiểm thử
-- **Backend Build**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code 0).
+- Backend build: exit code 0
 
----
-
-## [2026-09-14T10:58] Cập Nhật Bộ Nhận Diện Context Menu CQG & Script Kiểm Thử Độc Lập Siêu Tốc `test_cqg_pure.ts`
+## [2026-09-14T10:58] Cập Nhật Bộ Nhận Diện Context Menu CQG & Script Kiểm Thử Độc Lập
 
 ### 1. Mục tiêu thay đổi
-- Khắc phục hiện tượng cửa sổ trình duyệt Playwright không hiển thị trên màn hình Desktop của USER khi chạy ngầm qua Agent background subshell.
-- Giải quyết dứt điểm lỗi lệch menu ba chấm khi CQG Desktop bị chia đôi panel (Top panel: Positions, Bottom panel: P&S).
-- Tạo script kiểm thử độc lập `test_cqg_pure.ts` chạy trực tiếp không thông qua NestJS AppModule để USER chủ động mở terminal tự kiểm thử theo đúng Quy tắc AGENTS.md (Mục 1.4).
+Khắc phục menu ba chấm sai và tạo script kiểm thử độc lập test_cqg_pure.ts.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
-- [backend/src/scripts/test_cqg_pure.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_pure.ts)
+- backend/src/modules/bot-engine/rpa-downloader.service.ts
+- backend/src/scripts/test_cqg_pure.ts
 
 ### 3. Tóm tắt nội dung code đã sửa
-- **Tối ưu hiển thị cửa sổ trình duyệt**:
-  - `getChromeExecutablePath()`: Ưu tiên nhận diện Microsoft Edge (`msedge.exe`) và Google Chrome cài sẵn trên hệ điều hành Windows thay vì chạy Chromium portable headless.
-  - Cấu hình `--start-maximized`, `viewport: null` để cửa sổ mở cực đại toàn màn hình trên desktop.
-- **Cơ chế chọn tab & mở menu ngữ cảnh chính xác**:
-  - Thêm thao tác click vào tab header của widget mục tiêu trước khi mở menu để đảm bảo panel chứa widget đó được kích hoạt.
-  - Kích hoạt menu chuột phải (`targetTab.click({ button: 'right' })`) trực tiếp trên tab header tương ứng (`Fills: All`, `P&S: All`, `Pos: All`, `Orders: All`), đảm bảo menu bung ra thuộc đúng widget đang mở, không bị dính sang menu của panel khác.
-  - Tự động bắt và tái xác thực (`ensureSessionActive`) nếu phiên CQG bị ngắt kết nối do trùng lặp tài khoản.
-- **Tạo script kiểm thử độc lập `test_cqg_pure.ts`**:
-  - Tự động nạp tài khoản CQG từ CSDL MongoDB, tải lần lượt 4 file `FR1`, `PS1`, `OP1`, `OD1`, đo mã MD5 và so sánh chéo cấu trúc nội dung.
+- Ưu tiên Edge/Chrome desktop thay vì headless
+- Chuẩn hóa tab và click context menu đúng widget
 
 ### 4. Xác nhận Build/Kiểm thử
-- **Backend Build**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code 0).
-- **Quy tắc Kiểm thử**: USER tự chạy trực tiếp trên terminal bằng lệnh `npx ts-node src/scripts/test_cqg_pure.ts`.
-
----
+- Backend build: exit code 0
 
 ## [2026-09-14T10:20] BUGFIX: Khắc Phục Triệt Để Lỗi Tải Đè File Positions Lên FR, PS, OD Trên CQG & Tạo Script Test Trực Quan
 
 ### 1. Mục tiêu thay đổi
-- Khắc phục bug nghiêm trọng trên module tải dữ liệu CQG (rpa-downloader): Mọi báo cáo FR (Fills), PS (Purchase & Sales), OD (Orders) tải về đều bị ghi đè thành file Positions giống hệt nhau trên thư mục chia sẻ mạng `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\...`.
-- Điều tra nguyên nhân so sánh với C# Tool `ChromeBot.cs`:
-  1. Xóa bỏ hoàn toàn selector fallback `contains(text(), "positions")` trong menu tải báo cáo.
-  2. Khắc phục lỗi biến `isExistingTab` chưa khai báo làm sập khối `finally`, khiến các tab widget không bao giờ được đóng sau khi tải.
-  3. Bổ sung hàm `closeAllOpenWidgets` dọn sạch toàn bộ tab widget tồn đọng trong Chrome profile từ các phiên trước khi vừa đăng nhập xong.
-  4. Chuẩn hóa nhãn tab `Pos: All` và `Orders: All`.
-  5. Tạo script mới `test_cqg_download_visual_compare.ts` mở trình duyệt trực tiếp (headed mode) và tự động đối soát nội dung các file Excel tải về.
+Khắc phục việc FR, PS, OD bị ghi đè thành Positions; chuẩn hóa tab và đóng widget sau khi tải.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): Sửa `downloadCqgWidget`, chuẩn hóa các hàm gọi `downloadCqgFR`, `downloadCqgPS`, `downloadCqgOP`, `downloadCqgOD`, thêm `closeAllOpenWidgets`.
-- [backend/src/scripts/test_cqg_download_visual_compare.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_download_visual_compare.ts): Script kiểm thử trực quan có giao diện và tự động phân tích so sánh chéo các file tải về.
+- backend/src/modules/bot-engine/rpa-downloader.service.ts
+- backend/src/scripts/test_cqg_download_visual_compare.ts
 
 ### 3. Tóm tắt nội dung code đã sửa
-- **Trước**:
-  - `downloadBtn`: Chứa mảng fallback joined bằng `|` gồm `contains(text(), "positions")`, `contains(text(), "orders")`, `contains(text(), "fills")`... Khi tab Positions đang active, bộ lọc fallback tự động click vào "Download open positions in view" cho mọi loại báo cáo.
-  - Khối `finally`: Kiểm tra `if (!isExistingTab)` nhưng biến `isExistingTab` không tồn tại trong scope $\rightarrow$ Runtime `ReferenceError` khiến tab không bao giờ được đóng và gây lỗi `nest build`.
-  - Không dọn dẹp các tab mở sẵn trong persistent profile khi đăng nhập.
-  - Tab label của Positions và Orders dùng `Positions` và `Orders` thay vì `Pos: All` và `Orders: All`.
-- **Sau**:
-  - `downloadBtn`: Định vị chính xác 100% theo `downloadText` (`Download today's fills in view`, `Download Purchase and sales in view`, `Download open positions in view`, `Download orders in view`), không fallback.
-  - Khối `finally`: Luôn click đóng tab widget vừa tải để trả lại không gian làm việc sạch sẽ giống hệt C# tool.
-  - Thêm `closeAllOpenWidgets`: Đóng toàn bộ tab widget lưu vết trong profile ngay khi vừa đăng nhập xong.
-  - Nhãn tab chuẩn hóa: `Pos: All`, `Orders: All`.
+- Loại bỏ selector fallback sai
+- Khởi tạo biến isExistingTab đúng scope
+- Thêm closeAllOpenWidgets và chuẩn hóa tab label
 
 ### 4. Xác nhận Build/Kiểm thử
-- **Backend Build**: `nest build` thành công 100%, exit code 0.
-- **Tuân thủ quy tắc kiểm thử**: Không tự ý chạy ngầm script kiểm thử; cung cấp hướng dẫn đầy đủ để USER tự chạy trực tiếp trên terminal.
+- Backend build: exit code 0
 
----
-
+### 1. Mục tiêu thay đổi
+- Sửa lỗi date parsing mismatch trong ccp-ce-downloader.service.ts: Hàm parseDmY hỗ trợ đồng thời cả định dạng YYYY-MM-DD và DD/MM/YYYY, khắc phục triệt để lỗi sinh mảng khoảng ngày rỗng khiến job tải CoreCCP kết thúc trong 0ms mà không thực sự tải file.
 
 ### 1. Mục tiêu thay đổi
 - Sửa lỗi date parsing mismatch trong `ccp-ce-downloader.service.ts`: Hàm `parseDmY` hỗ trợ đồng thời cả định dạng `YYYY-MM-DD` (ISO) và `DD/MM/YYYY`, khắc phục triệt để lỗi sinh mảng khoảng ngày rỗng khiến job tải CoreCCP kết thúc trong 0ms mà không thực sự tải file.
