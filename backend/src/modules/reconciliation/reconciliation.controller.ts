@@ -586,6 +586,11 @@ export class ReconciliationController {
         fr: readIfExists('FR', 'xlsx') || undefined,
         fr1: readIfExists('FR1', 'xlsx') || undefined,
         fr2: readIfExists('FR2', 'xlsx') || undefined,
+        nano:
+          readIfExists('Straits', 'csv') ||
+          readIfExists('Nano', 'xls') ||
+          readIfExists('Nano', 'xlsx') ||
+          undefined,
         op: readIfExists('OP', 'xlsx') || undefined,
         op1: readIfExists('OP1', 'xlsx') || undefined,
         op2: readIfExists('OP2', 'xlsx') || undefined,
@@ -1029,11 +1034,13 @@ export class ReconciliationController {
       throw new BadRequestException('Không tìm thấy ca trực');
     }
 
-    const shiftDate = log.shiftDate; // e.g. "15/07/2026"
+    const shiftDate = log.shiftDate; // e.g. "15/07/2026" or "2026-07-15"
     let formattedDate = '';
     if (shiftDate && shiftDate.includes('/')) {
       const [d, m, y] = shiftDate.split('/');
       formattedDate = `${y}-${m}-${d}`;
+    } else if (shiftDate && shiftDate.includes('-')) {
+      formattedDate = shiftDate;
     } else {
       const today = new Date();
       const yyyy = today.getFullYear();

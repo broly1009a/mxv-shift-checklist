@@ -1574,14 +1574,24 @@ export class MarginCheckerService {
 
   private parseDate(str: string): Date | null {
     if (!str) return null;
-    const parts = str.split('/');
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day);
+    const clean = str.trim();
+    if (clean.includes('/') || clean.includes('-')) {
+      const sep = clean.includes('/') ? '/' : '-';
+      const parts = clean.split(sep);
+      if (parts.length === 3) {
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        const p2 = parseInt(parts[2], 10);
+        if (p0 > 31) {
+          // YYYY-MM-DD
+          return new Date(p0, p1 - 1, p2);
+        } else {
+          // DD/MM/YYYY
+          return new Date(p2 < 100 ? p2 + 2000 : p2, p1 - 1, p0);
+        }
+      }
     }
-    const d = new Date(str);
+    const d = new Date(clean);
     return isNaN(d.getTime()) ? null : d;
   }
 

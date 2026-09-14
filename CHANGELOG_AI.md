@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-14T17:15] AUDIT & FIX: Rà Soát Toàn Diện & Xử Lý Triệt Để Các Bug Phân Tách Ngày Tháng / Dấu Phân Cách Tương Tự
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"bạn kiểm tra xem còn bug nào tương tự không"*:
+- Thực hiện rà soát toàn diện (deep audit) các vị trí xử lý chuỗi ngày tháng, định dạng phân cách (`/` vs `-`), đối tượng Date/Excel trong toàn bộ mã nguồn Backend.
+- Phát hiện và khắc phục các vị trí tiềm ẩn nguy cơ tương tự:
+  1. **`parsers/straits-csv.parser.ts`**: Bổ sung `tradeDateColIndex` và fallback `trade date` cho trường hợp cột `execution date-time` rỗng hoặc thiếu.
+  2. **`reconciliation.controller.ts` (`autoCheckAllFromFolder`)**: Bổ sung nhận diện file `nano` (Straits/Nano) vào `klgdFiles` khi quét thư mục mẫu (trước đó bị bỏ quên `nano`).
+  3. **`reconciliation.controller.ts` (`getTeamsManualMessages`)**: Bổ sung kiểm tra định dạng `shiftDate` chứa dấu `-` (`YYYY-MM-DD` theo chuẩn MongoDB) để tránh fallback sai về `new Date()` (ngày hôm nay).
+  4. **`ccp-statistics.service.ts` (`findLastBlock`)**: Xử lý trường hợp ô ngày trong Excel trả về kiểu `Date` Object từ `exceljs` hoặc chuỗi `YYYY-MM-DD` để tránh sinh ra `NaN` khi `split('/')`.
+  5. **`margin-checker.service.ts` (`parseDate`)**: Hỗ trợ đồng thời cả hai dấu phân cách `/` và `-`, tự động phân biệt `YYYY-MM-DD` và `DD/MM/YYYY`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/parsers/straits-csv.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/straits-csv.parser.ts): Bổ sung fallback `trade date`.
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts): Thêm `nano` vào `autoCheckAllFromFolder` và xử lý `shiftDate` định dạng `YYYY-MM-DD`.
+- [backend/src/modules/ccp-statistics/ccp-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.service.ts): Xử lý cell Date object / ISO date trong `findLastBlock`.
+- [backend/src/modules/margin-checker/margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/margin-checker/margin-checker.service.ts): Chuẩn hóa `parseDate` đa định dạng (`/` và `-`).
+
+### 3. Xác nhận Build
+- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+
 ## [2026-09-14T17:00] FIX: Sửa Bug Lọc Thời Gian Khớp Lệnh DSGD (M-System) & Nano (Straits) - Đảm Bảo ACM Luôn <= Nano
 
 ### 1. Mục tiêu thay đổi

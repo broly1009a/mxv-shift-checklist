@@ -13,6 +13,7 @@ export class StraitsCsvParser {
     const buyColIndex = headers.indexOf('buy');
     const sellColIndex = headers.indexOf('sell');
     const priceColIndex = headers.indexOf('price');
+    const tradeDateColIndex = headers.indexOf('trade date');
     const executionTimeColIndex = headers.indexOf('execution date-time');
     const brokerTradeIdColIndex = headers.indexOf('broker trade id');
     const subAccColIndex = headers.indexOf('sub-a/c');
@@ -61,11 +62,18 @@ export class StraitsCsvParser {
         priceColIndex !== -1 && priceColIndex < values.length
           ? parseFloat(values[priceColIndex].replace(/"/g, '').trim()) || 0
           : 0;
-      const ngayGio =
+      let ngayGio =
         executionTimeColIndex !== -1 &&
         executionTimeColIndex < values.length
           ? values[executionTimeColIndex].replace(/"/g, '').trim()
           : '';
+      if (
+        !ngayGio &&
+        tradeDateColIndex !== -1 &&
+        tradeDateColIndex < values.length
+      ) {
+        ngayGio = values[tradeDateColIndex].replace(/"/g, '').trim();
+      }
       const maGD = maLenh;
 
       result.push({
