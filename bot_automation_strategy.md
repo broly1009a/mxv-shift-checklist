@@ -47,12 +47,12 @@ Bản chất của việc số hóa SOP thành các User Stories với cấu tr�
 ### Nhược điểm (Cons) & Giải pháp khắc phục
 
 *   **Chi phí phát triển và bảo trì cao:** Bot phụ thuộc rất nhiều vào các hệ thống bên thứ ba (CQG Cast, Newgen, M-System, Mail server). Chỉ cần một trong các bên này thay đổi API, cơ chế bảo mật (OAuth2, MFA) hoặc cấu trúc dữ liệu, Bot sẽ bị hỏng và cần kỹ sư lập trình vào sửa lại code.
-    *   **💡 Giải pháp:**
+    *   ** Giải pháp:**
         *   **Adapter / Gateway Pattern:** Không gọi trực tiếp API của CQG hay Newgen từ Bot logic. Thiết lập một lớp Adapter trung gian làm nhiệm vụ dịch chuyển dữ liệu (Data Transformer). Khi bên thứ ba đổi API, bạn chỉ cần viết lại Adapter mà không phải sửa lõi của Bot.
         *   **Low-code Parser Configuration:** Lưu các cấu hình parse dữ liệu (Regex lấy nội dung email, JSON Path lấy kết quả API) vào database dưới dạng cấu hình động. Khi họ thay đổi mẫu mail hay định dạng JSON, chỉ cần sửa cấu hình regex trên Admin UI mà không cần deploy lại code.
         *   **Contract Testing:** Viết các bộ test tự động (sử dụng mock data hoặc API sandbox) chạy định kỳ hàng giờ để kiểm tra xem API của bên thứ ba có trả về đúng format cam kết không. Điều này giúp phát hiện lỗi API của đối tác trước khi đến thời điểm trực ca.
 *   **Rủi ro lỗi dây chuyền (Cascade Failure):** Nếu hệ thống tự động hóa không có cơ chế cách ly tốt, lỗi của Bot có thể làm nghẽn hàng đợi (Queue), dẫn đến việc trễ SLA của toàn bộ các task khác trong checklist ca trực.
-    *   **💡 Giải pháp:**
+    *   ** Giải pháp:**
         *   **Queue Isolation (Cô lập hàng đợi):** Không dùng chung một Queue cho tất cả các tác vụ. Chia làm nhiều Queue độc lập (ví dụ: `email-scan-queue`, `data-reconcile-queue`, `alert-telegram-queue`). Lỗi ở queue quét email không thể làm chậm hàng đợi gửi cảnh báo.
         *   **Circuit Breaker Pattern (Bộ ngắt mạch):** Nếu API đối tác bị sập liên tiếp (ví dụ: gọi API CQG lỗi 5 lần liên tục), Circuit Breaker sẽ tự động ngắt kết nối tạm thời trong 15 phút. Trong thời gian này, Bot tự động chuyển task tương ứng sang trạng thái `FAILED` hoặc `MANUAL_REQUIRED` để Operator trực làm tay, tránh việc liên tục gửi request lỗi làm treo hàng đợi và tài nguyên CPU.
         *   **Dead Letter Queue (DLQ) & Timeouts:** Bắt buộc áp dụng HTTP Timeout ngắn (tối đa 5-10 giây) cho mọi kết nối bên thứ ba để tránh treo thread. Nếu một job trong queue bị lỗi và retry quá 3 lần, tự động chuyển job đó sang một hàng đợi lỗi riêng (DLQ) để phân tích sau, giải phóng ngay hàng đợi chính cho các task tiếp theo.

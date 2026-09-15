@@ -31,13 +31,13 @@ const MONGODB_URI =
 
 async function runModule1Test() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 1: ĐỌC MAIL & LƯU MONGODB (RAW + CLEAN NOIDUNGMAIL)');
+  console.log(' KIỂM THỬ MODULE 1: ĐỌC MAIL & LƯU MONGODB (RAW + CLEAN NOIDUNGMAIL)');
   console.log('='.repeat(70));
 
   // 2. Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const RawMailModel = mongoose.model('RawAccountMail', RawAccountMailSchema);
   const CleanRecordModel = mongoose.model(
@@ -120,7 +120,7 @@ async function runModule1Test() {
       attachments: attachmentsMeta,
       status: 'PARSED',
     });
-    console.log(`  ✅ [RAW] Đã lưu thành công! ID: ${rawMailDoc._id}`);
+    console.log(`   [RAW] Đã lưu thành công! ID: ${rawMailDoc._id}`);
 
     // B. BÓC TÁCH DỮ LIỆU SẠCH (Clean Data)
     console.log(`  🔍 [CLEAN] Đang bóc tách thông tin body mail...`);
@@ -149,13 +149,13 @@ async function runModule1Test() {
         danhSachLoi: [],
       },
     });
-    console.log(`  ✅ [CLEAN] Đã lưu thành công! ID: ${(cleanRecordDoc as any)._id}`);
+    console.log(`   [CLEAN] Đã lưu thành công! ID: ${(cleanRecordDoc as any)._id}`);
   }
 
 
   // 4. TRUY VẤN LẠI TỪ MONGODB ĐỂ KIỂM CHỨNG (VERIFICATION)
   console.log('\n' + '='.repeat(70));
-  console.log('📊 KIỂM CHỨNG DỮ LIỆU THỰC TẾ TRONG MONGODB ATLAS:');
+  console.log(' KIỂM CHỨNG DỮ LIỆU THỰC TẾ TRONG MONGODB ATLAS:');
   console.log('='.repeat(70));
 
   const cleanRecords = await CleanRecordModel.find({ batchDate: todayStr })
@@ -178,10 +178,10 @@ async function runModule1Test() {
 
   // Ngắt kết nối MongoDB
   await mongoose.disconnect();
-  console.log('\n✅ ĐÃ HOÀN TẤT KIỂM THỬ MODULE 1 THÀNH CÔNG 100%!');
+  console.log('\n ĐÃ HOÀN TẤT KIỂM THỬ MODULE 1 THÀNH CÔNG 100%!');
 }
 
 runModule1Test().catch((err) => {
-  console.error('❌ Lỗi khi chạy Module 1 Test:', err);
+  console.error(' Lỗi khi chạy Module 1 Test:', err);
   process.exit(1);
 });

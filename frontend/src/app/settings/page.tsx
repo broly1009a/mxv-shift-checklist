@@ -94,7 +94,7 @@ export default function SettingsPage() {
       updateUser(updatedUser);
       setPassword('');
       setConfirmPassword('');
-      
+
       // Save sidebar status cards visibility preference
       localStorage.setItem('mxv_sidebar_show_status', String(showSidebarStatus));
       window.dispatchEvent(new Event('sidebar-status-toggle'));
@@ -252,9 +252,9 @@ export default function SettingsPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-          
+
           <div style={{ width: '100%' }}>
-            
+
             {/* Tab 1: Profile */}
             {activeTab === 'profile' && (
               <div className="glass-panel" style={{ padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -262,58 +262,58 @@ export default function SettingsPage() {
                   <UserIcon size={22} color="var(--color-accent)" />
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Thông Tin Tài Khoản</h3>
                 </div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
                     <label className="form-label">Tên tài khoản (Read-only)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={user.username} 
-                      disabled 
-                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={user.username}
+                      disabled
+                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
                     />
                   </div>
-                  
+
                   <div id="tutorial-settings-fullname">
                     <label className="form-label">Họ và tên</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={fullName} 
-                      onChange={(e) => setFullName(e.target.value)} 
-                      required 
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
                       placeholder="Nhập đầy đủ họ và tên"
                     />
                   </div>
 
                   <div>
                     <label className="form-label">Vai trò phân quyền (Read-only)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       value={
                         user.role === 'ADMIN' ? 'Quản trị viên hệ thống' :
-                        user.role === 'CHAIRMAN' ? 'Chủ tịch Hội đồng' :
-                        user.role === 'CEO' ? 'Tổng Giám đốc' :
-                        user.role === 'DIVISION_DIRECTOR' ? 'Giám đốc Khối' :
-                        user.role === 'DEPARTMENT_HEAD' ? 'Trưởng bộ phận' :
-                        'Nhân viên vận hành'
-                      } 
-                      disabled 
-                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                          user.role === 'CHAIRMAN' ? 'Chủ tịch Hội đồng' :
+                            user.role === 'CEO' ? 'Tổng Giám đốc' :
+                              user.role === 'DIVISION_DIRECTOR' ? 'Giám đốc Khối' :
+                                user.role === 'DEPARTMENT_HEAD' ? 'Trưởng bộ phận' :
+                                  'Nhân viên vận hành'
+                      }
+                      disabled
+                      style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
                     />
                   </div>
 
                   {showTitleField && user.title && (
                     <div>
                       <label className="form-label">Chức danh / Chức vụ (Read-only)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={user.title} 
-                        disabled 
-                        style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={user.title}
+                        disabled
+                        style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
                       />
                     </div>
                   )}
@@ -323,28 +323,28 @@ export default function SettingsPage() {
                       {user.department.parentDepartmentId && (
                         <div>
                           <label className="form-label">Đơn vị công tác (Read-only)</label>
-                          <input 
-                            type="text" 
-                            className="form-input" 
+                          <input
+                            type="text"
+                            className="form-input"
                             value={
                               typeof user.department.parentDepartmentId === 'object'
                                 ? (user.department.parentDepartmentId as any).name
                                 : user.department.parentDepartmentId
-                            } 
-                            disabled 
-                            style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                            }
+                            disabled
+                            style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
                           />
                         </div>
                       )}
 
                       <div>
                         <label className="form-label">Bộ phận / Phòng ban (Read-only)</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={user.department.name} 
-                          disabled 
-                          style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }} 
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={user.department.name}
+                          disabled
+                          style={{ background: 'rgba(255, 255, 255, 0.02)', color: 'var(--text-muted)' }}
                         />
                       </div>
                     </>
@@ -365,9 +365,9 @@ export default function SettingsPage() {
                   {/* Theme preference */}
                   <div id="tutorial-settings-theme">
                     <label className="form-label">Giao diện mặc định</label>
-                    <select 
-                      className="form-input" 
-                      value={theme} 
+                    <select
+                      className="form-input"
+                      value={theme}
                       onChange={(e) => setTheme(e.target.value as any)}
                     >
                       <option value="dark">Chế độ tối (Dark Mode)</option>
@@ -378,9 +378,9 @@ export default function SettingsPage() {
                   {/* Auto refresh interval */}
                   <div id="tutorial-settings-refresh">
                     <label className="form-label">Tần suất tự động làm mới dữ liệu ca trực</label>
-                    <select 
-                      className="form-input" 
-                      value={autoRefreshInterval} 
+                    <select
+                      className="form-input"
+                      value={autoRefreshInterval}
                       onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
                     >
                       <option value={10}>10 giây</option>
@@ -393,10 +393,10 @@ export default function SettingsPage() {
 
                   {/* Sidebar status cards toggle */}
                   <div id="tutorial-settings-sidebar-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="showSidebarStatus"
-                      checked={showSidebarStatus} 
+                      checked={showSidebarStatus}
                       onChange={(e) => setShowSidebarStatus(e.target.checked)}
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
@@ -409,11 +409,11 @@ export default function SettingsPage() {
 
                   {/* Telegram Notifications toggle */}
                   <div id="tutorial-settings-telegram-toggle" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="telegramNotifications"
-                      checked={telegramNotifications} 
-                      onChange={(e) => setTelegramNotifications(e.target.checked)} 
+                      checked={telegramNotifications}
+                      onChange={(e) => setTelegramNotifications(e.target.checked)}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                     <label htmlFor="telegramNotifications" style={{ color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
@@ -426,15 +426,15 @@ export default function SettingsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '20px', borderLeft: '2px solid var(--color-accent)' }}>
                       <div id="tutorial-settings-telegram-id">
                         <label className="form-label">Telegram Chat ID cá nhân</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={telegramChatId} 
-                          onChange={(e) => setTelegramChatId(e.target.value)} 
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={telegramChatId}
+                          onChange={(e) => setTelegramChatId(e.target.value)}
                           placeholder="e.g. 523192038"
                         />
                         <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem', lineHeight: '1.4' }}>
-                          💡 <strong>Hướng dẫn liên kết nhận tin nhắn riêng:</strong><br />
+                          <strong>Hướng dẫn liên kết nhận tin nhắn riêng:</strong><br />
                           1. Tìm kiếm bot Telegram của hệ thống (ví dụ: <b>@MXV_Checklist_Bot</b>) và nhấn <b>/start</b>.<br />
                           2. Nhắn tin <code>/my_id</code> với bot hoặc dùng bot <b>@userinfobot</b> để lấy ID số cá nhân của bạn rồi điền vào ô trên.
                         </small>
@@ -442,12 +442,12 @@ export default function SettingsPage() {
 
                       <div id="tutorial-settings-alert-threshold">
                         <label className="form-label">Thời gian nhắc nhở trước hạn chót (phút)</label>
-                        <input 
-                          type="number" 
-                          className="form-input" 
-                          value={alertThresholdMinutes} 
-                          onChange={(e) => setAlertThresholdMinutes(Number(e.target.value))} 
-                          min={1} 
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={alertThresholdMinutes}
+                          onChange={(e) => setAlertThresholdMinutes(Number(e.target.value))}
+                          min={1}
                           max={180}
                         />
                         <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.8rem', lineHeight: '1.4' }}>
@@ -467,25 +467,25 @@ export default function SettingsPage() {
                   <Shield size={22} color="#f59e0b" />
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Bảo Mật & Đổi Mật Khẩu</h3>
                 </div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
                     <label className="form-label">Mật khẩu mới (Để trống nếu không đổi)</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                     />
                   </div>
                   <div>
                     <label className="form-label">Xác nhận mật khẩu mới</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      value={confirmPassword} 
-                      onChange={(e) => setConfirmPassword(e.target.value)} 
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                     />
                   </div>
@@ -497,9 +497,9 @@ export default function SettingsPage() {
 
           {/* Action button */}
           <div id="tutorial-settings-save-btn" style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '12px' }}>
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
+            <button
+              type="submit"
+              className="btn btn-primary"
               disabled={isSubmitting}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', fontSize: '1rem' }}
             >

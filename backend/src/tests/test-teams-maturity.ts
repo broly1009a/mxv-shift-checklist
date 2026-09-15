@@ -140,16 +140,16 @@ async function runMaturityTest() {
 
   if (notificationLogs.length > 0) {
     console.log(
-      '✅ End-to-End Microsoft Teams Contract Maturity Alert Test passed successfully!',
+      ' End-to-End Microsoft Teams Contract Maturity Alert Test passed successfully!',
     );
   } else {
-    throw new Error('❌ Test failed: No Teams notifications were dispatched.');
+    throw new Error(' Test failed: No Teams notifications were dispatched.');
   }
 
   await app.close();
 }
 
 runMaturityTest().catch((err) => {
-  console.error('❌ Maturity Test execution failed:', err);
+  console.error(' Maturity Test execution failed:', err);
   process.exit(1);
 });

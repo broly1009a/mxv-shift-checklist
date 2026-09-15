@@ -130,7 +130,7 @@ def ocr_cccd_images(dir_path):
 
 def run_extraction_pipeline():
     print("="*75)
-    print("🚀 BẮT ĐẦU QUÉT & BÓC TÁCH TOÀN BỘ TỆP ĐÍNH KÈM (PDF & ẢNH CCCD)")
+    print(" BẮT ĐẦU QUÉT & BÓC TÁCH TOÀN BỘ TỆP ĐÍNH KÈM (PDF & ẢNH CCCD)")
     print("="*75)
 
     samples = ["mẫu 1", "mẫu 2"]

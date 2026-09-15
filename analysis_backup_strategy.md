@@ -14,10 +14,10 @@ Tool IT backup toàn bộ file   →   Thi thoảng timeout 3 file   →   Nghi�
 ```
 
 Cách tiếp cận hiện tại của bạn (bot tải toàn bộ) có vấn đề:
-- ❌ Tái tạo toàn bộ logic đã có sẵn → phức tạp, dễ lỗi
-- ❌ Playwright chạy lâu → tốn tài nguyên server
-- ❌ Anti-bot risk mỗi lần chạy
-- ❌ Bảo trì khó khi M-System thay đổi giao diện
+-  Tái tạo toàn bộ logic đã có sẵn → phức tạp, dễ lỗi
+-  Playwright chạy lâu → tốn tài nguyên server
+-  Anti-bot risk mỗi lần chạy
+-  Bảo trì khó khi M-System thay đổi giao diện
 
 ---
 
@@ -39,7 +39,7 @@ Cách tiếp cận hiện tại của bạn (bot tải toàn bộ) có vấn đ�
                     ┌──────────────▼──────────────────┐
                     │         Phân loại kết quả        │
                     ├──────────────┬──────────────────┤
-                    │   ✅ Đủ file │  ❌ Thiếu file    │
+                    │    Đủ file │   Thiếu file    │
                     │   → Done     │  → Bot tự tải     │
                     └─────────────┴──────────────────-┘
                                    │ (chỉ ~3 file)
@@ -82,13 +82,13 @@ async handleFileAuditJob(job: BotJob) {
   const missing = required.filter(f => !fs.existsSync(path.join(backupDir, f)));
 
   if (missing.length === 0) {
-    // ✅ Đủ hết, ghi log và done
-    job.logs.push('✅ Đủ tất cả file backup. Không cần tải thêm.');
+    //  Đủ hết, ghi log và done
+    job.logs.push(' Đủ tất cả file backup. Không cần tải thêm.');
     return;
   }
 
   // BƯỚC 2: Chỉ đăng nhập Playwright khi có file thiếu
-  job.logs.push(`⚠️ Thiếu ${missing.length} file: ${missing.join(', ')}. Đang tự động tải bổ sung...`);
+  job.logs.push(` Thiếu ${missing.length} file: ${missing.join(', ')}. Đang tự động tải bổ sung...`);
   const { browser, page } = await this.rpaService.loginMSystem(tempDir);
 
   try {
@@ -96,7 +96,7 @@ async handleFileAuditJob(job: BotJob) {
       // Tải đúng file bị thiếu vào thư mục backup
       const destFile = path.join(backupDir, filename);
       await this.downloadByFilename(page, filename, destFile);
-      job.logs.push(`✅ Đã tải bổ sung: ${filename}`);
+      job.logs.push(` Đã tải bổ sung: ${filename}`);
     }
   } finally {
     await browser.close();
@@ -110,7 +110,7 @@ Thay vì checklist task trigger "tải file", nó trigger "kiểm tra file":
 ```
 Checklist item: "Xác nhận backup file cuối phiên"
   → Bot job: FILE_AUDIT (không phải RPA_DOWNLOAD)
-  → Kết quả: "✅ 15/15 file đầy đủ" hoặc "⚠️ Đã tự động bổ sung 2 file bị thiếu"
+  → Kết quả: " 15/15 file đầy đủ" hoặc " Đã tự động bổ sung 2 file bị thiếu"
 ```
 
 ---

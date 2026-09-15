@@ -11,7 +11,7 @@ import { VerifyEmailJobHandler } from '../modules/bot-engine/handlers/verify-ema
 
 async function runHandlerSimulation() {
   console.log('===============================================================');
-  console.log('🚀 KIỂM THỬ MÔ PHỎNG TOÀN BỘ 8 BOT JOB HANDLERS ĐÃ REFACTOR');
+  console.log(' KIỂM THỬ MÔ PHỎNG TOÀN BỘ 8 BOT JOB HANDLERS ĐÃ REFACTOR');
   console.log('===============================================================\n');
 
   let passed = 0;
@@ -21,9 +21,9 @@ async function runHandlerSimulation() {
     total++;
     if (cond) {
       passed++;
-      console.log(`✅ [PASS] ${name}`);
+      console.log(` [PASS] ${name}`);
     } else {
-      console.error(`❌ [FAIL] ${name}`);
+      console.error(` [FAIL] ${name}`);
       if (detail) console.error(`   👉 ${detail}`);
     }
   }
@@ -185,7 +185,7 @@ async function runHandlerSimulation() {
   check(rpaHandler.getReportFileName('Markettruoc6h') === 'market truoc 6h.csv', 'RPA Handler map đúng tên file Markettruoc6h -> market truoc 6h.csv');
 
   console.log('\n===============================================================');
-  console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed}/${total} TEST CASES PASS`);
+  console.log(` KẾT QUẢ KIỂM THỬ: ${passed}/${total} TEST CASES PASS`);
   console.log('===============================================================');
 
   if (passed === total) {

@@ -164,10 +164,10 @@ Bảng Ma trận So Khớp (Matching Rules):
 
 | Tiêu Chí Đối Chiếu | Nguồn Dữ Liệu 1 (Mail / OCR / PDF) | Nguồn Dữ Liệu 2 (M-System) | Quy Tắc So Khớp | Mức Độ Nghiêm Trọng Nếu Lệch |
 | :--- | :--- | :--- | :--- | :--- |
-| **Mã TK Futures** | Body Mail + PDF Hợp đồng | Mã TK trên M-System | Trùng khớp 100% định dạng `[0-9]{3}C[0-9]{7}` | 🔴 Bắt buộc khớp (Lỗi nghiêm trọng) |
+| **Mã TK Futures** | Body Mail + PDF Hợp đồng | Mã TK trên M-System | Trùng khớp 100% định dạng `[0-9]{3}C[0-9]{7}` |  Bắt buộc khớp (Lỗi nghiêm trọng) |
 | **Mã TK ACM** | Body Mail + PDF Phụ lục PL01 | Tiểu khoản ACM trên M-System | Nếu Mail có yêu cầu ACM $\rightarrow$ MS phải có mã đuôi `-A` và phải có PDF PL01 | 🟡 Cảnh báo thiếu Phụ lục / Chưa tạo ACM |
-| **Họ và Tên** | Body Mail $\leftrightarrow$ OCR CCCD $\leftrightarrow$ Hợp đồng | Tên chủ TK trên M-System | Chuẩn hóa Unicode, so khớp có dấu và không dấu | 🔴 Lệch tên $\rightarrow$ Cảnh báo duyệt tay |
-| **Số CCCD / CMND** | OCR CCCD / QR / MRZ $\leftrightarrow$ Hợp đồng | Số CMND/CCCD trên chi tiết MS | Trùng khớp chính xác 12 số (hoặc 9 số cũ) | 🔴 Bắt buộc khớp 100% |
+| **Họ và Tên** | Body Mail $\leftrightarrow$ OCR CCCD $\leftrightarrow$ Hợp đồng | Tên chủ TK trên M-System | Chuẩn hóa Unicode, so khớp có dấu và không dấu |  Lệch tên $\rightarrow$ Cảnh báo duyệt tay |
+| **Số CCCD / CMND** | OCR CCCD / QR / MRZ $\leftrightarrow$ Hợp đồng | Số CMND/CCCD trên chi tiết MS | Trùng khớp chính xác 12 số (hoặc 9 số cũ) |  Bắt buộc khớp 100% |
 | **Ngày sinh & Giới tính**| OCR CCCD / MRZ | Ngày sinh trên chi tiết MS | Trùng khớp `DD/MM/YYYY` | 🟡 Cảnh báo sai lệch thông tin cá nhân |
 | **Tính hợp lệ Hồ sơ** | Kiểm tra có đủ: Ảnh CCCD 2 mặt, PDF Hợp đồng, PDF PL01 (nếu có ACM) | N/A | Phải đầy đủ file đính kèm theo yêu cầu | 🟡 Thiếu file đính kèm |
 

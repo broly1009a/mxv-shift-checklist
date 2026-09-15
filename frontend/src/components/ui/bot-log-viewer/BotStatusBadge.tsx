@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, AlertTriangle } from 'lucide-react';
 
 interface BotStatusBadgeProps {
   status: string;
@@ -18,6 +18,10 @@ export const getBotStatusText = (status: string, isWaitingFiles?: boolean): stri
       return 'Chờ gõ Captcha';
     case 'COMPLETED':
       return 'Thành công';
+    case 'ABORTED':
+      return 'Tạm dừng (Lỗi sàn ngoài)';
+    case 'CANCELLED':
+      return 'Đã hủy';
     case 'FAILED':
       return 'Thất bại';
     default:
@@ -110,6 +114,45 @@ export const BotStatusBadge: React.FC<BotStatusBadgeProps> = ({
         }}
       >
         <Clock size={12} /> ĐANG CHỜ FILE
+      </span>
+    );
+  }
+
+  if (status === 'ABORTED') {
+    return (
+      <span
+        style={{
+          fontSize: '0.68rem',
+          padding: '3px 10px',
+          borderRadius: '20px',
+          fontWeight: 700,
+          backgroundColor: 'rgba(245, 158, 11, 0.15)',
+          color: '#fbbf24',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}
+      >
+        <AlertTriangle size={12} /> TẠM DỪNG (SÀN NGOÀI)
+      </span>
+    );
+  }
+
+  if (status === 'CANCELLED') {
+    return (
+      <span
+        style={{
+          fontSize: '0.68rem',
+          padding: '3px 10px',
+          borderRadius: '20px',
+          fontWeight: 700,
+          backgroundColor: 'rgba(156, 163, 175, 0.15)',
+          color: '#9ca3af',
+          border: '1px solid rgba(156, 163, 175, 0.3)',
+        }}
+      >
+        ✕ ĐÃ HỦY
       </span>
     );
   }

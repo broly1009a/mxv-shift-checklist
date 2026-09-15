@@ -974,15 +974,32 @@ export default function TaskTable({
                     )}
 
                   {/* Bot Result Log */}
-                  {selectedTask.resultNote && (() => {
-                    let parsedMessage = selectedTask.resultNote;
+                  {(() => {
+                    const botChild = hasChildren
+                      ? children.find(
+                        (c) =>
+                          (c as any).isBotCheckSnapshot ||
+                          (c as any).botCheckTypeSnapshot ||
+                          (c.resultNote && c.resultNote.includes('{')),
+                      )
+                      : null;
+                    const effectiveResultNote =
+                      selectedTask.resultNote &&
+                        selectedTask.resultNote.includes('{')
+                        ? selectedTask.resultNote
+                        : botChild?.resultNote || selectedTask.resultNote || '';
+                    const effectiveBotTaskId =
+                      botChild?.taskId || selectedTask.taskId;
+
+                    if (!effectiveResultNote && !botChild) return null;
+
+                    let parsedMessage = effectiveResultNote;
                     try {
-                      const json = JSON.parse(selectedTask.resultNote);
-                      parsedMessage = json.message || selectedTask.resultNote;
+                      const json = JSON.parse(effectiveResultNote);
+                      parsedMessage = json.message || effectiveResultNote;
                     } catch (e) { }
 
                     const cleanedMsg = cleanAnsiText(parsedMessage);
-                    if (!cleanedMsg) return null;
 
                     return (
                       <div style={{
@@ -997,17 +1014,19 @@ export default function TaskTable({
                         flexDirection: 'column',
                         gap: '8px'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        {/* <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0 }}>
                             <Bot size={13} /> Log kết quả Bot:
                           </span>
-                          <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{cleanedMsg}</span>
-                        </div>
+                          <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                            {cleanedMsg || 'Đã kích hoạt tác vụ kiểm tra tự động của Bot'}
+                          </span>
+                        </div> */}
 
-                        <div style={{ marginTop: '4px' }}>
+                        {/* <div style={{ marginTop: '4px' }}>
                           <button
                             type="button"
-                            onClick={() => onOpenBotLogViewer?.(selectedTask.taskNameSnapshot, selectedTask.resultNote || '', selectedTask.status, selectedTask.checkedAt, selectedTask.taskId)}
+                            onClick={() => onOpenBotLogViewer?.(selectedTask.taskNameSnapshot, effectiveResultNote, selectedTask.status, selectedTask.checkedAt, effectiveBotTaskId)}
                             className="btn btn-secondary"
                             style={{
                               fontSize: '0.72rem',
@@ -1024,7 +1043,7 @@ export default function TaskTable({
                           >
                             <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
                           </button>
-                        </div>
+                        </div> */}
                       </div>
                     );
                   })()}
@@ -1110,19 +1129,19 @@ export default function TaskTable({
                               )}
 
                               <span
-                                onClick={() => child.resultNote && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
+                                onClick={() => (child.resultNote || isBot) && onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 600,
                                   color: cConfig.color, background: cConfig.bgColor, padding: '1px 7px', borderRadius: '5px',
                                   border: `1px solid ${cConfig.borderColor}`, flexShrink: 0,
-                                  cursor: child.resultNote ? 'pointer' : 'default'
+                                  cursor: (child.resultNote || isBot) ? 'pointer' : 'default'
                                 }}
-                                title={child.resultNote ? "Bấm để xem log chi tiết Bot" : undefined}
+                                title={(child.resultNote || isBot) ? "Bấm để xem log chi tiết Bot" : undefined}
                               >
                                 <CIcon size={11} /> {cConfig.label}
                               </span>
 
-                              {child.resultNote && (
+                              {(child.resultNote || isBot) && (
                                 <button
                                   type="button"
                                   onClick={() => onOpenBotLogViewer?.(child.taskNameSnapshot, child.resultNote || '', child.status, child.checkedAt, child.taskId)}

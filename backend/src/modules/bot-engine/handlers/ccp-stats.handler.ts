@@ -19,7 +19,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly ccpStatisticsService: CcpStatisticsService,
     private readonly settingsService: SystemSettingsService,
     private readonly rpaDownloaderService: RpaDownloaderService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -100,12 +100,12 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
           const downloadSuccess = await this.rpaDownloaderService.downloadDsgdMmCcp(dsgdMmCcpPathStd);
           if (downloadSuccess && fs.existsSync(dsgdMmCcpPathStd)) {
             dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPathStd);
-            log(`✅ Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
+            log(` Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
           } else {
             throw new Error('Tải tệp tin không thành công không rõ lý do.');
           }
         } catch (err: any) {
-          log(`⚠️ Không tải được DSGD MM CCP tự động: ${err.message}`);
+          log(` Không tải được DSGD MM CCP tự động: ${err.message}`);
           dsgdMmCcpBuffer = this.createEmptyDsgdBuffer();
           log(
             `File DSGD MM CCP riêng biệt vắng mặt (không bắt buộc). Khởi tạo buffer trống.`,
@@ -205,11 +205,11 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
         targetOutputPath,
       );
 
-      log(`✅ Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
+      log(` Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
       await safeSave();
       return { outputPath };
     } catch (err: any) {
-      log(`❌ Lỗi chạy báo cáo thống kê CCP: ${err.message}`);
+      log(` Lỗi chạy báo cáo thống kê CCP: ${err.message}`);
       await safeSave();
       throw err;
     }

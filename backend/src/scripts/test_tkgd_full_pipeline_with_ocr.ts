@@ -34,13 +34,13 @@ const BASE_INPUTS_DIR = path.join(
 
 async function runFullPipelineWithOcr() {
   console.log('='.repeat(80));
-  console.log('🚀 KIỂM THỬ TRÍCH XUẤT TỰ ĐỘNG FILE ĐÍNH KÈM (PDF & CCCD) & ĐỐI SOÁT 3 CHIỀU');
+  console.log(' KIỂM THỬ TRÍCH XUẤT TỰ ĐỘNG FILE ĐÍNH KÈM (PDF & CCCD) & ĐỐI SOÁT 3 CHIỀU');
   console.log('='.repeat(80));
 
   // 1. Kết nối MongoDB Atlas
   console.log('\n[1] Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB Atlas thành công!');
+  console.log(' Kết nối MongoDB Atlas thành công!');
 
   const CleanRecordModel = mongoose.model(
     'CleanAccountRecord',
@@ -81,7 +81,7 @@ async function runFullPipelineWithOcr() {
     const hdData = await extractHopDongPdf(hdPath);
     hdData.maTKGD = s.maTKGD_Futures;
     hdData.hoVaTen = s.tenTaiKhoan;
-    console.log(`     ✅ Số HĐ: ${hdData.soHopDong} | Số CCCD: ${hdData.soCanCuoc} | Ngày sinh: ${hdData.ngaySinh?.toLocaleDateString('vi-VN')} | Nơi cấp: ${hdData.noiCap}`);
+    console.log(`      Số HĐ: ${hdData.soHopDong} | Số CCCD: ${hdData.soCanCuoc} | Ngày sinh: ${hdData.ngaySinh?.toLocaleDateString('vi-VN')} | Nơi cấp: ${hdData.noiCap}`);
 
     // 2. Trích xuất PDF Phụ lục 01 (nếu có)
     let plData: any = undefined;
@@ -91,7 +91,7 @@ async function runFullPipelineWithOcr() {
       plData = await extractPhuLucPdf(plPath);
       plData.maTKGD = s.maTKGD_ACM;
       plData.hoVaTen = s.tenTaiKhoan;
-      console.log(`     ✅ HĐ gốc: ${plData.soHopDongGoc} | Số CCCD: ${plData.soCanCuoc} | Nơi cấp: ${plData.noiCap}`);
+      console.log(`      HĐ gốc: ${plData.soHopDongGoc} | Số CCCD: ${plData.soCanCuoc} | Nơi cấp: ${plData.noiCap}`);
     }
 
     // 3. Dữ liệu CCCD (tổng hợp từ CCCD ảnh và Hợp đồng)
@@ -112,7 +112,7 @@ async function runFullPipelineWithOcr() {
     fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `Mail_${s.cccdSau}`));
     fs.copyFileSync(path.join(samplePath, s.cccdTruoc), path.join(attachDir, `MS_CCCD_truoc.jpg`));
     fs.copyFileSync(path.join(samplePath, s.cccdSau), path.join(attachDir, `MS_CCCD_sau.jpg`));
-    console.log(`  📁 Đã lưu hồ sơ vào thư mục: ${attachDir}`);
+    console.log(`   Đã lưu hồ sơ vào thư mục: ${attachDir}`);
 
     // 5. Đối chiếu chéo 3 chiều: Mail CCCD vs M-System CCCD vs M-System Form
     const tripleCheck = compareCccdTripleCheck({
@@ -249,10 +249,10 @@ async function runFullPipelineWithOcr() {
   console.log('='.repeat(80));
 
   await mongoose.disconnect();
-  console.log('✅ Hoàn thành quy trình tự động trích xuất và kiểm thử thành công 100%!\n');
+  console.log(' Hoàn thành quy trình tự động trích xuất và kiểm thử thành công 100%!\n');
 }
 
 runFullPipelineWithOcr().catch((err) => {
-  console.error('❌ Lỗi khi chạy Pipeline OCR & PDF:', err);
+  console.error(' Lỗi khi chạy Pipeline OCR & PDF:', err);
   process.exit(1);
 });

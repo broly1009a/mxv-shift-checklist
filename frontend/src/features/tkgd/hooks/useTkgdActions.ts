@@ -273,7 +273,7 @@ export const useTkgdActions = ({
     setIsProcessing(true);
     setProcessingStage('Đang đối soát chéo dữ liệu và tạo file Excel...');
     try {
-      const data = await tkgdApi.runReconcile(token, userEmail);
+      const data = await tkgdApi.runReconcile(batchDate, token, userEmail);
       if (data?.success) {
         toast.success(
           `Đối soát thành công! Khớp: ${data.summary?.khopCount || 0}, Lệch: ${data.summary?.lechCount || 0}`
@@ -297,7 +297,7 @@ export const useTkgdActions = ({
       setIsProcessing(false);
       setProcessingStage('');
     }
-  }, [token, userEmail, onSuccess]);
+  }, [batchDate, token, userEmail, onSuccess]);
 
   // Tải file Excel đối soát về máy
   const handleDownloadExcel = useCallback(async () => {

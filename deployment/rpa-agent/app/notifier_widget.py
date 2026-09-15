@@ -113,8 +113,8 @@ class NotificationToast(QWidget):
         
         # Select status icon representation
         emoji_map = {
-            "success": "✅",
-            "failed": "❌",
+            "success": "",
+            "failed": "",
             "started": "📋",
             "info": "ℹ"
         }

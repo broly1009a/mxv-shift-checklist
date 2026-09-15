@@ -51,7 +51,7 @@ async function runMakerCheckerTests() {
       req.commodity === 'WTI Crude Oil'
     ) {
       console.log(
-        '✅ Test 1 PASSED: Request successfully created with PENDING_APPROVAL status.',
+        ' Test 1 PASSED: Request successfully created with PENDING_APPROVAL status.',
       );
     } else {
       throw new Error(
@@ -67,7 +67,7 @@ async function runMakerCheckerTests() {
     } catch (err) {
       if (err instanceof BadRequestException) {
         console.log(
-          '✅ Test 2 PASSED: Self-approval correctly blocked. Error message:',
+          ' Test 2 PASSED: Self-approval correctly blocked. Error message:',
           err.message,
         );
       } else {
@@ -97,7 +97,7 @@ async function runMakerCheckerTests() {
     } catch (err) {
       if (err instanceof ForbiddenException) {
         console.log(
-          '✅ Test 3 PASSED: Non-approver approval correctly blocked. Error message:',
+          ' Test 3 PASSED: Non-approver approval correctly blocked. Error message:',
           err.message,
         );
       } else {
@@ -117,7 +117,7 @@ async function runMakerCheckerTests() {
       approvedReq.approvedBy?.toString() === adminUser._id.toString()
     ) {
       console.log(
-        '✅ Test 4 PASSED: Request successfully approved by Checker (admin).',
+        ' Test 4 PASSED: Request successfully approved by Checker (admin).',
       );
     } else {
       throw new Error(
@@ -151,7 +151,7 @@ async function runMakerCheckerTests() {
       rejectedReq.rejectionReason === 'Sai biên độ ký quỹ tối đa cho phép'
     ) {
       console.log(
-        '✅ Test 5 PASSED: Request successfully rejected with reason.',
+        ' Test 5 PASSED: Request successfully rejected with reason.',
       );
     } else {
       throw new Error(
@@ -169,6 +169,6 @@ async function runMakerCheckerTests() {
 }
 
 runMakerCheckerTests().catch((err) => {
-  console.error('❌ Test execution failed with error:', err);
+  console.error(' Test execution failed with error:', err);
   process.exit(1);
 });

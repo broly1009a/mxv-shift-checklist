@@ -34,9 +34,9 @@ async function migrate() {
     );
     console.log(`[shift_logs] Đã cập nhật ${shiftLogsResult.modifiedCount} shift log(s).`);
 
-    console.log('\n✅ Migration hoàn thành.');
+    console.log('\n Migration hoàn thành.');
   } catch (err) {
-    console.error('❌ Migration thất bại:', err.message);
+    console.error(' Migration thất bại:', err.message);
     process.exit(1);
   } finally {
     await client.close();

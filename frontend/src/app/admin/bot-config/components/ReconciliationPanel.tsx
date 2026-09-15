@@ -426,7 +426,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
           {/* KLGD Result */}
           {reconResult.errors?.klgd ? (
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.75rem', color: '#ef4444' }}>
-              ❌ KLGD - Lỗi đối chiếu: {reconResult.errors.klgd}
+              KLGD - Lỗi đối chiếu: {reconResult.errors.klgd}
             </div>
           ) : reconResult.results?.klgd ? (
             <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -448,7 +448,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
           {/* EOD Result */}
           {reconResult.errors?.eod ? (
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.75rem', color: '#ef4444' }}>
-              ❌ EOD - Lỗi đối chiếu: {reconResult.errors.eod}
+              EOD - Lỗi đối chiếu: {reconResult.errors.eod}
             </div>
           ) : reconResult.results?.eod ? (
             <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -475,7 +475,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
           {/* CQG Result */}
           {reconResult.errors?.cqg ? (
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.75rem', color: '#ef4444' }}>
-              ❌ CQG - Lỗi đối chiếu: {reconResult.errors.cqg}
+              CQG - Lỗi đối chiếu: {reconResult.errors.cqg}
             </div>
           ) : reconResult.results?.cqg !== undefined ? (
             <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -507,7 +507,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-primary)' }}>{r.cqgBalance?.toFixed(2)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444', fontWeight: 800 }}>{r.differ?.toFixed(2)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '0.65rem', color: '#f59e0b', fontWeight: 700 }}>
-                            {!r.inCQG ? '⚠️ Thiếu trên CQG' : !r.inMS ? '⚠️ Thiếu trên MS' : '⚠️ Lệch số dư'}
+                            {!r.inCQG ? ' Thiếu trên CQG' : !r.inMS ? ' Thiếu trên MS' : ' Lệch số dư'}
                           </td>
                         </tr>
                       ))}

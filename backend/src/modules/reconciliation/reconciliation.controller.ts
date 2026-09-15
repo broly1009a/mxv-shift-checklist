@@ -20,6 +20,7 @@ import * as path from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['reconciliation', 'api/v1/reconciliation'])
@@ -31,7 +32,7 @@ export class ReconciliationController {
     private readonly shiftsService: ShiftsService,
     private readonly rpaService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   @Post('upload-klgd')
   @Permissions('ACCESS_AUTO_SHIFT')
@@ -146,7 +147,7 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedTrades.length > 0) {
-        noteText += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        noteText += ` Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach((m) => {
           noteText += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
@@ -158,14 +159,14 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedTTM.length > 0) {
-        noteText += `⚠️ Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
+        noteText += ` Phát hiện chênh lệch TTM (Trạng thái mở) tại ${result.mismatchedTTM.length} tài khoản:\n`;
         result.mismatchedTTM.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttmValue} vs CQG ${m.opValue} (Lệch: ${m.differ})\n`;
         });
       }
 
       if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
-        noteText += `⚠️ Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
+        noteText += ` Phát hiện chênh lệch TTTT (Khớp lệnh thanh toán) tại ${result.mismatchedTTTT.length} tài khoản:\n`;
         result.mismatchedTTTT.slice(0, 10).forEach((m) => {
           noteText += `  - TK ${m.maTKGD}: MS ${m.ttttValue} vs CQG ${m.psValue} (Lệch: ${m.differ})\n`;
         });
@@ -214,6 +215,9 @@ export class ReconciliationController {
       { name: 'eod', maxCount: 1 },
       { name: 'tttt', maxCount: 1 },
       { name: 'accountsBalances', maxCount: 1 },
+      { name: 'qltkgdCcp', maxCount: 1 },
+      { name: 'eodCcp', maxCount: 1 },
+      { name: 'ttttCcp', maxCount: 1 },
     ]),
   )
   async uploadAndReconcileEOD(
@@ -223,6 +227,9 @@ export class ReconciliationController {
       eod?: any[];
       tttt?: any[];
       accountsBalances?: any[];
+      qltkgdCcp?: any[];
+      eodCcp?: any[];
+      ttttCcp?: any[];
     },
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
@@ -232,13 +239,18 @@ export class ReconciliationController {
       throw new BadRequestException('Thiếu shiftLogId hoặc taskId');
     }
 
-    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    const usdRate = usdRateStr
+      ? parseFloat(usdRateStr)
+      : await this.reconciliationService.getCurrentUsdRate();
 
     const fileBuffers = {
       qltkgd: files?.qltkgd?.[0]?.buffer,
       eod: files?.eod?.[0]?.buffer,
       tttt: files?.tttt?.[0]?.buffer,
       accountsBalances: files?.accountsBalances?.[0]?.buffer,
+      qltkgdCcp: files?.qltkgdCcp?.[0]?.buffer,
+      eodCcp: files?.eodCcp?.[0]?.buffer,
+      ttttCcp: files?.ttttCcp?.[0]?.buffer,
     };
 
     const systemUser = {
@@ -273,7 +285,7 @@ export class ReconciliationController {
         let note = `[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]\n`;
         note += `• Số tài khoản chênh lệch (> 100 USD): ${result.length}\n`;
         if (result.length > 0) {
-          note += `⚠️ Danh sách tài khoản lệch:\n`;
+          note += ` Danh sách tài khoản lệch:\n`;
           result.slice(0, 10).forEach((r) => {
             note += `  - TK ${r.maTKGD}: MS $${r.calculatedBalance} vs CQG $${r.cqgBalance} (Chênh lệch: $${r.differ.toFixed(2)})\n`;
           });
@@ -314,8 +326,8 @@ export class ReconciliationController {
         };
       }
 
-      // Case B: M-System EOD Check (if qltkgd is uploaded and accountsBalances is not)
-      if (fileBuffers.qltkgd && !fileBuffers.accountsBalances) {
+      // Case B: EOD Check song song MS & CCP (if qltkgd or qltkgdCcp is uploaded and accountsBalances is not)
+      if ((fileBuffers.qltkgd || fileBuffers.qltkgdCcp) && !fileBuffers.accountsBalances) {
         const result = await this.reconciliationService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
@@ -323,27 +335,45 @@ export class ReconciliationController {
           qltkgdName: files?.qltkgd?.[0]?.originalname,
           eodName: files?.eod?.[0]?.originalname,
           ttttName: files?.tttt?.[0]?.originalname,
+          qltkgdCcp: fileBuffers.qltkgdCcp,
+          eodCcp: fileBuffers.eodCcp,
+          ttttCcp: fileBuffers.ttttCcp,
+          qltkgdCcpName: files?.qltkgdCcp?.[0]?.originalname,
+          eodCcpName: files?.eodCcp?.[0]?.originalname,
+          ttttCcpName: files?.ttttCcp?.[0]?.originalname,
         });
 
         const negativeIMRAccCount = result.negativeIMRAcc.length;
         const negativeBalanceAccsCount =
           result.negativeBalanceAccs?.length || 0;
+        const mismatchedCount = result.mismatchedEOD?.length || 0;
         const hasDiscrepancy =
-          negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0;
+          negativeIMRAccCount > 0 || negativeBalanceAccsCount > 0 || mismatchedCount > 0;
         const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
 
-        let note = `[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]\n`;
-        note += `• Số tài khoản âm số dư hiện tại (QLTKGD): ${negativeBalanceAccsCount}\n`;
-        note += `• Số tài khoản âm ký quỹ khả dụng (EOD): ${negativeIMRAccCount}\n`;
+        let note = `[ĐỐI CHIẾU SỐ DƯ EOD (MS & CCP)]\n`;
+        note += `• Số tài khoản âm số dư hiện tại: ${negativeBalanceAccsCount}\n`;
+        note += `• Số tài khoản âm ký quỹ khả dụng (IMR): ${negativeIMRAccCount}\n`;
+        note += `• Số tài khoản lệch công thức EOD: ${mismatchedCount}\n`;
 
         if (negativeBalanceAccsCount > 0) {
-          note += `• Tài khoản âm số dư hiện tại: ${result.negativeBalanceAccs?.join(', ')}\n`;
+          note += `• Tài khoản âm số dư: ${result.negativeBalanceAccs?.join(', ')}\n`;
         }
         if (negativeIMRAccCount > 0) {
-          note += `• Tài khoản âm ký quỹ khả dụng: ${result.negativeIMRAcc.join(', ')}\n`;
+          note += `• Tài khoản âm ký quỹ: ${result.negativeIMRAcc.join(', ')}\n`;
+        }
+        if (mismatchedCount > 0) {
+          note += `• Chi tiết chênh lệch EOD:\n`;
+          result.mismatchedEOD.slice(0, 10).forEach((m) => {
+            const tag = m.system ? `[${m.system}]` : '[MS]';
+            note += `  - ${tag} TK ${m.maTKGD}: Tính toán ${m.calculatedBalance} vs EOD ${m.eodBalance} (Lệch: ${m.differ})\n`;
+          });
+          if (mismatchedCount > 10) {
+            note += `  ... và ${mismatchedCount - 10} tài khoản khác.\n`;
+          }
         }
         if (!hasDiscrepancy) {
-          note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ.\n`;
+          note += `✓ Không phát hiện tài khoản âm số dư / âm ký quỹ / lệch công thức EOD.\n`;
         }
 
         const noteJson = JSON.stringify({
@@ -352,6 +382,7 @@ export class ReconciliationController {
           result: {
             negativeBalanceAccs: result.negativeBalanceAccs || [],
             negativeIMRAcc: result.negativeIMRAcc || [],
+            mismatchedEOD: result.mismatchedEOD || [],
             cqgResult: [],
           },
           type: 'EOD',
@@ -373,8 +404,8 @@ export class ReconciliationController {
           success: !hasDiscrepancy,
           type: 'EOD',
           message: hasDiscrepancy
-            ? 'Phát hiện tài khoản âm ký quỹ/âm số dư.'
-            : 'Không phát hiện tài khoản âm ký quỹ.',
+            ? 'Phát hiện bất thường kết quả chạy EOD (âm ký quỹ hoặc lệch công thức).'
+            : 'Đối chiếu kết quả chạy EOD khớp hoàn toàn.',
           result,
         };
       }
@@ -527,7 +558,9 @@ export class ReconciliationController {
     }
 
     const nodePath = require('path');
-    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+    const usdRate = usdRateRaw
+      ? Number(usdRateRaw)
+      : await this.reconciliationService.getCurrentUsdRate();
 
     const readIfExists = (prefix: string, ext: string): Buffer | null => {
       const direct = nodePath.join(samplePath, `${prefix}.${ext}`);
@@ -553,6 +586,11 @@ export class ReconciliationController {
         fr: readIfExists('FR', 'xlsx') || undefined,
         fr1: readIfExists('FR1', 'xlsx') || undefined,
         fr2: readIfExists('FR2', 'xlsx') || undefined,
+        nano:
+          readIfExists('Straits', 'csv') ||
+          readIfExists('Nano', 'xls') ||
+          readIfExists('Nano', 'xlsx') ||
+          undefined,
         op: readIfExists('OP', 'xlsx') || undefined,
         op1: readIfExists('OP1', 'xlsx') || undefined,
         op2: readIfExists('OP2', 'xlsx') || undefined,
@@ -892,7 +930,7 @@ export class ReconciliationController {
       note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;
 
       if (result.mismatchedTrades.length > 0) {
-        note += `⚠️ Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
+        note += ` Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
         result.mismatchedTrades.slice(0, 10).forEach((m: any) => {
           note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
         });
@@ -902,7 +940,7 @@ export class ReconciliationController {
       }
 
       if (result.mismatchedPositions.length > 0) {
-        note += `⚠️ Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
+        note += ` Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
         result.mismatchedPositions.slice(0, 10).forEach((m: any) => {
           note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
         });
@@ -950,6 +988,17 @@ export class ReconciliationController {
     }
   }
 
+  @Post('sync-exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async syncExchangeRates() {
+    try {
+      const rates = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
+      return { success: true, rates };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể đồng bộ tỷ giá đa tiền tệ: ${err.message}`);
+    }
+  }
+
   @Get('usd-rate')
   @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getUsdRate() {
@@ -958,6 +1007,17 @@ export class ReconciliationController {
       return { success: true, rate };
     } catch (err: any) {
       throw new BadRequestException(`Không thể lấy tỷ giá: ${err.message}`);
+    }
+  }
+
+  @Get('exchange-rates')
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
+  async getExchangeRates() {
+    try {
+      const rates = await this.reconciliationService.getCurrentExchangeRates();
+      return { success: true, rates };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể lấy tỷ giá đa tiền tệ: ${err.message}`);
     }
   }
 
@@ -974,11 +1034,13 @@ export class ReconciliationController {
       throw new BadRequestException('Không tìm thấy ca trực');
     }
 
-    const shiftDate = log.shiftDate; // e.g. "15/07/2026"
+    const shiftDate = log.shiftDate; // e.g. "15/07/2026" or "2026-07-15"
     let formattedDate = '';
     if (shiftDate && shiftDate.includes('/')) {
       const [d, m, y] = shiftDate.split('/');
       formattedDate = `${y}-${m}-${d}`;
+    } else if (shiftDate && shiftDate.includes('-')) {
+      formattedDate = shiftDate;
     } else {
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -1013,7 +1075,7 @@ export class ReconciliationController {
     if (fs.existsSync(dailyJsonPath)) {
       try {
         jsonContent = JSON.parse(fs.readFileSync(dailyJsonPath, 'utf8'));
-      } catch (e) {}
+      } catch (e) { }
     }
 
     return {
@@ -1048,14 +1110,14 @@ export class ReconciliationController {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     // Retrieve configured backup base paths
-    const cqgBase = await this.settingsService.getSetting(
+    const cqgBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-    );
-    const msBase = await this.settingsService.getSetting(
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    ));
+    const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-    );
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    ));
 
     const savedFiles: { filename: string; path: string; category: string }[] = [];
 
@@ -1100,7 +1162,7 @@ export class ReconciliationController {
         targetBase = cqgBase;
         category = 'CQG';
       } else if (isAcm) {
-        targetBase = msBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
+        targetBase = msBase.replace(/Backup MS[\\/]Futures/i, (match) => match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM');
         category = 'Straits (ACM)';
       } else if (isMs) {
         targetBase = msBase;
@@ -1131,5 +1193,72 @@ export class ReconciliationController {
       savedFiles,
     };
   }
+
+  /**
+   * Lấy dữ liệu tổng hợp cho Màn hình Trading Operation Console
+   */
+  @Get('console-summary')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getConsoleSummary(@Query('date') dateStr?: string) {
+    return this.reconciliationService.getConsoleSummary(dateStr);
+  }
+
+  /**
+   * Kích hoạt chạy lại đối chiếu ngay lập tức (Bypass Cooldown 60p)
+   */
+  @Post('trigger-console-run')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async triggerConsoleRun(
+    @Body('date') dateStr?: string,
+    @Body('jobType') jobType?: string,
+    @Body('options')
+    options?: {
+      checkKlgd?: boolean;
+      checkTtm?: boolean;
+      checkTttt?: boolean;
+    },
+  ) {
+    return this.reconciliationService.triggerConsoleRun(dateStr, jobType, options);
+  }
+
+  /**
+   * Kiểm tra ký quỹ TKGD (4 nhóm vi phạm IMR)
+   */
+  @Post('check-imr')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async checkImr(@Body('sessionDate') sessionDate?: string) {
+    return this.reconciliationService.checkImr(sessionDate);
+  }
+
+  /**
+   * Kích hoạt tải các báo cáo tùy chọn từ M-System hoặc CQG
+   */
+  @Post('trigger-selective-backup')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async triggerSelectiveBackup(
+    @Body('source') source: 'MS' | 'CQG',
+    @Body('reports') reports: string[],
+    @Body('sessionDate') sessionDate?: string,
+  ) {
+    if (!reports || reports.length === 0) {
+      throw new BadRequestException('Vui lòng chọn ít nhất 1 báo cáo để tải.');
+    }
+    return {
+      success: true,
+      message: `Đã tiếp nhận yêu cầu sao lưu ${reports.length} báo cáo ${source}.`,
+      reports,
+    };
+  }
+
+  /**
+   * Tải riêng 3 file CoreCCP (DSGD, TTM, TTTT) và bóc tách trực tiếp số liệu KLGD, TTM, TTTT
+   */
+  @Post('download-ccp-metrics')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async downloadCcpMetrics(@Body('date') dateStr?: string) {
+    return this.reconciliationService.downloadAndExtractCcpMetrics(dateStr);
+  }
 }
+
+
 

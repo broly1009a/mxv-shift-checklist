@@ -40,6 +40,15 @@ import {
 } from '../notifications/teams-notifier.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
+import { getRelatedTaskIds } from './constants/bot-task-registry';
+import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  getMsBackupBase,
+  getCqgBackupBase,
+  resolveDailySubfolder,
+  resolveStoragePathCrossPlatform,
+} from './helpers/bot-path.helper';
 
 @Controller('api/v1/bot-engine')
 @UseGuards(JwtAuthGuard)
@@ -59,6 +68,7 @@ export class BotEngineController {
     private readonly shiftsService: ShiftsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
+    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
   ) {}
 
   /**
@@ -99,6 +109,8 @@ export class BotEngineController {
     };
     let cqg = {
       url: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+      urlPrice: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+      urlTrade: 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
       username: '',     // CQG Price (mxvprice) - chỉ xem giá
       password: '',
       username1: '',    // CQG1 Trade - tải FR1/PS1/OP1/OD1
@@ -107,7 +119,9 @@ export class BotEngineController {
       password2: '',
     };
     let acm = {
-      url: 'https://acm.member-url.vn/login',
+      url: '',
+      orderUrl: '',
+      fillUrl: '',
       username: '',
       password: '',
       geminiApiKey: '',
@@ -126,14 +140,16 @@ export class BotEngineController {
       password: '',
     };
     let ccp = {
-      url: 'https://uat-coreccp.mxv.com.vn/',
+      url: '',
       username: '',
       password: '',
+      outputDir: 'backupCCP',
     };
     let ce = {
-      url: 'https://uat-corece.mxv.com.vn/',
+      url: '',
       username: '',
       password: '',
+      outputDir: 'backupCE',
     };
 
     if (msystemRaw) {
@@ -153,6 +169,8 @@ export class BotEngineController {
         const decrypted = JSON.parse(decrypt(cqgRaw));
         cqg = {
           url: decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+          urlPrice: decrypted.urlPrice || decrypted.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+          urlTrade: decrypted.urlTrade || decrypted.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
           username:  decrypted.username  || '',            // CQG Price (mxvprice)
           password:  decrypted.password  ? '********' : '',
           username1: decrypted.username1 || '',            // CQG1 Trade
@@ -167,7 +185,9 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(acmRaw));
         acm = {
-          url: decrypted.url || 'https://acm.member-url.vn/login',
+          url: decrypted.url || '',
+          orderUrl: decrypted.orderUrl || '',
+          fillUrl: decrypted.fillUrl || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
           geminiApiKey: decrypted.geminiApiKey ? '********' : '',
@@ -199,9 +219,10 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(ccpRaw));
         ccp = {
-          url: decrypted.url || 'https://uat-coreccp.mxv.com.vn/',
+          url: decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
+          outputDir: decrypted.outputDir || 'backupCCP',
         };
       } catch (err) {}
     }
@@ -210,9 +231,10 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(ceRaw));
         ce = {
-          url: decrypted.url || 'https://uat-corece.mxv.com.vn/',
+          url: decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
+          outputDir: decrypted.outputDir || 'backupCE',
         };
       } catch (err) {}
     }
@@ -370,7 +392,9 @@ export class BotEngineController {
       }
 
       const mergedCqg = {
-        url: cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        url: cqg.urlTrade || cqg.url || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced',
+        urlPrice: cqg.urlPrice !== undefined ? cqg.urlPrice : (currentCqg.urlPrice || currentCqg.url || 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced'),
+        urlTrade: cqg.urlTrade !== undefined ? cqg.urlTrade : (currentCqg.urlTrade || currentCqg.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced'),
         // CQG Price (mxvprice) — chỉ xem giá, không tải file
         username: cqg.username !== undefined ? cqg.username : currentCqg.username,
         password: cqg.password && cqg.password !== '********' ? cqg.password : currentCqg.password,
@@ -401,7 +425,9 @@ export class BotEngineController {
       }
 
       const mergedAcm = {
-        url: acm.url || currentAcm.url || 'https://acm.member-url.vn/login',
+        url: acm.url !== undefined ? acm.url.trim() : (currentAcm.url || ''),
+        orderUrl: acm.orderUrl !== undefined ? acm.orderUrl.trim() : (currentAcm.orderUrl || ''),
+        fillUrl: acm.fillUrl !== undefined ? acm.fillUrl.trim() : (currentAcm.fillUrl || ''),
         username:
           acm.username !== undefined ? acm.username : currentAcm.username,
         password:
@@ -492,8 +518,7 @@ export class BotEngineController {
       }
 
       const mergedCcp = {
-        url:
-          targetCcp.url || currentCcp.url || 'https://uat-coreccp.mxv.com.vn/',
+        url: targetCcp.url || currentCcp.url || '',
         username:
           targetCcp.username !== undefined
             ? targetCcp.username
@@ -502,12 +527,23 @@ export class BotEngineController {
           targetCcp.password && targetCcp.password !== '********'
             ? targetCcp.password
             : currentCcp.password,
+        outputDir:
+          targetCcp.outputDir !== undefined
+            ? targetCcp.outputDir
+            : (currentCcp.outputDir || 'backupCCP'),
       };
 
       await this.settingsService.setSetting(
         'bot_credentials_ccp',
         encrypt(JSON.stringify(mergedCcp)),
       );
+
+      if (mergedCcp.outputDir) {
+        await this.settingsService.setSetting(
+          'bot_backup_path_ccp',
+          mergedCcp.outputDir,
+        );
+      }
     }
 
     if (ce) {
@@ -523,18 +559,29 @@ export class BotEngineController {
       }
 
       const mergedCe = {
-        url: ce.url || currentCe.url || 'https://uat-corece.mxv.com.vn/',
+        url: ce.url || currentCe.url || '',
         username: ce.username !== undefined ? ce.username : currentCe.username,
         password:
           ce.password && ce.password !== '********'
             ? ce.password
             : currentCe.password,
+        outputDir:
+          ce.outputDir !== undefined
+            ? ce.outputDir
+            : (currentCe.outputDir || 'backupCE'),
       };
 
       await this.settingsService.setSetting(
         'bot_credentials_ce',
         encrypt(JSON.stringify(mergedCe)),
       );
+
+      if (mergedCe.outputDir) {
+        await this.settingsService.setSetting(
+          'bot_backup_path_ce',
+          mergedCe.outputDir,
+        );
+      }
     }
 
     if (m365) {
@@ -574,7 +621,20 @@ export class BotEngineController {
       query['payload.shiftLogId'] = shiftLogId;
     }
     if (taskId) {
-      query['payload.taskId'] = taskId;
+      let relatedTaskIds = getRelatedTaskIds(taskId);
+      if (shiftLogId && this.shiftLogModel) {
+        try {
+          const shiftLog = await this.shiftLogModel
+            .findById(shiftLogId)
+            .select('details')
+            .lean()
+            .exec();
+          if (shiftLog?.details) {
+            relatedTaskIds = getRelatedTaskIds(taskId, shiftLog.details);
+          }
+        } catch (e) {}
+      }
+      query['payload.taskId'] = { $in: relatedTaskIds };
     }
 
     // Mặc định chỉ lấy jobs trong vòng 30 ngày gần nhất để giảm số bản ghi
@@ -603,6 +663,14 @@ export class BotEngineController {
       throw new HttpException('Không tìm thấy job tương ứng.', HttpStatus.NOT_FOUND);
     }
     return job;
+  }
+
+  @Post('jobs/:id/cancel')
+  async cancelJob(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.jobQueueService.cancelJob(id, body?.reason);
   }
 
   /**
@@ -1549,7 +1617,10 @@ export class BotEngineController {
    * Triggers an on-demand RPA report download job.
    */
   @Post('trigger-download')
-  async triggerDownload(@Body('targets') targets?: string[]) {
+  async triggerDownload(
+    @Body('targets') targets?: string[],
+    @Body('sessionDay') sessionDay?: string,
+  ) {
     const defaultTargets = [
       'NKTTHT',
       'DSTKGD-Futures',
@@ -1565,11 +1636,15 @@ export class BotEngineController {
     const actualTargets =
       targets && targets.length > 0 ? targets : defaultTargets;
 
+    const actualSessionDay =
+      sessionDay ||
+      new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
     const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
       targets: actualTargets,
-      sessionDay: new Date(Date.now() + 7 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0],
+      sessionDay: actualSessionDay,
       maxAttempts: 1, // Only 1 attempt for manual triggers
     });
 
@@ -1577,6 +1652,197 @@ export class BotEngineController {
       success: true,
       message: 'Đã đưa yêu cầu chạy RPA tải báo cáo vào hàng đợi.',
       jobId: job._id,
+      sessionDay: actualSessionDay,
+    };
+  }
+
+  /**
+   * Synchronously checks and returns the File Readiness Matrix for a given session date.
+   * Scans both MS and CQG daily folders (YYYY\TMM.YYYY\DD.MM) for presence of all required files.
+   */
+  @Get('files/readiness-matrix')
+  async getFileReadinessMatrix(@Query('date') dateStr?: string) {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const msBaseRaw = await getMsBackupBase(this.settingsService);
+    const msBase = resolveStoragePathCrossPlatform(msBaseRaw);
+    const cqgBaseRaw = await getCqgBackupBase(this.settingsService);
+    const cqgBase = resolveStoragePathCrossPlatform(cqgBaseRaw);
+
+    const msSub = resolveDailySubfolder(msBase, targetDate);
+    const cqgSub = resolveDailySubfolder(cqgBase, targetDate);
+
+    // Scan MS daily directory
+    let msFiles: Array<{ name: string; size: number; mtime: Date }> = [];
+    if (fs.existsSync(msSub.fullPath)) {
+      try {
+        const entries = fs.readdirSync(msSub.fullPath);
+        msFiles = entries.map((name) => {
+          try {
+            const stat = fs.statSync(path.join(msSub.fullPath, name));
+            return { name, size: stat.size, mtime: stat.mtime };
+          } catch {
+            return { name, size: 0, mtime: new Date() };
+          }
+        });
+      } catch (err: any) {
+        this.logger.warn(`Error reading MS daily folder ${msSub.fullPath}: ${err.message}`);
+      }
+    }
+
+    // Scan CQG daily directory
+    let cqgFiles: Array<{ name: string; size: number; mtime: Date }> = [];
+    if (fs.existsSync(cqgSub.fullPath)) {
+      try {
+        const entries = fs.readdirSync(cqgSub.fullPath);
+        cqgFiles = entries.map((name) => {
+          try {
+            const stat = fs.statSync(path.join(cqgSub.fullPath, name));
+            return { name, size: stat.size, mtime: stat.mtime };
+          } catch {
+            return { name, size: 0, mtime: new Date() };
+          }
+        });
+      } catch (err: any) {
+        this.logger.warn(`Error reading CQG daily folder ${cqgSub.fullPath}: ${err.message}`);
+      }
+    }
+
+    const findMsFile = (regex: RegExp) => {
+      const match = msFiles.find((f) => regex.test(f.name));
+      if (!match) return { exists: false, filename: null, sizeBytes: 0, updatedAt: null };
+      return { exists: true, filename: match.name, sizeBytes: match.size, updatedAt: match.mtime };
+    };
+
+    const findCqgFile = (regex: RegExp) => {
+      const match = cqgFiles.find((f) => regex.test(f.name));
+      if (!match) return { exists: false, filename: null, sizeBytes: 0, updatedAt: null };
+      return { exists: true, filename: match.name, sizeBytes: match.size, updatedAt: match.mtime };
+    };
+
+    // Check CoreCCP reports
+    const ccpDsgd = findMsFile(/^DSGD.*\.xlsx$/i);
+    const ccpTtm = findMsFile(/^TTM.*\.xlsx$/i);
+    const ccpTttt = findMsFile(/^TTTT.*\.xlsx$/i);
+    const ccpTyGia = findMsFile(/^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i);
+
+    // Check CQG reports
+    const cqgFr = findCqgFile(/^FR\.(?:xlsx|xls)$/i);
+    const cqgFr1 = findCqgFile(/^FR1\.(?:xlsx|xls)$/i);
+    const cqgFr2 = findCqgFile(/^FR2\.(?:xlsx|xls)$/i);
+    const cqgPs = findCqgFile(/^PS\.(?:xlsx|xls)$/i);
+    const cqgPs1 = findCqgFile(/^PS1\.(?:xlsx|xls)$/i);
+    const cqgPs2 = findCqgFile(/^PS2\.(?:xlsx|xls)$/i);
+    const cqgOp = findCqgFile(/^OP\.(?:xlsx|xls)$/i);
+    const cqgOd = findCqgFile(/^Od\.(?:xlsx|xls)$/i);
+
+    // Check M-System standard reports
+    const msQltkgd = findMsFile(/^QLTKGD.*\.xlsx$/i);
+    const msNr = findMsFile(/^NR.*\.xlsx$/i);
+    const msNkttht = findMsFile(/^NKTTHT.*\.xlsx$/i);
+    const msTlkqhskq = findMsFile(/^TLKQHSKQ.*\.xlsx$/i);
+    const msMarket6h = findMsFile(/^market.*(?:csv|xlsx)$/i);
+    const msDstrader = findMsFile(/^DSTrader.*\.xlsx$/i);
+    const msDslk = findMsFile(/^DSLK.*\.xlsx$/i);
+    const msDslck = findMsFile(/^DSLCK.*\.xlsx$/i);
+    const msDslh = findMsFile(/^DSLH.*\.xlsx$/i);
+    const msDsldk = findMsFile(/^DSLDK.*\.xlsx$/i);
+
+    const isReadyForLotStatistics = ccpDsgd.exists;
+    const isReadyForPreEod = (ccpDsgd.exists || msQltkgd.exists) && (cqgFr.exists || (cqgFr1.exists && cqgFr2.exists));
+
+    return {
+      success: true,
+      date: dateStr || targetDate.toISOString().split('T')[0],
+      msDailyFolder: msSub.fullPath,
+      cqgDailyFolder: cqgSub.fullPath,
+      msFolderExists: fs.existsSync(msSub.fullPath),
+      cqgFolderExists: fs.existsSync(cqgSub.fullPath),
+      matrix: {
+        ccp: {
+          dsgd: ccpDsgd,
+          ttm: ccpTtm,
+          tttt: ccpTttt,
+          tyGia: ccpTyGia,
+        },
+        cqg: {
+          fr: cqgFr.exists ? cqgFr : { ...cqgFr, exists: cqgFr1.exists && cqgFr2.exists, isMerged: false, rawParts: { fr1: cqgFr1.exists, fr2: cqgFr2.exists } },
+          ps: cqgPs.exists ? cqgPs : { ...cqgPs, exists: cqgPs1.exists && cqgPs2.exists, isMerged: false, rawParts: { ps1: cqgPs1.exists, ps2: cqgPs2.exists } },
+          op: cqgOp,
+          od: cqgOd,
+        },
+        ms: {
+          qltkgd: msQltkgd,
+          nr: msNr,
+          nkttht: msNkttht,
+          tlkqhskq: msTlkqhskq,
+          market6h: msMarket6h,
+          dstrader: msDstrader,
+          dslk: msDslk,
+          dslck: msDslck,
+          dslh: msDslh,
+          dsldk: msDsldk,
+        },
+      },
+      readiness: {
+        lotStatistics: isReadyForLotStatistics,
+        preEod: isReadyForPreEod,
+      },
+    };
+  }
+
+  /**
+   * Upload a missing report file directly into the daily backup folder on the server.
+   */
+  @Post('files/upload-daily')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDailyFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('date') dateStr: string,
+    @Body('targetType') targetType?: string,
+  ) {
+    if (!file) {
+      throw new HttpException('Không có file nào được tải lên.', HttpStatus.BAD_REQUEST);
+    }
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const msBaseRaw = await getMsBackupBase(this.settingsService);
+    const msBase = resolveStoragePathCrossPlatform(msBaseRaw);
+    const msSub = resolveDailySubfolder(msBase, targetDate);
+
+    if (!fs.existsSync(msSub.fullPath)) {
+      fs.mkdirSync(msSub.fullPath, { recursive: true });
+    }
+
+    // Determine normalized file name
+    let finalName = file.originalname;
+    const lowerName = file.originalname.toLowerCase();
+
+    if (targetType === 'DSGD' || lowerName.includes('dsgd')) {
+      finalName = 'DSGD.xlsx';
+    } else if (targetType === 'TTM' || lowerName.includes('ttm')) {
+      finalName = 'TTM.xlsx';
+    } else if (targetType === 'TTTT' || lowerName.includes('tttt')) {
+      finalName = 'TTTT.xlsx';
+    } else if (
+      targetType === 'EXCHANGE_RATE' ||
+      lowerName.includes('tỷ giá') ||
+      lowerName.includes('ty_gia') ||
+      lowerName.includes('exchangerate')
+    ) {
+      const d = targetDate.getDate().toString().padStart(2, '0');
+      const m = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+      const y = targetDate.getFullYear();
+      finalName = `Tỷ giá ${d}.${m}.${y}.xlsx`;
+    }
+
+    const destPath = path.join(msSub.fullPath, finalName);
+    fs.writeFileSync(destPath, file.buffer);
+
+    return {
+      success: true,
+      message: `Đã nạp file ${finalName} vào thư mục ngày: ${msSub.fullPath}`,
+      filename: finalName,
+      sizeBytes: file.size,
+      destPath,
     };
   }
 
@@ -2323,6 +2589,147 @@ export class BotEngineController {
       lastSeen,
       lastSeenMs: diffMs,
       agents: activeAgents,
+    };
+  }
+
+  // ── CCP/CE Report Downloader ──────────────────────────────────────────────
+
+  /**
+   * Trigger thủ công tải báo cáo từ CoreCCP.
+   * POST /api/v1/bot-engine/download-ccp-report
+   * Body: { startDate, endDate, outputDir, reports?, options? }
+   */
+  @Post('download-ccp-report')
+  async downloadCcpReport(@Body() body: any) {
+    const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    if (!ccpRaw) {
+      throw new HttpException(
+        'Chưa cấu hình thông tin đăng nhập CoreCCP. Vào Admin -> Cấu hình kết nối để thiết lập.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    let creds: any = {};
+    try { creds = JSON.parse(decrypt(ccpRaw)); } catch {}
+
+    if (!creds.url || !creds.username || !creds.password) {
+      throw new HttpException(
+        'Cấu hình CoreCCP thiếu url/username/password.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const outputDir = body.outputDir ||
+      creds.outputDir ||
+      'backupCCP';
+
+    this.logger.log(`[CCP Downloader] Bat dau tai bao cao CoreCCP: ${body.startDate} -> ${body.endDate}`);
+
+    // Chạy bất đồng bộ — trả về ngay để không block HTTP
+    this.ccpCeDownloaderService
+      .run({
+        systemUrl: creds.url,
+        username: creds.username,
+        password: creds.password,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        outputDir,
+        reports: body.reports,
+        options: body.options,
+      })
+      .then((ok) => this.logger.log(`[CCP Downloader] Ket qua: ${ok ? 'Thanh cong' : 'That bai'}`)
+      )
+      .catch((e) => this.logger.error(`[CCP Downloader] Loi: ${e?.message}`));
+
+    return {
+      message: 'Da kich hoat tai bao cao CoreCCP. Kiem tra log de theo doi tien trinh.',
+      systemUrl: creds.url,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      outputDir,
+    };
+  }
+
+  /**
+   * Enqueue Background BotJob để tải báo cáo CoreCCP (hỗ trợ polling trạng thái & logs).
+   * POST /api/v1/bot-engine/trigger-ccp-download
+   */
+  @Post('trigger-ccp-download')
+  async triggerCcpDownload(
+    @Body('date') dateStr?: string,
+    @Body('startDate') startDate?: string,
+    @Body('endDate') endDate?: string,
+    @Body('reports') reports?: string[],
+    @Body('outputDir') outputDir?: string,
+  ) {
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const targetStart = startDate || dateStr || today;
+    const targetEnd = endDate || dateStr || targetStart;
+
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
+      startDate: targetStart,
+      endDate: targetEnd,
+      reports: reports && reports.length > 0 ? reports : ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
+      outputDir,
+      sessionDay: targetStart,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải báo cáo CoreCCP vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  /**
+   * Trigger thủ công tải báo cáo từ CoreEX.
+   * POST /api/v1/bot-engine/download-ce-report
+   * Body: { startDate, endDate, outputDir, reports?, options? }
+   */
+  @Post('download-ce-report')
+  async downloadCeReport(@Body() body: any) {
+    const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+    if (!ceRaw) {
+      throw new HttpException(
+        'Chưa cấu hình thông tin đăng nhập CoreEX. Vào Admin -> Cấu hình kết nối để thiết lập.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    let creds: any = {};
+    try { creds = JSON.parse(decrypt(ceRaw)); } catch {}
+
+    if (!creds.url || !creds.username || !creds.password) {
+      throw new HttpException(
+        'Cấu hình CoreEX thiếu url/username/password.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const outputDir = body.outputDir ||
+      creds.outputDir ||
+      'backupCE';
+
+    this.logger.log(`[CE Downloader] Bat dau tai bao cao CoreEX: ${body.startDate} -> ${body.endDate}`);
+
+    this.ccpCeDownloaderService
+      .run({
+        systemUrl: creds.url,
+        username: creds.username,
+        password: creds.password,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        outputDir,
+        reports: body.reports,
+        options: body.options,
+      })
+      .then((ok) => this.logger.log(`[CE Downloader] Ket qua: ${ok ? 'Thanh cong' : 'That bai'}`))
+      .catch((e) => this.logger.error(`[CE Downloader] Loi: ${e?.message}`));
+
+    return {
+      message: 'Da kich hoat tai bao cao CoreEX. Kiem tra log de theo doi tien trinh.',
+      systemUrl: creds.url,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      outputDir,
     };
   }
 }

@@ -24,7 +24,7 @@
 Lúc cấu hình lệnh đồng bộ từ `M:\Quanlygiaodich\` sang UAT (`DATA_ROOT` -> `UAT`), **chỉ copy 2 thư mục chứa file thô**:
 - `Backup MS/Futures/<Ngày>/` (chứa `DSGD.xlsx`, `TTM.xlsx`, `TTTT.xlsx`...)
 - `Backup CQG/Futures/<Ngày>/` (chứa `FR1.xlsx`, `FR2.xlsx`, `PS1.xlsx`, `PS2.xlsx`...)
-- ❌ **KHÔNG copy** các file báo cáo kết quả đã làm xong (`Thong ke gia tri...`, `DSGD T07.2026.xlsx`...) từ ổ gốc sang.
+-  **KHÔNG copy** các file báo cáo kết quả đã làm xong (`Thong ke gia tri...`, `DSGD T07.2026.xlsx`...) từ ổ gốc sang.
 
 👉 **Kết quả**: Bên `OperateChecklist_UAT` chỉ có dữ liệu thô. Toàn bộ các file báo cáo kết quả sẽ do 100% Bot tự động tính toán và tự sinh ra từ đầu.
 

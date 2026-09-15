@@ -44,7 +44,7 @@ async function runFullPipeline() {
   // Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const RawMailModel = mongoose.model('RawAccountMail', RawAccountMailSchema);
   const CleanRecordModel = mongoose.model('CleanAccountRecord', CleanAccountRecordSchema);
@@ -115,7 +115,7 @@ async function runFullPipeline() {
       });
 
 
-      console.log(`  ✅ [Mail ${i + 1}] Đã bóc tách: TK ${parsed.maTKGD_Futures} | ${parsed.tenTaiKhoan}`);
+      console.log(`   [Mail ${i + 1}] Đã bóc tách: TK ${parsed.maTKGD_Futures} | ${parsed.tenTaiKhoan}`);
       processedRecords.push(cleanDoc);
     }
   }
@@ -176,7 +176,7 @@ async function runFullPipeline() {
         await page.waitForTimeout(3000);
       }
 
-      console.log('  ✅ Đăng nhập M-System thành công!');
+      console.log('   Đăng nhập M-System thành công!');
 
       // Cào từng tài khoản
       for (const record of processedRecords) {
@@ -229,7 +229,7 @@ async function runFullPipeline() {
       await browser.close();
     }
   } else {
-    console.log('  ⚠️ Không có thông tin tài khoản MS, sử dụng dữ liệu mô phỏng để tiếp tục quy trình.');
+    console.log('   Không có thông tin tài khoản MS, sử dụng dữ liệu mô phỏng để tiếp tục quy trình.');
     for (const record of processedRecords) {
       record.ms = {
         maTKGD: record.noiDungMail?.maTKGD_Futures,
@@ -252,7 +252,7 @@ async function runFullPipeline() {
 
   // ─── BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL ─────────────────────────────
   console.log('\n' + '-'.repeat(50));
-  console.log('📊 BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL');
+  console.log(' BƯỚC 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL');
   console.log('-'.repeat(50));
 
   const summary = await reconcileAndExportToExcel(processedRecords);

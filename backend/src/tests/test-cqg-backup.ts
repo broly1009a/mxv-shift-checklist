@@ -13,7 +13,7 @@ import * as fs from 'fs';
 
 async function runCqgBackupTest() {
   console.log('====================================================');
-  console.log('🚀 KHỞI CHẠY KIỂM THỬ JOB DOWNLOAD_CQG_BACKUP');
+  console.log(' KHỞI CHẠY KIỂM THỬ JOB DOWNLOAD_CQG_BACKUP');
   console.log('====================================================');
 
   // 1. Khởi chạy NestJS application context
@@ -32,7 +32,7 @@ async function runCqgBackupTest() {
     try {
       creds = JSON.parse(decrypt(credRaw));
       console.log(
-        '✅ Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.',
+        ' Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.',
       );
       console.log(`- URL: ${creds.url || 'Mặc định'}`);
       console.log(
@@ -43,7 +43,7 @@ async function runCqgBackupTest() {
       );
     } catch (e) {
       console.warn(
-        '⚠️ Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.',
+        ' Lỗi giải mã credentials trong CSDL. Sẽ dùng biến môi trường nếu có.',
       );
     }
   }
@@ -72,12 +72,12 @@ async function runCqgBackupTest() {
       'bot_credentials_cqg',
       encrypt(JSON.stringify(newCreds)),
     );
-    console.log('✅ Đã cập nhật bot_credentials_cqg vào CSDL.');
+    console.log(' Đã cập nhật bot_credentials_cqg vào CSDL.');
     creds = newCreds;
   }
 
   if (!creds || (!creds.username1 && !creds.usernameCQG1 && !creds.username)) {
-    console.log('\n❌ THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
+    console.log('\n THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
     console.log('Vui lòng thiết lập biến môi trường để chạy test, ví dụ:');
     console.log(
       '   $env:CQG_USER="account1"; $env:CQG_PASS="pass1"; cmd.exe /c npm run test:cqg-backup',
@@ -112,7 +112,7 @@ async function runCqgBackupTest() {
     },
   });
   await testJob.save();
-  console.log(`✅ Đã tạo test job trong CSDL với ID: ${testJob._id}`);
+  console.log(` Đã tạo test job trong CSDL với ID: ${testJob._id}`);
 
   // 4. Chạy job trực tiếp bằng botJobQueueService
   console.log('\n====================================================');
@@ -139,7 +139,7 @@ async function runCqgBackupTest() {
       `[${new Date().toISOString()}] Job thất bại: ${err.message}`,
     );
     await testJob.save();
-    console.error('\n❌ KẾT QUẢ: JOB THẤT BẠI!');
+    console.error('\n KẾT QUẢ: JOB THẤT BẠI!');
     console.error(`Chi tiết lỗi: ${err.message}`);
   } finally {
     // In log của job
@@ -163,6 +163,6 @@ async function runCqgBackupTest() {
 }
 
 runCqgBackupTest().catch((err) => {
-  console.error('❌ Fatal error:', err);
+  console.error(' Fatal error:', err);
   process.exit(1);
 });

@@ -12,13 +12,13 @@ const MONGODB_URI =
 
 async function main() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL TEMPLATE');
+  console.log(' KIỂM THỬ MODULE 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL TEMPLATE');
   console.log('='.repeat(70));
 
   // 1. Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const CleanRecordModel = mongoose.model(
     'CleanAccountRecord',
@@ -30,7 +30,7 @@ async function main() {
   let records = await CleanRecordModel.find().sort({ createdAt: -1 }).limit(10);
 
   if (records.length === 0) {
-    console.log('⚠️ Chưa có bản ghi nào trong DB, tạo 2 bản ghi mẫu để test xuất Excel...');
+    console.log(' Chưa có bản ghi nào trong DB, tạo 2 bản ghi mẫu để test xuất Excel...');
     const sampleRecord1 = await CleanRecordModel.create({
       noiDungMail: {
         maTKGD_Futures: '003C2333888',

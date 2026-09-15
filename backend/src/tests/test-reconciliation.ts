@@ -85,7 +85,7 @@ function parseUniqueMSContracts(filePath: string): string[] {
   const headers = data[0];
   const contractIndex = headers.indexOf('Mã HĐ');
   if (contractIndex === -1) {
-    console.error('⚠️ Không tìm thấy cột "Mã HĐ" trong file Excel!');
+    console.error(' Không tìm thấy cột "Mã HĐ" trong file Excel!');
     return [];
   }
 
@@ -103,7 +103,7 @@ function parseUniqueMSContracts(filePath: string): string[] {
  * Add column S (Last settlement price) to the Quote Spreadsheet grid
  */
 async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
-  console.log('\n📊 Thêm cột S (Settlement)...');
+  console.log('\n Thêm cột S (Settlement)...');
 
   // Wait for the grid header to be rendered and visible first
   await page
@@ -118,7 +118,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
     .isVisible({ timeout: 2000 })
     .catch(() => false);
   if (sColExists) {
-    console.log('✅ Cột S đã tồn tại, bỏ qua bước thêm cột.');
+    console.log(' Cột S đã tồn tại, bỏ qua bước thêm cột.');
     return;
   }
 
@@ -145,7 +145,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!headerClicked) {
     console.log(
-      '⚠️ Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
+      ' Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
     );
     await screenshot(page, `tab${batchNum}-settlement-header-not-found`);
     return;
@@ -163,7 +163,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_COLUMNS_SEL);
   await page.waitForTimeout(1500);
   await screenshot(page, `tab${batchNum}-08-manage-columns-dialog`);
-  console.log('✅ Mở Manage Columns dialog');
+  console.log(' Mở Manage Columns dialog');
 
   const FILTER_INPUT =
     '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
@@ -171,7 +171,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.fill(FILTER_INPUT, 'Settlement');
   await page.waitForTimeout(1000);
   await screenshot(page, `tab${batchNum}-09-settlement-search`);
-  console.log('✅ Đã tìm kiếm "Settlement" trong dialog');
+  console.log(' Đã tìm kiếm "Settlement" trong dialog');
 
   const S_ITEM_SELECTORS = [
     '.wpfe-list-item-content:has-text("Last settlement")',
@@ -192,7 +192,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!itemClicked) {
     console.log(
-      '⚠️ Không click được cột S trong list, thử double click dòng đầu tiên',
+      ' Không click được cột S trong list, thử double click dòng đầu tiên',
     );
     await page.dblclick('.wpfe-list-item-content').catch(() => { });
   }
@@ -210,7 +210,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_CLOSE_BTN);
   await page.waitForTimeout(2000);
 
-  console.log('✅ Đã thêm cột S (Last settlement price)!');
+  console.log(' Đã thêm cột S (Last settlement price)!');
 }
 
 /**
@@ -412,7 +412,7 @@ async function runEndToEndReconciliation() {
 
   if (!msUser || !msPass || !msPin || !cqgUser || !cqgPass) {
     console.error(
-      '❌ Thiếu thông tin tài khoản đăng nhập MS hoặc CQG. Vui lòng kiểm tra lại cấu hình hoặc biến môi trường!',
+      ' Thiếu thông tin tài khoản đăng nhập MS hoặc CQG. Vui lòng kiểm tra lại cấu hình hoặc biến môi trường!',
     );
     process.exit(1);
   }
@@ -463,11 +463,11 @@ async function runEndToEndReconciliation() {
         .isVisible({ timeout: 5000 })
         .catch(() => false);
       if (pinSelectorVisible) {
-        console.log('✅ Đã hiển thị bảng PIN!');
+        console.log(' Đã hiển thị bảng PIN!');
         break;
       }
       console.log(
-        `⚠️ Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+        ` Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
       );
       await screenshot(page, `02-ms-retry-login-click-attempt-${attempt}`);
       await page.click('button.btn-primary').catch(() => { });
@@ -529,13 +529,13 @@ async function runEndToEndReconciliation() {
           ]);
           await download.saveAs(marketCsvPath);
           console.log(
-            `✅ Đã tải và lưu thành công file CSV bảng giá: ${marketCsvPath}`,
+            ` Đã tải và lưu thành công file CSV bảng giá: ${marketCsvPath}`,
           );
           marketCsvDownloaded = true;
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -575,13 +575,13 @@ async function runEndToEndReconciliation() {
           ]);
           await download.saveAs(trangThaiMoPath);
           console.log(
-            `✅ Đã tải và lưu thành công file trạng thái mở: ${trangThaiMoPath}`,
+            ` Đã tải và lưu thành công file trạng thái mở: ${trangThaiMoPath}`,
           );
           openPositionDownloaded = true;
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -592,7 +592,7 @@ async function runEndToEndReconciliation() {
       throw new Error('Không tải đủ 2 file báo cáo cần thiết từ M-System!');
     }
   } catch (err: any) {
-    console.error('❌ Lỗi M-System:', err.message);
+    console.error(' Lỗi M-System:', err.message);
     await browser.close();
     process.exit(1);
   }
@@ -606,7 +606,7 @@ async function runEndToEndReconciliation() {
     `🔍 Tìm thấy ${symbols.length} mã hợp đồng đang có trạng thái mở.`,
   );
   if (symbols.length === 0) {
-    console.error('❌ Không có mã hợp đồng nào để kiểm tra đối soát!');
+    console.error(' Không có mã hợp đồng nào để kiểm tra đối soát!');
     await browser.close();
     process.exit(1);
   }
@@ -642,7 +642,7 @@ async function runEndToEndReconciliation() {
     });
     await page.waitForTimeout(3000);
     await screenshot(page, '10-cqg-login-success');
-    console.log('✅ Đăng nhập CQG THÀNH CÔNG!');
+    console.log(' Đăng nhập CQG THÀNH CÔNG!');
 
     // CQG limits list to 100 symbols, we split into batches
     const BATCH_LIMIT = 95;
@@ -735,7 +735,7 @@ async function runEndToEndReconciliation() {
       );
     }
   } catch (err: any) {
-    console.error('❌ Lỗi CQG:', err.message);
+    console.error(' Lỗi CQG:', err.message);
   } finally {
     await browser.close();
   }
@@ -745,7 +745,7 @@ async function runEndToEndReconciliation() {
   // =========================================================================
   step('Đối chiếu giá thanh toán (MS vs CQG)');
   const msPricesMap = parseMSMarketCsv(marketCsvPath);
-  console.log(`📊 Đã đọc ${msPricesMap.size} mã giá thanh toán từ M-System.`);
+  console.log(` Đã đọc ${msPricesMap.size} mã giá thanh toán từ M-System.`);
 
   const report: {
     symbol: string;
@@ -812,7 +812,7 @@ async function runEndToEndReconciliation() {
   }
 
   console.log('\n' + '#'.repeat(60));
-  console.log('📊 BÁO CÁO ĐỐI CHIẾU GIÁ THANH TOÁN (GTT) HẰNG NGÀY');
+  console.log(' BÁO CÁO ĐỐI CHIẾU GIÁ THANH TOÁN (GTT) HẰNG NGÀY');
   console.log('#'.repeat(60));
   console.log(`- Tổng số mã vị thế mở cần check: ${symbols.length}`);
   console.log(`- Khớp chính xác (MATCH):         ${matchCount}`);
@@ -831,12 +831,12 @@ async function runEndToEndReconciliation() {
       });
   } else {
     console.log(
-      '✅ TUYỆT VỜI! Tất cả các mã đều khớp giá hoàn hảo giữa M-System và CQG.',
+      ' TUYỆT VỜI! Tất cả các mã đều khớp giá hoàn hảo giữa M-System và CQG.',
     );
   }
 
   if (missingCount > 0) {
-    console.log('\n⚠️ DANH SÁCH MÃ THIẾU THÔNG TIN TRÊN 1 HỆ THỐNG:');
+    console.log('\n DANH SÁCH MÃ THIẾU THÔNG TIN TRÊN 1 HỆ THỐNG:');
     report
       .filter((r) => r.status.startsWith('MISSING'))
       .forEach((r) => {
@@ -875,6 +875,6 @@ async function runEndToEndReconciliation() {
 }
 
 runEndToEndReconciliation().catch((err) => {
-  console.error('❌ Fatal error:', err);
+  console.error(' Fatal error:', err);
   process.exit(1);
 });

@@ -98,10 +98,11 @@ export const tkgdApi = {
     return res.json();
   },
 
-  async runReconcile(token?: string | null, userEmail?: string) {
+  async runReconcile(batchDate?: string, token?: string | null, userEmail?: string) {
     const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/run`, {
       method: 'POST',
       headers: getHeaders(token, userEmail),
+      body: JSON.stringify({ batchDate }),
     });
     return res.json();
   },

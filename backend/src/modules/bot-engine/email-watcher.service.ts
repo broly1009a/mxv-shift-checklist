@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveStoragePathCrossPlatform } from './helpers/bot-path.helper';
 
 @Injectable()
 export class EmailWatcherService {
@@ -232,13 +233,15 @@ export class EmailWatcherService {
     const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
     const dd = today.getUTCDate().toString().padStart(2, '0');
 
-    return rawDir
+    const formatted = rawDir
       .replace(/\${YYYY}/g, yyyy)
       .replace(/\${MM}/g, mm)
       .replace(/\${DD}/g, dd)
       .replace(/\${yyyy}/g, yyyy)
       .replace(/\${mm}/g, mm)
       .replace(/\${dd}/g, dd);
+
+    return resolveStoragePathCrossPlatform(formatted);
   }
 
   /**

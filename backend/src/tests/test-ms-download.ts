@@ -10,7 +10,7 @@ import * as fs from 'fs';
 
 async function runMSystemDownloadTest() {
   console.log('----------------------------------------------------');
-  console.log('🚀 RUNNING M-SYSTEM REPORT DOWNLOAD TEST (PLAYWRIGHT)');
+  console.log(' RUNNING M-SYSTEM REPORT DOWNLOAD TEST (PLAYWRIGHT)');
   console.log('----------------------------------------------------');
 
   console.log('Connecting to database and fetching credentials...');
@@ -35,14 +35,14 @@ async function runMSystemDownloadTest() {
       msystemUrl = credentials.url || msystemUrl;
     } catch (err) {
       console.error(
-        '❌ Error decrypting bot credentials from DB:',
+        ' Error decrypting bot credentials from DB:',
         err.message,
       );
     }
   }
 
   if (!username || !password || !pin) {
-    console.error('❌ M-System credentials not configured in DB or Env.');
+    console.error(' M-System credentials not configured in DB or Env.');
     await app.close();
     process.exit(1);
   }
@@ -169,7 +169,7 @@ async function runMSystemDownloadTest() {
     }
     const destPath = path.join(tempDir, destFileName);
     await download.saveAs(destPath);
-    console.log(`✅ SUCCESS: Downloaded and saved report to: ${destPath}`);
+    console.log(` SUCCESS: Downloaded and saved report to: ${destPath}`);
   }
 
   try {
@@ -263,7 +263,7 @@ async function runMSystemDownloadTest() {
     }
     if (!tabClicked) {
       console.log(
-        '⚠️ Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...',
+        ' Could not find "Lệnh chờ khớp" tab by standard selectors. Trying fallback click...',
       );
       await page
         .click('text="Lệnh chờ khớp"')
@@ -280,7 +280,7 @@ async function runMSystemDownloadTest() {
     );
     await page.waitForTimeout(15000);
   } catch (err: any) {
-    console.error('\n❌ Error occurred during automation:', err.message);
+    console.error('\n Error occurred during automation:', err.message);
   } finally {
     console.log('Closing browser...');
     await browser.close();
@@ -291,6 +291,6 @@ async function runMSystemDownloadTest() {
 }
 
 runMSystemDownloadTest().catch((err) => {
-  console.error('❌ Test execution failed:', err);
+  console.error(' Test execution failed:', err);
   process.exit(1);
 });

@@ -8,6 +8,7 @@ import {
   ChecklistTemplateSchema,
 } from '../../schemas/template.schema';
 import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
+import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftsGateway } from './shifts.gateway';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
@@ -22,6 +23,7 @@ import { WorkingCalendarModule } from '../working-calendar/working-calendar.modu
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: ChecklistTemplate.name, schema: ChecklistTemplateSchema },
       { name: AuditLog.name, schema: AuditLogSchema },
+      { name: BotJob.name, schema: BotJobSchema },
     ]),
     SystemLogsModule,
     forwardRef(() => IncidentsModule),

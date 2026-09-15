@@ -19,7 +19,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly lotStatisticsService: LotStatisticsService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -168,16 +168,16 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
         processParams,
         job.logs,
       );
-      log(`✅ Chạy tính toán thống kê số lot thành công.`);
+      log(` Chạy tính toán thống kê số lot thành công.`);
       log(
         `Kết quả: DSGD Product: ${result.summary.dsgdProduct}, FR Product: ${result.summary.frProduct}`,
       );
 
       const allPassed = result.validations.every((v: any) => v.passed);
       if (allPassed) {
-        log(`✅ Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
+        log(` Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
       } else {
-        log(`⚠️ Phát hiện chênh lệch đối chiếu:`);
+        log(` Phát hiện chênh lệch đối chiếu:`);
         for (const val of result.validations) {
           if (!val.passed) {
             log(
@@ -190,7 +190,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       await safeSave();
       return result;
     } catch (err: any) {
-      log(`❌ Lỗi chạy thống kê số lot: ${err.message}`);
+      log(` Lỗi chạy thống kê số lot: ${err.message}`);
       await safeSave();
       throw err;
     }

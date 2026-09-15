@@ -252,7 +252,7 @@ const server = new Server(
             if (h && h.type === 'file' && h.fd !== undefined) {
               try {
                 fs.closeSync(h.fd);
-              } catch (e) {}
+              } catch (e) { }
             }
             openHandles.delete(handleKey);
             sftp.status(reqId, 0);
@@ -268,7 +268,7 @@ const server = new Server(
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================================');
-  console.log(`🚀 Mock SFTP Server listening on port ${PORT}`);
+  console.log(` Mock SFTP Server listening on port ${PORT}`);
   console.log(`   SFTP Host:        127.0.0.1 (hoặc IP Server)`);
   console.log(`   Port:             ${PORT}`);
   console.log(`   SFTP Username:    ${USERNAME}`);

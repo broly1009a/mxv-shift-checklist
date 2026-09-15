@@ -1,0 +1,1800 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import {
+  RefreshCw,
+  Play,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ArrowLeft,
+  Calendar,
+  Bell,
+  BellOff,
+  CheckSquare,
+  Square,
+  Maximize2,
+  Minimize2,
+  Sliders,
+  Database,
+  ExternalLink,
+  Activity,
+  ShieldCheck,
+  Server,
+  FileSpreadsheet,
+  CheckCircle,
+  XCircle,
+  FileText,
+  Loader2,
+  Terminal,
+  X,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import Link from 'next/link';
+
+export default function TradingManagerPage() {
+  const { token } = useAuth();
+
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Top Tabs (1:1 Khung C# Desktop)
+  const [topTab, setTopTab] = useState<'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN'>('CHECK_GD_EOD_SYNC');
+
+  // Checkbox selections in Table 1
+  const [checkPeriodic, setCheckPeriodic] = useState<boolean>(true);
+  const [intervalMinutes, setIntervalMinutes] = useState<number>(60);
+  const [checkKlgd, setCheckKlgd] = useState<boolean>(true);
+  const [checkTtm, setCheckTtm] = useState<boolean>(true);
+  const [checkTttt, setCheckTttt] = useState<boolean>(true);
+
+  // Sub Tabs in Discrepancy Section
+  const [discrepancyTab, setDiscrepancyTab] = useState<'TRADE' | 'TTM'>('TRADE');
+
+  // Date and Audio
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [soundAlertEnabled, setSoundAlertEnabled] = useState<boolean>(true);
+
+  // State
+  const [loading, setLoading] = useState<boolean>(true);
+  const [triggering, setTriggering] = useState<boolean>(false);
+  const [triggeringSection, setTriggeringSection] = useState<string | null>(null);
+  const [summaryData, setSummaryData] = useState<any>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  const [showLogModal, setShowLogModal] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Close modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowLogModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Sound Beeper
+  const playAlertSound = useCallback(() => {
+    if (!soundAlertEnabled || typeof window === 'undefined') return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.35);
+    } catch (e) {
+      console.warn('Audio playback error:', e);
+    }
+  }, [soundAlertEnabled]);
+
+  // Fullscreen toggle handler
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  // Initialize date to today (Vietnam GMT+7)
+  useEffect(() => {
+    const today = new Date();
+    const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
+    const dateStr = vnTime.toISOString().split('T')[0];
+    setSelectedDate(dateStr);
+  }, []);
+
+  // Fetch Console Summary Data
+  const fetchConsoleSummary = useCallback(async (date?: string, silent: boolean = false) => {
+    if (!token) return;
+    const qDate = date || selectedDate;
+    if (!silent) setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
+      }
+
+      const data = await res.json();
+      setSummaryData(data);
+      if (data.shiftInfo?.nextScanInSeconds !== undefined) {
+        setCountdownSeconds(data.shiftInfo.nextScanInSeconds);
+      }
+
+      const differKlgd = data.klgd?.totals?.differ || 0;
+      const differACM = data.klgd?.totals?.differACM || 0;
+      if (differKlgd > 0 || differACM > 0) {
+        playAlertSound();
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast.error(`Không thể tải dữ liệu: ${err.message}`);
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [token, selectedDate, playAlertSound]);
+
+  // Load when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchConsoleSummary(selectedDate);
+    }
+  }, [selectedDate, fetchConsoleSummary]);
+
+  // Periodic polling (20s)
+  useEffect(() => {
+    if (!checkPeriodic) return;
+    const interval = setInterval(() => {
+      fetchConsoleSummary(selectedDate, true);
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [checkPeriodic, selectedDate, fetchConsoleSummary]);
+
+  // Countdown Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Trigger Manual Check
+  const handleTriggerRun = async (jobType: string = 'CHECK_KLGD', sectionId?: string) => {
+    if (!token) return;
+    setTriggering(true);
+    if (sectionId) setTriggeringSection(sectionId);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: selectedDate,
+          bypassCooldown: true,
+          jobType,
+          options: {
+            checkKlgd,
+            checkTtm,
+            checkTttt,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Lỗi khởi chạy: ${res.status}`);
+      }
+
+      const result = await res.json();
+      toast.success(result.message || 'Đã kích hoạt quét đối soát thành công!');
+      setTimeout(() => {
+        fetchConsoleSummary(selectedDate, true);
+      }, 1500);
+    } catch (err: any) {
+      toast.error(`Không thể kích hoạt đối chiếu: ${err.message}`);
+    } finally {
+      setTriggering(false);
+      setTriggeringSection(null);
+    }
+  };
+
+  // Extract totals for Table 1 Matrix
+  const totals = summaryData?.klgd?.totals || {};
+  const msDSGD = totals.totalDSGD || 0;
+  const cqgFR = totals.totalFR || 0;
+  const acmStraits = totals.totalACM || 0;
+  const nanoLots = totals.totalNano || 0;
+
+  const msTTM = totals.totalTTM_MS || totals.totalTTM || 0;
+  const cqgTTM = totals.totalTTM_CQG || 0;
+  const acmTTM = totals.totalTTM_ACM || 0;
+  const nanoTTM = 0;
+
+  const msTTTT = totals.totalTTTT || totals.totalTTTT_MS || 0;
+  const cqgPS = totals.totalPS || totals.totalPS_CQG || 0;
+  const acmTTTT = 0;
+  const nanoTTTT = 0;
+
+  // Format last checked time (e.g., "08/09 14:00")
+  const lastCheckedFormatted = useMemo(() => {
+    const d = summaryData?.shiftInfo?.lastCheckedAt || summaryData?.klgd?.executedAt;
+    if (!d) return '--/-- --:--';
+    const dateObj = new Date(d);
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const mins = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${day}/${month} ${hours}:${mins}`;
+  }, [summaryData]);
+
+  const klgdStatus = summaryData?.klgd?.status || 'IDLE';
+  const klgdError = summaryData?.klgd?.error || null;
+  const klgdLogs = summaryData?.klgd?.logs || [];
+  const isWaitingFiles = !!summaryData?.klgd?.isWaitingFiles;
+  const waitingMessage = summaryData?.klgd?.waitingMessage || '';
+
+  // Discrepancy Trades
+  const mismatchedTrades = summaryData?.klgd?.mismatchedTrades || [];
+  const mismatchedTTM = summaryData?.klgd?.mismatchedTTM || [];
+
+  // Negative Margin Accounts
+  const negativeMarginAccounts: string[] = summaryData?.negativeMargin?.negativeIMRAcc || [];
+
+  // Format number
+  const fmt = (n: number) => {
+    if (n === undefined || n === null) return '0';
+    return Number(n).toLocaleString('en-US');
+  };
+
+  const isDiffer = (totals.differ || 0) > 0;
+
+  return (
+    <ProtectedRoute>
+      <div 
+        ref={containerRef}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          minHeight: isFullscreen ? '100vh' : 'auto',
+          height: isFullscreen ? '100vh' : 'auto',
+          color: 'var(--text-primary)',
+          padding: isFullscreen ? '24px' : '0',
+          backgroundColor: isFullscreen ? 'var(--bg-app)' : 'transparent',
+          position: 'relative',
+          overflowY: isFullscreen ? 'auto' : 'visible',
+          boxSizing: 'border-box',
+        }}
+        className="animate-fade-in"
+      >
+        {/* PAGE HEADER (Chuẩn theo phong cách Bot Config) */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '16px',
+          flexShrink: 0,
+        }}>
+          <div>
+            <h1 style={{
+              fontSize: '1.4rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              <Activity color="#10b981" className="animate-pulse" size={26} />
+              Trading Manager — Bàn Giám Sát Đối Soát Nghiệp Vụ
+            </h1>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+              Trung tâm kiểm soát, đối chiếu giao dịch trong phiên & Pre-EOD (M-System vs CQG & ACM).
+            </p>
+          </div>
+
+          {/* Right Header Status Badges & Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* System Online Badge (Giống Agent Status Badge của Bot Config) */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: !isDiffer ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+              backgroundColor: !isDiffer ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              color: !isDiffer ? '#34d399' : '#f87171',
+            }}>
+              <div style={{ position: 'relative', width: '10px', height: '10px' }}>
+                <span style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  backgroundColor: !isDiffer ? '#10b981' : '#ef4444',
+                }} className="animate-ping" />
+                <span style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  backgroundColor: !isDiffer ? '#10b981' : '#ef4444',
+                }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Hệ thống: Online
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Độ lệch: {!isDiffer ? '0 lot (Khớp 100%)' : `${totals.differ} lot lệch`}
+                </span>
+              </div>
+            </div>
+
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Thu nhỏ giao diện' : 'Phóng to toàn màn hình'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '10px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* Back to Dashboard */}
+            <Link
+              href="/dashboard"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '9px 16px', textDecoration: 'none' }}
+            >
+              <ArrowLeft size={15} />
+              <span>Dashboard</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* TAB BUTTONS BAR (Chuẩn 1:1 theo Bot Config lines 308-350) */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '4px',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          minHeight: '44px',
+        }} className="table-responsive-wrapper">
+          <button
+            type="button"
+            onClick={() => setTopTab('CHECK_GD_EOD_SYNC')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'CHECK_GD_EOD_SYNC' ? '2px solid #10b981' : '2px solid transparent',
+              color: topTab === 'CHECK_GD_EOD_SYNC' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'CHECK_GD_EOD_SYNC' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Activity size={16} color={topTab === 'CHECK_GD_EOD_SYNC' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Check GD - EOD - Sync</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTopTab('BACKUP_THONG_KE_GTT')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'BACKUP_THONG_KE_GTT' ? '2px solid #10b981' : '2px solid transparent',
+              color: topTab === 'BACKUP_THONG_KE_GTT' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'BACKUP_THONG_KE_GTT' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Database size={16} color={topTab === 'BACKUP_THONG_KE_GTT' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Backup – Thống kê – GTT</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTopTab('CAU_HINH_DUONG_DAN')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'CAU_HINH_DUONG_DAN' ? '2px solid #10b981' : '2px solid transparent',
+              color: topTab === 'CAU_HINH_DUONG_DAN' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'CAU_HINH_DUONG_DAN' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Sliders size={16} color={topTab === 'CAU_HINH_DUONG_DAN' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Cấu hình – Đường dẫn</span>
+          </button>
+        </div>
+
+        {/* TAB 1: NỘI DUNG CHÍNH (CHECK GD - EOD - SYNC) */}
+        {topTab === 'CHECK_GD_EOD_SYNC' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* BOT EXECUTION STATUS & ERROR ALERT BANNER */}
+            {klgdStatus === 'FAILED' ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(185, 28, 28, 0.2))',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#f87171',
+                    flexShrink: 0
+                  }}>
+                    <AlertTriangle size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>Lần quét đối soát gần nhất thất bại</span>
+                      <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(239, 68, 68, 0.35)', padding: '2px 8px', borderRadius: '4px', color: '#fecaca', fontWeight: 700 }}>FAILED</span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px', maxWidth: '750px', wordBreak: 'break-word' }}>
+                      {klgdError || 'Gặp lỗi trong quá trình tải file M-System / CQG hoặc đối chiếu dữ liệu.'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {klgdLogs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLogModal(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Terminal size={14} />
+                      <span>Xem chi tiết Log</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTriggerRun('CHECK_KLGD', 'TABLE1')}
+                    disabled={triggering}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: triggering ? 'not-allowed' : 'pointer',
+                      opacity: triggering ? 0.7 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
+                    <span>{triggering ? 'Đang chạy lại...' : 'Chạy lại ngay'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : isWaitingFiles ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.15))',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fbbf24',
+                    flexShrink: 0
+                  }}>
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fde68a' }}>
+                      Chờ dữ liệu báo cáo đối soát
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {waitingMessage || 'Một số file dữ liệu từ M-System hoặc CQG chưa sẵn sàng để đối chiếu.'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {klgdLogs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLogModal(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Terminal size={14} />
+                      <span>Xem Log</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTriggerRun('CHECK_KLGD', 'TABLE1')}
+                    disabled={triggering}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#f59e0b',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: triggering ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
+                    <span>{triggering ? 'Đang tải lại...' : 'Tải lại & Đối chiếu'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (klgdStatus === 'PROCESSING' || triggering) ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2))',
+                border: '1px solid rgba(59, 130, 246, 0.4)',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#60a5fa',
+                    flexShrink: 0
+                  }}>
+                    <Loader2 size={20} className="animate-spin" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#93c5fd' }}>
+                      Bot đang thực hiện quy trình đối soát...
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Đang tự động tải báo cáo DSGD/TTM từ M-System, file CQG và đối chiếu khớp lệnh.
+                    </div>
+                  </div>
+                </div>
+                {klgdLogs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLogModal(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Terminal size={14} />
+                    <span>Xem Log tiến trình</span>
+                  </button>
+                )}
+              </div>
+            ) : null}
+
+            {/* ROW 1: TOOLBAR KIỂM SOÁT ĐỊNH KỲ & THỜI ĐIỂM CHECK */}
+            <div className="glass-panel" style={{
+              padding: '16px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}>
+              {/* Bên trái: Check định kỳ */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setCheckPeriodic(!checkPeriodic)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {checkPeriodic ? (
+                    <CheckSquare size={20} color="#10b981" />
+                  ) : (
+                    <Square size={20} color="var(--text-muted)" />
+                  )}
+                  <span>Check định kỳ (phút):</span>
+                </button>
+
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={intervalMinutes}
+                  onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+                  className="form-input"
+                  style={{
+                    width: '80px',
+                    height: '38px',
+                    textAlign: 'center',
+                    fontSize: '0.9rem',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                  }}
+                />
+
+                {checkPeriodic && countdownSeconds > 0 && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                    color: '#0284c7',
+                    border: '1px solid rgba(2, 132, 199, 0.3)',
+                  }}>
+                    <Clock size={14} />
+                    <span>Quét lại sau: <strong>{Math.floor(countdownSeconds / 60)}p {countdownSeconds % 60}s</strong></span>
+                  </span>
+                )}
+              </div>
+
+              {/* Bên phải: Thời điểm check gần nhất */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                  Thời điểm check gần nhất:
+                </span>
+                <span style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  letterSpacing: '0.05em',
+                }}>
+                  {lastCheckedFormatted}
+                </span>
+              </div>
+            </div>
+
+            {/* BẢNG MA TRẬN 3 DÒNG x 4 CỘT (To rõ, font đẹp, không rớt dòng Dữ liệu) */}
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    borderBottom: '1px solid var(--border-color)',
+                  }}>
+                    <th style={{ width: '60px', padding: '14px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allChecked = checkKlgd && checkTtm && checkTttt;
+                          setCheckKlgd(!allChecked);
+                          setCheckTtm(!allChecked);
+                          setCheckTttt(!allChecked);
+                        }}
+                        title={checkKlgd && checkTtm && checkTttt ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}
+                      >
+                        {checkKlgd && checkTtm && checkTttt ? (
+                          <CheckSquare size={18} color="#10b981" />
+                        ) : checkKlgd || checkTtm || checkTttt ? (
+                          <CheckSquare size={18} color="#10b981" style={{ opacity: 0.5 }} />
+                        ) : (
+                          <Square size={18} color="var(--text-muted)" />
+                        )}
+                      </button>
+                    </th>
+                    <th style={{ width: '180px', padding: '14px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      Dữ liệu
+                    </th>
+                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0284c7', fontWeight: 800 }}>
+                        <Server size={15} /> M-System
+                      </span>
+                    </th>
+                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 800 }}>
+                        <Activity size={15} /> CQG
+                      </span>
+                    </th>
+                    <th style={{ width: '23%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 800 }}>
+                        <FileSpreadsheet size={15} /> ACM (Straits)
+                      </span>
+                    </th>
+                    <th style={{ width: '23%', padding: '14px 20px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 800 }}>
+                      Nano
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* DÒNG 1: KLGD */}
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s' }}>
+                    <td style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid var(--border-color)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <button type="button" onClick={() => setCheckKlgd(!checkKlgd)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        {checkKlgd ? <CheckSquare size={18} color="#10b981" /> : <Square size={18} color="var(--text-muted)" />}
+                      </button>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                        color: '#0284c7',
+                        border: '1px solid rgba(2, 132, 199, 0.3)',
+                      }}>
+                        KLGD
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#0284c7' }}>
+                      {fmt(msDSGD)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#10b981' }}>
+                      {fmt(cqgFR)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#f59e0b' }}>
+                      {fmt(acmStraits)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                      {fmt(nanoLots)}
+                    </td>
+                  </tr>
+
+                  {/* DÒNG 2: TTM */}
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s' }}>
+                    <td style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid var(--border-color)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <button type="button" onClick={() => setCheckTtm(!checkTtm)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        {checkTtm ? <CheckSquare size={18} color="#10b981" /> : <Square size={18} color="var(--text-muted)" />}
+                      </button>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                      }}>
+                        TTM
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(msTTM)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(cqgTTM)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(acmTTM)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                      {fmt(nanoTTM)}
+                    </td>
+                  </tr>
+
+                  {/* DÒNG 3: TTTT */}
+                  <tr style={{ transition: 'background-color 0.15s' }}>
+                    <td style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid var(--border-color)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <button type="button" onClick={() => setCheckTttt(!checkTttt)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        {checkTttt ? <CheckSquare size={18} color="#10b981" /> : <Square size={18} color="var(--text-muted)" />}
+                      </button>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                      }}>
+                        TTTT
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(msTTTT)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(cqgPS)}
+                    </td>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      {fmt(acmTTTT)}
+                    </td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                      {fmt(nanoTTTT)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* ACTION BAR: DATE PICKER | CHECK THỦ CÔNG | CHECK | CHUÔNG (Nút bấm to rõ theo chuẩn Bot Config) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Date Input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="form-input"
+                  style={{
+                    height: '42px',
+                    padding: '8px 14px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    width: '160px',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+
+              {/* Check thủ công */}
+              <button
+                type="button"
+                onClick={() => handleTriggerRun('CHECK_KLGD', 'manual')}
+                disabled={triggering}
+                className="btn btn-secondary"
+                style={{
+                  height: '42px',
+                  padding: '10px 20px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                <Play size={15} className={triggering && triggeringSection === 'manual' ? 'animate-spin' : ''} />
+                <span>{triggering && triggeringSection === 'manual' ? 'Đang chạy...' : 'Check thủ công'}</span>
+              </button>
+
+              {/* Check (Làm mới) */}
+              <button
+                type="button"
+                onClick={() => fetchConsoleSummary(selectedDate)}
+                disabled={loading}
+                className="btn btn-primary"
+                style={{
+                  height: '42px',
+                  padding: '10px 24px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                <span>Check</span>
+              </button>
+
+              {/* Chuông thông báo âm thanh */}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !soundAlertEnabled;
+                  setSoundAlertEnabled(next);
+                  if (next) {
+                    toast.success('Đã bật âm báo khi phát hiện lệch');
+                    playAlertSound();
+                  } else {
+                    toast('Đã tắt âm báo', { icon: '🔕' });
+                  }
+                }}
+                title={soundAlertEnabled ? 'Chuông cảnh báo: Đang BẬT' : 'Chuông cảnh báo: Đang TẮT'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '42px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: soundAlertEnabled ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-color)',
+                  backgroundColor: soundAlertEnabled ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-input)',
+                  color: soundAlertEnabled ? '#f59e0b' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {soundAlertEnabled ? (
+                  <>
+                    <Bell size={16} className="animate-bounce" />
+                    <span>Âm báo: Bật</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff size={16} />
+                    <span>Âm báo: Tắt</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* KHUNG CHI TIẾT GIAO DỊCH CHÊNH LỆCH / CHI TIẾT TTM CHÊNH LỆCH */}
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+              {/* Sub-Tabs Header */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 16px 0 16px',
+                backgroundColor: 'var(--bg-input)',
+                borderBottom: '1px solid var(--border-color)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setDiscrepancyTab('TRADE')}
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    borderRadius: '8px 8px 0 0',
+                    border: 'none',
+                    borderBottom: discrepancyTab === 'TRADE' ? '2px solid #10b981' : '2px solid transparent',
+                    color: discrepancyTab === 'TRADE' ? '#10b981' : 'var(--text-secondary)',
+                    backgroundColor: discrepancyTab === 'TRADE' ? 'var(--bg-card)' : 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Chi tiết giao dịch chênh lệch ({mismatchedTrades.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiscrepancyTab('TTM')}
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    borderRadius: '8px 8px 0 0',
+                    border: 'none',
+                    borderBottom: discrepancyTab === 'TTM' ? '2px solid #10b981' : '2px solid transparent',
+                    color: discrepancyTab === 'TTM' ? '#10b981' : 'var(--text-secondary)',
+                    backgroundColor: discrepancyTab === 'TTM' ? 'var(--bg-card)' : 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Chi tiết TTM chênh lệch ({mismatchedTTM.length})
+                </button>
+              </div>
+
+              {/* DataGrid View (Chia đều tỉ lệ 16.6% cho 6 cột, chữ to, rõ ràng) */}
+              <div style={{ height: '220px', minHeight: '200px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)', zIndex: 10 }}>
+                    <tr style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      borderBottom: '1px solid var(--border-color)',
+                    }}>
+                      <th style={{ width: '17%', padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>Mã lệnh</th>
+                      <th style={{ width: '17%', padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>Mã TKGD</th>
+                      <th style={{ width: '16%', padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>Mã HĐ</th>
+                      <th style={{ width: '16%', padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>Giá khớp</th>
+                      <th style={{ width: '16%', padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>Khối lượng</th>
+                      <th style={{ width: '18%', padding: '12px 16px', textAlign: 'center' }}>Thời gian khớp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discrepancyTab === 'TRADE' ? (
+                      mismatchedTrades.length > 0 ? (
+                        mismatchedTrades.map((item: any, idx: number) => (
+                          <tr key={idx} style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            color: '#ef4444',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                          }}>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>{item.orderId || item.code || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{item.account || item.accountCode || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>{item.symbol || item.commodity || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>{fmt(item.price || 0)}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem' }}>{fmt(item.qty || item.lot || 0)}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>{item.time || item.tradeTime || '--'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <div style={{
+                              display: 'inline-flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '24px 36px',
+                              borderRadius: '16px',
+                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                            }}>
+                              <CheckCircle size={32} color="#10b981" />
+                              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
+                                Số Liệu Khớp Hoàn Toàn Tuyệt Đối (Độ lệch: 0 lot)
+                              </span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Không có giao dịch hoặc mã lệnh nào bị lệch giữa M-System, CQG và ACM.
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    ) : (
+                      mismatchedTTM.length > 0 ? (
+                        mismatchedTTM.map((item: any, idx: number) => (
+                          <tr key={idx} style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                            color: '#f59e0b',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                          }}>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>{item.orderId || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{item.account || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>{item.symbol || '--'}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>{fmt(item.price || 0)}</td>
+                            <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem' }}>{fmt(item.qty || 0)}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>{item.time || '--'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <div style={{
+                              display: 'inline-flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '24px 36px',
+                              borderRadius: '16px',
+                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                            }}>
+                              <CheckCircle size={32} color="#10b981" />
+                              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
+                                Khớp Lệnh TTM Hoàn Toàn (0 Lệnh Lệch)
+                              </span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Không phát hiện chênh lệch giao dịch Thỏa Thuận Mở trong phiên này.
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* KHUNG 2 CỘT SONG SONG: CHECK DSGD TRƯỚC EOD & KẾT QUẢ CHẠY EOD */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
+              
+              {/* CỘT TRÁI: Check DSGD trước EOD (~40%) */}
+              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  backgroundColor: 'var(--bg-input)',
+                  borderBottom: '1px solid var(--border-color)',
+                }}>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Check DSGD trước EOD
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => handleTriggerRun('SCAN_NEGATIVE_MARGIN', 'dsgd')}
+                    disabled={triggering}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.75rem', padding: '6px 14px', fontWeight: 700 }}
+                  >
+                    {triggering && triggeringSection === 'dsgd' ? 'Checking...' : 'Check'}
+                  </button>
+                </div>
+
+                <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                      <tr style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        borderBottom: '1px solid var(--border-color)',
+                      }}>
+                        <th style={{ padding: '10px 16px' }}>TKGD âm KQ mới ({negativeMarginAccounts.length})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {negativeMarginAccounts.length > 0 ? (
+                        negativeMarginAccounts.map((acc, idx) => (
+                          <tr key={idx} style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            color: '#ef4444',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                          }}>
+                            <td style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <AlertTriangle size={15} color="#ef4444" />
+                              <span>{acc}</span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td style={{ padding: '40px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <ShieldCheck size={28} color="#10b981" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
+                                An Toàn: Không có tài khoản âm ký quỹ mới
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* CỘT PHẢI: Kết quả chạy EOD (~60%) */}
+              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  backgroundColor: 'var(--bg-input)',
+                  borderBottom: '1px solid var(--border-color)',
+                }}>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Kết quả chạy EOD
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => handleTriggerRun('CHECK_PRE_EOD', 'eod')}
+                    disabled={triggering}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.75rem', padding: '6px 14px', fontWeight: 700 }}
+                  >
+                    {triggering && triggeringSection === 'eod' ? 'Checking...' : 'Check'}
+                  </button>
+                </div>
+
+                <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                      <tr style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        borderBottom: '1px solid var(--border-color)',
+                      }}>
+                        <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)' }}>TKGD</th>
+                        <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)' }}>QLTKGD</th>
+                        <th style={{ width: '34%', padding: '10px 16px' }}>EOD result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summaryData?.preEod?.mismatchedPositions && summaryData.preEod.mismatchedPositions.length > 0 ? (
+                        summaryData.preEod.mismatchedPositions.map((p: any, idx: number) => (
+                          <tr key={idx} style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            color: '#ef4444',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                          }}>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{p.account || '--'}</td>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)' }}>{p.msPosition ?? '--'}</td>
+                            <td style={{ padding: '10px 16px', fontWeight: 700 }}>{p.cqgPosition ?? '--'} (Lệch: {p.differ})</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <CheckCircle size={28} color="#10b981" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
+                                Tất cả vị thế và kết quả EOD khớp hoàn toàn
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* KHUNG DƯỚI CÙNG: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG */}
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 20px',
+                backgroundColor: 'var(--bg-input)',
+                borderBottom: '1px solid var(--border-color)',
+              }}>
+                <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Kết quả đồng bộ số dư CQG
+                </h5>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerRun('SCAN_NEGATIVE_MARGIN', 'balance')}
+                  disabled={triggering}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '6px 14px', fontWeight: 700 }}
+                >
+                  {triggering && triggeringSection === 'balance' ? 'Checking...' : 'Check'}
+                </button>
+              </div>
+
+              <div style={{ height: '160px', minHeight: '140px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                    <tr style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      borderBottom: '1px solid var(--border-color)',
+                    }}>
+                      <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)' }}>TKGD</th>
+                      <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>Balance MS</th>
+                      <th style={{ width: '34%', padding: '10px 16px', textAlign: 'right' }}>Balance CQG</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData?.negativeMargin?.negativeBalanceAccs && summaryData.negativeMargin.negativeBalanceAccs.length > 0 ? (
+                      summaryData.negativeMargin.negativeBalanceAccs.map((acc: string, idx: number) => (
+                        <tr key={idx} style={{
+                          borderBottom: '1px solid var(--border-color)',
+                          backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                          color: '#f59e0b',
+                          fontFamily: 'monospace',
+                          fontSize: '0.85rem',
+                        }}>
+                          <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{acc}</td>
+                          <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>&lt; 0 (Âm tiền)</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>Đang đối chiếu</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle size={28} color="#10b981" />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
+                              Số dư tài khoản đồng bộ khớp hoàn toàn giữa MS và CQG
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : topTab === 'BACKUP_THONG_KE_GTT' ? (
+          /* TAB 2: BACKUP - THỐNG KÊ - GTT */
+          <div className="glass-panel" style={{ padding: '40px 24px', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto',
+              color: '#10b981',
+            }}>
+              <Database size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+              Hệ Thống Sao Lưu & Thống Kê Giao Dịch Tập Trung
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 24px 0' }}>
+              Tất cả các tệp tin báo cáo ngày (DSGD, TTM, TTTT, QLTKGD, FR, PS, Straits) được tải tự động và lưu trữ an toàn tại đường dẫn chia sẻ mạng nội bộ trên máy chủ Ubuntu.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+              <Link
+                href="/admin/upload-backup"
+                className="btn btn-primary"
+                style={{ fontSize: '0.85rem', padding: '10px 20px', textDecoration: 'none' }}
+              >
+                Mở Thư Mục Backup
+              </Link>
+              <Link
+                href="/history"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', padding: '10px 20px', textDecoration: 'none' }}
+              >
+                Tra Cứu Lịch Sử Ca
+              </Link>
+            </div>
+          </div>
+        ) : (
+          /* TAB 3: CẤU HÌNH - ĐƯỜNG DẪN */
+          <div className="glass-panel" style={{ padding: '32px', maxWidth: '800px', margin: '0 auto' }}>
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '12px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              <Sliders size={20} color="#10b981" />
+              <span>Cấu Hình Đường Dẫn Hệ Thống Đối Soát</span>
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Đường dẫn Backup M-System:
+                </label>
+                <input
+                  readOnly
+                  value="/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures"
+                  className="form-input"
+                  style={{ fontSize: '0.8rem', fontFamily: 'monospace', padding: '10px 14px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Đường dẫn Backup CQG:
+                </label>
+                <input
+                  readOnly
+                  value="/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures"
+                  className="form-input"
+                  style={{ fontSize: '0.8rem', fontFamily: 'monospace', padding: '10px 14px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Đường dẫn Backup ACM Straits CSV:
+                </label>
+                <input
+                  readOnly
+                  value="/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup ACM"
+                  className="form-input"
+                  style={{ fontSize: '0.8rem', fontFamily: 'monospace', padding: '10px 14px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Mốc giờ bắt đầu phiên (Session Start):
+                </label>
+                <input
+                  readOnly
+                  value="05:00 AM (Lọc loại trừ lệnh xuyên đêm T-1)"
+                  className="form-input"
+                  style={{ fontSize: '0.8rem', fontFamily: 'monospace', padding: '10px 14px', color: '#10b981', fontWeight: 700 }}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <Link
+                href="/admin/bot-config"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: '#10b981',
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Cấu Hình Tham Số Bot Toàn Diện</span>
+                <ExternalLink size={14} />
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* STATUS FOOTER (Chuẩn hóa thanh trạng thái) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          backgroundColor: 'var(--bg-input)',
+          border: '1px solid var(--border-color)',
+          fontSize: '0.82rem',
+          color: 'var(--text-secondary)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} className="animate-pulse" />
+              <span>Hệ thống: <strong style={{ color: 'var(--text-primary)' }}>Online</strong></span>
+            </span>
+            <span>•</span>
+            <span>Phiên làm việc: <strong style={{ color: 'var(--text-primary)' }}>{selectedDate || 'Hôm nay'}</strong></span>
+            <span>•</span>
+            <span>
+              Độ lệch: <strong style={{ color: isDiffer ? '#ef4444' : '#10b981', fontFamily: 'monospace', fontWeight: 800 }}>
+                {!isDiffer ? '0 lot (Khớp 100%)' : `${totals.differ} lot`}
+              </strong>
+            </span>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Server: 10.0.0.26:3001
+          </div>
+        </div>
+
+        {/* LOG VIEWER MODAL (Adaptive Theme via CSS Variables & createPortal) */}
+        {showLogModal && mounted && typeof document !== 'undefined' && createPortal(
+          <div
+            onClick={() => setShowLogModal(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(15, 23, 42, 0.55)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 999999,
+              padding: '24px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                maxWidth: '920px',
+                width: '100%',
+                maxHeight: '88vh',
+                height: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: 'var(--glass-shadow, 0 20px 45px -10px rgba(0, 0, 0, 0.15))',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: '16px 22px',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-card)',
+                flexShrink: 0,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Terminal size={19} color="var(--color-accent, #3b82f6)" />
+                  <span style={{ fontWeight: 800, fontSize: '0.96rem', color: 'var(--text-primary)' }}>
+                    Nhật ký thực thi Bot Đối Soát (Job ID: {summaryData?.klgd?.jobId ? String(summaryData.klgd.jobId).slice(-8) : 'N/A'})
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    backgroundColor: klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.12)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                    color: klgdStatus === 'FAILED' ? '#ef4444' : klgdStatus === 'COMPLETED' ? '#10b981' : '#3b82f6',
+                    border: `1px solid ${klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.25)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`,
+                  }}>
+                    {klgdStatus}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(false)}
+                  style={{
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                  }}
+                  title="Đóng (Esc)"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Body: Monospace Logs Container */}
+              <div style={{
+                padding: '18px 22px',
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                minHeight: '220px',
+                maxHeight: 'calc(88vh - 145px)',
+                overflow: 'hidden',
+                backgroundColor: 'var(--bg-card)',
+              }}>
+                <div style={{
+                  padding: '16px',
+                  overflowY: 'auto',
+                  fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                  fontSize: '0.82rem',
+                  lineHeight: '1.65',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}>
+                  {klgdLogs.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+                      Chưa có nhật ký ghi nhận cho phiên chạy này.
+                    </div>
+                  ) : (
+                    klgdLogs.map((logLine: string, idx: number) => {
+                      const isErr = logLine.includes('') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
+                      const isSuccess = logLine.includes('') || logLine.includes('thành công') || logLine.includes('khớp');
+                      const isWarn = logLine.includes('') || logLine.toLowerCase().includes('timeout') || logLine.includes('bỏ qua');
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            color: isErr ? '#dc2626' : isSuccess ? '#16a34a' : isWarn ? '#d97706' : 'var(--text-primary)',
+                            fontWeight: (isErr || isSuccess || isWarn) ? 600 : 400,
+                            wordBreak: 'break-word',
+                            padding: '2px 0',
+                            borderBottom: '1px dashed var(--border-color)',
+                          }}
+                        >
+                          {logLine}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{
+                padding: '14px 22px',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-card)',
+                flexShrink: 0,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(false)}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogModal(false);
+                    handleTriggerRun('CHECK_KLGD', 'TABLE1');
+                  }}
+                  disabled={triggering}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: 'var(--color-accent, #3b82f6)',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: triggering ? 'not-allowed' : 'pointer',
+                    opacity: triggering ? 0.7 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
+                  <span>Chạy lại đối soát</span>
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    </ProtectedRoute>
+  );
+}

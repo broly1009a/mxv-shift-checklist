@@ -25,7 +25,9 @@ import { HealthChecksWidget } from './components/HealthChecksWidget';
 import { PerformanceOverview } from './components/PerformanceOverview';
 import { ActiveIncidentsWidget } from './components/ActiveIncidentsWidget';
 import { MarginChangeRequestsWidget } from './components/MarginChangeRequestsWidget';
+import { TradingManagerWidget } from './components/TradingManagerWidget';
 import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/Skeleton';
+
 
 // Import Reusable UI Components
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
@@ -108,14 +110,14 @@ export default function DashboardPage() {
 
   // Draggable Widgets
   const [leftWidgets, setLeftWidgets] = useState<string[]>(['chart', 'activeIncidents', 'activeShifts', 'history']);
-  const [rightWidgets, setRightWidgets] = useState<string[]>(['initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks']);
+  const [rightWidgets, setRightWidgets] = useState<string[]>(['tradingManager', 'initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks']);
   const [draggedWidget, setDraggedWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [dragOverWidget, setDragOverWidget] = useState<{ id: string; col: 'left' | 'right' } | null>(null);
   const [canDragId, setCanDragId] = useState<string | null>(null);
 
   useEffect(() => {
     const defaultLeft = ['chart', 'activeIncidents', 'activeShifts', 'history'];
-    const defaultRight = ['initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks'];
+    const defaultRight = ['tradingManager', 'initShift', 'autoShift', 'marginChangeRequests', 'templatesSummary', 'healthChecks'];
 
     const savedLeft = localStorage.getItem('mxv_dash_left_widgets');
     const savedRight = localStorage.getItem('mxv_dash_right_widgets');
@@ -466,10 +468,14 @@ export default function DashboardPage() {
         if (!canAccessMarginChange) return null;
         return <div id="tutorial-widget-margin"><MarginChangeRequestsWidget token={token} currentUser={user} /></div>;
 
+      case 'tradingManager':
+        return <div id="tutorial-widget-trading-manager"><TradingManagerWidget dateStr={dashboardDate} /></div>;
+
       default:
         return null;
     }
   };
+
 
   const renderDraggableWidget = (widgetId: string, col: 'left' | 'right') => {
     const isDragged = draggedWidget?.id === widgetId && draggedWidget?.col === col;

@@ -21,6 +21,7 @@ import {
 import { extractHopDongPdf, extractPhuLucPdf } from '../../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../../bot-engine/helpers/tkgd-python-bridge.helper';
 import { getTkgdAttachmentDirectory } from '../../bot-engine/helpers/tkgd-reconcile-exporter.helper';
+import { decrypt } from '../../bot-engine/utils/crypto';
 
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
@@ -77,6 +78,23 @@ export class TkgdMailIngestService {
     private readonly progressService: TkgdProgressService,
     @Optional() private readonly settingsService?: SystemSettingsService,
   ) {}
+
+  /**
+   * Lấy Gemini API Key từ biến môi trường hoặc cấu hình hệ thống (bot_credentials_acm)
+   */
+  private async getGeminiApiKey(): Promise<string> {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    try {
+      if (this.settingsService) {
+        const raw = await this.settingsService.getSetting('bot_credentials_acm', '');
+        if (raw) {
+          const cred = JSON.parse(decrypt(raw));
+          if (cred?.geminiApiKey) return cred.geminiApiKey;
+        }
+      }
+    } catch { }
+    return '';
+  }
 
   /**
    * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
@@ -398,12 +416,15 @@ export class TkgdMailIngestService {
           const cccdBackPath = picked.backPath;
 
           try {
+            const geminiKey = await this.getGeminiApiKey();
             const pythonRes = await runPythonExtractor({
               accountCode: baseCode,
+              accountName: group.tenTaiKhoan,
               hopDongPath,
               phuLucPath,
               cccdFrontPath,
               cccdBackPath,
+              geminiKey,
             });
 
             if (pythonRes) {

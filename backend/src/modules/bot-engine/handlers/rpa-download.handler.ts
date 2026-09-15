@@ -16,7 +16,7 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -218,7 +218,7 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
             const destFile = path.join(destFolder, filename);
             fs.copyFileSync(srcFile, destFile);
             job.logs.push(
-              `[${new Date().toISOString()}] ✅ Copied ${filename} to ${destFile}`,
+              `[${new Date().toISOString()}]  Copied ${filename} to ${destFile}`,
             );
           }
         }

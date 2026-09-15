@@ -62,6 +62,7 @@ export class ShiftLogDetail {
     enum: [
       'PENDING',
       'WAITING',
+      'IN_PROGRESS',
       'PASSED',
       'FAILED',
       'SKIPPED',

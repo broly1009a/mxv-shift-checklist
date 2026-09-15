@@ -1,6 +1,6 @@
 # 📋 CHECKLIST THU THẬP INPUT — Dự Án TKGD Automation
 
-**Hướng dẫn:** Tick ✅ khi đã có file, note tên file cụ thể vào cột bên phải.
+**Hướng dẫn:** Tick  khi đã có file, note tên file cụ thể vào cột bên phải.
 
 ---
 
@@ -36,7 +36,7 @@
 | 3.3 | Ảnh CCCD bị mờ/lóa (test edge case) | ⬜ Không bắt buộc | |
 
 **→ Thư mục:** `inputs/cccd-samples/`  
-**⚠️ Dùng ảnh đã che số CMND/CCCD hoặc ảnh fake để test.**
+** Dùng ảnh đã che số CMND/CCCD hoặc ảnh fake để test.**
 
 ---
 
@@ -56,7 +56,7 @@
 
 | # | File cần | Tình trạng | Tên file thực tế |
 |---|---|---|---|
-| 5.1 | Tài liệu API MXV v2.13 | ✅ **Đã có** | `KetNoiAPI_WS.v2.13.md` |
+| 5.1 | Tài liệu API MXV v2.13 |  **Đã có** | `KetNoiAPI_WS.v2.13.md` |
 | 5.2 | Screenshot màn hình Danh sách TK trên MS | ⬜ Chưa có | |
 | 5.3 | Screenshot màn hình **Chi tiết TK** trên MS | ⬜ **Quan trọng** | |
 | 5.4 | Screenshot màn hình Tìm kiếm TK | ⬜ Chưa có | |

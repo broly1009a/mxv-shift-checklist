@@ -16,7 +16,7 @@ async function updateActiveShift() {
     if (parentIdx === -1) continue;
 
     console.log(`Found TASK_CHECK_EOD in shift ${activeShift._id} (status: ${activeShift.status})`);
-    
+
     const hasBotSub1 = tasks.some(t => t.taskId === 'TASK_CHECK_EOD_sb1');
     if (!hasBotSub1) {
       const parentTask = tasks[parentIdx];
@@ -49,7 +49,7 @@ async function updateActiveShift() {
         { _id: activeShift._id },
         { $set: { tasks: tasks } }
       );
-      console.log(`✅ Inserted 2 Bot subtasks into shift ${activeShift._id}`);
+      console.log(` Inserted 2 Bot subtasks into shift ${activeShift._id}`);
     }
   }
 

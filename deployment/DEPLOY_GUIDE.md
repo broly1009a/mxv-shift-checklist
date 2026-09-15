@@ -190,9 +190,9 @@ curl -I http://localhost
 docker compose exec backend node -e "
 const mongoose = require('mongoose');
 mongoose.connect(process.env.MONGODB_URI).then(() => {
-  console.log('✅ MongoDB kết nối thành công');
+  console.log(' MongoDB kết nối thành công');
   process.exit(0);
-}).catch(e => { console.error('❌ Lỗi:', e.message); process.exit(1); });
+}).catch(e => { console.error(' Lỗi:', e.message); process.exit(1); });
 "
 ```
 
@@ -262,12 +262,12 @@ setup_agent.bat
 ```
 
 Script sẽ tự động thực hiện:
-1. ✅ Kiểm tra Python đã cài
-2. ✅ Tạo Python virtual environment (`venv/`)
-3. ✅ Cài `requests`, `psutil`
-4. ✅ Cài `pywin32` (cho Excel COM automation)
-5. ✅ Test kết nối thử tới Backend Linux
-6. ✅ Hỏi có muốn đăng ký Windows Task Scheduler không
+1.  Kiểm tra Python đã cài
+2.  Tạo Python virtual environment (`venv/`)
+3.  Cài `requests`, `psutil`
+4.  Cài `pywin32` (cho Excel COM automation)
+5.  Test kết nối thử tới Backend Linux
+6.  Hỏi có muốn đăng ký Windows Task Scheduler không
 
 ### Bước 5.4. Chạy thử Agent để kiểm tra
 
@@ -360,7 +360,7 @@ COMPLETED  →  (Agent upload kết quả, Backend lưu file)
 | `PENDING` | Đang chờ Agent poll (tối đa 5 giây) | Chờ |
 | `PROCESSING` | Agent đang thực thi Macro/Playwright | Chờ, xem logs |
 | `AWAITING_CAPTCHA` | Captcha xuất hiện, cần người nhập | Vào Web UI nhập captcha |
-| `COMPLETED` | Thành công, file đã upload về Linux | ✅ |
+| `COMPLETED` | Thành công, file đã upload về Linux |  |
 | `FAILED` | Thất bại sau khi hết số lần thử | Xem logs, fix lỗi, enqueue lại |
 
 ---

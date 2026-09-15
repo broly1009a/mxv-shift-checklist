@@ -42,6 +42,10 @@ const syncDirs = [
     remoteDir: '/opt/mxv-checklist/backend/src/modules/lot-statistics',
   },
   {
+    localDir: path.join(repoRoot, 'backend/src/modules/ccp-statistics'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/ccp-statistics',
+  },
+  {
     localDir: path.join(repoRoot, 'backend/src/schemas'),
     remoteDir: '/opt/mxv-checklist/backend/src/schemas',
   },
@@ -62,10 +66,67 @@ const syncDirs = [
     remoteDir: '/opt/mxv-checklist/backend/src/scripts/python',
   },
   {
-    localDir: path.join(repoRoot, 'backend/test'),
-    remoteDir: '/opt/mxv-checklist/backend/test',
+    localDir: path.join(repoRoot, 'backend/src/modules/reconciliation'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/reconciliation',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/dashboard'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/dashboard',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/telegram'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/telegram',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/system-settings'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/system-settings',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/margin-checker'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/margin-checker',
+  },
+  {
+    localDir: path.join(repoRoot, 'backend/src/modules/notifications'),
+    remoteDir: '/opt/mxv-checklist/backend/src/modules/notifications',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/trading-manager'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/trading-manager',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/trading-manager'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/trading-manager',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/bot-config'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/bot-config',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/dashboard'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/dashboard',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/components/admin'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/components/admin',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/checklist'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/checklist',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/templates'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/templates',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/app/admin/upload-backup'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/upload-backup',
+  },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/components/ui'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/components/ui',
   },
 ];
+
 
 let filesToUpload = [];
 
@@ -84,10 +145,6 @@ syncDirs.forEach(({ localDir, remoteDir }) => {
 // 2. Các file đơn lẻ quan trọng
 const specificFiles = [
   {
-    local: path.join(repoRoot, 'backend/package.json'),
-    remote: '/opt/mxv-checklist/backend/package.json',
-  },
-  {
     local: path.join(repoRoot, 'backend/src/app.module.ts'),
     remote: '/opt/mxv-checklist/backend/src/app.module.ts',
   },
@@ -104,7 +161,12 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/tkgd_extractor_worker.py',
   },
   {
+    local: path.join(repoRoot, 'backend/src/scripts/python/recon_data_worker.py'),
+    remote: '/opt/mxv-checklist/backend/dist/scripts/python/recon_data_worker.py',
+  },
+  {
     local: path.join(repoRoot, 'backend/assets/templates/Auto Data mail.xlsm'),
+
     remote: '/opt/mxv-checklist/backend/assets/templates/Auto Data mail.xlsm',
   },
   {
@@ -126,6 +188,10 @@ const specificFiles = [
   {
     local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/src/components/NotificationDropdown.tsx'),
+    remote: '/opt/mxv-checklist/frontend/src/components/NotificationDropdown.tsx',
   },
   {
     local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),
@@ -158,48 +224,77 @@ const conn = new Client();
 conn.on('ready', () => {
   console.log('Da ket noi SSH toi Ubuntu 10.0.0.26');
 
-  // 1. Tạo tất cả thư mục cha từ xa
-  const remoteDirs = Array.from(
-    new Set(filesToUpload.map((item) => path.dirname(item.remote).replace(/\\/g, '/')))
-  );
+  // Tao toan bo thu muc cha tren Ubuntu truoc khi upload
+  const uniqueDirs = [...new Set(filesToUpload.map((f) => path.dirname(f.remote).replace(/\\/g, '/')))];
+  console.log(`Dang kiem tra & tao ${uniqueDirs.length} thu muc tren Ubuntu...`);
+  const mkdirCmd = uniqueDirs.map((d) => `mkdir -p "${d}"`).join(' && ');
 
-  const mkdirCmd = `mkdir -p ${remoteDirs.join(' ')}`;
-  conn.exec(mkdirCmd, (err, stream) => {
-    if (err) {
-      console.error('Loi mkdir:', err);
+  conn.exec(mkdirCmd, (mkErr, mkStream) => {
+    if (mkErr) {
+      console.error('Mkdir error:', mkErr);
       conn.end();
       return;
     }
-    stream.on('data', (d) => process.stdout.write(d.toString()));
-    stream.on('close', () => {
-      console.log('Cac thu muc tren Ubuntu da san sang.');
+    mkStream.resume();
+    mkStream.stderr.resume();
+    mkStream.on('close', () => {
+      console.log('Da tao/kiem tra toan bo thu muc con tren Ubuntu san sang.');
 
-      // 2. Mở SFTP và upload tuần tự
+      // Mở SFTP và upload trực tiếp
       conn.sftp((sftpErr, sftp) => {
         if (sftpErr) {
           console.error('SFTP Error:', sftpErr);
           conn.end();
           return;
         }
+        console.log('SFTP san sang. Bat dau upload...');
 
-        let idx = 0;
-        function uploadNext() {
-          if (idx >= filesToUpload.length) {
-            console.log('\n=== TAT CA FILE DA DUOC DONG BO LEN UBUNTU THANH CONG! ===');
-            runBuildAndRestart();
+        let completed = 0;
+        let cursor = 0;
+        let isDone = false;
+        const CONCURRENCY = 8;
+
+        function startWorker() {
+          if (cursor >= filesToUpload.length) {
+            if (completed >= filesToUpload.length && !isDone) {
+              isDone = true;
+              console.log('\n=== TAT CA FILE DA DUOC DONG BO LEN UBUNTU THANH CONG! ===');
+              runBuildAndRestart();
+            }
             return;
           }
-          const item = filesToUpload[idx++];
-          sftp.fastPut(item.local, item.remote, (putErr) => {
-            if (putErr) {
-              console.error(`  ❌ Loi upload ${item.remote}:`, putErr.message);
-            } else {
-              console.log(`  [${idx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)} -> ${item.remote}`);
-            }
-            uploadNext();
-          });
+          const item = filesToUpload[cursor++];
+          const currentIdx = cursor;
+
+          try {
+            const content = fs.readFileSync(item.local);
+            sftp.writeFile(item.remote, content, (writeErr) => {
+              if (writeErr) {
+                sftp.fastPut(item.local, item.remote, (putErr) => {
+                  if (putErr) {
+                    console.error(`   Loi upload ${item.remote}:`, putErr.message);
+                  } else {
+                    console.log(`  [${currentIdx}/${filesToUpload.length}]  Uploaded: ${path.basename(item.local)}`);
+                  }
+                  completed++;
+                  startWorker();
+                });
+              } else {
+                console.log(`  [${currentIdx}/${filesToUpload.length}]  Uploaded: ${path.basename(item.local)}`);
+                completed++;
+                startWorker();
+              }
+            });
+          } catch (readErr) {
+            console.error(`   Loi doc file ${item.local}:`, readErr.message);
+            completed++;
+            startWorker();
+          }
         }
-        uploadNext();
+
+        for (let i = 0; i < CONCURRENCY; i++) {
+          startWorker();
+        }
       });
     });
   });
@@ -240,5 +335,5 @@ conn.on('ready', () => {
   port: 22,
   username: 'mxvadmin',
   password: 'MxV!,#2o26',
-  readyTimeout: 15000,
+  readyTimeout: 30000,
 });

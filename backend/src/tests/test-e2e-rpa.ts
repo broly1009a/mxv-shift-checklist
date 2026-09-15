@@ -27,7 +27,7 @@ async function runE2ETest() {
   const loginData = await loginRes.json();
   const token = loginData.access_token;
   console.log(
-    '✅ Đăng nhập thành công! Token:',
+    ' Đăng nhập thành công! Token:',
     token.substring(0, 15) + '...',
   );
 
@@ -48,7 +48,7 @@ async function runE2ETest() {
   }
   const triggerData = await triggerRes.json();
   const jobId = triggerData.jobId;
-  console.log(`✅ Tạo job thành công! Job ID: ${jobId}`);
+  console.log(` Tạo job thành công! Job ID: ${jobId}`);
 
   // 3. Giả lập quá trình chạy Job thành công (để không cần chạy thật qua Playwright)
   // Kết nối DB trực tiếp để giả lập trạng thái COMPLETED và lưu file giả lập
@@ -79,7 +79,7 @@ async function runE2ETest() {
   );
   fs.writeFileSync(path.join(tempJobDir, 'NR.xlsx'), 'NR Mock Excel Data');
   console.log(
-    `✅ Đã tạo các file báo cáo giả lập tại thư mục: temp/reports/${jobId}`,
+    ` Đã tạo các file báo cáo giả lập tại thư mục: temp/reports/${jobId}`,
   );
 
   // Cập nhật trạng thái job thành COMPLETED
@@ -101,7 +101,7 @@ async function runE2ETest() {
     },
   );
   console.log(
-    `✅ Cập nhật trạng thái Job sang COMPLETED thành công! Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`,
+    ` Cập nhật trạng thái Job sang COMPLETED thành công! Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`,
   );
 
   // 4. Download file ZIP qua API
@@ -123,7 +123,7 @@ async function runE2ETest() {
 
   const zipArrayBuffer = await downloadRes.arrayBuffer();
   const zipBuffer = Buffer.from(zipArrayBuffer);
-  console.log(`✅ Nhận được file ZIP. Dung lượng: ${zipBuffer.length} bytes`);
+  console.log(` Nhận được file ZIP. Dung lượng: ${zipBuffer.length} bytes`);
 
   // 5. Kiểm tra giải nén và cấu trúc file
   console.log(
@@ -153,14 +153,14 @@ async function runE2ETest() {
   fs.unlinkSync(path.join(tempJobDir, 'DSTKGD-Futures.xlsx'));
   fs.unlinkSync(path.join(tempJobDir, 'NR.xlsx'));
   fs.rmdirSync(tempJobDir);
-  console.log('✅ Đã dọn dẹp thư mục tạm thành công.');
+  console.log(' Đã dọn dẹp thư mục tạm thành công.');
 
   await connection.disconnect();
 
   if (passed) {
     console.log('\n TẤT CẢ CÁC BƯỚC TEST ĐÃ THÀNH CÔNG RỰC RỠ! ');
   } else {
-    console.error('\n❌ TEST THẤT BẠI!');
+    console.error('\n TEST THẤT BẠI!');
     process.exit(1);
   }
 }

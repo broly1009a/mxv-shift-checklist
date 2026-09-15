@@ -39,7 +39,7 @@ export class TeamsNotifierService {
     @InjectModel(NotificationLog.name)
     private readonly logModel: Model<NotificationLog>,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   /**
    * Helper to search header column index in sheet array row
@@ -400,7 +400,7 @@ export class TeamsNotifierService {
         },
         {
           type: 'TextBlock',
-          text: '⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
+          text: ' **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
           wrap: true,
           weight: 'Bolder',
           color: 'Warning',
@@ -1068,7 +1068,7 @@ export class TeamsNotifierService {
           },
           {
             type: 'TextBlock',
-            text: '⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
+            text: ' **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
             wrap: true,
             weight: 'Bolder',
             color: 'Warning',

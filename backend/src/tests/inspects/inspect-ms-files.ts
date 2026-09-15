@@ -6,7 +6,7 @@ function inspectFile(filePath: string, label: string) {
   console.log(`\n=================== INSPECTING ${label} ===================`);
   console.log(`Path: ${filePath}`);
   if (!fs.existsSync(filePath)) {
-    console.log('❌ File does not exist!');
+    console.log(' File does not exist!');
     return;
   }
   const workbook = XLSX.readFile(filePath);

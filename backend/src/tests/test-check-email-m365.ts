@@ -6,7 +6,7 @@ import { AppModule } from '../app.module';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
 
 async function run() {
-  console.log('🚀 Khởi tạo NestJS Application Context...');
+  console.log(' Khởi tạo NestJS Application Context...');
   const app = await NestFactory.createApplicationContext(AppModule);
   const settingsService = app.get(SystemSettingsService);
 
@@ -50,7 +50,7 @@ async function run() {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
-    console.log('✅ Lấy Access Token thành công!');
+    console.log(' Lấy Access Token thành công!');
 
     const searchSubject = "MXV M-System - Thông báo kết quả Job Snapshot dữ liệu";
     const targetSender = "minhle@mxv.vn";
@@ -101,11 +101,11 @@ async function run() {
     }
 
     if (!found) {
-      console.log('\n❌ Không tìm thấy thư nào từ người gửi "minhle@mxv.vn" khớp với các tiêu chí tìm kiếm.');
+      console.log('\n Không tìm thấy thư nào từ người gửi "minhle@mxv.vn" khớp với các tiêu chí tìm kiếm.');
     }
 
   } catch (err: any) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH CHẠY:');
+    console.error('\n LỖI TRONG QUÁ TRÌNH CHẠY:');
     console.error(err.message);
   } finally {
     await app.close();

@@ -20,6 +20,11 @@ export class SystemSettingsController {
     return { key, value };
   }
 
+  @Post('verify-storage-path')
+  async verifyStoragePath(@Body() body: { path: string }) {
+    return this.settingsService.verifyStoragePath(body.path);
+  }
+
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Post()

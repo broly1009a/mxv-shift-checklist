@@ -87,7 +87,7 @@ async function runWorker(args) {
 
 async function main() {
   console.log('='.repeat(75));
-  console.log('🚀 BẮT ĐẦU BỘ KIỂM THỬ MODULE SCAN CCCD (VERIFICATION TEST SUITE)');
+  console.log(' BẮT ĐẦU BỘ KIỂM THỬ MODULE SCAN CCCD (VERIFICATION TEST SUITE)');
   console.log('='.repeat(75));
   console.log(`- Python Worker: ${pythonWorker}`);
   console.log(`- Python Bin:    ${pythonBin}\n`);
@@ -101,13 +101,13 @@ async function main() {
       const v = tc.verify(res);
       if (v.pass) {
         passCount++;
-        console.log('✅ PASS');
+        console.log(' PASS');
         console.log(`   ↳ Chi tiết: ${v.details}`);
         if (res.canCuoc?.boundingBoxes && Object.keys(res.canCuoc.boundingBoxes).length > 0) {
           console.log(`   ↳ Bounding Boxes: ${JSON.stringify(res.canCuoc.boundingBoxes)}`);
         }
       } else {
-        console.log('❌ FAIL');
+        console.log(' FAIL');
         console.log(`   ↳ Chi tiết: ${v.details}`);
       }
     } catch (err) {
@@ -117,7 +117,7 @@ async function main() {
     console.log('-'.repeat(75));
   }
 
-  console.log(`\n📊 KẾT QUẢ TỔNG THỂ: ${passCount}/${testCases.length} Testcases ĐẠT (Pass Rate: ${Math.round(passCount / testCases.length * 100)}%)`);
+  console.log(`\n KẾT QUẢ TỔNG THỂ: ${passCount}/${testCases.length} Testcases ĐẠT (Pass Rate: ${Math.round(passCount / testCases.length * 100)}%)`);
   console.log('='.repeat(75));
 }
 

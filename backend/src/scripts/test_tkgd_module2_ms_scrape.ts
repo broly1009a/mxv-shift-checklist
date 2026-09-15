@@ -117,19 +117,19 @@ async function loginMSystem(
   }
 
 
-  console.log(`  ✅ Đăng nhập M-System thành công!`);
+  console.log(`   Đăng nhập M-System thành công!`);
   return { browser, page };
 }
 
 async function runModule2Test() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 2: RPA M-SYSTEM CÀO CHI TIẾT & LƯU KHỐI MS');
+  console.log(' KIỂM THỬ MODULE 2: RPA M-SYSTEM CÀO CHI TIẾT & LƯU KHỐI MS');
   console.log('='.repeat(70));
 
   // 1. Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const CleanRecordModel = mongoose.model(
     'CleanAccountRecord',
@@ -150,9 +150,9 @@ async function runModule2Test() {
   if (setting && (setting as any).value) {
     try {
       credentials = JSON.parse(decrypt((setting as any).value));
-      console.log(`  ✅ Nạp thành công tài khoản M-System: ${credentials.username}`);
+      console.log(`   Nạp thành công tài khoản M-System: ${credentials.username}`);
     } catch (e) {
-      console.warn('  ⚠️ Không thể giải mã cấu hình M-System. Cần kiểm tra lại khóa mã hóa.');
+      console.warn('   Không thể giải mã cấu hình M-System. Cần kiểm tra lại khóa mã hóa.');
     }
   }
 
@@ -169,7 +169,7 @@ async function runModule2Test() {
 
   // 3. Nếu chưa có credentials M-System thực tế, mô phỏng dữ liệu M-System theo ảnh chụp của anh
   if (!credentials || !credentials.username) {
-    console.log('\n⚠️ Chưa có tài khoản M-System thực tế được kích hoạt.');
+    console.log('\n Chưa có tài khoản M-System thực tế được kích hoạt.');
     console.log('👉 Chuyển sang chế độ MÔ PHỎNG DỮ LIỆU CÀO TỪ M-SYSTEM (theo đúng mẫu ảnh chụp thực tế).');
 
     // Tìm các record đã tạo từ Module 1
@@ -227,7 +227,7 @@ async function runModule2Test() {
       };
 
       await record.save();
-      console.log(`  ✅ Đã lưu khối MS vào MongoDB Atlas cho record ID: ${record._id}`);
+      console.log(`   Đã lưu khối MS vào MongoDB Atlas cho record ID: ${record._id}`);
     }
   } else {
     // 4. CHẠY THỰC TẾ TRÊN M-SYSTEM (Playwright)
@@ -332,7 +332,7 @@ async function runModule2Test() {
         console.log(`  💾 Đã cập nhật MongoDB khối MS cho tài khoản: ${code}`);
 
         if (isHeaded) {
-          console.log(`  ⏳ Đang giữ màn hình 3 giây để anh tiện quan sát...`);
+          console.log(`   Đang giữ màn hình 3 giây để anh tiện quan sát...`);
           await page.waitForTimeout(3000);
         }
       }
@@ -345,7 +345,7 @@ async function runModule2Test() {
 
   // 5. KIỂM CHỨNG DỮ LIỆU SAU KHI CẬP NHẬT
   console.log('\n' + '='.repeat(70));
-  console.log('📊 KIỂM CHỨNG KHỐI MS TRONG MONGODB ATLAS SAU KHI CẬP NHẬT:');
+  console.log(' KIỂM CHỨNG KHỐI MS TRONG MONGODB ATLAS SAU KHI CẬP NHẬT:');
   console.log('='.repeat(70));
 
   const updatedRecords = await CleanRecordModel.find({
@@ -367,10 +367,10 @@ async function runModule2Test() {
 
 
   await mongoose.disconnect();
-  console.log('\n✅ HOÀN THÀNH KIỂM THỬ MODULE 2 THÀNH CÔNG 100%!');
+  console.log('\n HOÀN THÀNH KIỂM THỬ MODULE 2 THÀNH CÔNG 100%!');
 }
 
 runModule2Test().catch((err) => {
-  console.error('❌ Lỗi Module 2 Test:', err);
+  console.error(' Lỗi Module 2 Test:', err);
   process.exit(1);
 });

@@ -225,22 +225,27 @@ export class TkgdConfigService {
     userEmail: string,
     tokenData: { refreshToken: string; authorizedEmail?: string },
   ) {
-    let config = await this.userConfigModel.findOne({ userEmail });
-    if (!config) {
-      config = new this.userConfigModel({
-        userEmail,
-        fullName: userEmail.split('@')[0],
-        department: 'Thanh toán bù trừ',
-      });
-    }
-    if (!config.outlook) (config as any).outlook = {};
-    config.outlook.refreshToken = tokenData.refreshToken;
+    const updateFields: any = {
+      'outlook.refreshToken': tokenData.refreshToken,
+      'outlook.tokenRenewedAt': new Date().toISOString(),
+    };
     if (tokenData.authorizedEmail) {
-      config.outlook.authorizedEmail = tokenData.authorizedEmail;
+      updateFields['outlook.authorizedEmail'] = tokenData.authorizedEmail;
     }
-    config.outlook.tokenRenewedAt = new Date().toISOString();
-    await config.save();
-    this.logger.log(`[TKGD-OUTLOOK] Đã lưu Refresh Token Outlook độc lập cho ${userEmail}`);
+
+    const config = await this.userConfigModel.findOneAndUpdate(
+      { userEmail },
+      {
+        $set: updateFields,
+        $setOnInsert: {
+          userEmail,
+          fullName: userEmail.split('@')[0],
+          department: 'Thanh toán bù trừ',
+        },
+      },
+      { new: true, upsert: true },
+    );
+    this.logger.log(`[TKGD-OUTLOOK] Đã lưu Refresh Token Outlook độc lập cho ${userEmail} (${tokenData.authorizedEmail || ''})`);
     return config;
   }
 
@@ -256,13 +261,17 @@ export class TkgdConfigService {
    * Hủy kết nối / Đăng xuất tài khoản Outlook độc lập của TKGD
    */
   async disconnectOutlook(userEmail: string) {
-    const config = await this.userConfigModel.findOne({ userEmail });
-    if (config && config.outlook) {
-      config.outlook.refreshToken = '';
-      config.outlook.authorizedEmail = '';
-      config.outlook.tokenRenewedAt = '';
-      await config.save();
-    }
+    await this.userConfigModel.updateOne(
+      { userEmail },
+      {
+        $set: {
+          'outlook.refreshToken': '',
+          'outlook.authorizedEmail': '',
+          'outlook.tokenRenewedAt': '',
+        },
+      },
+    );
+    this.logger.log(`[TKGD-OUTLOOK] Đã xóa token Outlook độc lập cho ${userEmail}`);
     return { success: true, message: 'Đã hủy kết nối tài khoản Outlook độc lập thành công' };
   }
 

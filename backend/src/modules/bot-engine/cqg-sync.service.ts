@@ -34,7 +34,7 @@ export const REQUIRED_CQG_FILES = [
 export class CqgSyncService {
   private readonly logger = new Logger(CqgSyncService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(private readonly settingsService: SystemSettingsService) { }
 
   /**
    * Retrieves the configured CQG backup base folder and resolves the daily subfolder.
@@ -138,6 +138,8 @@ export class CqgSyncService {
    */
   async autoMergeMissingFiles(
     targetDate: Date = new Date(),
+    keysToMerge?: Array<'FR' | 'OP' | 'Od' | 'PS'>,
+    forceRemerge: boolean = false,
   ): Promise<{ success: boolean; logs: string[] }> {
     const logs: string[] = [];
     const { fullPath } = await this.getDailyBackupPath(targetDate);
@@ -150,7 +152,7 @@ export class CqgSyncService {
 
     const audit = await this.scanCqgBackupFiles(targetDate);
     logs.push(
-      `Bắt đầu chạy quy trình tự động ghép file tại thư mục: ${fullPath}`,
+      `Bắt đầu chạy quy trình tự động ghép file tại thư mục: ${fullPath} (forceRemerge=${forceRemerge})`,
     );
 
     // Resolve M-System backup path for PS reconciliation
@@ -197,90 +199,130 @@ export class CqgSyncService {
       });
 
       if (missingRaw.length > 0) {
-        const msg = `⚠️ Bỏ qua ghép ${name}.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}`;
-        this.logger.warn(msg);
-        logs.push(msg);
-        return;
+        if (name === 'FR') {
+          const msg = `⚠️ Không ghép file FR.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.`;
+          this.logger.warn(msg);
+          logs.push(msg);
+          return;
+        }
+        if (missingRaw.length === rawKeys.length) {
+          const msg = `⚠️ Bỏ qua ghép ${name}.xlsx vì thiếu toàn bộ file nguồn: ${missingRaw.join(', ')}`;
+          this.logger.warn(msg);
+          logs.push(msg);
+          return;
+        }
       }
 
       try {
         logs.push(`Đang ghép file ${name}.xlsx...`);
         await mergeFn();
-        logs.push(`✅ Ghép file ${name}.xlsx thành công.`);
+        logs.push(` Ghép file ${name}.xlsx thành công.`);
       } catch (err: any) {
-        const msg = `❌ Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
+        const msg = ` Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
         this.logger.error(msg, err.stack);
         logs.push(msg);
       }
     };
 
+    const shouldMerge = (targetKey: string, rawKeys: string[]): boolean => {
+      if (forceRemerge) return true;
+      const mergedItem = audit.find((a) => a.key === targetKey);
+      if (!mergedItem || mergedItem.status !== 'OK' || !mergedItem.lastModified) return true;
+
+      const targetPath = path.join(fullPath, `${targetKey}.xlsx`);
+      if (fs.existsSync(targetPath)) {
+        try {
+          const stats = fs.statSync(targetPath);
+          if (stats.size < 2500) return true; // File rỗng/hỏng (<2.5KB) -> Bắt buộc ghép lại
+        } catch { }
+      }
+
+      // Kiểm tra xem có file raw nào mới hơn file đã ghép không
+      for (const rawKey of rawKeys) {
+        const rawItem = audit.find((a) => a.key === rawKey);
+        if (
+          rawItem &&
+          rawItem.status !== 'MISSING' &&
+          rawItem.lastModified &&
+          new Date(rawItem.lastModified).getTime() > new Date(mergedItem.lastModified).getTime()
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     // 1. Merge FR.xlsx
-    const frItem = audit.find((a) => a.key === 'FR');
-    if (!frItem || frItem.status !== 'OK') {
-      await runMerge(
-        'FR',
-        () =>
-          this.mergeFR(
-            path.join(fullPath, 'FR1.xlsx'),
-            path.join(fullPath, 'FR2.xlsx'),
-            path.join(fullPath, 'FR.xlsx'),
-          ),
-        ['FR1', 'FR2'],
-      );
-    } else {
-      logs.push(`FR.xlsx đã tồn tại và cập nhật hôm nay.`);
+    if (!keysToMerge || keysToMerge.includes('FR')) {
+      if (shouldMerge('FR', ['FR1', 'FR2'])) {
+        await runMerge(
+          'FR',
+          () =>
+            this.mergeFR(
+              path.join(fullPath, 'FR1.xlsx'),
+              path.join(fullPath, 'FR2.xlsx'),
+              path.join(fullPath, 'FR.xlsx'),
+            ),
+          ['FR1', 'FR2'],
+        );
+      } else {
+        logs.push(`FR.xlsx đã tồn tại và cập nhật hôm nay.`);
+      }
     }
 
     // 2. Merge OP.xlsx
-    const opItem = audit.find((a) => a.key === 'OP');
-    if (!opItem || opItem.status !== 'OK') {
-      await runMerge(
-        'OP',
-        () =>
-          this.mergeOP(
-            path.join(fullPath, 'OP1.xlsx'),
-            path.join(fullPath, 'OP2.xlsx'),
-            path.join(fullPath, 'OP.xlsx'),
-          ),
-        ['OP1', 'OP2'],
-      );
-    } else {
-      logs.push(`OP.xlsx đã tồn tại và cập nhật hôm nay.`);
+    if (!keysToMerge || keysToMerge.includes('OP')) {
+      if (shouldMerge('OP', ['OP1', 'OP2'])) {
+        await runMerge(
+          'OP',
+          () =>
+            this.mergeOP(
+              path.join(fullPath, 'OP1.xlsx'),
+              path.join(fullPath, 'OP2.xlsx'),
+              path.join(fullPath, 'OP.xlsx'),
+            ),
+          ['OP1', 'OP2'],
+        );
+      } else {
+        logs.push(`OP.xlsx đã tồn tại và cập nhật hôm nay.`);
+      }
     }
 
     // 3. Merge Od.xlsx (OD1 and OD2)
-    const odItem = audit.find((a) => a.key === 'Od');
-    if (!odItem || odItem.status !== 'OK') {
-      await runMerge(
-        'Od',
-        () =>
-          this.mergeOD(
-            path.join(fullPath, 'OD1.xlsx'),
-            path.join(fullPath, 'OD2.xlsx'),
-            path.join(fullPath, 'Od.xlsx'),
-          ),
-        ['OD1', 'OD2'],
-      );
-    } else {
-      logs.push(`Od.xlsx đã tồn tại và cập nhật hôm nay.`);
+    if (!keysToMerge || keysToMerge.includes('Od')) {
+      if (shouldMerge('Od', ['OD1', 'OD2'])) {
+        await runMerge(
+          'Od',
+          () =>
+            this.mergeOD(
+              path.join(fullPath, 'OD1.xlsx'),
+              path.join(fullPath, 'OD2.xlsx'),
+              path.join(fullPath, 'Od.xlsx'),
+            ),
+          ['OD1', 'OD2'],
+        );
+      } else {
+        logs.push(`Od.xlsx đã tồn tại và cập nhật hôm nay.`);
+      }
     }
 
     // 4. Merge PS.xlsx
-    const psItem = audit.find((a) => a.key === 'PS');
-    if (!psItem || psItem.status !== 'OK') {
-      await runMerge(
-        'PS',
-        () =>
-          this.mergePS(
-            path.join(fullPath, 'PS1.xlsx'),
-            path.join(fullPath, 'PS2.xlsx'),
-            path.join(fullPath, 'PS.xlsx'),
-            ttmPath,
-          ),
-        ['PS1', 'PS2'],
-      );
-    } else {
-      logs.push(`PS.xlsx đã tồn tại và cập nhật hôm nay.`);
+    if (!keysToMerge || keysToMerge.includes('PS')) {
+      if (shouldMerge('PS', ['PS1', 'PS2'])) {
+        await runMerge(
+          'PS',
+          () =>
+            this.mergePS(
+              path.join(fullPath, 'PS1.xlsx'),
+              path.join(fullPath, 'PS2.xlsx'),
+              path.join(fullPath, 'PS.xlsx'),
+              ttmPath,
+            ),
+          ['PS1', 'PS2'],
+        );
+      } else {
+        logs.push(`PS.xlsx đã tồn tại và cập nhật hôm nay.`);
+      }
     }
 
     logs.push('Hoàn tất quy trình kiểm tra và tự động ghép file.');
@@ -293,34 +335,44 @@ export class CqgSyncService {
    * Copies A3:H of FR2 (excluding headers and footer).
    */
   private mergeFR(src1: string, src2: string, dest: string) {
-    const wb1 = XLSX.readFile(src1);
-    const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], {
-      header: 1,
-    });
-    const lr1 = rows1.length;
-
-    // Header at rows1[1], Data starting rows1[2] to rows1[lr1 - 3]
-    const headerRow = rows1[1] || [];
-    const data1 = lr1 > 2 ? rows1.slice(2, lr1 - 2) : [];
-    const mergedData = [headerRow, ...data1];
-
-    if (fs.existsSync(src2)) {
-      const wb2 = XLSX.readFile(src2);
-      const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], {
-        header: 1,
-      });
-      const lr2 = rows2.length;
-      if (lr2 > 4) {
-        // Copy A3:H & (lr2 - 2) -> index 2 to lr2 - 3
-        const data2 = rows2.slice(2, lr2 - 2);
-        mergedData.push(...data2);
+    let rows1: any[][] = [];
+    if (fs.existsSync(src1)) {
+      try {
+        const wb1 = XLSX.readFile(src1);
+        rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
       }
     }
+
+    let rows2: any[][] = [];
+    if (fs.existsSync(src2)) {
+      try {
+        const wb2 = XLSX.readFile(src2);
+        rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
+      }
+    }
+
+    const lr1 = rows1.length;
+    const lr2 = rows2.length;
+
+    let headerRow = rows1[1] || rows1[0] || rows2[1] || rows2[0] || [];
+    const data1 = lr1 > 4 ? rows1.slice(2, lr1 - 2) : (lr1 > 2 ? rows1.slice(2) : []);
+    const data2 = lr2 > 4 ? rows2.slice(2, lr2 - 2) : (lr2 > 2 ? rows2.slice(2) : []);
+
+    const mergedData: any[] = [];
+    if (headerRow && headerRow.length > 0) {
+      mergedData.push(headerRow);
+    }
+    mergedData.push(...data1, ...data2);
 
     const nwb = XLSX.utils.book_new();
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
     XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
     XLSX.writeFile(nwb, dest, { compression: true });
+    this.logger.log(`Ghép FR: FR1 (${data1.length} rows) + FR2 (${data2.length} rows) -> ${dest}`);
   }
 
   /**
@@ -413,27 +465,35 @@ export class CqgSyncService {
    * Logic: Merge PS1.xlsx and PS2.xlsx, and construct reconciliation sheets.
    */
   private mergePS(src1: string, src2: string, dest: string, ttmPath: string) {
-    const wb1 = XLSX.readFile(src1);
-    const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], {
-      header: 1,
-    });
-
-    // 1. Merge Sheet1
-    const headerRow = rows1[1] || [];
-    const data1 = rows1.slice(2);
-    const mergedData = [headerRow, ...data1];
-
-    if (fs.existsSync(src2)) {
-      const wb2 = XLSX.readFile(src2);
-      const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], {
-        header: 1,
-      });
-      const lr2 = rows2.length;
-      if (lr2 > 3) {
-        const data2 = rows2.slice(2);
-        mergedData.push(...data2);
+    let rows1: any[][] = [];
+    if (fs.existsSync(src1)) {
+      try {
+        const wb1 = XLSX.readFile(src1);
+        rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
       }
     }
+
+    let rows2: any[][] = [];
+    if (fs.existsSync(src2)) {
+      try {
+        const wb2 = XLSX.readFile(src2);
+        rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
+      }
+    }
+
+    // 1. Merge Sheet1
+    const headerRow = rows1[1] || rows1[0] || rows2[1] || rows2[0] || [];
+    const data1 = rows1.length > 2 ? rows1.slice(2) : [];
+    const data2 = rows2.length > 2 ? rows2.slice(2) : [];
+    const mergedData: any[] = [];
+    if (headerRow && headerRow.length > 0) {
+      mergedData.push(headerRow);
+    }
+    mergedData.push(...data1, ...data2);
 
     const ws1 = XLSX.utils.aoa_to_sheet(mergedData);
 

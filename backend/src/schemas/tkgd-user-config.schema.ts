@@ -3,6 +3,7 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type TkgdUserConfigDocument = TkgdUserConfig & Document;
 
+@Schema({ _id: false })
 export class MSystemCredentialsSubDoc {
   @Prop({ default: '' })
   username: string;
@@ -14,6 +15,7 @@ export class MSystemCredentialsSubDoc {
   pinEncrypted: string;
 }
 
+@Schema({ _id: false })
 export class OutlookConfigSubDoc {
   @Prop({ default: 'clearing.acc@mxv.vn' })
   targetMailbox: string;
@@ -37,6 +39,7 @@ export class OutlookConfigSubDoc {
   tokenRenewedAt: string;
 }
 
+@Schema({ _id: false })
 export class StorageConfigSubDoc {
   @Prop({ default: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD' })
   windowsPath: string;
@@ -48,6 +51,7 @@ export class StorageConfigSubDoc {
   templatePath: string;
 }
 
+@Schema({ _id: false })
 export class PreferencesSubDoc {
   @Prop({ default: true })
   autoHighlightExcel: boolean;
@@ -56,6 +60,7 @@ export class PreferencesSubDoc {
   saveToAtlas: boolean;
 }
 
+@Schema({ _id: false })
 export class DocumentProcessingConfigSubDoc {
   @Prop({ default: true })
   autoDownloadMailAttachments: boolean; // Tự động tải tệp đính kèm & ảnh từ Mail về thư mục
@@ -79,6 +84,7 @@ export class DocumentProcessingConfigSubDoc {
   checkSignatureRequired: boolean; // Cảnh báo nếu chưa có chữ ký mẫu trên M-System
 }
 
+@Schema({ _id: false })
 export class AutoPipelineConfigSubDoc {
   @Prop({ default: false })
   enabled: boolean; // Bật/Tắt chế độ tự động 24/7

@@ -35,9 +35,9 @@ const summarizeLogText = (text: string): string => {
       .replace(/^Quét tự động lúc\s+[0-9-:\s]+:\s*/i, '');
 
     if (
-      cleanLine.startsWith('❌') ||
-      cleanLine.startsWith('⚠️') ||
-      cleanLine.startsWith('✅') ||
+      cleanLine.startsWith('') ||
+      cleanLine.startsWith('') ||
+      cleanLine.startsWith('') ||
       cleanLine.startsWith('•')
     ) {
       summaryLines.push(cleanLine);
@@ -67,7 +67,7 @@ interface SystemApiVisualReportProps {
 
 export const SystemApiVisualReport: React.FC<SystemApiVisualReportProps> = ({ jsonResult, marginAccounts, rawText }) => {
   const hasEmailStats = jsonResult && (jsonResult.totalCount > 0 || jsonResult.failedCount > 0 || jsonResult.failedList);
-  
+
   const cleanText = (rawText || '').trim();
   const summaryText = summarizeLogText(cleanText);
 

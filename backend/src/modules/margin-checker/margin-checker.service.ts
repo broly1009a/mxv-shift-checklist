@@ -23,7 +23,7 @@ export class MarginCheckerService {
     private readonly ruleModel: Model<NotificationRule>,
     @InjectModel(NotificationChannel.name)
     private readonly channelModel: Model<NotificationChannel>,
-  ) {}
+  ) { }
 
   async loadConfig() {
     const defaultSmtp = {
@@ -83,8 +83,8 @@ export class MarginCheckerService {
       };
 
       if (fallbackRate !== undefined) {
-        configObj.warningRate = rule?.customParams?.warningRate !== undefined 
-          ? rule.customParams.warningRate 
+        configObj.warningRate = rule?.customParams?.warningRate !== undefined
+          ? rule.customParams.warningRate
           : fallbackRate;
       }
       return configObj;
@@ -126,7 +126,7 @@ export class MarginCheckerService {
         '{}',
       );
       currentSettings = JSON.parse(currentSettingsStr);
-    } catch (e) {}
+    } catch (e) { }
 
     currentSettings.smtp = config.smtp;
     await this.systemSettingsService.setSetting(
@@ -253,7 +253,7 @@ export class MarginCheckerService {
       if (subject) {
         config[checkerType].lastSubject = subject;
       }
-      
+
       await this.systemSettingsService.setSetting(
         'margin_checker_config',
         JSON.stringify(config),
@@ -1304,9 +1304,9 @@ export class MarginCheckerService {
       // Send Telegram Alert
       if (config.marginOnOrder.telegramChatId) {
         const teleMessage =
-          `⚠️ *[MXV Margin Checker]* Cảnh báo vi phạm mức ký quỹ\n` +
+          ` *[MXV Margin Checker]* Cảnh báo vi phạm mức ký quỹ\n` +
           `📅 Ngày phiên: ${currentStr}\n` +
-          `🔴 Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
+          ` Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo đính kèm.`;
         await this.sendTelegramNotification(
           config.marginOnOrder.telegramChatId,
@@ -1361,10 +1361,10 @@ export class MarginCheckerService {
     const iceData =
       files.iceEUAg || files.iceSG || files.iceUS
         ? this.getICEData(
-            [files.iceEUAg, files.iceSG, files.iceUS].filter(
-              Boolean,
-            ) as Buffer[],
-          )
+          [files.iceEUAg, files.iceSG, files.iceUS].filter(
+            Boolean,
+          ) as Buffer[],
+        )
         : [];
 
     const bursaData = files.bursaPdf
@@ -1377,10 +1377,10 @@ export class MarginCheckerService {
     const commodityMargin =
       files.futures || files.lmeMargin || files.options
         ? this.parseCommodityMargin(
-            [files.futures, files.lmeMargin, files.options].filter(
-              Boolean,
-            ) as Buffer[],
-          )
+          [files.futures, files.lmeMargin, files.options].filter(
+            Boolean,
+          ) as Buffer[],
+        )
         : [];
 
     const commodityConfig = this.parseCommodityConfig(files.commodityConfig);
@@ -1533,7 +1533,7 @@ export class MarginCheckerService {
       // Send Telegram Alert
       if (config.marginChange.telegramChatId) {
         const teleMessage =
-          `⚠️ *[MXV Margin Checker]* Cảnh báo thay đổi mức ký quỹ\n` +
+          ` *[MXV Margin Checker]* Cảnh báo thay đổi mức ký quỹ\n` +
           `📅 Ngày phiên: ${this.formatDateString(now, 'dd/MM/yyyy')}\n` +
           `🔵 Số lượng thay đổi: ${countNew} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo thay đổi đính kèm.`;
@@ -1574,14 +1574,24 @@ export class MarginCheckerService {
 
   private parseDate(str: string): Date | null {
     if (!str) return null;
-    const parts = str.split('/');
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day);
+    const clean = str.trim();
+    if (clean.includes('/') || clean.includes('-')) {
+      const sep = clean.includes('/') ? '/' : '-';
+      const parts = clean.split(sep);
+      if (parts.length === 3) {
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        const p2 = parseInt(parts[2], 10);
+        if (p0 > 31) {
+          // YYYY-MM-DD
+          return new Date(p0, p1 - 1, p2);
+        } else {
+          // DD/MM/YYYY
+          return new Date(p2 < 100 ? p2 + 2000 : p2, p1 - 1, p0);
+        }
+      }
     }
-    const d = new Date(str);
+    const d = new Date(clean);
     return isNaN(d.getTime()) ? null : d;
   }
 

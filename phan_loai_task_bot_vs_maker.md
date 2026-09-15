@@ -6,7 +6,7 @@
 |:---:|:---|
 |  **Bot 100%** | Kết quả kỹ thuật là **xác định** (đúng/sai rõ ràng). Khi bot SUCCESS → task cha tự PASSED, **không cần Maker checkbox thêm gì**. |
 | 🤝 **Bot + Maker** | Bot làm phần kỹ thuật, nhưng **kể cả khi SUCCESS**, Maker vẫn **phải thực hiện thêm hành động** (gửi file, bấm nút, phán đoán, phê duyệt). |
-| 🔴 **Thủ công hoàn toàn** | Không có API/automation. Toàn bộ do Maker thực hiện trên phần mềm bên thứ 3. |
+|  **Thủ công hoàn toàn** | Không có API/automation. Toàn bộ do Maker thực hiện trên phần mềm bên thứ 3. |
 
 ---
 
@@ -52,7 +52,7 @@
 ---
 
 ### Task 5 · Đối chiếu & Chạy EOD MS (06:00–07:00)
-**🔴 Bắt buộc thủ công hoàn toàn**
+** Bắt buộc thủ công hoàn toàn**
 > Không có API M-System. Chạy EOD là thao tác trực tiếp trên phần mềm Newgen.
 
 | # | Sub-task | Ai thực hiện |
@@ -101,7 +101,7 @@
 ---
 
 ### Task 10 · Thực Hiện SOD (trong 30 phút sau EOD)
-**🔴 Bắt buộc thủ công hoàn toàn**
+** Bắt buộc thủ công hoàn toàn**
 > SOD là thao tác trực tiếp trong phần mềm M-System — không có API ngoài.
 
 | # | Sub-task | Ai thực hiện |
@@ -152,7 +152,7 @@
 ## PHIÊN TRONG GIỜ (DURING SESSION) — 08:00 → cuối phiên
 
 ### Task 14 · Thay Đổi Ký Quỹ Hàng Hoá (08:00, nếu có)
-**🔴 Maker-Checker 4 mắt bắt buộc**
+** Maker-Checker 4 mắt bắt buộc**
 > Nghiệp vụ tài chính — phê duyệt 2 người là quy trình cứng.
 
 | # | Sub-task | Ai thực hiện |
@@ -188,7 +188,7 @@
 ---
 
 ### Task 17 · Hỗ Trợ & Xử Lý Sự Cố (khi phát sinh)
-**🔴 Bắt buộc thủ công hoàn toàn**
+** Bắt buộc thủ công hoàn toàn**
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
@@ -213,7 +213,7 @@
 ---
 
 ### Task 19 · Mở Mới Hợp Đồng Giao Dịch (hàng tháng)
-**🔴 Bắt buộc thủ công hoàn toàn**
+** Bắt buộc thủ công hoàn toàn**
 
 | # | Sub-task | Ai thực hiện |
 |---|---|:---:|
@@ -250,7 +250,7 @@
 |:---|:---|:---|
 |  **Bot 100%** (6 task) | Task 2, 3, 6, 7, 8, 20 | Download, File Audit, Macro — kết quả kỹ thuật xác định, không cần Maker |
 | 🤝 **Bot + Maker** (10 task) | Task 1, 4, 9, 11, 13, 15, 16, 18, 21 + Task 12 | Bot check phần kỹ thuật; Maker làm hành động nghiệp vụ bắt buộc |
-| 🔴 **Thủ công hoàn toàn** (5 task) | Task 5, 10, 14, 17, 19 | Không có API, hoặc Maker-Checker bắt buộc |
+|  **Thủ công hoàn toàn** (5 task) | Task 5, 10, 14, 17, 19 | Không có API, hoặc Maker-Checker bắt buộc |
 
 > [!TIP]
 > **Nguyên tắc phân biệt Bot 100% vs Bot+Maker**: Hỏi câu này — *"Nếu bot chạy SUCCESS, Maker có cần làm thêm bất kỳ hành động nào không?"*
@@ -279,9 +279,9 @@
 | `CHECK_PRE_EOD` | Sub-task kỹ thuật trong Task 9 (Maker phải xác nhận theo dõi) |
 | `NOTIFY_MATURITY` | Sub-task kỹ thuật trong Task 18 (Maker phải force close nếu cần) |
 
-### ⚠️ Job type cần implement handler
+###  Job type cần implement handler
 | Job Type | Priority |
 |---|---|
-| `CHECK_PRE_EOD` | 🔴 Cao |
-| `CHECK_EOD_MM` | 🔴 Cao |
+| `CHECK_PRE_EOD` |  Cao |
+| `CHECK_EOD_MM` |  Cao |
 | `NOTIFY_MATURITY` | 🟡 Trung bình |

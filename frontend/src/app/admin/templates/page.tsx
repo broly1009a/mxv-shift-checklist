@@ -21,10 +21,138 @@ import {
   Cpu,
   FileText,
   Clock,
-  GripVertical
+  GripVertical,
+  User,
+  Code2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import SmartPathInput from '@/components/admin/SmartPathInput';
+
+type ViewMode = 'user' | 'technical';
+const VIEW_MODE_STORAGE_KEY = 'mxv_templates_view_mode';
+
+const BOT_CHECK_TYPE_OPTIONS: { value: string; label: string; technical: string }[] = [
+  { value: 'EMAIL_PARSE', label: 'Quét Email', technical: 'EMAIL_PARSE' },
+  { value: 'FILE_EXISTS', label: 'Kiểm tra File tồn tại', technical: 'FILE_EXISTS' },
+  { value: 'API_STATUS', label: 'Kiểm tra trạng thái API', technical: 'API_STATUS' },
+  { value: 'CHECK_KLGD', label: 'Đối chiếu khớp lệnh trong phiên', technical: 'CHECK_KLGD' },
+  { value: 'CHECK_PRE_EOD', label: 'Đối chiếu Pre-EOD', technical: 'CHECK_PRE_EOD' },
+  { value: 'AUTO_CHECK_SOD', label: 'Đối chiếu số dư CQG SOD', technical: 'AUTO_CHECK_SOD' },
+  { value: 'CHECK_EOD_MM', label: 'Đối chiếu số dư EOD MM', technical: 'CHECK_EOD_MM' },
+  { value: 'FILE_AUDIT_ACM', label: 'Kiểm tra file backup ACM', technical: 'FILE_AUDIT_ACM' },
+  { value: 'FILE_AUDIT_MS', label: 'Kiểm tra file backup MS', technical: 'FILE_AUDIT_MS' },
+  { value: 'FILE_AUDIT_CQG', label: 'Kiểm tra file backup CQG', technical: 'FILE_AUDIT_CQG' },
+  { value: 'DOWNLOAD_CQG_BACKUP', label: 'RPA tải + ghép file CQG', technical: 'DOWNLOAD_CQG_BACKUP' },
+  { value: 'RUN_MACRO', label: 'Chạy báo cáo thống kê CCP', technical: 'RUN_MACRO' },
+  { value: 'RUN_LOT_MACRO', label: 'Thống kê số lốt giao dịch', technical: 'RUN_LOT_MACRO' },
+  { value: 'RUN_VALUE_MACRO', label: 'Thống kê giá trị giao dịch', technical: 'RUN_VALUE_MACRO' },
+  { value: 'RUN_VALUE_TVKD_MACRO', label: 'Thống kê TVKD lũy kế', technical: 'RUN_VALUE_TVKD_MACRO' },
+  { value: 'RPA_DOWNLOAD', label: 'RPA tải báo cáo M-System', technical: 'RPA_DOWNLOAD' },
+  { value: 'RPA_DOWNLOAD_CAST', label: 'RPA tải báo cáo CQG CAST', technical: 'RPA_DOWNLOAD_CAST' },
+  { value: 'EMAIL_STATUS_CHECK', label: 'RPA xác minh gửi email', technical: 'EMAIL_STATUS_CHECK' },
+  { value: 'CHECK_MARGIN_DECISION', label: 'RPA quét quyết định ký quỹ', technical: 'CHECK_MARGIN_DECISION' },
+  { value: 'NOTIFY_MATURITY', label: 'RPA thông báo HĐ đến hạn', technical: 'NOTIFY_MATURITY' },
+];
+
+const RPA_REPORT_OPTIONS = [
+  'QLTKGD',
+  'NR',
+  'NKTTHT',
+  'DSTKGD-Futures',
+  'DSTKGD-Spread',
+  'DSTKGD-LME',
+  'DSTKGD-ACM',
+  'QLTKGDAmKQ',
+] as const;
+
+const BOT_TYPES_NEEDING_TARGET = ['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'] as const;
+
+function getBotCheckTypeLabel(type?: string, technical = false): string {
+  if (!type) return 'Tự động';
+  const found = BOT_CHECK_TYPE_OPTIONS.find((o) => o.value === type);
+  if (!found) return type;
+  return technical ? `${found.label} (${found.technical})` : found.label;
+}
+
+function parseEmailBotTarget(raw: string): { subject: string; sender: string; downloadDir: string } {
+  const empty = { subject: '', sender: '', downloadDir: '' };
+  if (!raw?.trim()) return empty;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        subject: parsed.subject || '',
+        sender: parsed.sender || '',
+        downloadDir: parsed.downloadDir || '',
+      };
+    }
+  } catch {
+    // Fallback: treat whole string as subject
+  }
+  return { subject: raw, sender: '', downloadDir: '' };
+}
+
+function serializeEmailBotTarget(subject: string, sender: string, downloadDir: string): string {
+  const payload: Record<string, string> = {};
+  if (subject.trim()) payload.subject = subject.trim();
+  if (sender.trim()) payload.sender = sender.trim();
+  if (downloadDir.trim()) payload.downloadDir = downloadDir.trim();
+  return Object.keys(payload).length ? JSON.stringify(payload) : '';
+}
+
+function parseEmailSuccessCondition(raw: string): { mode: 'contains' | 'line' | 'regex' | 'none'; value: string } {
+  if (!raw?.trim()) return { mode: 'none', value: '' };
+  if (raw.startsWith('body_line_match:')) return { mode: 'line', value: raw.replace('body_line_match:', '').trim() };
+  if (raw.startsWith('body_regex:')) return { mode: 'regex', value: raw.replace('body_regex:', '').trim() };
+  if (raw.startsWith('body_contains:')) return { mode: 'contains', value: raw.replace('body_contains:', '').trim() };
+  return { mode: 'contains', value: raw.trim() };
+}
+
+function serializeEmailSuccessCondition(mode: 'contains' | 'line' | 'regex' | 'none', value: string): string {
+  const v = value.trim();
+  if (mode === 'none' || !v) return '';
+  if (mode === 'line') return `body_line_match:${v}`;
+  if (mode === 'regex') return `body_regex:${v}`;
+  return v;
+}
+
+function parseFileSuccessCondition(raw: string): { minSizeKb: string; containsKeyword: string } {
+  if (!raw?.trim()) return { minSizeKb: '', containsKeyword: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      minSizeKb: parsed.minSizeKb != null ? String(parsed.minSizeKb) : '',
+      containsKeyword: parsed.containsKeyword || '',
+    };
+  } catch {
+    const num = parseFloat(raw);
+    if (!isNaN(num)) return { minSizeKb: String(num), containsKeyword: '' };
+    return { minSizeKb: '', containsKeyword: raw };
+  }
+}
+
+function serializeFileSuccessCondition(minSizeKb: string, containsKeyword: string): string {
+  const payload: Record<string, string | number> = {};
+  if (minSizeKb.trim() && !isNaN(Number(minSizeKb))) payload.minSizeKb = Number(minSizeKb);
+  if (containsKeyword.trim()) payload.containsKeyword = containsKeyword.trim();
+  return Object.keys(payload).length ? JSON.stringify(payload) : '';
+}
+
+function parseRpaTargets(raw: string): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    if (raw.trim().startsWith('[')) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    }
+  } catch { /* fall through */ }
+  return raw.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function serializeRpaTargets(targets: string[]): string {
+  return targets.length ? JSON.stringify(targets) : '';
+}
 
 interface Task {
   taskId: string;
@@ -112,6 +240,20 @@ export default function AdminTemplatesPage() {
   const [newFrequencyMinutes, setNewFrequencyMinutes] = useState<string>('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [isTaskFormExpanded, setIsTaskFormExpanded] = useState(false);
+
+  // User vs Technical view — default user-friendly
+  const [viewMode, setViewMode] = useState<ViewMode>('user');
+  const isTechnical = viewMode === 'technical';
+
+  // Structured bot-check fields (user mode); serialized into botCheckTarget / botSuccessCondition on save
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailSender, setEmailSender] = useState('');
+  const [emailDownloadDir, setEmailDownloadDir] = useState('');
+  const [emailConditionMode, setEmailConditionMode] = useState<'contains' | 'line' | 'regex' | 'none'>('contains');
+  const [emailConditionValue, setEmailConditionValue] = useState('');
+  const [fileMinSizeKb, setFileMinSizeKb] = useState('');
+  const [fileContainsKeyword, setFileContainsKeyword] = useState('');
+  const [rpaSelectedReports, setRpaSelectedReports] = useState<string[]>([]);
 
   // Modal states for Template CRUD
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -210,6 +352,138 @@ export default function AdminTemplatesPage() {
   }, [token]);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (saved === 'user' || saved === 'technical') {
+        setViewMode(saved);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const setViewModePersist = (mode: ViewMode) => {
+    // Sync bot form fields before switching so neither mode loses edits
+    if (isTaskFormExpanded && newIsBotCheck) {
+      if (mode === 'technical' && viewMode === 'user') {
+        if (newBotCheckType === 'EMAIL_PARSE') {
+          setNewBotCheckTarget(serializeEmailBotTarget(emailSubject, emailSender, emailDownloadDir));
+          setNewBotSuccessCondition(serializeEmailSuccessCondition(emailConditionMode, emailConditionValue));
+        } else if (newBotCheckType === 'FILE_EXISTS') {
+          setNewBotCheckTarget(newBotCheckTarget.trim() || newFileLocation.trim());
+          setNewBotSuccessCondition(serializeFileSuccessCondition(fileMinSizeKb, fileContainsKeyword));
+        } else if (newBotCheckType === 'RPA_DOWNLOAD') {
+          setNewBotCheckTarget(serializeRpaTargets(rpaSelectedReports));
+        }
+      } else if (mode === 'user' && viewMode === 'technical') {
+        hydrateStructuredBotFields({
+          botCheckType: newBotCheckType,
+          botCheckTarget: newBotCheckTarget,
+          botSuccessCondition: newBotSuccessCondition,
+        });
+      }
+    }
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    } catch { /* ignore */ }
+  };
+
+  const resetStructuredBotFields = () => {
+    setEmailSubject('');
+    setEmailSender('');
+    setEmailDownloadDir('');
+    setEmailConditionMode('contains');
+    setEmailConditionValue('');
+    setFileMinSizeKb('');
+    setFileContainsKeyword('');
+    setRpaSelectedReports([]);
+  };
+
+  const hydrateStructuredBotFields = (task: {
+    botCheckType?: string;
+    botCheckTarget?: string;
+    botSuccessCondition?: string;
+  }) => {
+    const type = task.botCheckType || 'EMAIL_PARSE';
+    const target = task.botCheckTarget || '';
+    const condition = task.botSuccessCondition || '';
+
+    if (type === 'EMAIL_PARSE') {
+      const email = parseEmailBotTarget(target);
+      setEmailSubject(email.subject);
+      setEmailSender(email.sender);
+      setEmailDownloadDir(email.downloadDir);
+      const cond = parseEmailSuccessCondition(condition);
+      setEmailConditionMode(cond.mode);
+      setEmailConditionValue(cond.value);
+      setFileMinSizeKb('');
+      setFileContainsKeyword('');
+      setRpaSelectedReports([]);
+    } else if (type === 'FILE_EXISTS') {
+      const fileCond = parseFileSuccessCondition(condition);
+      setFileMinSizeKb(fileCond.minSizeKb);
+      setFileContainsKeyword(fileCond.containsKeyword);
+      setEmailSubject('');
+      setEmailSender('');
+      setEmailDownloadDir('');
+      setEmailConditionMode('contains');
+      setEmailConditionValue('');
+      setRpaSelectedReports([]);
+    } else if (type === 'RPA_DOWNLOAD') {
+      setRpaSelectedReports(parseRpaTargets(target));
+      setEmailSubject('');
+      setEmailSender('');
+      setEmailDownloadDir('');
+      setEmailConditionMode('contains');
+      setEmailConditionValue('');
+      setFileMinSizeKb('');
+      setFileContainsKeyword('');
+    } else {
+      resetStructuredBotFields();
+    }
+  };
+
+  const buildBotPayloadFromForm = () => {
+    if (!newIsBotCheck) {
+      return { botCheckTarget: undefined as string | undefined, botSuccessCondition: undefined as string | undefined };
+    }
+
+    // Technical mode: use raw string fields as-is
+    if (isTechnical) {
+      return {
+        botCheckTarget: newBotCheckTarget.trim() || undefined,
+        botSuccessCondition: newBotSuccessCondition.trim() || undefined,
+      };
+    }
+
+    // User mode: serialize structured fields
+    if (newBotCheckType === 'EMAIL_PARSE') {
+      return {
+        botCheckTarget: serializeEmailBotTarget(emailSubject, emailSender, emailDownloadDir) || undefined,
+        botSuccessCondition: serializeEmailSuccessCondition(emailConditionMode, emailConditionValue) || undefined,
+      };
+    }
+    if (newBotCheckType === 'FILE_EXISTS') {
+      return {
+        botCheckTarget: newBotCheckTarget.trim() || newFileLocation.trim() || undefined,
+        botSuccessCondition: serializeFileSuccessCondition(fileMinSizeKb, fileContainsKeyword) || undefined,
+      };
+    }
+    if (newBotCheckType === 'API_STATUS') {
+      return {
+        botCheckTarget: newBotCheckTarget.trim() || undefined,
+        botSuccessCondition: newBotSuccessCondition.trim() || undefined,
+      };
+    }
+    if (newBotCheckType === 'RPA_DOWNLOAD') {
+      return {
+        botCheckTarget: serializeRpaTargets(rpaSelectedReports) || undefined,
+        botSuccessCondition: undefined,
+      };
+    }
+    return { botCheckTarget: undefined, botSuccessCondition: undefined };
+  };
+
+  useEffect(() => {
     Promise.resolve().then(() => {
       fetchTemplates();
       fetchDepartments();
@@ -241,6 +515,7 @@ export default function AdminTemplatesPage() {
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
     setNewFrequencyMinutes('');
+    resetStructuredBotFields();
   };
 
   const handleStartEditTask = (task: Task) => {
@@ -267,6 +542,7 @@ export default function AdminTemplatesPage() {
     setNewDependsOnTaskIds(task.dependsOnTaskIds || []);
     setNewParentTaskId(task.parentTaskId || '');
     setNewFrequencyMinutes(task.frequencyMinutes !== undefined && task.frequencyMinutes !== null ? String(task.frequencyMinutes) : '');
+    hydrateStructuredBotFields(task);
   };
 
   const handleCancelEditTask = () => {
@@ -293,6 +569,7 @@ export default function AdminTemplatesPage() {
     setNewFrequencyMinutes('');
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
+    resetStructuredBotFields();
   };
 
   // ─── Template CRUD Modals ───────────────────────────────────────────────────
@@ -409,10 +686,26 @@ export default function AdminTemplatesPage() {
   // ─── Task CRUD ─────────────────────────────────────────────────────────────
   const handleAddTask = () => {
     if (!selectedTemplate) return;
-    if (!newTaskId || !newTaskName) {
-      toast.error('Vui lòng điền mã tác vụ và nội dung công việc');
+    if (!newTaskName.trim()) {
+      toast.error('Vui lòng điền nội dung công việc');
       return;
     }
+
+    const resolvedTaskId = editingTaskId
+      ? editingTaskId
+      : (newTaskId.trim() || `task_${Date.now().toString(36)}`);
+
+    if (!editingTaskId && isTechnical && !newTaskId.trim()) {
+      toast.error('Vui lòng điền mã tác vụ');
+      return;
+    }
+
+    if (!isTechnical && newIsBotCheck && newBotCheckType === 'EMAIL_PARSE' && !emailSubject.trim()) {
+      toast.error('Vui lòng nhập tiêu đề email cần quét');
+      return;
+    }
+
+    const botPayload = buildBotPayloadFromForm();
 
     if (editingTaskId) {
       // Update existing task
@@ -430,8 +723,8 @@ export default function AdminTemplatesPage() {
             isBotCheck: newIsBotCheck || undefined,
             botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
             botCheckType: newIsBotCheck ? (newBotCheckType || undefined) : undefined,
-            botCheckTarget: newIsBotCheck ? (newBotCheckTarget.trim() || undefined) : undefined,
-            botSuccessCondition: newIsBotCheck ? (newBotSuccessCondition.trim() || undefined) : undefined,
+            botCheckTarget: botPayload.botCheckTarget,
+            botSuccessCondition: botPayload.botSuccessCondition,
             botFailureAction: newIsBotCheck ? (newBotFailureAction || undefined) : undefined,
             slaType: newSlaType,
             triggerTime: newTriggerTime.trim() || undefined,
@@ -451,13 +744,13 @@ export default function AdminTemplatesPage() {
     }
 
     // Check duplication for new tasks
-    if (selectedTemplate.tasks.some(t => t.taskId === newTaskId)) {
+    if (selectedTemplate.tasks.some(t => t.taskId === resolvedTaskId)) {
       toast.error('Mã tác vụ đã tồn tại trong mẫu checklist này');
       return;
     }
 
     const newTask: Task = {
-      taskId: newTaskId.trim(),
+      taskId: resolvedTaskId,
       taskName: newTaskName.trim(),
       priority: newPriority,
       sortOrder: selectedTemplate.tasks.length + 1,
@@ -469,8 +762,8 @@ export default function AdminTemplatesPage() {
       isBotCheck: newIsBotCheck || undefined,
       botTriggerTime: newIsBotCheck ? (newBotTriggerTime.trim() || undefined) : undefined,
       botCheckType: newIsBotCheck ? (newBotCheckType || undefined) : undefined,
-      botCheckTarget: newIsBotCheck ? (newBotCheckTarget.trim() || undefined) : undefined,
-      botSuccessCondition: newIsBotCheck ? (newBotSuccessCondition.trim() || undefined) : undefined,
+      botCheckTarget: botPayload.botCheckTarget,
+      botSuccessCondition: botPayload.botSuccessCondition,
       botFailureAction: newIsBotCheck ? (newBotFailureAction || undefined) : undefined,
       slaType: newSlaType,
       triggerTime: newTriggerTime.trim() || undefined,
@@ -506,6 +799,7 @@ export default function AdminTemplatesPage() {
     setNewDependsOnTaskIds([]);
     setNewParentTaskId('');
     setNewFrequencyMinutes('');
+    resetStructuredBotFields();
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -645,11 +939,69 @@ export default function AdminTemplatesPage() {
               Điều chỉnh, thêm mới, phân cấp hoặc sắp xếp danh sách các mẫu checklist nghiệp vụ chuẩn của Sở.
             </p>
           </div>
-          {isAdmin && (
-            <button onClick={openCreateTemplateModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
-              <Plus size={18} /> Thêm mẫu mới
-            </button>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div
+              role="group"
+              aria-label="Chế độ hiển thị"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-card)',
+                gap: '2px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewModePersist('user')}
+                title="Chế độ người dùng — giao diện đơn giản"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  background: !isTechnical ? 'var(--color-accent)' : 'transparent',
+                  color: !isTechnical ? '#fff' : 'var(--text-secondary)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <User size={15} /> Người dùng
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewModePersist('technical')}
+                title="Chế độ kỹ thuật — hiện mã ID, JSON, enum"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  background: isTechnical ? 'var(--color-accent)' : 'transparent',
+                  color: isTechnical ? '#fff' : 'var(--text-secondary)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Code2 size={15} /> Kỹ thuật
+              </button>
+            </div>
+            {isAdmin && (
+              <button onClick={openCreateTemplateModal} className="btn btn-primary" style={{ padding: '12px 20px' }}>
+                <Plus size={18} /> Thêm mẫu mới
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Mobile Tab Switcher for screens < 1024px */}
@@ -861,17 +1213,23 @@ export default function AdminTemplatesPage() {
                                   <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                                     {task.taskName}
                                   </p>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    <span>Mã: <strong>{task.taskId}</strong></span>
-                                    {task.parentTaskId && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                    {isTechnical && (
                                       <>
+                                        <span>Mã: <strong>{task.taskId}</strong></span>
                                         <span>•</span>
-                                        <span style={{ color: '#8b5cf6', fontWeight: 600 }}>
-                                          Con của: <strong>{task.parentTaskId}</strong>
-                                        </span>
                                       </>
                                     )}
-                                    <span>•</span>
+                                    {task.parentTaskId && (
+                                      <>
+                                        <span style={{ color: '#8b5cf6', fontWeight: 600 }}>
+                                          {isTechnical
+                                            ? <>Con của: <strong>{task.parentTaskId}</strong></>
+                                            : 'Tác vụ con'}
+                                        </span>
+                                        <span>•</span>
+                                      </>
+                                    )}
                                     <span>Ưu tiên: {getPriorityBadge(task.priority)}</span>
                                     {task.deadline && (
                                       <>
@@ -883,7 +1241,10 @@ export default function AdminTemplatesPage() {
                                       <>
                                         <span>•</span>
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ec4899', fontWeight: 600 }}>
-                                          <Cpu size={12} /> Bot Check: {task.botCheckType} ({task.botTriggerTime})
+                                          <Cpu size={12} />
+                                          {isTechnical
+                                            ? `Bot Check: ${task.botCheckType} (${task.botTriggerTime || '—'})`
+                                            : `Tự động: ${getBotCheckTypeLabel(task.botCheckType)}${task.botTriggerTime ? ` · ${task.botTriggerTime}` : ''}`}
                                         </span>
                                       </>
                                     )}
@@ -935,17 +1296,17 @@ export default function AdminTemplatesPage() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.75rem' }}>
                                 {task.functionUrl && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.06)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px' }}>
-                                    <Link2 size={12} /> URL: {task.functionUrl}
+                                    <Link2 size={12} /> {isTechnical ? `URL: ${task.functionUrl}` : 'Có liên kết'}
                                   </span>
                                 )}
-                                {task.urdReference && (
+                                {isTechnical && task.urdReference && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.06)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>
                                     <FileText size={12} /> URD: {task.urdReference}
                                   </span>
                                 )}
                                 {task.fileLocation && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.06)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px' }}>
-                                    <FileText size={12} /> File: {task.fileLocation}
+                                    <FileText size={12} /> {isTechnical ? `File: ${task.fileLocation}` : 'Có đường dẫn file'}
                                   </span>
                                 )}
                                 {task.timetable && (
@@ -970,7 +1331,11 @@ export default function AdminTemplatesPage() {
                                 )}
                                 {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(107, 114, 128, 0.06)', color: '#9ca3af', padding: '2px 8px', borderRadius: '4px' }}>
-                                    Phụ thuộc: {task.dependsOnTaskIds.join(', ')}
+                                    Phụ thuộc: {isTechnical
+                                      ? task.dependsOnTaskIds.join(', ')
+                                      : task.dependsOnTaskIds
+                                          .map((id) => selectedTemplate.tasks.find((x) => x.taskId === id)?.taskName || id)
+                                          .join(', ')}
                                   </span>
                                 )}
                               </div>
@@ -1225,7 +1590,9 @@ export default function AdminTemplatesPage() {
             }}>
               <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 {editingTaskId ? <Edit size={18} color="var(--color-primary)" /> : <Plus size={18} color="var(--color-primary)" />}
-                {editingTaskId ? `Chỉnh sửa tác vụ: ${editingTaskId}` : 'Thêm tác vụ mới vào danh sách'}
+                {editingTaskId
+                  ? (isTechnical ? `Chỉnh sửa tác vụ: ${editingTaskId}` : `Chỉnh sửa: ${newTaskName || editingTaskId}`)
+                  : 'Thêm tác vụ mới vào danh sách'}
               </h4>
               <button
                 type="button"
@@ -1246,19 +1613,21 @@ export default function AdminTemplatesPage() {
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }} className="custom-scrollbar">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="vd: it_open_06"
-                      value={newTaskId}
-                      onChange={(e) => setNewTaskId(e.target.value)}
-                      disabled={!!editingTaskId}
-                      style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
-                    />
-                  </div>
-                  <div>
+                  {isTechnical && (
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mã Tác Vụ *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="vd: it_open_06"
+                        value={newTaskId}
+                        onChange={(e) => setNewTaskId(e.target.value)}
+                        disabled={!!editingTaskId}
+                        style={editingTaskId ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                      />
+                    </div>
+                  )}
+                  <div style={{ gridColumn: isTechnical ? undefined : 'span 2' }}>
                     <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Nội dung công việc *</label>
                     <input
                       type="text"
@@ -1267,6 +1636,11 @@ export default function AdminTemplatesPage() {
                       value={newTaskName}
                       onChange={(e) => setNewTaskName(e.target.value)}
                     />
+                    {!isTechnical && !editingTaskId && (
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Mã tác vụ sẽ được tạo tự động khi lưu.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Độ Ưu Tiên *</label>
@@ -1294,6 +1668,7 @@ export default function AdminTemplatesPage() {
                   </div>
                 </div>
 
+                {isTechnical ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Function URL</label>
@@ -1336,38 +1711,69 @@ export default function AdminTemplatesPage() {
                     />
                   </div>
                 </div>
+                ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Khung giờ làm việc</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="vd: 08:00 - 10:00"
+                      value={newTimetable}
+                      onChange={(e) => setNewTimetable(e.target.value)}
+                    />
+                  </div>
+                  {(newBotCheckType === 'FILE_EXISTS' || newFileLocation) && (
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Đường dẫn file cần kiểm tra</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="vd: C:\Backup\EOD.csv hoặc \\share\..."
+                        value={newFileLocation}
+                        onChange={(e) => {
+                          setNewFileLocation(e.target.value);
+                          if (newBotCheckType === 'FILE_EXISTS') setNewBotCheckTarget(e.target.value);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
                   <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tác Vụ Cha (Parent Task)</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      {isTechnical ? 'Tác Vụ Cha (Parent Task)' : 'Thuộc tác vụ cha'}
+                    </label>
                     <select
                       className="form-input"
                       value={newParentTaskId}
                       onChange={(e) => setNewParentTaskId(e.target.value)}
                       style={{ background: 'var(--bg-app)', width: '100%' }}
                     >
-                      <option value="">Không có (Tác vụ cha cấp cao nhất)</option>
+                      <option value="">{isTechnical ? 'Không có (Tác vụ cha cấp cao nhất)' : 'Không — tác vụ độc lập'}</option>
                       {selectedTemplate.tasks?.filter(t => t.taskId !== editingTaskId && !t.parentTaskId).map(t => (
                         <option key={t.taskId} value={t.taskId}>
-                          {t.taskName} ({t.taskId})
+                          {isTechnical ? `${t.taskName} (${t.taskId})` : t.taskName}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại SLA</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại hạn hoàn thành (SLA)</label>
                     <select
                       className="form-input"
                       value={newSlaType}
                       onChange={(e) => setNewSlaType(e.target.value as any)}
                       style={{ background: 'var(--bg-app)', width: '100%' }}
                     >
-                      <option value="FIXED_TIME">Mốc giờ cứng (FIXED_TIME)</option>
-                      <option value="DYNAMIC_AFTER_TASK">Động sau tác vụ khác (DYNAMIC_AFTER_TASK)</option>
+                      <option value="FIXED_TIME">{isTechnical ? 'Mốc giờ cứng (FIXED_TIME)' : 'Mốc giờ cố định'}</option>
+                      <option value="DYNAMIC_AFTER_TASK">{isTechnical ? 'Động sau tác vụ khác (DYNAMIC_AFTER_TASK)' : 'Sau khi hoàn thành tác vụ phụ thuộc'}</option>
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Bắt Đầu (Trigger Time)</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ bắt đầu</label>
                     <input
                       type="text"
                       className="form-input"
@@ -1378,7 +1784,7 @@ export default function AdminTemplatesPage() {
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      {newSlaType === 'FIXED_TIME' ? 'Hạn SLA (Mốc giờ)' : 'Hạn SLA (Số phút)'}
+                      {newSlaType === 'FIXED_TIME' ? 'Hạn hoàn thành (giờ)' : 'Hạn hoàn thành (số phút)'}
                     </label>
                     <input
                       type="text"
@@ -1391,7 +1797,9 @@ export default function AdminTemplatesPage() {
                 </div>
 
                 <div style={{ marginTop: '12px' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Tác Vụ Phụ Thuộc (Depends On)</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                    {isTechnical ? 'Tác Vụ Phụ Thuộc (Depends On)' : 'Phải hoàn thành trước'}
+                  </label>
                   <div style={{
                     maxHeight: '160px',
                     overflowY: 'auto',
@@ -1442,7 +1850,10 @@ export default function AdminTemplatesPage() {
                               style={{ width: '15px', height: '15px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
                             />
                             <span style={{ color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400, lineHeight: 1.4 }}>
-                              {t.taskName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({t.taskId})</span>
+                              {t.taskName}
+                              {isTechnical && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}> ({t.taskId})</span>
+                              )}
                             </span>
                           </label>
                         );
@@ -1477,7 +1888,7 @@ export default function AdminTemplatesPage() {
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
                     <label htmlFor="newIsBotCheck" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                      Sử dụng Bot Check tự động
+                      {isTechnical ? 'Sử dụng Bot Check tự động' : 'Tự động kiểm tra bằng hệ thống'}
                     </label>
                   </div>
 
@@ -1485,7 +1896,9 @@ export default function AdminTemplatesPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', marginTop: '10px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Giờ Kích Hoạt (Trigger Time)</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            {isTechnical ? 'Giờ Kích Hoạt (Trigger Time)' : 'Giờ bắt đầu kiểm tra'}
+                          </label>
                           <input
                             type="text"
                             className="form-input"
@@ -1496,37 +1909,34 @@ export default function AdminTemplatesPage() {
                           />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại Bot Check</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            {isTechnical ? 'Loại Bot Check' : 'Kiểu kiểm tra'}
+                          </label>
                           <select
                             className="form-input"
                             value={newBotCheckType}
-                            onChange={(e) => setNewBotCheckType(e.target.value)}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setNewBotCheckType(next);
+                              hydrateStructuredBotFields({
+                                botCheckType: next,
+                                botCheckTarget: next === newBotCheckType ? newBotCheckTarget : '',
+                                botSuccessCondition: next === newBotCheckType ? newBotSuccessCondition : '',
+                              });
+                            }}
                             style={{ background: 'var(--bg-app)', width: '100%' }}
                           >
-                            <option value="EMAIL_PARSE">Quét Email (EMAIL_PARSE)</option>
-                            <option value="FILE_EXISTS">Kiểm tra File tồn tại (FILE_EXISTS)</option>
-                            <option value="API_STATUS">Kiểm tra trạng thái API (API_STATUS)</option>
-                            <option value="CHECK_KLGD">Đối chiếu Khớp Lệnh Trong Phiên (CHECK_KLGD)</option>
-                            <option value="CHECK_PRE_EOD">Đối chiếu Pre-EOD (CHECK_PRE_EOD)</option>
-                            <option value="AUTO_CHECK_SOD">Đối chiếu số dư CQG SOD (AUTO_CHECK_SOD)</option>
-                            <option value="CHECK_EOD_MM">Đối chiếu số dư EOD MM (CHECK_EOD_MM)</option>
-                            <option value="FILE_AUDIT_ACM">Kiểm tra file backup ACM (FILE_AUDIT_ACM)</option>
-                            <option value="FILE_AUDIT_MS">Kiểm tra file backup MS (FILE_AUDIT_MS)</option>
-                            <option value="FILE_AUDIT_CQG">Kiểm tra file backup CQG (FILE_AUDIT_CQG)</option>
-                            <option value="DOWNLOAD_CQG_BACKUP">RPA Tải + Ghép file CQG (DOWNLOAD_CQG_BACKUP)</option>
-                            <option value="RUN_MACRO">Chạy báo cáo thống kê CCP (RUN_MACRO)</option>
-                            <option value="RUN_LOT_MACRO">Thống kê số lốt giao dịch (RUN_LOT_MACRO)</option>
-                            <option value="RUN_VALUE_MACRO">Thống kê giá trị giao dịch (RUN_VALUE_MACRO)</option>
-                            <option value="RUN_VALUE_TVKD_MACRO">Thống kê TVKD lũy kế (RUN_VALUE_TVKD_MACRO)</option>
-                            <option value="RPA_DOWNLOAD">RPA Tải báo cáo M-System (RPA_DOWNLOAD)</option>
-                            <option value="RPA_DOWNLOAD_CAST">RPA Tải báo cáo CQG CAST (RPA_DOWNLOAD_CAST)</option>
-                            <option value="EMAIL_STATUS_CHECK">RPA Xác minh gửi email (EMAIL_STATUS_CHECK)</option>
-                            <option value="CHECK_MARGIN_DECISION">RPA Quét quyết định ký quỹ (CHECK_MARGIN_DECISION)</option>
-                            <option value="NOTIFY_MATURITY">RPA Thông báo HĐ đến hạn (NOTIFY_MATURITY)</option>
+                            {BOT_CHECK_TYPE_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {isTechnical ? `${opt.label} (${opt.technical})` : opt.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tần Suất Quét (Phút)</label>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                            {isTechnical ? 'Tần Suất Quét (Phút)' : 'Lặp lại mỗi (phút)'}
+                          </label>
                           <input
                             type="number"
                             className="form-input"
@@ -1537,13 +1947,187 @@ export default function AdminTemplatesPage() {
                           />
                         </div>
                       </div>
-                      {['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'].includes(newBotCheckType) && (
+
+                      {/* User-mode structured fields */}
+                      {!isTechnical && newBotCheckType === 'EMAIL_PARSE' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Tiêu đề email chứa *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="vd: Job Snapshot"
+                              value={emailSubject}
+                              onChange={(e) => setEmailSubject(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Người gửi (email)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="vd: anhdao@mxv.vn"
+                              value={emailSender}
+                              onChange={(e) => setEmailSender(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <SmartPathInput
+                              value={emailDownloadDir}
+                              onChange={setEmailDownloadDir}
+                              label="Thư mục tải đính kèm (tuỳ chọn)"
+                              placeholder="vd: Dán M:\... hoặc C:\Downloads\..."
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Cách khớp nội dung</label>
+                            <select
+                              className="form-input"
+                              value={emailConditionMode}
+                              onChange={(e) => setEmailConditionMode(e.target.value as any)}
+                              style={{ background: 'var(--bg-app)', width: '100%' }}
+                            >
+                              <option value="contains">Chứa từ khóa</option>
+                              <option value="line">Khớp theo dòng</option>
+                              <option value="regex">Biểu thức chính quy</option>
+                              <option value="none">Không cần (chỉ tiêu đề/người gửi)</option>
+                            </select>
+                          </div>
+                          {emailConditionMode !== 'none' && (
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                {emailConditionMode === 'regex' ? 'Biểu thức regex' : 'Từ khóa thành công'}
+                              </label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="vd: successfully"
+                                value={emailConditionValue}
+                                onChange={(e) => setEmailConditionValue(e.target.value)}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!isTechnical && newBotCheckType === 'FILE_EXISTS' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <SmartPathInput
+                              value={newBotCheckTarget || newFileLocation}
+                              onChange={(val) => {
+                                setNewBotCheckTarget(val);
+                                setNewFileLocation(val);
+                              }}
+                              label="Đường dẫn file *"
+                              placeholder="vd: Dán M:\... hoặc /mnt/qlgd-it/..."
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Dung lượng tối thiểu (KB)</label>
+                            <input
+                              type="number"
+                              className="form-input"
+                              placeholder="vd: 10"
+                              value={fileMinSizeKb}
+                              onChange={(e) => setFileMinSizeKb(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Từ khóa trong file (tuỳ chọn)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="vd: SUCCESS"
+                              value={fileContainsKeyword}
+                              onChange={(e) => setFileContainsKeyword(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!isTechnical && newBotCheckType === 'API_STATUS' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Địa chỉ API</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="vd: http://oms.mxv.vn/api/v1/health"
+                              value={newBotCheckTarget}
+                              onChange={(e) => setNewBotCheckTarget(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Điều kiện thành công</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder='vd: {"status": "UP"} hoặc ONLINE'
+                              value={newBotSuccessCondition}
+                              onChange={(e) => setNewBotSuccessCondition(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!isTechnical && newBotCheckType === 'RPA_DOWNLOAD' && (
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                            Báo cáo cần tải (để trống = mặc định hệ thống)
+                          </label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {RPA_REPORT_OPTIONS.map((report) => {
+                              const checked = rpaSelectedReports.includes(report);
+                              return (
+                                <label
+                                  key={report}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    border: checked ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                                    background: checked ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                    fontSize: '0.78rem',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setRpaSelectedReports([...rpaSelectedReports, report]);
+                                      } else {
+                                        setRpaSelectedReports(rpaSelectedReports.filter((r) => r !== report));
+                                      }
+                                    }}
+                                  />
+                                  {report}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Technical-mode raw JSON fields */}
+                      {isTechnical && BOT_TYPES_NEEDING_TARGET.includes(newBotCheckType as any) && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
                           <div>
                             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                               {newBotCheckType === 'EMAIL_PARSE'
                                 ? 'Tham số Email (JSON: subject, sender, downloadDir)'
-                                : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                : newBotCheckType === 'FILE_EXISTS'
                                   ? 'Đường dẫn tệp tin / Thư mục'
                                   : newBotCheckType === 'API_STATUS'
                                     ? 'Địa chỉ API Endpoint'
@@ -1555,11 +2139,11 @@ export default function AdminTemplatesPage() {
                               placeholder={
                                 newBotCheckType === 'EMAIL_PARSE'
                                   ? '{"subject": "Job Snapshot", "sender": "anhdao@mxv.vn", "downloadDir": "C:\\\\Downloads"}'
-                                  : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                  : newBotCheckType === 'FILE_EXISTS'
                                     ? 'vd: C:\\Backup\\EOD_TTM.csv'
                                     : newBotCheckType === 'API_STATUS'
                                       ? 'vd: http://oms.mxv.vn/api/v1/health'
-                                      : 'vd: {"allowDiffer": 0}'
+                                      : 'vd: ["QLTKGD","NR"]'
                               }
                               value={newBotCheckTarget}
                               onChange={(e) => setNewBotCheckTarget(e.target.value)}
@@ -1570,11 +2154,11 @@ export default function AdminTemplatesPage() {
                             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                               {newBotCheckType === 'EMAIL_PARSE'
                                 ? 'Từ khóa thành công (vd: successfully)'
-                                : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                : newBotCheckType === 'FILE_EXISTS'
                                   ? 'Điều kiện tệp tin (vd: {"minSizeKb": 10})'
                                   : newBotCheckType === 'API_STATUS'
                                     ? 'Điều kiện API thành công (vd: {"status": "UP"})'
-                                    : 'Điều kiện kết quả đối chiếu (để trống nếu dùng mặc định)'}
+                                    : 'Điều kiện kết quả (để trống nếu dùng mặc định)'}
                             </label>
                             <input
                               type="text"
@@ -1582,11 +2166,11 @@ export default function AdminTemplatesPage() {
                               placeholder={
                                 newBotCheckType === 'EMAIL_PARSE'
                                   ? 'successfully'
-                                  : ['FILE_EXISTS', 'FILE_AUDIT_ACM', 'FILE_AUDIT_MS', 'FILE_AUDIT_CQG'].includes(newBotCheckType)
+                                  : newBotCheckType === 'FILE_EXISTS'
                                     ? '{"minSizeKb": 10}'
                                     : newBotCheckType === 'API_STATUS'
                                       ? '{"status": "UP"}'
-                                      : '{"allowDiffer": 0}'
+                                      : ''
                               }
                               value={newBotSuccessCondition}
                               onChange={(e) => setNewBotSuccessCondition(e.target.value)}

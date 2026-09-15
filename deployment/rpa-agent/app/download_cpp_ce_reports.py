@@ -155,7 +155,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         print(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại tại: {dest_path}")
         return True
 
-    print(f"  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+    print(f"  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
     # 3. Điều hướng tới màn hình báo cáo
     try:
@@ -183,10 +183,10 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         print(f"  [✓ Thành công] Lưu file: {file_name}")
         return True
     except PlaywrightTimeoutError:
-        print(f"  [❌ Thất bại] Timeout khi tải file {file_name}")
+        print(f"  [ Thất bại] Timeout khi tải file {file_name}")
         return False
     except Exception as e:
-        print(f"  [❌ Lỗi] Không thể xuất file {file_name}: {e}")
+        print(f"  [ Lỗi] Không thể xuất file {file_name}: {e}")
         return False
 
 

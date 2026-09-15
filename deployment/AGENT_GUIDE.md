@@ -49,7 +49,7 @@ Khi **chuột phải vào icon**, menu công cụ nhanh xuất hiện:
 - **`📋 Xem Log`**: Xem log chạy thời gian thực với màu sắc phân biệt mức độ log (INFO, WARN, ERROR).
 - **`🌐 Cập nhật v...`**: Nút cập nhật nhanh tự động xuất hiện khi Server phát hành phiên bản mới.
 - **`▶ Khởi động / Dừng Polling`**: Tạm dừng hoặc kích hoạt lại việc nhận job.
-- **`❌ Thoát`**: Đóng hoàn toàn Agent.
+- **` Thoát`**: Đóng hoàn toàn Agent.
 
 ---
 
@@ -66,13 +66,13 @@ Mở Menu chuột phải dưới Tray Icon → Chọn **`⚙ Cấu hình`**.
 - **Heartbeat interval:** Tần suất gửi tín hiệu sống liveness (khuyến nghị `30 giây`).
 - Click nút **`🔍 Kiểm tra kết nối`** để kiểm thử tức thì. Giao diện sẽ hiển thị báo kết nối thành công hoặc mã lỗi HTTP cụ thể.
 
-#### 2. Tab `📁 Đường dẫn` (Paths Settings)
+#### 2. Tab ` Đường dẫn` (Paths Settings)
 - **Thư mục Backend NestJS:** Đường dẫn đến thư mục chứa mã nguồn backend (để chạy ủy quyền Playwright/WinSCP).
   - *Ví dụ:* `D:\sontayweb\mxv-shift-checklist`
 - **Macro Số Lot / Macro Giá Trị:** Browse đến đúng file `.xlsm` trên máy.
 - **Thư mục Backup MS / ACM:** Browse đến các thư mục chứa dữ liệu đầu vào.
 
-#### 3. Tab `🚀 Khởi động` (Startup Settings)
+#### 3. Tab ` Khởi động` (Startup Settings)
 - Tích chọn **`Tự chạy Agent khi Windows khởi động`** để kích hoạt chế độ tự khởi chạy (ghi trực tiếp vào Registry của Windows `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
 - Tích chọn **`Khởi động ở chế độ tối giản`** để khi khởi chạy, Agent sẽ ẩn ngay xuống tray icon thay vì bật cửa sổ chính lên làm phiền màn hình.
 - Tích chọn **`Hiển thị thông báo màn hình (Windows Toast)`** để nhận/tắt thông báo dạng bóng (toast) của Windows khi công việc bắt đầu, hoàn thành hoặc gặp lỗi.

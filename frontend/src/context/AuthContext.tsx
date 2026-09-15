@@ -148,7 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !url.includes('/api/v1/auth/login') &&
           !url.includes('/api/v1/auth/sso') &&
           !url.includes('/api/v1/auth/register') &&
-          !url.includes('/api/v1/auth/exchange-token')
+          !url.includes('/api/v1/auth/exchange-token') &&
+          !url.includes('/api/v1/system-settings/verify-storage-path')
         ) {
           logout();
           throw new Error('Unauthorized');

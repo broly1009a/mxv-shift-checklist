@@ -783,8 +783,14 @@ export class CcpStatisticsService {
     while (currentRow <= endRow) {
       const cellVal = ws.getCell(currentRow, ngayColIndex).value;
       if (cellVal !== null && cellVal !== undefined) {
-        lastBlockStart = currentRow;
-        lastDate = String(cellVal).trim();
+        if (cellVal instanceof Date) {
+          const d = String(cellVal.getDate()).padStart(2, '0');
+          const m = String(cellVal.getMonth() + 1).padStart(2, '0');
+          const y = cellVal.getFullYear();
+          lastDate = `${d}/${m}/${y}`;
+        } else {
+          lastDate = String(cellVal).trim();
+        }
         if (sttColIndex > 0) {
           const sttVal = ws.getCell(currentRow, sttColIndex).value;
           lastStt = parseInt(String(sttVal)) || 0;
@@ -808,8 +814,23 @@ export class CcpStatisticsService {
 
     if (lastBlockStart !== -1) {
       // Validate dates
-      const [lastD, lastM, lastY] = lastDate.split('/').map(Number);
-      const parsedLastDate = new Date(lastY, lastM - 1, lastD);
+      let parsedLastDate: Date | null = null;
+      if (lastDate.includes('/') || lastDate.includes('-')) {
+        const sep = lastDate.includes('/') ? '/' : '-';
+        const bits = lastDate.split(sep).map(Number);
+        if (bits.length >= 3) {
+          if (bits[0] > 31) {
+            // YYYY-MM-DD
+            parsedLastDate = new Date(bits[0], bits[1] - 1, bits[2]);
+          } else {
+            // DD/MM/YYYY
+            parsedLastDate = new Date(bits[2], bits[1] - 1, bits[0]);
+          }
+        }
+      }
+      if (!parsedLastDate || isNaN(parsedLastDate.getTime())) {
+        parsedLastDate = new Date(lastDate);
+      }
       const parsedSelectedDate = new Date(selectedDate);
       parsedSelectedDate.setHours(0, 0, 0, 0);
       parsedLastDate.setHours(0, 0, 0, 0);

@@ -2,13 +2,16 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SystemSetting } from '../../schemas/system-setting.schema';
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
 
 @Injectable()
 export class SystemSettingsService implements OnModuleInit {
   constructor(
     @InjectModel(SystemSetting.name)
     private readonly systemSettingModel: Model<SystemSetting>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     try {
@@ -120,7 +123,7 @@ export class SystemSettingsService implements OnModuleInit {
         socketTimeout: 15000, // 15s
       });
 
-      const subject = `⚠️ [MXV SECURITY AUDIT] Cảnh báo Thay đổi Cấu hình Hệ thống Quan trọng`;
+      const subject = ` [MXV SECURITY AUDIT] Cảnh báo Thay đổi Cấu hình Hệ thống Quan trọng`;
 
       let oldDisplay = oldValue;
       let newDisplay = newValue;
@@ -131,14 +134,14 @@ export class SystemSettingsService implements OnModuleInit {
         if (newValue.startsWith('{') || newValue.startsWith('[')) {
           newDisplay = JSON.stringify(JSON.parse(newValue), null, 2);
         }
-      } catch {}
+      } catch { }
 
       const htmlBody = `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
             <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid #d97706;">
               <div style="padding: 20px;">
-                <h2 style="color: #d97706; margin-top: 0;">⚠️ Cảnh Báo Thay Đổi Cấu Hình Hệ Thống</h2>
+                <h2 style="color: #d97706; margin-top: 0;"> Cảnh Báo Thay Đổi Cấu Hình Hệ Thống</h2>
                 <p>Hệ thống ghi nhận một thay đổi cấu hình quan trọng vừa được thực hiện.</p>
                 
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -198,7 +201,7 @@ export class SystemSettingsService implements OnModuleInit {
 
       const configStr = await this.getSetting('margin_checker_config', '{}');
       const config = JSON.parse(configStr);
-      
+
       const mailSettings = config.securityAudit || {
         isSendWarning: true,
         email: ['it.support@mxv.vn'],
@@ -233,7 +236,7 @@ export class SystemSettingsService implements OnModuleInit {
       });
 
       const subject = `[MXV BOT WARNING] Cảnh báo: Refresh Token Đọc Email Của Bot Đã Hết Hạn / Bị Thu Hồi`;
-      
+
       const htmlBody = `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
@@ -292,6 +295,120 @@ export class SystemSettingsService implements OnModuleInit {
   async findAll(): Promise<SystemSetting[]> {
     return this.systemSettingModel.find().exec();
   }
+
+  /**
+   * Kiểm tra xem đường dẫn thư mục có tồn tại và có quyền ghi hay không.
+   */
+  async verifyStoragePath(rawPath: string): Promise<{
+    success: boolean;
+    exists: boolean;
+    canWrite: boolean;
+    resolvedPath: string;
+    message: string;
+  }> {
+    if (!rawPath || !rawPath.trim()) {
+      return {
+        success: false,
+        exists: false,
+        canWrite: false,
+        resolvedPath: '',
+        message: 'Đường dẫn thư mục trống.',
+      };
+    }
+
+    try {
+      const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
+      const yyyy = now.getUTCFullYear().toString();
+      const mm = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+      const dd = now.getUTCDate().toString().padStart(2, '0');
+
+      const formatted = rawPath
+        .replace(/\${YYYY}/g, yyyy)
+        .replace(/\${MM}/g, mm)
+        .replace(/\${DD}/g, dd)
+        .replace(/\${yyyy}/g, yyyy)
+        .replace(/\${mm}/g, mm)
+        .replace(/\${dd}/g, dd);
+
+      const resolved = resolveStoragePathCrossPlatform(formatted);
+
+      // 1. Kiểm tra nếu thư mục đã tồn tại
+      if (fs.existsSync(resolved)) {
+        const testFile = path.join(resolved, `.write_test_${Date.now()}`);
+        try {
+          fs.writeFileSync(testFile, 'test');
+          fs.unlinkSync(testFile);
+          return {
+            success: true,
+            exists: true,
+            canWrite: true,
+            resolvedPath: resolved,
+            message: 'Thư mục này đang tồn tại và có đầy đủ quyền ghi dữ liệu.',
+          };
+        } catch (writeErr: any) {
+          return {
+            success: false,
+            exists: true,
+            canWrite: false,
+            resolvedPath: resolved,
+            message: `Thư mục có tồn tại nhưng không có quyền ghi: ${writeErr.message}`,
+          };
+        }
+      }
+
+      // 2. Nếu thư mục chưa tồn tại, tìm thư mục cha gần nhất đang tồn tại
+      let currentDir = path.dirname(resolved);
+      let foundExistingParent: string | null = null;
+      for (let i = 0; i < 5; i++) {
+        if (fs.existsSync(currentDir)) {
+          foundExistingParent = currentDir;
+          break;
+        }
+        const parent = path.dirname(currentDir);
+        if (parent === currentDir) break;
+        currentDir = parent;
+      }
+
+      if (foundExistingParent) {
+        const testFile = path.join(foundExistingParent, `.write_test_${Date.now()}`);
+        try {
+          fs.writeFileSync(testFile, 'test');
+          fs.unlinkSync(testFile);
+          return {
+            success: true,
+            exists: false,
+            canWrite: true,
+            resolvedPath: resolved,
+            message: `Thư mục chưa tạo sẵn, nhưng hệ thống có quyền tự động tạo mới thư mục khi lưu file (quyền ghi hợp lệ tại ${foundExistingParent}).`,
+          };
+        } catch (writeErr: any) {
+          return {
+            success: false,
+            exists: false,
+            canWrite: false,
+            resolvedPath: resolved,
+            message: `Thư mục cha (${foundExistingParent}) không có quyền ghi: ${writeErr.message}`,
+          };
+        }
+      }
+
+      return {
+        success: false,
+        exists: false,
+        canWrite: false,
+        resolvedPath: resolved,
+        message: `Ổ đĩa hoặc đường dẫn không khả dụng trên hệ thống (${resolved}).`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        exists: false,
+        canWrite: false,
+        resolvedPath: rawPath,
+        message: `Lỗi kiểm tra đường dẫn: ${err.message}`,
+      };
+    }
+  }
 }
 
 /**
@@ -300,7 +417,7 @@ export class SystemSettingsService implements OnModuleInit {
 function sanitizeConfig(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeConfig);
-  
+
   const copy = { ...obj };
   const keysToIgnore = ['lastEmailSentAt', 'lastEmailStatus', 'lastEmailError'];
   for (const k of keysToIgnore) {

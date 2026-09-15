@@ -180,10 +180,15 @@ export class AuthController {
           if (tokenData.id_token) {
             try {
               const payloadBase64 = tokenData.id_token.split('.')[1];
-              const payloadJson = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
-              authorizedEmail = payloadJson.preferred_username || payloadJson.email || payloadJson.upn || '';
+              let payloadJson: any = null;
+              try {
+                payloadJson = JSON.parse(Buffer.from(payloadBase64, 'base64url').toString('utf8'));
+              } catch (e1) {
+                payloadJson = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
+              }
+              authorizedEmail = payloadJson.preferred_username || payloadJson.email || payloadJson.upn || payloadJson.unique_name || '';
             } catch (e) {
-              // ignore
+              this.logger.warn(`[TKGD-OUTLOOK] Không thể giải mã id_token: ${e.message}`);
             }
           }
 
@@ -198,15 +203,16 @@ export class AuthController {
                 authorizedEmail = profile.mail || profile.userPrincipalName || '';
               }
             } catch (e) {
-              // ignore
+              this.logger.warn(`[TKGD-OUTLOOK] Lỗi gọi Graph /me: ${e.message}`);
             }
           }
 
+          const finalAuthorizedEmail = authorizedEmail || userConfig.outlook?.targetMailbox || userEmail;
           await this.tkgdService.saveOutlookAuthorizedToken(userEmail, {
             refreshToken: tokenData.refresh_token,
-            authorizedEmail: authorizedEmail || userConfig.outlook?.targetMailbox || userEmail,
+            authorizedEmail: finalAuthorizedEmail,
           });
-          this.logger.log(`[TKGD-OUTLOOK] Đã cấp quyền và lưu Refresh Token độc lập cho ${userEmail} (${authorizedEmail})`);
+          this.logger.log(`[TKGD-OUTLOOK] Đã cấp quyền và lưu Refresh Token độc lập cho ${userEmail} (${finalAuthorizedEmail})`);
         } else {
           throw new Error('Không nhận được Refresh Token từ Microsoft (hãy kiểm tra quyền offline_access)');
         }

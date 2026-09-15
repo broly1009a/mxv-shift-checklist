@@ -61,7 +61,7 @@ def run_automated_evaluation():
         search_btn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible():
             search_btn.click()
-            print("  ⏳ Bấm Tìm kiếm. Chờ API & Loading Spinner...")
+            print("   Bấm Tìm kiếm. Chờ API & Loading Spinner...")
             page.wait_for_timeout(1500)
             try:
                 page.wait_for_selector(
@@ -71,7 +71,7 @@ def run_automated_evaluation():
                 )
                 print("  ✓ [SUCCESS] Bảng đã nạp xong dữ liệu!")
             except Exception as e:
-                print(f"  ⚠️ Timeout spinner: {e}")
+                print(f"   Timeout spinner: {e}")
             page.wait_for_timeout(1000)
 
         print("4. Phân tích danh sách các cột (<th>) trên bảng...")
@@ -114,7 +114,7 @@ def run_automated_evaluation():
             page.wait_for_timeout(2000)
             take_ss(page, "FINAL_TEST_SUCCESS_ACCT_M")
         else:
-            print("  ⚠️ Thử tìm ô input bất kỳ thuộc th thứ 2-4...")
+            print("   Thử tìm ô input bất kỳ thuộc th thứ 2-4...")
             fallback_inp = page.locator("xpath=//thead//th//input").nth(1)
             if fallback_inp.count() > 0:
                 fallback_inp.focus()

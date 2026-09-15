@@ -114,7 +114,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 ---
 
-## 🚀 Cách thức hoạt động tự động sau khi cài đặt
+##  Cách thức hoạt động tự động sau khi cài đặt
 Chúng tôi đã tích hợp cơ chế **tự động quét đường dẫn** trong nhân của Agent (`agent_core.py`). Khi người dùng mở ứng dụng trên máy mới:
 
 1. Agent đọc tệp `config.json`. Nếu trường `workspace_path` trống (do không cấu hình thủ công).

@@ -52,7 +52,7 @@ def extract_text_pdfplumber(pdf_path: str) -> str:
     except ImportError:
         return None
     except Exception as e:
-        print(f"    ⚠️ pdfplumber error: {e}")
+        print(f"     pdfplumber error: {e}")
         return None
 
 
@@ -69,7 +69,7 @@ def extract_text_pymupdf(pdf_path: str) -> str:
     except ImportError:
         return None
     except Exception as e:
-        print(f"    ⚠️ pymupdf error: {e}")
+        print(f"     pymupdf error: {e}")
         return None
 
 
@@ -157,7 +157,7 @@ def extract_from_hop_dong(pdf_path: str) -> PDFExtractResult:
     if not text or len(text.strip()) < 50:
         # PDF có thể là ảnh scan thuần → không có text layer
         result.warning = "PDF dạng scan (không có text layer). Cần OCR PDF nếu muốn trích xuất."
-        print(f"    ⚠️ {result.warning}")
+        print(f"     {result.warning}")
         # Vẫn kiểm tra image objects
         sig, stamp = detect_signature_stamp('', pdf_path)
         result.has_signature_area = sig
@@ -193,8 +193,8 @@ def extract_from_hop_dong(pdf_path: str) -> PDFExtractResult:
     
     print(f"    Tên KH trong HĐ: {result.tenKH_in_pdf}")
     print(f"    Mã TK trong HĐ:  {result.maTKGD_in_pdf}")
-    print(f"    Chữ ký: {'✅' if result.has_signature_area else '⚠️ Không phát hiện'}")
-    print(f"    Con dấu: {'✅' if result.has_stamp_area else '⚠️ Không phát hiện'}")
+    print(f"    Chữ ký: {'' if result.has_signature_area else ' Không phát hiện'}")
+    print(f"    Con dấu: {'' if result.has_stamp_area else ' Không phát hiện'}")
     
     return result
 
@@ -225,7 +225,7 @@ def extract_from_pl01(pdf_path: str) -> PDFExtractResult:
     
     if not text or len(text.strip()) < 50:
         result.warning = "PL01 PDF dạng scan thuần."
-        print(f"    ⚠️ {result.warning}")
+        print(f"     {result.warning}")
         sig, stamp = detect_signature_stamp('', pdf_path)
         result.has_signature_area = sig
         result.has_stamp_area = stamp
@@ -242,7 +242,7 @@ def extract_from_pl01(pdf_path: str) -> PDFExtractResult:
     ))
     if not is_pl01:
         result.warning = "Không phát hiện tiêu đề Phụ lục 01 trong PDF này"
-        print(f"    ⚠️ {result.warning}")
+        print(f"     {result.warning}")
     
     # Bóc tách tên KH và Mã TK ACM
     m = re.search(
@@ -260,7 +260,7 @@ def extract_from_pl01(pdf_path: str) -> PDFExtractResult:
     
     print(f"    Tên KH trong PL01: {result.tenKH_in_pdf}")
     print(f"    Mã TK ACM:         {result.maTKGD_in_pdf}")
-    print(f"    Chữ ký: {'✅' if result.has_signature_area else '⚠️ Không phát hiện'}")
+    print(f"    Chữ ký: {'' if result.has_signature_area else ' Không phát hiện'}")
     
     return result
 

@@ -12,18 +12,18 @@ def test_cccd_images():
     try:
         from pyzbar.pyzbar import decode as pyzbar_decode
         has_pyzbar = True
-        print("✅ Thư viện pyzbar đã sẵn sàng!")
+        print(" Thư viện pyzbar đã sẵn sàng!")
     except Exception as e:
-        print(f"⚠️ pyzbar chưa dùng được: {e}")
+        print(f" pyzbar chưa dùng được: {e}")
 
     # Kiểm tra pytesseract
     has_tesseract = False
     try:
         import pytesseract
         has_tesseract = True
-        print("✅ Thư viện pytesseract đã sẵn sàng!")
+        print(" Thư viện pytesseract đã sẵn sàng!")
     except Exception as e:
-        print(f"⚠️ pytesseract chưa dùng được: {e}")
+        print(f" pytesseract chưa dùng được: {e}")
 
     for sample in ["mẫu 1", "mẫu 2"]:
         sample_path = os.path.join(base_dir, sample)
@@ -47,7 +47,7 @@ def test_cccd_images():
                         else:
                             print("  ℹ️ Không phát hiện QR code qua pyzbar")
                     except Exception as e:
-                        print(f"  ❌ Lỗi pyzbar: {e}")
+                        print(f"   Lỗi pyzbar: {e}")
 
                 # Thử đọc Tesseract OCR
                 if has_tesseract:

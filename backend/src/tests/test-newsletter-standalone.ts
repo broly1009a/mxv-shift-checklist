@@ -42,9 +42,9 @@ async function runTest() {
   const testDate = new Date();
   const logs: string[] = [];
 
-  console.log('⏳ Đang thực thi hàm xuất file bản tin...');
+  console.log(' Đang thực thi hàm xuất file bản tin...');
   const generateNewsletter = (service as any).generateNewsletterFile.bind(service);
-  
+
   await generateNewsletter(targetRoot, testDate, mockGtgdMap, logs);
 
   console.log('\n--- KẾT QUẢ GHI NHẬN ---');
@@ -56,6 +56,6 @@ async function runTest() {
 }
 
 runTest().catch((err) => {
-  console.error('❌ Lỗi kiểm thử:', err.message);
+  console.error(' Lỗi kiểm thử:', err.message);
   process.exit(1);
 });

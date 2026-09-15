@@ -14,7 +14,7 @@ function decrypt(encryptedText) {
   }
   const rawKey = process.env.ENCRYPTION_KEY || 'mxv_default_secret_key_32_chars_long!';
   const secretKey = crypto.createHash('sha256').update(rawKey).digest();
-  
+
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = Buffer.from(parts[1], 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', secretKey, iv);
@@ -30,10 +30,10 @@ async function runPlaywrightNkthtTest() {
   console.log('Đang kết nối database để lấy credentials...');
   await mongoose.connect(uri);
   const db = mongoose.connection.db;
-  
+
   const setting = await db.collection('system_settings').findOne({ key: 'bot_credentials_msystem' });
   if (!setting) {
-    console.error('❌ Không tìm thấy setting bot_credentials_msystem trong DB!');
+    console.error(' Không tìm thấy setting bot_credentials_msystem trong DB!');
     await mongoose.disconnect();
     return;
   }
@@ -42,11 +42,11 @@ async function runPlaywrightNkthtTest() {
   try {
     credentials = JSON.parse(decrypt(setting.value));
   } catch (e) {
-    console.error('❌ Lỗi giải mã credentials:', e.message);
+    console.error(' Lỗi giải mã credentials:', e.message);
     await mongoose.disconnect();
     return;
   }
-  
+
   await mongoose.disconnect();
 
   const msUrl = credentials.url || 'https://msadmin.mxv.com.vn/';
@@ -83,7 +83,7 @@ async function runPlaywrightNkthtTest() {
   try {
     console.log(`\n1. Truy cập M-System...`);
     await page.goto(msUrl);
-    
+
     console.log('Chờ tải trang M-System (Đăng nhập hoặc Trang chủ)...');
     const pageState = await Promise.race([
       page.waitForSelector('input[name="username"]', { timeout: 15000 }).then(() => 'login'),
@@ -140,13 +140,13 @@ async function runPlaywrightNkthtTest() {
       const download = await downloadPromise;
       const savePath = path.join(__dirname, '..', '..', 'temp_NKTTHT_test.xlsx');
       await download.saveAs(savePath);
-      console.log(`\n✅ TẢI THÀNH CÔNG RỰC RỠ! File đã được lưu tại:\n   ${savePath}`);
+      console.log(`\n TẢI THÀNH CÔNG RỰC RỠ! File đã được lưu tại:\n   ${savePath}`);
       console.log(`Kích thước file: ${(fs.statSync(savePath).size / 1024).toFixed(2)} KB`);
     } else {
       console.log('Không tìm thấy nút xuất file trên giao diện!');
     }
   } catch (err) {
-    console.error(`❌ LỖI PLAYWRIGHT TEST:`, err.message);
+    console.error(` LỖI PLAYWRIGHT TEST:`, err.message);
   } finally {
     console.log('\nGiữ trình duyệt 10 giây trước khi đóng...');
     await page.waitForTimeout(10000);

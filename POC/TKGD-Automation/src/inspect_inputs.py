@@ -24,13 +24,13 @@ def inspect_sample_files():
                         if txt:
                             print(f"   --> Trích đoạn text:\n{txt[:300].strip()}\n")
                 except Exception as e:
-                    print(f"   ❌ Lỗi đọc PDF {f}: {e}")
+                    print(f"    Lỗi đọc PDF {f}: {e}")
             elif f.lower().endswith((".jpg", ".png", ".jpeg")):
                 try:
                     img = Image.open(file_path)
                     print(f"\n🖼️ [ẢNH] {f}: Kích thước {img.size}, Format: {img.format}")
                 except Exception as e:
-                    print(f"   ❌ Lỗi đọc ảnh {f}: {e}")
+                    print(f"    Lỗi đọc ảnh {f}: {e}")
 
 if __name__ == "__main__":
     inspect_sample_files()

@@ -153,6 +153,6 @@ async function testEmailSod() {
 }
 
 testEmailSod().catch((err) => {
-  console.error('❌ Test email SOD thất bại:', err);
+  console.error(' Test email SOD thất bại:', err);
   process.exit(1);
 });

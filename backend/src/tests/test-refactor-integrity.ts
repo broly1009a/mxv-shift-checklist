@@ -25,9 +25,9 @@ async function runIntegrityTests() {
     totalCount++;
     if (condition) {
       passedCount++;
-      console.log(`✅ [PASS] ${testName}`);
+      console.log(` [PASS] ${testName}`);
     } else {
-      console.error(`❌ [FAIL] ${testName}`);
+      console.error(` [FAIL] ${testName}`);
       if (detail) console.error(`   👉 Chi tiết: ${detail}`);
     }
   }
@@ -118,7 +118,7 @@ async function runIntegrityTests() {
   // Kết quả tổng hợp
   // -------------------------------------------------------------
   console.log('\n===============================================================');
-  console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passedCount}/${totalCount} TEST CASES PASS`);
+  console.log(` KẾT QUẢ KIỂM THỬ: ${passedCount}/${totalCount} TEST CASES PASS`);
   console.log('===============================================================');
 
   if (passedCount === totalCount) {

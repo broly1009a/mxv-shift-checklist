@@ -45,7 +45,7 @@ async function testPreEod() {
       sessionStartStr,
     );
 
-    console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU PRE-EOD CHUNG:');
+    console.log('\n KẾT QUẢ ĐỐI CHIẾU PRE-EOD CHUNG:');
     console.log(`• Passed Status: ${result.passed}`);
     console.log('\n--- 1. KHỚP LỆNH THƯỜNG (MS vs CQG) ---');
     console.log(`• Tổng khớp MS (CQG): ${result.totals.totalCQG_MS} lot`);
@@ -71,13 +71,13 @@ async function testPreEod() {
       });
     }
   } catch (err: any) {
-    console.error('❌ Lỗi khi thực hiện đối chiếu:', err);
+    console.error(' Lỗi khi thực hiện đối chiếu:', err);
   } finally {
     await app.close();
   }
 }
 
 testPreEod().catch((err) => {
-  console.error('❌ Lỗi nghiêm trọng:', err);
+  console.error(' Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

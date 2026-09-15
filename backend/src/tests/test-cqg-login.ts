@@ -8,7 +8,7 @@ import * as fs from 'fs';
 
 async function runCQGLoginTest() {
   console.log('----------------------------------------------------');
-  console.log('🚀 KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP CQG DESKTOP (HEADFUL MODE)');
+  console.log(' KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP CQG DESKTOP (HEADFUL MODE)');
   console.log('----------------------------------------------------');
 
   // 1. Boot NestJS context to load config from database
@@ -36,13 +36,13 @@ async function runCQGLoginTest() {
         password = credentials.password;
         cqgUrl = credentials.url || cqgUrl;
       } catch (err) {
-        console.error('❌ Lỗi giải mã thông tin tài khoản CQG từ CSDL.');
+        console.error(' Lỗi giải mã thông tin tài khoản CQG từ CSDL.');
       }
     }
   }
 
   if (!username || !password) {
-    console.log('\n❌ THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
+    console.log('\n THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
     console.log('Bạn có thể cấu hình bằng 2 cách:');
     console.log(
       'Cách 1: Lưu cấu hình trên giao diện Web Admin tại địa chỉ /admin/bot-config',
@@ -130,7 +130,7 @@ async function runCQGLoginTest() {
     await page.waitForTimeout(15000);
   } catch (err: any) {
     console.error(
-      '\n❌ Xảy ra lỗi trong quá trình tự động đăng nhập CQG:',
+      '\n Xảy ra lỗi trong quá trình tự động đăng nhập CQG:',
       err.message,
     );
     try {
@@ -165,10 +165,10 @@ async function runCQGLoginTest() {
         }
       }
       console.log(
-        `⚠️ Đã ghi nhận log lỗi và chụp màn hình debug tại: ${debugDir}`,
+        ` Đã ghi nhận log lỗi và chụp màn hình debug tại: ${debugDir}`,
       );
     } catch (logErr: any) {
-      console.error('❌ Không thể lưu debug artifacts:', logErr.message);
+      console.error(' Không thể lưu debug artifacts:', logErr.message);
     }
   } finally {
     console.log('Đang đóng trình duyệt...');
@@ -180,6 +180,6 @@ async function runCQGLoginTest() {
 }
 
 runCQGLoginTest().catch((err) => {
-  console.error('❌ Lỗi thực thi kiểm thử đăng nhập CQG:', err);
+  console.error(' Lỗi thực thi kiểm thử đăng nhập CQG:', err);
   process.exit(1);
 });

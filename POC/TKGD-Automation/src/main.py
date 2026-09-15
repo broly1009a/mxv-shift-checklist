@@ -158,7 +158,7 @@ def derive_conclusion(record: RecordResult) -> RecordResult:
         record.ghi_chu = 'OCR CCCD không đọc được, cần kiểm tra thủ công'
     else:
         record.ket_luan = 'KHOP'
-        record.ghi_chu = '✅ Hồ sơ hợp lệ, sẵn sàng phê duyệt'
+        record.ghi_chu = ' Hồ sơ hợp lệ, sẵn sàng phê duyệt'
     
     return record
 
@@ -255,7 +255,7 @@ def run_batch(mail_folder: str, output_excel: str = None,
     """
     
     print(f"\n{'='*60}")
-    print("🚀 TKGD AUTOMATION - BẮT ĐẦU XỬ LÝ")
+    print(" TKGD AUTOMATION - BẮT ĐẦU XỬ LÝ")
     print(f"   Mail folder: {mail_folder}")
     print(f"   Output: {output_excel or 'Auto-generate'}")
     print('='*60)
@@ -266,7 +266,7 @@ def run_batch(mail_folder: str, output_excel: str = None,
     print(f"   Tổng cộng: {len(raw_mails)} mail")
     
     if not raw_mails:
-        print("❌ Không có mail nào để xử lý!")
+        print(" Không có mail nào để xử lý!")
         return []
     
     # Xử lý từng mail
@@ -276,7 +276,7 @@ def run_batch(mail_folder: str, output_excel: str = None,
             record = process_single_mail(mail, msystem_scraper=None)
             records.append(record)
         except Exception as e:
-            print(f"\n❌ Lỗi xử lý mail {mail.mail_id}: {e}")
+            print(f"\n Lỗi xử lý mail {mail.mail_id}: {e}")
             import traceback
             traceback.print_exc()
     
@@ -302,11 +302,11 @@ def run_batch(mail_folder: str, output_excel: str = None,
     chua_ms = sum(1 for r in records if 'MS' in r.ket_luan)
     
     print(f"  Tổng mail xử lý:     {total}")
-    print(f"  ✅ KHỚP hoàn toàn:   {khop}")
-    print(f"  🔴 LỆCH thông tin:   {lech}")
+    print(f"   KHỚP hoàn toàn:   {khop}")
+    print(f"   LỆCH thông tin:   {lech}")
     print(f"  🟡 THIẾU hồ sơ:     {thieu}")
     print(f"  🟠 Chưa trên MS:     {chua_ms}")
-    print(f"\n  📁 File Excel: {output_excel}")
+    print(f"\n   File Excel: {output_excel}")
     
     return records
 

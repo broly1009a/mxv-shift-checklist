@@ -123,4 +123,4 @@ def save_config(cfg: dict):
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"⚠️ Lỗi ghi file config.json: {e}")
+        print(f" Lỗi ghi file config.json: {e}")

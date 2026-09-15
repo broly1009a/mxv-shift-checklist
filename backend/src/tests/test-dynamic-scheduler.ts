@@ -32,7 +32,7 @@ async function runTests() {
     '',
   );
   if (seededConfigRaw) {
-    console.log('✅ Scheduler configs seeded successfully in DB!');
+    console.log(' Scheduler configs seeded successfully in DB!');
     const parsed = JSON.parse(seededConfigRaw);
     console.log('Seeded tasks count:', parsed.length);
     parsed.forEach((t: any) =>
@@ -160,7 +160,7 @@ async function runTests() {
           ? Object.fromEntries(enqueuedJob.payload)
           : enqueuedJob.payload || {};
 
-      console.log('✅ Job enqueued successfully in bot_jobs collection!');
+      console.log(' Job enqueued successfully in bot_jobs collection!');
       console.log(` - Job ID: ${enqueuedJob._id}`);
       console.log(` - Job Type: ${enqueuedJob.jobType}`);
       console.log(` - Linked Task ID: ${jobPayload.taskId}`);
@@ -179,7 +179,7 @@ async function runTests() {
     );
     if (lastRunDate === todayStr) {
       console.log(
-        "✅ lastRunMap populated correctly with today's date:",
+        " lastRunMap populated correctly with today's date:",
         lastRunDate,
       );
     } else {
@@ -212,7 +212,7 @@ async function runTests() {
 
     if (initialJobsCount === postJobsCount) {
       console.log(
-        '✅ Duplicate execution blocked successfully! No additional jobs enqueued.',
+        ' Duplicate execution blocked successfully! No additional jobs enqueued.',
       );
     } else {
       throw new Error(
@@ -251,6 +251,6 @@ async function runTests() {
 }
 
 runTests().catch((err) => {
-  console.error('❌ Scheduler Test execution failed:', err);
+  console.error(' Scheduler Test execution failed:', err);
   process.exit(1);
 });

@@ -11,7 +11,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 async function run() {
-  console.log('🚀 Khởi tạo ứng dụng NestJS (Headed Mode)...');
+  console.log(' Khởi tạo ứng dụng NestJS (Headed Mode)...');
   const appContext = await NestFactory.createApplicationContext(AppModule);
   const rpaDownloader = appContext.get(RpaDownloaderService);
 
@@ -31,9 +31,9 @@ async function run() {
       tempDir,
       targetDate,
     );
-    console.log(`\n✅ THÀNH CÔNG! Đã tải file lịch sử email về: ${filePath}`);
+    console.log(`\n THÀNH CÔNG! Đã tải file lịch sử email về: ${filePath}`);
   } catch (err: any) {
-    console.error(`\n❌ THẤT BẠI:`, err.message);
+    console.error(`\n THẤT BẠI:`, err.message);
   } finally {
     // Giữ trình duyệt hiển thị 5 giây trước khi đóng context ứng dụng
     console.log('⌛ Sẽ đóng ứng dụng sau 5 giây...');
@@ -44,6 +44,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('❌ Lỗi nghiêm trọng:', err);
+  console.error(' Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

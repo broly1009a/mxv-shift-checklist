@@ -45,7 +45,7 @@ function runRemoteCommand(conn, cmd) {
 
 conn.on('ready', async () => {
   console.log('='.repeat(80));
-  console.log('🚀 KIỂM THỬ THỰC TẾ MODULE SCAN CCCD TRÊN SERVER UBUNTU (10.0.0.26)');
+  console.log(' KIỂM THỬ THỰC TẾ MODULE SCAN CCCD TRÊN SERVER UBUNTU (10.0.0.26)');
   console.log('='.repeat(80));
 
   for (const tc of testCases) {
@@ -56,7 +56,7 @@ conn.on('ready', async () => {
       if (jsonStart >= 0) {
         const parsed = JSON.parse(rawOut.substring(jsonStart).trim());
         const cc = parsed.canCuoc || {};
-        console.log(`   ✅ Bóc tách thành công:`);
+        console.log(`    Bóc tách thành công:`);
         console.log(`      • Số CCCD:        ${cc.soCCCD || 'Chưa đọc'}`);
         console.log(`      • Họ và tên:      ${cc.hoTen || 'Chưa đọc'}`);
         console.log(`      • Ngày sinh:      ${cc.ngaySinh || 'Chưa đọc'}`);
@@ -67,7 +67,7 @@ conn.on('ready', async () => {
         console.log(`      • Độ tin cậy AI:   ${Math.round((cc.confidenceScore || 0) * 100)}%`);
         console.log(`      • Cảnh báo lỗi:   ${(cc.canhBaoChatLuong && cc.canhBaoChatLuong.length > 0) ? ('⚠ ' + cc.canhBaoChatLuong.join('; ')) : '✓ Hợp lệ 100% (Đủ 4 góc viền)'}`);
       } else {
-        console.log(`   ❌ Không tìm thấy JSON output:\n${rawOut}`);
+        console.log(`    Không tìm thấy JSON output:\n${rawOut}`);
       }
     } catch (e) {
       console.log(`   💥 Lỗi: ${e.message}`);
@@ -75,7 +75,7 @@ conn.on('ready', async () => {
   }
 
   console.log('\n' + '='.repeat(80));
-  console.log('🏁 HOÀN TẤT KIỂM THỬ TRÊN SERVER!');
+  console.log(' HOÀN TẤT KIỂM THỬ TRÊN SERVER!');
   console.log('='.repeat(80));
   conn.end();
 }).connect({

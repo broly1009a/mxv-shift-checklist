@@ -68,6 +68,9 @@ export default function ReconciliationModal({
     eod: null,
     tttt: null,
     accountsBalances: null,
+    qltkgdCcp: null,
+    eodCcp: null,
+    ttttCcp: null,
     // Pre-EOD files
     acmTrades: null,
     cqgFr: null,
@@ -220,13 +223,24 @@ export default function ReconciliationModal({
       formData.append('cqgPs', files.cqgPs);
       endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-pre-eod`;
     } else if (mode === 'EOD') {
-      if (!files.qltkgd) {
-        toast.error('File QLTKGD.xlsx là bắt buộc!');
+      if (!files.qltkgd && !files.qltkgdCcp) {
+        toast.error('Cần ít nhất một file QLTKGD (M-System hoặc CCP)!');
         return;
       }
-      formData.append('qltkgd', files.qltkgd);
+      if (files.qltkgd) {
+        formData.append('qltkgd', files.qltkgd);
+      }
       if (files.eod) {
         formData.append('eod', files.eod);
+      }
+      if (files.qltkgdCcp) {
+        formData.append('qltkgdCcp', files.qltkgdCcp);
+      }
+      if (files.eodCcp) {
+        formData.append('eodCcp', files.eodCcp);
+      }
+      if (files.ttttCcp) {
+        formData.append('ttttCcp', files.ttttCcp);
       }
       endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-eod`;
     } else if (mode === 'CQG') {
@@ -365,7 +379,7 @@ export default function ReconciliationModal({
     if (mode === 'PRE_EOD') {
       return !files.dsgd || !files.acmTrades || !files.cqgFr || !files.tttt || !files.cqgPs;
     }
-    if (mode === 'EOD') return !files.qltkgd;
+    if (mode === 'EOD') return !files.qltkgd && !files.qltkgdCcp;
     if (mode === 'CQG') return !files.qltkgd || !files.accountsBalances;
     return !files.dsgd;
   };
@@ -574,11 +588,13 @@ export default function ReconciliationModal({
           {mode === 'EOD' && (
             <div>
               <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                Chọn File Lọc Tài Khoản Âm Ký Quỹ
+                Chọn File Đối Chiếu EOD & Lọc Tài Khoản Âm Ký Quỹ (MS & CCP)
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '16px' }}>
-                {renderFileDropzone('qltkgd', 'File QLTKGD.xlsx', true)}
-                {renderFileDropzone('eod', 'File eod.csv (Tùy chọn)')}
+                {renderFileDropzone('qltkgd', 'File QLTKGD.xlsx (MS)')}
+                {renderFileDropzone('eod', 'File eod.csv (MS)')}
+                {renderFileDropzone('qltkgdCcp', 'File QLTTTKGD CCP (Tùy chọn)')}
+                {renderFileDropzone('eodCcp', 'File Kết quả EOD CCP (Tùy chọn)')}
               </div>
             </div>
           )}
@@ -855,6 +871,49 @@ export default function ReconciliationModal({
                             {acc}
                           </span>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {result.mismatchedEOD?.length > 0 && (
+                    <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} /> Danh sách tài khoản lệch công thức EOD (MS & CCP):
+                      </h4>
+                      <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 8px' }}>Hệ thống</th>
+                              <th style={{ padding: '4px 8px' }}>Mã TKGD</th>
+                              <th style={{ padding: '4px 8px', textAlign: 'right' }}>Tính toán</th>
+                              <th style={{ padding: '4px 8px', textAlign: 'right' }}>EOD Thực tế</th>
+                              <th style={{ padding: '4px 8px', textAlign: 'right' }}>Chênh lệch</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {result.mismatchedEOD.map((m: any, i: number) => (
+                              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontFamily: 'monospace' }}>
+                                <td style={{ padding: '4px 8px' }}>
+                                  <span style={{
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    backgroundColor: m.system === 'CCP' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                    color: m.system === 'CCP' ? '#a855f7' : '#3b82f6',
+                                  }}>
+                                    [{m.system || 'MS'}]
+                                  </span>
+                                </td>
+                                <td style={{ padding: '4px 8px', fontWeight: 700 }}>{m.maTKGD}</td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right' }}>{m.calculatedBalance?.toLocaleString()}</td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right' }}>{m.eodBalance?.toLocaleString()}</td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', color: '#ef4444', fontWeight: 700 }}>{m.differ?.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}

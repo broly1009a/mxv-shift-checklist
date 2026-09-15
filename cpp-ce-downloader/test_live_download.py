@@ -161,14 +161,14 @@ def run_live_test():
                             print(f"  🎉 [Thành công] Đã lưu file: {dest_file}")
                             take_ss(page, f"07_success_{code}")
                         else:
-                            print(f"  ❌ Không thể kích hoạt nút Kết xuất cho {code}")
+                            print(f"   Không thể kích hoạt nút Kết xuất cho {code}")
                             take_ss(page, f"07_error_download_{code}")
                     except Exception as ex_down:
-                        print(f"  ⚠️ Thất bại khi chờ download: {ex_down}")
+                        print(f"   Thất bại khi chờ download: {ex_down}")
                         take_ss(page, f"07_error_download_{code}")
 
             except Exception as e:
-                print(f"  ❌ Lỗi khi test báo cáo {code}: {e}")
+                print(f"   Lỗi khi test báo cáo {code}: {e}")
                 take_ss(page, f"99_error_{code}")
 
         browser.close()

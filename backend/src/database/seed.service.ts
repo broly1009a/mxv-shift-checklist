@@ -112,7 +112,7 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded department: ${dept.name}`);
       } else {
-        // ✅ Không ghi đè name/monitoredExchanges để bảo toàn cấu hình từ UI.
+        //  Không ghi đè name/monitoredExchanges để bảo toàn cấu hình từ UI.
         this.logger.debug(`Department already exists, skipping update: ${dept.code}`);
       }
       mapping[dept.code] = doc._id.toString();
@@ -233,7 +233,7 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded user: ${user.username}`);
       } else {
-        // ✅ Không ghi đè isActive/role/password để bảo toàn cấu hình admin đã thiết lập.
+        //  Không ghi đè isActive/role/password để bảo toàn cấu hình admin đã thiết lập.
         this.logger.debug(`User already exists, skipping update: ${user.username}`);
       }
     }
@@ -476,7 +476,7 @@ export class SeedService implements OnApplicationBootstrap {
         await doc.save();
         this.logger.log(`Seeded checklist template: ${tpl.title}`);
       } else {
-        // ✅ Không tự động ghi đè template đã tồn tại để tránh reset cấu hình người dùng.
+        //  Không tự động ghi đè template đã tồn tại để tránh reset cấu hình người dùng.
         // Chỉ log để theo dõi — mọi thay đổi template phải qua giao diện quản trị.
         this.logger.debug(`Template already exists, skipping update: ${tpl.title}`);
       }

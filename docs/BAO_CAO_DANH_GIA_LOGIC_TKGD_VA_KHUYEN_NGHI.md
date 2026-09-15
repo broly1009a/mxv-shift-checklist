@@ -29,11 +29,11 @@ Mô hình đối soát mới được tái cấu trúc thành **Kiến trúc 3 T
 ```mermaid
 graph TD
     A[Hồ Sơ Đầu Vào: Mail + HĐ + CCCD + M-System] --> B{TẦNG 1: TRƯỜNG CỐT LÕI}
-    B -- Thiếu trên MS / Sai số CCCD / Sai Tên / Lệch Mã cơ sở --> C[KẾT LUẬN: LỆCH - Báo Đỏ ❌]
+    B -- Thiếu trên MS / Sai số CCCD / Sai Tên / Lệch Mã cơ sở --> C[KẾT LUẬN: LỆCH - Báo Đỏ ]
     B -- Khớp 100% Trường Cốt Lõi --> D{TẦNG 2: CHUẨN HÓA ĐỊNH DẠNG}
     D -- Chuẩn hóa Ngày ISO & VN / Giới tính EN & VI / Tên bỏ chữ ký --> E{TẦNG 3: TRƯỜNG BỔ TRỢ}
-    E -- Khuyết 1 bên HĐ/CCCD: Bỏ qua --> F[KẾT LUẬN: KHỚP 100% - Báo Xanh ✅]
-    E -- Có cả 2 bên & Khác biệt thực tế --> G[Cảnh báo Chi tiết Chờ Audit ⚠️]
+    E -- Khuyết 1 bên HĐ/CCCD: Bỏ qua --> F[KẾT LUẬN: KHỚP 100% - Báo Xanh ]
+    E -- Có cả 2 bên & Khác biệt thực tế --> G[Cảnh báo Chi tiết Chờ Audit ]
 ```
 
 #### Quy tắc cụ thể:

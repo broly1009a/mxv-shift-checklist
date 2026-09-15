@@ -435,7 +435,7 @@ function runStep3Test() {
         },
         {
           type: 'TextBlock',
-          text: '⚠️ **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
+          text: ' **Lưu ý:** Tất cả các vị thế mở TVKD thực hiện đóng sau thời gian phải tất toán 30 phút sẽ vi phạm quy định về việc “Đóng vị thế mở khi đến ngày đáo hạn của Hợp đồng Kỳ hạn tiêu chuẩn hàng hoá”.',
           wrap: true,
           weight: 'Bolder',
           color: 'Warning',
@@ -454,7 +454,7 @@ function runStep3Test() {
 
   fs.writeFileSync(outputFilePath, outputText, 'utf8');
   console.log(
-    `✅ SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`,
+    ` SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`,
   );
 
   // Generate the manual text messages for copy-pasting
@@ -511,7 +511,7 @@ function runStep3Test() {
 
   fs.writeFileSync(manualMessagesPath, manualText, 'utf8');
   console.log(
-    `✅ SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`,
+    ` SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`,
   );
 }
 

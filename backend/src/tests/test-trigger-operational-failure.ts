@@ -6,7 +6,7 @@ import { AppModule } from '../app.module';
 import { BotJobQueueService } from '../modules/bot-engine/bot-job-queue.service';
 
 async function run() {
-  console.log('🚀 Khởi tạo NestJS Application Context cho kịch bản Test Cảnh Báo Lệch Khớp Lệnh (CSV/Excel)...');
+  console.log(' Khởi tạo NestJS Application Context cho kịch bản Test Cảnh Báo Lệch Khớp Lệnh (CSV/Excel)...');
   const app = await NestFactory.createApplicationContext(AppModule);
   const botJobQueueService = app.get(BotJobQueueService);
 
@@ -136,7 +136,7 @@ async function run() {
     console.log('🎉 KỊCH BẢN CHẠY TEST THÀNH CÔNG! Hãy check mail nhận thư cảnh báo kèm file CSV Excel.');
 
   } catch (err: any) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH CHẠY TEST:');
+    console.error('\n LỖI TRONG QUÁ TRÌNH CHẠY TEST:');
     console.error(err.message);
   } finally {
     await app.close();

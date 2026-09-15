@@ -111,7 +111,7 @@ async function testPostEod() {
   }
 
   console.log(
-    '\n✅ KIỂM THỬ POST-EOD HOÀN TẤT THÀNH CÔNG VỚI KẾT QUẢ CHÍNH XÁC!',
+    '\n KIỂM THỬ POST-EOD HOÀN TẤT THÀNH CÔNG VỚI KẾT QUẢ CHÍNH XÁC!',
   );
 
   // Dọn dẹp
@@ -125,6 +125,6 @@ async function testPostEod() {
 }
 
 testPostEod().catch((err) => {
-  console.error('❌ Kiểm thử thất bại:', err);
+  console.error(' Kiểm thử thất bại:', err);
   process.exit(1);
 });

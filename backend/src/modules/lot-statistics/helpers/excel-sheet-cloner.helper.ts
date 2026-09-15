@@ -15,7 +15,7 @@ export function ensureMonthSheetExists(
   jobLogs?: string[],
 ): boolean {
   if (!fs.existsSync(excelFilePath)) {
-    const msg = `[Auto-Clone] ⚠️ File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`;
+    const msg = `[Auto-Clone]  File không tồn tại để kiểm tra/sinh Sheet: ${excelFilePath}`;
     logger.warn(msg);
     jobLogs?.push(msg);
     return false;
@@ -30,7 +30,7 @@ export function ensureMonthSheetExists(
   );
 
   if (!fs.existsSync(scriptPath)) {
-    const msg = `[Auto-Clone] ⚠️ Không tìm thấy script python: ${scriptPath}`;
+    const msg = `[Auto-Clone]  Không tìm thấy script python: ${scriptPath}`;
     logger.warn(msg);
     jobLogs?.push(msg);
     return false;
@@ -59,7 +59,7 @@ export function ensureMonthSheetExists(
     const durationMs = Date.now() - startTime;
 
     if (result.status === 0) {
-      const successMsg = `[Auto-Clone] ✅ Tự động sinh Sheet '${targetSheetName}' trong ${fileName} thành công (${durationMs}ms).`;
+      const successMsg = `[Auto-Clone]  Tự động sinh Sheet '${targetSheetName}' trong ${fileName} thành công (${durationMs}ms).`;
       logger.log(successMsg);
       jobLogs?.push(successMsg);
       return true;
@@ -69,13 +69,13 @@ export function ensureMonthSheetExists(
         result.stdout?.trim() ||
         result.error?.message ||
         (result.status === null ? 'Quá thời gian chờ (Timeout > 60s)' : `Thoát với mã ${result.status}`);
-      const errMsg = `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${detailErr}`;
+      const errMsg = `[Auto-Clone]  Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${detailErr}`;
       logger.error(errMsg);
       jobLogs?.push(errMsg);
       return false;
     }
   } catch (err: any) {
-    const excMsg = `[Auto-Clone] ❌ Ngoại lệ khi kích hoạt Python cloner cho ${fileName}: ${err.message}`;
+    const excMsg = `[Auto-Clone]  Ngoại lệ khi kích hoạt Python cloner cho ${fileName}: ${err.message}`;
     logger.error(excMsg);
     jobLogs?.push(excMsg);
     return false;

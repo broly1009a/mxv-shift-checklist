@@ -6,7 +6,7 @@ import { AppModule } from '../app.module';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
 
 async function run() {
-  console.log('🚀 Khởi tạo NestJS Application Context cho kịch bản Test Cảnh Báo Email...');
+  console.log(' Khởi tạo NestJS Application Context cho kịch bản Test Cảnh Báo Email...');
   const app = await NestFactory.createApplicationContext(AppModule);
   const settingsService = app.get(SystemSettingsService);
 
@@ -51,19 +51,19 @@ async function run() {
     const errText = await tokenRes.text();
 
     if (!tokenRes.ok) {
-      console.log('❌ Xác thực thất bại đúng như kịch bản!');
+      console.log(' Xác thực thất bại đúng như kịch bản!');
       const errorMsg = `Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`;
 
       console.log(' Đang tiến hành gửi Email Cảnh báo Sự cố...');
       // Gọi trực tiếp hàm gửi cảnh báo
       await settingsService.sendM365TokenExpiredAlert(errorMsg);
-      console.log('✅ ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');
+      console.log(' ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');
     } else {
-      console.log('⚠️ Cảnh báo: Microsoft vẫn chấp nhận token này? Kịch bản test thất bại.');
+      console.log(' Cảnh báo: Microsoft vẫn chấp nhận token này? Kịch bản test thất bại.');
     }
 
   } catch (err: any) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH CHẠY TEST:');
+    console.error('\n LỖI TRONG QUÁ TRÌNH CHẠY TEST:');
     console.error(err.message);
   } finally {
     await app.close();

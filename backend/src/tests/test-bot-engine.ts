@@ -86,7 +86,7 @@ async function runBotTests() {
 
   if (passCount > 0) {
     console.log(
-      `✅ Test PASSED: Verified that ${passCount} automated task(s) successfully processed to PASSED status!`,
+      ` Test PASSED: Verified that ${passCount} automated task(s) successfully processed to PASSED status!`,
     );
   } else {
     throw new Error(
@@ -102,6 +102,6 @@ async function runBotTests() {
 }
 
 runBotTests().catch((err) => {
-  console.error('❌ Bot Test execution failed:', err);
+  console.error(' Bot Test execution failed:', err);
   process.exit(1);
 });

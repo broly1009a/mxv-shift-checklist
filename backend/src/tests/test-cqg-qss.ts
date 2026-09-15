@@ -170,7 +170,7 @@ async function screenshot(page: any, name: string) {
  * Only needed once per tab. If S column already visible, skip.
  */
 async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
-  console.log('\n📊 Thêm cột S (Settlement)...');
+  console.log('\n Thêm cột S (Settlement)...');
 
   // Wait for the grid header to be rendered and visible first
   await page
@@ -186,7 +186,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
     .isVisible({ timeout: 2000 })
     .catch(() => false);
   if (sColExists) {
-    console.log('✅ Cột S đã tồn tại, bỏ qua bước thêm cột.');
+    console.log(' Cột S đã tồn tại, bỏ qua bước thêm cột.');
     return;
   }
 
@@ -215,7 +215,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
 
   if (!headerClicked) {
     console.log(
-      '⚠️  Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
+      '  Không tìm thấy header để right-click, bỏ qua bước thêm cột S',
     );
     await screenshot(page, `tab${batchNum}-settlement-header-not-found`);
     return;
@@ -234,7 +234,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_COLUMNS_SEL);
   await page.waitForTimeout(1500);
   await screenshot(page, `tab${batchNum}-08-manage-columns-dialog`);
-  console.log('✅ Mở Manage Columns dialog');
+  console.log(' Mở Manage Columns dialog');
 
   // Search for "Settlement" in the DIALOG filter input ONLY
   // Key: use wpfe-column-picker-dialog-search-input to avoid filling the QSS toolbar filter
@@ -244,7 +244,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.fill(FILTER_INPUT, 'Settlement');
   await page.waitForTimeout(1000);
   await screenshot(page, `tab${batchNum}-09-settlement-search`);
-  console.log('✅ Đã tìm kiếm "Settlement" trong dialog');
+  console.log(' Đã tìm kiếm "Settlement" trong dialog');
 
   // Click the "S" item (Last settlement price)
   const S_ITEM_SELECTORS = [
@@ -259,13 +259,13 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
     if (await el.isVisible({ timeout: 3000 }).catch(() => false)) {
       await el.click();
       itemClicked = true;
-      console.log(`✅ Đã chọn cột S: ${sel}`);
+      console.log(` Đã chọn cột S: ${sel}`);
       break;
     }
   }
 
   if (!itemClicked) {
-    console.log('⚠️  Không tìm thấy item "S (Last settlement price)"');
+    console.log('  Không tìm thấy item "S (Last settlement price)"');
     await screenshot(page, `tab${batchNum}-settlement-item-not-found`);
     await page.keyboard.press('Escape');
     return;
@@ -283,7 +283,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_CLOSE_BTN);
   await page.waitForTimeout(2000);
   await screenshot(page, `tab${batchNum}-10-settlement-column-added`);
-  console.log('✅ Đã thêm cột S (Last settlement price)!');
+  console.log(' Đã thêm cột S (Last settlement price)!');
 }
 
 async function openQSSTabWithSymbols(
@@ -349,7 +349,7 @@ async function openQSSTabWithSymbols(
   await page.fill(SEARCH_INPUT, symbolStr);
   await page.waitForTimeout(1500);
   await screenshot(page, `tab${batchNum}-04-symbols-filled`);
-  console.log('✅ Đã nhập symbol list!');
+  console.log(' Đã nhập symbol list!');
 
   // 6. Click "OK" button to confirm the list
   // Note: OK button becomes enabled after typing
@@ -365,10 +365,10 @@ async function openQSSTabWithSymbols(
     await page.click(OK_BTN);
     await page.waitForTimeout(3000);
     await screenshot(page, `tab${batchNum}-05-after-ok`);
-    console.log('✅ Đã click OK!');
+    console.log(' Đã click OK!');
   } else {
     // Try pressing Enter as alternative
-    console.log('⚠️  OK button not found/visible, thử nhấn Enter...');
+    console.log('  OK button not found/visible, thử nhấn Enter...');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(3000);
     await screenshot(page, `tab${batchNum}-05-after-enter`);
@@ -383,7 +383,7 @@ async function openQSSTabWithSymbols(
   await addSettlementColumn(page, batchNum);
 
   await screenshot(page, `tab${batchNum}-FINAL`);
-  console.log(`✅ QSS Tab ${batchNum} hoàn tất!`);
+  console.log(` QSS Tab ${batchNum} hoàn tất!`);
 }
 
 /**
@@ -540,16 +540,16 @@ async function scrapeQSSPrices(
     price,
   }));
   console.log(
-    `📊 Đã trích xuất ${finalData.length} mã hợp đồng từ Tab ${batchNum}`,
+    ` Đã trích xuất ${finalData.length} mã hợp đồng từ Tab ${batchNum}`,
   );
   return finalData;
 }
 
 async function runCQGQSSTest() {
   console.log('\n' + '='.repeat(60));
-  console.log('🚀 CQG QSS 2-BATCH TEST (HEADFUL)');
+  console.log(' CQG QSS 2-BATCH TEST (HEADFUL)');
   console.log(
-    `📊 Tổng: ${ALL_SYMBOLS.length} symbols → ${Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE)} tab(s)`,
+    ` Tổng: ${ALL_SYMBOLS.length} symbols → ${Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE)} tab(s)`,
   );
   console.log('='.repeat(60) + '\n');
 
@@ -592,7 +592,7 @@ async function runCQGQSSTest() {
   }
 
   if (!username || !password) {
-    console.log('❌ Chưa cấu hình tài khoản CQG.');
+    console.log(' Chưa cấu hình tài khoản CQG.');
     await app.close();
     process.exit(1);
   }
@@ -617,7 +617,7 @@ async function runCQGQSSTest() {
   };
   if (chromePaths.length > 0) {
     launchOptions.executablePath = chromePaths[0];
-    console.log(`✅ Chrome: ${chromePaths[0]}`);
+    console.log(` Chrome: ${chromePaths[0]}`);
   }
 
   const browser = await chromium.launch(launchOptions);
@@ -643,7 +643,7 @@ async function runCQGQSSTest() {
       timeout: 60000,
     });
     await screenshot(page, '00-login-success');
-    console.log('✅ Đăng nhập THÀNH CÔNG!');
+    console.log(' Đăng nhập THÀNH CÔNG!');
     await page.waitForTimeout(3000);
 
     // Open QSS tab for each batch and extract prices
@@ -671,19 +671,19 @@ async function runCQGQSSTest() {
       `\n💾 Đã lưu thành công dữ liệu đối chiếu CQG vào file JSON: ${jsonPath}`,
     );
     console.log(
-      `📊 Tổng số mã lấy được: ${allExtractedPrices.length}/${ALL_SYMBOLS.length}`,
+      ` Tổng số mã lấy được: ${allExtractedPrices.length}/${ALL_SYMBOLS.length}`,
     );
 
     // Final state
     await screenshot(page, 'FINAL-both-tabs-loaded');
     console.log('\n' + '='.repeat(60));
-    console.log('✅ TEST 2 TAB & TRÍCH XUẤT GIÁ HOÀN TẤT!');
+    console.log(' TEST 2 TAB & TRÍCH XUẤT GIÁ HOÀN TẤT!');
     console.log('='.repeat(60));
-    console.log(`📁 Screenshots & JSON: ${DEBUG_DIR}`);
+    console.log(` Screenshots & JSON: ${DEBUG_DIR}`);
     console.log('\n⏸ Chờ 15 giây để bạn kiểm tra kết quả trước khi đóng...');
     await page.waitForTimeout(15000);
   } catch (err: any) {
-    console.error(`\n❌ Lỗi: ${err.message}`);
+    console.error(`\n Lỗi: ${err.message}`);
     await screenshot(page, 'ERROR-final').catch(() => { });
     const html = await page.content().catch(() => '');
     if (html)
@@ -696,6 +696,6 @@ async function runCQGQSSTest() {
 }
 
 runCQGQSSTest().catch((err) => {
-  console.error('❌ Fatal:', err);
+  console.error(' Fatal:', err);
   process.exit(1);
 });

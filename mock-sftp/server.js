@@ -5,7 +5,7 @@ try {
   try {
     Server = require('../backend/node_modules/ssh2').Server;
   } catch (err) {
-    console.error('❌ Lỗi: Chưa cài đặt thư viện ssh2. Vui lòng chạy `npm install`!');
+    console.error(' Lỗi: Chưa cài đặt thư viện ssh2. Vui lòng chạy `npm install`!');
     process.exit(1);
   }
 }
@@ -261,7 +261,7 @@ const server = new Server(
             const handleKey = handleBuf.toString('hex');
             const h = openHandles.get(handleKey);
             if (h && h.type === 'file' && h.fd !== undefined) {
-              try { fs.closeSync(h.fd); } catch (e) {}
+              try { fs.closeSync(h.fd); } catch (e) { }
             }
             openHandles.delete(handleKey);
             sftp.status(reqId, 0);
@@ -277,7 +277,7 @@ const server = new Server(
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================================');
-  console.log(`🚀 Standalone Mock SFTP Server running on port ${PORT}`);
+  console.log(` Standalone Mock SFTP Server running on port ${PORT}`);
   console.log(`   SFTP Host:        127.0.0.1 (hoặc IP Server)`);
   console.log(`   Port:             ${PORT}`);
   console.log(`   SFTP Username:    ${USERNAME}`);

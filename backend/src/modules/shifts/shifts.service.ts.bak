@@ -182,7 +182,7 @@ export class ShiftsService {
     const deptName =
       (result.templateId as any)?.departmentId?.name || 'Vận hành';
     await this.telegramService.sendMessage(
-      `🔔 <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
+      ` <b>[MXV KHỞI TẠO CA TRỰC]</b>\n` +
       `• Ca trực: <b>${(result.templateId as any)?.title}</b>\n` +
       `• Ngày trực: <b>${result.shiftDate}</b>\n` +
       `• Phòng ban: <b>${deptName}</b>\n` +
@@ -580,7 +580,7 @@ export class ShiftsService {
     if (isChecked && !oldIsChecked && task.prioritySnapshot === 'CRITICAL') {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
-        `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
+        ` <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
         `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
         `• Trạng thái: <b>${status}</b>\n` +
         `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +
@@ -787,7 +787,7 @@ export class ShiftsService {
     const completedCount = result.details.filter((d) => d.isChecked).length;
     const totalCount = result.details.length;
     let telMsg =
-      `🔒 <b>[MXV CHỐT CA TRỰC]</b>\n` +
+      ` <b>[MXV CHỐT CA TRỰC]</b>\n` +
       `• Ca trực: <b>${(result.templateId as any)?.title || 'Ca vận hành'}</b>\n` +
       `• Ngày trực: <b>${result.shiftDate}</b>\n` +
       `• Trạng thái: <b>ĐÃ HOÀN THÀNH & KHÓA SỔ</b>\n` +

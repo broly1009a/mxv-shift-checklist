@@ -621,12 +621,12 @@ const IE_MOCK_SCRIPT = `
 
 async function main() {
   console.log('============================================================');
-  console.log('🚀 TEST ĐĂNG NHẬP CQG CAST');
+  console.log(' TEST ĐĂNG NHẬP CQG CAST');
   console.log(`👤 User: ${USERNAME || '(chưa cung cấp)'}`);
   console.log('============================================================');
 
   if (!USERNAME || !PASSWORD) {
-    console.error('❌ Thiếu CAST_USER hoặc CAST_PASS trong biến môi trường!');
+    console.error(' Thiếu CAST_USER hoặc CAST_PASS trong biến môi trường!');
     return;
   }
 
@@ -640,9 +640,9 @@ async function main() {
 
   if (fs.existsSync(msEdgePath)) {
     launchOptions.executablePath = msEdgePath;
-    log('✅ Sử dụng trình duyệt Microsoft Edge');
+    log(' Sử dụng trình duyệt Microsoft Edge');
   } else {
-    log('⚠️ Không tìm thấy Edge, sử dụng Chromium mặc định');
+    log(' Không tìm thấy Edge, sử dụng Chromium mặc định');
   }
 
   const browser = await chromium.launch(launchOptions);
@@ -922,7 +922,7 @@ async function main() {
     );
     if (!userIndexFrame) {
       log(
-        '⚠️ Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...',
+        ' Không tìm thấy frame userIndex trực tiếp, thử tìm trong nested frames...',
       );
       for (const f of allFrames) {
         const childFrames = f.childFrames();
@@ -938,7 +938,7 @@ async function main() {
     }
 
     if (userIndexFrame) {
-      log(`✅ Tìm thấy userIndex frame: ${userIndexFrame.url()}`);
+      log(` Tìm thấy userIndex frame: ${userIndexFrame.url()}`);
 
       // Tìm span LEAFITEM "Reporting Tool" và gọi jumpToLink trực tiếp
       const result = await userIndexFrame.evaluate(() => {
@@ -1011,7 +1011,7 @@ async function main() {
           (f) => f.name() === 'dataFrame' || f.url().includes('ReportingTool'),
         );
       if (dataFrame) {
-        log(`✅ dataFrame URL: ${dataFrame.url()}`);
+        log(` dataFrame URL: ${dataFrame.url()}`);
 
         if (dataFrame.url().includes('ReportingTool')) {
           log(
@@ -1097,7 +1097,7 @@ async function main() {
 
           // Bước 2: Chờ postback reload
           if ((selectResult as any).triggered) {
-            log('⏳ Chờ postback/reload sau khi chọn template...');
+            log(' Chờ postback/reload sau khi chọn template...');
             try {
               await dataFrame.waitForNavigation({
                 timeout: 15000,
@@ -1164,10 +1164,10 @@ async function main() {
                   `report-${Date.now()}.csv`,
                 );
                 require('fs').writeFileSync(downloadPath, buffer);
-                log(`✅ ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
+                log(` ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
                 reportResponses.push(downloadPath);
               } catch (e: any) {
-                log(`⚠️ Không thể lấy body: ${e.message}`);
+                log(` Không thể lấy body: ${e.message}`);
               }
             }
           };
@@ -1476,10 +1476,10 @@ async function main() {
             .waitForEvent('download', { timeout: 30000 })
             .catch(() => null);
           await dataFrame.locator('#saveButton').click({ timeout: 5000 });
-          log('✅ Đã click saveButton');
+          log(' Đã click saveButton');
 
           // Chờ 30 giây xem có download event hoặc network response
-          log('⏳ Chờ download (30 giây)...');
+          log(' Chờ download (30 giây)...');
           const download = await downloadPromise;
           if (download) {
             const downloadPath = path.join(
@@ -1487,11 +1487,11 @@ async function main() {
               `report-${Date.now()}.csv`,
             );
             await download.saveAs(downloadPath);
-            log(`✅ ĐÃ TẢI FILE THÀNH CÔNG (event): ${downloadPath}`);
+            log(` ĐÃ TẢI FILE THÀNH CÔNG (event): ${downloadPath}`);
           } else {
             await page.waitForTimeout(5000);
             log(
-              `⚠️ Không có download event. Network responses: ${reportResponses.length}`,
+              ` Không có download event. Network responses: ${reportResponses.length}`,
             );
           }
 
@@ -1506,34 +1506,34 @@ async function main() {
           log(`📸 Screenshot sau Create Report: ${screenshotPath}`);
         }
       } else {
-        log(`⚠️ dataFrame chưa navigate tới ReportingTool`);
+        log(` dataFrame chưa navigate tới ReportingTool`);
         page
           .frames()
           .forEach((f, i) => log(`  [${i}] name=${f.name()} url=${f.url()}`));
       }
     } else {
       log(
-        '❌ Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...',
+        ' Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...',
       );
       try {
         const span = page
           .frameLocator('frame[name="userIndex"], iframe[name="userIndex"]')
           .locator('span.LEAFITEM', { hasText: 'Reporting Tool' });
         await span.click({ timeout: 5000 });
-        log('✅ Đã click Reporting Tool qua Playwright locator');
+        log(' Đã click Reporting Tool qua Playwright locator');
         await page.waitForTimeout(3000);
         await page.screenshot({
           path: path.join(DEBUG_DIR, 'after-reporting-tool-click.png'),
         });
       } catch (e: any) {
-        log(`❌ Fallback click cũng thất bại: ${e.message}`);
+        log(` Fallback click cũng thất bại: ${e.message}`);
       }
     }
 
-    log('⏳ Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
+    log(' Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
     await page.waitForTimeout(300000);
   } catch (error: any) {
-    log(`❌ Lỗi trong quá trình chạy: ${error.message}`);
+    log(` Lỗi trong quá trình chạy: ${error.message}`);
     const errorPath = path.join(DEBUG_DIR, 'login-error.png');
     await page.screenshot({ path: errorPath }).catch(() => { });
     log(`📸 Đã chụp ảnh lỗi lưu tại: ${errorPath}`);

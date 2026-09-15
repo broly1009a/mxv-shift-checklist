@@ -13,10 +13,10 @@ let totalTests = 0;
 function assert(condition: boolean, testName: string, details?: any) {
   totalTests++;
   if (condition) {
-    console.log(`✅ [PASS] ${testName}`);
+    console.log(` [PASS] ${testName}`);
     passedTests++;
   } else {
-    console.error(`❌ [FAIL] ${testName}`);
+    console.error(` [FAIL] ${testName}`);
     if (details) console.error('   Details:', details);
   }
 }
@@ -26,7 +26,7 @@ function assert(condition: boolean, testName: string, details?: any) {
   const shiftDate = '2026-08-25';
   const triggerTime = '07:30';
   const target = service.getTargetTriggerDateTime(shiftDate, triggerTime, false);
-  
+
   // Target should be 2026-08-25 07:30:00 GMT+7 = 2026-08-25 00:30:00 UTC
   const expectedUTC = '2026-08-25T00:30:00.000Z';
   assert(

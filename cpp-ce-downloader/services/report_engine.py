@@ -109,7 +109,7 @@ class ReportEngine:
                 download_result.save_as(dest_path)
                 return os.path.exists(dest_path) and os.path.getsize(dest_path) > 0
         except Exception as e:
-            self.log(f"  ⚠️ Lỗi tải khoảng {start_date} -> {end_date}: {e}")
+            self.log(f"   Lỗi tải khoảng {start_date} -> {end_date}: {e}")
             return False
 
         return False
@@ -143,7 +143,7 @@ class ReportEngine:
             for attempt in range(1, max_day_retries + 1):
                 backoff_sec = min(15 * attempt, 45)
                 if attempt > 1:
-                    self.log(f"  ⏳ [Thử lại Ngày {start_date} - Lần {attempt}/{max_day_retries}] Tạm nghỉ {backoff_sec}s để Server SQL giải phóng RAM/CPU...")
+                    self.log(f"   [Thử lại Ngày {start_date} - Lần {attempt}/{max_day_retries}] Tạm nghỉ {backoff_sec}s để Server SQL giải phóng RAM/CPU...")
                     time.sleep(backoff_sec)
 
                 res = self.download_single_report_internal(page, page_obj, report_cfg, interval, sub_dest_path)
@@ -159,7 +159,7 @@ class ReportEngine:
             try:
                 with open(missing_log_path, "a", encoding="utf-8") as f:
                     f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Báo cáo {code} | Ngày {start_date}: Thử {max_day_retries} lần bị Server 504 Timeout.\n")
-                self.log(f"  ⚠️ [Ghi vết Ngày Thiếu] Đã ghi nhận ngày {start_date} vào file log: {missing_log_path}")
+                self.log(f"   [Ghi vết Ngày Thiếu] Đã ghi nhận ngày {start_date} vào file log: {missing_log_path}")
             except Exception:
                 pass
             return False
@@ -185,7 +185,7 @@ class ReportEngine:
             sub_file_name = f"temp_{code}_{s_tag}_{e_tag}{extra_suffix}.csv"
             sub_dest_path = os.path.join(target_folder, sub_file_name)
 
-            self.log(f"\n  [⏳ Safety Net Step {depth}.{idx}] Tải khoảng nhỏ: {sub_interval['start_str']} -> {sub_interval['end_str']}...")
+            self.log(f"\n  [ Safety Net Step {depth}.{idx}] Tải khoảng nhỏ: {sub_interval['start_str']} -> {sub_interval['end_str']}...")
             res = self.download_single_report_internal(page, page_obj, report_cfg, sub_interval, sub_dest_path)
 
             if not res and depth < 4:
@@ -238,7 +238,7 @@ class ReportEngine:
                 self.log(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại & hợp lệ ({size:,} bytes).")
                 return True
             else:
-                self.log(f"  ⚠️ File {file_name} bị hỏng/rỗng ({size} bytes). Đang tiến hành tải lại...")
+                self.log(f"   File {file_name} bị hỏng/rỗng ({size} bytes). Đang tiến hành tải lại...")
                 try:
                     os.remove(dest_path)
                 except Exception:
@@ -250,7 +250,7 @@ class ReportEngine:
             except Exception:
                 pass
 
-        self.log(f"\n  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+        self.log(f"\n  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
         # 1. Điều hướng trang báo cáo
         learned_url = page_obj.navigate_to_report(report_cfg, self.system_url)
@@ -289,11 +289,11 @@ class ReportEngine:
                         self.log(f"  [🎉 Thành công] Đã lưu & xác minh file trên đĩa: {dest_path} ({size_bytes:,} bytes)")
                         return True
                     else:
-                        self.log(f"  ⚠️ File {file_name} sau khi lưu bị rỗng (0 bytes).")
+                        self.log(f"   File {file_name} sau khi lưu bị rỗng (0 bytes).")
                 else:
-                    self.log(f"  ⚠️ Lần {attempt}: Chưa hoàn tất tạo file {file_name} trong {current_timeout // 1000}s.")
+                    self.log(f"   Lần {attempt}: Chưa hoàn tất tạo file {file_name} trong {current_timeout // 1000}s.")
             except Exception as e:
-                self.log(f"  ⚠️ Lỗi kết xuất file {file_name} (Lần {attempt}): {e}")
+                self.log(f"   Lỗi kết xuất file {file_name} (Lần {attempt}): {e}")
 
         # NẾU TẤT CẢ CÁC LẦN TẢI THƯỜNG BỊ TIMEOUT
         if self.auto_split_on_timeout:
@@ -304,7 +304,7 @@ class ReportEngine:
             max_monthly_retries = 5
             for m_attempt in range(2, max_monthly_retries + 1):
                 m_timeout = min(self.download_timeout * m_attempt, 600000)  # Nâng dần lên 300s, 480s, 600s (10 phút)
-                self.log(f"  ⏳ [Thử lại Tháng {mmyy} - Lần {m_attempt}/{max_monthly_retries}] Tạm nghỉ 15s, tăng thời gian chờ lên {m_timeout // 1000}s...")
+                self.log(f"   [Thử lại Tháng {mmyy} - Lần {m_attempt}/{max_monthly_retries}] Tạm nghỉ 15s, tăng thời gian chờ lên {m_timeout // 1000}s...")
                 time.sleep(15)
                 try:
                     download_result = page_obj.trigger_export_download(
@@ -321,9 +321,9 @@ class ReportEngine:
                             self.log(f"  [🎉 Thành công Nguyên Tháng] Đã lưu file nguyên tháng thành công: {dest_path} ({size_bytes:,} bytes)")
                             return True
                 except Exception as e:
-                    self.log(f"  ⚠️ Lần thử {m_attempt} nguyên tháng thất bại: {e}")
+                    self.log(f"   Lần thử {m_attempt} nguyên tháng thất bại: {e}")
 
-            self.log(f"  ❌ Thử {max_monthly_retries} lần nguyên tháng thất bại cho file {file_name}.")
+            self.log(f"   Thử {max_monthly_retries} lần nguyên tháng thất bại cho file {file_name}.")
             return False
 
     def run(self) -> bool:
@@ -378,7 +378,7 @@ class ReportEngine:
         monthly_intervals = generate_monthly_intervals(self.start_date, self.end_date)
 
         self.log("=" * 65)
-        self.log(f"🚀 BẮT ĐẦU TẢI BÁO CÁO CPP/CE (VNCLEAR SYSTEM)")
+        self.log(f" BẮT ĐẦU TẢI BÁO CÁO CPP/CE (VNCLEAR SYSTEM)")
         self.log(f"• Hệ thống: {self.system_url}")
         self.log(f"• Khoảng thời gian: {self.start_date} -> {self.end_date} ({len(monthly_intervals)} tháng)")
         self.log(f"• Thư mục lưu tổng: {self.output_dir}")
@@ -405,15 +405,15 @@ class ReportEngine:
                 if "/login" in page.url.lower():
                     err_msg = page.locator("xpath=//*[contains(@class, 'MuiAlert-message') or contains(text(), 'không chính xác') or contains(text(), 'khóa') or contains(text(), 'Lỗi')]").first
                     if err_msg.is_visible(timeout=1500):
-                        self.log(f"❌ Đăng nhập thất bại: {err_msg.text_content().strip()}")
+                        self.log(f" Đăng nhập thất bại: {err_msg.text_content().strip()}")
                     else:
-                        self.log("❌ Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).")
+                        self.log(" Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).")
                     browser.close()
                     return False
 
                 self.log("✓ Đăng nhập thành công!")
             except Exception as e:
-                self.log(f"❌ Lỗi đăng nhập: {e}")
+                self.log(f" Lỗi đăng nhập: {e}")
                 browser.close()
                 return False
 

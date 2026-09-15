@@ -225,7 +225,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            ⚠️ Căn cước cũ, ktra lại
+                            Căn cước cũ, ktra lại
                           </span>
                         )}
                       </td>
@@ -626,10 +626,10 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                                 {isKhop
                                   ? 'Khớp hoàn toàn 100%'
                                   : isCanKiemTra
-                                  ? 'Cần kiểm tra lại (Trường hợp đặc biệt)'
-                                  : isLech
-                                  ? 'Phát hiện sai lệch'
-                                  : 'Chưa có kết luận'}
+                                    ? 'Cần kiểm tra lại (Trường hợp đặc biệt)'
+                                    : isLech
+                                      ? 'Phát hiện sai lệch'
+                                      : 'Chưa có kết luận'}
                               </span>
                             </div>
                             {r.ketLuan?.danhSachLoi && r.ketLuan.danhSachLoi.length > 0 ? (

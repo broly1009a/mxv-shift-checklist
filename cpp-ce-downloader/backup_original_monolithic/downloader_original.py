@@ -310,7 +310,7 @@ def wait_for_table_loading_complete(page: Page, max_timeout_ms: int = 60000, log
     Kiểm tra liên tục 0 visible spinner trong ít nhất 2 chu kỳ liên tiếp (mỗi chu kỳ 1s).
     """
     import time
-    log("  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
+    log("   Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
     start_time = time.time()
     max_sec = max_timeout_ms / 1000.0
 
@@ -345,11 +345,11 @@ def wait_for_table_loading_complete(page: Page, max_timeout_ms: int = 60000, log
                 return True
         else:
             stable_count = 0
-            log(f"  ⏳ Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
+            log(f"   Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
 
         page.wait_for_timeout(1000)
 
-    log("  ⚠️ Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
+    log("   Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
     return False
 
 
@@ -460,7 +460,7 @@ def set_date_range_and_search(page: Page, start_date: str, end_date: str, exchan
     search_btn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
     if search_btn.is_visible(timeout=2000):
         search_btn.click(force=True)
-        log("  ⏳ Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
+        log("   Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
         wait_for_table_loading_complete(page, 60000, log=log)
         dismiss_modal_backdrop(page)
 
@@ -492,9 +492,9 @@ def set_date_range_and_search(page: Page, start_date: str, end_date: str, exchan
                 member_inp.press("Enter")
                 wait_for_table_loading_complete(page, 30000, log=log)
             else:
-                log(f"  ⚠️ Không tìm thấy ô lọc Mã thành viên trên bảng.")
+                log(f"   Không tìm thấy ô lọc Mã thành viên trên bảng.")
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
+            log(f"   Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
 
     # 5. Điền lọc 'Mã TKGD / Số tiểu khoản'
     if acct_no and acct_no.strip():
@@ -524,9 +524,9 @@ def set_date_range_and_search(page: Page, start_date: str, end_date: str, exchan
                 acct_inp.press("Enter")
                 wait_for_table_loading_complete(page, 30000, log=log)
             else:
-                log("  ⚠️ Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
+                log("   Không tìm thấy ô lọc Mã TKGD / Số tiểu khoản trên bảng.")
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
+            log(f"   Lỗi khi lọc Mã TKGD / Số tiểu khoản '{acc_val}': {e}")
 
 
 def trigger_export_download(page: Page, headless: bool = False, log=print):
@@ -547,7 +547,7 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
     # Tìm nút 'Kết xuất'
     export_btn = page.locator("xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV')]").first
     if not export_btn.is_visible(timeout=5000):
-        log("  ❌ Không tìm thấy nút 'Kết xuất'")
+        log("   Không tìm thấy nút 'Kết xuất'")
         return None
 
     download_obj = None
@@ -579,7 +579,7 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
             log("  ℹ️ [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
             download_obj = "NO_DATA"
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")
+            log(f"   Lỗi khi chọn 'Xuất tất cả': {e}")
             download_obj = "NO_DATA"
     else:
         # --- PHƯƠNG ÁN 2 (FALLBACK): Kích đúp (Double-click) 2 lần vào nút Kết xuất ---
@@ -599,7 +599,7 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
             log("  ℹ️ [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
             download_obj = "NO_DATA"
         except Exception as e:
-            log(f"  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': {e}")
+            log(f"   Lỗi khi kích đúp nút 'Kết xuất': {e}")
             download_obj = "NO_DATA"
 
     # --- BẮT VÀ GHI LOG TOAST THÔNG BÁO THÀNH CÔNG VNCLEAR ---
@@ -644,7 +644,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
             log(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại & hợp lệ ({size:,} bytes).")
             return True
         else:
-            log(f"  ⚠️ File {file_name} bị hỏng/rỗng ({size} bytes). Đang tiến hành tải lại...")
+            log(f"   File {file_name} bị hỏng/rỗng ({size} bytes). Đang tiến hành tải lại...")
             try:
                 os.remove(dest_path)
             except Exception:
@@ -656,7 +656,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         except Exception:
             pass
 
-    log(f"\n  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+    log(f"\n  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
     # 1. Điều hướng và tự động bắt URL mới nhất
     learned_url = navigate_to_report_page(page, report_cfg, system_url, log)
@@ -676,13 +676,13 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
             log(f"  [🎉 Thành công] Đã lưu file: {dest_path}")
             return True
         else:
-            log(f"  ❌ Không thể kích hoạt tải file {file_name}")
+            log(f"   Không thể kích hoạt tải file {file_name}")
             return False
     except PlaywrightTimeoutError:
         log(f"  ℹ️ Bỏ qua tạo file {file_name} do không có dữ liệu để xuất.")
         return True
     except Exception as e:
-        log(f"  ❌ Lỗi kết xuất file {file_name}: {e}")
+        log(f"   Lỗi kết xuất file {file_name}: {e}")
         return False
 
 
@@ -788,7 +788,7 @@ def run_download(
     monthly_intervals = generate_monthly_intervals(start_date, end_date)
 
     log("=" * 65)
-    log(f"🚀 BẮT ĐẦU TẢI BÁO CÁO CPP/CE (VNCLEAR SYSTEM)")
+    log(f" BẮT ĐẦU TẢI BÁO CÁO CPP/CE (VNCLEAR SYSTEM)")
     log(f"• Hệ thống: {system_url}")
     log(f"• Khoảng thời gian: {start_date} -> {end_date} ({len(monthly_intervals)} tháng)")
     log(f"• Thư mục lưu tổng: {output_dir}")
@@ -814,15 +814,15 @@ def run_download(
             if "/login" in page.url.lower():
                 err_msg = page.locator("xpath=//*[contains(@class, 'MuiAlert-message') or contains(text(), 'không chính xác') or contains(text(), 'khóa') or contains(text(), 'Lỗi')]").first
                 if err_msg.is_visible(timeout=1500):
-                    log(f"❌ Đăng nhập thất bại: {err_msg.text_content().strip()}")
+                    log(f" Đăng nhập thất bại: {err_msg.text_content().strip()}")
                 else:
-                    log("❌ Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).")
+                    log(" Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).")
                 browser.close()
                 return False
 
             log("✓ Đăng nhập thành công!")
         except Exception as e:
-            log(f"❌ Lỗi đăng nhập: {e}")
+            log(f" Lỗi đăng nhập: {e}")
             browser.close()
             return False
 

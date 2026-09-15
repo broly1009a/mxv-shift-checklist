@@ -71,9 +71,9 @@ async function runCcpTest() {
   }
 
   if (updatedJob.status === 'COMPLETED' && exists) {
-    console.log('✅ TEST PASSED: RUN_MACRO executed successfully!');
+    console.log(' TEST PASSED: RUN_MACRO executed successfully!');
   } else {
-    console.error('❌ TEST FAILED: Job not completed or output file missing.');
+    console.error(' TEST FAILED: Job not completed or output file missing.');
   }
 
   // Clean up test job
@@ -84,6 +84,6 @@ async function runCcpTest() {
 }
 
 runCcpTest().catch((err) => {
-  console.error('❌ CCP Macro test execution failed:', err);
+  console.error(' CCP Macro test execution failed:', err);
   process.exit(1);
 });

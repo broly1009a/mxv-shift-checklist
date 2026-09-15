@@ -1104,7 +1104,7 @@ export default function TkgdConfigPanel() {
             ) : (
               <>
                 <div style={{ fontSize: '0.75rem', color: '#f59e0b', lineHeight: 1.4 }}>
-                  ⚠️ Hệ thống chưa có Token để truy cập hộp thư. Vui lòng bấm nút bên dưới để đăng nhập tài khoản Microsoft Office 365 của phòng TTBT (hỗ trợ đọc email, quét file hợp đồng/CCCD).
+                  Hệ thống chưa có Token để truy cập hộp thư. Vui lòng bấm nút bên dưới để đăng nhập tài khoản Microsoft Office 365 của phòng TTBT (hỗ trợ đọc email, quét file hợp đồng/CCCD).
                 </div>
                 <div>
                   <button
@@ -1176,7 +1176,7 @@ export default function TkgdConfigPanel() {
             {showAdvancedAzure && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', padding: '12px', backgroundColor: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  💡 Mặc định hệ thống tự động sử dụng Azure App của MXV. Bạn chỉ cần điền nếu phòng TTBT có App Registration riêng trên portal.azure.com.
+                  Mặc định hệ thống tự động sử dụng Azure App của MXV. Bạn chỉ cần điền nếu phòng TTBT có App Registration riêng trên portal.azure.com.
                 </span>
                 <div>
                   <label style={labelStyle}>Client ID (App ID)</label>
