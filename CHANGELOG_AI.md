@@ -1,5 +1,37 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-15T15:56] FIX ARCHITECTURE & RECONCILIATION: Phân Giải Ca Trực Động 3 Tầng (Data-Driven Dynamic Shift Resolver) Cho Màn Hình Trading Manager (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
+
+### 1. Mục tiêu thay đổi
+Theo điều tra và phản hồi từ USER:
+- Khi ngày làm việc có nhiều ca trực (Ca 1 Sáng, Ca 2 Chiều, Ca 3 Đêm/Cuối ngày) hoặc khi có ca đã chốt (`COMPLETED`) và ca đang mở (`PENDING`):
+- Khi người dùng bấm chạy *"Chạy lại ngay"* hoặc xem console từ `/trading-manager`:
+  - Hàm `triggerConsoleRun` và `getConsoleSummary` trước đây dùng câu query `$or` thiếu điều kiện lọc `status` kết hợp `.sort({ createdAt: -1 })`.
+  - Dẫn tới việc MongoDB bốc nhầm ca được tạo sau cùng nhưng đã chốt (`COMPLETED`, ví dụ ca `6aa8284c91a08dcc61429a9f`) thay vì ca đang mở (`6aa8284c91a08dcc61429a9c`).
+  - Queue Guard trong `bot-job-queue.service.ts` phát hiện ca đã `COMPLETED` nên lập tức hủy job (`CANCELLED`), gây lỗi nghiêm trọng cho người dùng.
+- Khắc phục triệt để theo đúng tinh thần **AGENTS.md Mục 7 & 8 (Universal Zero-Hardcoding & Data-Driven Architecture)**, không hardcode bất kỳ tên ca, mã task hay ID nào.
+
+### 2. Chi tiết chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - **Triển khai Thuật toán Phân giải Ca trực Động 3 Tầng (Data-Driven Dynamic Shift Resolver)** trong cả `triggerConsoleRun` và `getConsoleSummary`:
+    1. **Tầng 1 (Ưu tiên tuyệt đối ca đang MỞ)**:
+       - Lọc danh sách `openShifts` (`status: 'ACTIVE' | 'PENDING'`).
+       - Dùng `findBotTasksInShift` để tìm ca mở nào có chứa tác vụ tương ứng (`CHECK_KLGD`, `CHECK_PRE_EOD`, v.v.).
+       - Nếu có nhiều ca mở cùng lúc (giao ca): Tự động đối chiếu giờ thực tế hiện tại (`nowMinutes` GMT+7) với khung giờ `startTime` và `endTime` trong `shiftSlotId` (hỗ trợ cả ca qua đêm `isOvernight`) để chọn ca đang bao phủ giờ hiện tại.
+       - Gắn job và cập nhật task checklist chính xác vào ca đang mở đó.
+    2. **Tầng 2 (Chuyển giao mượt mà khi đổi ca)**:
+       - Khi ca cũ chốt `COMPLETED` và ca mới mở `PENDING`, hệ thống tự động nhận diện ca mới và chuyển sang chạy cho ca mới, không còn bị vướng vào ca cũ.
+    3. **Tầng 3 (Chế độ Standalone khi chạy ngoài ca / xem lại)**:
+       - Nếu tất cả các ca trong ngày đều đã chốt `COMPLETED` (người dùng xem lại hoặc chạy đối chiếu hồi tố): Hệ thống cho phép chạy ở chế độ độc lập (`shiftLogId: null`).
+       - Queue Guard bỏ qua kiểm tra hủy job, bot tải file và đối chiếu đầy đủ, trả dữ liệu hiển thị lên Trading Manager Console mà không vi phạm tính toàn vẹn của ca đã chốt.
+
+### 3. Xác nhận Build
+- **Backend Build Local**: `nest build` biên dịch thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `next build` biên dịch tối ưu Turbopack thành công 100% (25/25 routes tĩnh, TypeScript pass, Exit code: 0).
+- **Trạng thái Server Ubuntu**: Tuân thủ nghiêm ngặt chỉ thị, **chưa ủn lên Ubuntu**.
+
+---
+
 ## [2026-09-15T15:24] FIX UI (FRONTEND): Tối Ưu Độ Tương Phản & Màu Sắc Banner Trạng Thái (CANCELLED / FAILED / ABORTED) Cho Cả Light & Dark Theme (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
 
 ### 1. Mục tiêu thay đổi

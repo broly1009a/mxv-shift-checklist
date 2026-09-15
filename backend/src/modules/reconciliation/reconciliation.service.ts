@@ -5035,32 +5035,62 @@ export class ReconciliationService {
     const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];
     const slashDate = parts.length === 3 ? `${d}/${m}/${y}` : targetDate;
 
-    // 1. Tìm ca trực: Nếu người dùng chọn xem ngày cụ thể -> chỉ tìm theo ngày đó; Nếu mặc định -> ưu tiên ca ACTIVE
-    let shiftLog = null;
-    let taskKlgd = null;
-    let taskPreEod = null;
+    // 1. Tìm ca trực: Quét tất cả ca của ngày đang chọn, ưu tiên ca đang MỞ (ACTIVE hoặc PENDING)
+    let shiftLog: any = null;
+    let taskKlgd: any = null;
+    let taskPreEod: any = null;
     if (this.shiftLogModel) {
-      const shiftQuery = dateStr
-        ? {
-            $or: [
-              { shiftDate: targetDate },
-              { shiftDate: slashDate },
-            ],
-          }
-        : {
-            $or: [
-              { status: 'ACTIVE' },
-              { shiftDate: targetDate },
-              { shiftDate: slashDate },
-            ],
-          };
-
-      shiftLog = await this.shiftLogModel
-        .findOne(shiftQuery)
+      const shiftsForDay = await this.shiftLogModel
+        .find({
+          $or: [
+            { shiftDate: targetDate },
+            { shiftDate: slashDate },
+          ],
+        })
+        .populate('shiftSlotId')
         .sort({ createdAt: -1 })
         .lean()
         .exec();
 
+      const openShifts = shiftsForDay.filter(
+        (s: any) => s.status === 'ACTIVE' || s.status === 'PENDING',
+      );
+
+      // Tính giờ hiện tại (GMT+7) để ưu tiên ca khớp khung giờ nhất
+      const now = new Date();
+      const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      const nowMinutes = vnTime.getUTCHours() * 60 + vnTime.getUTCMinutes();
+
+      const isShiftCoveringNow = (shift: any): boolean => {
+        const slot = shift.shiftSlotId;
+        if (!slot || !slot.startTime || !slot.endTime) return false;
+        const [sH, sM] = String(slot.startTime).split(':').map(Number);
+        const startMin = sH * 60 + sM;
+        const [eH, eM] = String(slot.endTime).split(':').map(Number);
+        const endMin = eH * 60 + eM;
+
+        if (slot.isOvernight || startMin > endMin) {
+          return nowMinutes >= startMin || nowMinutes <= endMin;
+        }
+        return nowMinutes >= startMin && nowMinutes <= endMin;
+      };
+
+      // Ưu tiên ca đang mở (nếu nhiều ca mở cùng lúc, ưu tiên ca bao phủ khung giờ hiện tại)
+      if (openShifts.length > 0) {
+        shiftLog = openShifts.find(isShiftCoveringNow) || openShifts[0];
+      } else if (shiftsForDay.length > 0) {
+        shiftLog = shiftsForDay[0];
+      } else if (!dateStr) {
+        shiftLog = await this.shiftLogModel
+          .findOne({ status: { $in: ['ACTIVE', 'PENDING'] } })
+          .populate('shiftSlotId')
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec();
+      }
+
+      // Tìm task KLGD và Pre-EOD:
+      // 1. Ưu tiên tìm trong ca hiện tại (shiftLog)
       if (shiftLog && shiftLog.details) {
         const { subTask: subKlgd, parentTask: parentKlgd } = findBotTasksInShift(
           shiftLog.details,
@@ -5073,6 +5103,26 @@ export class ReconciliationService {
           'CHECK_PRE_EOD',
         );
         taskPreEod = subPreEod || parentPreEod;
+      }
+
+      // 2. Nếu ca hiện tại không chứa task tương ứng, tìm trong các ca khác của ngày đó
+      if (!taskKlgd) {
+        for (const s of shiftsForDay) {
+          const { subTask, parentTask } = findBotTasksInShift(s.details || [], 'CHECK_KLGD');
+          if (subTask || parentTask) {
+            taskKlgd = subTask || parentTask;
+            break;
+          }
+        }
+      }
+      if (!taskPreEod) {
+        for (const s of shiftsForDay) {
+          const { subTask, parentTask } = findBotTasksInShift(s.details || [], 'CHECK_PRE_EOD');
+          if (subTask || parentTask) {
+            taskPreEod = subTask || parentTask;
+            break;
+          }
+        }
       }
     }
 
@@ -5427,31 +5477,6 @@ export class ReconciliationService {
     const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];
     const slashDate = parts.length === 3 ? `${d}/${m}/${y}` : targetDate;
 
-    // Tìm ca trực: Nếu người dùng chọn ngày cụ thể -> tìm đúng ca của ngày đó; Nếu mặc định -> ưu tiên ca ACTIVE
-    const shiftQuery = dateStr
-      ? {
-          $or: [
-            { shiftDate: targetDate, status: { $in: ['ACTIVE', 'PENDING'] } },
-            { shiftDate: slashDate, status: { $in: ['ACTIVE', 'PENDING'] } },
-            { shiftDate: targetDate },
-            { shiftDate: slashDate },
-          ],
-        }
-      : {
-          $or: [
-            { status: 'ACTIVE' },
-            { shiftDate: targetDate, status: { $in: ['ACTIVE', 'PENDING'] } },
-            { shiftDate: slashDate, status: { $in: ['ACTIVE', 'PENDING'] } },
-            { shiftDate: targetDate },
-            { shiftDate: slashDate },
-          ],
-        };
-
-    const targetShift = await this.shiftLogModel
-      .findOne(shiftQuery)
-      .sort({ createdAt: -1 })
-      .exec();
-
     const targetJobType = (jobType === 'CHECK_CQG_SYNC')
       ? 'CHECK_CQG_SYNC'
       : (jobType === 'CHECK_EOD_CCP')
@@ -5460,15 +5485,89 @@ export class ReconciliationService {
           ? 'CHECK_EOD_MM'
           : (jobType || 'CHECK_KLGD');
 
-    const { subTask, parentTask } = findBotTasksInShift(
-      targetShift?.details || [],
-      targetJobType,
+    // 1. Quét tất cả các ca trực của ngày targetDate / slashDate
+    const shiftsForDay = await this.shiftLogModel
+      .find({
+        $or: [
+          { shiftDate: targetDate },
+          { shiftDate: slashDate },
+        ],
+      })
+      .populate('shiftSlotId')
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // 2. Lọc các ca đang MỞ (ACTIVE hoặc PENDING)
+    const openShifts = shiftsForDay.filter(
+      (s) => s.status === 'ACTIVE' || s.status === 'PENDING',
     );
+
+    // Tính thời gian hiện tại theo phút (Giờ VN - GMT+7)
+    const now = new Date();
+    const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const nowMinutes = vnTime.getUTCHours() * 60 + vnTime.getUTCMinutes();
+
+    const isShiftCoveringNow = (shift: any): boolean => {
+      const slot = shift.shiftSlotId;
+      if (!slot || !slot.startTime || !slot.endTime) return false;
+      const [sH, sM] = String(slot.startTime).split(':').map(Number);
+      const startMin = sH * 60 + sM;
+      const [eH, eM] = String(slot.endTime).split(':').map(Number);
+      const endMin = eH * 60 + eM;
+
+      if (slot.isOvernight || startMin > endMin) {
+        return nowMinutes >= startMin || nowMinutes <= endMin;
+      }
+      return nowMinutes >= startMin && nowMinutes <= endMin;
+    };
+
+    let targetShift: any = null;
+    let subTask: any = null;
+    let parentTask: any = null;
+
+    // TẦNG 1: Ưu tiên ca đang MỞ
+    if (openShifts.length > 0) {
+      // 1.1 Tìm ca mở có chứa tác vụ targetJobType
+      const candidateShifts = openShifts.filter((s) => {
+        const found = findBotTasksInShift(s.details || [], targetJobType);
+        return !!(found.subTask || found.parentTask);
+      });
+
+      if (candidateShifts.length === 1) {
+        targetShift = candidateShifts[0];
+      } else if (candidateShifts.length > 1) {
+        // Nhiều ca mở chứa task: ưu tiên ca trùng khung giờ hiện tại
+        targetShift = candidateShifts.find(isShiftCoveringNow) || candidateShifts[0];
+      } else {
+        // Không có ca mở nào chứa task: lấy ca mở trùng khung giờ hiện tại hoặc ca mở mới nhất
+        targetShift = openShifts.find(isShiftCoveringNow) || openShifts[0];
+      }
+
+      if (targetShift) {
+        const found = findBotTasksInShift(targetShift.details || [], targetJobType);
+        subTask = found.subTask;
+        parentTask = found.parentTask;
+      }
+    }
+
+    // TẦNG 2: Nếu KHÔNG CÓ ca nào mở (toàn bộ ca của ngày đã COMPLETED):
+    // Người dùng chạy đối chiếu hồi tố ngoài ca hoặc xem lại
+    // -> Chạy ở chế độ Standalone (shiftLogId = null) để Queue Guard không hủy nhầm!
+    if (!targetShift && shiftsForDay.length > 0) {
+      const closedShiftWithTask = shiftsForDay.find((s) => {
+        const found = findBotTasksInShift(s.details || [], targetJobType);
+        return !!(found.subTask || found.parentTask);
+      });
+      if (closedShiftWithTask) {
+        const found = findBotTasksInShift(closedShiftWithTask.details || [], targetJobType);
+        subTask = found.subTask;
+        parentTask = found.parentTask;
+      }
+    }
 
     const targetTaskId =
       subTask?.taskId ||
       parentTask?.taskId ||
-      BOT_TASK_REGISTRY[targetJobType]?.subTaskIdPattern ||
       'TASK_CHECK_KLGD_s1';
 
     const systemUser = {
