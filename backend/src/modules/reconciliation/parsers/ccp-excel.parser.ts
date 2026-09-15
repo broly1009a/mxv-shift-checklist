@@ -76,12 +76,12 @@ export class CcpExcelParser {
 
     const header = rows[0].map((h) => String(h || '').trim());
     const klKhopIdx = this.findHeaderIndex(header, 'KL khớp', ['Khối lượng khớp', 'KL khop', 'Matched Vol', 'Matched Volume']);
-    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Ma hop dong', 'Hợp đồng', 'Contract']);
-    const soTKIdx = this.findHeaderIndex(header, 'Số tài khoản', ['So tai khoan', 'Tài khoản', 'Account', 'Account No']);
-    const giaKhopIdx = this.findHeaderIndex(header, 'Giá khớp', ['Gia khop', 'Price', 'Matched Price']);
-    const soHieuLenhIdx = this.findHeaderIndex(header, 'Số hiệu lệnh', ['So hieu lenh', 'Order No', 'Order ID']);
-    const thoiGianKhopIdx = this.findHeaderIndex(header, 'Thời gian khớp', ['Thoi gian khop', 'Matched Time', 'Time']);
-    const loaiLenhIdx = this.findHeaderIndex(header, 'Loại lệnh', ['Loai lenh', 'Side', 'Type']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
+    const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Account No', 'Ma TKGD']);
+    const giaKhopIdx = this.findHeaderIndex(header, 'Giá khớp trung bình', ['Giá khớp', 'Gia khop', 'Price', 'Matched Price', 'Gia khop trung binh']);
+    const soHieuLenhIdx = this.findHeaderIndex(header, 'Mã lệnh', ['Số hiệu lệnh', 'So hieu lenh', 'Order No', 'Order ID', 'Ma lenh']);
+    const thoiGianKhopIdx = this.findHeaderIndex(header, 'Thời gian khớp lệnh', ['Thời gian khớp', 'Thoi gian khop', 'Matched Time', 'Time', 'Thoi gian khop lenh']);
+    const loaiLenhIdx = this.findHeaderIndex(header, 'Loại lệnh', ['Loai lenh', 'Side', 'Type', 'Mua/Bán', 'Mua/Ban']);
 
     if (klKhopIdx === -1) {
       // Fallback nếu không có dòng tiêu đề chuẩn: thử kiểm tra cột 11 (index 10)
@@ -135,8 +135,8 @@ export class CcpExcelParser {
     const header = rows[0].map((h) => String(h || '').trim());
     const klMuaIdx = this.findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'Buy Volume', 'Long Vol', 'Long']);
     const klBanIdx = this.findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'Sell Volume', 'Short Vol', 'Short']);
-    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Ma hop dong', 'Hợp đồng', 'Contract']);
-    const soTKIdx = this.findHeaderIndex(header, 'Số tài khoản', ['So tai khoan', 'Tài khoản', 'Account']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
+    const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
 
     if (klMuaIdx === -1 && klBanIdx === -1) {
       return { totalTTM: 0, totalMua: 0, totalBan: 0, records: [] };
@@ -195,8 +195,8 @@ export class CcpExcelParser {
     const header = rows[0].map((h) => String(h || '').trim());
     const klBanIdx = this.findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'Sell Volume', 'Settled Vol']);
     const klMuaIdx = this.findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'Buy Volume']);
-    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Ma hop dong', 'Hợp đồng', 'Contract']);
-    const soTKIdx = this.findHeaderIndex(header, 'Số tài khoản', ['So tai khoan', 'Tài khoản', 'Account']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
+    const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
 
     // Cột ưu tiên là Khối lượng bán, nếu không có thì lấy Khối lượng mua
     const targetColIdx = klBanIdx !== -1 ? klBanIdx : klMuaIdx;

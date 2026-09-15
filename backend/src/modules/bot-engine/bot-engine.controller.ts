@@ -537,6 +537,13 @@ export class BotEngineController {
         'bot_credentials_ccp',
         encrypt(JSON.stringify(mergedCcp)),
       );
+
+      if (mergedCcp.outputDir) {
+        await this.settingsService.setSetting(
+          'bot_backup_path_ccp',
+          mergedCcp.outputDir,
+        );
+      }
     }
 
     if (ce) {
@@ -568,6 +575,13 @@ export class BotEngineController {
         'bot_credentials_ce',
         encrypt(JSON.stringify(mergedCe)),
       );
+
+      if (mergedCe.outputDir) {
+        await this.settingsService.setSetting(
+          'bot_backup_path_ce',
+          mergedCe.outputDir,
+        );
+      }
     }
 
     if (m365) {

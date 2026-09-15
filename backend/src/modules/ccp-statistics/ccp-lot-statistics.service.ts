@@ -659,11 +659,14 @@ export class CcpLotStatisticsService {
         return undefined;
       };
 
-      // 1. DSGD (bắt buộc)
+      // 1. DSGD (bắt buộc) - Ưu tiên file DSGD giao dịch chuẩn
       result.files.dsgd = findFile([
+        /^DSGD(?!\s*MM).*\.csv$/i,
+        /^DSGD(?!\s*MM).*\.xlsx$/i,
+        /^DSGD(?!\s*MM).*\.xls$/i,
+        /^DSGD.*\.csv$/i,
         /^DSGD.*\.xlsx$/i,
         /^DSGD.*\.xls$/i,
-        /^DSGD.*\.csv$/i,
       ]);
 
       // 2. TTM (tùy chọn)

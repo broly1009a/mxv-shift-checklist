@@ -1,5 +1,79 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-15T08:24] AUDIT & FIX: Rà Soát Tính Chính Xác Của KLGD, TTM, TTTT CoreCCP & Chuẩn Hóa Header Bóc Tách
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"bạn check lại xem lấy KLGD và TTM và TTTT của bên ccp chính xác chưa"*:
+- Kiểm tra toàn diện công thức và logic bóc tách 3 chỉ số từ file CoreCCP thực tế trên máy chủ Ubuntu `10.0.0.26`.
+
+### 2. Kết quả kiểm tra đối chiếu dữ liệu thực tế CoreCCP
+1. **KLGD (Khối lượng giao dịch - File `DSGD.csv` / `DSGD.xlsx`)**:
+   - **Header thực tế CoreCCP**: `["Ngày hệ thống", "Ngày phiên", "Mã lệnh", "Mã giao dịch OMS", "Mã giao dịch EX", "Mã TKGD", "Mã HĐ", "Mua/Bán", "Loại lệnh", "KL đặt", "KL khớp", "Giá đặt", "Giá dừng", "Giá khớp trung bình", ...]`
+   - **Công thức tính**: Tổng giá trị cột **`KL khớp`** (index 10).
+   - **Phát hiện & Sửa đổi**: Trong [ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts), trước đó alias tìm kiếm cột dùng `Mã hợp đồng`, `Số tài khoản`, `Giá khớp`. Trong khi file CoreCCP thực tế dùng tên cột rút gọn: **`Mã HĐ`**, **`Mã TKGD`**, **`Giá khớp trung bình`**, **`Mã lệnh`**, **`Thời gian khớp lệnh`**. Đã bổ sung đầy đủ các alias này để bóc tách chính xác 100% từng dòng lệnh.
+   - **Xác thực chạy test**: File ngày 14/09 bóc tách chính xác **3 lot khớp** (3 record chi tiết với mã TK, mã HĐ, giá khớp, thời gian khớp).
+2. **TTM (Trạng thái mở - File `TTM.csv` / `TTM.xlsx`)**:
+   - **Header thực tế CoreCCP**: `["Mã thành viên", ..., "Mã TKGD", "Tên TKGD", "Mã hợp đồng", ..., "Khối lượng mua", "Khối lượng bán", ...]`
+   - **Công thức tính**: `totalTTM = totalMua + totalBan` (Tổng khối lượng mua mở + Khối lượng bán mở).
+   - **Tính nhất quán**: Công thức này khớp 100% với cách tính TTM của M-System (`tongMua + tongBan`) và CQG (`lValue + sValue`).
+   - **Xác thực chạy test**: Với ngày 14/09, bảng CoreCCP trống (toàn bộ vị thế đã tất toán) $\rightarrow$ trả về **0 lot** là hoàn toàn chính xác.
+3. **TTTT (Trạng thái tất toán - File `TTTT.csv` / `TTTT.xlsx`)**:
+   - **Header thực tế CoreCCP**: `["Mã thành viên", ..., "Mã TKGD", ..., "Khối lượng mua", "Khối lượng bán", ...]`
+   - **Công thức tính**: Lấy theo chân **`Khối lượng bán`** (hoặc `Khối lượng mua`) của từng cặp vị thế đóng. Tuyệt đối không cộng gộp Mua + Bán để tránh double-count.
+   - **Tính nhất quán**: Khớp 100% với cách tính của M-System (`t.tongBan`) và CQG PS (`p.sValue`).
+   - **Xác thực chạy test**: File ngày 14/09 có 2 vị thế tất toán (`SI5COZ26` 1 lot và `CP2COZ26` 1 lot) $\rightarrow$ trả về chính xác **2 lot tất toán**.
+4. **Tối ưu nhận diện file trong Thống Kê Số Lot (`ccp-lot-statistics.service.ts`)**:
+   - Thêm bộ lọc `DSGD(?!\s*MM)` để ưu tiên nhận diện file giao dịch `DSGD.csv` / `DSGD.xlsx`, tránh nhận nhầm file kế toán chuyển tiền `DSGD MM CCP.xlsx` khi quét thư mục.
+
+### 3. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts): Bổ sung alias cột chuẩn xác từ CoreCCP (`Mã HĐ`, `Mã TKGD`, `Giá khớp trung bình`, `Mã lệnh`, `Thời gian khớp lệnh`).
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts): Tối ưu regex tìm kiếm file `DSGD` chuẩn.
+
+### 4. Xác nhận Build & Deploy lên Ubuntu Server (10.0.0.26)
+- Build Backend: `nest build` thành công, exit code 0.
+- Build Frontend: `next build` thành công, exit code 0.
+- Restart PM2: `mxv-backend` (PID 2214569) & `mxv-frontend` (PID 2214840) `online`.
+- Chạy test trực tiếp trên file thật ngày 14/09: `DSGD = 3 lot`, `TTM = 0 lot`, `TTTT = 2 lot`.
+
+---
+
+## [2026-09-14T18:20] FIX & AUDIT: Khắc Phục Lệch Cấu Hình "Thư Mục Lưu Báo Cáo CCP" & Giải Trình Nguyên Nhân CoreCCP Bằng 0
+
+### 1. Mục tiêu thay đổi
+Khắc phục sự cố theo phản hồi của USER:
+*"tại sao tôi cập nhật rồi mà vẫn không lưu đúng và vẫn trả ra kết quả ccp bằng 0"*
+Sau khi USER đã điền cấu hình đường dẫn `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures` trong thẻ **"Cấu hình Core CCP"** trên giao diện Admin Bot Config, nhưng khi chạy Job:
+1. Log hiển thị bot vẫn lưu vào: `/opt/mxv-checklist/backend/data/backup/ccp/futures/2026/T09.2026/14.09`.
+2. Kết quả chỉ số CCP khớp lệnh trả về 0 và báo LỆCH.
+
+### 2. Nguyên nhân gốc rễ đã điều tra
+1. **Lệch key cấu hình giữa UI và Backend**:
+   - Ở Frontend ([ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)): Ô nhập *"Thư mục lưu báo cáo CCP"* được lưu vào trường `outputDir` của đối tượng `bot_credentials_ccp`.
+   - Ở Backend ([bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)): Khi nhận cấu hình từ form credentials, controller chỉ lưu vào `bot_credentials_ccp` mà không đồng bộ sang key `bot_backup_path_ccp` của CSDL.
+   - Ở Bot Handler ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)): Lại chỉ đọc key `bot_backup_path_ccp`, khi key này trống thì fallback về `data/backup/ccp/futures` rồi ghi đè `outputDir` khi gọi downloader, bỏ qua hoàn toàn cấu hình người dùng vừa nhập!
+2. **Tại sao kết quả CCP vẫn bằng 0**:
+   - Theo log trích xuất thời gian thực từ CoreCCP:
+     `[Filter] Bang bao cao tra ve "Khong co du lieu" -> Bo qua loc cot va chuyen sang ket xuat tai file.`
+     `[Info] DSGD.csv khong co du lieu.`
+   - Trên hệ thống CoreCCP (`coreccp.vnclear.vn`), ở ngày `14/09/2026`, bộ lọc DSGD và TTM thực sự trả về **"Không có dữ liệu"** (không có lệnh khớp trong phiên), nên không có giao dịch khớp lệnh CoreCCP nào được sinh ra. Trong khi M-System đã khớp lệnh CQG/Nano nên hệ thống báo LỆCH là chính xác theo thực tế dữ liệu hai bên.
+
+### 3. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  - Ưu tiên đọc `outputDir` từ `bot_credentials_ccp` $\rightarrow$ `bot_backup_path_ccp` $\rightarrow$ fallback default.
+  - Chuẩn hóa đường dẫn qua `resolveStoragePathCrossPlatform` để hỗ trợ ánh xạ tự động giữa Windows (`M:\...`) và Ubuntu (`/mnt/qlgd-it/...`).
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  - Khi lưu "Cấu hình Core CCP" hoặc "Cấu hình Core CE", tự động đồng bộ trường `outputDir` sang cả `bot_backup_path_ccp` và `bot_backup_path_ce` trong bảng `system_settings`.
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
+  - Bổ sung helper `getCcpBackupBasePath()` tự động trích xuất `outputDir` từ `bot_credentials_ccp` hoặc `bot_backup_path_ccp`.
+  - Áp dụng thống nhất cho cả 5 phương thức: `runAutoCheckKLGD`, `runAutoCheckPreEOD`, `runAutoCheckEodCcp`, quét file tại bước 7, và `downloadAndExtractCcpMetrics`.
+
+### 4. Xác nhận Build & Deploy lên Ubuntu Server (10.0.0.26)
+- Build Backend: `nest build` thành công 100%, exit code 0.
+- Build Frontend: `next build` hoàn tất, exit code 0.
+- Restart PM2: `mxv-backend` (PID 1911789) & `mxv-frontend` (PID 1912022) đều trạng thái `online`.
+
+---
+
 ## [2026-09-14T17:45] FIX & AUDIT: Khắc Phục Lỗi Cột CCP Hiển Thị Bằng 0 (Lệch Đường Dẫn & Lọc DatePicker) & Triển Khai Lên Ubuntu
 
 ### 1. Mục tiêu thay đổi

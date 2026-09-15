@@ -4133,6 +4133,24 @@ export class ReconciliationService {
     );
   }
 
+  public async getCcpBackupBasePath(): Promise<string> {
+    try {
+      const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+      if (credRaw) {
+        try {
+          const creds = JSON.parse(decrypt(credRaw));
+          if (creds?.outputDir) {
+            return String(creds.outputDir).trim();
+          }
+        } catch {}
+      }
+    } catch {}
+    return this.settingsService.getSetting(
+      'bot_backup_path_ccp',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+    );
+  }
+
   public resolveCcpDailyPath(subFolder: string, rawCcpBase?: string): string {
     const defaultDataPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures');
     const base = rawCcpBase ? resolveStoragePathCrossPlatform(rawCcpBase) : defaultDataPath;
@@ -4183,10 +4201,7 @@ export class ReconciliationService {
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);
     const acmDailyPath = path.join(acmBackupBase, subFolder);
 
-    const rawCcpBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
-    );
+    const rawCcpBase = await this.getCcpBackupBasePath();
     const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 
     const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
@@ -4423,10 +4438,7 @@ export class ReconciliationService {
     if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx từ email M-System');
 
     // Quét thư mục Backup CCP nếu có
-    const rawCcpBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
-    );
+    const rawCcpBase = await this.getCcpBackupBasePath();
     const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
     let qltkgdCcpBuffer: Buffer | undefined;
     let eodCcpBuffer: Buffer | undefined;
@@ -4499,10 +4511,7 @@ export class ReconciliationService {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     // Quét thư mục Backup CCP
-    const rawCcpBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
-    );
+    const rawCcpBase = await this.getCcpBackupBasePath();
     const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 
     if (!fs.existsSync(ccpDailyPath)) {
@@ -5101,10 +5110,7 @@ export class ReconciliationService {
     }
 
     // 7. Quét thư mục và file CCP của ngày đang chọn
-    const rawCcpBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
-    );
+    const rawCcpBase = await this.getCcpBackupBasePath();
     const subFolder = path.join(y, `T${m}.${y}`, `${d}.${m}`);
     const ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
     const ccpFilesPresent = {
@@ -5656,10 +5662,7 @@ export class ReconciliationService {
       creds = JSON.parse(credRaw);
     }
 
-    const rawCcpBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
-    );
+    const rawCcpBase = await this.getCcpBackupBasePath();
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
     let ccpDailyPath = this.resolveCcpDailyPath(subFolder, rawCcpBase);
 

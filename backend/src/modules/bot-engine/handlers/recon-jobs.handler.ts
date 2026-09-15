@@ -8,7 +8,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
-import { parseJobPayload } from '../helpers/bot-path.helper';
+import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
 @Injectable()
@@ -155,10 +155,23 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     const acmBackupBase = (
       await this.settingsService.getSetting('bot_backup_path_acm', '')
     ) || path.join(path.dirname(msBackupBase), 'ACM');
+    // CCP base path: Ưu tiên lấy từ bot_credentials_ccp.outputDir -> bot_backup_path_ccp -> default
+    let ccpOutputDirFromCreds = '';
+    const credCcpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+    if (credCcpRaw) {
+      try {
+        const credsParsed = JSON.parse(decrypt(credCcpRaw));
+        if (credsParsed && credsParsed.outputDir) {
+          ccpOutputDirFromCreds = String(credsParsed.outputDir).trim();
+        }
+      } catch {}
+    }
     const defaultCcpPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures');
-    const ccpBackupBase = (
-      await this.settingsService.getSetting('bot_backup_path_ccp', '')
-    ) || defaultCcpPath;
+    const ccpBackupBase = resolveStoragePathCrossPlatform(
+      ccpOutputDirFromCreds ||
+      (await this.settingsService.getSetting('bot_backup_path_ccp', '')) ||
+      defaultCcpPath,
+    );
 
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
@@ -168,7 +181,11 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     const ccpDailyPath = path.join(ccpBackupBase, subFolder);
 
     for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath, ccpDailyPath]) {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      try {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      } catch (err: any) {
+        this.logger.warn(`Không thể tạo thư mục ${dir}: ${err.message}`);
+      }
     }
 
     log('Bắt đầu tải dữ liệu tươi từ MS, CQG, ACM và CoreCCP song song theo tùy chọn...');
