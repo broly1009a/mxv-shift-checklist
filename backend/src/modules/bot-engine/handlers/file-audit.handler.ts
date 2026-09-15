@@ -313,7 +313,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           }
         } catch (dlErr: any) {
           job.logs.push(
-            `[${new Date().toISOString()}] ❌ Lỗi khi tải ${item.filename}: ${dlErr.message}`,
+            `[${new Date().toISOString()}]  Lỗi khi tải ${item.filename}: ${dlErr.message}`,
           );
           failedFiles.push(`${item.filename} (${dlErr.message})`);
         }
@@ -378,7 +378,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       const errorDetails = result.logs
         .filter(
           (l) =>
-            l.includes('❌') ||
+            l.includes('') ||
             l.includes('Lỗi') ||
             l.includes('Thiếu') ||
             l.includes('thất bại'),
@@ -460,7 +460,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       job.logs.push(`[${new Date().toISOString()}] ✅ Đã tải thành công: ${d}`);
     }
     for (const e of errors) {
-      job.logs.push(`[${new Date().toISOString()}] ❌ Lỗi tải: ${e}`);
+      job.logs.push(`[${new Date().toISOString()}]  Lỗi tải: ${e}`);
     }
     await job.save();
 
@@ -484,7 +484,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
       if (!mergeResult.success) {
         throw new Error(
-          `Ghép nối file CQG sau tải thất bại: ${mergeResult.logs.filter((l) => l.includes('❌')).join('; ')}`,
+          `Ghép nối file CQG sau tải thất bại: ${mergeResult.logs.filter((l) => l.includes('')).join('; ')}`,
         );
       }
     }
@@ -615,7 +615,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           );
         } else {
           await logAndSave(
-            `❌ Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`,
+            ` Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`,
           );
           throw err;
         }

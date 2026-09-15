@@ -621,12 +621,12 @@ const IE_MOCK_SCRIPT = `
 
 async function main() {
   console.log('============================================================');
-  console.log('🚀 TEST ĐĂNG NHẬP CQG CAST');
+  console.log(' TEST ĐĂNG NHẬP CQG CAST');
   console.log(`👤 User: ${USERNAME || '(chưa cung cấp)'}`);
   console.log('============================================================');
 
   if (!USERNAME || !PASSWORD) {
-    console.error('❌ Thiếu CAST_USER hoặc CAST_PASS trong biến môi trường!');
+    console.error(' Thiếu CAST_USER hoặc CAST_PASS trong biến môi trường!');
     return;
   }
 
@@ -1513,7 +1513,7 @@ async function main() {
       }
     } else {
       log(
-        '❌ Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...',
+        ' Không tìm thấy frame userIndex. Thử click trực tiếp qua Playwright selector...',
       );
       try {
         const span = page
@@ -1526,14 +1526,14 @@ async function main() {
           path: path.join(DEBUG_DIR, 'after-reporting-tool-click.png'),
         });
       } catch (e: any) {
-        log(`❌ Fallback click cũng thất bại: ${e.message}`);
+        log(` Fallback click cũng thất bại: ${e.message}`);
       }
     }
 
     log('⏳ Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
     await page.waitForTimeout(300000);
   } catch (error: any) {
-    log(`❌ Lỗi trong quá trình chạy: ${error.message}`);
+    log(` Lỗi trong quá trình chạy: ${error.message}`);
     const errorPath = path.join(DEBUG_DIR, 'login-error.png');
     await page.screenshot({ path: errorPath }).catch(() => { });
     log(`📸 Đã chụp ảnh lỗi lưu tại: ${errorPath}`);

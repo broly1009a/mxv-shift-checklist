@@ -16,7 +16,7 @@ async function main() {
   const filePath = path.join(baseDir, 'TTTT.xlsx');
 
   if (!fs.existsSync(filePath)) {
-    console.error(`❌ Không tìm thấy file: ${filePath}`);
+    console.error(` Không tìm thấy file: ${filePath}`);
     process.exit(1);
   }
 

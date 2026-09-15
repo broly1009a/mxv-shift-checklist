@@ -80,7 +80,7 @@ class GeminiModelManager:
         """
         key = api_key or self.current_api_key
         if not key:
-            print("⚠️ Chưa cung cấp Gemini API Key. Dùng danh sách fallback tiêu chuẩn.")
+            print(" Chưa cung cấp Gemini API Key. Dùng danh sách fallback tiêu chuẩn.")
             return self._get_fallback_ranked_models()
 
         url = f"{self.BASE_URL}/models?key={key}"
@@ -95,9 +95,9 @@ class GeminiModelManager:
                 return ranked
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="ignore")
-            print(f"❌ Lỗi HTTP khi lấy danh sách model Gemini ({e.code}): {err_body}")
+            print(f" Lỗi HTTP khi lấy danh sách model Gemini ({e.code}): {err_body}")
         except Exception as e:
-            print(f"❌ Lỗi kết nối Gemini Public API: {e}")
+            print(f" Lỗi kết nối Gemini Public API: {e}")
 
         # Fallback nếu gọi mạng thất bại
         return self._get_fallback_ranked_models()
@@ -300,7 +300,7 @@ class GeminiModelManager:
                         # THÀNH CÔNG: Giữ nguyên model hiện tại!
                         return text.strip()
                     else:
-                        print(f"⚠️ Response không có candidates từ model {model}: {resp_json}")
+                        print(f" Response không có candidates từ model {model}: {resp_json}")
 
             except urllib.error.HTTPError as e:
                 err_body = e.read().decode("utf-8", errors="ignore")
@@ -312,24 +312,24 @@ class GeminiModelManager:
                 )
 
                 if is_quota_error:
-                    print(f"⚠️ Model {model} chạm giới hạn Token/Quota (HTTP 429).")
+                    print(f" Model {model} chạm giới hạn Token/Quota (HTTP 429).")
                     self.rotate_to_next_model(reason="Hết Token/Quota (HTTP 429)")
                     continue  # thử lại với model mới
                 elif e.code == 404:
-                    print(f"⚠️ Model {model} không hỗ trợ generateContent hoặc không tồn tại (HTTP 404).")
+                    print(f" Model {model} không hỗ trợ generateContent hoặc không tồn tại (HTTP 404).")
                     self.rotate_to_next_model(reason="Model 404 Not Found")
                     continue
                 else:
-                    print(f"❌ Lỗi HTTP {e.code} từ {model}: {err_body[:200]}")
+                    print(f" Lỗi HTTP {e.code} từ {model}: {err_body[:200]}")
                     self.rotate_to_next_model(reason=f"HTTP {e.code}")
                     continue
 
             except Exception as e:
-                print(f"❌ Ngoại lệ khi gọi {model}: {e}")
+                print(f" Ngoại lệ khi gọi {model}: {e}")
                 self.rotate_to_next_model(reason=str(e))
                 continue
 
-        print(f"❌ Đã thử {max_attempts} lần qua các model nhưng đều không thành công.")
+        print(f" Đã thử {max_attempts} lần qua các model nhưng đều không thành công.")
         return None
 
     # ─────────────────────────────────────────────────────────────
@@ -351,7 +351,7 @@ class GeminiModelManager:
                     images.append((mime, f.read()))
 
         if not images:
-            print("❌ Không có file ảnh CCCD nào để đọc.")
+            print(" Không có file ảnh CCCD nào để đọc.")
             return None
 
         prompt = """
@@ -390,7 +390,7 @@ Lưu ý:
         try:
             return json.loads(cleaned)
         except Exception as e:
-            print(f"❌ Lỗi parse JSON từ Gemini response: {e}\nRaw: {raw_res[:200]}")
+            print(f" Lỗi parse JSON từ Gemini response: {e}\nRaw: {raw_res[:200]}")
             return None
 
 
@@ -422,6 +422,6 @@ if __name__ == "__main__":
     print(f"\n🎯 Model ưu tiên cao nhất đang được chọn: {manager.current_model_name}")
 
     if args.test_prompt:
-        print(f"\n🚀 Đang test prompt: '{args.test_prompt}' trên model: {manager.current_model_name}")
+        print(f"\n Đang test prompt: '{args.test_prompt}' trên model: {manager.current_model_name}")
         ans = manager.generate_content_with_retry(args.test_prompt)
         print(f"\n Kết quả:\n{ans}")

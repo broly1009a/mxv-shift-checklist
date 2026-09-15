@@ -101,13 +101,13 @@ def decode_qr_code(image_path: str) -> Optional[CCCDData]:
         
         # Method 3: Với ảnh nghiêng, thử perspective correction
         if not qr_text:
-            print(f"    ⚠️ QR: Không giải mã được từ {Path(image_path).name}")
+            print(f"     QR: Không giải mã được từ {Path(image_path).name}")
             return None
         
         # Parse chuỗi QR Bộ Công An
         parts = qr_text.strip().split('|')
         if len(parts) < 6:
-            print(f"    ⚠️ QR: Format không nhận dạng được: {qr_text[:50]}")
+            print(f"     QR: Format không nhận dạng được: {qr_text[:50]}")
             return None
         
         data = CCCDData()
@@ -144,10 +144,10 @@ def decode_qr_code(image_path: str) -> Optional[CCCDData]:
         return data
         
     except ImportError:
-        print("    ⚠️ pyzbar/cv2 chưa cài. Chạy: pip install pyzbar opencv-python pillow")
+        print("     pyzbar/cv2 chưa cài. Chạy: pip install pyzbar opencv-python pillow")
         return None
     except Exception as e:
-        print(f"    ❌ QR Error: {e}")
+        print(f"     QR Error: {e}")
         return None
 
 
@@ -202,14 +202,14 @@ def decode_mrz_from_image(image_path: str) -> Optional[CCCDData]:
                 if parsed and parsed.mrz_success:
                     return parsed
         
-        print(f"    ⚠️ MRZ: Không nhận dạng được MRZ trong {Path(image_path).name}")
+        print(f"     MRZ: Không nhận dạng được MRZ trong {Path(image_path).name}")
         return None
         
     except ImportError:
-        print("    ⚠️ pytesseract/cv2 chưa cài. Chạy: pip install pytesseract opencv-python")
+        print("     pytesseract/cv2 chưa cài. Chạy: pip install pytesseract opencv-python")
         return None
     except Exception as e:
-        print(f"    ❌ MRZ Error: {e}")
+        print(f"     MRZ Error: {e}")
         return None
 
 
@@ -311,7 +311,7 @@ def parse_mrz_lines(lines: list) -> Optional[CCCDData]:
         return None
         
     except Exception as e:
-        print(f"    ❌ MRZ Parse Error: {e}")
+        print(f"     MRZ Parse Error: {e}")
         return None
 
 
@@ -388,17 +388,17 @@ def ocr_cccd_text(image_path: str) -> Optional[CCCDData]:
         
         if data.soCCCD:
             data.ocr_success = True
-            print(f"    ⚠️ OCR (fallback): {data.soCCCD} | {data.hoTen} | {data.ngaySinh}")
+            print(f"     OCR (fallback): {data.soCCCD} | {data.hoTen} | {data.ngaySinh}")
         else:
-            print(f"    ❌ OCR: Không trích xuất được số CCCD từ {Path(image_path).name}")
+            print(f"     OCR: Không trích xuất được số CCCD từ {Path(image_path).name}")
         
         return data
         
     except ImportError:
-        print("    ⚠️ pytesseract chưa cài. Chạy: pip install pytesseract")
+        print("     pytesseract chưa cài. Chạy: pip install pytesseract")
         return None
     except Exception as e:
-        print(f"    ❌ OCR Error: {e}")
+        print(f"     OCR Error: {e}")
         return None
 
 
@@ -506,26 +506,26 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
                     print(f"     ✅ Gemini AI trích xuất hoàn thiện: {result.soCCCD} | {result.hoTen} | {result.ngaySinh} | {result.gioiTinh}")
                     return result
         except Exception as e:
-            print(f"     ⚠️ Gemini AI fallback: {e}")
+            print(f"      Gemini AI fallback: {e}")
 
     # Kiểm tra Rule Căn cước cũ (Quy định bắt buộc CCCD có chip của Sở)
     if result.soCCCD:
         clean_digits = re.sub(r'\D', '', result.soCCCD)
         if len(clean_digits) == 9:
-            print("     ⚠️ CĂN CƯỚC CŨ, KTRA LẠI: CMND 9 số cũ đã hết hiệu lực, Sở yêu cầu CCCD có chip.")
+            print("      CĂN CƯỚC CŨ, KTRA LẠI: CMND 9 số cũ đã hết hiệu lực, Sở yêu cầu CCCD có chip.")
         elif len(clean_digits) == 12 and not result.qr_success and not result.mrz_success:
             if result.ngayCap:
                 try:
                     parts = result.ngayCap.split('/')
                     if len(parts) == 3 and int(parts[2]) < 2021:
-                        print("     ⚠️ CĂN CƯỚC CŨ, KTRA LẠI: Nghi vấn CCCD mã vạch cũ cấp trước 2021 không có chip.")
+                        print("      CĂN CƯỚC CŨ, KTRA LẠI: Nghi vấn CCCD mã vạch cũ cấp trước 2021 không có chip.")
                 except Exception:
                     pass
 
     print(f"     Kết quả: CCCD={result.soCCCD} | Confidence={result.confidence}")
     
     if result.needsManualCheck:
-        print(f"     🔴 CẦN KIỂM TRA THỦ CÔNG: Không đọc được CCCD")
+        print(f"      CẦN KIỂM TRA THỦ CÔNG: Không đọc được CCCD")
     
     return result
 

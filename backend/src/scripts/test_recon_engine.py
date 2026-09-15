@@ -268,7 +268,7 @@ def generate_markdown_report(report_path: str, passed_count: int, total_count: i
     md.append(f"- **Môi trường kiểm thử**: Hệ điều hành `{os_name}` | Python `{py_ver}` | Pandas `{pd_ver}`")
     md.append(f"- **Tài liệu đặc tả**: [TAI_LIEU_TESTCASE_CORE_RECONCILIATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/docs/TAI_LIEU_TESTCASE_CORE_RECONCILIATION.md)")
 
-    status_overall = "✅ ĐẠT TIÊU CHUẨN ZERO-DEFECT (100% PASSED)" if passed_count == total_count else "❌ CẢNH BÁO: CÓ TEST CASE THẤT BẠI"
+    status_overall = "✅ ĐẠT TIÊU CHUẨN ZERO-DEFECT (100% PASSED)" if passed_count == total_count else " CẢNH BÁO: CÓ TEST CASE THẤT BẠI"
     md.append(f"- **Đánh giá tổng thể**: **{status_overall}** ({passed_count}/{total_count} kịch bản đạt yêu cầu)\n")
 
     md.append("### BẢNG TỔNG HỢP CHI TIẾT TỪNG KỊCH BẢN KIỂM THỬ\n")
@@ -277,7 +277,7 @@ def generate_markdown_report(report_path: str, passed_count: int, total_count: i
 
     for i, rec in enumerate(TEST_RECORDS, 1):
         stt = f"**TC-0{i}**"
-        status_tag = "✅ **PASSED**" if rec["passed"] else "❌ **FAILED**"
+        status_tag = "✅ **PASSED**" if rec["passed"] else " **FAILED**"
         elapsed = f"`{rec['elapsed_ms']:.1f} ms`"
         md.append(f"| {stt} | {rec['name']} | {status_tag} | {elapsed} | {rec['details']} |")
 

@@ -193,7 +193,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
-        log(`MS ❌ Lỗi tải file MS: ${err.message}`);
+        log(`MS  Lỗi tải file MS: ${err.message}`);
       } finally {
         await browser.close().catch(() => { });
       }
@@ -252,7 +252,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       }
       if (!mergeResult.success) {
         errors.push(
-          `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('❌')).join(' | ')}`,
+          `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('')).join(' | ')}`,
         );
       } else {
         log('CQG ✅ Ghép file CQG hoàn tất.');

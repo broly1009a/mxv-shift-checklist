@@ -218,7 +218,7 @@ function printReport(report: DailyLotReport) {
   console.log('\n' + '─'.repeat(70));
   console.log('✅ VALIDATION RESULTS:');
   for (const v of report.validations) {
-    const icon = v.passed ? '  ✅' : '  ❌';
+    const icon = v.passed ? '  ✅' : '  ';
     console.log(`${icon} ${v.field}: ${v.expected} vs ${v.actual}`);
   }
   console.log('='.repeat(70) + '\n');
@@ -227,7 +227,7 @@ function printReport(report: DailyLotReport) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('🚀 Macro So Lot Giao Dich - TypeScript Version');
+  console.log(' Macro So Lot Giao Dich - TypeScript Version');
 
   const args = parseArgs();
   const config = loadConfig(args);
@@ -236,7 +236,7 @@ async function main() {
   const required: (keyof MacroConfig)[] = ['pathDsgd', 'pathFr'];
   for (const key of required) {
     if (!config[key]) {
-      console.error(`❌ Thiếu cấu hình: ${key}`);
+      console.error(` Thiếu cấu hình: ${key}`);
       console.error('Chạy với --help để xem hướng dẫn');
       process.exit(1);
     }
@@ -304,14 +304,14 @@ async function main() {
     // 6. Exit code dựa trên validation
     const hasErrors = report.validations.some((v) => !v.passed);
     if (hasErrors) {
-      console.warn('⚠️  Có validation errors - kiểm tra dữ liệu!');
+      console.warn('  Có validation errors - kiểm tra dữ liệu!');
       process.exit(2);
     }
 
     console.log('✅ Hoàn thành!');
 
   } catch (err) {
-    console.error('❌ Lỗi:', err);
+    console.error(' Lỗi:', err);
     process.exit(1);
   }
 }

@@ -6,7 +6,7 @@ import { AppModule } from '../app.module';
 import { EmailWatcherService } from '../modules/bot-engine/email-watcher.service';
 
 async function run() {
-  console.log('🚀 Booting NestJS Application Context for M365 Email Watcher Test...');
+  console.log(' Booting NestJS Application Context for M365 Email Watcher Test...');
   const appContext = await NestFactory.createApplicationContext(AppModule);
   const emailWatcher = appContext.get(EmailWatcherService);
 
@@ -19,7 +19,7 @@ async function run() {
     console.log(JSON.stringify(result, null, 2));
 
   } catch (err: any) {
-    console.error(`\n❌ Error testing email watcher:`, err.message);
+    console.error(`\n Error testing email watcher:`, err.message);
   } finally {
     await appContext.close();
     process.exit(0);
@@ -27,6 +27,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('❌ Critical error:', err);
+  console.error(' Critical error:', err);
   process.exit(1);
 });

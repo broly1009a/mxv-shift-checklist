@@ -497,12 +497,9 @@ export class RpaDownloaderService {
       this.logger.log('Clicking CQG login button...');
       await page.click('button[type="submit"]');
 
-      // 4. Verify Successful Login (wait for the logo)
+      // 4. Verify Successful Login (wait for the logo & auto-resolve session conflicts)
       this.logger.log('Waiting for CQG dashboard logo...');
-      await page.waitForSelector('div.wpfe-logo-image', {
-        state: 'visible',
-        timeout: 60000,
-      });
+      await this.waitForCqgDashboardLogo(page, username, 60000);
 
       this.logger.log('Login CQG SUCCESSFUL.');
       return { browser, page };
@@ -659,10 +656,7 @@ export class RpaDownloaderService {
       await page.fill('input[name="password"]', password);
       await page.click('button[type="submit"]');
 
-      await page.waitForSelector('div.wpfe-logo-image', {
-        state: 'visible',
-        timeout: 60000,
-      });
+      await this.waitForCqgDashboardLogo(page, username, 60000);
 
       this.logger.log(`Login ${account.toUpperCase()} Trade SUCCESSFUL.`);
       return { browser, page };
@@ -692,7 +686,7 @@ export class RpaDownloaderService {
   public static readonly MS_FILE_NAME_PATTERNS: Record<string, RegExp> =
     MS_REPORT_FILE_PATTERNS;
 
-  private async saveAndValidateDownload(
+  public async saveAndValidateDownload(
     download: Download,
     downloadPath: string,
     expectedTargetKey?: string,
@@ -2310,10 +2304,12 @@ export class RpaDownloaderService {
 
         if (isBadGateway) {
           if (attempt < maxNavAttempts) {
+            const retryDelays = [3000, 5000, 7000, 9000, 10000];
+            const waitMs = retryDelays[attempt - 1] || 5000;
             await log(
-              `⚠️ Máy chủ ACM phản hồi lỗi (Cloudflare 502 Bad Gateway / Host Error, lần ${attempt}/${maxNavAttempts}). Tự động tải lại sau 2 giây...`,
+              ` Máy chủ ACM phản hồi lỗi (Cloudflare 502 Bad Gateway / Host Error, lần ${attempt}/${maxNavAttempts}). Tự động tải lại sau ${waitMs / 1000} giây...`,
             );
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(waitMs);
             continue;
           }
           throw new Error(
@@ -2337,7 +2333,7 @@ export class RpaDownloaderService {
 
         if (attempt < maxNavAttempts) {
           await log(
-            `⚠️ Chưa hiển thị form đăng nhập ACM (lần ${attempt}/${maxNavAttempts}). Đang tải lại trang...`,
+            ` Chưa hiển thị form đăng nhập ACM (lần ${attempt}/${maxNavAttempts}). Đang tải lại trang...`,
           );
           await page.waitForTimeout(2000);
         }
@@ -2784,7 +2780,7 @@ export class RpaDownloaderService {
 
               sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
                 if (err) {
-                  await log(`❌ Lỗi tải file ${item.filename}: ${err.message}`);
+                  await log(` Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
@@ -2799,7 +2795,7 @@ export class RpaDownloaderService {
       });
 
       conn.on('error', async (err: Error) => {
-        await log(`❌ Lỗi kết nối SFTP: ${err.message}`);
+        await log(` Lỗi kết nối SFTP: ${err.message}`);
         reject(err);
       });
 
@@ -2825,7 +2821,7 @@ export class RpaDownloaderService {
           },
         });
       } catch (err: any) {
-        log(`❌ Lỗi khởi chạy conn.connect: ${err.message}`);
+        log(` Lỗi khởi chạy conn.connect: ${err.message}`);
         reject(err);
       }
     });
@@ -3484,6 +3480,90 @@ export class RpaDownloaderService {
     } catch { }
   }
 
+  /**
+   * Chờ logo dashboard CQG xuất hiện, đồng thời giải tỏa tức thì các modal/dialog xung đột phiên cũ
+   * (ví dụ: Logoff other session, Disconnect, Continue, OK...) để chiếm quyền phiên (Session Takeover).
+   */
+  async waitForCqgDashboardLogo(
+    page: Page,
+    username: string,
+    timeoutMs = 120000,
+  ): Promise<boolean> {
+    const waitLogoStart = Date.now();
+    while (Date.now() - waitLogoStart < timeoutMs) {
+      const logoVisible = await page
+        .locator('div.wpfe-logo-image')
+        .isVisible()
+        .catch(() => false);
+      const homeVisible = await page
+        .locator("//div[text()='Ho']")
+        .isVisible()
+        .catch(() => false);
+      if (logoVisible || homeVisible) {
+        return true;
+      }
+
+      // Tự động tắt toast Notifications (ví dụ: cảnh báo 24.513 tài khoản của CQG Web API)
+      const notifClose = page.locator(
+        '//wpfe-multi-snack-bar-container//button | //button[contains(@class,"wpfe-dialog-close-button-button")] | .mat-snack-bar-container button',
+      );
+      if (
+        await notifClose
+          .first()
+          .isVisible({ timeout: 150 })
+          .catch(() => false)
+      ) {
+        await notifClose.first().click().catch(() => {});
+      }
+
+      // Nếu sau khi click vẫn còn ở form đăng nhập ("Log on"), bấm lại để đảm bảo đã submit
+      const isLoginStillVisible = await page
+        .locator('input[name="password"]')
+        .isVisible({ timeout: 150 })
+        .catch(() => false);
+      if (isLoginStillVisible) {
+        const submitBtn = page.locator('button[type="submit"], button:has-text("Log on")');
+        const submitText = await submitBtn.first().innerText().catch(() => '');
+        if (submitText.includes('Log on')) {
+          await submitBtn.first().click({ force: true }).catch(() => {});
+          await page.keyboard.press('Enter').catch(() => {});
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+
+      // Bắt các button chiếm quyền phiên hoặc xác nhận đăng nhập đè
+      const takeoverBtn = page.locator(
+        'button:has-text("Logoff"), button:has-text("Log off"), button:has-text("Disconnect"), button:has-text("Continue"), button:has-text("Yes"), button:has-text("OK"), button:has-text("Force"), button:has-text("Take over"), div[role="dialog"] button.btn-primary, .modal-dialog button.btn-primary, .wpfe-dialog button.btn-primary, .wpfe-message-box button',
+      );
+      if (
+        await takeoverBtn
+          .first()
+          .isVisible({ timeout: 250 })
+          .catch(() => false)
+      ) {
+        const btnText = await takeoverBtn.first().innerText().catch(() => '');
+        this.logger.warn(
+          `[CQG] Phát hiện popup xác nhận đăng nhập/xung đột phiên ("${btnText}") cho ${username}. Tự động click để chiếm quyền phiên...`,
+        );
+        await takeoverBtn.first().click().catch(() => {});
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    try {
+      const debugDir = path.join(process.cwd(), 'temp', 'debug');
+      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+      const snapPath = path.join(debugDir, `cqg_timeout_${username}_${Date.now()}.png`);
+      await page.screenshot({ path: snapPath, fullPage: true }).catch(() => {});
+    } catch {}
+
+    throw new Error(
+      `Timeout ${timeoutMs}ms chờ logo dashboard/menu Ho sau khi đăng nhập CQG (${username}).`,
+    );
+  }
+
   private async downloadCqgWidget(
     page: Page,
     searchTerm: string,
@@ -3791,6 +3871,7 @@ export class RpaDownloaderService {
       >
     >,
     destDir: string,
+    onReadyBarrier?: () => Promise<void>,
   ): Promise<{ errors: string[]; downloaded: string[] }> {
     const errors: string[] = [];
     const downloaded: string[] = [];
@@ -3900,10 +3981,9 @@ export class RpaDownloaderService {
         await page.fill('input[name="password"]', password);
         await page.click('button[type="submit"]');
 
-        await page.waitForSelector('div.wpfe-logo-image', {
-          state: 'visible',
-          timeout: 60000,
-        });
+        // Lắng nghe đồng thời logo dashboard và các dialog xung đột phiên cũ (Concurrent session / Take over)
+        await this.waitForCqgDashboardLogo(page, username, 120000);
+
         // Chờ các lớp loading sau khi login biến mất hoàn toàn
         await this.waitForCqgNotLoading(page, 30000);
         this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
@@ -3948,13 +4028,21 @@ export class RpaDownloaderService {
               await page.fill('input[name="userName"]', username1).catch(() => { });
               await page.fill('input[name="password"]', password1);
               await page.click('button[type="submit"]');
-              await page.waitForSelector('div.wpfe-logo-image', {
-                state: 'visible',
-                timeout: 60000,
-              });
+              await this.waitForCqgDashboardLogo(page, username1, 120000);
               await new Promise((resolve) => setTimeout(resolve, 3000));
             }
           };
+
+          if (onReadyBarrier) {
+            try {
+              this.logger.log('[CQG] Đã đăng nhập và sẵn sàng tại màn hình FR1. Kích hoạt tín hiệu rào cản đồng bộ...');
+              await onReadyBarrier();
+            } catch (barrierErr: any) {
+              this.logger.warn(`[CQG] onReadyBarrier warning: ${barrierErr?.message || barrierErr}`);
+              await browser1?.close().catch(() => { });
+              throw new Error(`[CQG] Rào cản đồng bộ đã bị hủy, dừng phiên CQG: ${barrierErr?.message || barrierErr}`);
+            }
+          }
 
           if (reports.FR1) {
             try {
@@ -4045,10 +4133,7 @@ export class RpaDownloaderService {
               await page.fill('input[name="userName"]', username2).catch(() => { });
               await page.fill('input[name="password"]', password2);
               await page.click('button[type="submit"]');
-              await page.waitForSelector('div.wpfe-logo-image', {
-                state: 'visible',
-                timeout: 60000,
-              });
+              await this.waitForCqgDashboardLogo(page, username2, 120000);
               await new Promise((resolve) => setTimeout(resolve, 3000));
             }
           };

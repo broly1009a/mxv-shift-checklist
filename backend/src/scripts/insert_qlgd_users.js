@@ -89,7 +89,7 @@ async function main() {
     // 1. Tìm phòng ban QLGD_OPS
     const department = await db.collection('departments').findOne({ code: 'QLGD_OPS' });
     if (!department) {
-      console.error('❌ Không tìm thấy phòng ban với mã QLGD_OPS!');
+      console.error(' Không tìm thấy phòng ban với mã QLGD_OPS!');
       return;
     }
     console.log(`🏢 Phòng ban: ${department.name} (_id: ${department._id})`);
@@ -134,7 +134,7 @@ async function main() {
 
     console.log('\n🎉 Hoàn thành chèn/cập nhật 8 tài khoản cán bộ Khối Quản lý Giao dịch!');
   } catch (error) {
-    console.error('❌ Lỗi thực thi:', error);
+    console.error(' Lỗi thực thi:', error);
   } finally {
     await client.close();
   }

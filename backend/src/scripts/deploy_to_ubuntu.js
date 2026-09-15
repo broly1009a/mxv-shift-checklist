@@ -121,6 +121,10 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'frontend/src/app/admin/upload-backup'),
     remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/upload-backup',
   },
+  {
+    localDir: path.join(repoRoot, 'frontend/src/components/ui'),
+    remoteDir: '/opt/mxv-checklist/frontend/src/components/ui',
+  },
 ];
 
 
@@ -268,7 +272,7 @@ conn.on('ready', () => {
               if (writeErr) {
                 sftp.fastPut(item.local, item.remote, (putErr) => {
                   if (putErr) {
-                    console.error(`  ❌ Loi upload ${item.remote}:`, putErr.message);
+                    console.error(`   Loi upload ${item.remote}:`, putErr.message);
                   } else {
                     console.log(`  [${currentIdx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)}`);
                   }
@@ -282,7 +286,7 @@ conn.on('ready', () => {
               }
             });
           } catch (readErr) {
-            console.error(`  ❌ Loi doc file ${item.local}:`, readErr.message);
+            console.error(`   Loi doc file ${item.local}:`, readErr.message);
             completed++;
             startWorker();
           }

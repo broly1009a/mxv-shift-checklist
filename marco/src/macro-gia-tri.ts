@@ -168,7 +168,7 @@ async function loadHHLookup(filePath: string): Promise<HHLookupEntry[]> {
       })
       .filter((e) => e.maHH);
   } catch {
-    console.warn('⚠️  Không load được HH Lookup từ file, dùng giá trị mặc định');
+    console.warn('  Không load được HH Lookup từ file, dùng giá trị mặc định');
     return DEFAULT_HH_LOOKUP;
   }
 }
@@ -204,13 +204,13 @@ function printGtgdReport(params: {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('🚀 Macro Gia Tri Giao Dich - TypeScript Version');
+  console.log(' Macro Gia Tri Giao Dich - TypeScript Version');
 
   const args = parseArgs();
   const config = loadConfig(args);
 
   if (!config.pathDsgd) {
-    console.error('❌ Thiếu --dsgd (đường dẫn file DSGD)');
+    console.error(' Thiếu --dsgd (đường dẫn file DSGD)');
     process.exit(1);
   }
 
@@ -281,7 +281,7 @@ async function main() {
 
     console.log('✅ Hoàn thành!');
   } catch (err) {
-    console.error('❌ Lỗi:', err);
+    console.error(' Lỗi:', err);
     process.exit(1);
   }
 }

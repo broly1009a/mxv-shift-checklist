@@ -16,6 +16,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('❌ Bot engine tick failed:', err);
+  console.error(' Bot engine tick failed:', err);
   process.exit(1);
 });

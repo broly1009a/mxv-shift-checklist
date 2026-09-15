@@ -68,6 +68,8 @@ export default function TradingManagerPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [triggering, setTriggering] = useState<boolean>(false);
   const [triggeringSection, setTriggeringSection] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeJobLogs, setActiveJobLogs] = useState<string[]>([]);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
@@ -238,11 +240,146 @@ export default function TradingManagerPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Reusable Polling Function for Bot Job
+  const pollJobProgress = useCallback(
+    async (jobId: string, jobType: string = 'CHECK_KLGD') => {
+      if (!token) return;
+      setTriggering(true);
+      setActiveJobId(jobId);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('activeTriggerJobId', jobId);
+      }
+
+      const startTime = Date.now();
+      const MAX_WAIT_MS = 180000; // Tối đa 3 phút (bao gồm cả các lượt retry)
+      const POLL_INTERVAL_MS = 2000;
+      let isDone = false;
+
+      while (Date.now() - startTime < MAX_WAIT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        try {
+          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jobRes.ok) continue;
+          const job = await jobRes.json();
+
+          if (Array.isArray(job.logs) && job.logs.length > 0) {
+            setActiveJobLogs(job.logs);
+          }
+
+          if (job.status === 'COMPLETED') {
+            isDone = true;
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('activeTriggerJobId');
+            }
+            setActiveJobId(null);
+            toast.dismiss('bot-job-progress');
+
+            const payloadResult = job.payload?.result;
+            if (jobType === 'CHECK_KLGD') {
+              const diffKLGD = payloadResult?.totals?.differ || 0;
+              const diffACM = payloadResult?.totals?.differACM || 0;
+              const mismatchTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
+              const pendingCount = payloadResult?.pendingSyncTrades?.length || 0;
+              if (diffKLGD === 0 && diffACM === 0 && mismatchTrades === 0) {
+                const note = pendingCount > 0 ? ` (Bảo lưu ${pendingCount} lệnh sau mốc cắt)` : '';
+                toast.success(`Đối chiếu Khớp lệnh hoàn tất: Số liệu khớp hoàn toàn!${note}`, { duration: 5000 });
+              } else {
+                toast.error(`Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
+              }
+            } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
+              const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
+              const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
+              const mismatchCQG = payloadResult?.cqgResult?.length || 0;
+              if (negAccs === 0 && mismatchEOD === 0 && mismatchCQG === 0) {
+                toast.success('Đối chiếu EOD hoàn tất: Vị thế & Số dư khớp hoàn toàn, không có TK âm!', { duration: 5000 });
+              } else {
+                const parts = [];
+                if (negAccs > 0) parts.push(`${negAccs} TK âm KQ`);
+                if (mismatchEOD > 0) parts.push(`${mismatchEOD} TK lệch EOD`);
+                if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
+                toast.error(`Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
+              }
+            } else if (jobType === 'CHECK_PRE_EOD') {
+              const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
+              const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
+              if (misTrades === 0 && misPos === 0) {
+                toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
+              } else {
+                toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+              }
+            } else if (jobType === 'CHECK_EOD_CCP') {
+              const totalMis = payloadResult?.mismatchedEOD?.length || 0;
+              const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
+              if (totalMis === 0 && totalNeg === 0) {
+                toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
+              } else {
+                toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
+              }
+            } else {
+              toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
+            }
+
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          } else if (job.status === 'ABORTED') {
+            isDone = true;
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('activeTriggerJobId');
+            }
+            setActiveJobId(null);
+            toast.dismiss('bot-job-progress');
+            const errDetail = job.error || 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.';
+            toast.error(`Tác vụ tạm dừng: ${errDetail}`, { duration: 6000 });
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          } else if (job.status === 'FAILED') {
+            isDone = true;
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('activeTriggerJobId');
+            }
+            setActiveJobId(null);
+            toast.dismiss('bot-job-progress');
+            const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
+            toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          }
+        } catch {
+          // Bỏ qua lỗi mạng chập chờn khi poll
+        }
+      }
+
+      if (!isDone) {
+        toast.dismiss('bot-job-progress');
+        toast.success('Bot đã nhận lệnh và đang tiếp tục xử lý ngầm.', { duration: 4000 });
+        await fetchConsoleSummary(selectedDate, true);
+      }
+
+      setTriggering(false);
+      setTriggeringSection(null);
+    },
+    [token, selectedDate, fetchConsoleSummary],
+  );
+
+  // Khôi phục tiến trình khi F5 / Reload trang
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const persistedJobId = sessionStorage.getItem('activeTriggerJobId');
+    if (persistedJobId && token) {
+      setActiveJobId(persistedJobId);
+      setTriggering(true);
+      pollJobProgress(persistedJobId, 'CHECK_KLGD');
+    }
+  }, [token, pollJobProgress]);
+
   // Trigger Manual Check
   const handleTriggerRun = async (jobType: string = 'CHECK_KLGD', sectionId?: string) => {
     if (!token || triggering) return;
     setTriggering(true);
     if (sectionId) setTriggeringSection(sectionId);
+    setActiveJobLogs(['[Khởi tạo] Đang kết nối hàng đợi bot...']);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
@@ -273,97 +410,16 @@ export default function TradingManagerPage() {
       if (!jobId) {
         toast.success(result.message || 'Đã kích hoạt quét đối soát thành công!');
         await fetchConsoleSummary(selectedDate, true);
+        setTriggering(false);
+        setTriggeringSection(null);
         return;
       }
 
       toast.loading('Bot đang thực thi đối chiếu ngầm, vui lòng chờ...', { id: 'bot-job-progress' });
-
-      // Vòng lặp polling theo dõi jobId từ bot_jobs
-      const startTime = Date.now();
-      const MAX_WAIT_MS = 120000; // Tối đa 2 phút
-      const POLL_INTERVAL_MS = 2000; // 2 giây
-      let isDone = false;
-
-      while (Date.now() - startTime < MAX_WAIT_MS) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-        try {
-          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jobRes.ok) continue;
-          const job = await jobRes.json();
-
-          if (job.status === 'COMPLETED') {
-            isDone = true;
-            toast.dismiss('bot-job-progress');
-
-            const payloadResult = job.payload?.result;
-            if (jobType === 'CHECK_KLGD') {
-              const diffKLGD = payloadResult?.totals?.differ || 0;
-              const diffACM = payloadResult?.totals?.differACM || 0;
-              const mismatchTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
-              if (diffKLGD === 0 && diffACM === 0 && mismatchTrades === 0) {
-                toast.success('✅ Đối chiếu Khớp lệnh hoàn tất: Toàn bộ số liệu khớp hoàn toàn!', { duration: 5000 });
-              } else {
-                toast.error(`⚠️ Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
-              }
-            } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
-              const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
-              const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
-              const mismatchCQG = payloadResult?.cqgResult?.length || 0;
-              if (negAccs === 0 && mismatchEOD === 0 && mismatchCQG === 0) {
-                toast.success('✅ Đối chiếu EOD hoàn tất: Vị thế & Số dư khớp hoàn toàn, không có TK âm!', { duration: 5000 });
-              } else {
-                const parts = [];
-                if (negAccs > 0) parts.push(`${negAccs} TK âm KQ`);
-                if (mismatchEOD > 0) parts.push(`${mismatchEOD} TK lệch EOD`);
-                if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
-                toast.error(`⚠️ Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
-              }
-            } else if (jobType === 'CHECK_PRE_EOD') {
-              const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
-              const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
-              if (misTrades === 0 && misPos === 0) {
-                toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
-              } else {
-                toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
-              }
-            } else if (jobType === 'CHECK_EOD_CCP') {
-              const totalMis = payloadResult?.mismatchedEOD?.length || 0;
-              const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
-              if (totalMis === 0 && totalNeg === 0) {
-                toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
-              } else {
-                toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
-              }
-            } else {
-              toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
-            }
-
-            await fetchConsoleSummary(selectedDate, true);
-            break;
-          } else if (job.status === 'FAILED') {
-            isDone = true;
-            toast.dismiss('bot-job-progress');
-            const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
-            toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
-            await fetchConsoleSummary(selectedDate, true);
-            break;
-          }
-        } catch {
-          // Bỏ qua lỗi mạng chập chờn khi poll
-        }
-      }
-
-      if (!isDone) {
-        toast.dismiss('bot-job-progress');
-        toast.success('Bot đã nhận lệnh và đang tiếp tục xử lý ngầm.', { duration: 4000 });
-        await fetchConsoleSummary(selectedDate, true);
-      }
+      await pollJobProgress(jobId, jobType);
     } catch (err: any) {
       toast.dismiss('bot-job-progress');
       toast.error(`Không thể kích hoạt đối chiếu: ${err.message}`);
-    } finally {
       setTriggering(false);
       setTriggeringSection(null);
     }
@@ -724,6 +780,17 @@ export default function TradingManagerPage() {
   const klgdLogs = summaryData?.klgd?.logs || [];
   const isWaitingFiles = !!summaryData?.klgd?.isWaitingFiles;
   const waitingMessage = summaryData?.klgd?.waitingMessage || '';
+
+  const isBotRunning =
+    klgdStatus === 'PROCESSING' ||
+    klgdStatus === 'PENDING' ||
+    triggering ||
+    !!activeJobId;
+
+  const displayLogs =
+    (triggering || !!activeJobId) && activeJobLogs.length > 0
+      ? activeJobLogs
+      : klgdLogs;
 
   // Discrepancy Trades
   const mismatchedTrades = summaryData?.klgd?.mismatchedTrades || [];
@@ -1166,7 +1233,7 @@ export default function TradingManagerPage() {
                   </button>
                 </div>
               </div>
-            ) : (klgdStatus === 'PROCESSING' || triggering) ? (
+            ) : isBotRunning ? (
               <div style={{
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2))',
                 border: '1px solid rgba(59, 130, 246, 0.4)',
@@ -1201,7 +1268,7 @@ export default function TradingManagerPage() {
                     </div>
                   </div>
                 </div>
-                {klgdLogs.length > 0 && (
+                {(displayLogs.length > 0 || klgdLogs.length > 0) && (
                   <button
                     type="button"
                     onClick={() => setShowLogModal(true)}
@@ -2119,472 +2186,472 @@ export default function TradingManagerPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* CORECCP CONTROL & ACTION HEADER */}
                 <div className="glass-panel" style={{
-              padding: '20px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                  <span style={{
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#10b981',
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}>
-                    VNCLEAR Automation
-                  </span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Đối Soát & Báo Cáo CoreCCP (VNCLEAR)
-                  </h3>
-                </div>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Thu thập tự động báo cáo QLTTTKGD, EOD, NR, TTTT qua Playwright và đối chiếu số dư EOD công thức 4 thành phần.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleTriggerCcpDownload}
-                  disabled={triggering}
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    padding: '8px 18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                    borderColor: 'rgba(59, 130, 246, 0.3)',
-                    color: '#60a5fa',
-                    cursor: triggering ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {triggering && triggeringSection === 'ccp-download' ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      <span>Đang tải báo cáo...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={15} />
-                      <span>Tải Báo Cáo CoreCCP</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleTriggerRun('CHECK_EOD_CCP', 'ccp-check')}
-                  disabled={triggering}
-                  className="btn btn-primary"
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    padding: '8px 18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: triggering ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {triggering && triggeringSection === 'ccp-check' ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      <span>Đang đối chiếu...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play size={15} />
-                      <span>Kiểm Tra Đối Chiếu CCP</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowLogModal(true)}
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    padding: '8px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                  title="Mở toàn màn hình xem nhật ký bot"
-                >
-                  <Terminal size={15} />
-                  <span>Log Modal</span>
-                </button>
-              </div>
-            </div>
-
-            {/* KPI STATS CARDS */}
-            {(() => {
-              const ccp = summaryData?.ccpSummary;
-              const filesPresent = ccp?.filesPresent;
-              const filesCount = [
-                filesPresent?.qltkgd,
-                filesPresent?.eod,
-                filesPresent?.nr,
-                filesPresent?.tttt,
-              ].filter(Boolean).length;
-              const totalAccounts = ccp?.totals?.totalAccounts || 0;
-              const totalNegative = ccp?.totals?.totalNegative || 0;
-              const totalMismatched = ccp?.totals?.totalMismatched || 0;
-
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-                  {/* Card 1 */}
-                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                        Tổng Tài Khoản CCP
-                      </span>
-                      <Database size={18} color="#3b82f6" />
-                    </div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-primary)' }}>
-                      {fmt(totalAccounts)} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>TK</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Ghi nhận trong file EOD
-                    </span>
-                  </div>
-
-                  {/* Card 2 */}
-                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                        File Báo Cáo Sẵn Sàng
-                      </span>
-                      <FileSpreadsheet size={18} color={filesCount === 4 ? '#10b981' : '#f59e0b'} />
-                    </div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: filesCount === 4 ? '#10b981' : '#f59e0b' }}>
-                      {filesCount}/4 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tệp</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      QLTTTKGD, EOD, NR, TTTT
-                    </span>
-                  </div>
-
-                  {/* Card 3 */}
-                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                        Tài Khoản Âm Ký Quỹ
-                      </span>
-                      <AlertTriangle size={18} color={totalNegative > 0 ? '#ef4444' : '#10b981'} />
-                    </div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalNegative > 0 ? '#ef4444' : '#10b981' }}>
-                      {totalNegative} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {totalNegative > 0 ? 'Cần xử lý nộp ký quỹ gấp' : 'An toàn: Không có TK âm'}
-                    </span>
-                  </div>
-
-                  {/* Card 4 */}
-                  <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                        Lệch Công Thức EOD
-                      </span>
-                      <ShieldCheck size={18} color={totalMismatched > 0 ? '#ef4444' : '#10b981'} />
-                    </div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalMismatched > 0 ? '#ef4444' : '#10b981' }}>
-                      {totalMismatched} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {totalMismatched > 0 ? 'Phát hiện chênh lệch số dư' : 'Khớp 100% công thức chuẩn'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* 2-COLUMN MAIN VIEW */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 45%) 1fr', gap: '20px' }}>
-              {/* CỘT TRÁI: DANH SÁCH FILE NGUỒN & TERMINAL LOGS */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* File Status Box */}
-                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-                  <div style={{
-                    padding: '14px 20px',
-                    borderBottom: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-input)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}>
-                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                      File Báo Cáo Tại Thư Mục Backup
-                    </h5>
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                      {summaryData?.ccpSummary?.folderPath ? summaryData.ccpSummary.folderPath.split(/[\\/]/).pop() : 'CoreCCP'}
-                    </span>
-                  </div>
-
-                  <div style={{ padding: '16px' }}>
-                    {(() => {
-                      const files = summaryData?.ccpSummary?.filesPresent;
-                      const fileItems = [
-                        {
-                          code: 'QLTTTKGD',
-                          name: 'Báo cáo Quản lý Thông tin TKGD & Số dư',
-                          present: !!files?.qltkgd,
-                          filename: files?.qltkgdName || 'QLTTTKGD*.csv',
-                          size: files?.qltkgdSize || 0,
-                        },
-                        {
-                          code: 'EOD',
-                          name: 'Báo cáo Ký quỹ & Số dư cuối ngày',
-                          present: !!files?.eod,
-                          filename: files?.eodName || 'EOD*.csv',
-                          size: files?.eodSize || 0,
-                        },
-                        {
-                          code: 'NR',
-                          name: 'Báo cáo Nộp / Rút tiền ký quỹ trong phiên',
-                          present: !!files?.nr,
-                          filename: files?.nrName || 'NR*.csv',
-                          size: files?.nrSize || 0,
-                        },
-                        {
-                          code: 'TTTT',
-                          name: 'Báo cáo Thông tin Tiền Thanh toán',
-                          present: !!files?.tttt,
-                          filename: files?.ttttName || 'TTTT*.csv',
-                          size: files?.ttttSize || 0,
-                        },
-                      ];
-
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {fileItems.map((f, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                padding: '12px 16px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-color)',
-                                backgroundColor: f.present ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '12px',
-                              }}
-                            >
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                                    {f.code}
-                                  </span>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    {f.name}
-                                  </span>
-                                </div>
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                                  {f.present ? `${f.filename} (${(f.size / 1024).toFixed(1)} KB)` : 'Chưa tải file'}
-                                </span>
-                              </div>
-
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                fontSize: '0.72rem',
-                                fontWeight: 800,
-                                backgroundColor: f.present ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                color: f.present ? '#10b981' : '#ef4444',
-                              }}>
-                                {f.present ? 'ĐÃ CÓ' : 'CHƯA CÓ'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Live Terminal Log Box */}
-                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{
-                    padding: '12px 18px',
-                    borderBottom: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-input)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Terminal size={14} color="#10b981" />
-                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        Nhật Ký Tải & Đối Chiếu Robot CoreCCP
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      Live Output
-                    </span>
-                  </div>
-
-                  <div style={{
-                    padding: '14px 16px',
-                    backgroundColor: '#050b14',
-                    fontFamily: 'monospace',
-                    fontSize: '0.75rem',
-                    height: '240px',
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                  }}>
-                    {(() => {
-                      const downloadLogs = summaryData?.ccpSummary?.downloadJob?.logs || [];
-                      const checkLogs = summaryData?.ccpSummary?.checkJob?.logs || [];
-                      const combinedLogs = [...downloadLogs, ...checkLogs];
-
-                      if (combinedLogs.length === 0) {
-                        return (
-                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
-                            Chưa có nhật ký ghi nhận. Bấm "Tải Báo Cáo CoreCCP" hoặc "Kiểm Tra Đối Chiếu CCP" để chạy.
-                          </div>
-                        );
-                      }
-
-                      return combinedLogs.map((log: string, idx: number) => {
-                        const isErr = log.includes('LỖI') || log.includes('Error') || log.includes('bất thường') || log.includes('failed');
-                        const isSuccess = log.includes('THÀNH CÔNG') || log.includes('Hoàn thành');
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              color: isErr ? '#f87171' : isSuccess ? '#34d399' : '#94a3b8',
-                              lineHeight: 1.5,
-                              wordBreak: 'break-all',
-                            }}
-                          >
-                            {log}
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* CỘT PHẢI: BẢNG CHI TIẾT KẾT QUẢ ĐỐI CHIẾU EOD CORECCP */}
-              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{
-                  padding: '14px 20px',
-                  borderBottom: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-input)',
+                  padding: '20px 24px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                      Chi Tiết Chênh Lệch Công Thức EOD CoreCCP
-                    </h5>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      backgroundColor: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                      color: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? '#ef4444' : '#10b981',
-                    }}>
-                      {summaryData?.ccpSummary?.totals?.totalMismatched || 0} Tài Khoản
-                    </span>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        color: '#10b981',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}>
+                        VNCLEAR Automation
+                      </span>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        Đối Soát & Báo Cáo CoreCCP (VNCLEAR)
+                      </h3>
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Thu thập tự động báo cáo QLTTTKGD, EOD, NR, TTTT qua Playwright và đối chiếu số dư EOD công thức 4 thành phần.
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={handleTriggerCcpDownload}
+                      disabled={triggering}
+                      className="btn btn-secondary"
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        padding: '8px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        borderColor: 'rgba(59, 130, 246, 0.3)',
+                        color: '#60a5fa',
+                        cursor: triggering ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {triggering && triggeringSection === 'ccp-download' ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          <span>Đang tải báo cáo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download size={15} />
+                          <span>Tải Báo Cáo CoreCCP</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTriggerRun('CHECK_EOD_CCP', 'ccp-check')}
+                      disabled={triggering}
+                      className="btn btn-primary"
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        padding: '8px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: triggering ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {triggering && triggeringSection === 'ccp-check' ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          <span>Đang đối chiếu...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play size={15} />
+                          <span>Kiểm Tra Đối Chiếu CCP</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowLogModal(true)}
+                      className="btn btn-secondary"
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        padding: '8px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                      title="Mở toàn màn hình xem nhật ký bot"
+                    >
+                      <Terminal size={15} />
+                      <span>Log Modal</span>
+                    </button>
                   </div>
                 </div>
 
-                <div style={{ minHeight: '320px', maxHeight: '580px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
-                      <tr style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.8rem',
+                {/* KPI STATS CARDS */}
+                {(() => {
+                  const ccp = summaryData?.ccpSummary;
+                  const filesPresent = ccp?.filesPresent;
+                  const filesCount = [
+                    filesPresent?.qltkgd,
+                    filesPresent?.eod,
+                    filesPresent?.nr,
+                    filesPresent?.tttt,
+                  ].filter(Boolean).length;
+                  const totalAccounts = ccp?.totals?.totalAccounts || 0;
+                  const totalNegative = ccp?.totals?.totalNegative || 0;
+                  const totalMismatched = ccp?.totals?.totalMismatched || 0;
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                      {/* Card 1 */}
+                      <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                            Tổng Tài Khoản CCP
+                          </span>
+                          <Database size={18} color="#3b82f6" />
+                        </div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+                          {fmt(totalAccounts)} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>TK</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          Ghi nhận trong file EOD
+                        </span>
+                      </div>
+
+                      {/* Card 2 */}
+                      <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                            File Báo Cáo Sẵn Sàng
+                          </span>
+                          <FileSpreadsheet size={18} color={filesCount === 4 ? '#10b981' : '#f59e0b'} />
+                        </div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: filesCount === 4 ? '#10b981' : '#f59e0b' }}>
+                          {filesCount}/4 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tệp</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          QLTTTKGD, EOD, NR, TTTT
+                        </span>
+                      </div>
+
+                      {/* Card 3 */}
+                      <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                            Tài Khoản Âm Ký Quỹ
+                          </span>
+                          <AlertTriangle size={18} color={totalNegative > 0 ? '#ef4444' : '#10b981'} />
+                        </div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalNegative > 0 ? '#ef4444' : '#10b981' }}>
+                          {totalNegative} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {totalNegative > 0 ? 'Cần xử lý nộp ký quỹ gấp' : 'An toàn: Không có TK âm'}
+                        </span>
+                      </div>
+
+                      {/* Card 4 */}
+                      <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                            Lệch Công Thức EOD
+                          </span>
+                          <ShieldCheck size={18} color={totalMismatched > 0 ? '#ef4444' : '#10b981'} />
+                        </div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalMismatched > 0 ? '#ef4444' : '#10b981' }}>
+                          {totalMismatched} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TK</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {totalMismatched > 0 ? 'Phát hiện chênh lệch số dư' : 'Khớp 100% công thức chuẩn'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 2-COLUMN MAIN VIEW */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 45%) 1fr', gap: '20px' }}>
+                  {/* CỘT TRÁI: DANH SÁCH FILE NGUỒN & TERMINAL LOGS */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* File Status Box */}
+                    <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+                      <div style={{
+                        padding: '14px 20px',
                         borderBottom: '1px solid var(--border-color)',
                         backgroundColor: 'var(--bg-input)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
                       }}>
-                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', width: '150px' }}>
-                          Mã TKGD
-                        </th>
-                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
-                          Số Dư Tính Toán (VND)
-                        </th>
-                        <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
-                          Số Dư Báo Cáo EOD (VND)
-                        </th>
-                        <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right', width: '180px' }}>
-                          Chênh Lệch (VND)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const mismatched = summaryData?.ccpSummary?.mismatchedAccounts || [];
-                        if (mismatched.length === 0) {
+                        <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                          File Báo Cáo Tại Thư Mục Backup
+                        </h5>
+                        <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                          {summaryData?.ccpSummary?.folderPath ? summaryData.ccpSummary.folderPath.split(/[\\/]/).pop() : 'CoreCCP'}
+                        </span>
+                      </div>
+
+                      <div style={{ padding: '16px' }}>
+                        {(() => {
+                          const files = summaryData?.ccpSummary?.filesPresent;
+                          const fileItems = [
+                            {
+                              code: 'QLTTTKGD',
+                              name: 'Báo cáo Quản lý Thông tin TKGD & Số dư',
+                              present: !!files?.qltkgd,
+                              filename: files?.qltkgdName || 'QLTTTKGD*.csv',
+                              size: files?.qltkgdSize || 0,
+                            },
+                            {
+                              code: 'EOD',
+                              name: 'Báo cáo Ký quỹ & Số dư cuối ngày',
+                              present: !!files?.eod,
+                              filename: files?.eodName || 'EOD*.csv',
+                              size: files?.eodSize || 0,
+                            },
+                            {
+                              code: 'NR',
+                              name: 'Báo cáo Nộp / Rút tiền ký quỹ trong phiên',
+                              present: !!files?.nr,
+                              filename: files?.nrName || 'NR*.csv',
+                              size: files?.nrSize || 0,
+                            },
+                            {
+                              code: 'TTTT',
+                              name: 'Báo cáo Thông tin Tiền Thanh toán',
+                              present: !!files?.tttt,
+                              filename: files?.ttttName || 'TTTT*.csv',
+                              size: files?.ttttSize || 0,
+                            },
+                          ];
+
                           return (
-                            <tr>
-                              <td colSpan={4} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                                  <ShieldCheck size={36} color="#10b981" />
-                                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
-                                    Số Dư Khớp Hoàn Toàn 100%
-                                  </span>
-                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                    Không phát hiện bất kỳ sai lệch nào giữa công thức tính toán và số dư EOD CoreCCP
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {fileItems.map((f, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    padding: '12px 16px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-color)',
+                                    backgroundColor: f.present ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '12px',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                        {f.code}
+                                      </span>
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        {f.name}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                                      {f.present ? `${f.filename} (${(f.size / 1024).toFixed(1)} KB)` : 'Chưa tải file'}
+                                    </span>
+                                  </div>
+
+                                  <span style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    backgroundColor: f.present ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                    color: f.present ? '#10b981' : '#ef4444',
+                                  }}>
+                                    {f.present ? 'ĐÃ CÓ' : 'CHƯA CÓ'}
                                   </span>
                                 </div>
-                              </td>
-                            </tr>
+                              ))}
+                            </div>
                           );
-                        }
+                        })()}
+                      </div>
+                    </div>
 
-                        return mismatched.map((item: any, idx: number) => (
-                          <tr
-                            key={idx}
-                            style={{
-                              borderBottom: '1px solid var(--border-color)',
-                              backgroundColor: 'rgba(239, 68, 68, 0.04)',
-                              fontFamily: 'monospace',
-                              fontSize: '0.82rem',
-                            }}
-                          >
-                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800, color: '#f87171' }}>
-                              {item.maTKGD}
-                            </td>
-                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
-                              {fmt(item.calculatedBalance)}
-                            </td>
-                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
-                              {fmt(item.eodBalance)}
-                            </td>
-                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>
-                              {fmt(item.differ)}
-                            </td>
+                    {/* Live Terminal Log Box */}
+                    <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{
+                        padding: '12px 18px',
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-input)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Terminal size={14} color="#10b981" />
+                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            Nhật Ký Tải & Đối Chiếu Robot CoreCCP
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                          Live Output
+                        </span>
+                      </div>
+
+                      <div style={{
+                        padding: '14px 16px',
+                        backgroundColor: '#050b14',
+                        fontFamily: 'monospace',
+                        fontSize: '0.75rem',
+                        height: '240px',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}>
+                        {(() => {
+                          const downloadLogs = summaryData?.ccpSummary?.downloadJob?.logs || [];
+                          const checkLogs = summaryData?.ccpSummary?.checkJob?.logs || [];
+                          const combinedLogs = [...downloadLogs, ...checkLogs];
+
+                          if (combinedLogs.length === 0) {
+                            return (
+                              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
+                                Chưa có nhật ký ghi nhận. Bấm "Tải Báo Cáo CoreCCP" hoặc "Kiểm Tra Đối Chiếu CCP" để chạy.
+                              </div>
+                            );
+                          }
+
+                          return combinedLogs.map((log: string, idx: number) => {
+                            const isErr = log.includes('LỖI') || log.includes('Error') || log.includes('bất thường') || log.includes('failed');
+                            const isSuccess = log.includes('THÀNH CÔNG') || log.includes('Hoàn thành');
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  color: isErr ? '#f87171' : isSuccess ? '#34d399' : '#94a3b8',
+                                  lineHeight: 1.5,
+                                  wordBreak: 'break-all',
+                                }}
+                              >
+                                {log}
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CỘT PHẢI: BẢNG CHI TIẾT KẾT QUẢ ĐỐI CHIẾU EOD CORECCP */}
+                  <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{
+                      padding: '14px 20px',
+                      borderBottom: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-input)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                          Chi Tiết Chênh Lệch Công Thức EOD CoreCCP
+                        </h5>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          backgroundColor: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                          color: (summaryData?.ccpSummary?.totals?.totalMismatched || 0) > 0 ? '#ef4444' : '#10b981',
+                        }}>
+                          {summaryData?.ccpSummary?.totals?.totalMismatched || 0} Tài Khoản
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ minHeight: '320px', maxHeight: '580px', overflowY: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                          <tr style={{
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.8rem',
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-input)',
+                          }}>
+                            <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', width: '150px' }}>
+                              Mã TKGD
+                            </th>
+                            <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
+                              Số Dư Tính Toán (VND)
+                            </th>
+                            <th style={{ padding: '10px 16px', fontWeight: 700, borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
+                              Số Dư Báo Cáo EOD (VND)
+                            </th>
+                            <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right', width: '180px' }}>
+                              Chênh Lệch (VND)
+                            </th>
                           </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const mismatched = summaryData?.ccpSummary?.mismatchedAccounts || [];
+                            if (mismatched.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan={4} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                      <ShieldCheck size={36} color="#10b981" />
+                                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
+                                        Số Dư Khớp Hoàn Toàn 100%
+                                      </span>
+                                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                        Không phát hiện bất kỳ sai lệch nào giữa công thức tính toán và số dư EOD CoreCCP
+                                      </span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            return mismatched.map((item: any, idx: number) => (
+                              <tr
+                                key={idx}
+                                style={{
+                                  borderBottom: '1px solid var(--border-color)',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.04)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.82rem',
+                                }}
+                              >
+                                <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800, color: '#f87171' }}>
+                                  {item.maTKGD}
+                                </td>
+                                <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
+                                  {fmt(item.calculatedBalance)}
+                                </td>
+                                <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
+                                  {fmt(item.eodBalance)}
+                                </td>
+                                <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>
+                                  {fmt(item.differ)}
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
               </div>
             ) : (
               <CcpLotStatisticsSection
@@ -2684,7 +2751,7 @@ export default function TradingManagerPage() {
             {/* ===== SECTION 1: BACKUP MS & BACKUP CQG (1:1 Layout C# FormMain) ===== */}
             <div className="glass-panel" style={{ padding: '18px 22px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '24px' }}>
-                
+
                 {/* --- BACKUP MS (3 CỘT) --- */}
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <div>
@@ -3019,7 +3086,7 @@ export default function TradingManagerPage() {
             {/* ===== SECTION 4: THỐNG KÊ GIAO DỊCH (1:1 C# FormMain Bottom) ===== */}
             <div className="glass-panel" style={{ padding: '18px 22px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                
+
                 {/* Thống kê số lot giao dịch */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -3341,13 +3408,13 @@ export default function TradingManagerPage() {
                   flexDirection: 'column',
                   gap: '4px',
                 }}>
-                  {klgdLogs.length === 0 ? (
+                  {displayLogs.length === 0 ? (
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       Chưa có nhật ký ghi nhận cho phiên chạy này.
                     </div>
                   ) : (
-                    klgdLogs.map((logLine: string, idx: number) => {
-                      const isErr = logLine.includes('❌') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
+                    displayLogs.map((logLine: string, idx: number) => {
+                      const isErr = logLine.includes('') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
                       const isSuccess = logLine.includes('✅') || logLine.includes('thành công') || logLine.includes('khớp');
                       const isWarn = logLine.includes('') || logLine.toLowerCase().includes('timeout') || logLine.includes('bỏ qua');
 

@@ -27,7 +27,7 @@ const MONGODB_URI =
 
 async function runRealEndToEndTest() {
   console.log('='.repeat(75));
-  console.log('🚀 KIỂM THỬ TOÀN TRÌNH: ĐIỀN 5 SHEET EXCEL TỪ 2 EMAIL MẪU THỰC TẾ');
+  console.log(' KIỂM THỬ TOÀN TRÌNH: ĐIỀN 5 SHEET EXCEL TỪ 2 EMAIL MẪU THỰC TẾ');
   console.log('='.repeat(75));
 
   // 1. Kết nối MongoDB
@@ -320,6 +320,6 @@ async function runRealEndToEndTest() {
 }
 
 runRealEndToEndTest().catch((err) => {
-  console.error('❌ Lỗi chạy E2E Script:', err);
+  console.error(' Lỗi chạy E2E Script:', err);
   process.exit(1);
 });

@@ -164,7 +164,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         if (credsParsed && credsParsed.outputDir) {
           ccpOutputDirFromCreds = String(credsParsed.outputDir).trim();
         }
-      } catch {}
+      } catch { }
     }
     const defaultCcpPath = path.join(process.cwd(), 'data', 'backup', 'ccp', 'futures');
     const ccpBackupBase = resolveStoragePathCrossPlatform(
@@ -188,76 +188,342 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       }
     }
 
-    log('Bắt đầu tải dữ liệu tươi từ MS, CQG, ACM và CoreCCP song song theo tùy chọn...');
+    log(' Khởi động quy trình Đồng bộ 2 Pha (Barrier Synchronization) tải tươi từ MS, CQG, ACM và CoreCCP đồng thời...');
     await job.save();
 
     const errors: string[] = [];
 
-    const downloadMs = async () => {
+    // Cờ kiểm soát rào cản nghiêm ngặt:
+    // true = Bắt buộc cả 4 nguồn sẵn sàng mới xuất file; false = Cho phép dùng file cũ nếu 1 bên lỗi
+    const REQUIRE_ALL_SOURCES_FRESH = true;
+
+    let triggerBarrierResolve: () => void = () => { };
+    let triggerBarrierReject: (reason: any) => void = () => { };
+    let barrierTriggered = false;
+    let barrierAnnounced = false;
+    let barrierAborted = false;
+    let abortReason = '';
+
+    const barrierTriggerPromise = new Promise<void>((resolve, reject) => {
+      triggerBarrierResolve = () => {
+        if (!barrierTriggered && !barrierAborted) {
+          barrierTriggered = true;
+          resolve();
+        }
+      };
+      triggerBarrierReject = (reason: any) => {
+        if (!barrierTriggered) {
+          barrierAborted = true;
+          reject(reason);
+        }
+      };
+    });
+
+    const readyState = {
+      ms: false,
+      acm: false,
+      ccp: false,
+      cqg: false,
+    };
+
+    const checkAllReadyAndTrigger = () => {
+      if (barrierAborted) return;
+      if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
+        if (!barrierAnnounced) {
+          barrierAnnounced = true;
+          log('🏁 Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
+        }
+        triggerBarrierResolve();
+      }
+    };
+
+    const abortBarrierIfStrict = (source: string, errorMsg: string) => {
+      if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
+        barrierAborted = true;
+        abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
+        log(`⛔ DỪNG RÀO CẢN ĐỒNG BỘ: ${abortReason}. Đã dừng quy trình để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`);
+        triggerBarrierReject(new Error(abortReason));
+      }
+    };
+
+    // ── 1. WORKER M-SYSTEM ───────────────────────────────────────────────────
+    const runWorkerMs = async () => {
       if (
         options.checkKlgd === false &&
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('MS ⏭️ Bỏ qua tải M-System (không chọn KLGD, TTM & TTTT).');
+        log('MS ⏭️ Bỏ qua M-System theo tùy chọn.');
+        readyState.ms = true;
+        checkAllReadyAndTrigger();
         return;
       }
-      log('MS → Đăng nhập M-System...');
+
+      log('MS  [Pha 1] Khởi chạy trình duyệt và đăng nhập M-System...');
       let browser: any = null;
+      let page: any = null;
       try {
         const msSession = await this.rpaDownloaderService.loginMSystem(msDailyPath);
         browser = msSession.browser;
-        const page = msSession.page;
+        page = msSession.page;
 
         if (options.checkKlgd !== false) {
-          log('MS → Đang tải DSGD.xlsx (Danh sách giao dịch)...');
-          await this.rpaDownloaderService.downloadDSGD(
-            page,
+          log('MS ⏳ Điều hướng đến màn hình DSGD...');
+          await page.click("xpath=//a[text()='QL giao dịch']");
+          await page.waitForTimeout(1000);
+          await page.click("xpath=//a[text()='Danh sách giao dịch']");
+          await page.waitForTimeout(2000);
+        }
+
+        readyState.ms = true;
+        log('MS  Đã sẵn sàng tại màn hình DSGD. Đang chờ rào cản đồng bộ...');
+        checkAllReadyAndTrigger();
+
+        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        await barrierTriggerPromise;
+
+        if (options.checkKlgd !== false) {
+          log('MS ⚡ [Pha 2] Kích hoạt xuất DSGD.xlsx...');
+          const [dl] = await Promise.all([
+            page.waitForEvent('download', { timeout: 45000 }),
+            page.click("xpath=//i[contains(@class, 'fa-file-csv')]", { timeout: 15000 }),
+          ]);
+
+          await this.rpaDownloaderService.saveAndValidateDownload(
+            dl,
             path.join(msDailyPath, 'DSGD.xlsx'),
+            'DSGD',
           );
           log('MS ✅ Tải DSGD.xlsx thành công.');
-        } else {
-          log('MS ⏭️ Bỏ qua tải DSGD.xlsx theo tùy chọn.');
         }
 
         if (options.checkTtm !== false) {
-          log('MS → Đang tải TTM.xlsx (Trạng thái mở)...');
+          log('MS → Tải bổ sung TTM.xlsx...');
           await this.rpaDownloaderService.downloadTTM(
             page,
             path.join(msDailyPath, 'TTM.xlsx'),
           );
           log('MS ✅ Tải TTM.xlsx thành công.');
-        } else {
-          log('MS ⏭️ Bỏ qua tải TTM.xlsx theo tùy chọn.');
         }
 
         if (options.checkTttt !== false) {
-          log('MS → Đang tải TTTT.xlsx (Trạng thái tất toán)...');
+          log('MS → Tải bổ sung TTTT.xlsx...');
           await this.rpaDownloaderService.downloadTTTT(
             page,
             path.join(msDailyPath, 'TTTT.xlsx'),
           );
           log('MS ✅ Tải TTTT.xlsx thành công.');
-        } else {
-          log('MS ⏭️ Bỏ qua tải TTTT.xlsx theo tùy chọn.');
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
-        log(`MS ❌ Lỗi kết nối/tải file MS: ${err.message}. Tiếp tục với dữ liệu sẵn có.`);
+        log(`MS ❌ Lỗi: ${err.message}`);
+        abortBarrierIfStrict('M-System', err.message);
       } finally {
+        if (!barrierAborted) {
+          readyState.ms = true;
+          checkAllReadyAndTrigger();
+        }
         if (browser) await browser.close().catch(() => { });
+        log('MS 🔒 Đã đóng trình duyệt M-System.');
       }
     };
 
-    const downloadCqg = async () => {
+    // ── 2. WORKER ACM (STRAITS NANO) ─────────────────────────────────────────
+    const runWorkerAcm = async () => {
+      if (options.checkKlgd === false) {
+        log('ACM ⏭️ Bỏ qua ACM theo tùy chọn.');
+        readyState.acm = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+
+      log('ACM  [Pha 1] Khởi chạy trình duyệt và đăng nhập ACM (giải Captcha)...');
+      const jobLogFn = (msg: string) => log(`ACM: ${msg}`);
+      let browser: any = null;
+      let page: any = null;
+      try {
+        const acmSession = await this.rpaDownloaderService.loginACM(
+          acmDailyPath,
+          undefined,
+          jobLogFn,
+        );
+        browser = acmSession.browser;
+        page = acmSession.page;
+
+        const credentialsRaw = await this.settingsService.getSetting(
+          'bot_credentials_acm',
+          '',
+        );
+        let creds: any = {};
+        try {
+          if (credentialsRaw) creds = JSON.parse(decrypt(credentialsRaw));
+        } catch { }
+
+        let baseUrl = page.url().split('#')[0];
+        if (!baseUrl || !baseUrl.startsWith('http')) {
+          baseUrl = (creds.url || '').split('#')[0];
+        }
+        try {
+          const urlObj = new URL(baseUrl);
+          if (!urlObj.pathname.includes('/exchange/index.html') && baseUrl.includes('/exchange')) {
+            baseUrl = `${urlObj.origin}/exchange/index.html`;
+          }
+        } catch { }
+
+        const fillUrl = creds.fillUrl || `${baseUrl}#/business-tetptrade`;
+        const orderUrl = creds.orderUrl || `${baseUrl}#/business-tetporder`;
+
+        log(`ACM ⏳ Điều hướng đến màn hình Fill: ${fillUrl}...`);
+        await page.goto(fillUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(async () => {
+          await page.goto(fillUrl).catch(() => { });
+        });
+        await page.waitForTimeout(3000).catch(() => { });
+
+        const exportBtnSelector =
+          '.el-button--info:has-text("Export"), button:has-text("Export"), button:has-text("Download")';
+        await page.waitForSelector(exportBtnSelector, { state: 'visible', timeout: 15000 }).catch(() => { });
+
+        readyState.acm = true;
+        log('ACM  Đã sẵn sàng tại màn hình Fill. Đang chờ rào cản đồng bộ...');
+        checkAllReadyAndTrigger();
+
+        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        await barrierTriggerPromise;
+
+        log('ACM ⚡ [Pha 2] Kích hoạt xuất báo cáo Fill (Straits.csv)...');
+        const btn = page.locator(exportBtnSelector).first();
+        const isVisible = await btn.isVisible().catch(() => false);
+        const straitsFile = path.join(acmDailyPath, 'Straits.csv');
+        const fillFile = path.join(acmDailyPath, 'Fill.xlsx');
+
+        if (isVisible) {
+          const dlPromise = page.waitForEvent('download', { timeout: 35000 });
+          await btn.click();
+          const dl = await dlPromise;
+          await dl.saveAs(straitsFile);
+          // Tạo bản sao Fill.xlsx để tương thích hoàn toàn các parser cũ
+          try {
+            fs.copyFileSync(straitsFile, fillFile);
+          } catch { }
+          log('ACM ✅ Tải Straits.csv (Fill) thành công.');
+        } else {
+          // Fallback tải chuẩn
+          await this.rpaDownloaderService.downloadAcmReport(page, fillFile, fillUrl, jobLogFn);
+          try {
+            if (fs.existsSync(fillFile)) fs.copyFileSync(fillFile, straitsFile);
+          } catch { }
+          log('ACM ✅ Tải báo cáo Fill qua fallback thành công.');
+        }
+
+        // Tải bổ sung Order nếu cần
+        try {
+          await this.rpaDownloaderService.downloadAcmReport(
+            page,
+            path.join(acmDailyPath, 'Order.xlsx'),
+            orderUrl,
+            jobLogFn,
+          );
+          log('ACM ✅ Tải Order.xlsx thành công.');
+        } catch (orderErr: any) {
+          log(`ACM  Không thể tải Order.xlsx: ${orderErr.message}`);
+        }
+      } catch (err: any) {
+        errors.push(`ACM: ${err.message}`);
+        log(`ACM ❌ Lỗi: ${err.message}`);
+        abortBarrierIfStrict('Straits ACM', err.message);
+      } finally {
+        if (!barrierAborted) {
+          readyState.acm = true;
+          checkAllReadyAndTrigger();
+        }
+        if (browser) await browser.close().catch(() => { });
+        log('ACM 🔒 Đã đóng trình duyệt ACM.');
+      }
+    };
+
+    // ── 3. WORKER CORECCP (VNCLEAR) ──────────────────────────────────────────
+    const runWorkerCcp = async () => {
+      const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+      if (!credRaw) {
+        log('CCP ⏭️ Chưa cấu hình tài khoản CoreCCP. Bỏ qua.');
+        readyState.ccp = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+      let creds: any = {};
+      try {
+        creds = JSON.parse(decrypt(credRaw));
+      } catch {
+        log('CCP  Không thể giải mã cấu hình CoreCCP.');
+        readyState.ccp = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+      if (!creds.url || !creds.username || !creds.password) {
+        log('CCP ⏭️ Cấu hình CoreCCP thiếu url/username/password. Bỏ qua.');
+        readyState.ccp = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+
+      log('CCP  [Pha 1] Khởi chạy trình duyệt và đăng nhập CoreCCP...');
+      const dateFormatted = `${day}/${month}/${year}`;
+      let ccpSession: any = null;
+      try {
+        ccpSession = await this.ccpCeDownloaderService.prepareKlgdSession({
+          systemUrl: creds.url,
+          username: creds.username,
+          password: creds.password,
+          tradingDate: dateFormatted,
+          outputDir: ccpDailyPath,
+          options: {
+            headless: true,
+            overwriteExisting: true,
+          },
+          logCallback: (msg: string) => log(`CCP: ${msg}`),
+        });
+
+        readyState.ccp = true;
+        log('CCP  Đã sẵn sàng tại màn hình DSGD. Đang chờ rào cản đồng bộ...');
+        checkAllReadyAndTrigger();
+
+        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        await barrierTriggerPromise;
+
+        log('CCP ⚡ [Pha 2] Kích hoạt xuất báo cáo DSGD CoreCCP...');
+        const dsgdFile = await ccpSession.triggerExportDsgd();
+        log(`CCP ✅ Tải DSGD hoàn tất: ${dsgdFile || 'Không có dữ liệu'}`);
+
+        // Tải các báo cáo bổ sung (TTM, TTTT) và bóc tách
+        await ccpSession.downloadRemainingAndExtract(dsgdFile || undefined);
+        log('CCP ✅ Tải toàn bộ báo cáo CoreCCP hoàn tất.');
+      } catch (err: any) {
+        errors.push(`CCP: ${err.message}`);
+        log(`CCP ❌ Lỗi: ${err.message}`);
+        abortBarrierIfStrict('CoreCCP', err.message);
+      } finally {
+        if (!barrierAborted) {
+          readyState.ccp = true;
+          checkAllReadyAndTrigger();
+        }
+        if (ccpSession) await ccpSession.close().catch(() => { });
+        log('CCP 🔒 Đã đóng trình duyệt CoreCCP.');
+      }
+    };
+
+    // ── 4. WORKER CQG (CQG1 & CQG2) ──────────────────────────────────────────
+    const runWorkerCqg = async () => {
       if (
         options.checkKlgd === false &&
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('CQG ⏭️ Bỏ qua tải CQG theo tùy chọn.');
+        log('CQG ⏭️ Bỏ qua CQG theo tùy chọn.');
+        readyState.cqg = true;
+        checkAllReadyAndTrigger();
         return;
       }
+
       try {
         const filesToDownload: {
           FR1?: boolean;
@@ -281,18 +547,31 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           filesToDownload.PS1 = true;
           filesToDownload.PS2 = true;
         }
-        log(`CQG → Tải các báo cáo: ${Object.keys(filesToDownload).join(', ')}...`);
+
+        log(`CQG  [Pha 1] Khởi chạy phiên CQG và chuẩn bị tải: ${Object.keys(filesToDownload).join(', ')}...`);
+
+        const onReadyBarrier = async () => {
+          readyState.cqg = true;
+          log('CQG  CQG1 đã đăng nhập và sẵn sàng xuất FR1. Chờ rào cản đồng bộ...');
+          checkAllReadyAndTrigger();
+          await barrierTriggerPromise;
+          log('CQG ⚡ [Pha 2] Kích hoạt xuất FR1.xlsx...');
+        };
+
         const result = await this.rpaDownloaderService.downloadCqgBackup(
           filesToDownload,
           cqgDailyPath,
+          onReadyBarrier,
         );
+
         if (result.downloaded.length > 0) {
           log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
         }
         if (result.errors.length > 0) {
           errors.push(...result.errors.map((e) => `CQG: ${e}`));
-          log(`CQG ⚠️ Lỗi: ${result.errors.join(' | ')}`);
+          log(`CQG  Lỗi: ${result.errors.join(' | ')}`);
         }
+
         const keysToMerge: Array<'FR' | 'OP' | 'PS'> = [];
         if (options.checkKlgd !== false) keysToMerge.push('FR');
         if (options.checkTtm !== false) keysToMerge.push('OP');
@@ -302,126 +581,100 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(
           targetDate,
           keysToMerge,
-          true, // Luôn forceRemerge sau khi tải tươi file raw về
+          true,
         );
         for (const l of mergeResult.logs) {
           log(`CQG Merge: ${l}`);
         }
         if (!mergeResult.success) {
           errors.push(
-            `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('❌')).join(' | ')}`,
+            `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('')).join(' | ')}`,
           );
         } else {
           log('CQG ✅ Ghép file CQG hoàn tất.');
         }
       } catch (err: any) {
         errors.push(`CQG: ${err.message}`);
-        log(`CQG ❌ Lỗi kết nối/tải file CQG: ${err.message}. Tiếp tục với dữ liệu sẵn có.`);
-      }
-    };
-
-    const downloadAcm = async () => {
-      if (options.checkKlgd === false) {
-        log('ACM ⏭️ Bỏ qua tải ACM theo tùy chọn.');
-        return;
-      }
-      log('ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...');
-      const jobLogFn = (msg: string) => log(`ACM: ${msg}`);
-      let browser: any = null;
-      try {
-        const acmSession = await this.rpaDownloaderService.loginACM(
-          acmDailyPath,
-          undefined,
-          jobLogFn,
-        );
-        browser = acmSession.browser;
-        await this.rpaDownloaderService.downloadAcmBackup(acmSession.page, acmDailyPath, jobLogFn);
-        log('ACM ✅ Tải báo cáo Fill/Order thành công.');
-      } catch (err: any) {
-        errors.push(`ACM: ${err.message}`);
-        log(`ACM  Lỗi tải file ACM: ${err.message}. Tiếp tục quy trình với file Straits.csv sẵn có.`);
+        log(`CQG ❌ Lỗi: ${err.message}`);
+        abortBarrierIfStrict('CQG', err.message);
       } finally {
-        if (browser) await browser.close().catch(() => { });
+        if (!barrierAborted) {
+          readyState.cqg = true;
+          checkAllReadyAndTrigger();
+        }
+        log('CQG 🔒 Đã hoàn tất và đóng trình duyệt CQG.');
       }
     };
 
-    const downloadCcp = async () => {
-      log('CCP → Đăng nhập CoreCCP để tải báo cáo DSGD, TTM, TTTT...');
-      try {
-        const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
-        if (!credRaw) {
-          log('CCP ⏭️ Chưa cấu hình thông tin đăng nhập CoreCCP trong Admin. Bỏ qua tải CoreCCP.');
-          return;
+    // ── BỘ ĐIỀU KHIỂN RÀO CẢN ĐỒNG BỘ ────────────────────────────────────────
+    const startBarrierController = async () => {
+      const waitStart = Date.now();
+      const maxWaitMs = 70000; // Tối đa 70 giây cho các bên đăng nhập và vào vị trí (CQG cần ~55-60s)
+      while (Date.now() - waitStart < maxWaitMs) {
+        if (barrierAborted) return;
+        if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
+          break;
         }
-        let creds: any = {};
-        try {
-          creds = JSON.parse(decrypt(credRaw));
-        } catch {
-          log('CCP ⚠️ Không thể giải mã cấu hình CoreCCP.');
-          return;
-        }
-        if (!creds.url || !creds.username || !creds.password) {
-          log('CCP ⏭️ Cấu hình CoreCCP thiếu url/username/password. Bỏ qua tải CoreCCP.');
-          return;
-        }
-        const reportsToDownload: CcpReportConfig[] = DEFAULT_CCP_REPORTS.filter((r) =>
-          ['DSGD', 'TTM', 'TTTT'].includes(r.code),
-        );
-        const dateFormatted = `${day}/${month}/${year}`;
-
-        log(`CCP → Bắt đầu tải ${reportsToDownload.map((r) => r.code).join(', ')} ngày ${dateFormatted}...`);
-        await this.ccpCeDownloaderService.run(
-          {
-            systemUrl: creds.url,
-            username: creds.username,
-            password: creds.password,
-            startDate: dateFormatted,
-            endDate: dateFormatted,
-            outputDir: ccpDailyPath,
-            reports: reportsToDownload,
-            options: {
-              headless: true,
-              overwriteExisting: true,
-            },
-          },
-          (msg: string) => log(`CCP: ${msg}`),
-        );
-        log('CCP ✅ Tải báo cáo CoreCCP hoàn tất.');
-      } catch (err: any) {
-        errors.push(`CCP: ${err.message}`);
-        log(`CCP ⚠️ Lỗi tải file CoreCCP: ${err.message}. Tiếp tục quy trình với file sẵn có.`);
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      if (!barrierTriggered && !barrierAborted) {
+        log(' Đạt ngưỡng timeout rào cản (70s). Kích hoạt xuất dữ liệu cho các nguồn đã sẵn sàng...');
+        triggerBarrierResolve();
       }
     };
 
-    log('1/4 - Đang tải dữ liệu từ M-System (DSGD, TTM)...');
-    await downloadMs();
+    // Chạy song song cả 4 Worker và Bộ điều khiển rào cản
+    await Promise.allSettled([
+      runWorkerMs(),
+      runWorkerAcm(),
+      runWorkerCcp(),
+      runWorkerCqg(),
+      startBarrierController(),
+    ]);
     await job.save();
 
-    // Khoảng nghỉ 2.5s để hệ điều hành giải phóng hoàn toàn tiến trình Chrome và GPU trước khi mở CQG
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    if (barrierAborted) {
+      log(`⛔ QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Không thực hiện so khớp để bảo vệ tính toàn vẹn số liệu.`);
+      payload.result = {
+        passed: false,
+        isAborted: true,
+        error: abortReason,
+        message: `[StrictBarrier] Tạm dừng đối chiếu do thiếu dữ liệu tươi: ${abortReason}`,
+      };
+      await job.save();
+      throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] ${abortReason}`);
+    }
 
-    log('2/4 - Đang tải dữ liệu từ CQG (FR1, FR2)...');
-    await downloadCqg();
-    await job.save();
-
-    // Khoảng nghỉ 2s trước khi mở ACM
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    log('3/4 - Đang tải dữ liệu từ ACM (Fill, Order)...');
-    await downloadAcm();
-    await job.save();
-
-    // Khoảng nghỉ 2s trước khi mở CoreCCP
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    log('4/4 - Đang tải dữ liệu từ CoreCCP (DSGD, TTM, TTTT)...');
-    await downloadCcp();
-    await job.save();
+    // ── MA TRẬN KIỂM TRA FILE CỐT LÕI (MANDATORY CORE FILES GATE) ───────────
+    if (options.checkKlgd !== false) {
+      const coreErrors = errors.filter(
+        (e) =>
+          e.includes('CQG1') ||
+          e.includes('CQG2') ||
+          e.includes('FR1') ||
+          e.includes('FR2') ||
+          e.includes('DSGD') ||
+          e.includes('Straits') ||
+          e.includes('ACM'),
+      );
+      if (coreErrors.length > 0) {
+        const errorMsg = `Thiếu file dữ liệu cốt lõi do lỗi tải/đăng nhập: ${coreErrors.join(' | ')}. Dừng đối chiếu để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`;
+        log(`⛔ DỪNG ĐỐI SOÁT: ${errorMsg}`);
+        payload.result = {
+          passed: false,
+          isAborted: true,
+          error: errorMsg,
+          message: `[MandatoryCoreFilesMissing] ${errorMsg}`,
+        };
+        await job.save();
+        throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] ${errorMsg}`);
+      }
+    }
 
     if (errors.length > 0) {
-      log(` Có ${errors.length} lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...`);
+      log(`⚠️ Có ${errors.length} lỗi/cảnh báo bổ trợ (non-blocking), tiếp tục đối chiếu với dữ liệu sẵn có...`);
     } else {
-      log('✅ Tải dữ liệu tươi hoàn tất từ các nguồn đã chọn.');
+      log('✅ Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
     }
 
     try {
@@ -514,7 +767,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       lines.push('================================================================================');
 
       if (error) {
-        lines.push(`❌ TRẠNG THÁI: LỖI THỰC THI - ${error}`);
+        lines.push(` TRẠNG THÁI: LỖI THỰC THI - ${error}`);
       } else if (result) {
         const status = result.passed ? '✅ KHỚP HOÀN TOÀN' : ' CÓ CHÊNH LỆCH';
         lines.push(` KẾT QUẢ TỔNG QUÁT: ${status}`);

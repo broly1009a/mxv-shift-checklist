@@ -69,13 +69,13 @@ export function ensureMonthSheetExists(
         result.stdout?.trim() ||
         result.error?.message ||
         (result.status === null ? 'Quá thời gian chờ (Timeout > 60s)' : `Thoát với mã ${result.status}`);
-      const errMsg = `[Auto-Clone] ❌ Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${detailErr}`;
+      const errMsg = `[Auto-Clone]  Lỗi khi tự động sinh Sheet '${targetSheetName}' trong ${fileName}: ${detailErr}`;
       logger.error(errMsg);
       jobLogs?.push(errMsg);
       return false;
     }
   } catch (err: any) {
-    const excMsg = `[Auto-Clone] ❌ Ngoại lệ khi kích hoạt Python cloner cho ${fileName}: ${err.message}`;
+    const excMsg = `[Auto-Clone]  Ngoại lệ khi kích hoạt Python cloner cho ${fileName}: ${err.message}`;
     logger.error(excMsg);
     jobLogs?.push(excMsg);
     return false;

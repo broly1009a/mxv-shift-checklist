@@ -206,7 +206,7 @@ def generate_markdown_report(report_path: str, passed_count: int, total_count: i
 
     for i, rec in enumerate(TEST_RECORDS, 1):
         stt = f"**GD-0{i}**"
-        status_tag = "✅ **PASSED**" if rec["passed"] else "❌ **FAILED**"
+        status_tag = "✅ **PASSED**" if rec["passed"] else " **FAILED**"
         elapsed = f"`{rec['elapsed_ms']:.1f} ms`"
         md.append(f"| {stt} | {rec['name']} | {status_tag} | {elapsed} | {rec['details']} |")
 

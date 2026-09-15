@@ -59,11 +59,11 @@ async function runTest() {
         creds = JSON.parse(decrypt(setting.value));
         console.log(`✅ Đã đọc cấu hình CQG từ CSDL thành công.`);
       } catch (e) {
-        console.warn(`⚠️ Không thể giải mã credentials: ${e.message}`);
+        console.warn(` Không thể giải mã credentials: ${e.message}`);
       }
     }
   } catch (err) {
-    console.warn(`⚠️ Lỗi kết nối CSDL (${err.message}). Tiếp tục với cấu hình mặc định...`);
+    console.warn(` Lỗi kết nối CSDL (${err.message}). Tiếp tục với cấu hình mặc định...`);
   }
 
   const cqgUrl = (creds && creds.url) ? creds.url : 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced';
@@ -127,9 +127,9 @@ async function runTest() {
     console.log('🎉 KẾT QUẢ: KẾT NỐI & TẢI TRANG CQG TRÊN UBUNTU HOÀN TOÀN TỐT!');
     console.log('================================================================');
   } catch (err) {
-    console.error(`\n❌ LỖI TRONG QUÁ TRÌNH KIỂM THỬ: ${err.message}`);
+    console.error(`\n LỖI TRONG QUÁ TRÌNH KIỂM THỬ: ${err.message}`);
   } finally {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     process.exit(0);
   }
 }

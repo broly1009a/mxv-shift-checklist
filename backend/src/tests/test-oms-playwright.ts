@@ -24,7 +24,7 @@ async function runOmsTest() {
     console.log(JSON.stringify(result, null, 2));
     console.log('===========================================');
   } catch (err: any) {
-    console.error('❌ Lỗi thực thi checkOmsStatus:', err);
+    console.error(' Lỗi thực thi checkOmsStatus:', err);
   } finally {
     console.log('Đang đóng NestJS Context...');
     await app.close();
@@ -33,6 +33,6 @@ async function runOmsTest() {
 }
 
 runOmsTest().catch((err) => {
-  console.error('❌ Oms Test execution failed:', err);
+  console.error(' Oms Test execution failed:', err);
   process.exit(1);
 });

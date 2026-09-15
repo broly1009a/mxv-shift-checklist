@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 async function closeCurrentShift() {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    console.error('❌ Khong tim thay MONGODB_URI trong file .env');
+    console.error(' Khong tim thay MONGODB_URI trong file .env');
     process.exit(1);
   }
 
@@ -45,7 +45,7 @@ async function closeCurrentShift() {
 
     console.log(`✅ DA DONG THANH CONG ${updateResult.modifiedCount} ca truc (status -> COMPLETED) luc ${now.toLocaleString('vi-VN')}!`);
   } catch (err) {
-    console.error('❌ Loi khi dong ca truc:', err.message);
+    console.error(' Loi khi dong ca truc:', err.message);
   } finally {
     await mongoose.disconnect();
     console.log('🔌 Da ngat ket noi database.');

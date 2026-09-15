@@ -103,7 +103,7 @@ async function getCredentialsFromDB() {
     const decrypted = decryptAES256(setting.value);
     return JSON.parse(decrypted);
   } catch (err) {
-    console.warn(`⚠️ Không thể kết nối MongoDB: ${err.message}.`);
+    console.warn(` Không thể kết nối MongoDB: ${err.message}.`);
     return null;
   }
 }
@@ -210,7 +210,7 @@ async function main() {
   const cliArgs = parseArgs();
 
   console.log(`\n======================================================================`);
-  console.log(`🚀 TEST TẢI & BÓC TÁCH RIÊNG 3 BÁO CÁO CORECCP (CHECK_KLGD)`);
+  console.log(` TEST TẢI & BÓC TÁCH RIÊNG 3 BÁO CÁO CORECCP (CHECK_KLGD)`);
   console.log(`======================================================================`);
   console.log(`• Ngày giao dịch: ${cliArgs.date}`);
   console.log(`• Giao diện trực quan: ${cliArgs.headless ? 'TẮT (Headless)' : 'BẬT (--headed)'}`);
@@ -223,7 +223,7 @@ async function main() {
   }
 
   if (!creds || !creds.username) {
-    console.error(`❌ Chưa có thông tin tài khoản CoreCCP. Vui lòng truyền --user và --pass hoặc cấu hình trong DB.`);
+    console.error(` Chưa có thông tin tài khoản CoreCCP. Vui lòng truyền --user và --pass hoặc cấu hình trong DB.`);
     process.exit(1);
   }
 
@@ -268,17 +268,17 @@ async function main() {
         await page.goto(`${origin}${rep.cachedUrl}`, { waitUntil: 'domcontentloaded', timeout: 25000 });
       } else {
         const parentBtn = page.locator(`xpath=//li[contains(@class, 'MuiListItem')]//span[contains(text(), '${rep.parentMenu}')]`).first();
-        if (await parentBtn.isVisible().catch(() => false)) await parentBtn.click().catch(() => {});
+        if (await parentBtn.isVisible().catch(() => false)) await parentBtn.click().catch(() => { });
         await page.waitForTimeout(500);
 
         const childBtn = page.locator(`xpath=//div[contains(@class, 'MuiCollapse-root')]//span[contains(text(), '${rep.childMenu}')]`).first();
-        if (await childBtn.isVisible().catch(() => false)) await childBtn.click().catch(() => {});
+        if (await childBtn.isVisible().catch(() => false)) await childBtn.click().catch(() => { });
       }
 
       await page.waitForTimeout(1000);
       if (rep.tabName) {
         const tabBtn = page.locator(`xpath=//button[contains(@class, 'MuiTab-root') and contains(text(), '${rep.tabName}')]`).first();
-        if (await tabBtn.isVisible().catch(() => false)) await tabBtn.click().catch(() => {});
+        if (await tabBtn.isVisible().catch(() => false)) await tabBtn.click().catch(() => { });
       }
 
       // Điền khoảng ngày
@@ -300,7 +300,7 @@ async function main() {
 
       // Bấm Tìm kiếm
       const searchBtn = page.locator('xpath=//button[contains(text(), "Tìm kiếm") or contains(text(), "Tra cứu")]').first();
-      if (await searchBtn.isVisible().catch(() => false)) await searchBtn.click().catch(() => {});
+      if (await searchBtn.isVisible().catch(() => false)) await searchBtn.click().catch(() => { });
       await page.waitForTimeout(1500);
 
       // Kiểm tra bảng trống
@@ -331,12 +331,12 @@ async function main() {
           await dl.saveAs(dest);
           console.log(`   ✅ Tải thành công [${rep.code}] -> ${path.basename(dest)}`);
         } catch (dlErr) {
-          console.log(`   ⚠️ Báo cáo [${rep.code}] bảng rỗng hoặc không có dữ liệu để xuất.`);
+          console.log(`    Báo cáo [${rep.code}] bảng rỗng hoặc không có dữ liệu để xuất.`);
         }
       }
     }
   } catch (err) {
-    console.error(`❌ Lỗi trong phiên duyệt web: ${err.message}`);
+    console.error(` Lỗi trong phiên duyệt web: ${err.message}`);
   } finally {
     await context.close();
     await browser.close();

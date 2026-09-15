@@ -34,7 +34,7 @@ const BASE_INPUTS_DIR = path.join(
 
 async function runFullPipelineWithOcr() {
   console.log('='.repeat(80));
-  console.log('🚀 KIỂM THỬ TRÍCH XUẤT TỰ ĐỘNG FILE ĐÍNH KÈM (PDF & CCCD) & ĐỐI SOÁT 3 CHIỀU');
+  console.log(' KIỂM THỬ TRÍCH XUẤT TỰ ĐỘNG FILE ĐÍNH KÈM (PDF & CCCD) & ĐỐI SOÁT 3 CHIỀU');
   console.log('='.repeat(80));
 
   // 1. Kết nối MongoDB Atlas
@@ -253,6 +253,6 @@ async function runFullPipelineWithOcr() {
 }
 
 runFullPipelineWithOcr().catch((err) => {
-  console.error('❌ Lỗi khi chạy Pipeline OCR & PDF:', err);
+  console.error(' Lỗi khi chạy Pipeline OCR & PDF:', err);
   process.exit(1);
 });

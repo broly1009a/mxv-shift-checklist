@@ -74,7 +74,7 @@ class DownloadWorker(QThread):
             success = engine.run()
             self.finished_signal.emit(success if success is not None else False)
         except Exception as e:
-            self.log_signal.emit(f"\n❌ Lỗi hệ thống ngoài dự kiến: {e}")
+            self.log_signal.emit(f"\n Lỗi hệ thống ngoài dự kiến: {e}")
             self.finished_signal.emit(False)
 
 
@@ -544,7 +544,7 @@ def log_uncaught_exceptions(exctype, value, tb):
         return
     import traceback
     err_msg = "".join(traceback.format_exception(exctype, value, tb))
-    print(f"❌ Uncaught Exception:\n{err_msg}", file=sys.stderr)
+    print(f" Uncaught Exception:\n{err_msg}", file=sys.stderr)
     try:
         QMessageBox.critical(None, "Lỗi ứng dụng ngoài dự kiến", f"Ứng dụng gặp lỗi ngoài dự kiến:\n{value}\n\nChi tiết:\n{err_msg[:600]}")
     except Exception:

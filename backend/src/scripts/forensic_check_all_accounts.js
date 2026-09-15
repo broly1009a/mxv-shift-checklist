@@ -70,7 +70,7 @@ async function main() {
       console.log(`   - Ảnh CCCD trước: ${cleanDoc.ms.cccdMatTruocLocalPath ? 'Có' : 'Không'}`);
       console.log(`   - Ảnh CCCD sau:   ${cleanDoc.ms.cccdMatSauLocalPath ? 'Có' : 'Không'}`);
     } else {
-      console.log('   ❌ Không tìm thấy thông tin trên M-System!');
+      console.log('    Không tìm thấy thông tin trên M-System!');
     }
 
     const foundMsg = { id: item.msgId, subject: 'Fw: Yêu cầu mở TKGD' };
@@ -113,10 +113,10 @@ async function main() {
             await parser.destroy();
           }
           console.log(`\n   --- 📄 NỘI DUNG BÓC TÁCH TỪ ${a.name} ---`);
-          
+
           // Trích xuất các trường
           const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-          
+
           // Trích xuất họ tên
           const nameM = text.match(/(?:Họ\s*(?:và\s*)?tên|Tên\s*khách\s*hàng|Khách\s*hàng|Ông\/Bà)[\s:\.\-]+([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ\s]{4,40})(?:\r?\n|,|$)/iu);
           // Trích xuất CCCD
@@ -139,13 +139,13 @@ async function main() {
 
           // In trích đoạn chứa thông tin cá nhân trong PDF để đối chiếu chính xác
           console.log('      [Trích đoạn đoạn văn bản cá nhân trong PDF]:');
-          const snippet = lines.filter(l => 
+          const snippet = lines.filter(l =>
             /tên|sinh|căn cước|cccd|cmnd|ngày cấp|nơi cấp|giới tính|địa chỉ|nam|nữ/i.test(l)
           ).slice(0, 15);
           snippet.forEach(s => console.log(`         > ${s}`));
 
         } catch (err) {
-          console.log(`      ❌ Lỗi parse PDF: ${err.message}`);
+          console.log(`       Lỗi parse PDF: ${err.message}`);
         }
       }
     }

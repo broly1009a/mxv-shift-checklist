@@ -173,7 +173,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <h2 style="color: ${isOnline ? '#28a745' : '#dc3545'};">
-            ${isOnline ? '🟢 RPA Agent Online' : '🔴 RPA Agent Offline Alert'}
+            ${isOnline ? '🟢 RPA Agent Online' : ' RPA Agent Offline Alert'}
           </h2>
           <p>Hệ thống ghi nhận trạng thái kết nối của RPA Agent:</p>
           <ul>
@@ -370,7 +370,27 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
 
-      await handler.execute(job, context);
+      // Tự động flush log định kỳ ra MongoDB mỗi 1.5s cho bất kỳ Job nào đang chạy
+      let lastFlushedLength = job.logs?.length || 0;
+      const logFlushTimer = setInterval(async () => {
+        if (job.logs && job.logs.length > lastFlushedLength) {
+          lastFlushedLength = job.logs.length;
+          try {
+            await this.botJobModel.updateOne(
+              { _id: job._id },
+              { $set: { logs: job.logs } },
+            );
+          } catch {
+            // Chạy nền an toàn: Bỏ qua lỗi tạm thời, không làm gián đoạn Job
+          }
+        }
+      }, 1500);
+
+      try {
+        await handler.execute(job, context);
+      } finally {
+        clearInterval(logFlushTimer);
+      }
 
       const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
       if (freshJob?.status === 'CANCELLED') {
@@ -398,20 +418,30 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         `[${new Date().toISOString()}] Attempt ${job.attempts} failed: ${errorMsg}`,
       );
 
+      const isPartnerUnavailable = errorMsg.includes('[PARTNER_SERVICE_UNAVAILABLE]');
+
       if (job.attempts < job.maxAttempts) {
         await this.syncJobToChecklist(job, 'PENDING', errorMsg);
       } else {
-        await this.sendOperationalFailureAlert(job, errorMsg).catch(
-          (emailErr) => {
-            this.logger.error(
-              `Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`,
-            );
-          },
-        );
-        await this.syncJobToChecklist(job, 'FAILED', errorMsg);
-        await this.logFailureToSystemLog(job, errorMsg).catch((logErr) => {
-          this.logger.error(`Lỗi ghi SystemLog thất bại: ${logErr.message}`);
-        });
+        if (isPartnerUnavailable) {
+          // Gán nhãn ABORTED (Tạm dừng do lỗi sàn ngoài) thay vì FAILED (Lỗi hệ thống)
+          await this.syncJobToChecklist(job, 'ABORTED', errorMsg);
+          this.logger.warn(
+            `Job ${job.jobType} (ID: ${job._id}) tạm dừng (ABORTED) do đối tác không khả dụng sau ${job.attempts} lần thử: ${errorMsg}`,
+          );
+        } else {
+          await this.sendOperationalFailureAlert(job, errorMsg).catch(
+            (emailErr) => {
+              this.logger.error(
+                `Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`,
+              );
+            },
+          );
+          await this.syncJobToChecklist(job, 'FAILED', errorMsg);
+          await this.logFailureToSystemLog(job, errorMsg).catch((logErr) => {
+            this.logger.error(`Lỗi ghi SystemLog thất bại: ${logErr.message}`);
+          });
+        }
       }
     } finally {
       this.activeJobs.delete(job._id.toString());
@@ -539,7 +569,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
    */
   public async syncJobToChecklist(
     job: any,
-    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED',
+    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED' | 'ABORTED',
     error?: string,
   ) {
     const payload = parseJobPayload(job);
@@ -552,7 +582,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     } else if (status === 'FAILED') {
       job.failedAt = now;
       job.error = error;
-    } else if (status === 'CANCELLED') {
+    } else if (status === 'CANCELLED' || status === 'ABORTED') {
       job.completedAt = now;
       job.error = error;
     }
@@ -685,14 +715,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 );
             }
           }
-        } else if (status === 'FAILED') {
+        } else if (status === 'FAILED' || status === 'ABORTED') {
           // Human Override Guard: Nếu ca trực đã chốt hoặc tác vụ đã được người dùng duyệt hoàn thành,
-          // bot tuyệt đối không ghi đè trạng thái FAILED!
+          // bot tuyệt đối không ghi đè trạng thái FAILED/ABORTED!
           const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
           if (rawShiftLog) {
             if (rawShiftLog.status === 'COMPLETED') {
               this.logger.log(
-                `[SYNC_GUARD] Bỏ qua cập nhật Checklist thất bại cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
+                `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
               );
               return;
             }
@@ -707,13 +737,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
             if (isHumanChecked) {
               this.logger.warn(
-                `[HUMAN_OVERRIDE] Tác vụ [${taskId}] đã được nhân viên xác nhận hoàn thành trước đó. Bỏ qua ghi đè FAILED từ Bot.`,
+                `[HUMAN_OVERRIDE] Tác vụ [${taskId}] đã được nhân viên xác nhận hoàn thành trước đó. Bỏ qua ghi đè từ Bot.`,
               );
               return;
             }
           }
 
-          let message = error || 'Lỗi không xác định khi chạy bot.';
+          let message = error || (status === 'ABORTED' ? 'Tạm dừng do dịch vụ đối tác không khả dụng.' : 'Lỗi không xác định khi chạy bot.');
           if (payload?.totalCount !== undefined) {
             message = `Đã xác minh ${payload.totalCount} email: Phát hiện ${payload.failedCount} lỗi. Danh sách: ${payload.failedList}`;
           } else if (
@@ -734,8 +764,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             const checkData = {
               type: job.jobType,
               jobId: job._id.toString(),
-              status: 'FAILED',
-              failedAt: job.failedAt,
+              status: status,
+              failedAt: job.failedAt || job.completedAt,
               error: message,
               data: {
                 totalCount: 0,
@@ -747,10 +777,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             message = JSON.stringify(checkData);
           }
 
+          const targetTaskStatus = status === 'ABORTED' ? 'NEEDS_ATTENTION' : 'FAILED';
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,
-            'FAILED',
+            targetTaskStatus,
             systemUser,
             [
               'FILE_AUDIT_ACM',
@@ -768,7 +799,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               ? message
               : message.includes('SLA')
                 ? message
-                : `Kiểm tra tự động thất bại: ${message}`,
+                : status === 'ABORTED'
+                  ? `Tạm dừng đối soát do sàn ngoài: ${message}`
+                  : `Kiểm tra tự động thất bại: ${message}`,
             true,
           );
         }

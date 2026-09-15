@@ -56,7 +56,7 @@ async function runTest() {
   const hasTyGia = checkFile('Tỷ giá CCP     ', tyGiaPath);
 
   if (!hasDsgd) {
-    log('\n❌ LỖI: Thiếu file bắt buộc DSGD_14.6.xlsx! Dừng kiểm thử.');
+    log('\n LỖI: Thiếu file bắt buộc DSGD_14.6.xlsx! Dừng kiểm thử.');
     fs.writeFileSync(outputTxtPath, outputLines.join('\n'), 'utf8');
     process.exit(1);
   }
@@ -191,7 +191,7 @@ async function runTest() {
   log(` • Số TVKD CHƯA ĐỦ 4 loại lệnh         : ${missingList.length} thành viên`);
 
   if (missingList.length > 0) {
-    log('\n ⚠️  DANH SÁCH TVKD CHƯA ĐỦ 4 LOẠI LỆNH:');
+    log('\n   DANH SÁCH TVKD CHƯA ĐỦ 4 LOẠI LỆNH:');
     for (const t of missingList) {
       log(`    - TVKD ${t.tvkd}: Đã có ${t.soLot} lot, THIẾU các loại lệnh -> [ ${t.missingTypes.join(', ')} ]`);
     }
@@ -218,6 +218,6 @@ async function runTest() {
 }
 
 runTest().catch((err) => {
-  console.error('\n❌ Lỗi khi thực thi test script:', err);
+  console.error('\n Lỗi khi thực thi test script:', err);
   process.exit(1);
 });

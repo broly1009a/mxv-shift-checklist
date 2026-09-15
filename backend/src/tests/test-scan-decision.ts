@@ -36,7 +36,7 @@ async function testScanDecision() {
     console.log('✅ KẾT QUẢ QUÉT THÀNH CÔNG:');
     console.log(JSON.stringify(result, null, 2));
   } catch (error: any) {
-    console.error('❌ LỖI XẢY RA KHI TEST:');
+    console.error(' LỖI XẢY RA KHI TEST:');
     console.error(error.stack || error.message || error);
   } finally {
     console.log('--- ĐÓNG CONTEXT ---');

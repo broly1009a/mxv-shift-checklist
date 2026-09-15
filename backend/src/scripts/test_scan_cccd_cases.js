@@ -87,7 +87,7 @@ async function runWorker(args) {
 
 async function main() {
   console.log('='.repeat(75));
-  console.log('🚀 BẮT ĐẦU BỘ KIỂM THỬ MODULE SCAN CCCD (VERIFICATION TEST SUITE)');
+  console.log(' BẮT ĐẦU BỘ KIỂM THỬ MODULE SCAN CCCD (VERIFICATION TEST SUITE)');
   console.log('='.repeat(75));
   console.log(`- Python Worker: ${pythonWorker}`);
   console.log(`- Python Bin:    ${pythonBin}\n`);
@@ -107,7 +107,7 @@ async function main() {
           console.log(`   ↳ Bounding Boxes: ${JSON.stringify(res.canCuoc.boundingBoxes)}`);
         }
       } else {
-        console.log('❌ FAIL');
+        console.log(' FAIL');
         console.log(`   ↳ Chi tiết: ${v.details}`);
       }
     } catch (err) {

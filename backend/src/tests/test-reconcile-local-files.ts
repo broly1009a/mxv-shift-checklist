@@ -16,7 +16,7 @@ async function testLocalReconciliation() {
 
   if (!fs.existsSync(sampleDir)) {
     console.error(
-      `❌ Thư mục ${sampleDir} không tồn tại. Vui lòng kiểm tra lại đường dẫn!`,
+      ` Thư mục ${sampleDir} không tồn tại. Vui lòng kiểm tra lại đường dẫn!`,
     );
     await app.close();
     process.exit(1);
@@ -131,7 +131,7 @@ async function testLocalReconciliation() {
       console.log('✓ Không có tài khoản lệch TTTT vs PS.');
     }
   } catch (err: any) {
-    console.error('❌ Lỗi khi đối chiếu khớp lệnh:', err.message);
+    console.error(' Lỗi khi đối chiếu khớp lệnh:', err.message);
   }
 
   // =========================================================================
@@ -173,7 +173,7 @@ async function testLocalReconciliation() {
       );
     }
   } catch (err: any) {
-    console.error('❌ Lỗi khi đối chiếu EOD:', err.message);
+    console.error(' Lỗi khi đối chiếu EOD:', err.message);
   }
 
   // =========================================================================
@@ -206,7 +206,7 @@ async function testLocalReconciliation() {
       console.log('✓ Số dư CQG khớp hoàn toàn.');
     }
   } catch (err: any) {
-    console.error('❌ Lỗi khi đối chiếu CQG:', err.message);
+    console.error(' Lỗi khi đối chiếu CQG:', err.message);
   }
 
   console.log('\n============================================================');
@@ -215,6 +215,6 @@ async function testLocalReconciliation() {
 }
 
 testLocalReconciliation().catch((err) => {
-  console.error('❌ Lỗi nghiêm trọng:', err);
+  console.error(' Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

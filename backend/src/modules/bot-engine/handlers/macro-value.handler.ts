@@ -16,7 +16,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly valueStatisticsService: ValueStatisticsService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -201,7 +201,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       await safeSave();
       return result;
     } catch (err: any) {
-      log(`❌ Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
+      log(` Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
       await safeSave();
       throw err;
     }
@@ -293,7 +293,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       await safeSave();
       return result;
     } catch (err: any) {
-      log(`❌ Lỗi chạy thống kê TVKD lũy kế: ${err.message}`);
+      log(` Lỗi chạy thống kê TVKD lũy kế: ${err.message}`);
       await safeSave();
       throw err;
     }

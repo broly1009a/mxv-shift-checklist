@@ -16,7 +16,7 @@ console.log('='.repeat(90));
 function inspectDir(title, dirPath) {
   console.log(`\n ${title}: ${dirPath}`);
   if (!fs.existsSync(dirPath)) {
-    console.log('   ❌ Thư mục không tồn tại!');
+    console.log('    Thư mục không tồn tại!');
     return [];
   }
   const files = fs.readdirSync(dirPath);
@@ -50,7 +50,7 @@ if (frMerged && fr1 && fr2) {
   const mtimeFR1 = fs.statSync(path.join(baseCqg, 'FR1.xlsx')).mtimeMs;
   const mtimeFR2 = fs.statSync(path.join(baseCqg, 'FR2.xlsx')).mtimeMs;
   if (mtimeFR < mtimeFR1 || mtimeFR < mtimeFR2) {
-    console.log('   ⚠️ BÁO ĐỘNG: File gộp FR.xlsx CŨ HƠN file thô FR1/FR2!');
+    console.log('    BÁO ĐỘNG: File gộp FR.xlsx CŨ HƠN file thô FR1/FR2!');
     console.log('      → Bot đã bỏ qua bước ghép file vì tưởng FR.xlsx "đã tồn tại hôm nay".');
     console.log('      → Hậu quả: Đối chiếu DSGD mới nhất với FR.xlsx cũ dẫn đến hàng ngàn lệnh lệch giả!');
   } else {
@@ -70,7 +70,7 @@ if (psMerged && ps1 && ps2) {
   const mtimePS1 = fs.statSync(path.join(baseCqg, 'PS1.xlsx')).mtimeMs;
   const mtimePS2 = fs.statSync(path.join(baseCqg, 'PS2.xlsx')).mtimeMs;
   if (mtimePS < mtimePS1 || mtimePS < mtimePS2) {
-    console.log('   ⚠️ BÁO ĐỘNG: File gộp PS.xlsx CŨ HƠN file thô PS1/PS2!');
+    console.log('    BÁO ĐỘNG: File gộp PS.xlsx CŨ HƠN file thô PS1/PS2!');
     console.log('      → Bot bỏ qua ghép PS.xlsx khiến dữ liệu Tất toán TTTT bị lệch hàng trăm tài khoản!');
   } else {
     console.log('   ✅ File PS.xlsx đã mới hơn file thô.');

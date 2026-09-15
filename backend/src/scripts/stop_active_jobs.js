@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 async function stopActiveJobs() {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    console.error('❌ Khong tim thay MONGODB_URI');
+    console.error(' Khong tim thay MONGODB_URI');
     process.exit(1);
   }
 
@@ -42,7 +42,7 @@ async function stopActiveJobs() {
     }
 
   } catch (err) {
-    console.error('❌ Loi:', err.message);
+    console.error(' Loi:', err.message);
   } finally {
     await mongoose.disconnect();
     console.log('🔌 Da ngat ket noi DB.');

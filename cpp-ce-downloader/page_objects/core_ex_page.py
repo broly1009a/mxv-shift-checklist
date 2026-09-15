@@ -40,7 +40,7 @@ class CoreEXPage(BaseReportPage):
                 self.page.wait_for_timeout(1000)
                 return target_url
             except Exception:
-                self.log("  ⚠️ Chuyển URL trực tiếp không thành công, thử qua Sidebar Menu...")
+                self.log("   Chuyển URL trực tiếp không thành công, thử qua Sidebar Menu...")
 
         self.ensure_sidebar_expanded()
 

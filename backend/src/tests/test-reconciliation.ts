@@ -412,7 +412,7 @@ async function runEndToEndReconciliation() {
 
   if (!msUser || !msPass || !msPin || !cqgUser || !cqgPass) {
     console.error(
-      '❌ Thiếu thông tin tài khoản đăng nhập MS hoặc CQG. Vui lòng kiểm tra lại cấu hình hoặc biến môi trường!',
+      ' Thiếu thông tin tài khoản đăng nhập MS hoặc CQG. Vui lòng kiểm tra lại cấu hình hoặc biến môi trường!',
     );
     process.exit(1);
   }
@@ -535,7 +535,7 @@ async function runEndToEndReconciliation() {
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -581,7 +581,7 @@ async function runEndToEndReconciliation() {
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -592,7 +592,7 @@ async function runEndToEndReconciliation() {
       throw new Error('Không tải đủ 2 file báo cáo cần thiết từ M-System!');
     }
   } catch (err: any) {
-    console.error('❌ Lỗi M-System:', err.message);
+    console.error(' Lỗi M-System:', err.message);
     await browser.close();
     process.exit(1);
   }
@@ -606,7 +606,7 @@ async function runEndToEndReconciliation() {
     `🔍 Tìm thấy ${symbols.length} mã hợp đồng đang có trạng thái mở.`,
   );
   if (symbols.length === 0) {
-    console.error('❌ Không có mã hợp đồng nào để kiểm tra đối soát!');
+    console.error(' Không có mã hợp đồng nào để kiểm tra đối soát!');
     await browser.close();
     process.exit(1);
   }
@@ -735,7 +735,7 @@ async function runEndToEndReconciliation() {
       );
     }
   } catch (err: any) {
-    console.error('❌ Lỗi CQG:', err.message);
+    console.error(' Lỗi CQG:', err.message);
   } finally {
     await browser.close();
   }
@@ -875,6 +875,6 @@ async function runEndToEndReconciliation() {
 }
 
 runEndToEndReconciliation().catch((err) => {
-  console.error('❌ Fatal error:', err);
+  console.error(' Fatal error:', err);
   process.exit(1);
 });

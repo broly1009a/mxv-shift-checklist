@@ -50,7 +50,7 @@ _Mục tiêu: Để AI học pattern body mail và cách TVKD viết form_
 
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
-| 1 | `mail_tvkd_003_sample.eml` hoặc `.msg` | 1-2 email mẫu từ TVKD 003 (Gia Cát Lợi) | 🔴 Bắt buộc |
+| 1 | `mail_tvkd_003_sample.eml` hoặc `.msg` | 1-2 email mẫu từ TVKD 003 (Gia Cát Lợi) |  Bắt buộc |
 | 2 | `mail_tvkd_other_sample.eml` | Email mẫu từ TVKD khác (nếu có) | 🟡 Nên có |
 | 3 | `screenshot_mail_body.png` | Screenshot nội dung body mail trong Outlook | 🟡 Nên có |
 
@@ -68,8 +68,8 @@ _Mục tiêu: Để AI phân tích cấu trúc PDF, xác định vị trí các 
 
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
-| 1 | `*-mxv.pdf` | File Hợp đồng mở TKGD (VD: `NGUYEN-THI-YEN-mxv.pdf`) | 🔴 Bắt buộc |
-| 2 | `*-PL01.pdf` | File Phụ lục 01 đăng ký tiểu khoản ACM | 🔴 Bắt buộc (nếu có ACM) |
+| 1 | `*-mxv.pdf` | File Hợp đồng mở TKGD (VD: `NGUYEN-THI-YEN-mxv.pdf`) |  Bắt buộc |
+| 2 | `*-PL01.pdf` | File Phụ lục 01 đăng ký tiểu khoản ACM |  Bắt buộc (nếu có ACM) |
 
 **Thông tin AI cần trích xuất từ PDF:**
 - Số hợp đồng / mã phụ lục
@@ -83,12 +83,12 @@ _Mục tiêu: Để AI phân tích cấu trúc PDF, xác định vị trí các 
 ### 📂 NHÓM 3: `inputs/cccd-samples/` — Ảnh CCCD Mẫu
 _Mục tiêu: Để AI kiểm thử chiến lược OCR 3 lớp (Text / QR Code / MRZ)_
 
-> ⚠️ **Lưu ý bảo mật:** Dùng ảnh CCCD mẫu **đã được che/làm mờ số định danh cá nhân**, hoặc dùng ảnh CCCD giả (fake) để test. Không upload CCCD thật của khách hàng.
+>  **Lưu ý bảo mật:** Dùng ảnh CCCD mẫu **đã được che/làm mờ số định danh cá nhân**, hoặc dùng ảnh CCCD giả (fake) để test. Không upload CCCD thật của khách hàng.
 
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
-| 1 | `cccd_mat_truoc_sample.jpg` | Ảnh CCCD gắn chip mặt trước (có QR code) | 🔴 Bắt buộc |
-| 2 | `cccd_mat_sau_sample.jpg` | Ảnh CCCD gắn chip mặt sau (có dòng MRZ) | 🔴 Bắt buộc |
+| 1 | `cccd_mat_truoc_sample.jpg` | Ảnh CCCD gắn chip mặt trước (có QR code) |  Bắt buộc |
+| 2 | `cccd_mat_sau_sample.jpg` | Ảnh CCCD gắn chip mặt sau (có dòng MRZ) |  Bắt buộc |
 | 3 | `cccd_mo_sample.jpg` | Ảnh CCCD bị mờ/lóa (để test edge case) | 🟡 Nên có |
 
 **Dữ liệu AI cần bóc tách từ CCCD:**
@@ -108,8 +108,8 @@ _Mục tiêu: Để AI thiết kế đúng cấu trúc file Excel kết quả đ
 
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
-| 1 | `Template_Doi_Chieu_TKGD.xlsx` | File Excel template đang dùng thủ công (nếu có) | 🔴 Bắt buộc |
-| 2 | `Sample_DSGD_MS.xlsx` | File DSGD xuất từ M-System (dạng danh sách tổng) | 🔴 Bắt buộc |
+| 1 | `Template_Doi_Chieu_TKGD.xlsx` | File Excel template đang dùng thủ công (nếu có) |  Bắt buộc |
+| 2 | `Sample_DSGD_MS.xlsx` | File DSGD xuất từ M-System (dạng danh sách tổng) |  Bắt buộc |
 | 3 | `Sample_DSGD_Chi_Tiet.xlsx` | File chi tiết 1 TK từ M-System (nếu có thể xuất) | 🟡 Nên có |
 
 **Các trường Excel cần mapping:**
@@ -137,8 +137,8 @@ _Mục tiêu: Để AI hiểu cấu trúc màn hình M-System và cách gọi AP
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
 | 1 | `KetNoiAPI_WS.v2.13.md` ← **đã có!** | Tài liệu đặc tả MXV API v2.13 | ✅ Đã có |
-| 2 | `screenshot_msystem_danhsach_tk.png` | Ảnh chụp màn hình danh sách TK trên MS | 🔴 Bắt buộc |
-| 3 | `screenshot_msystem_chi_tiet_tk.png` | Ảnh chụp màn hình **chi tiết 1 TK** trên MS (thấy CCCD, Ngày sinh) | 🔴 Bắt buộc |
+| 2 | `screenshot_msystem_danhsach_tk.png` | Ảnh chụp màn hình danh sách TK trên MS |  Bắt buộc |
+| 3 | `screenshot_msystem_chi_tiet_tk.png` | Ảnh chụp màn hình **chi tiết 1 TK** trên MS (thấy CCCD, Ngày sinh) |  Bắt buộc |
 | 4 | `screenshot_msystem_tim_kiem.png` | Ảnh chụp màn hình thanh tìm kiếm TK theo mã | 🟡 Nên có |
 
 ---

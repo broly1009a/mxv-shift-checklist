@@ -192,7 +192,7 @@ const mongoose = require('mongoose');
 mongoose.connect(process.env.MONGODB_URI).then(() => {
   console.log('✅ MongoDB kết nối thành công');
   process.exit(0);
-}).catch(e => { console.error('❌ Lỗi:', e.message); process.exit(1); });
+}).catch(e => { console.error(' Lỗi:', e.message); process.exit(1); });
 "
 ```
 

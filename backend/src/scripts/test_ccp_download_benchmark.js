@@ -132,7 +132,7 @@ async function getCredentialsFromDB() {
   } catch {
     // MongoDB offline hoặc chưa cấu hình
   } finally {
-    try { await mongoose.disconnect(); } catch {}
+    try { await mongoose.disconnect(); } catch { }
   }
   return null;
 }
@@ -178,7 +178,7 @@ async function dismissModalBackdrop(page) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
     }
-  } catch {}
+  } catch { }
 }
 
 // 2. ensure_sidebar_expanded (Python base_page.py:L23-43)
@@ -195,7 +195,7 @@ async function ensureSidebarExpanded(page) {
       await toggleBtn.click({ force: true });
       await page.waitForTimeout(1000);
     }
-  } catch {}
+  } catch { }
 }
 
 // 3. wait_for_table_loading_complete (Python base_report_page.py:L10-58)
@@ -222,7 +222,7 @@ async function waitForTableLoadingComplete(page, maxTimeoutMs = 60000) {
     for (const s of spinners) {
       try {
         if (await s.isVisible()) visibleSpinners.push(s);
-      } catch {}
+      } catch { }
     }
 
     if (visibleSpinners.length === 0) {
@@ -240,7 +240,7 @@ async function waitForTableLoadingComplete(page, maxTimeoutMs = 60000) {
     await page.waitForTimeout(300);
   }
 
-  console.log('  ⚠️ Quá thời gian chờ loading bảng, tiếp tục tiến trình...');
+  console.log('   Quá thời gian chờ loading bảng, tiếp tục tiến trình...');
   return false;
 }
 
@@ -260,10 +260,10 @@ async function navigateToReport(page, reportCfg, systemUrl) {
       if (await checkElem.isVisible({ timeout: 3000 })) {
         return targetUrl;
       } else {
-        console.log('  ⚠️ Mở URL trực tiếp chưa tải xong bảng báo cáo, chuyển sang click Menu...');
+        console.log('   Mở URL trực tiếp chưa tải xong bảng báo cáo, chuyển sang click Menu...');
       }
     } catch (e) {
-      console.log(`  ⚠️ URL cached không phản hồi (${e.message}), chuyển sang điều hướng Menu...`);
+      console.log(`   URL cached không phản hồi (${e.message}), chuyển sang điều hướng Menu...`);
     }
   }
 
@@ -340,7 +340,7 @@ async function navigateToReport(page, reportCfg, systemUrl) {
       }
     }
   } catch (ex) {
-    console.log(`  ⚠️ Lỗi click menu: ${ex.message}`);
+    console.log(`   Lỗi click menu: ${ex.message}`);
   }
 
   const learnedUrl = page.url();
@@ -472,7 +472,7 @@ async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = fa
   }
 
   if (!(await exportBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log("  ❌ Không tìm thấy nút 'Kết xuất'");
+    console.log("   Không tìm thấy nút 'Kết xuất'");
     return null;
   }
 
@@ -501,7 +501,7 @@ async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = fa
           console.log(`  ℹ️ [Toast Thông Báo] "${text.trim()}" -> Hệ thống từ chối xuất file!`);
           return 'NO_DATA';
         }
-      } catch {}
+      } catch { }
 
       await page.waitForTimeout(200);
     }
@@ -519,7 +519,7 @@ async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = fa
   try {
     await exportBtn.hover({ force: true });
     await page.waitForTimeout(400);
-  } catch {}
+  } catch { }
 
   const exportAllOption = page.locator(
     "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']" +
@@ -591,7 +591,7 @@ async function downloadSingleReport(page, report, startDateStr, endDateStr, outp
     }
   }
 
-  console.log(`  ⚠️ Không sinh file hoặc quá thời gian (${durationSec}s)`);
+  console.log(`   Không sinh file hoặc quá thời gian (${durationSec}s)`);
   return {
     code: report.code,
     name: report.name,
@@ -664,7 +664,7 @@ async function main() {
   const totalStartTime = Date.now();
 
   // Khởi động trình duyệt 1 lần duy nhất
-  console.log('🚀 Đang khởi động trình duyệt...');
+  console.log(' Đang khởi động trình duyệt...');
   const execPath = getChromeExecutablePath();
   const browser = await chromium.launch({
     headless: !isHeaded,
@@ -705,7 +705,7 @@ async function main() {
     await page.click("button[type='submit'], button:has-text('Đăng nhập')");
     try {
       await page.waitForLoadState('networkidle', { timeout: 30000 });
-    } catch {}
+    } catch { }
     await page.waitForTimeout(1000);
 
     if (page.url().toLowerCase().includes('/login')) {
@@ -715,7 +715,7 @@ async function main() {
         if (await errMsg.isVisible({ timeout: 1500 })) {
           msg = (await errMsg.textContent()) || '';
         }
-      } catch {}
+      } catch { }
       throw new Error(`Đăng nhập thất bại: ${msg.trim() || 'Tên đăng nhập hoặc mật khẩu không đúng (vẫn ở trang /login).'}`);
     }
     console.log('  ✓ Đăng nhập thành công!\n');
@@ -728,7 +728,7 @@ async function main() {
         const res = await downloadSingleReport(page, report, startDateStr, endDateStr, outputDir, systemUrl);
         results.push(res);
       } catch (err) {
-        console.log(`  ❌ Lỗi khi tải ${report.code}: ${err.message}`);
+        console.log(`   Lỗi khi tải ${report.code}: ${err.message}`);
         results.push({
           code: report.code,
           name: report.name,
@@ -743,14 +743,14 @@ async function main() {
     }
 
   } catch (globalErr) {
-    console.error(`\n❌ LỖI TRONG QUÁ TRÌNH THỰC THI: ${globalErr.message}`);
+    console.error(`\n LỖI TRONG QUÁ TRÌNH THỰC THI: ${globalErr.message}`);
   } finally {
     if (isHeaded) {
       console.log('\n[INFO] Giữ màn hình trong 3 giây trước khi đóng trình duyệt...');
       await page.waitForTimeout(3000);
     }
-    await context.close().catch(() => {});
-    await browser.close().catch(() => {});
+    await context.close().catch(() => { });
+    await browser.close().catch(() => { });
   }
 
   // ─── BẢNG TỔNG KẾT KẾT QUẢ TẢI ĐỦ CÁC FILE ───────────────────────────────

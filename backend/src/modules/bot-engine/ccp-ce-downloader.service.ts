@@ -366,7 +366,7 @@ export class CcpCeDownloaderService {
         if (await errLoc.first().isVisible({ timeout: 1_500 })) {
           errText = (await errLoc.first().textContent()) ?? errText;
         }
-      } catch {}
+      } catch { }
       throw new Error(`Dang nhap that bai: ${errText.trim()}`);
     }
     this.log('Dang nhap thanh cong.', logCb);
@@ -389,7 +389,7 @@ export class CcpCeDownloaderService {
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
       }
-    } catch {}
+    } catch { }
   }
 
   /**
@@ -413,7 +413,7 @@ export class CcpCeDownloaderService {
         await toggleBtn.click({ force: true });
         await page.waitForTimeout(1_000);
       }
-    } catch {}
+    } catch { }
   }
 
   // ── TABLE LOADING ─────────────────────────────────────────────────────────
@@ -450,7 +450,7 @@ export class CcpCeDownloaderService {
         if (await noData.isVisible({ timeout: 150 })) {
           return true;
         }
-      } catch {}
+      } catch { }
 
       // Đếm spinner THỰC SỰ HIỂN THỊ (is_visible)
       const spinners = await page.locator(spinnerSel).all();
@@ -458,7 +458,7 @@ export class CcpCeDownloaderService {
       for (const s of spinners) {
         try {
           if (await s.isVisible()) visibleCount++;
-        } catch {}
+        } catch { }
       }
 
       if (visibleCount === 0) {
@@ -607,7 +607,7 @@ export class CcpCeDownloaderService {
           await page.waitForTimeout(1500);
           this.log(`[Filter] Da click tab: Lich su tat toan`, logCb);
         }
-      } catch {}
+      } catch { }
     }
 
     // ── DSGD: Xóa ô "Ngày hệ thống" nếu có ──────────────────────────────
@@ -626,7 +626,7 @@ export class CcpCeDownloaderService {
           await page.keyboard.press('Tab');
           this.log('[Filter] Da xoa o Ngay he thong (DSGD)', logCb);
         }
-      } catch {}
+      } catch { }
     }
 
     // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Chuẩn count >= 3 từ Python) ─
@@ -648,7 +648,7 @@ export class CcpCeDownloaderService {
             await filterToggle.first().click();
             await page.waitForTimeout(500);
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -696,7 +696,7 @@ export class CcpCeDownloaderService {
         this.log('[Filter] Bang bao cao tra ve "Khong co du lieu" -> Bo qua loc cot va chuyen sang ket xuat tai file.', logCb);
         return 'EMPTY_TABLE';
       }
-    } catch {}
+    } catch { }
 
     return 'OK';
   }
@@ -779,7 +779,7 @@ export class CcpCeDownloaderService {
           this.log(`[Filter] Top Form "${lbl}" = "${value}"`, logCb);
           return;
         }
-      } catch {}
+      } catch { }
     }
     // Fallback: Column Header filter (MRT)
     for (const lbl of labels) {
@@ -792,7 +792,7 @@ export class CcpCeDownloaderService {
           this.log(`[Filter] Column Header "${lbl}" = "${value}"`, logCb);
           return;
         }
-      } catch {}
+      } catch { }
     }
   }
 
@@ -826,7 +826,7 @@ export class CcpCeDownloaderService {
     }
 
     if (!(await exportBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      this.log("  ❌ [Export] Khong tim thay nut 'Ket xuat'", logCb);
+      this.log("   [Export] Khong tim thay nut 'Ket xuat'", logCb);
       return null;
     }
 
@@ -857,7 +857,7 @@ export class CcpCeDownloaderService {
             this.log(`  [Toast Notification] "${text.trim()}" -> Hệ thống xác nhận không có dữ liệu để xuất!`, logCb);
             return 'NO_DATA';
           }
-        } catch {}
+        } catch { }
 
         await page.waitForTimeout(200);
       }
@@ -886,14 +886,14 @@ export class CcpCeDownloaderService {
         await this.dismissModalBackdrop(page);
         return res;
       }
-    } catch {}
+    } catch { }
 
     // Phương án 2: Double-click nút Kết xuất (Python base_report_page.py:L407-425)
     try {
       const res = await triggerExportWithToastCheck(() => exportBtn.dblclick({ force: true }));
       await this.dismissModalBackdrop(page);
       return res;
-    } catch {}
+    } catch { }
 
     await this.dismissModalBackdrop(page);
     return null;
@@ -999,7 +999,7 @@ export class CcpCeDownloaderService {
           `[${new Date().toISOString()}] Bao cao ${code} | Ngay ${startStr}: Thu 5 lan that bai.\n`,
           'utf8',
         );
-      } catch {}
+      } catch { }
       return false;
     }
 
@@ -1161,7 +1161,7 @@ export class CcpCeDownloaderService {
               if (fs.existsSync(legacySubFolder) && legacySubFolder !== outputDir) {
                 try {
                   fs.rmSync(legacySubFolder, { recursive: true, force: true });
-                } catch {}
+                } catch { }
               }
             }
             return true;
@@ -1362,7 +1362,7 @@ export class CcpCeDownloaderService {
         await downloadResult.saveAs(destPath);
         try {
           fs.copyFileSync(destPath, defaultDestPath);
-        } catch {}
+        } catch { }
         const sz = fs.statSync(destPath).size;
         this.log(`[EOD] Da tai thanh cong Ket qua EOD: ${destPath} (${sz.toLocaleString()} bytes)`, logCb);
         return { success: true, filePath: destPath };
@@ -1461,7 +1461,7 @@ export class CcpCeDownloaderService {
         await downloadResult.saveAs(defaultDestPath);
         try {
           fs.copyFileSync(defaultDestPath, csvDestPath);
-        } catch {}
+        } catch { }
         const sz = fs.statSync(defaultDestPath).size;
         this.log(`[QLTTTKGD] Da tai thanh cong QLTTTKGD CCP: ${defaultDestPath} (${sz.toLocaleString()} bytes)`, logCb);
         return { success: true, filePath: defaultDestPath };
@@ -1660,6 +1660,211 @@ export class CcpCeDownloaderService {
       tradingDate,
       metrics: { klgd, ttm, tttt },
       files: resultFiles,
+    };
+  }
+
+  /**
+   * Khởi tạo phiên trình duyệt CoreCCP phục vụ quy trình Đồng bộ 2 Pha:
+   * Pha 1: Mở browser, login Vnclear, điều hướng sẵn vào màn hình DSGD và lọc ngày giao dịch.
+   * Cung cấp triggerExportDsgd() để kích hoạt click xuất file cùng lúc với các nguồn khác tại Pha 2.
+   */
+  async prepareKlgdSession(params: {
+    systemUrl: string;
+    username: string;
+    password: string;
+    tradingDate: string; // dd/mm/yyyy
+    outputDir: string;
+    options?: CcpDownloadOptions;
+    logCallback?: (m: string) => void;
+  }): Promise<{
+    triggerExportDsgd: () => Promise<string | null>;
+    downloadRemainingAndExtract: (downloadedDsgdPath?: string) => Promise<{
+      success: boolean;
+      tradingDate: string;
+      metrics: { klgd: number; ttm: number; tttt: number };
+      files: { dsgd?: string; ttm?: string; tttt?: string };
+      error?: string;
+    }>;
+    close: () => Promise<void>;
+  }> {
+    const {
+      systemUrl,
+      username,
+      password,
+      tradingDate,
+      outputDir,
+      options: runOpts = {},
+      logCallback: logCb,
+    } = params;
+
+    const opts: Required<CcpDownloadOptions> = {
+      headless: runOpts.headless ?? false,
+      overwriteExisting: runOpts.overwriteExisting ?? true,
+      exchange: runOpts.exchange ?? '',
+      memberCode: runOpts.memberCode ?? '',
+      acctNo: runOpts.acctNo ?? '',
+      downloadTimeoutMs: runOpts.downloadTimeoutMs ?? 60_000,
+      autoSplitOnTimeout: false,
+    };
+
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const cleanDate = tradingDate.replace(/\//g, '.');
+    const dsgdDestPath = path.join(outputDir, `DSGD_${cleanDate}.xlsx`);
+    const ttmDestPath = path.join(outputDir, `TTM_${cleanDate}.xlsx`);
+    const ttttDestPath = path.join(outputDir, `TTTT_${cleanDate}.xlsx`);
+
+    const resultFiles: { dsgd?: string; ttm?: string; tttt?: string } = {};
+    let browser: Browser | null = null;
+    let context: BrowserContext | null = null;
+    let page: Page | null = null;
+    let isTableEmpty = false;
+
+    const chromePath = this.getChromeExecutablePath();
+    const launchOptions: any = {
+      headless: opts.headless,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-infobars'],
+    };
+    if (chromePath) launchOptions.executablePath = chromePath;
+
+    browser = await chromium.launch(launchOptions);
+    context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1366, height: 768 },
+    });
+    page = await context.newPage();
+
+    this.log(`[CCP KLGD] Đăng nhập CoreCCP: ${systemUrl}...`, logCb);
+    await this.loginVnclear(page, systemUrl, username, password, logCb);
+
+    const repDSGD: CcpReportConfig = {
+      code: 'DSGD',
+      name: 'Lịch sử giao dịch',
+      parentMenu: 'Lệnh và vị thế',
+      childMenu: 'Lịch sử giao dịch',
+      cachedUrl: '',
+      enabled: true,
+    };
+
+    this.log(`[CCP KLGD] Điều hướng đến màn hình DSGD và cấu hình ngày ${tradingDate}...`, logCb);
+    await this.navigateToReport(page, repDSGD, systemUrl, logCb);
+    const searchRes = await this.setDateRangeAndSearch(page, repDSGD, tradingDate, tradingDate, {}, logCb);
+    isTableEmpty = searchRes === 'EMPTY_TABLE';
+    this.log(`[CCP KLGD] Sẵn sàng tại màn hình xuất DSGD. Đang chờ rào cản đồng bộ...`, logCb);
+
+    const triggerExportDsgd = async (): Promise<string | null> => {
+      if (!page || page.isClosed()) return null;
+      try {
+        this.log(`[CCP KLGD] Kích hoạt xuất báo cáo DSGD...`, logCb);
+        const dl = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
+        if (dl && dl !== 'NO_DATA') {
+          await dl.saveAs(dsgdDestPath);
+          resultFiles.dsgd = dsgdDestPath;
+          this.log(`[CCP KLGD] Tải thành công DSGD: ${dsgdDestPath}`, logCb);
+          return dsgdDestPath;
+        }
+        return null;
+      } catch (err: any) {
+        this.log(`[CCP KLGD] Cảnh báo khi xuất DSGD: ${err.message}`, logCb);
+        return null;
+      }
+    };
+
+    const downloadRemainingAndExtract = async (downloadedDsgdPath?: string) => {
+      if (downloadedDsgdPath) resultFiles.dsgd = downloadedDsgdPath;
+      if (page && !page.isClosed()) {
+        const remainingReports: CcpReportConfig[] = [
+          {
+            code: 'TTM',
+            name: 'Trạng thái mở',
+            parentMenu: 'Lệnh và vị thế',
+            childMenu: 'Trạng thái mở',
+            cachedUrl: '/ORDERS/OPEN_POSITION',
+            enabled: true,
+          },
+          {
+            code: 'TTTT',
+            name: 'Trạng thái tất toán',
+            parentMenu: 'Lệnh và vị thế',
+            childMenu: 'Trạng thái tất toán',
+            tabName: 'Lịch sử tất toán',
+            cachedUrl: '',
+            enabled: true,
+          },
+        ];
+
+        for (const rep of remainingReports) {
+          try {
+            this.log(`[CCP KLGD] Đang tải báo cáo bổ sung ${rep.name} (${rep.code})...`, logCb);
+            await this.navigateToReport(page, rep, systemUrl, logCb);
+            const sRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
+            const emptyTbl = sRes === 'EMPTY_TABLE';
+            const dl = await this.triggerExportDownload(page, opts.downloadTimeoutMs, emptyTbl, logCb);
+            if (dl && dl !== 'NO_DATA') {
+              const targetDest = rep.code === 'TTM' ? ttmDestPath : ttttDestPath;
+              await dl.saveAs(targetDest);
+              if (rep.code === 'TTM') resultFiles.ttm = targetDest;
+              if (rep.code === 'TTTT') resultFiles.tttt = targetDest;
+              this.log(`[CCP KLGD] Tải thành công ${rep.code}: ${targetDest}`, logCb);
+            }
+          } catch (err: any) {
+            this.log(`[CCP KLGD] Cảnh báo khi tải ${rep.code}: ${err.message}`, logCb);
+          }
+        }
+      }
+
+      await context?.close().catch(() => { });
+      await browser?.close().catch(() => { });
+
+      let klgd = 0;
+      let ttm = 0;
+      let tttt = 0;
+
+      if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
+        try {
+          const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+          klgd = parsed.totalKhop || 0;
+        } catch (e: any) {
+          this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
+        }
+      }
+      if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
+        try {
+          const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+          ttm = parsed.totalTTM || 0;
+        } catch (e: any) {
+          this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
+        }
+      }
+      if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
+        try {
+          const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+          tttt = parsed.totalTTTT || 0;
+        } catch (e: any) {
+          this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);
+        }
+      }
+
+      this.log(`[CCP KLGD] ✅ Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
+      return {
+        success: true,
+        tradingDate,
+        metrics: { klgd, ttm, tttt },
+        files: resultFiles,
+      };
+    };
+
+    const close = async () => {
+      await context?.close().catch(() => { });
+      await browser?.close().catch(() => { });
+    };
+
+    return {
+      triggerExportDsgd,
+      downloadRemainingAndExtract,
+      close,
     };
   }
 }

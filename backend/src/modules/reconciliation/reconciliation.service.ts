@@ -79,6 +79,17 @@ export interface CheckKLGDResult {
     psValue: number;
     differ: number;
   }>;
+  pendingSyncTrades?: Array<{
+    source: 'MSystem' | 'CQG' | 'ACM' | 'Nano' | 'CoreCCP';
+    maLenh?: string;
+    maTKGD: string;
+    maHD: string;
+    giaKhop: number;
+    klGiaoDich: number;
+    ngayGio: string;
+    reason: string;
+  }>;
+  cutoffTime?: Date;
   sessionStart?: Date;
   checkTime?: Date;
   passed?: boolean;
@@ -1127,6 +1138,7 @@ export class ReconciliationService {
       checkKlgd?: boolean;
       checkTtm?: boolean;
       checkTttt?: boolean;
+      cutoffTime?: Date;
     },
   ): Promise<CheckKLGDResult> {
     if (sessionStartStr) {
@@ -1195,13 +1207,41 @@ export class ReconciliationService {
       return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
     });
 
+    const effectiveCutoffTime = options?.cutoffTime;
+    const pendingSyncTrades: Array<{
+      source: 'CQG' | 'ACM';
+      maLenh?: string;
+      maTKGD: string;
+      maHD: string;
+      giaKhop: number;
+      klGiaoDich: number;
+      ngayGio: string;
+      cutoffTime: string;
+      note: string;
+    }> = [];
+
     // Filter Nano data - same logic as DSGD: always end-of-tradingDate
     const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = this.parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= nanoUpperBound;
+      if (tradeTime < sessionStart) return false;
+      if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
+        pendingSyncTrades.push({
+          source: 'ACM',
+          maLenh: gd.maLenh,
+          maTKGD: gd.maTKGD,
+          maHD: gd.maHD,
+          giaKhop: gd.giaKhop,
+          klGiaoDich: gd.klGiaoDich,
+          ngayGio: gd.ngayGio,
+          cutoffTime: effectiveCutoffTime.toISOString(),
+          note: `Giao dịch ACM khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
+        });
+        return false;
+      }
+      return tradeTime <= nanoUpperBound;
     });
 
     // Filter CQG data using parseCqgDateTime
@@ -1209,7 +1249,22 @@ export class ReconciliationService {
       if (!fr.time) return true;
       const tradeTime = this.parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= checkTime;
+      if (tradeTime < sessionStart) return false;
+      if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
+        pendingSyncTrades.push({
+          source: 'CQG',
+          maLenh: fr.ord,
+          maTKGD: fr.accountRaw,
+          maHD: fr.symbol,
+          giaKhop: fr.fillP,
+          klGiaoDich: fr.qty,
+          ngayGio: fr.time,
+          cutoffTime: effectiveCutoffTime.toISOString(),
+          note: `Lệnh CQG khớp lúc ${fr.time}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
+        });
+        return false;
+      }
+      return tradeTime <= checkTime;
     });
 
     // Calculate totals
@@ -1476,11 +1531,6 @@ export class ReconciliationService {
     const finalMismatchedTTTT = checkTtttFlag && files.tttt ? mismatchedTTTT : undefined;
     const finalDifferTTTT = checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) ? Math.abs(totalTTTT - totalPS) : undefined;
 
-    const hasDiscrepancy =
-      (checkKlgdFlag && (finalDiffer > 0 || finalDifferACM > 0 || finalMismatchedTrades.length > 0)) ||
-      (checkTtmFlag && finalMismatchedTTM.length > 0) ||
-      (checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) && ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
-
     // 4. Bóc tách báo cáo CoreCCP (nếu có)
     let totalCCP_DSGD: number | undefined;
     let totalCCP_TTM: number | undefined;
@@ -1515,9 +1565,26 @@ export class ReconciliationService {
       }
     }
 
-    const differCCP_KLGD = totalCCP_DSGD !== undefined ? Math.abs(totalDSGD - totalCCP_DSGD) : undefined;
+    // Đánh giá đối soát chuyển đổi hệ thống (Migration Reconciliation):
+    // Trong quá trình chuyển đổi từ đối tác ngoại (ACM Straits) sang CoreCCP (VNCLEAR):
+    // 1. Nếu toàn bộ khớp trên ACM: ACM = Nano và CoreCCP = 0.
+    // 2. Nếu một phần hoặc toàn bộ đã chuyển sang CoreCCP: ACM + CoreCCP = Nano (hoặc Nano + CoreCCP = ACM).
+    let evaluatedDifferACM = finalDifferACM;
+    const ccpDsgdLots = totalCCP_DSGD || 0;
+    if (checkKlgdFlag && ccpDsgdLots > 0) {
+      const diff1 = Math.abs(totalNano - (totalACM + ccpDsgdLots));
+      const diff2 = Math.abs((totalNano + ccpDsgdLots) - totalACM);
+      evaluatedDifferACM = Math.min(finalDifferACM, diff1, diff2);
+    }
+
+    const differCCP_KLGD = evaluatedDifferACM === 0 ? 0 : (totalCCP_DSGD !== undefined ? Math.abs(totalNano - (totalACM + ccpDsgdLots)) : undefined);
     const differCCP_TTM = totalCCP_TTM !== undefined && files.ttm ? Math.abs(totalTTM - totalCCP_TTM) : undefined;
     const differCCP_TTTT = totalCCP_TTTT !== undefined && files.tttt ? Math.abs(totalTTTT - totalCCP_TTTT) : undefined;
+
+    const hasDiscrepancy =
+      (checkKlgdFlag && (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0)) ||
+      (checkTtmFlag && finalMismatchedTTM.length > 0) ||
+      (checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) && ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
 
     return {
       totals: {
@@ -1526,7 +1593,7 @@ export class ReconciliationService {
         totalACM,
         totalNano,
         differ: finalDiffer,
-        differACM: finalDifferACM,
+        differACM: evaluatedDifferACM,
         totalTTM: files.ttm ? totalTTM : 0,
         totalTTM_MS: files.ttm ? totalTTM : 0,
         totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
@@ -1557,7 +1624,7 @@ export class ReconciliationService {
       totalACM,
       totalNano,
       differ: finalDiffer,
-      differACM: finalDifferACM,
+      differACM: evaluatedDifferACM,
       totalTTTT: files.tttt ? totalTTTT : 0,
       totalPS: files.ps || files.ps1 || files.ps2 ? totalPS : 0,
       totalTtttAcm: files.tttt ? totalACM_TTTT : 0,
@@ -1565,6 +1632,8 @@ export class ReconciliationService {
       mismatchedTrades: finalMismatchedTrades,
       mismatchedTTM: finalMismatchedTTM,
       mismatchedTTTT: finalMismatchedTTTT,
+      pendingSyncTrades: pendingSyncTrades.length > 0 ? pendingSyncTrades : undefined,
+      cutoffTime: effectiveCutoffTime,
       sessionStart,
       checkTime,
       passed: !hasDiscrepancy,
@@ -4175,6 +4244,7 @@ export class ReconciliationService {
       checkKlgd?: boolean;
       checkTtm?: boolean;
       checkTttt?: boolean;
+      cutoffTime?: Date;
     },
   ): Promise<any> {
     const msBackupBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
@@ -4271,7 +4341,21 @@ export class ReconciliationService {
     }
 
     const files: any = {};
-    if (fs.existsSync(dsgdPath)) files.dsgd = fs.readFileSync(dsgdPath);
+    let dsgdCutoffTime: Date | undefined = undefined;
+    if (fs.existsSync(dsgdPath)) {
+      files.dsgd = fs.readFileSync(dsgdPath);
+      try {
+        const stat = fs.statSync(dsgdPath);
+        // Trừ 2000ms buffer để đại diện chính xác cho thời điểm M-System click xuất và gửi truy vấn SQL vào CSDL,
+        // đồng thời bù trừ cho độ trễ truyền dữ liệu FIX Dropcopy (1-2s) từ CQG về M-System.
+        dsgdCutoffTime = new Date(stat.mtime.getTime() - 2000);
+        this.logger.log(
+          `[Recon] Xác định mốc cắt dữ liệu (Cutoff Time) từ file DSGD.xlsx: ${dsgdCutoffTime.toLocaleTimeString('vi-VN')} (${dsgdCutoffTime.toISOString()}, buffer -2s so với mtime ghi đĩa)`,
+        );
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Không lấy được mtime của DSGD.xlsx: ${err.message}`);
+      }
+    }
     if (cqgFrPath && fs.existsSync(cqgFrPath))
       files.fr = fs.readFileSync(cqgFrPath);
     if (acmTradesPath && fs.existsSync(acmTradesPath))
@@ -4287,7 +4371,12 @@ export class ReconciliationService {
     if (ttmCcpPath && fs.existsSync(ttmCcpPath)) files.ttmCcp = fs.readFileSync(ttmCcpPath);
     if (ttttCcpPath && fs.existsSync(ttttCcpPath)) files.ttttCcp = fs.readFileSync(ttttCcpPath);
 
-    return this.checkKLGD(files, tradingDate, [], sessionStartStr, options);
+    const reconOptions = {
+      ...options,
+      cutoffTime: options?.cutoffTime || dsgdCutoffTime,
+    };
+
+    return this.checkKLGD(files, tradingDate, [], sessionStartStr, reconOptions);
   }
 
   async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {

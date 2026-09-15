@@ -1743,7 +1743,7 @@ export default function TradingManagerPage() {
                     </div>
                   ) : (
                     klgdLogs.map((logLine: string, idx: number) => {
-                      const isErr = logLine.includes('❌') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
+                      const isErr = logLine.includes('') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
                       const isSuccess = logLine.includes('✅') || logLine.includes('thành công') || logLine.includes('khớp');
                       const isWarn = logLine.includes('') || logLine.toLowerCase().includes('timeout') || logLine.includes('bỏ qua');
 

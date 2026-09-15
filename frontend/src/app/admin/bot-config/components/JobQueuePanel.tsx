@@ -15,7 +15,7 @@ import {
 interface BotJob {
   _id: string;
   jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED' | 'ABORTED';
   attempts: number;
   maxAttempts: number;
   logs: string[];
@@ -150,6 +150,12 @@ export default function JobQueuePanel({
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
             <XCircle size={10} /> Đã hủy
+          </span>
+        );
+      case 'ABORTED':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+            <AlertTriangle size={10} /> Tạm dừng (Sàn ngoài)
           </span>
         );
       case 'PROCESSING':

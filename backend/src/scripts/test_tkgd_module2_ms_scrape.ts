@@ -123,7 +123,7 @@ async function loginMSystem(
 
 async function runModule2Test() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 2: RPA M-SYSTEM CÀO CHI TIẾT & LƯU KHỐI MS');
+  console.log(' KIỂM THỬ MODULE 2: RPA M-SYSTEM CÀO CHI TIẾT & LƯU KHỐI MS');
   console.log('='.repeat(70));
 
   // 1. Kết nối MongoDB
@@ -371,6 +371,6 @@ async function runModule2Test() {
 }
 
 runModule2Test().catch((err) => {
-  console.error('❌ Lỗi Module 2 Test:', err);
+  console.error(' Lỗi Module 2 Test:', err);
   process.exit(1);
 });

@@ -51,7 +51,7 @@ Thời điểm kiểm thử: 10:37:57 14/9/2026
  • Số TVKD ĐÃ PHÁT SINH ĐỦ 4 loại lệnh : 0 thành viên
  • Số TVKD CHƯA ĐỦ 4 loại lệnh         : 1 thành viên
 
- ⚠️  DANH SÁCH TVKD CHƯA ĐỦ 4 LOẠI LỆNH:
+   DANH SÁCH TVKD CHƯA ĐỦ 4 LOẠI LỆNH:
     - TVKD 041: Đã có 2 lot, THIẾU các loại lệnh -> [ LMT, STP, STL ]
 
 ====================================================================================================

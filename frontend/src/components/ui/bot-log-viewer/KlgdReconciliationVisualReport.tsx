@@ -12,14 +12,13 @@ interface KlgdReconciliationVisualReportProps {
 const ITEMS_PER_PAGE = 50;
 
 export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualReportProps> = ({ parsedData, activeStatus }) => {
-  const [preEodSubTab, setPreEodSubTab] = useState<'TRADES' | 'POSITIONS' | 'TTTT'>('TRADES');
+  const [preEodSubTab, setPreEodSubTab] = useState<'TRADES' | 'POSITIONS' | 'TTTT' | 'PENDING'>('TRADES');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
 
   const isEod = parsedData.jsonType === 'EOD';
   const isKlgd = parsedData.jsonType === 'KLGD' || (!parsedData.jsonType && !isEod);
-
 
   // 2. EOD Margin memo
   const marginAccounts = useMemo(() => {
@@ -87,6 +86,23 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       return acc.includes(q);
     });
   }, [isKlgd, parsedData, searchQuery]);
+
+  // 6. KLGD Pending Sync Trades memo (Trades after Cutoff Time)
+  const pendingSyncTrades: any[] = parsedData.jsonResult?.pendingSyncTrades || [];
+  const filteredPendingSyncTrades = useMemo(() => {
+    if (!pendingSyncTrades.length) return [];
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return pendingSyncTrades;
+    return pendingSyncTrades.filter((t) => {
+      return (
+        (t.maTKGD || '').toLowerCase().includes(q) ||
+        (t.maHD || '').toLowerCase().includes(q) ||
+        (t.source || '').toLowerCase().includes(q) ||
+        (t.note || '').toLowerCase().includes(q) ||
+        (t.ngayGio || '').toLowerCase().includes(q)
+      );
+    });
+  }, [pendingSyncTrades, searchQuery]);
 
   if (shouldShowBotStatusBanner(activeStatus, !!parsedData.jsonResult)) {
     return (
@@ -234,6 +250,49 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
         </div>
       )}
 
+      {/* KLGD Cutoff Preservation Banner */}
+      {isKlgd && pendingSyncTrades.length > 0 && (
+        <div style={{
+          padding: '10px 14px',
+          backgroundColor: 'rgba(2, 132, 199, 0.08)',
+          border: '1px solid rgba(2, 132, 199, 0.25)',
+          borderRadius: '8px',
+          color: '#38bdf8',
+          fontSize: '0.78rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={16} />
+            <span>
+              Phát hiện <strong>{pendingSyncTrades.length}</strong> lệnh khớp sau mốc cắt dữ liệu M-System (Được bảo lưu chờ đối chiếu chu kỳ kế tiếp).
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPreEodSubTab('PENDING');
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '4px',
+              border: '1px solid #38bdf8',
+              background: 'transparent',
+              color: '#38bdf8',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Xem danh sách lệnh bảo lưu
+          </button>
+        </div>
+      )}
+
       {/* Subtab Buttons & Search Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -296,6 +355,31 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
               >
                 Lệch TTTT vs PS ({parsedData.jsonResult?.mismatchedTTTT?.length || 0})
               </button>
+              {pendingSyncTrades.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreEodSubTab('PENDING');
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: preEodSubTab === 'PENDING' ? '1px solid #38bdf8' : '1px solid var(--border-color)',
+                    background: preEodSubTab === 'PENDING' ? '#0284c7' : 'var(--bg-card)',
+                    color: preEodSubTab === 'PENDING' ? '#ffffff' : '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Clock size={13} />
+                  Chờ chu kỳ sau ({pendingSyncTrades.length})
+                </button>
+              )}
             </>
           )}
         </div>
@@ -748,6 +832,110 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
           ) : (
             <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-input)', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
               Không tìm thấy tài khoản chênh lệch Khớp Lệnh Thanh Toán nào.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Table Section: PENDING SYNC TRADES (Cutoff) */}
+      {preEodSubTab === 'PENDING' && !isEod && (
+        <div>
+          <div style={{
+            padding: '10px 14px',
+            background: 'rgba(2, 132, 199, 0.08)',
+            border: '1px solid rgba(2, 132, 199, 0.25)',
+            borderRadius: '8px',
+            marginBottom: '12px',
+            fontSize: '0.78rem',
+            color: '#38bdf8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <Clock size={16} />
+            <div>
+              <strong>Lệnh phát sinh sau mốc cắt dữ liệu M-System:</strong> Các lệnh dưới đây được khớp trên CQG/ACM sau thời điểm file DSGD.xlsx được kết xuất từ M-System. Hệ thống tự động bảo lưu chờ chu kỳ sau và không tính vào chênh lệch.
+            </div>
+          </div>
+
+          {filteredPendingSyncTrades.length > 0 ? (
+            <>
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px' }}>Nguồn</th>
+                      <th style={{ padding: '10px' }}>Mã Lệnh</th>
+                      <th style={{ padding: '10px' }}>Mã TKGD</th>
+                      <th style={{ padding: '10px' }}>Hợp đồng</th>
+                      <th style={{ padding: '10px' }}>Giá khớp</th>
+                      <th style={{ padding: '10px' }}>Số lượng</th>
+                      <th style={{ padding: '10px' }}>Giờ khớp</th>
+                      <th style={{ padding: '10px' }}>Ghi chú đồng bộ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPendingSyncTrades
+                      .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                      .map((m: any, idx: number) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', background: idx % 2 === 0 ? 'var(--bg-app)' : 'transparent' }}>
+                          <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 700 }}>{m.source}</td>
+                          <td style={{ padding: '10px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{m.maLenh || '-'}</td>
+                          <td style={{ padding: '10px', color: '#fbbf24', fontFamily: 'monospace' }}>{m.maTKGD}</td>
+                          <td style={{ padding: '10px', color: 'var(--text-primary)' }}>{m.maHD}</td>
+                          <td style={{ padding: '10px', color: 'var(--text-primary)' }}>{m.giaKhop}</td>
+                          <td style={{ padding: '10px', color: 'var(--text-primary)', fontWeight: 600 }}>{m.klGiaoDich}</td>
+                          <td style={{ padding: '10px', color: 'var(--text-primary)', fontFamily: 'monospace' }}>{m.ngayGio}</td>
+                          <td style={{ padding: '10px', color: '#38bdf8' }}>{m.note}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {filteredPendingSyncTrades.length > ITEMS_PER_PAGE && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Hiển thị {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredPendingSyncTrades.length)} trên tổng số {filteredPendingSyncTrades.length} bản ghi
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      style={{
+                        padding: '4px 10px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Trang trước
+                    </button>
+                    <button
+                      disabled={currentPage >= Math.ceil(filteredPendingSyncTrades.length / ITEMS_PER_PAGE)}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      style={{
+                        padding: '4px 10px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        color: currentPage >= Math.ceil(filteredPendingSyncTrades.length / ITEMS_PER_PAGE) ? 'var(--text-muted)' : 'var(--text-primary)',
+                        cursor: currentPage >= Math.ceil(filteredPendingSyncTrades.length / ITEMS_PER_PAGE) ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Trang sau
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-input)', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+              Không có lệnh nào đang chờ đồng bộ chu kỳ sau.
             </div>
           )}
         </div>

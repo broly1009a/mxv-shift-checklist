@@ -19,7 +19,7 @@ async function screenshot(page: any, name: string) {
 
 async function runMSPricesTest() {
   console.log('----------------------------------------------------');
-  console.log('🚀 KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP M-SYSTEM & LẤY BẢNG GIÁ');
+  console.log(' KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP M-SYSTEM & LẤY BẢNG GIÁ');
   console.log('----------------------------------------------------');
 
   if (!fs.existsSync(DEBUG_DIR)) {
@@ -75,7 +75,7 @@ async function runMSPricesTest() {
         console.log('- Url:', msystemUrl);
       } catch (err: any) {
         console.error(
-          '❌ Lỗi giải mã thông tin tài khoản từ CSDL:',
+          ' Lỗi giải mã thông tin tài khoản từ CSDL:',
           err.message,
         );
       }
@@ -83,7 +83,7 @@ async function runMSPricesTest() {
   }
 
   if (!username || !password || !pin) {
-    console.log('\n❌ THẤT BẠI: Chưa cấu hình tài khoản M-System!');
+    console.log('\n THẤT BẠI: Chưa cấu hình tài khoản M-System!');
     await app.close();
     process.exit(1);
   }
@@ -259,7 +259,7 @@ async function runMSPricesTest() {
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -312,7 +312,7 @@ async function runMSPricesTest() {
           break;
         } catch (downloadErr: any) {
           console.error(
-            `❌ Lỗi khi tải bằng selector ${sel}:`,
+            ` Lỗi khi tải bằng selector ${sel}:`,
             downloadErr.message,
           );
         }
@@ -323,7 +323,7 @@ async function runMSPricesTest() {
       console.log(' Không tải được file trang-thai-mo.xlsx từ M-System.');
     }
   } catch (err: any) {
-    console.error('\n❌ Lỗi:', err.message);
+    console.error('\n Lỗi:', err.message);
     await screenshot(page, 'ERROR-final');
     const html = await page.content().catch(() => '');
     if (html) {
@@ -338,6 +338,6 @@ async function runMSPricesTest() {
 }
 
 runMSPricesTest().catch((err) => {
-  console.error('❌ Fatal error:', err);
+  console.error(' Fatal error:', err);
   process.exit(1);
 });

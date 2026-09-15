@@ -114,7 +114,7 @@ Gồm 2 Sub-tab độc lập:
 │  KPI CARDS:                                                                                            │
 │  ┌──────────────────────┬──────────────────────┬──────────────────────┬─────────────────────────────┐  │
 │  │ TỔNG SỐ LOT ACM     │ TỔNG GIÁ TRỊ GD      │ VỊ THẾ MỞ (TTM)      │ KIỂM TRA 4 LOẠI LỆNH        │  │
-│  │ 2 Lot                │ 336.441.600 đ        │ Mua: 0 | Bán: 1      │ ⚠️ 1 TVKD THIẾU LỆNH        │  │
+│  │ 2 Lot                │ 336.441.600 đ        │ Mua: 0 | Bán: 1      │  1 TVKD THIẾU LỆNH        │  │
 │  └──────────────────────┴──────────────────────┴──────────────────────┴─────────────────────────────┘  │
 │                                                                                                        │
 │  CHẾ ĐỘ XEM: [Chi Tiết Theo TVKD (60+)]  |  [Phân Bổ Theo Hàng Hóa (SI5CO, CP2CO, PL1NY)]              │
@@ -185,3 +185,42 @@ $$\mathbf{\text{GTGD (VND)}} = \text{Khối Lượng Khớp (Lot)} \times \text{
 | **TVKD hiển thị tag `[THIẾU: LMT/STP/STL]`** | Thành viên trong phiên chỉ đặt 1-2 loại lệnh | Đây là cảnh báo nghiệp vụ thông thường, thông báo cho nhân sự ca trực biết thành viên chưa đặt đủ 4 loại lệnh theo quy chế giám sát. |
 | **Báo lỗi "File lũy kế không tồn tại" khi bấm Ghi** | Đường dẫn cấu hình chưa trỏ tới file Excel thực tế | Bấm nút *"Đường Dẫn File Lũy Kế"*, kiểm tra lại đường dẫn ổ mạng `M:\...\Thong ke so lot giao dich ACM 2025.xlsx` và lưu lại. |
 | **Tỷ giá hiển thị mặc định 25,920** | Không tải lên file `Tỷ giá_*.xlsx` | Nếu không có file tỷ giá riêng, hệ thống tự động sử dụng tỷ giá cấu hình chuẩn trong hệ thống để bảo đảm tiến độ ca trực. |
+
+---
+
+## 6. KIẾN TRÚC QUẢN LÝ TRẠNG THÁI & ĐỐI SOÁT BẢO TOÀN (TAB 1: CHECK GD)
+
+Để đảm bảo trải nghiệm người dùng mượt mà và không bao giờ đối soát trên dữ liệu sai lệch trong Tab 1:
+
+### 6.1. Kiến Trúc State Management & Realtime Polling Phía Frontend
+1. **Khắc phục lỗi hiện Log cũ (Instant Fresh Logs)**:
+   - Trước đây: Khi bấm nút "Check thủ công", modal lấy log từ lần chạy trước trong `summaryData.klgd.logs`.
+   - Cải tiến: Tách riêng state `activeJobLogs`. Khi kích hoạt Job mới, lập tức reset state `activeJobLogs = ['[Khởi tạo] Đang kết nối hàng đợi bot...']`.
+   - Vòng lặp polling 2s (`GET /api/v1/bot-engine/jobs/:id`) liên tục gán trực tiếp `job.logs` tươi mới vào `activeJobLogs`. Modal và banner tự động ưu tiên render log này.
+2. **Khắc phục lỗi mất thanh tiến trình khi F5 (SessionStorage Persistence)**:
+   - Khi bấm chạy, lưu ID vào `sessionStorage.setItem('activeTriggerJobId', jobId)`.
+   - Khi người dùng reload trang (F5): Component `useEffect` tự động đọc `sessionStorage` và kích hoạt hàm phục hồi `resumeJobPolling(persistedJobId)`.
+   - Điều kiện hiển thị thanh tiến trình được bao quát:
+     ```typescript
+     const isBotRunning =
+       klgdStatus === 'PROCESSING' ||
+       klgdStatus === 'PENDING' ||
+       triggering ||
+       !!activeJobId;
+     ```
+   - Khi Job kết thúc (`COMPLETED`, `FAILED`, `ABORTED`): Xóa `sessionStorage` và tải lại `summaryData`.
+
+### 6.2. Ma Trận Chốt Chặn File Cốt Lõi (Mandatory Core Files Integrity Gate)
+1. **Cấp độ 1: Bắt buộc 100% (Blocking)**:
+   - `DSGD.xlsx` (M-System): Nguồn chân lý bắt buộc.
+   - `FR1.xlsx` và `FR2.xlsx` (CQG): Cả 2 tài khoản CQG bắt buộc phải tải đủ 100%. Nếu thiếu 1 trong 2 file thô $\rightarrow$ Không ghép `FR.xlsx` và dừng quy trình đối soát ngay lập tức.
+   - `Straits.csv` (ACM): Bắt buộc cho đối chiếu tự doanh Nano.
+   - *Nếu thiếu bất kỳ file nào* $\implies$ Ném ngoại lệ `[MANDATORY_CORE_FILES_MISSING]`, kích hoạt Smart Retry tự động hoặc chuyển sang trạng thái `ABORTED`. Tuyệt đối không đối chiếu trên dữ liệu què quặt để tránh báo lệch giả (như sự cố lệch 30 lệnh).
+2. **Cấp độ 2: Bổ trợ (Non-blocking Warnings)**:
+   - `CoreCCP` (`DSGD, TTM, TTTT`): Khi không có dữ liệu, ghi nhận KLGD = 0 lot (hợp lệ).
+   - `TTM, TTTT` (MS/CQG): Phục vụ giám sát vị thế & tất toán, không chặn luồng `CHECK_KLGD`.
+
+### 6.3. Tự Động Chiếm Quyền Phiên CQG (Concurrent Session Takeover)
+- Khi Attempt 1 bị hủy và Attempt 2 khởi động lại nhanh, CQG Web có thể hiển thị popup phiên đăng nhập cũ (`Logoff`, `Disconnect`, `Continue`, `OK`).
+- Playwright tự động lắng nghe và bấm xác nhận ngay lập tức, triệt tiêu hoàn toàn nguy cơ timeout 60s chờ logo.
+

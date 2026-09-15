@@ -27,7 +27,7 @@ async function runIntegrityTests() {
       passedCount++;
       console.log(`✅ [PASS] ${testName}`);
     } else {
-      console.error(`❌ [FAIL] ${testName}`);
+      console.error(` [FAIL] ${testName}`);
       if (detail) console.error(`   👉 Chi tiết: ${detail}`);
     }
   }

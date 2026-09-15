@@ -88,7 +88,7 @@ Bảng kiểm tra trạng thái thời gian thực của thư mục `YYYY/TMM.YY
 | **CoreCCP / Thống Kê** | `DSGD.xlsx` | M-System | 🟢 Đã có (2.4 MB) | [Xem] [Tải về] |
 | | `TTM.xlsx` | M-System | 🟢 Đã có (1.1 MB) | [Xem] [Tải về] |
 | | `TTTT.xlsx` | M-System | 🟢 Đã có (850 KB) | [Xem] [Tải về] |
-| | `Tỷ giá *.xlsx` | CoreCCP / SBV | 🔴 Chưa có | [Tải lên] [Cào web] |
+| | `Tỷ giá *.xlsx` | CoreCCP / SBV |  Chưa có | [Tải lên] [Cào web] |
 | **CQG Raw & Merged** | `FR1.xlsx`, `FR2.xlsx` | CQG Cast | 🟢 Đã gộp `FR.xlsx` | [Chi tiết] |
 | | `PS1.xlsx`, `PS2.xlsx` | CQG Cast | 🟢 Đã gộp `PS.xlsx` | [Chi tiết] |
 | | `OP1.xlsx`, `OP2.xlsx` | CQG Cast | 🟢 Đã gộp `OP.xlsx` | [Chi tiết] |

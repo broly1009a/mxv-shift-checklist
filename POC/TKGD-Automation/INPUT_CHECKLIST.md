@@ -36,7 +36,7 @@
 | 3.3 | Ảnh CCCD bị mờ/lóa (test edge case) | ⬜ Không bắt buộc | |
 
 **→ Thư mục:** `inputs/cccd-samples/`  
-**⚠️ Dùng ảnh đã che số CMND/CCCD hoặc ảnh fake để test.**
+** Dùng ảnh đã che số CMND/CCCD hoặc ảnh fake để test.**
 
 ---
 

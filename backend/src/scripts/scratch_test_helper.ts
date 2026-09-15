@@ -31,7 +31,7 @@ console.log('   - Output fullPath:         ', fullPath);
 if (dateStr === '2026-08-15' && subFolder.endsWith('15.08')) {
   console.log('   ✅ PASSED: Đã định tuyến chính xác về folder 15.08, KHÔNG bị lệch sang 16.08!\n');
 } else {
-  console.error('   ❌ FAILED: Lỗi định tuyến ngày!\n');
+  console.error('    FAILED: Lỗi định tuyến ngày!\n');
 }
 
 // Test Case 2: Kiểm tra parseJobPayload với Mongoose Map
@@ -47,14 +47,14 @@ console.log('   - Parsed result:     ', parsedPayload);
 if (parsedPayload.targetDate === '2026-08-15' && parsedPayload.shiftLogId === 'ABC_999') {
   console.log('   ✅ PASSED: Unwrap Mongoose Map thành Plain Object thành công!\n');
 } else {
-  console.error('   ❌ FAILED: Unwrap Mongoose Map thất bại!\n');
+  console.error('    FAILED: Unwrap Mongoose Map thất bại!\n');
 }
 
 // Test Case 3: Kiểm tra chặn khi thiếu targetDate
 console.log('3️⃣ TEST CASE 3: Kiểm tra cơ chế chặn khi payload THIẾU targetDate/sessionDay:');
 try {
   resolveBotTargetDate({});
-  console.error('   ❌ FAILED: Không chặn khi thiếu targetDate!\n');
+  console.error('    FAILED: Không chặn khi thiếu targetDate!\n');
 } catch (err: any) {
   console.log('   ✅ PASSED: Đã chặn thành công với thông báo lỗi:');
   console.log('      "', err.message, '"\n');

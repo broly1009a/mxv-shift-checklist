@@ -6,7 +6,7 @@ import { User } from '../schemas/user.schema';
 
 async function run() {
   console.log('----------------------------------------------------');
-  console.log('🚀 TESTING SSO AUTO-ONBOARD ROLE ASSIGNMENT SCRIPT');
+  console.log(' TESTING SSO AUTO-ONBOARD ROLE ASSIGNMENT SCRIPT');
   console.log('----------------------------------------------------');
   console.log('Booting NestJS application context...');
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -44,16 +44,16 @@ async function run() {
 
     // Verification asserts
     if (user.role !== 'DEPARTMENT_HEAD') {
-      console.error('❌ FAIL: Role was not mapped to DEPARTMENT_HEAD');
+      console.error(' FAIL: Role was not mapped to DEPARTMENT_HEAD');
     } else if (user.isActive !== true) {
-      console.error('❌ FAIL: User is not active');
+      console.error(' FAIL: User is not active');
     } else if (!user.departmentId) {
-      console.error('❌ FAIL: departmentId was not populated/assigned');
+      console.error(' FAIL: departmentId was not populated/assigned');
     } else {
       console.log('🎉 ALL ASSERTS PASSED SUCCESSFULLY!');
     }
   } catch (err) {
-    console.error('❌ Test failed with error:', err);
+    console.error(' Test failed with error:', err);
   } finally {
     // Clean up
     console.log(`\n🧹 Post-test cleaning up user: ${testUsername}...`);

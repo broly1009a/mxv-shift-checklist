@@ -14,19 +14,19 @@ Hệ thống của chúng ta cần **đọc mail → trích xuất dữ liệu �
 
 | Trường API | Nguồn bóc tách | Cách lấy | Độ ưu tiên |
 |---|---|---|---|
-| `investorCode` | Body Mail | Regex: `Mã TKGD.*: ([\w-]+)` | 🔴 Cao |
-| `investorName` | Body Mail | Regex: `Tên tài khoản.*: (.+)` | 🔴 Cao |
-| `memberCode` | Body Mail (3 số đầu của mã TK) | Auto-extract | 🔴 Cao |
-| `individual.identityCard` | OCR CCCD / QR Code / MRZ | 12 số định danh | 🔴 Cao |
-| `individual.fullName` | OCR CCCD mặt trước | Text recognition | 🔴 Cao |
-| `individual.birthDay` | OCR CCCD / MRZ | DD/MM/YYYY | 🔴 Cao |
+| `investorCode` | Body Mail | Regex: `Mã TKGD.*: ([\w-]+)` |  Cao |
+| `investorName` | Body Mail | Regex: `Tên tài khoản.*: (.+)` |  Cao |
+| `memberCode` | Body Mail (3 số đầu của mã TK) | Auto-extract |  Cao |
+| `individual.identityCard` | OCR CCCD / QR Code / MRZ | 12 số định danh |  Cao |
+| `individual.fullName` | OCR CCCD mặt trước | Text recognition |  Cao |
+| `individual.birthDay` | OCR CCCD / MRZ | DD/MM/YYYY |  Cao |
 | `individual.sex` | OCR CCCD mặt trước | M/F | 🟡 Trung bình |
 | `individual.idCreatedDate` | OCR CCCD mặt trước | Ngày cấp | 🟡 Trung bình |
 | `individual.idExpiredDate` | OCR CCCD mặt trước | Ngày hết hạn (null nếu vô thời hạn) | 🟡 Trung bình |
 | `individual.idCreatedLocation` | OCR CCCD mặt trước | Nơi cấp (Cục CS QLHC) | 🟡 Trung bình |
 | `individual.address` | OCR CCCD mặt trước | Nơi thường trú | 🟡 Trung bình |
-| `individual.scannedFrontIdCard` | File ảnh đính kèm mail | Base64 | 🔴 Cao (gửi API) |
-| `individual.scannedBackIdCard` | File ảnh đính kèm mail | Base64 | 🔴 Cao (gửi API) |
+| `individual.scannedFrontIdCard` | File ảnh đính kèm mail | Base64 |  Cao (gửi API) |
+| `individual.scannedBackIdCard` | File ảnh đính kèm mail | Base64 |  Cao (gửi API) |
 | `individual.scannedSignature` | PDF Hợp đồng (chữ ký scan) | Base64, không bắt buộc | 🟢 Thấp |
 
 ---

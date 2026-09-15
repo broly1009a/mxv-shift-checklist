@@ -43,7 +43,7 @@ def main():
         password = args.password or cfg.get("password", "")
 
         if not username or not password:
-            print("❌ Lỗi: Thiếu thông tin --user hoặc --pass!")
+            print(" Lỗi: Thiếu thông tin --user hoặc --pass!")
             sys.exit(1)
 
         run_download(
@@ -61,12 +61,12 @@ def main():
             from gui import launch_gui
             launch_gui()
         except Exception as e:
-            print(f"⚠️ Không thể khởi chạy PyQt6 GUI ({e}). Đang mở lại...")
+            print(f" Không thể khởi chạy PyQt6 GUI ({e}). Đang mở lại...")
             try:
                 from gui import launch_gui
                 launch_gui()
             except Exception as ex:
-                print(f"❌ Lỗi bật giao diện GUI: {ex}")
+                print(f" Lỗi bật giao diện GUI: {ex}")
 
 
 if __name__ == "__main__":

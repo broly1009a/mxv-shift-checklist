@@ -130,23 +130,23 @@ export function calcFrProduct(
   const specialProducts = ['QO', 'QP', 'BM', 'MPO'];
   const specialTotal = config.deadline
     ? specialProducts.reduce((sum, sp) => {
-        return (
-          sum +
-          sumFrI(
-            frRows.filter((r) => {
-              if (r.maSPNgan !== sp) return false;
-              // FR.L = thoiDiem (cột L tính toán)
-              if (!r.thoiDiem) return false;
-              const serialL =
-                r.thoiDiem instanceof Date
-                  ? (r.thoiDiem.getTime() - new Date(1899, 11, 30).getTime()) /
-                    86400000
-                  : toNumber(r.thoiDiem);
-              return serialL < (config.deadline ?? Infinity);
-            }),
-          )
-        );
-      }, 0)
+      return (
+        sum +
+        sumFrI(
+          frRows.filter((r) => {
+            if (r.maSPNgan !== sp) return false;
+            // FR.L = thoiDiem (cột L tính toán)
+            if (!r.thoiDiem) return false;
+            const serialL =
+              r.thoiDiem instanceof Date
+                ? (r.thoiDiem.getTime() - new Date(1899, 11, 30).getTime()) /
+                86400000
+                : toNumber(r.thoiDiem);
+            return serialL < (config.deadline ?? Infinity);
+          }),
+        )
+      );
+    }, 0)
     : 0;
 
   // VBA: L = SumIf(FR.A, Sheet2!A18, FR.I)  → không rõ A18, có thể là một mã TKGD cụ thể
@@ -395,7 +395,7 @@ export function calculateDailyLotReport(
   validations
     .filter((v) => !v.passed)
     .forEach((v) => {
-      console.warn(`⚠️  [VALIDATION FAIL] ${v.field}: expected=${v.expected}, actual=${v.actual}`);
+      console.warn(`  [VALIDATION FAIL] ${v.field}: expected=${v.expected}, actual=${v.actual}`);
     });
 
   return {

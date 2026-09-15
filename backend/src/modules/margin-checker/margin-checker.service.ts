@@ -1306,7 +1306,7 @@ export class MarginCheckerService {
         const teleMessage =
           ` *[MXV Margin Checker]* Cảnh báo vi phạm mức ký quỹ\n` +
           `📅 Ngày phiên: ${currentStr}\n` +
-          `🔴 Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
+          ` Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo đính kèm.`;
         await this.sendTelegramNotification(
           config.marginOnOrder.telegramChatId,

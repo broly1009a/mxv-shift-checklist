@@ -31,7 +31,7 @@ const MONGODB_URI =
 
 async function runModule1Test() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 1: ĐỌC MAIL & LƯU MONGODB (RAW + CLEAN NOIDUNGMAIL)');
+  console.log(' KIỂM THỬ MODULE 1: ĐỌC MAIL & LƯU MONGODB (RAW + CLEAN NOIDUNGMAIL)');
   console.log('='.repeat(70));
 
   // 2. Kết nối MongoDB
@@ -182,6 +182,6 @@ async function runModule1Test() {
 }
 
 runModule1Test().catch((err) => {
-  console.error('❌ Lỗi khi chạy Module 1 Test:', err);
+  console.error(' Lỗi khi chạy Module 1 Test:', err);
   process.exit(1);
 });

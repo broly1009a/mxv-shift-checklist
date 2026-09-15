@@ -11,7 +11,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 async function run() {
-  console.log('🚀 Booting NestJS Application Context (HEADLESS Mode)...');
+  console.log(' Booting NestJS Application Context (HEADLESS Mode)...');
   const appContext = await NestFactory.createApplicationContext(AppModule);
   const rpaDownloader = appContext.get(RpaDownloaderService);
 
@@ -46,7 +46,7 @@ async function run() {
     );
     console.log(`\n✅ SUCCESS! File downloaded: ${filePath}`);
   } catch (err: any) {
-    console.error(`\n❌ FAILED:`, err.message);
+    console.error(`\n FAILED:`, err.message);
     if (activePage) {
       const screenshotPath = path.join(tempDir, 'fail-screenshot.png');
       console.log(`Saving failure screenshot to: ${screenshotPath}`);
@@ -59,6 +59,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('❌ Critical error:', err);
+  console.error(' Critical error:', err);
   process.exit(1);
 });

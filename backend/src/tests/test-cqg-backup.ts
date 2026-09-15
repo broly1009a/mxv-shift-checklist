@@ -13,7 +13,7 @@ import * as fs from 'fs';
 
 async function runCqgBackupTest() {
   console.log('====================================================');
-  console.log('🚀 KHỞI CHẠY KIỂM THỬ JOB DOWNLOAD_CQG_BACKUP');
+  console.log(' KHỞI CHẠY KIỂM THỬ JOB DOWNLOAD_CQG_BACKUP');
   console.log('====================================================');
 
   // 1. Khởi chạy NestJS application context
@@ -77,7 +77,7 @@ async function runCqgBackupTest() {
   }
 
   if (!creds || (!creds.username1 && !creds.usernameCQG1 && !creds.username)) {
-    console.log('\n❌ THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
+    console.log('\n THẤT BẠI: Chưa cấu hình thông tin tài khoản CQG!');
     console.log('Vui lòng thiết lập biến môi trường để chạy test, ví dụ:');
     console.log(
       '   $env:CQG_USER="account1"; $env:CQG_PASS="pass1"; cmd.exe /c npm run test:cqg-backup',
@@ -139,7 +139,7 @@ async function runCqgBackupTest() {
       `[${new Date().toISOString()}] Job thất bại: ${err.message}`,
     );
     await testJob.save();
-    console.error('\n❌ KẾT QUẢ: JOB THẤT BẠI!');
+    console.error('\n KẾT QUẢ: JOB THẤT BẠI!');
     console.error(`Chi tiết lỗi: ${err.message}`);
   } finally {
     // In log của job
@@ -163,6 +163,6 @@ async function runCqgBackupTest() {
 }
 
 runCqgBackupTest().catch((err) => {
-  console.error('❌ Fatal error:', err);
+  console.error(' Fatal error:', err);
   process.exit(1);
 });

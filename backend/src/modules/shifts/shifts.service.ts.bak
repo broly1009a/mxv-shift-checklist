@@ -787,7 +787,7 @@ export class ShiftsService {
     const completedCount = result.details.filter((d) => d.isChecked).length;
     const totalCount = result.details.length;
     let telMsg =
-      `🔒 <b>[MXV CHỐT CA TRỰC]</b>\n` +
+      ` <b>[MXV CHỐT CA TRỰC]</b>\n` +
       `• Ca trực: <b>${(result.templateId as any)?.title || 'Ca vận hành'}</b>\n` +
       `• Ngày trực: <b>${result.shiftDate}</b>\n` +
       `• Trạng thái: <b>ĐÃ HOÀN THÀNH & KHÓA SỔ</b>\n` +

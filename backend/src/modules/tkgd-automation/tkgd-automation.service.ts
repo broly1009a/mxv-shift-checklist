@@ -1059,7 +1059,7 @@ export class TkgdAutomationService {
               { $set: { 'ketLuan.trangThai': 'LECH', 'ketLuan.danhSachLoi': combinedErrors } },
             )
             .exec()
-            .catch(() => {});
+            .catch(() => { });
         }
       }
     }
@@ -1771,11 +1771,11 @@ export class TkgdAutomationService {
     batchDateOrOptions?:
       | string
       | {
-          batchDate?: string;
-          fromDateTime?: string;
-          toDateTime?: string;
-          forceReparse?: boolean;
-        },
+        batchDate?: string;
+        fromDateTime?: string;
+        toDateTime?: string;
+        forceReparse?: boolean;
+      },
   ) {
     this.updateProgress(userEmail, {
       isProcessing: true,
@@ -2927,7 +2927,7 @@ export class TkgdAutomationService {
             }
           }
         }
-      } catch {}
+      } catch { }
     };
 
     scanDirForFiles(officialAccDir);
@@ -3831,12 +3831,12 @@ export class TkgdAutomationService {
       return { success: true, processedCount: totalDone, message: `Đã xử lý xong ${totalDone} mục.` };
 
     } catch (err: any) {
-      this.logger.error(`[TKGD-AUTO] ❌ Lỗi chu trình tự động cho ${userEmail}: ${err.message}`);
+      this.logger.error(`[TKGD-AUTO]  Lỗi chu trình tự động cho ${userEmail}: ${err.message}`);
       // Vẫn lưu lastRunTime để tránh retry ngay lập tức
       await this.userConfigModel.updateOne(
         { userEmail },
         { $set: { 'autoPipeline.lastRunTime': Date.now() } }
-      ).catch(() => {});
+      ).catch(() => { });
       this.updateProgress(userEmail, {
         isProcessing: false,
         taskType: 'IDLE',

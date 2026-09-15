@@ -8,7 +8,7 @@ import * as fs from 'fs';
 
 async function runMSystemLoginTest() {
   console.log('----------------------------------------------------');
-  console.log('🚀 KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP M-SYSTEM (HEADFUL MODE)');
+  console.log(' KHỞI CHẠY TỰ ĐỘNG ĐĂNG NHẬP M-SYSTEM (HEADFUL MODE)');
   console.log('----------------------------------------------------');
 
   // 1. Boot NestJS context to load config from database
@@ -37,13 +37,13 @@ async function runMSystemLoginTest() {
         pin = credentials.pin;
         msystemUrl = credentials.url || msystemUrl;
       } catch (err) {
-        console.error('❌ Lỗi giải mã thông tin tài khoản từ CSDL.');
+        console.error(' Lỗi giải mã thông tin tài khoản từ CSDL.');
       }
     }
   }
 
   if (!username || !password || !pin) {
-    console.log('\n❌ THẤT BẠI: Chưa cấu hình thông tin tài khoản M-System!');
+    console.log('\n THẤT BẠI: Chưa cấu hình thông tin tài khoản M-System!');
     console.log('Bạn có thể cấu hình bằng 2 cách:');
     console.log(
       'Cách 1: Lưu cấu hình trên giao diện Web Admin tại địa chỉ /admin/bot-config',
@@ -148,7 +148,7 @@ async function runMSystemLoginTest() {
     await page.waitForTimeout(15000);
   } catch (err: any) {
     console.error(
-      '\n❌ Xảy ra lỗi trong quá trình tự động đăng nhập:',
+      '\n Xảy ra lỗi trong quá trình tự động đăng nhập:',
       err.message,
     );
     try {
@@ -180,7 +180,7 @@ async function runMSystemLoginTest() {
         ` Đã ghi nhận log lỗi và chụp màn hình debug tại: ${debugDir}`,
       );
     } catch (logErr: any) {
-      console.error('❌ Không thể lưu debug artifacts:', logErr.message);
+      console.error(' Không thể lưu debug artifacts:', logErr.message);
     }
   } finally {
     console.log('Đang đóng trình duyệt...');
@@ -192,6 +192,6 @@ async function runMSystemLoginTest() {
 }
 
 runMSystemLoginTest().catch((err) => {
-  console.error('❌ Lỗi thực thi kiểm thử đăng nhập:', err);
+  console.error(' Lỗi thực thi kiểm thử đăng nhập:', err);
   process.exit(1);
 });

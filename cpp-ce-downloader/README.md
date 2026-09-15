@@ -30,7 +30,7 @@ Thư mục to (Ví dụ: D:/BaoCao_CPP_CE)
 
 ---
 
-## 🚀 Hướng Dẫn Sử Dụng Nhanh (1-Click)
+##  Hướng Dẫn Sử Dụng Nhanh (1-Click)
 
 ### Cách 1: Chạy trực tiếp bằng File Batch (Dành cho Windows)
 - Đơn giản chỉ cần **Double-click file `run.bat`**.

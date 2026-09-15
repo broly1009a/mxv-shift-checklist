@@ -547,7 +547,7 @@ async function scrapeQSSPrices(
 
 async function runCQGQSSTest() {
   console.log('\n' + '='.repeat(60));
-  console.log('🚀 CQG QSS 2-BATCH TEST (HEADFUL)');
+  console.log(' CQG QSS 2-BATCH TEST (HEADFUL)');
   console.log(
     ` Tổng: ${ALL_SYMBOLS.length} symbols → ${Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE)} tab(s)`,
   );
@@ -592,7 +592,7 @@ async function runCQGQSSTest() {
   }
 
   if (!username || !password) {
-    console.log('❌ Chưa cấu hình tài khoản CQG.');
+    console.log(' Chưa cấu hình tài khoản CQG.');
     await app.close();
     process.exit(1);
   }
@@ -683,7 +683,7 @@ async function runCQGQSSTest() {
     console.log('\n⏸ Chờ 15 giây để bạn kiểm tra kết quả trước khi đóng...');
     await page.waitForTimeout(15000);
   } catch (err: any) {
-    console.error(`\n❌ Lỗi: ${err.message}`);
+    console.error(`\n Lỗi: ${err.message}`);
     await screenshot(page, 'ERROR-final').catch(() => { });
     const html = await page.content().catch(() => '');
     if (html)
@@ -696,6 +696,6 @@ async function runCQGQSSTest() {
 }
 
 runCQGQSSTest().catch((err) => {
-  console.error('❌ Fatal:', err);
+  console.error(' Fatal:', err);
   process.exit(1);
 });

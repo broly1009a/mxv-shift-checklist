@@ -56,7 +56,7 @@ const SUBTASK_DEFINITIONS = {
     ],
   },
 
-  'ops_open_05': { // SOD → 🔴 Thủ công hoàn toàn
+  'ops_open_05': { // SOD →  Thủ công hoàn toàn
     children: [
       { id: 'ops_open_05_s1', name: 'Maker thực hiện Start of Day (SOD) trên M-System', isBotCheck: false, priority: 'CRITICAL' },
       { id: 'ops_open_05_s2', name: 'Maker xác nhận SOD thành công', isBotCheck: false, priority: 'CRITICAL' },
@@ -99,7 +99,7 @@ const SUBTASK_DEFINITIONS = {
     ],
   },
 
-  'ops_during_03': { // Mở hợp đồng mới → 🔴 Thủ công
+  'ops_during_03': { // Mở hợp đồng mới →  Thủ công
     children: [
       { id: 'ops_during_03_s1', name: 'Maker thiết lập Futures, Spreads, ACM trên M-System', isBotCheck: false, priority: 'HIGH' },
       { id: 'ops_during_03_s2', name: 'Maker cấu hình hợp đồng tương ứng trên CQG Cast', isBotCheck: false, priority: 'HIGH' },
@@ -107,7 +107,7 @@ const SUBTASK_DEFINITIONS = {
     ],
   },
 
-  'ops_during_04': { // Xử lý sự cố → 🔴 Thủ công
+  'ops_during_04': { // Xử lý sự cố →  Thủ công
     children: [
       { id: 'ops_during_04_s1', name: 'Maker tiếp nhận TVKD và tạo ticket Incident (trong 15 phút)', isBotCheck: false, priority: 'CRITICAL' },
       { id: 'ops_during_04_s2', name: 'Maker thông báo Newgen & CNTT (trong 5 phút từ khi phát hiện lỗi)', isBotCheck: false, priority: 'CRITICAL' },

@@ -55,7 +55,7 @@ async function getCredentialsFromDB() {
   } catch (err) {
     // Không kết nối được MongoDB hoặc chưa có collection
   } finally {
-    try { await mongoose.disconnect(); } catch (e) {}
+    try { await mongoose.disconnect(); } catch (e) { }
   }
   return null;
 }
@@ -167,7 +167,7 @@ async function main() {
     }
     console.log('\n========================================================================\n');
   } catch (err) {
-    console.error('\n❌ GẶP SỰ CỐ KHI TẢI BÁO CÁO:', err.message);
+    console.error('\n GẶP SỰ CỐ KHI TẢI BÁO CÁO:', err.message);
     console.log('\nKhắc phục sự cố:');
     console.log('1. Đảm bảo tài khoản đăng nhập đúng mật khẩu và có quyền truy cập CoreCCP.');
     console.log('2. Nếu trang web UAT đổi URL, hãy truyền: --url "<URL_MỚI>"');

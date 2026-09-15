@@ -176,7 +176,7 @@ với $m$ là số ký tự trùng nhau, $t$ là số phép đổi vị trí, $l
 | **Chip điện tử** | Không có | Không có | **MẶT TRƯỚC** (phôi vàng) | Chuyển sang **MẶT SAU** (cạnh QR) |
 | **Vùng MRZ ICAO** | Không có | Không có | **Có (Mặt sau, TD1 3 dòng)** | **Có (Mặt sau, TD1 3 dòng)** |
 | **Cơ quan cấp in thẻ** | CÔNG AN TỈNH/TP... | CỤC CẢNH SÁT ĐKQL CƯ TRÚ... | CỤC TRƯỞNG CỤC C06 | **BỘ CÔNG AN** |
-| **Hiệu lực mở TKGD** | ⛔ **Hết hiệu lực từ 01/01/2025** | ⚠️ Vẫn còn giá trị nếu chưa hết hạn | ✅ Hợp lệ 100% | ✅ Hợp lệ 100% |
+| **Hiệu lực mở TKGD** | ⛔ **Hết hiệu lực từ 01/01/2025** |  Vẫn còn giá trị nếu chưa hết hạn | ✅ Hợp lệ 100% | ✅ Hợp lệ 100% |
 
 ---
 
@@ -353,11 +353,11 @@ Trước khi xử lý bóc tách, ảnh đầu vào được đưa qua bộ phâ
 
 | Tình huống kiểm tra | Thuật toán xác định | Kết luận hệ thống |
 | :--- | :--- | :--- |
-| **Cắt xén sát mép thực sự (Zero-Margin / Over-Cropped)**<br>*(Case Nguyễn Đức Chinh `003C8622268`)* | • Thẻ đơn ($W > H \times 1.2$).<br>• Cả 4 mép viền ($6\text{ px}$) đều sáng ($> 95$).<br>• Cả 4 góc ($10 \times 10\text{ px}$) đều sáng ($> 90$).<br>• Mất hoàn toàn 4 góc bo tròn chuẩn ID-1 ($r=3.18\text{ mm}$). | ⚠️ **Cảnh báo lỗi**: *"CCCD bị crop chạm sát khung hình, mất góc bo tròn an toàn"*. |
+| **Cắt xén sát mép thực sự (Zero-Margin / Over-Cropped)**<br>*(Case Nguyễn Đức Chinh `003C8622268`)* | • Thẻ đơn ($W > H \times 1.2$).<br>• Cả 4 mép viền ($6\text{ px}$) đều sáng ($> 95$).<br>• Cả 4 góc ($10 \times 10\text{ px}$) đều sáng ($> 90$).<br>• Mất hoàn toàn 4 góc bo tròn chuẩn ID-1 ($r=3.18\text{ mm}$). |  **Cảnh báo lỗi**: *"CCCD bị crop chạm sát khung hình, mất góc bo tròn an toàn"*. |
 | **Ảnh ghép 2 mặt hợp lệ (Composite Dual-Card)**<br>*(Case Hoàng Văn Long `012C0074622`)* | • Chiều cao $H \ge W \times 0.82$.<br>• Hai mép bên trái & phải có lề đệm đen/tối ($< 80$).<br>• Chữ quốc hiệu, căn cước, MRZ cách mép ảnh $> 8\text{ px}$. | ✅ **Hợp lệ 100%**: Gán nhãn `✓ Đủ 4 góc viền`. Không phạt viền canvas. |
 | **Ảnh thẻ đơn chụp có lề đen padding**<br>*(Case Ngô Đức Hải `003C2333888`)* | • Cả 4 mép đều có nền đen bao quanh ($dark\_count = 4$).<br>• Thẻ nằm lọt thỏm an toàn bên trong. | ✅ **Hợp lệ 100%**: Gán nhãn `✓ Đủ 4 góc viền`. |
-| **Chữ bị cắt lẹm vào biên ảnh (Proximity Alert)** | Bounding box của từ khóa (`CỘNG HÒA`, `CĂN CƯỚC`, số định danh, MRZ) có tọa độ cách mép ảnh $< 8\text{ px}$. | ⚠️ **Cảnh báo lẹm chữ**: *"Chữ '[Từ]' chạm sát viền ảnh (<8px)"*. |
-| **Chữ bị xén đứt đuôi (Truncated Pattern)** | OCR phát hiện các chuỗi cụt đặc trưng: `Việt N\n`, `trỏ phả\n`, `Hồ Chí Mir\n`. | ⚠️ **Cảnh báo xén chữ**: *"Dòng chữ bị xén cụt ở mép"*. |
+| **Chữ bị cắt lẹm vào biên ảnh (Proximity Alert)** | Bounding box của từ khóa (`CỘNG HÒA`, `CĂN CƯỚC`, số định danh, MRZ) có tọa độ cách mép ảnh $< 8\text{ px}$. |  **Cảnh báo lẹm chữ**: *"Chữ '[Từ]' chạm sát viền ảnh (<8px)"*. |
+| **Chữ bị xén đứt đuôi (Truncated Pattern)** | OCR phát hiện các chuỗi cụt đặc trưng: `Việt N\n`, `trỏ phả\n`, `Hồ Chí Mir\n`. |  **Cảnh báo xén chữ**: *"Dòng chữ bị xén cụt ở mép"*. |
 | **Thẻ căn cước cũ hết hiệu lực** | Bóc tách được chuỗi 9 chữ số (CMND) hoặc CCCD 12 số cấp trước 2021 không có chip. | ⛔ **Lỗi nghiệp vụ**: *"Căn cước cũ, ktra lại (CMND 9 số đã hết hiệu lực từ 01/01/2025)"*. |
 
 ---

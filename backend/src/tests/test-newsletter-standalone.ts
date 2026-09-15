@@ -44,7 +44,7 @@ async function runTest() {
 
   console.log('⏳ Đang thực thi hàm xuất file bản tin...');
   const generateNewsletter = (service as any).generateNewsletterFile.bind(service);
-  
+
   await generateNewsletter(targetRoot, testDate, mockGtgdMap, logs);
 
   console.log('\n--- KẾT QUẢ GHI NHẬN ---');
@@ -56,6 +56,6 @@ async function runTest() {
 }
 
 runTest().catch((err) => {
-  console.error('❌ Lỗi kiểm thử:', err.message);
+  console.error(' Lỗi kiểm thử:', err.message);
   process.exit(1);
 });

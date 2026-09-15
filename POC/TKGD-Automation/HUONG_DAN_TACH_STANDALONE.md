@@ -1,4 +1,4 @@
-# 🚀 HƯỚNG DẪN ĐÓNG GÓI & TÁCH DỰ ÁN TKGD THÀNH TOOL ĐỘC LẬP (STANDALONE)
+#  HƯỚNG DẪN ĐÓNG GÓI & TÁCH DỰ ÁN TKGD THÀNH TOOL ĐỘC LẬP (STANDALONE)
 ## HỆ THỐNG TỰ ĐỘNG HÓA ĐỐI SOÁT MỞ TÀI KHOẢN GIAO DỊCH (DÀNH RIÊNG CHO PHÒNG THANH TOÁN BÙ TRỪ)
 
 > **Mục tiêu tài liệu:**  

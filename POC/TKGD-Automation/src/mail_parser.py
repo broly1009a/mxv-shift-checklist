@@ -182,7 +182,7 @@ def process_mail(raw_mail) -> ParsedMailData:
     print(f"     CCCD sau:   {parsed.cccdSauFile}")
     
     if not parsed.isComplete:
-        print(f"  ⚠️  THIẾU HỒ SƠ: {', '.join(parsed.missingDocs)}")
+        print(f"    THIẾU HỒ SƠ: {', '.join(parsed.missingDocs)}")
     else:
         print(f"  ✅ Hồ sơ đầy đủ")
     

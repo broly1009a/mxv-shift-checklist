@@ -178,16 +178,16 @@ async function runE2ETest() {
   const ccpDetectedError = result.mismatchedEOD.some((m) => m.maTKGD === '003C1570002' && m.system === 'CCP');
   const negativeDetected = result.negativeBalanceAccs.includes('001C0120005');
 
-  console.log(`1. Tài khoản MS khớp (001C0120001):          ${msMatched ? '✅ PASS (Khớp 0đ chênh lệch)' : '❌ FAIL'}`);
-  console.log(`2. Bắt đúng tài khoản MS lệch (001C0120002):  ${msDetectedError ? '✅ PASS (Gắn nhãn [MS] chính xác)' : '❌ FAIL'}`);
-  console.log(`3. Tài khoản CCP khớp (003C1570001):         ${ccpMatched ? '✅ PASS (Khớp 0đ chênh lệch)' : '❌ FAIL'}`);
-  console.log(`4. Bắt đúng tài khoản CCP lệch (003C1570002): ${ccpDetectedError ? '✅ PASS (Gắn nhãn [CCP] chính xác)' : '❌ FAIL'}`);
-  console.log(`5. Phát hiện tài khoản âm số dư (001C0120005): ${negativeDetected ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`1. Tài khoản MS khớp (001C0120001):          ${msMatched ? '✅ PASS (Khớp 0đ chênh lệch)' : ' FAIL'}`);
+  console.log(`2. Bắt đúng tài khoản MS lệch (001C0120002):  ${msDetectedError ? '✅ PASS (Gắn nhãn [MS] chính xác)' : ' FAIL'}`);
+  console.log(`3. Tài khoản CCP khớp (003C1570001):         ${ccpMatched ? '✅ PASS (Khớp 0đ chênh lệch)' : ' FAIL'}`);
+  console.log(`4. Bắt đúng tài khoản CCP lệch (003C1570002): ${ccpDetectedError ? '✅ PASS (Gắn nhãn [CCP] chính xác)' : ' FAIL'}`);
+  console.log(`5. Phát hiện tài khoản âm số dư (001C0120005): ${negativeDetected ? '✅ PASS' : ' FAIL'}`);
 
   if (msMatched && msDetectedError && ccpMatched && ccpDetectedError && negativeDetected) {
     console.log('\n🎉 KẾT LUẬN: TẤT CẢ CÁC RULE VÀ CÔNG THỨC ĐỐI CHIẾU EOD ĐÃ PASS 100%!\n');
   } else {
-    console.log('\n⚠️ KẾT LUẬN: Có ca kiểm thử chưa đạt yêu cầu.\n');
+    console.log('\n KẾT LUẬN: Có ca kiểm thử chưa đạt yêu cầu.\n');
   }
 }
 

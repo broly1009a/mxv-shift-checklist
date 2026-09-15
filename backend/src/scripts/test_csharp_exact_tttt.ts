@@ -36,7 +36,7 @@ function analyzeTTTTFile(filePath: string, label: string) {
   console.log(`${'='.repeat(70)}`);
 
   if (!fs.existsSync(filePath)) {
-    console.log(`❌ File không tồn tại!`);
+    console.log(` File không tồn tại!`);
     return;
   }
 
@@ -75,7 +75,7 @@ function analyzeTTTTFile(filePath: string, label: string) {
   }
 
   if (headerRow === -1) {
-    console.log(`❌ Không tìm thấy dòng tiêu đề chuẩn M-System trong 10 dòng đầu!`);
+    console.log(` Không tìm thấy dòng tiêu đề chuẩn M-System trong 10 dòng đầu!`);
     return;
   }
 

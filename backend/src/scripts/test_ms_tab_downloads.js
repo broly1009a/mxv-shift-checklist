@@ -35,7 +35,7 @@ async function runTabVisualTest() {
 
   const setting = await db.collection('system_settings').findOne({ key: 'bot_credentials_msystem' });
   if (!setting) {
-    console.error('❌ Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
+    console.error(' Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
     await mongoose.disconnect();
     return;
   }
@@ -44,7 +44,7 @@ async function runTabVisualTest() {
   try {
     credentials = JSON.parse(decrypt(setting.value));
   } catch (e) {
-    console.error('❌ Lỗi giải mã credentials:', e.message);
+    console.error(' Lỗi giải mã credentials:', e.message);
     await mongoose.disconnect();
     return;
   }
@@ -103,7 +103,7 @@ async function runTabVisualTest() {
       await page.waitForTimeout(1000);
     }
     if (expectedHashPattern) {
-      await page.waitForURL(expectedHashPattern, { timeout: 15000 }).catch(() => {});
+      await page.waitForURL(expectedHashPattern, { timeout: 15000 }).catch(() => { });
     }
     await page.waitForTimeout(2000);
   }
@@ -112,7 +112,7 @@ async function runTabVisualTest() {
     console.log(`\n-> [SubTab] Chuyển sang tab: "${tabName}"...`);
     const tabSelector = `xpath=//*[self::a or self::button or self::li or self::div or self::span][normalize-space(text())='${tabName}' or contains(text(), '${tabName}')]`;
     await page.waitForSelector(tabSelector, { state: 'visible', timeout: 15000 });
-    
+
     // Kiểm tra active
     const isActive = await page.locator(tabSelector).first().evaluate((el) => {
       const parent = el.closest('li') || el.closest('div.nav-item') || el;
@@ -127,7 +127,7 @@ async function runTabVisualTest() {
     }
 
     await page.waitForTimeout(2000);
-    await page.waitForSelector('.ladda-loading, div.spinner, div.loading', { state: 'detached', timeout: 5000 }).catch(() => {});
+    await page.waitForSelector('.ladda-loading, div.spinner, div.loading', { state: 'detached', timeout: 5000 }).catch(() => { });
 
     if (snapshotName) {
       const snapPath = path.join(testOutputDir, snapshotName);
@@ -148,7 +148,7 @@ async function runTabVisualTest() {
     console.log(`   Tên file gốc từ M-System: "${suggested}"`);
 
     if (expectedPattern && !expectedPattern.test(suggested)) {
-      console.error(`   ❌ CẢNH BÁO: Tên file gốc không khớp mẫu: ${suggested}`);
+      console.error(`    CẢNH BÁO: Tên file gốc không khớp mẫu: ${suggested}`);
     } else {
       console.log(`   ✅ Tên file khớp chuẩn regex.`);
     }
@@ -189,7 +189,7 @@ async function runTabVisualTest() {
     console.log('\n=============================================================');
     console.log('3. TEST TAB TRÊN MÀN HÌNH "TRẠNG THÁI TẤT TOÁN"');
     console.log('=============================================================');
-    
+
     // Điều hướng vào QL trạng thái -> Trạng thái tất toán
     await navigateSidebar(['QL trạng thái', 'Trạng thái tất toán'], /finalPositionInfo/);
 
@@ -240,9 +240,9 @@ async function runTabVisualTest() {
     console.log('\n🎉 THỬ NGHIỆM THÀNH CÔNG: Helper chuyển tab và tải file hoạt động hoàn hảo 100%!');
 
   } catch (err) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH KIỂM THỬ:', err.message);
+    console.error('\n LỖI TRONG QUÁ TRÌNH KIỂM THỬ:', err.message);
     const snapErr = path.join(testOutputDir, 'snap_tab_error.png');
-    await page.screenshot({ path: snapErr, fullPage: false }).catch(() => {});
+    await page.screenshot({ path: snapErr, fullPage: false }).catch(() => { });
     console.log(`📸 Đã chụp snapshot lỗi tại: ${snapErr}`);
   } finally {
     console.log('\nĐóng trình duyệt sau 3 giây...');

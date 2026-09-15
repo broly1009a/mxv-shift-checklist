@@ -33,10 +33,10 @@ async function main() {
   for (const colInfo of collectionsToClean) {
     try {
       const collection = db.collection(colInfo.name);
-      
+
       // Đếm số lượng log trước khi xóa
       const totalBefore = await collection.countDocuments({});
-      
+
       // Thực hiện xóa
       const deleteResult = await collection.deleteMany({
         [colInfo.dateField]: { $lt: cutoffDate }
@@ -48,7 +48,7 @@ async function main() {
       console.log(`  * Đã xóa: ${deleteResult.deletedCount} bản ghi`);
       console.log(`  * Còn lại: ${totalAfter} / ${totalBefore} bản ghi`);
     } catch (err) {
-      console.error(`❌ Lỗi khi dọn dẹp collection "${colInfo.name}":`, err.message);
+      console.error(` Lỗi khi dọn dẹp collection "${colInfo.name}":`, err.message);
     }
   }
 
@@ -57,6 +57,6 @@ async function main() {
 }
 
 main().catch(e => {
-  console.error('❌ Lỗi thực thi:', e);
+  console.error(' Lỗi thực thi:', e);
   process.exit(1);
 });

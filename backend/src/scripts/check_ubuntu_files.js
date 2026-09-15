@@ -2,12 +2,12 @@ const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
   const cmd = `
-    echo "=== 1. BACKUP MS FUTURES 10.09 ==="
-    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T09.2026/10.09" 2>/dev/null
-    echo "=== 2. BACKUP CQG FUTURES 10.09 ==="
-    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T09.2026/10.09" 2>/dev/null
-    echo "=== 3. BACKUP ACM 10.09 ==="
-    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/ACM/2026/T09.2026/10.09" 2>/dev/null
+    echo "=== 1. BACKUP MS FUTURES 15.09 ==="
+    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T09.2026/15.09" 2>/dev/null
+    echo "=== 2. BACKUP CQG FUTURES 15.09 ==="
+    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T09.2026/15.09" 2>/dev/null
+    echo "=== 3. BACKUP ACM 15.09 ==="
+    ls -la "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/ACM/2026/T09.2026/15.09" 2>/dev/null
   `;
   conn.exec(cmd, (err, stream) => {
     if (err) throw err;

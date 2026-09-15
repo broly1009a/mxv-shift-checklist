@@ -26,11 +26,11 @@ async function main() {
   const msEodPath = path.join(msDir, 'eod.2026-07-06.csv');
 
   console.log('[1/3] Kiểm tra các file thực tế có sẵn:');
-  console.log(`  • CCP EOD:      ${fs.existsSync(ccpEodPath) ? '✅ Có sẵn (' + (fs.statSync(ccpEodPath).size / 1024 / 1024).toFixed(2) + ' MB)' : '❌ Chưa có'}`);
-  console.log(`  • CCP QLTTTKGD: ${fs.existsSync(ccpQltkgdPath) ? '✅ Có sẵn (' + (fs.statSync(ccpQltkgdPath).size / 1024 / 1024).toFixed(2) + ' MB)' : '❌ Chưa có'}`);
-  console.log(`  • MS QLTKGD:    ${fs.existsSync(msQltkgdPath) ? '✅ Có sẵn' : '❌ Chưa có'}`);
-  console.log(`  • MS TTTT:      ${fs.existsSync(msTtttPath) ? '✅ Có sẵn' : '❌ Chưa có'}`);
-  console.log(`  • MS EOD:       ${fs.existsSync(msEodPath) ? '✅ Có sẵn' : '❌ Chưa có'}\n`);
+  console.log(`  • CCP EOD:      ${fs.existsSync(ccpEodPath) ? '✅ Có sẵn (' + (fs.statSync(ccpEodPath).size / 1024 / 1024).toFixed(2) + ' MB)' : ' Chưa có'}`);
+  console.log(`  • CCP QLTTTKGD: ${fs.existsSync(ccpQltkgdPath) ? '✅ Có sẵn (' + (fs.statSync(ccpQltkgdPath).size / 1024 / 1024).toFixed(2) + ' MB)' : ' Chưa có'}`);
+  console.log(`  • MS QLTKGD:    ${fs.existsSync(msQltkgdPath) ? '✅ Có sẵn' : ' Chưa có'}`);
+  console.log(`  • MS TTTT:      ${fs.existsSync(msTtttPath) ? '✅ Có sẵn' : ' Chưa có'}`);
+  console.log(`  • MS EOD:       ${fs.existsSync(msEodPath) ? '✅ Có sẵn' : ' Chưa có'}\n`);
 
   // 2. Đọc file vào Buffer
   console.log('[2/3] Nạp Service ReconciliationService từ Backend...');

@@ -82,7 +82,7 @@ async function runTest() {
         await page.goto(t.url, { waitUntil: 'commit', timeout: 45000 });
         console.log(` -> [${idx + 1}/4] ✅ ${t.name}: Đã tải trang thành công!`);
       } catch (err) {
-        console.error(` -> [${idx + 1}/4] ❌ ${t.name} lỗi: ${err.message}`);
+        console.error(` -> [${idx + 1}/4]  ${t.name} lỗi: ${err.message}`);
         errors.push({ name: t.name, error: err.message });
       }
     })
@@ -125,7 +125,7 @@ async function runTest() {
   for (const b of browsers) {
     try {
       await b.close();
-    } catch {}
+    } catch { }
   }
 
   await new Promise((r) => setTimeout(r, 2000));
@@ -138,12 +138,12 @@ async function runTest() {
     console.log('  ✅ THÀNH CÔNG: Server KHÔNG BỊ SẬP khi mở 4 Chromium riêng biệt!');
     console.log(`  📊 Mức RAM tiêu hao thêm: ~${initialMem.available - peakMem.available} MB.`);
     if (peakMem.available < 300) {
-      console.log('  ⚠️ CẢNH BÁO: RAM khả dụng xuống dưới 300MB, chạm ngưỡng Swap Disk.');
+      console.log('   CẢNH BÁO: RAM khả dụng xuống dưới 300MB, chạm ngưỡng Swap Disk.');
     } else {
       console.log('  🟢 AN TOÀN: RAM khả dụng vẫn còn dư dả.');
     }
   } else {
-    console.log(`  ❌ THẤT BẠI: Có ${errors.length} nguồn bị lỗi/crash do thiếu tài nguyên.`);
+    console.log(`   THẤT BẠI: Có ${errors.length} nguồn bị lỗi/crash do thiếu tài nguyên.`);
   }
   console.log('===============================================================\n');
 }

@@ -84,7 +84,7 @@ async function runSidebarClickTest() {
   console.log(
     '====================================================================',
   );
-  console.log('🚀 SCRIPT KIỂM THỬ CLICK SIDEBAR M-SYSTEM TỰ ĐỘNG (PLAYWRIGHT)');
+  console.log(' SCRIPT KIỂM THỬ CLICK SIDEBAR M-SYSTEM TỰ ĐỘNG (PLAYWRIGHT)');
   console.log(
     '====================================================================',
   );
@@ -119,13 +119,13 @@ async function runSidebarClickTest() {
         pin = credentials.pin;
         msystemUrl = credentials.url || msystemUrl;
       } catch (err) {
-        console.error('❌ Lỗi giải mã thông tin tài khoản M-System từ CSDL.');
+        console.error(' Lỗi giải mã thông tin tài khoản M-System từ CSDL.');
       }
     }
   }
 
   if (!username || !password || !pin) {
-    console.error('❌ Thất bại: Chưa cấu hình thông tin tài khoản M-System!');
+    console.error(' Thất bại: Chưa cấu hình thông tin tài khoản M-System!');
     await app.close();
     process.exit(1);
   }
@@ -310,7 +310,7 @@ async function runSidebarClickTest() {
       }
 
       const duration = `${Date.now() - startTime}ms`;
-      const statusStr = isSuccess ? '✅ SUCCESS' : '❌ FAILED';
+      const statusStr = isSuccess ? '✅ SUCCESS' : ' FAILED';
       const hashStr = currentUrl.includes('#')
         ? '#' + currentUrl.split('#')[1]
         : 'N/A';
@@ -337,7 +337,7 @@ async function runSidebarClickTest() {
     );
     appendLog('='.repeat(150));
   } catch (err: any) {
-    appendLog(`\n❌ Lỗi nghiêm trọng khi thực thi test script: ${err.message}`);
+    appendLog(`\n Lỗi nghiêm trọng khi thực thi test script: ${err.message}`);
   } finally {
     // 3. Ghi file báo cáo kết quả ra txt
     const reportDir = path.join(process.cwd(), 'temp');
@@ -371,6 +371,6 @@ function sprintf(format: string, ...args: any[]): string {
 }
 
 runSidebarClickTest().catch((err) => {
-  console.error('❌ Unhandled error in sidebar test script:', err);
+  console.error(' Unhandled error in sidebar test script:', err);
   process.exit(1);
 });

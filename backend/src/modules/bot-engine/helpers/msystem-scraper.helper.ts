@@ -373,7 +373,7 @@ export async function scrapeInvestorDetailFromMSystem(
     return result;
 
   } catch (err: any) {
-    console.error(`  ❌ Lỗi khi scrape investor ${investorCode}: ${err.message}`);
+    console.error(`   Lỗi khi scrape investor ${investorCode}: ${err.message}`);
     return result;
   }
 }

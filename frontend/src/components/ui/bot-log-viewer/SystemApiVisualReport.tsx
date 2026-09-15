@@ -35,7 +35,7 @@ const summarizeLogText = (text: string): string => {
       .replace(/^Quét tự động lúc\s+[0-9-:\s]+:\s*/i, '');
 
     if (
-      cleanLine.startsWith('❌') ||
+      cleanLine.startsWith('') ||
       cleanLine.startsWith('') ||
       cleanLine.startsWith('✅') ||
       cleanLine.startsWith('•')

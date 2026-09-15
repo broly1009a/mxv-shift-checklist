@@ -271,7 +271,7 @@ async function runTest() {
 
     if (targetRowIndex === -1) {
       console.error(
-        `❌ Lỗi: Không tìm thấy dòng cho ngày 2026-07-14 trong file ${label}`,
+        ` Lỗi: Không tìm thấy dòng cho ngày 2026-07-14 trong file ${label}`,
       );
       mismatchCount++;
       return;
@@ -286,7 +286,7 @@ async function runTest() {
       const diff = Math.abs(writtenVal - expectedVal);
       if (diff > 0.01) {
         console.error(
-          `❌ BẤT ĐỒNG: [${code}] Lũy kế=${writtenVal.toLocaleString()} vs Kỳ vọng=${expectedVal.toLocaleString()} (Lệch: ${diff.toLocaleString()})`,
+          ` BẤT ĐỒNG: [${code}] Lũy kế=${writtenVal.toLocaleString()} vs Kỳ vọng=${expectedVal.toLocaleString()} (Lệch: ${diff.toLocaleString()})`,
         );
         mismatchCount++;
       } else {
@@ -364,7 +364,7 @@ async function runTest() {
     console.log('🎉🎉 THÀNH CÔNG: TẤT CẢ GIÁ TRỊ ĐÃ KHỚP 100% PARITY! 🎉🎉');
   } else {
     console.error(
-      `❌ THẤT BẠI: Có ${mismatchCount} lỗi lệch giá trị đối chiếu.`,
+      ` THẤT BẠI: Có ${mismatchCount} lỗi lệch giá trị đối chiếu.`,
     );
   }
   console.log('================================================');

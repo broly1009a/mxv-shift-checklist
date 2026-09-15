@@ -198,11 +198,19 @@ export class CqgSyncService {
         return !item || item.status === 'MISSING';
       });
 
-      if (missingRaw.length === rawKeys.length) {
-        const msg = ` Bỏ qua ghép ${name}.xlsx vì thiếu toàn bộ file nguồn: ${missingRaw.join(', ')}`;
-        this.logger.warn(msg);
-        logs.push(msg);
-        return;
+      if (missingRaw.length > 0) {
+        if (name === 'FR') {
+          const msg = `⚠️ Không ghép file FR.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.`;
+          this.logger.warn(msg);
+          logs.push(msg);
+          return;
+        }
+        if (missingRaw.length === rawKeys.length) {
+          const msg = `⚠️ Bỏ qua ghép ${name}.xlsx vì thiếu toàn bộ file nguồn: ${missingRaw.join(', ')}`;
+          this.logger.warn(msg);
+          logs.push(msg);
+          return;
+        }
       }
 
       try {
@@ -210,7 +218,7 @@ export class CqgSyncService {
         await mergeFn();
         logs.push(`✅ Ghép file ${name}.xlsx thành công.`);
       } catch (err: any) {
-        const msg = `❌ Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
+        const msg = ` Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
         this.logger.error(msg, err.stack);
         logs.push(msg);
       }
@@ -226,7 +234,7 @@ export class CqgSyncService {
         try {
           const stats = fs.statSync(targetPath);
           if (stats.size < 2500) return true; // File rỗng/hỏng (<2.5KB) -> Bắt buộc ghép lại
-        } catch {}
+        } catch { }
       }
 
       // Kiểm tra xem có file raw nào mới hơn file đã ghép không

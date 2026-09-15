@@ -53,7 +53,7 @@ class BaseReportPage(BasePage):
 
             self.page.wait_for_timeout(300) # Kiểm tra liên tục mỗi 300ms thay vì 1000ms để tối ưu tốc độ phản hồi
 
-        self.log("  ⚠️ Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
+        self.log("   Quá thời gian chờ loading bảng, tiếp tục tiến trình...")
         return False
 
     def set_date_range_and_search(self, start_date: str, end_date: str, exchange: str = "", member_code: str = "", acct_no: str = ""):
@@ -272,7 +272,7 @@ class BaseReportPage(BasePage):
                         member_inp.press("Enter")
                         self.wait_for_table_loading_complete(30000)
                 except Exception as e:
-                    self.log(f"  ⚠️ Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
+                    self.log(f"   Lỗi khi lọc Mã thành viên '{mb_code}': {e}")
 
         # 5. Điền lọc 'Mã TKGD / Số tiểu khoản' ở cột bộ lọc trong bảng Material React Table (nếu ô thanh công cụ phía trên chưa có)
         if acct_no and acct_no.strip() and not top_form_acct_filtered:
@@ -317,9 +317,9 @@ class BaseReportPage(BasePage):
                     acct_inp.press("Enter")
                     self.wait_for_table_loading_complete(30000)
                 else:
-                    self.log("  ⚠️ Không tìm thấy ô lọc Số tiểu khoản / Mã TKGD trên bảng.")
+                    self.log("   Không tìm thấy ô lọc Số tiểu khoản / Mã TKGD trên bảng.")
             except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi lọc Số tiểu khoản / Mã TKGD '{acc_val}': {e}")
+                self.log(f"   Lỗi khi lọc Số tiểu khoản / Mã TKGD '{acc_val}': {e}")
 
     def trigger_export_download(self, headless: bool = False, timeout_ms: int = 120000):
         """
@@ -352,7 +352,7 @@ class BaseReportPage(BasePage):
             export_btn = self.page.locator("xpath=//button[.//svg[@data-testid='FileDownloadIcon' or @data-testid='DownloadIcon']]").first
 
         if not export_btn.is_visible(timeout=5000):
-            self.log("  ❌ Không tìm thấy nút 'Kết xuất'")
+            self.log("   Không tìm thấy nút 'Kết xuất'")
             return None
 
         download_obj = None
@@ -398,10 +398,10 @@ class BaseReportPage(BasePage):
                 # Kiểm tra lại xem có Toast không có dữ liệu nổ muộn không
                 if check_no_data_toast() == "NO_DATA":
                     return "NO_DATA"
-                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] Hệ thống tạo file CSV quá lâu, chưa hoàn tất trong {timeout_ms/1000:.0f}s.")
+                self.log(f"   [Timeout {timeout_ms/1000:.0f}s] Hệ thống tạo file CSV quá lâu, chưa hoàn tất trong {timeout_ms/1000:.0f}s.")
                 download_obj = None
             except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi chọn 'Xuất tất cả': {e}")
+                self.log(f"   Lỗi khi chọn 'Xuất tất cả': {e}")
                 download_obj = None
         else:
             # --- PHƯƠNG ÁN 2 (FALLBACK): Kích đúp (Double-click) 2 lần vào nút Kết xuất ---
@@ -417,10 +417,10 @@ class BaseReportPage(BasePage):
             except PlaywrightTimeoutError:
                 if check_no_data_toast() == "NO_DATA":
                     return "NO_DATA"
-                self.log(f"  ⚠️ [Timeout {timeout_ms/1000:.0f}s] Quá thời gian chờ tải file khi kích đúp.")
+                self.log(f"   [Timeout {timeout_ms/1000:.0f}s] Quá thời gian chờ tải file khi kích đúp.")
                 download_obj = None
             except Exception as e:
-                self.log(f"  ⚠️ Lỗi khi kích đúp nút 'Kết xuất': {e}")
+                self.log(f"   Lỗi khi kích đúp nút 'Kết xuất': {e}")
                 download_obj = None
 
         self.capture_toast_notification()

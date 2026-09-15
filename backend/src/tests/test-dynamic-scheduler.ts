@@ -251,6 +251,6 @@ async function runTests() {
 }
 
 runTests().catch((err) => {
-  console.error('❌ Scheduler Test execution failed:', err);
+  console.error(' Scheduler Test execution failed:', err);
   process.exit(1);
 });

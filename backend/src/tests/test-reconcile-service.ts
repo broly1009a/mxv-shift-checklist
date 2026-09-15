@@ -29,7 +29,7 @@ async function bootstrap() {
       '============================================================\n',
     );
   } catch (err: any) {
-    console.error('❌ Service execution failed:', err);
+    console.error(' Service execution failed:', err);
   } finally {
     await app.close();
   }

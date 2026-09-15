@@ -75,8 +75,8 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
    - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
 
-5. **Tuyệt đối Không Dùng Unicode Emojis trên Giao diện UI (`📁`, `💡`, `⚡`, `🚀`, `🔘`, `👁️`...)**:
-   - Trên toàn bộ giao diện Frontend (Modal, Button, Card, Tag, Preview...), **tuyệt đối KHÔNG** chèn các ký tự icon emoji thô dạng Unicode (như `📁`, `💡`, `⚡`, `🚀`, `🔘`, `👁️`, `🟢`, `🔵`...).
+5. **Tuyệt đối Không Dùng Unicode Emojis trên Giao diện UI (`📁`, `💡`, `⚡`, ``, `🔘`, `👁️`...)**:
+   - Trên toàn bộ giao diện Frontend (Modal, Button, Card, Tag, Preview...), **tuyệt đối KHÔNG** chèn các ký tự icon emoji thô dạng Unicode (như `📁`, `💡`, `⚡`, ``, `🔘`, `👁️`, `🟢`, `🔵`...).
    - **Bắt buộc 100%** sử dụng các icon SVG chuẩn từ thư viện **`lucide-react`** (ví dụ: `import { Folder, Sparkles, Info, Calendar } from 'lucide-react'`) hoặc văn bản rõ nghĩa. Việc dùng emoji thô làm mất tính chuyên nghiệp (Enterprise Look & Feel) và gây vỡ layout/lỗi hiển thị màu sắc trên các nền tảng khác nhau.
 
 ---

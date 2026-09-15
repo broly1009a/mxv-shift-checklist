@@ -190,7 +190,7 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       await safeSave();
       return result;
     } catch (err: any) {
-      log(`❌ Lỗi chạy thống kê số lot: ${err.message}`);
+      log(` Lỗi chạy thống kê số lot: ${err.message}`);
       await safeSave();
       throw err;
     }

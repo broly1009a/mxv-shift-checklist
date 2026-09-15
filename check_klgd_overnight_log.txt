@@ -9,14 +9,14 @@ Tất cả các lượt quét đối chiếu tự động hàng giờ sẽ đư�
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 19:32:02 9/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (3328 lệnh):
+ Danh sách chênh lệch khớp lệnh (3328 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -39,7 +39,7 @@ Tất cả các lượt quét đối chiếu tự động hàng giờ sẽ đư�
    20. [MSystem] TK 068C0006699 | HĐ SBEH27 | Giá 19.21 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 3308 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (919 tài khoản):
+ Chênh lệch Tất toán TTTT (919 tài khoản):
    1. TK 001C0120368: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -66,7 +66,7 @@ Tất cả các lượt quét đối chiếu tự động hàng giờ sẽ đư�
 [LOG] [2026-09-09T12:28:52.356Z] MS ✅ Tải TTTT.xlsx thành công.
 [LOG] [2026-09-09T12:28:55.124Z] 2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...
 [LOG] [2026-09-09T12:28:55.125Z] CQG → Tải các báo cáo: FR1, FR2, OP1, OP2, PS1, PS2...
-[LOG] [2026-09-09T12:31:17.259Z] CQG ⚠️ Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
+[LOG] [2026-09-09T12:31:17.259Z] CQG  Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
 Call log:
 [2m  - navigating to "https://mdemo.cqg.com/cqg/desktop/logon?ref=forced", waiting until "load"[22m
  | CQG2 login thất bại: page.goto: Timeout 25000ms exceeded.
@@ -84,7 +84,7 @@ Call log:
 [LOG] [2026-09-09T12:31:19.478Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T12:31:19.526Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T12:31:19.909Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T12:31:21.077Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T12:31:21.077Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T12:31:24.090Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T12:31:26.386Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T12:31:56.719Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T12-31-56-602Z.png
@@ -92,28 +92,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T12:31:56.865Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T12:31:56.865Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T12:31:56.908Z] ⚠️ Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T12:31:56.908Z]  Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T12:32:02.030Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T12:32:02.030Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T12:32:02.031Z] Kết quả: LỆCH
-[LOG] [2026-09-09T12:32:02.113Z] ⚠️ Phát hiện 3328 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 002C2297518, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4550856, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8730114, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9967699, HĐ MZSX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C8246886, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0275999, HĐ KWEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2363113, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0046088, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C3885111, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C0006699, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C2788299, HĐ KCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0012024, HĐ KCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C0006699, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6851361, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8752762, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3633838, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5599999, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2244668, HĐ ZCEU26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T12:32:02.113Z]  Phát hiện 3328 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 002C2297518, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4550856, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8730114, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9967699, HĐ MZSX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C8246886, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0275999, HĐ KWEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0113545, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2363113, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0046088, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C3885111, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C0006699, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C2788299, HĐ KCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0012024, HĐ KCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C0006699, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6851361, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8752762, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3633838, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5599999, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2244668, HĐ ZCEU26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T12:32:02.113Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 20:37:05 9/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (4159 lệnh):
+ Danh sách chênh lệch khớp lệnh (4159 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -136,7 +136,7 @@ Call log:
    20. [MSystem] TK 036C0128387 | HĐ ZWAZ26 | Giá 742 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 4139 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (895 tài khoản):
+ Chênh lệch Tất toán TTTT (895 tài khoản):
    1. TK 001C0120368: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -163,7 +163,7 @@ Call log:
 [LOG] [2026-09-09T13:33:55.993Z] MS ✅ Tải TTTT.xlsx thành công.
 [LOG] [2026-09-09T13:33:58.780Z] 2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...
 [LOG] [2026-09-09T13:33:58.780Z] CQG → Tải các báo cáo: FR1, FR2, OP1, OP2, PS1, PS2...
-[LOG] [2026-09-09T13:36:20.932Z] CQG ⚠️ Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
+[LOG] [2026-09-09T13:36:20.932Z] CQG  Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
 Call log:
 [2m  - navigating to "https://mdemo.cqg.com/cqg/desktop/logon?ref=forced", waiting until "load"[22m
  | CQG2 login thất bại: page.goto: Timeout 25000ms exceeded.
@@ -181,7 +181,7 @@ Call log:
 [LOG] [2026-09-09T13:36:23.181Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T13:36:23.229Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T13:36:23.624Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T13:36:24.249Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T13:36:24.249Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T13:36:27.260Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T13:36:29.547Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T13:36:59.888Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T13-36-59-774Z.png
@@ -189,28 +189,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T13:37:00.060Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T13:37:00.060Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T13:37:00.111Z] ⚠️ Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T13:37:00.111Z]  Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T13:37:05.683Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T13:37:05.683Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T13:37:05.683Z] Kết quả: LỆCH
-[LOG] [2026-09-09T13:37:05.750Z] ⚠️ Phát hiện 4159 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 045C0000057, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C7256588, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C8888869, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0577819, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2185275, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8823080, HĐ XWZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5883038, HĐ MZLZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1693969, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1693969, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6849862, HĐ ZSEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0666869, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800059, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3874946, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0552138, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3613726, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0222280, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2559955, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 079C3101950, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 001C0123980, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5639116, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0243434, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T13:37:05.750Z]  Phát hiện 4159 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 045C0000057, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C7256588, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C8888869, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0577819, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2185275, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8823080, HĐ XWZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5883038, HĐ MZLZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1693969, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1693969, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6849862, HĐ ZSEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0666869, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800059, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3874946, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0552138, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3613726, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0222280, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2559955, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 079C3101950, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 001C0123980, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5639116, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0243434, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T13:37:05.750Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 21:42:07 9/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (5544 lệnh):
+ Danh sách chênh lệch khớp lệnh (5544 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -233,7 +233,7 @@ Call log:
    20. [MSystem] TK 068C2600303 | HĐ KWEZ26 | Giá 815.5 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 5524 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (844 tài khoản):
+ Chênh lệch Tất toán TTTT (844 tài khoản):
    1. TK 001C0120368: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -260,7 +260,7 @@ Call log:
 [LOG] [2026-09-09T14:38:57.603Z] MS ✅ Tải TTTT.xlsx thành công.
 [LOG] [2026-09-09T14:39:00.331Z] 2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...
 [LOG] [2026-09-09T14:39:00.331Z] CQG → Tải các báo cáo: FR1, FR2, OP1, OP2, PS1, PS2...
-[LOG] [2026-09-09T14:41:22.416Z] CQG ⚠️ Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
+[LOG] [2026-09-09T14:41:22.416Z] CQG  Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
 Call log:
 [2m  - navigating to "https://mdemo.cqg.com/cqg/desktop/logon?ref=forced", waiting until "load"[22m
  | CQG2 login thất bại: page.goto: Timeout 25000ms exceeded.
@@ -278,7 +278,7 @@ Call log:
 [LOG] [2026-09-09T14:41:24.666Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T14:41:24.714Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T14:41:25.110Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T14:41:25.699Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T14:41:25.699Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T14:41:28.712Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T14:41:30.993Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T14:42:01.301Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T14-42-01-210Z.png
@@ -286,28 +286,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T14:42:01.454Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T14:42:01.454Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T14:42:01.505Z] ⚠️ Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T14:42:01.505Z]  Có 3 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T14:42:06.860Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T14:42:06.860Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T14:42:06.860Z] Kết quả: LỆCH
-[LOG] [2026-09-09T14:42:06.947Z] ⚠️ Phát hiện 5544 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 001C0121865, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C9557016, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C7756068, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 069C0222888, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0019255, HĐ LRCX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 069C0113279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C6666868, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C2823349, HĐ ZCEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8865928, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0034466, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0943262, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C5686868, HĐ ZMEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4391546, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C2600303, HĐ KWEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6849862, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0296288, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C1822026, HĐ XWZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220985, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0015073, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2886678, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 079C3101950, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1485689, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C9193694, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T14:42:06.947Z]  Phát hiện 5544 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 001C0121865, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C9557016, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C7756068, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 069C0222888, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0019255, HĐ LRCX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 069C0113279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C6666868, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C2823349, HĐ ZCEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8865928, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0034466, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0943262, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C5686868, HĐ ZMEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4391546, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 068C2600303, HĐ KWEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6849862, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0296288, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C1822026, HĐ XWZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220985, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0015073, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2886678, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 079C3101950, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1485689, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C9193694, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T14:42:06.947Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 22:46:58 9/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (5550 lệnh):
+ Danh sách chênh lệch khớp lệnh (5550 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -330,7 +330,7 @@ Call log:
    20. [MSystem] TK 045C8932643 | HĐ ZCEZ26 | Giá 527 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 5530 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (818 tài khoản):
+ Chênh lệch Tất toán TTTT (818 tài khoản):
    1. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    2. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
    3. TK 001C0121198: MS = 1 vs CQG = 0 (Lệch: 1)
@@ -357,7 +357,7 @@ Call log:
 [LOG] [2026-09-09T15:43:56.917Z] MS ✅ Tải TTTT.xlsx thành công.
 [LOG] [2026-09-09T15:43:59.675Z] 2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...
 [LOG] [2026-09-09T15:43:59.676Z] CQG → Tải các báo cáo: FR1, FR2, OP1, OP2, PS1, PS2...
-[LOG] [2026-09-09T15:46:21.830Z] CQG ⚠️ Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
+[LOG] [2026-09-09T15:46:21.830Z] CQG  Lỗi: CQG1 login thất bại: page.goto: Timeout 25000ms exceeded.
 Call log:
 [2m  - navigating to "https://mdemo.cqg.com/cqg/desktop/logon?ref=forced", waiting until "load"[22m
  | CQG2 login thất bại: page.goto: Timeout 25000ms exceeded.
@@ -393,24 +393,24 @@ Call log:
 [LOG] [2026-09-09T15:46:51.864Z] ACM: Kích hoạt click xuất file báo cáo...
 [LOG] [2026-09-09T15:46:52.566Z] ACM: Tải và lưu file thành công: C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup MS\ACM\2026\T09.2026\09.09\Fill.xlsx
 [LOG] [2026-09-09T15:46:52.567Z] ACM ✅ Tải báo cáo Fill/Order thành công.
-[LOG] [2026-09-09T15:46:52.789Z] ⚠️ Có 2 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T15:46:52.789Z]  Có 2 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T15:46:58.486Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T15:46:58.486Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T15:46:58.487Z] Kết quả: LỆCH
-[LOG] [2026-09-09T15:46:58.554Z] ⚠️ Phát hiện 5550 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 012C4391546, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3915384, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 009C0386555, HĐ LRCX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C7556169, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0310183, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8705985, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220985, HĐ ZCEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0310183, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3634334, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C8932643, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0999279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0999279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8563538, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2389999, HĐ ZLEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1771122, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1821475, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0666869, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1771122, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3833939, HĐ SILN27: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T15:46:58.554Z]  Phát hiện 5550 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 012C4391546, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3915384, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 009C0386555, HĐ LRCX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C7556169, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0310183, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8705985, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220985, HĐ ZCEN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0128387, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0310183, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C4926867, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3634334, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C8932643, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0999279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0999279, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8563538, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2389999, HĐ ZLEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1771122, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1821475, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0666869, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1771122, HĐ ZWAN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3833939, HĐ SILN27: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T15:46:58.554Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 23:51:29 9/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (6105 lệnh):
+ Danh sách chênh lệch khớp lệnh (6105 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -433,7 +433,7 @@ Call log:
    20. [MSystem] TK 045C0758168 | HĐ ZCEZ26 | Giá 530.75 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 6085 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (810 tài khoản):
+ Chênh lệch Tất toán TTTT (810 tài khoản):
    1. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    2. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
    3. TK 001C0121198: MS = 1 vs CQG = 0 (Lệch: 1)
@@ -472,7 +472,7 @@ Call log:
 [LOG] [2026-09-09T16:50:47.149Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T16:50:47.198Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T16:50:47.562Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T16:50:48.293Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T16:50:48.293Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T16:50:51.303Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T16:50:53.625Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T16:51:23.936Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T16-51-23-845Z.png
@@ -480,21 +480,21 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T16:51:24.086Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T16:51:24.086Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T16:51:24.129Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T16:51:24.129Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T16:51:29.848Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T16:51:29.848Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T16:51:29.849Z] Kết quả: LỆCH
-[LOG] [2026-09-09T16:51:29.907Z] ⚠️ Phát hiện 6105 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 012C4703881, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C8952548, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0913576, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2516616, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C1011828, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0014552, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0004350, HĐ MZMZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C1825885, HĐ MZMZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8800023, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1008661, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3634334, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C2770569, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0758168, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2397879, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2957616, HĐ ZMEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C9988888, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3990033, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8730114, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0243434, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1228766, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T16:51:29.907Z]  Phát hiện 6105 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 012C4703881, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C8952548, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0913576, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2516616, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C1011828, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 007C0014552, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0004350, HĐ MZMZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C1825885, HĐ MZMZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8800023, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1008661, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3634334, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C2770569, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0758168, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2397879, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2957616, HĐ ZMEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0013579, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C9988888, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3990033, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8730114, HĐ SBEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0243434, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1228766, HĐ SBEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T16:51:29.907Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 00:08:21 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
@@ -513,7 +513,7 @@ Call log:
 [LOG] [2026-09-09T17:02:31.571Z] MS → Đang tải TTM.xlsx (Trạng thái mở)...
 [LOG] [2026-09-09T17:02:46.712Z] MS ✅ Tải TTM.xlsx thành công.
 [LOG] [2026-09-09T17:02:46.713Z] MS → Đang tải TTTT.xlsx (Trạng thái tất toán)...
-[LOG] [2026-09-09T17:04:51.920Z] MS ❌ Lỗi tải file MS: page.waitForSelector: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T17:04:51.920Z] MS  Lỗi tải file MS: page.waitForSelector: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('button.ladda-button:has(i.fa-file-csv), i.fa-file-csv, button:has(.fa-file-csv)') to be visible[22m
 
@@ -552,7 +552,7 @@ Call log:
 [LOG] [2026-09-09T17:08:16.926Z] ACM: Kích hoạt click xuất file báo cáo...
 [LOG] [2026-09-09T17:08:17.513Z] ACM: Tải và lưu file thành công: C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup MS\ACM\2026\T09.2026\10.09\Fill.xlsx
 [LOG] [2026-09-09T17:08:17.514Z] ACM ✅ Tải báo cáo Fill/Order thành công.
-[LOG] [2026-09-09T17:08:17.767Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T17:08:17.767Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T17:08:21.117Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T17:08:21.117Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T17:08:21.117Z] Kết quả: LỆCH
@@ -561,14 +561,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 00:56:25 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (6332 lệnh):
+ Danh sách chênh lệch khớp lệnh (6332 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -591,7 +591,7 @@ Call log:
    20. [MSystem] TK 072C9907636 | HĐ ZWAZ26 | Giá 732.5 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 6312 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (830 tài khoản):
+ Chênh lệch Tất toán TTTT (830 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -652,13 +652,13 @@ Call log:
 [LOG] [2026-09-09T17:56:25.670Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T17:56:25.671Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T17:56:25.671Z] Kết quả: LỆCH
-[LOG] [2026-09-09T17:56:25.730Z] ⚠️ Phát hiện 6332 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 001C0123989, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0656688, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0656688, HĐ XBX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2989372, HĐ ZLEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6074268, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1183814, HĐ ZLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4868069, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 081C9999628, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6989386, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C3363636, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 081C9996666, HĐ ZWAK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0012024, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0200263, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8683166, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0538156, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C3181979, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T17:56:25.730Z]  Phát hiện 6332 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 001C0123989, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0656688, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0656688, HĐ XBX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2989372, HĐ ZLEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6074268, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1183814, HĐ ZLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4868069, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 081C9999628, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6989386, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C3363636, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C9907636, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 081C9996666, HĐ ZWAK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0012024, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0200263, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8683166, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0538156, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C3181979, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T17:56:25.730Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 01:17:06 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
@@ -675,7 +675,7 @@ Call log:
 [LOG] [2026-09-09T18:09:17.318Z] MS → Đang tải DSGD.xlsx (Danh sách giao dịch)...
 [LOG] [2026-09-09T18:09:25.378Z] MS ✅ Tải DSGD.xlsx thành công.
 [LOG] [2026-09-09T18:09:25.378Z] MS → Đang tải TTM.xlsx (Trạng thái mở)...
-[LOG] [2026-09-09T18:13:28.485Z] MS ❌ Lỗi tải file MS: Không tìm thấy nút tải Excel/CSV hoặc timeout 60s khi tải Trạng thái mở trên M-System
+[LOG] [2026-09-09T18:13:28.485Z] MS  Lỗi tải file MS: Không tìm thấy nút tải Excel/CSV hoặc timeout 60s khi tải Trạng thái mở trên M-System
 [LOG] [2026-09-09T18:13:31.227Z] 2/3 - Đang tải dữ liệu từ CQG (FR1, FR2)...
 [LOG] [2026-09-09T18:13:31.227Z] CQG → Tải các báo cáo: FR1, FR2, OP1, OP2, PS1, PS2...
 [LOG] [2026-09-09T18:16:23.357Z] CQG ✅ Đã tải: FR1.xlsx, PS1.xlsx, OP1.xlsx, FR2.xlsx, PS2.xlsx, OP2.xlsx.
@@ -690,7 +690,7 @@ Call log:
 [LOG] [2026-09-09T18:16:25.627Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T18:16:25.676Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T18:16:26.067Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T18:16:26.781Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T18:16:26.781Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T18:16:29.794Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T18:16:32.078Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T18:17:02.410Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T18-17-02-303Z.png
@@ -698,11 +698,11 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T18:17:02.557Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T18:17:02.557Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T18:17:02.600Z] ⚠️ Có 2 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T18:17:02.600Z]  Có 2 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T18:17:06.045Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T18:17:06.045Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T18:17:06.046Z] Kết quả: LỆCH
@@ -711,14 +711,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 02:02:26 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (6450 lệnh):
+ Danh sách chênh lệch khớp lệnh (6450 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -741,7 +741,7 @@ Call log:
    20. [MSystem] TK 080C2226688 | HĐ SILZ26 | Giá 68.555 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 6430 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (826 tài khoản):
+ Chênh lệch Tất toán TTTT (826 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -825,20 +825,20 @@ Call log:
 [LOG] [2026-09-09T19:02:26.349Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T19:02:26.349Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T19:02:26.350Z] Kết quả: LỆCH
-[LOG] [2026-09-09T19:02:26.417Z] ⚠️ Phát hiện 6450 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0235389, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1189215, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1821475, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3926182, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8327988, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8801991, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ MHGV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3767767, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0677422, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3449596, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C1617251, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T19:02:26.417Z]  Phát hiện 6450 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0235389, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C1189215, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C1821475, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3926182, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8327988, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8801991, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C3079944, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ MHGV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C3767767, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0677422, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3449596, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C5397968, HĐ ZCEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C1617251, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T19:02:26.417Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 02:22:36 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Chênh lệch Tất toán TTTT (826 tài khoản):
+ Chênh lệch Tất toán TTTT (826 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -877,7 +877,7 @@ Call log:
 [LOG] [2026-09-09T19:21:53.595Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T19:21:53.635Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T19:21:54.021Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T19:21:54.736Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T19:21:54.736Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T19:21:57.747Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T19:22:00.061Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T19:22:30.419Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T19-22-30-287Z.png
@@ -885,11 +885,11 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T19:22:30.562Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T19:22:30.562Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T19:22:30.606Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T19:22:30.606Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T19:22:36.541Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T19:22:36.541Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T19:22:36.541Z] Kết quả: LỆCH
@@ -898,14 +898,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 03:07:25 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (6499 lệnh):
+ Danh sách chênh lệch khớp lệnh (6499 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -928,7 +928,7 @@ Call log:
    20. [MSystem] TK 045C0000057 | HĐ SILZ26 | Giá 67.97 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 6479 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (824 tài khoản):
+ Chênh lệch Tất toán TTTT (824 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -989,20 +989,20 @@ Call log:
 [LOG] [2026-09-09T20:07:25.332Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T20:07:25.332Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T20:07:25.332Z] Kết quả: LỆCH
-[LOG] [2026-09-09T20:07:25.406Z] ⚠️ Phát hiện 6499 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 080C6089664, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0366868, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5560005, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1682626, HĐ MQCZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T20:07:25.406Z]  Phát hiện 6499 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 080C6089664, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0366868, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C5560005, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 075C1682626, HĐ MQCZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T20:07:25.406Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 03:28:00 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Chênh lệch Tất toán TTTT (824 tài khoản):
+ Chênh lệch Tất toán TTTT (824 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1050,7 +1050,7 @@ Call log:
 [LOG] [2026-09-09T20:27:17.865Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T20:27:17.911Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T20:27:18.343Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T20:27:18.931Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T20:27:18.931Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T20:27:21.945Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T20:27:24.227Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T20:27:54.546Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T20-27-54-443Z.png
@@ -1058,11 +1058,11 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T20:27:54.697Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T20:27:54.697Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T20:27:54.741Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T20:27:54.741Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T20:28:00.551Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T20:28:00.551Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T20:28:00.551Z] Kết quả: LỆCH
@@ -1071,14 +1071,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 04:12:37 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (6511 lệnh):
+ Danh sách chênh lệch khớp lệnh (6511 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -1101,7 +1101,7 @@ Call log:
    20. [MSystem] TK 086C2699999 | HĐ SIEZ26 | Giá 67.91 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 6491 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (824 tài khoản):
+ Chênh lệch Tất toán TTTT (824 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1140,7 +1140,7 @@ Call log:
 [LOG] [2026-09-09T21:11:54.655Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T21:11:54.703Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T21:11:55.073Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T21:11:55.738Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T21:11:55.738Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T21:11:58.742Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T21:12:01.034Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T21:12:31.342Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T21-12-31-255Z.png
@@ -1148,28 +1148,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T21:12:31.487Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T21:12:31.487Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T21:12:31.532Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T21:12:31.532Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T21:12:37.504Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T21:12:37.504Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T21:12:37.505Z] Kết quả: LỆCH
-[LOG] [2026-09-09T21:12:37.571Z] ⚠️ Phát hiện 6511 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 075C1693969, HĐ MQCZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220157, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C6089664, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0366868, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T21:12:37.571Z]  Phát hiện 6511 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [MSystem] TK 075C1693969, HĐ MQCZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 011C0220157, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C6089664, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0366868, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C2226688, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T21:12:37.572Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 04:34:03 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Chênh lệch Tất toán TTTT (824 tài khoản):
+ Chênh lệch Tất toán TTTT (824 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1256,14 +1256,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 05:17:23 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (2321 lệnh):
+ Danh sách chênh lệch khớp lệnh (2321 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -1286,7 +1286,7 @@ Call log:
    20. [ACM] TK 046C0002363-A | HĐ F-XACM-NSI-202612 | Giá 66.325 | Qty 2: Giao dịch ACM không đồng bộ bên M-System
    ... và còn 2301 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (824 tài khoản):
+ Chênh lệch Tất toán TTTT (824 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1325,7 +1325,7 @@ Call log:
 [LOG] [2026-09-09T22:16:41.602Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T22:16:41.650Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T22:16:42.045Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T22:16:42.765Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T22:16:42.765Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T22:16:45.775Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T22:16:48.064Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T22:17:18.417Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T22-17-18-290Z.png
@@ -1333,28 +1333,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T22:17:18.566Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T22:17:18.566Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T22:17:18.609Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T22:17:18.609Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T22:17:22.950Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T22:17:22.950Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T22:17:22.951Z] Kết quả: LỆCH
-[LOG] [2026-09-09T22:17:23.027Z] ⚠️ Phát hiện 2321 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C7868397-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C6393979-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 086C7817384-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C6361486-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C1503661-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C0947827-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C3579999-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C0717797-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 068C0000368-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C4103239-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C5458154-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C7332668-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C7799422-A, HĐ F-XACM-NCP-202610: Giao dịch ACM không đồng bộ bên M-System
+[LOG] [2026-09-09T22:17:23.027Z]  Phát hiện 2321 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C7868397-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C6393979-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 086C7817384-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C6361486-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C1503661-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C0947827-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C3579999-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C0717797-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 068C0000368-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C4103239-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C5458154-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C7332668-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C7799422-A, HĐ F-XACM-NCP-202610: Giao dịch ACM không đồng bộ bên M-System
 [LOG] [2026-09-09T22:17:23.027Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 05:39:29 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (27 lệnh):
+ Danh sách chênh lệch khớp lệnh (27 lệnh):
    1. [MSystem] TK 003C2252009 | HĐ MHGZ26 | Giá 6.859 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    2. [MSystem] TK 072C8800023 | HĐ SILZ26 | Giá 67.92 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    3. [MSystem] TK 048C1735285 | HĐ SILZ26 | Giá 67.97 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
@@ -1377,7 +1377,7 @@ Call log:
    20. [Nano] TK 003C1234568-A | HĐ SI5COH27 | Giá 68.845 | Qty 1: Giao dịch M-System (tự doanh) không có bên cổng ACM
    ... và còn 7 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (823 tài khoản):
+ Chênh lệch Tất toán TTTT (823 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1416,7 +1416,7 @@ Call log:
 [LOG] [2026-09-09T22:38:47.994Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T22:38:48.043Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T22:38:48.427Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T22:38:49.258Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T22:38:49.258Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T22:38:52.259Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T22:38:54.545Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T22:39:24.890Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T22-39-24-765Z.png
@@ -1424,11 +1424,11 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T22:39:25.040Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T22:39:25.040Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T22:39:25.092Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T22:39:25.092Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T22:39:29.539Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T22:39:29.540Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T22:39:29.540Z] Kết quả: LỆCH
@@ -1465,14 +1465,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 06:22:29 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (2321 lệnh):
+ Danh sách chênh lệch khớp lệnh (2321 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
@@ -1495,7 +1495,7 @@ Call log:
    20. [ACM] TK 046C0002363-A | HĐ F-XACM-NSI-202612 | Giá 66.325 | Qty 2: Giao dịch ACM không đồng bộ bên M-System
    ... và còn 2301 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (825 tài khoản):
+ Chênh lệch Tất toán TTTT (825 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1534,7 +1534,7 @@ Call log:
 [LOG] [2026-09-09T23:21:48.576Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T23:21:48.627Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T23:21:49.015Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T23:21:49.753Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T23:21:49.753Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T23:21:52.762Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T23:21:55.050Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T23:22:25.363Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T23-22-25-276Z.png
@@ -1542,28 +1542,28 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T23:22:25.505Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T23:22:25.505Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T23:22:25.550Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T23:22:25.550Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T23:22:29.758Z] Khoảng thời gian lọc: từ 05:00:00 9/9/2026 đến 05:00:00 10/9/2026
 [LOG] [2026-09-09T23:22:29.758Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T23:22:29.758Z] Kết quả: LỆCH
-[LOG] [2026-09-09T23:22:29.815Z] ⚠️ Phát hiện 2321 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C7868397-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C6393979-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 086C7817384-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C6361486-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C1503661-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C0947827-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C3579999-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C0717797-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 068C0000368-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C4103239-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C5458154-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C7332668-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C7799422-A, HĐ F-XACM-NCP-202610: Giao dịch ACM không đồng bộ bên M-System
+[LOG] [2026-09-09T23:22:29.815Z]  Phát hiện 2321 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK MXVDEMO3, HĐ ZCEU26: Lệnh CQG không tìm thấy bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C7868397-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C6393979-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 086C7817384-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C6361486-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C0010390-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C1503661-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C0947827-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C1722364-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C3579999-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0000589-A, HĐ F-XACM-NCP-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 009C9577837-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C0717797-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002363-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 068C0000368-A, HĐ F-XACM-NSI-202701: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C4103239-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 046C0002619-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 085C5458154-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 012C7332668-A, HĐ F-XACM-NSI-202612: Giao dịch ACM không đồng bộ bên M-System | [ACM] TK 003C7799422-A, HĐ F-XACM-NCP-202610: Giao dịch ACM không đồng bộ bên M-System
 [LOG] [2026-09-09T23:22:29.816Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 06:44:29 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (66 lệnh):
+ Danh sách chênh lệch khớp lệnh (66 lệnh):
    1. [MSystem] TK 012C0113545 | HĐ MHGZ26 | Giá 6.853 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    2. [MSystem] TK 086C2699999 | HĐ SIEZ26 | Giá 67.88 | Qty 2: Giao dịch M-System không tìm thấy bên CQG
    3. [MSystem] TK 045C0000057 | HĐ SILZ26 | Giá 67.93 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
@@ -1586,7 +1586,7 @@ Call log:
    20. [MSystem] TK 012C8883456 | HĐ CPEZ26 | Giá 6.8505 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 46 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (825 tài khoản):
+ Chênh lệch Tất toán TTTT (825 tài khoản):
    1. TK 001C0120402: MS = 1 vs CQG = 0 (Lệch: 1)
    2. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    3. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
@@ -1625,7 +1625,7 @@ Call log:
 [LOG] [2026-09-09T23:43:48.237Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-09T23:43:48.291Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-09T23:43:48.626Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-09T23:43:49.317Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-09T23:43:49.317Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-09T23:43:52.328Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-09T23:43:54.620Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-09T23:44:24.936Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-09T23-44-24-848Z.png
@@ -1633,34 +1633,34 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-09T23:44:25.082Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-09T23:44:25.082Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-09T23:44:25.143Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-09T23:44:25.143Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-09T23:44:29.503Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-09T23:44:29.503Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-09T23:44:29.503Z] Kết quả: LỆCH
-[LOG] [2026-09-09T23:44:29.583Z] ⚠️ Phát hiện 66 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [MSystem] TK 012C0113545, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SIEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C6868686, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C6868686, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C7345999, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0636868, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4050202, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2252009, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8800023, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1665976, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-09T23:44:29.583Z]  Phát hiện 66 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [MSystem] TK 012C0113545, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 086C2699999, HĐ SIEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SIEH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C5153951, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C6868686, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 043C6868686, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C7345999, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0636868, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4870768, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C4050202, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C2252009, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C8800023, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C1735285, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C1665976, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8883456, HĐ CPEZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-09T23:44:29.583Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 08:20:32 10/9/2026 (Ngày phiên: 2026-09-09)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (4 lệnh):
+ Danh sách chênh lệch khớp lệnh (4 lệnh):
    1. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    2. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    3. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 510 | Qty 1: Lệnh CQG không tìm thấy bên M-System
    4. [CQG] TK MXVDEMO3 | HĐ ZCEU26 | Giá 511 | Qty 1: Lệnh CQG không tìm thấy bên M-System
 
-⚠️ Chênh lệch Tất toán TTTT (810 tài khoản):
+ Chênh lệch Tất toán TTTT (810 tài khoản):
    1. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    2. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
    3. TK 001C0121198: MS = 1 vs CQG = 0 (Lệch: 1)
@@ -1738,14 +1738,14 @@ Call log:
 ================================================================================
 ⏰ THỜI ĐIỂM CHẠY: 08:26:34 10/9/2026 (Ngày phiên: 2026-09-10)
 ================================================================================
-📊 KẾT QUẢ TỔNG QUÁT: ⚠️ CÓ CHÊNH LỆCH
+📊 KẾT QUẢ TỔNG QUÁT:  CÓ CHÊNH LỆCH
 
 --- BẢNG TỔNG HỢP SỐ LIỆU ---
 • KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
 • TTM : MS = 0 | CQG = 0 | ACM = 0
 • TTTT: MS = 0 | CQG = 0 | ACM = 0
 
-⚠️ Danh sách chênh lệch khớp lệnh (468 lệnh):
+ Danh sách chênh lệch khớp lệnh (468 lệnh):
    1. [MSystem] TK 012C2304183 | HĐ ZWAZ26 | Giá 727.25 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    2. [MSystem] TK 012C6555222 | HĐ MHGZ26 | Giá 6.859 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    3. [MSystem] TK 012C0000122 | HĐ CTEZ26 | Giá 87.15 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
@@ -1768,7 +1768,7 @@ Call log:
    20. [MSystem] TK 080C0701530 | HĐ ZLEZ26 | Giá 70.47 | Qty 1: Giao dịch M-System không tìm thấy bên CQG
    ... và còn 448 lệnh khác.
 
-⚠️ Chênh lệch Tất toán TTTT (811 tài khoản):
+ Chênh lệch Tất toán TTTT (811 tài khoản):
    1. TK 001C0120515: MS = 2 vs CQG = 0 (Lệch: 2)
    2. TK 001C0120555: MS = 10 vs CQG = 0 (Lệch: 10)
    3. TK 001C0121198: MS = 1 vs CQG = 0 (Lệch: 1)
@@ -1807,7 +1807,7 @@ Call log:
 [LOG] [2026-09-10T01:25:52.899Z] ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...
 [LOG] [2026-09-10T01:25:52.951Z] ACM: Khởi tạo phiên trình duyệt Playwright...
 [LOG] [2026-09-10T01:25:53.336Z] ACM: Truy cập trang đăng nhập ACM (lần 1/3): https://acm-etp.acmmex.com/exchange/index.html#/login
-[LOG] [2026-09-10T01:25:54.029Z] ACM: ⚠️ Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
+[LOG] [2026-09-10T01:25:54.029Z] ACM:  Máy chủ ACM phản hồi lỗi HTTP 502 (Bad Gateway). Tự động thử lại sau 3 giây...
 [LOG] [2026-09-10T01:25:57.031Z] ACM: Truy cập trang đăng nhập ACM (lần 2/3): https://acm-etp.acmmex.com/exchange/index.html#/login
 [LOG] [2026-09-10T01:25:59.308Z] ACM: Điền thông tin tài khoản: MXVRO
 [LOG] [2026-09-10T01:26:29.623Z] ACM: Đã chụp ảnh debug lỗi đăng nhập ACM tại temp/debug/acm-login-failed-2026-09-10T01-26-29-529Z.png
@@ -1815,15 +1815,15 @@ Call log:
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 
-[LOG] [2026-09-10T01:26:29.775Z] ACM ⚠️ Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
+[LOG] [2026-09-10T01:26:29.775Z] ACM  Lỗi tải file ACM: page.fill: Timeout 30000ms exceeded.
 Call log:
 [2m  - waiting for locator('input[placeholder="Username"]')[22m
 . Tiếp tục quy trình với file Straits.csv sẵn có.
-[LOG] [2026-09-10T01:26:29.819Z] ⚠️ Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
+[LOG] [2026-09-10T01:26:29.819Z]  Có 1 lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...
 [LOG] [2026-09-10T01:26:34.077Z] Khoảng thời gian lọc: từ 05:00:00 10/9/2026 đến 05:00:00 11/9/2026
 [LOG] [2026-09-10T01:26:34.077Z] Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.
 [LOG] [2026-09-10T01:26:34.077Z] Kết quả: LỆCH
-[LOG] [2026-09-10T01:26:34.172Z] ⚠️ Phát hiện 468 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [MSystem] TK 012C2304183, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6555222, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0000122, HĐ CTEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0552138, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0000086, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4666616, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6824543, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4330074, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C9879839, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800059, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C6001346, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800070, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0636315, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8151073, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8568888, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C2325589, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3833939, HĐ SILN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8504014, HĐ ZMEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C1082262, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C2274387, HĐ ZMEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8504014, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG
+[LOG] [2026-09-10T01:26:34.172Z]  Phát hiện 468 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [MSystem] TK 012C2304183, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C6555222, HĐ MHGZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C0000122, HĐ CTEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0552138, HĐ ZWAZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C0000086, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4666616, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6824543, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C4330074, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C9879839, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800059, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C6001346, HĐ ZWAH27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 072C6800070, HĐ ZSEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 003C0636315, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5329119, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C0000057, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C8151073, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZLEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8568888, HĐ PLEV26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 048C2325589, HĐ ZSEX26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C3833939, HĐ SILN27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8504014, HĐ ZMEK27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 036C1082262, HĐ ZCEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 045C2274387, HĐ ZMEF27: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 002C5355872, HĐ SILZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 012C8504014, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG | [MSystem] TK 080C0701530, HĐ ZMEZ26: Giao dịch M-System không tìm thấy bên CQG
 [LOG] [2026-09-10T01:26:34.172Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
 ================================================================================

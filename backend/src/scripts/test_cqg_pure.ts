@@ -117,7 +117,7 @@ async function run() {
   await mongoose.disconnect();
 
   if (!setting || !setting.value) {
-    console.error('❌ Không tìm thấy bot_credentials_cqg trong CSDL MongoDB!');
+    console.error(' Không tìm thấy bot_credentials_cqg trong CSDL MongoDB!');
     process.exit(1);
   }
 
@@ -135,7 +135,7 @@ async function run() {
       if (key === 'bot_credentials_cqg') return rawEncryptedCreds;
       return def;
     },
-    setSetting: async () => {},
+    setSetting: async () => { },
   };
 
   const rpaDownloader = new RpaDownloaderService(mockSettingsService);
@@ -162,7 +162,7 @@ async function run() {
     console.log('======================================================================\n');
 
     if (result.errors && result.errors.length > 0) {
-      console.log('⚠️ Cảnh báo / lỗi phát sinh:');
+      console.log(' Cảnh báo / lỗi phát sinh:');
       result.errors.forEach((e) => console.log(`   - ${e}`));
       console.log('');
     }
@@ -181,7 +181,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? '✅ CHUẨN' : '❌ LỆCH';
+      const statusStr = a.isMatch ? '✅ CHUẨN' : ' LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -198,7 +198,7 @@ async function run() {
     for (let i = 0; i < analyses.length; i++) {
       for (let j = i + 1; j < analyses.length; j++) {
         if (analyses[i].md5 && analyses[i].md5 === analyses[j].md5) {
-          console.log(`   ❌ PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
+          console.log(`    PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
           hasDuplicate = true;
         }
       }
@@ -215,10 +215,10 @@ async function run() {
       console.log('   🎉 BUG ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ! Không còn hiện tượng các file bị tải nhầm thành Positions.');
       console.log(`   📂 File thực tế được lưu tại: ${destDir}`);
     } else {
-      console.log('   ⚠️ Vẫn còn file chưa khớp hoặc bị trùng lặp, vui lòng kiểm tra lại log chi tiết ở trên.');
+      console.log('    Vẫn còn file chưa khớp hoặc bị trùng lặp, vui lòng kiểm tra lại log chi tiết ở trên.');
     }
   } catch (err: any) {
-    console.error(`❌ Lỗi thực thi: ${err.message}`);
+    console.error(` Lỗi thực thi: ${err.message}`);
   }
 }
 

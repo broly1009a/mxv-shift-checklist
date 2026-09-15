@@ -103,7 +103,7 @@ async function main() {
     console.log('✅ Task status updated successfully!');
   } catch (err: any) {
     console.error(
-      '❌ Error executing Pre-EOD active check:',
+      ' Error executing Pre-EOD active check:',
       err.message,
       err.stack,
     );

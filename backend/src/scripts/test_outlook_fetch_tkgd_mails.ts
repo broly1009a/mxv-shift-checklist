@@ -37,11 +37,11 @@ async function main() {
   console.log(`  - Client ID:        ${clientId ? clientId.slice(0, 8) + '...' : '(Chưa cấu hình)'}`);
   console.log(`  - Tenant ID:        ${tenantId ? tenantId.slice(0, 8) + '...' : 'common'}`);
   console.log(`  - Watcher Email:    ${watcherEmail || '(Chưa cấu hình)'}`);
-  console.log(`  - Client Secret:    ${clientSecret ? '✅ Đã có' : '❌ Chưa có'}`);
-  console.log(`  - Refresh Token:    ${refreshToken ? '✅ Đã có trong DB' : '❌ Chưa có'}`);
+  console.log(`  - Client Secret:    ${clientSecret ? '✅ Đã có' : ' Chưa có'}`);
+  console.log(`  - Refresh Token:    ${refreshToken ? '✅ Đã có trong DB' : ' Chưa có'}`);
 
   if (!refreshToken) {
-    console.log('\n❌ Lỗi: Không tìm thấy Refresh Token M365 trong Database (key: m365_refresh_token).');
+    console.log('\n Lỗi: Không tìm thấy Refresh Token M365 trong Database (key: m365_refresh_token).');
     console.log('👉 Vui lòng vào trang Web Admin -> Quản lý Bot / Cấu hình M365 để đăng nhập cấp quyền Microsoft.');
     await mongoose.disconnect();
     return;
@@ -65,7 +65,7 @@ async function main() {
 
   if (!tokenRes.ok) {
     const errText = await tokenRes.text();
-    console.error(`\n❌ Đổi Access Token thất bại (HTTP ${tokenRes.status}): ${errText}`);
+    console.error(`\n Đổi Access Token thất bại (HTTP ${tokenRes.status}): ${errText}`);
     await mongoose.disconnect();
     return;
   }
@@ -103,7 +103,7 @@ async function main() {
 
   if (!msgRes.ok) {
     const errText = await msgRes.text();
-    console.error(`\n❌ Không lấy được danh sách thư (HTTP ${msgRes.status}): ${errText}`);
+    console.error(`\n Không lấy được danh sách thư (HTTP ${msgRes.status}): ${errText}`);
     await mongoose.disconnect();
     return;
   }

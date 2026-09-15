@@ -2636,7 +2636,7 @@ export class RpaDownloaderService {
 
               sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
                 if (err) {
-                  await log(`❌ Lỗi tải file ${item.filename}: ${err.message}`);
+                  await log(` Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
@@ -2651,7 +2651,7 @@ export class RpaDownloaderService {
       });
 
       conn.on('error', async (err: Error) => {
-        await log(`❌ Lỗi kết nối SFTP: ${err.message}`);
+        await log(` Lỗi kết nối SFTP: ${err.message}`);
         reject(err);
       });
 
@@ -2677,7 +2677,7 @@ export class RpaDownloaderService {
           },
         });
       } catch (err: any) {
-        log(`❌ Lỗi khởi chạy conn.connect: ${err.message}`);
+        log(` Lỗi khởi chạy conn.connect: ${err.message}`);
         reject(err);
       }
     });

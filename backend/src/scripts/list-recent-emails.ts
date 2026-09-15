@@ -6,7 +6,7 @@ import { AppModule } from '../app.module';
 import { EmailWatcherService } from '../modules/bot-engine/email-watcher.service';
 
 async function run() {
-  console.log('🚀 Booting NestJS Application Context to fetch last 15 emails...');
+  console.log(' Booting NestJS Application Context to fetch last 15 emails...');
   const appContext = await NestFactory.createApplicationContext(AppModule);
   const emailWatcher = appContext.get(EmailWatcherService);
 
@@ -42,7 +42,7 @@ async function run() {
     });
 
   } catch (err: any) {
-    console.error(`\n❌ Error fetching emails:`, err.message);
+    console.error(`\n Error fetching emails:`, err.message);
   } finally {
     await appContext.close();
     process.exit(0);
@@ -50,6 +50,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('❌ Critical error:', err);
+  console.error(' Critical error:', err);
   process.exit(1);
 });

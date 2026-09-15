@@ -209,7 +209,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
       await safeSave();
       return { outputPath };
     } catch (err: any) {
-      log(`❌ Lỗi chạy báo cáo thống kê CCP: ${err.message}`);
+      log(` Lỗi chạy báo cáo thống kê CCP: ${err.message}`);
       await safeSave();
       throw err;
     }

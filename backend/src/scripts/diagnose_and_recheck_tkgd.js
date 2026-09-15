@@ -53,7 +53,7 @@ conn.on('ready', async () => {
     // 2. Nếu có cờ --reparse-missing: Kích hoạt reparse cho các tài khoản thiếu CCCD
     if (shouldReparseMissing && missingCodes.length > 0) {
       console.log('\n' + '='.repeat(90));
-      console.log(`🚀 BẮT ĐẦU TÁI BÓC TÁCH (REPARSE VỚI QR CODE & GEMINI VISION) CHO ${missingCodes.length} HỒ SƠ:`);
+      console.log(` BẮT ĐẦU TÁI BÓC TÁCH (REPARSE VỚI QR CODE & GEMINI VISION) CHO ${missingCodes.length} HỒ SƠ:`);
       console.log('='.repeat(90));
 
       for (let i = 0; i < missingCodes.length; i++) {
@@ -91,7 +91,7 @@ conn.on('ready', async () => {
     }
 
   } catch (err) {
-    console.error('❌ Lỗi thực thi:', err.message);
+    console.error(' Lỗi thực thi:', err.message);
   } finally {
     conn.end();
   }
@@ -142,7 +142,7 @@ function isGarbageName(s) {
 function analyzeRecords(rawOut) {
   const match = rawOut.match(/###DATA_START###([\s\S]*?)###DATA_END###/);
   if (!match) {
-    console.error('❌ Không bóc tách được dữ liệu từ MongoDB:', rawOut);
+    console.error(' Không bóc tách được dữ liệu từ MongoDB:', rawOut);
     return { stats: {}, reevaluatedList: [], missingCodes: [] };
   }
 
@@ -150,7 +150,7 @@ function analyzeRecords(rawOut) {
   try {
     records = JSON.parse(match[1]);
   } catch (e) {
-    console.error('❌ Lỗi parse JSON:', e.message);
+    console.error(' Lỗi parse JSON:', e.message);
     return { stats: {}, reevaluatedList: [], missingCodes: [] };
   }
 
@@ -158,7 +158,7 @@ function analyzeRecords(rawOut) {
   console.log(`   - Tổng số hồ sơ: ${records.length}`);
   const khopList = records.filter(r => r.ketLuan?.trangThai === 'KHOP');
   const lechList = records.filter(r => r.ketLuan?.trangThai === 'LECH' || !r.ketLuan?.trangThai);
-  console.log(`   - Trạng thái hiện tại: ✅ KHỚP: ${khopList.length} | ❌ LỆCH / CHƯA XỬ LÝ: ${lechList.length}`);
+  console.log(`   - Trạng thái hiện tại: ✅ KHỚP: ${khopList.length} |  LỆCH / CHƯA XỬ LÝ: ${lechList.length}`);
 
   console.log('\n' + '='.repeat(90));
   console.log('🔍 PHÂN LOẠI CHI TIẾT CÁC NGUYÊN NHÂN GÂY LỆCH HIỆN TẠI:');

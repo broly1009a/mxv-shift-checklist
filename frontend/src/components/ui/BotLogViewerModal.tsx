@@ -38,23 +38,41 @@ export default function BotLogViewerModal({
   const { token } = useAuth();
 
   useEffect(() => {
-    if (isOpen && shiftLogId && taskId && token) {
-      fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?shiftLogId=${shiftLogId}&taskId=${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            setHistoryJobs(data);
-            if (data.length > 0) {
-              setSelectedJobId(data[0]._id || data[0].id);
+    if (!isOpen || !shiftLogId || !taskId || !token) return;
+
+    let isSubscribed = true;
+    let pollTimer: NodeJS.Timeout | null = null;
+
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?shiftLogId=${shiftLogId}&taskId=${taskId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (!isSubscribed) return;
+        if (Array.isArray(data)) {
+          setHistoryJobs(data);
+          if (data.length > 0) {
+            setSelectedJobId(prev => prev || data[0]._id || data[0].id);
+            const latestStatus = data[0].status;
+            if (latestStatus === 'PROCESSING' || latestStatus === 'PENDING') {
+              pollTimer = setTimeout(fetchJobs, 1500);
             }
           }
-        })
-        .catch(err => console.error('Lỗi tải lịch sử chạy bot:', err));
-    }
+        }
+      } catch (err) {
+        console.error('Lỗi tải lịch sử chạy bot:', err);
+      }
+    };
+
+    fetchJobs();
+
+    return () => {
+      isSubscribed = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [isOpen, shiftLogId, taskId, token]);
 
   const selectedJob = useMemo(() => {
@@ -589,8 +607,8 @@ export default function BotLogViewerModal({
       }
 
       // Pattern 3: Download failure
-      // e.g. "❌ Lỗi khi tải QLTKGDAmKQ.xlsx: page.waitForSelector: Timeout 15000ms exceeded..."
-      const failMatch = trimmed.match(/(?:❌\s*)?Lỗi khi tải\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s*:\s*(.*)/i);
+      // e.g. " Lỗi khi tải QLTKGDAmKQ.xlsx: page.waitForSelector: Timeout 15000ms exceeded..."
+      const failMatch = trimmed.match(/(?:\s*)?Lỗi khi tải\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s*:\s*(.*)/i);
       if (failMatch) {
         const filename = failMatch[1].trim();
         const errorDetail = failMatch[2].trim();

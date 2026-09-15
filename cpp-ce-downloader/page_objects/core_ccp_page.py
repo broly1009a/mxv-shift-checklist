@@ -51,9 +51,9 @@ class CoreCCPPage(BaseReportPage):
                 if self.page.locator("xpath=//button[contains(., 'Tìm kiếm')] | //button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]").first.is_visible(timeout=3000):
                     return target_url
                 else:
-                    self.log("  ⚠️ Mở URL trực tiếp chưa tải xong bảng báo cáo, chuyển sang click Menu...")
+                    self.log("   Mở URL trực tiếp chưa tải xong bảng báo cáo, chuyển sang click Menu...")
             except Exception as e:
-                self.log(f"  ⚠️ URL cached không phản hồi ({e}), chuyển sang điều hướng Menu...")
+                self.log(f"   URL cached không phản hồi ({e}), chuyển sang điều hướng Menu...")
 
         self.ensure_sidebar_expanded()
 
@@ -121,7 +121,7 @@ class CoreCCPPage(BaseReportPage):
                         self.page.wait_for_timeout(2000)
                         break
         except Exception as ex:
-            self.log(f"  ⚠️ Lỗi click menu: {ex}")
+            self.log(f"   Lỗi click menu: {ex}")
 
         learned_url = self.page.url
         self.log(f"  ✓ URL hiện tại: {learned_url}")

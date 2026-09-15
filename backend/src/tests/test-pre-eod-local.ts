@@ -71,13 +71,13 @@ async function testPreEod() {
       });
     }
   } catch (err: any) {
-    console.error('❌ Lỗi khi thực hiện đối chiếu:', err);
+    console.error(' Lỗi khi thực hiện đối chiếu:', err);
   } finally {
     await app.close();
   }
 }
 
 testPreEod().catch((err) => {
-  console.error('❌ Lỗi nghiêm trọng:', err);
+  console.error(' Lỗi nghiêm trọng:', err);
   process.exit(1);
 });

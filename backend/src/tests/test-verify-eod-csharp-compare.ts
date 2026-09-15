@@ -26,12 +26,12 @@ async function main() {
   const cqgPath = path.join(cqgDir, 'Accounts_Balances.xlsx');
 
   console.log(' Kiểm tra tệp dữ liệu thực tế:');
-  console.log(`• QLTKGD:   ${fs.existsSync(qltkgdPath) ? '✅ Đã tìm thấy' : '❌ Thiếu'}`);
-  console.log(`• EOD CSV:  ${fs.existsSync(eodPath) ? '✅ Đã tìm thấy' : '❌ Thiếu'}`);
-  console.log(`• CQG Bal:  ${fs.existsSync(cqgPath) ? '✅ Đã tìm thấy' : '❌ Thiếu'}`);
+  console.log(`• QLTKGD:   ${fs.existsSync(qltkgdPath) ? '✅ Đã tìm thấy' : ' Thiếu'}`);
+  console.log(`• EOD CSV:  ${fs.existsSync(eodPath) ? '✅ Đã tìm thấy' : ' Thiếu'}`);
+  console.log(`• CQG Bal:  ${fs.existsSync(cqgPath) ? '✅ Đã tìm thấy' : ' Thiếu'}`);
 
   if (!fs.existsSync(qltkgdPath) || !fs.existsSync(eodPath)) {
-    console.error('\n❌ Không tìm thấy đủ file để chạy test!');
+    console.error('\n Không tìm thấy đủ file để chạy test!');
     process.exit(1);
   }
 
@@ -186,7 +186,7 @@ async function main() {
     myrLoss: 1,
     myrGain: 2,
   });
-  console.log(`\n🔴 KỊCH BẢN 1 (Dùng tỷ giá tĩnh cũ C# 25,220):`);
+  console.log(`\n KỊCH BẢN 1 (Dùng tỷ giá tĩnh cũ C# 25,220):`);
   console.log(`   • Số tài khoản bị lệch EOD (>= 1,000đ): ${oldMismatches.length} tài khoản`);
   if (oldMismatches.length > 0) {
     console.log(`   • Ví dụ 3 TK lệch đầu tiên:`);

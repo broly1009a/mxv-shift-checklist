@@ -136,6 +136,6 @@ async function runRpaTests() {
 }
 
 runRpaTests().catch((err) => {
-  console.error('❌ RPA Test execution failed:', err);
+  console.error(' RPA Test execution failed:', err);
   process.exit(1);
 });

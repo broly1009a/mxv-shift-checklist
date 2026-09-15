@@ -51,7 +51,7 @@ async function fetchUbuntuCqgCredentials(): Promise<any> {
       let output = '';
 
       const timer = setTimeout(() => {
-        try { conn.end(); } catch {}
+        try { conn.end(); } catch { }
         resolve(null);
       }, 8000);
 
@@ -101,7 +101,7 @@ async function fetchUbuntuCqgCredentials(): Promise<any> {
             if (match) {
               try {
                 return resolve(JSON.parse(match[1]));
-              } catch {}
+              } catch { }
             }
             resolve(null);
           });
@@ -238,17 +238,17 @@ async function run() {
     // Đồng bộ lại vào settings để rpaDownloader sử dụng trực tiếp
     await settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(ubuntuCreds)));
   } else {
-    console.log('⚠️ Không kết nối được SSH Ubuntu, sử dụng bot_credentials_cqg từ CSDL cục bộ.');
+    console.log(' Không kết nối được SSH Ubuntu, sử dụng bot_credentials_cqg từ CSDL cục bộ.');
     const credRaw = await settingsService.getSetting('bot_credentials_cqg', '');
     if (!credRaw) {
-      console.error('❌ Chưa cấu hình bot_credentials_cqg trong Settings.');
+      console.error(' Chưa cấu hình bot_credentials_cqg trong Settings.');
       await app.close();
       process.exit(1);
     }
     try {
       creds = JSON.parse(decrypt(credRaw));
     } catch (err: any) {
-      console.error(`❌ Lỗi giải mã bot_credentials_cqg: ${err.message}`);
+      console.error(` Lỗi giải mã bot_credentials_cqg: ${err.message}`);
       await app.close();
       process.exit(1);
     }
@@ -285,21 +285,21 @@ async function run() {
 
   const expectedList: Array<{ file: string; type: string }> = isAll
     ? [
-        { file: 'FR1.xlsx', type: 'FR' },
-        { file: 'PS1.xlsx', type: 'PS' },
-        { file: 'OP1.xlsx', type: 'OP' },
-        { file: 'OD1.xlsx', type: 'OD' },
-        { file: 'FR2.xlsx', type: 'FR' },
-        { file: 'PS2.xlsx', type: 'PS' },
-        { file: 'OP2.xlsx', type: 'OP' },
-        { file: 'OD2.xlsx', type: 'OD' },
-      ]
+      { file: 'FR1.xlsx', type: 'FR' },
+      { file: 'PS1.xlsx', type: 'PS' },
+      { file: 'OP1.xlsx', type: 'OP' },
+      { file: 'OD1.xlsx', type: 'OD' },
+      { file: 'FR2.xlsx', type: 'FR' },
+      { file: 'PS2.xlsx', type: 'PS' },
+      { file: 'OP2.xlsx', type: 'OP' },
+      { file: 'OD2.xlsx', type: 'OD' },
+    ]
     : [
-        { file: 'FR1.xlsx', type: 'FR' },
-        { file: 'PS1.xlsx', type: 'PS' },
-        { file: 'OP1.xlsx', type: 'OP' },
-        { file: 'OD1.xlsx', type: 'OD' },
-      ];
+      { file: 'FR1.xlsx', type: 'FR' },
+      { file: 'PS1.xlsx', type: 'PS' },
+      { file: 'OP1.xlsx', type: 'OP' },
+      { file: 'OD1.xlsx', type: 'OD' },
+    ];
 
   try {
     const result = await rpaDownloader.downloadCqgBackup(reportsToDownload, destDir);
@@ -309,7 +309,7 @@ async function run() {
     console.log('======================================================================\n');
 
     if (result.errors && result.errors.length > 0) {
-      console.log('⚠️ Các cảnh báo/lỗi trong quá trình tải:');
+      console.log(' Các cảnh báo/lỗi trong quá trình tải:');
       result.errors.forEach((e) => console.log(`   - ${e}`));
       console.log('');
     }
@@ -328,7 +328,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? '✅ CHUẨN' : '❌ LỆCH';
+      const statusStr = a.isMatch ? '✅ CHUẨN' : ' LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -345,7 +345,7 @@ async function run() {
     for (let i = 0; i < analyses.length; i++) {
       for (let j = i + 1; j < analyses.length; j++) {
         if (analyses[i].md5 && analyses[i].md5 === analyses[j].md5) {
-          console.log(`   ❌ PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
+          console.log(`    PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
           hasDuplicate = true;
         }
       }
@@ -362,10 +362,10 @@ async function run() {
       console.log('   🎉 BUG ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ! Không còn hiện tượng các file bị tải nhầm thành Positions.');
       console.log(`   📂 File thực tế được lưu tại: ${destDir}`);
     } else {
-      console.log('   ⚠️ Vẫn còn file chưa khớp hoặc bị trùng lặp, vui lòng kiểm tra lại log chi tiết ở trên.');
+      console.log('    Vẫn còn file chưa khớp hoặc bị trùng lặp, vui lòng kiểm tra lại log chi tiết ở trên.');
     }
   } catch (err: any) {
-    console.error(`❌ Lỗi thực thi script kiểm thử: ${err.message}`);
+    console.error(` Lỗi thực thi script kiểm thử: ${err.message}`);
   } finally {
     await app.close();
     console.log('\nĐã hoàn tất phiên kiểm thử.\n');

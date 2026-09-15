@@ -102,6 +102,6 @@ async function runBotTests() {
 }
 
 runBotTests().catch((err) => {
-  console.error('❌ Bot Test execution failed:', err);
+  console.error(' Bot Test execution failed:', err);
   process.exit(1);
 });

@@ -161,7 +161,7 @@ async function runCcpDownloadTest() {
     await page.waitForTimeout(10000);
 
   } catch (err: any) {
-    console.error('❌ Error during Playwright execution:', err);
+    console.error(' Error during Playwright execution:', err);
     try {
       const errScreenshotPath = path.join(process.cwd(), 'uploads', 'ccp-mm-error.png');
       await page.screenshot({ path: errScreenshotPath });
@@ -178,6 +178,6 @@ async function runCcpDownloadTest() {
 }
 
 runCcpDownloadTest().catch((err) => {
-  console.error('❌ Execution failed:', err);
+  console.error(' Execution failed:', err);
   process.exit(1);
 });

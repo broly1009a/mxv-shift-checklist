@@ -12,7 +12,7 @@ const MONGODB_URI =
 
 async function main() {
   console.log('='.repeat(70));
-  console.log('🚀 KIỂM THỬ MODULE 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL TEMPLATE');
+  console.log(' KIỂM THỬ MODULE 3: ĐỐI SOÁT CHÉO & XUẤT FILE EXCEL TEMPLATE');
   console.log('='.repeat(70));
 
   // 1. Kết nối MongoDB

@@ -35,7 +35,7 @@ async function runVisualTest() {
 
   const setting = await db.collection('system_settings').findOne({ key: 'bot_credentials_msystem' });
   if (!setting) {
-    console.error('❌ Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
+    console.error(' Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
     await mongoose.disconnect();
     return;
   }
@@ -44,7 +44,7 @@ async function runVisualTest() {
   try {
     credentials = JSON.parse(decrypt(setting.value));
   } catch (e) {
-    console.error('❌ Lỗi giải mã credentials:', e.message);
+    console.error(' Lỗi giải mã credentials:', e.message);
     await mongoose.disconnect();
     return;
   }
@@ -193,7 +193,7 @@ async function runVisualTest() {
     console.log(`-> Tên file gốc M-System: "${ttmSuggested}"`);
 
     if (!/^trang-thai-mo/i.test(ttmSuggested)) {
-      console.error(`❌ CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-mo': ${ttmSuggested}`);
+      console.error(` CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-mo': ${ttmSuggested}`);
     } else {
       console.log(`✅ Khớp tiền tố chuẩn C#: ^trang-thai-mo`);
     }
@@ -221,7 +221,7 @@ async function runVisualTest() {
     console.log(`-> Tên file gốc M-System: "${ttttSuggested}"`);
 
     if (!/^trang-thai-tat-toan/i.test(ttttSuggested)) {
-      console.error(`❌ CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-tat-toan': ${ttttSuggested}`);
+      console.error(` CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-tat-toan': ${ttttSuggested}`);
     } else {
       console.log(`✅ Khớp tiền tố chuẩn C#: ^trang-thai-tat-toan`);
     }
@@ -295,14 +295,14 @@ async function runVisualTest() {
       console.log(`   - Không còn hiện tượng tải trùng lặp TTM vào TTTT.`);
       console.log(`   - File TTTT có đúng các cột ghép lệnh và số lot ACM: ${acmBuyLots} lot.`);
     } else {
-      console.log(`\n❌ KẾT QUẢ: 2 file vẫn bị trùng tên gốc.`);
+      console.log(`\n KẾT QUẢ: 2 file vẫn bị trùng tên gốc.`);
     }
     console.log('=============================================================\n');
 
   } catch (err) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH TEST:', err.message);
+    console.error('\n LỖI TRONG QUÁ TRÌNH TEST:', err.message);
     const snapErr = path.join(testOutputDir, 'snap_error.png');
-    await page.screenshot({ path: snapErr, fullPage: false }).catch(() => {});
+    await page.screenshot({ path: snapErr, fullPage: false }).catch(() => { });
     console.log(`📸 Đã chụp snapshot lỗi tại: ${snapErr}`);
   } finally {
     console.log('Đóng trình duyệt sau 3 giây...');
